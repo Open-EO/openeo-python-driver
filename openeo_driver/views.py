@@ -29,3 +29,14 @@ def point():
         return jsonify(image_collection.timeseries(x, y, srs))
     else:
         return 'Usage: Query point timeseries using POST.'
+
+@app.route('/v0.1/tile_service', methods=['GET', 'POST'])
+def tile_service():
+    if request.method == 'POST':
+        print("Handling request: "+str(request))
+        print("Post data: "+str(request.data))
+        process_graph = request.get_json()
+        image_collection = graphToRdd(process_graph, None)
+        return jsonify(image_collection.tiled_viewing_service())
+    else:
+        return 'Usage: Retrieve tile service endpoint.'

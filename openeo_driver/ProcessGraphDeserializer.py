@@ -1,17 +1,18 @@
 import base64
+import importlib
 import json
+import os
 import pickle
 from typing import Dict
 
 from openeo import ImageCollection
-import os
-import importlib
+
 
 def getImageCollection(product_id:str, viewingParameters):
     raise "Please provide getImageCollection method in your base package."
 
 i = importlib.import_module(os.getenv('DRIVER_IMPLEMENTATION_PACKAGE', "openeogeotrellis"))
-
+getImageCollection = i.getImageCollection
 
 
 

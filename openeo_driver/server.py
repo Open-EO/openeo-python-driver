@@ -4,7 +4,7 @@ import multiprocessing
 import gunicorn.app.base
 from gunicorn.six import iteritems
 
-from openeogeotrellis import app
+from openeo_driver import app
 
 """
 Script to start a production server. This script can serve as the entry-point for doing spark-submit.
