@@ -1,12 +1,16 @@
 from flask import request, url_for, jsonify
 
 from openeo_driver import app
-from .ProcessGraphDeserializer import graphToRdd
+from .ProcessGraphDeserializer import graphToRdd, health_check
 
 
 @app.route('/v0.1')
 def index():
     return 'OpenEO GeoPyspark backend. ' + url_for('timeseries')
+
+@app.route('/v0.1/health')
+def health():
+    return health_check()
 
 @app.route('/v0.1/timeseries')
 def timeseries():

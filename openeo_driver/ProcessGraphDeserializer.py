@@ -11,8 +11,14 @@ from openeo import ImageCollection
 def getImageCollection(product_id:str, viewingParameters):
     raise "Please provide getImageCollection method in your base package."
 
+def health_check():
+    return "Default health check OK!"
+
 i = importlib.import_module(os.getenv('DRIVER_IMPLEMENTATION_PACKAGE', "openeogeotrellis"))
 getImageCollection = i.getImageCollection
+
+if i.health_check is not None:
+    health_check = i.health_check
 
 
 
