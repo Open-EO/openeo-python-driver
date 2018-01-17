@@ -4,20 +4,20 @@ from openeo_driver import app
 from .ProcessGraphDeserializer import graphToRdd, health_check
 
 
-@app.route('/v0.1')
+@app.route('/openeo/v0.1')
 def index():
     return 'OpenEO GeoPyspark backend. ' + url_for('timeseries')
 
-@app.route('/v0.1/health')
+@app.route('/openeo/v0.1/health')
 def health():
     return health_check()
 
-@app.route('/v0.1/timeseries')
+@app.route('/openeo/v0.1/timeseries')
 def timeseries():
     return 'OpenEO GeoPyspark backend. ' + url_for('point')
 
 
-@app.route('/v0.1/timeseries/point', methods=['GET', 'POST'])
+@app.route('/openeo/v0.1/timeseries/point', methods=['GET', 'POST'])
 def point():
     if request.method == 'POST':
         print("Handling request: "+str(request))
@@ -34,7 +34,7 @@ def point():
     else:
         return 'Usage: Query point timeseries using POST.'
 
-@app.route('/v0.1/tile_service', methods=['GET', 'POST'])
+@app.route('/openeo/v0.1/tile_service', methods=['GET', 'POST'])
 def tile_service():
     if request.method == 'POST':
         print("Handling request: "+str(request))
