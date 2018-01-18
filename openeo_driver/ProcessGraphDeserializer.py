@@ -3,7 +3,7 @@ import importlib
 import json
 import os
 import pickle
-from typing import Dict
+from typing import Dict, List
 
 from openeo import ImageCollection
 
@@ -33,27 +33,27 @@ def extract_arg(args:Dict,name:str)->str:
             "Required argument " +name +" should not be null in band_arithmetic. Arguments: \n" + json.dumps(args,indent=1))
 
 
-def band_arithmetic(input_collection:ImageCollection, args:Dict, viewingParameters)->ImageCollection:
+def band_arithmetic(input_collection:List[ImageCollection], args:Dict, viewingParameters)->ImageCollection:
     function = extract_arg(args,'function')
     bands = extract_arg(args,'bands')
     decoded_function = pickle.loads(base64.standard_b64decode(function))
-    return input_collection.combinebands(bands,decoded_function)
+    return input_collection[0].combinebands(bands,decoded_function)
 
 
-def reduce_by_time(input_collection:ImageCollection, args:Dict, viewingParameters)->ImageCollection:
+def reduce_by_time(input_collection:List[ImageCollection], args:Dict, viewingParameters)->ImageCollection:
     function = extract_arg(args,'function')
     temporal_window = extract_arg(args,'temporal_window')
     decoded_function = pickle.loads(base64.standard_b64decode(function))
-    return input_collection.reduceByTime(temporal_window,decoded_function)
+    return input_collection[0].reduceByTime(temporal_window,decoded_function)
 
 
 def getProcessImageCollection( process_id:str, args:Dict, viewingParameters)->ImageCollection:
 
-    imagery = extract_arg(args,'imagery')
-    child_collection = graphToRdd(imagery,viewingParameters)
+    collections = extract_arg(args,'collections')
+    child_collections = list(map(lambda c:graphToRdd(c,viewingParameters),collections))
 
     print(globals().keys())
     process_function = globals()[process_id]
     if process_function is None:
         raise RuntimeError("No process found with name: "+process_id)
-    return process_function(child_collection,args,viewingParameters)
+    return process_function(child_collections,args,viewingParameters)
