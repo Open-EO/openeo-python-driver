@@ -39,11 +39,11 @@ def extract_arg(args:Dict,name:str)->str:
             "Required argument " +name +" should not be null in band_arithmetic. Arguments: \n" + json.dumps(args,indent=1))
 
 
-def band_arithmetic(input_collection:List[ImageCollection], args:Dict, viewingParameters)->ImageCollection:
+def apply_pixel(input_collection:List[ImageCollection], args:Dict, viewingParameters)->ImageCollection:
     function = extract_arg(args,'function')
     bands = extract_arg(args,'bands')
     decoded_function = pickle.loads(base64.standard_b64decode(function))
-    return input_collection[0].combinebands(bands,decoded_function)
+    return input_collection[0].apply_pixel(bands, decoded_function)
 
 
 def reduce_by_time(input_collection:List[ImageCollection], args:Dict, viewingParameters)->ImageCollection:
