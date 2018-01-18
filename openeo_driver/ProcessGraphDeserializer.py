@@ -50,7 +50,7 @@ def reduce_by_time(input_collection:List[ImageCollection], args:Dict, viewingPar
     function = extract_arg(args,'function')
     temporal_window = extract_arg(args,'temporal_window')
     decoded_function = pickle.loads(base64.standard_b64decode(function))
-    return input_collection[0].reduceByTime(temporal_window,decoded_function)
+    return input_collection[0].aggregate_time(temporal_window, decoded_function)
 
 
 def getProcessImageCollection( process_id:str, args:Dict, viewingParameters)->ImageCollection:
