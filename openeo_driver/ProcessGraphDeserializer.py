@@ -52,6 +52,9 @@ def reduce_by_time(input_collection:List[ImageCollection], args:Dict, viewingPar
     decoded_function = pickle.loads(base64.standard_b64decode(function))
     return input_collection[0].aggregate_time(temporal_window, decoded_function)
 
+def min_time(input_collection:List[ImageCollection],args:Dict,viewingParameters)->ImageCollection:
+    return input_collection[0].min_time()
+
 
 def getProcessImageCollection( process_id:str, args:Dict, viewingParameters)->ImageCollection:
 

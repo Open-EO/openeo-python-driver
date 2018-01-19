@@ -1,3 +1,5 @@
+import os
+
 from flask import request, url_for, jsonify
 
 from openeo_driver import app
@@ -33,6 +35,22 @@ def point():
         return jsonify(image_collection.timeseries(x, y, srs))
     else:
         return 'Usage: Query point timeseries using POST.'
+
+@app.route('/openeo/v0.1/download', methods=['GET', 'POST'])
+def download():
+    if request.method == 'POST':
+        print("Handling request: "+str(request))
+        print("Post data: "+str(request.data))
+        outputformat = request.args.get('outputformat', 'geotiff')
+
+        process_graph = request.get_json()
+        image_collection = graphToRdd(process_graph, None)
+        filename = image_collection.download(None,outputformat=outputformat)
+
+        return app.send_from_directory(os.path.dirname(filename),os.path.basename(filename))
+    else:
+        return 'Usage: Download image using POST.'
+
 
 @app.route('/openeo/v0.1/tile_service', methods=['GET', 'POST'])
 def tile_service():
