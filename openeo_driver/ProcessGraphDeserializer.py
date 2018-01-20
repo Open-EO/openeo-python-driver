@@ -53,12 +53,24 @@ def reduce_by_time(input_collection:List[ImageCollection], args:Dict, viewingPar
     return input_collection[0].aggregate_time(temporal_window, decoded_function)
 
 def min_time(input_collection:List[ImageCollection],args:Dict,viewingParameters)->ImageCollection:
+    #TODO this function should invalidate any filter_daterange set in a parent node
     return input_collection[0].min_time()
 
+
+def filter_daterange(input_collection:List[ImageCollection],args:Dict,viewingParameters)->ImageCollection:
+    #for now we take care of this filtering in 'viewingParameters'
+    #from_date = extract_arg(args,'from')
+    #to_date = extract_arg(args,'to')
+    return input_collection[0]
 
 def getProcessImageCollection( process_id:str, args:Dict, viewingParameters)->ImageCollection:
 
     collections = extract_arg(args,'collections')
+    if 'filter_daterange' == process_id:
+        viewingParameters = viewingParameters or {}
+        viewingParameters["from"] = extract_arg(args,"from")
+        viewingParameters["to"] = extract_arg(args,"to")
+
     child_collections = list(map(lambda c:graphToRdd(c,viewingParameters),collections))
 
     print(globals().keys())

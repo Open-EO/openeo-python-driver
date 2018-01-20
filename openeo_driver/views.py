@@ -31,7 +31,7 @@ def point():
         enddate = request.args.get('enddate', '')
 
         process_graph = request.get_json()
-        image_collection = graphToRdd(process_graph, None)
+        image_collection = graphToRdd(process_graph, {})
         return jsonify(image_collection.timeseries(x, y, srs))
     else:
         return 'Usage: Query point timeseries using POST.'
