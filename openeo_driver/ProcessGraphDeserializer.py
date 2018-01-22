@@ -25,10 +25,14 @@ if i.health_check is not None:
 def graphToRdd(processGraph:Dict, viewingParameters)->ImageCollection:
     if 'product_id' in processGraph:
         return getImageCollection(processGraph['product_id'],viewingParameters)
+    elif 'collection_id' in processGraph:
+        return getImageCollection(processGraph['collection_id'],viewingParameters)
+    elif 'process_graph' in processGraph:
+        return graphToRdd(processGraph['process_graph'],viewingParameters)
     elif 'process_id' in processGraph:
         return getProcessImageCollection(processGraph['process_id'],processGraph['args'],viewingParameters)
     else:
-        raise AttributeError("Process should contain either product_id or process_id, but got: \n" + json.dumps(processGraph,indent=1))
+        raise AttributeError("Process should contain either collection_id or process_id, but got: \n" + json.dumps(processGraph,indent=1))
 
 
 def extract_arg(args:Dict,name:str)->str:
@@ -55,6 +59,10 @@ def reduce_by_time(input_collection:List[ImageCollection], args:Dict, viewingPar
 def min_time(input_collection:List[ImageCollection],args:Dict,viewingParameters)->ImageCollection:
     #TODO this function should invalidate any filter_daterange set in a parent node
     return input_collection[0].min_time()
+
+def max_time(input_collection:List[ImageCollection],args:Dict,viewingParameters)->ImageCollection:
+    #TODO this function should invalidate any filter_daterange set in a parent node
+    return input_collection[0].max_time()
 
 
 def filter_daterange(input_collection:List[ImageCollection],args:Dict,viewingParameters)->ImageCollection:

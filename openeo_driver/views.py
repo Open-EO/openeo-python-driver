@@ -5,21 +5,23 @@ from flask import request, url_for, jsonify
 from openeo_driver import app
 from .ProcessGraphDeserializer import graphToRdd, health_check
 
+ROOT = '/openeo'
 
-@app.route('/openeo/v0.1')
+
+@app.route('%s' % ROOT)
 def index():
     return 'OpenEO GeoPyspark backend. ' + url_for('timeseries')
 
-@app.route('/openeo/v0.1/health')
+@app.route('%s/health' % ROOT)
 def health():
     return health_check()
 
-@app.route('/openeo/v0.1/timeseries')
+@app.route('%s/timeseries' % ROOT)
 def timeseries():
     return 'OpenEO GeoPyspark backend. ' + url_for('point')
 
 
-@app.route('/openeo/v0.1/timeseries/point', methods=['GET', 'POST'])
+@app.route('%s/timeseries/point' % ROOT, methods=['GET', 'POST'])
 def point():
     if request.method == 'POST':
         print("Handling request: "+str(request))
@@ -36,7 +38,7 @@ def point():
     else:
         return 'Usage: Query point timeseries using POST.'
 
-@app.route('/openeo/v0.1/download', methods=['GET', 'POST'])
+@app.route('%s/download' % ROOT, methods=['GET', 'POST'])
 def download():
     if request.method == 'POST':
         print("Handling request: "+str(request))
@@ -52,7 +54,7 @@ def download():
         return 'Usage: Download image using POST.'
 
 
-@app.route('/openeo/v0.1/tile_service', methods=['GET', 'POST'])
+@app.route('%s/tile_service' % ROOT, methods=['GET', 'POST'])
 def tile_service():
     if request.method == 'POST':
         print("Handling request: "+str(request))
