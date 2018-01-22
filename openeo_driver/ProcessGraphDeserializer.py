@@ -71,6 +71,12 @@ def filter_daterange(input_collection:List[ImageCollection],args:Dict,viewingPar
     #to_date = extract_arg(args,'to')
     return input_collection[0]
 
+def filter_bbox(input_collection:List[ImageCollection],args:Dict,viewingParameters)->ImageCollection:
+    #for now we take care of this filtering in 'viewingParameters'
+    #from_date = extract_arg(args,'from')
+    #to_date = extract_arg(args,'to')
+    return input_collection[0]
+
 def getProcessImageCollection( process_id:str, args:Dict, viewingParameters)->ImageCollection:
 
     collections = extract_arg(args,'collections')
@@ -78,6 +84,13 @@ def getProcessImageCollection( process_id:str, args:Dict, viewingParameters)->Im
         viewingParameters = viewingParameters or {}
         viewingParameters["from"] = extract_arg(args,"from")
         viewingParameters["to"] = extract_arg(args,"to")
+    elif 'filter_bbox' == process_id:
+        viewingParameters = viewingParameters or {}
+        viewingParameters["left"] = extract_arg(args,"left")
+        viewingParameters["right"] = extract_arg(args,"right")
+        viewingParameters["top"] = extract_arg(args,"top")
+        viewingParameters["bottom"] = extract_arg(args,"bottom")
+        viewingParameters["srs"] = extract_arg(args,"srs")
 
     child_collections = list(map(lambda c:graphToRdd(c,viewingParameters),collections))
 
