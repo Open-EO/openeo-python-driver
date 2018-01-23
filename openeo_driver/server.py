@@ -32,6 +32,8 @@ if __name__ == '__main__':
     options = {
         'bind': '%s:%s' % ('127.0.0.1', '0'),
         'workers': number_of_workers(),
+        'worker_class':'gaiohttp',
+        'timeout':1000
     }
     # Modification 3: pass Flask app instead of handler_app
 StandaloneApplication(app, options).run()

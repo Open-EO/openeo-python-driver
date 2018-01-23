@@ -1,6 +1,6 @@
 import os
 
-from flask import request, url_for, jsonify
+from flask import request, url_for, jsonify, send_from_directory
 
 from openeo_driver import app
 from .ProcessGraphDeserializer import graphToRdd, health_check
@@ -49,7 +49,7 @@ def download():
         image_collection = graphToRdd(process_graph, None)
         filename = image_collection.download(None,outputformat=outputformat)
 
-        return app.send_from_directory(os.path.dirname(filename),os.path.basename(filename))
+        return send_from_directory(os.path.dirname(filename),os.path.basename(filename))
     else:
         return 'Usage: Download image using POST.'
 
