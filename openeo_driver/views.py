@@ -53,6 +53,21 @@ def download():
     else:
         return 'Usage: Download image using POST.'
 
+@app.route('%s/execute' % ROOT, methods=['GET', 'POST'])
+def download():
+    if request.method == 'POST':
+        print("Handling request: "+str(request))
+        print("Post data: "+str(request.data))
+
+
+        post_data = request.get_json()
+        image_collection = graphToRdd(post_data['process_graph'], None)
+        filename = image_collection.download(None,bbox="",time="",**post_data['output'])
+
+        return send_from_directory(os.path.dirname(filename),os.path.basename(filename))
+    else:
+        return 'Usage: Directly evaluate process graph using POST.'
+
 
 @app.route('%s/tile_service' % ROOT, methods=['GET', 'POST'])
 def tile_service():
