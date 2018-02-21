@@ -3,7 +3,7 @@ import os
 from flask import request, url_for, jsonify, send_from_directory
 
 from openeo_driver import app
-from .ProcessGraphDeserializer import graphToRdd, health_check
+from .ProcessGraphDeserializer import graphToRdd, health_check,get_layers
 
 ROOT = '/openeo'
 
@@ -79,3 +79,9 @@ def tile_service():
         return jsonify(image_collection.tiled_viewing_service())
     else:
         return 'Usage: Retrieve tile service endpoint.'
+
+@app.route('%s/data' % ROOT, methods=['GET'])
+def data():
+        print("Handling request: "+str(request))
+        layers = get_layers()
+        return jsonify(layers)

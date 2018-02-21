@@ -16,6 +16,7 @@ def health_check():
 
 i = importlib.import_module(os.getenv('DRIVER_IMPLEMENTATION_PACKAGE', "openeogeotrellis"))
 getImageCollection = i.getImageCollection
+get_layers = i.get_layers
 
 if i.health_check is not None:
     health_check = i.health_check
