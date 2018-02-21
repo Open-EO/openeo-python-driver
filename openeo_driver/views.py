@@ -54,7 +54,7 @@ def download():
         return 'Usage: Download image using POST.'
 
 @app.route('%s/execute' % ROOT, methods=['GET', 'POST'])
-def download():
+def execute():
     if request.method == 'POST':
         print("Handling request: "+str(request))
         print("Post data: "+str(request.data))
