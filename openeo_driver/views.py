@@ -7,6 +7,14 @@ from .ProcessGraphDeserializer import graphToRdd, health_check,get_layers
 
 ROOT = '/openeo'
 
+@app.errorhandler(Exception)
+def handle_invalid_usage(error):
+    error_json = {
+        "message":str(error)
+    }
+    response = jsonify(error_json)
+    response.status_code = 500
+    return response
 
 @app.route('%s' % ROOT)
 def index():
