@@ -3,7 +3,7 @@ import os
 from flask import request, url_for, jsonify, send_from_directory
 
 from openeo_driver import app
-from .ProcessGraphDeserializer import graphToRdd, health_check,get_layers
+from .ProcessGraphDeserializer import graphToRdd, health_check, get_layers, getSupportedProcesses
 
 ROOT = '/openeo'
 
@@ -93,3 +93,12 @@ def data():
         print("Handling request: "+str(request))
         layers = get_layers()
         return jsonify(layers)
+
+
+@app.route('%s/processes' % ROOT, methods=['GET'])
+def processes():
+    print("Handling request: " + str(request))
+
+    substring = request.args.get('qname')
+
+    return jsonify(getSupportedProcesses(substring))

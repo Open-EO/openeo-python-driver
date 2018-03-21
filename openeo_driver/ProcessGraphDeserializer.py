@@ -7,6 +7,19 @@ from typing import Dict, List
 
 from openeo import ImageCollection
 
+process_registry = []
+
+
+def process(description):
+    def add_to_registry(f):
+        process_registry.append({
+            "process_id": f.__name__,
+            "description": description
+        })
+        return f
+
+    return add_to_registry
+
 
 def getImageCollection(product_id:str, viewingParameters):
     raise "Please provide getImageCollection method in your base package."
@@ -20,7 +33,6 @@ get_layers = i.get_layers
 
 if i.health_check is not None:
     health_check = i.health_check
-
 
 
 def graphToRdd(processGraph:Dict, viewingParameters)->ImageCollection:
@@ -44,6 +56,7 @@ def extract_arg(args:Dict,name:str)->str:
             "Required argument " +name +" should not be null in band_arithmetic. Arguments: \n" + json.dumps(args,indent=1))
 
 
+@process(description="Apply a function to the given set of bands in this image collection.")
 def apply_pixel(input_collection:List[ImageCollection], args:Dict, viewingParameters)->ImageCollection:
     function = extract_arg(args,'function')
     bands = extract_arg(args,'bands')
@@ -51,27 +64,35 @@ def apply_pixel(input_collection:List[ImageCollection], args:Dict, viewingParame
     return input_collection[0].apply_pixel(bands, decoded_function)
 
 
+@process(description="Applies a windowed reduction to a timeseries by applying a user defined function.")
 def reduce_by_time(input_collection:List[ImageCollection], args:Dict, viewingParameters)->ImageCollection:
     function = extract_arg(args,'function')
     temporal_window = extract_arg(args,'temporal_window')
     decoded_function = pickle.loads(base64.standard_b64decode(function))
     return input_collection[0].aggregate_time(temporal_window, decoded_function)
 
+
+@process(description="Finds the minimum value of time series for all bands of the input dataset.")
 def min_time(input_collection:List[ImageCollection],args:Dict,viewingParameters)->ImageCollection:
     #TODO this function should invalidate any filter_daterange set in a parent node
     return input_collection[0].min_time()
 
+
+@process(description="Finds the maximum value of time series for all bands of the input dataset.")
 def max_time(input_collection:List[ImageCollection],args:Dict,viewingParameters)->ImageCollection:
     #TODO this function should invalidate any filter_daterange set in a parent node
     return input_collection[0].max_time()
 
 
+@process(description="Specifies a date range filter to be applied on the ImageCollection.")
 def filter_daterange(input_collection:List[ImageCollection],args:Dict,viewingParameters)->ImageCollection:
     #for now we take care of this filtering in 'viewingParameters'
     #from_date = extract_arg(args,'from')
     #to_date = extract_arg(args,'to')
     return input_collection[0]
 
+
+@process(description="Specifies a bounding box to filter input image collections.")
 def filter_bbox(input_collection:List[ImageCollection],args:Dict,viewingParameters)->ImageCollection:
     #for now we take care of this filtering in 'viewingParameters'
     #from_date = extract_arg(args,'from')
@@ -100,3 +121,8 @@ def getProcessImageCollection( process_id:str, args:Dict, viewingParameters)->Im
     if process_function is None:
         raise RuntimeError("No process found with name: "+process_id)
     return process_function(child_collections,args,viewingParameters)
+
+
+def getSupportedProcesses(substring: str = None):
+    return [process for process in process_registry
+            if substring.lower() in process["process_id"].lower()] if substring else process_registry
