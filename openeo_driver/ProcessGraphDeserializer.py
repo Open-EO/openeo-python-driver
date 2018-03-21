@@ -10,10 +10,10 @@ from openeo import ImageCollection
 process_registry = []
 
 
-def process(description):
+def process(description: str, process_id: str = None):
     def add_to_registry(f):
         process_registry.append({
-            "process_id": f.__name__,
+            "process_id": process_id or f.__name__,
             "description": description
         })
         return f
@@ -64,7 +64,7 @@ def apply_pixel(input_collection:List[ImageCollection], args:Dict, viewingParame
     return input_collection[0].apply_pixel(bands, decoded_function)
 
 
-@process(description="Applies a windowed reduction to a timeseries by applying a user defined function.")
+@process(process_id="reduce_time", description="Applies a windowed reduction to a timeseries by applying a user defined function.")
 def reduce_by_time(input_collection:List[ImageCollection], args:Dict, viewingParameters)->ImageCollection:
     function = extract_arg(args,'function')
     temporal_window = extract_arg(args,'temporal_window')
