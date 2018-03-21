@@ -6,16 +6,15 @@ import pickle
 from typing import Dict, List
 
 from openeo import ImageCollection
+from .ProcessDetails import ProcessDetails
 
-process_registry = []
+process_registry = {}
 
 
-def process(description: str, process_id: str = None):
+def process(description: str, args: List[ProcessDetails.Arg] = [], process_id: str = None):
     def add_to_registry(f):
-        process_registry.append({
-            "process_id": process_id or f.__name__,
-            "description": description
-        })
+        process_details = ProcessDetails(process_id or f.__name__, description, args)
+        process_registry[process_details.process_id] = process_details
         return f
 
     return add_to_registry
@@ -56,7 +55,9 @@ def extract_arg(args:Dict,name:str)->str:
             "Required argument " +name +" should not be null in band_arithmetic. Arguments: \n" + json.dumps(args,indent=1))
 
 
-@process(description="Apply a function to the given set of bands in this image collection.")
+@process(description="Apply a function to the given set of bands in this image collection.",
+         args=[ProcessDetails.Arg('function', "A function that gets the value of one pixel (including all bands) as input and produces a single scalar or tuple output."),
+               ProcessDetails.Arg('bands', "A set of bands.")])
 def apply_pixel(input_collection:List[ImageCollection], args:Dict, viewingParameters)->ImageCollection:
     function = extract_arg(args,'function')
     bands = extract_arg(args,'bands')
@@ -64,7 +65,10 @@ def apply_pixel(input_collection:List[ImageCollection], args:Dict, viewingParame
     return input_collection[0].apply_pixel(bands, decoded_function)
 
 
-@process(process_id="reduce_time", description="Applies a windowed reduction to a timeseries by applying a user defined function.")
+@process(process_id="reduce_time",
+         description="Applies a windowed reduction to a timeseries by applying a user defined function.",
+         args=[ProcessDetails.Arg('function', "The function to apply to each time window."),
+               ProcessDetails.Arg('temporal_window', "A time window.")])
 def reduce_by_time(input_collection:List[ImageCollection], args:Dict, viewingParameters)->ImageCollection:
     function = extract_arg(args,'function')
     temporal_window = extract_arg(args,'temporal_window')
@@ -84,7 +88,10 @@ def max_time(input_collection:List[ImageCollection],args:Dict,viewingParameters)
     return input_collection[0].max_time()
 
 
-@process(description="Specifies a date range filter to be applied on the ImageCollection.")
+@process(description="Specifies a date range filter to be applied on the ImageCollection.",
+         args=[ProcessDetails.Arg('imagery', "The image collection to filter."),
+               ProcessDetails.Arg('from', "Includes all data newer than the specified ISO 8601 date or date-time with simultaneous consideration of to."),
+               ProcessDetails.Arg('to', "Includes all data older than the specified ISO 8601 date or date-time with simultaneous consideration of from.")])
 def filter_daterange(input_collection:List[ImageCollection],args:Dict,viewingParameters)->ImageCollection:
     #for now we take care of this filtering in 'viewingParameters'
     #from_date = extract_arg(args,'from')
@@ -92,7 +99,13 @@ def filter_daterange(input_collection:List[ImageCollection],args:Dict,viewingPar
     return input_collection[0]
 
 
-@process(description="Specifies a bounding box to filter input image collections.")
+@process(description="Specifies a bounding box to filter input image collections.",
+         args=[ProcessDetails.Arg('imagery', "The image collection to filter."),
+               ProcessDetails.Arg('left', "The left side of the bounding box."),
+               ProcessDetails.Arg('right', "The right side of the bounding box."),
+               ProcessDetails.Arg('top', "The top of the bounding box."),
+               ProcessDetails.Arg('bottom', "The bottom of the bounding box."),
+               ProcessDetails.Arg('srs', "The spatial reference system of the bounding box.")])
 def filter_bbox(input_collection:List[ImageCollection],args:Dict,viewingParameters)->ImageCollection:
     #for now we take care of this filtering in 'viewingParameters'
     #from_date = extract_arg(args,'from')
@@ -123,6 +136,14 @@ def getProcessImageCollection( process_id:str, args:Dict, viewingParameters)->Im
     return process_function(child_collections,args,viewingParameters)
 
 
-def getSupportedProcesses(substring: str = None):
-    return [process for process in process_registry
-            if substring.lower() in process["process_id"].lower()] if substring else process_registry
+def getProcesses(substring: str = None):
+    def filter_details(process_details):
+        return {k: v for k, v in process_details.items() if k in ['process_id', 'description']}
+
+    return [filter_details(process_details.serialize()) for process_id, process_details in process_registry.items()
+            if not substring or substring.lower() in process_id.lower()]
+
+
+def getProcess(process_id: str):
+    process_details = process_registry.get(process_id)
+    return process_details.serialize() if process_details else None

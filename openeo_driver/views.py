@@ -1,9 +1,9 @@
 import os
 
-from flask import request, url_for, jsonify, send_from_directory
+from flask import request, url_for, jsonify, send_from_directory, abort
 
 from openeo_driver import app
-from .ProcessGraphDeserializer import graphToRdd, health_check, get_layers, getSupportedProcesses
+from .ProcessGraphDeserializer import graphToRdd, health_check, get_layers, getProcesses, getProcess
 
 ROOT = '/openeo'
 
@@ -101,4 +101,14 @@ def processes():
 
     substring = request.args.get('qname')
 
-    return jsonify(getSupportedProcesses(substring))
+    return jsonify(getProcesses(substring))
+
+
+@app.route('%s/processes/<process_id>' % ROOT, methods=['GET'])
+def process(process_id):
+    print("Handling request: " + str(request))
+
+    process_details = getProcess(process_id)
+    print(process_details)
+
+    return jsonify(process_details) if process_details else abort(404)
