@@ -1,14 +1,18 @@
 import os
+import logging
 
 from flask import request, url_for, jsonify, send_from_directory, abort
 
 from openeo_driver import app
-from .ProcessGraphDeserializer import graphToRdd, health_check, get_layers, getProcesses, getProcess
+from .ProcessGraphDeserializer import evaluate, health_check, get_layers, getProcesses, getProcess
+from openeo import ImageCollection
 
 ROOT = '/openeo'
 
 @app.errorhandler(Exception)
 def handle_invalid_usage(error):
+    logging.exception(error)
+
     error_json = {
         "message":str(error)
     }
@@ -41,10 +45,11 @@ def point():
         enddate = request.args.get('enddate', '')
 
         process_graph = request.get_json()
-        image_collection = graphToRdd(process_graph, {})
+        image_collection = evaluate(process_graph, {})
         return jsonify(image_collection.timeseries(x, y, srs))
     else:
         return 'Usage: Query point timeseries using POST.'
+
 
 @app.route('%s/download' % ROOT, methods=['GET', 'POST'])
 def download():
@@ -54,12 +59,13 @@ def download():
         outputformat = request.args.get('outputformat', 'geotiff')
 
         process_graph = request.get_json()
-        image_collection = graphToRdd(process_graph, None)
+        image_collection = evaluate(process_graph, None)
         filename = image_collection.download(None,outputformat=outputformat)
 
         return send_from_directory(os.path.dirname(filename),os.path.basename(filename))
     else:
         return 'Usage: Download image using POST.'
+
 
 @app.route('%s/execute' % ROOT, methods=['GET', 'POST'])
 def execute():
@@ -67,12 +73,15 @@ def execute():
         print("Handling request: "+str(request))
         print("Post data: "+str(request.data))
 
-
         post_data = request.get_json()
-        image_collection = graphToRdd(post_data['process_graph'], None)
-        filename = image_collection.download(None,bbox="",time="",**post_data['output'])
 
-        return send_from_directory(os.path.dirname(filename),os.path.basename(filename))
+        result = evaluate(post_data['process_graph'], None)
+
+        if isinstance(result, ImageCollection):
+            filename = result.download(None, bbox="", time="", **post_data['output'])
+            return send_from_directory(os.path.dirname(filename),os.path.basename(filename))
+        else:
+            return jsonify(result)
     else:
         return 'Usage: Directly evaluate process graph using POST.'
 
@@ -83,7 +92,7 @@ def tile_service():
         print("Handling request: "+str(request))
         print("Post data: "+str(request.data))
         process_graph = request.get_json()
-        image_collection = graphToRdd(process_graph, None)
+        image_collection = evaluate(process_graph, None)
         return jsonify(image_collection.tiled_viewing_service())
     else:
         return 'Usage: Retrieve tile service endpoint.'

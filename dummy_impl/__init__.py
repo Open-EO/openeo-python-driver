@@ -11,13 +11,16 @@ def getImageCollection(product_id, viewingParameters):
         download.return_value = os.path.realpath(__file__)
 
         image_collection.download = download
-
-        return image_collection
     else:
         timeseries = Mock(name='timeseries')
         timeseries.return_value = {"hello": "world"}
 
         image_collection.timeseries = timeseries
+
+        polygon_timeseries = Mock(name='polygon_timeseries')
+        polygon_timeseries.return_value = {"hello": "world"}
+
+        image_collection.polygon_timeseries = polygon_timeseries
 
     return image_collection
 

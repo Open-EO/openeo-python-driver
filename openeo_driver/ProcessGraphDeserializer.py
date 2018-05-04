@@ -34,17 +34,17 @@ if i.health_check is not None:
     health_check = i.health_check
 
 
-def graphToRdd(processGraph:Dict, viewingParameters)->ImageCollection:
+def evaluate(processGraph: Dict, viewingParameters):
     if 'product_id' in processGraph:
         return getImageCollection(processGraph['product_id'],viewingParameters)
     elif 'collection_id' in processGraph:
         return getImageCollection(processGraph['collection_id'],viewingParameters)
     elif 'process_graph' in processGraph:
-        return graphToRdd(processGraph['process_graph'],viewingParameters)
+        return evaluate(processGraph['process_graph'], viewingParameters)
     elif 'process_id' in processGraph:
-        return getProcessImageCollection(processGraph['process_id'],processGraph['args'],viewingParameters)
+        return apply_process(processGraph['process_id'], processGraph['args'], viewingParameters)
     else:
-        raise AttributeError("Process should contain either collection_id or process_id, but got: \n" + json.dumps(processGraph,indent=1))
+        return processGraph
 
 
 def extract_arg(args:Dict,name:str)->str:
@@ -112,9 +112,15 @@ def filter_bbox(input_collection:List[ImageCollection],args:Dict,viewingParamete
     #to_date = extract_arg(args,'to')
     return input_collection[0]
 
-def getProcessImageCollection( process_id:str, args:Dict, viewingParameters)->ImageCollection:
 
-    collections = extract_arg(args,'collections')
+def zonal_statistics(args: Dict, viewingParameters) -> Dict:
+    image_collection = extract_arg(args, 'imagery')
+    geometry = extract_arg(args, 'geometry')
+    return image_collection.polygon_timeseries(geometry)
+
+
+def apply_process(process_id: str, args: Dict, viewingParameters):
+
     if 'filter_daterange' == process_id:
         viewingParameters = viewingParameters or {}
         viewingParameters["from"] = extract_arg(args,"from")
@@ -127,13 +133,13 @@ def getProcessImageCollection( process_id:str, args:Dict, viewingParameters)->Im
         viewingParameters["bottom"] = extract_arg(args,"bottom")
         viewingParameters["srs"] = extract_arg(args,"srs")
 
-    child_collections = list(map(lambda c:graphToRdd(c,viewingParameters),collections))
+    args = {name: evaluate(expr, viewingParameters) for (name, expr) in args.items()}
 
     print(globals().keys())
     process_function = globals()[process_id]
     if process_function is None:
         raise RuntimeError("No process found with name: "+process_id)
-    return process_function(child_collections,args,viewingParameters)
+    return process_function(args, viewingParameters)
 
 
 def getProcesses(substring: str = None):
