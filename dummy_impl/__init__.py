@@ -4,11 +4,20 @@ import os
 
 
 def getImageCollection(product_id, viewingParameters):
-    download = Mock(name='download')
-    download.return_value = os.path.realpath(__file__)
-
     image_collection = ImageCollection()
-    image_collection.download = download
+
+    if product_id == 'S2_FAPAR_CLOUDCOVER':
+        download = Mock(name='download')
+        download.return_value = os.path.realpath(__file__)
+
+        image_collection.download = download
+
+        return image_collection
+    else:
+        timeseries = Mock(name='timeseries')
+        timeseries.return_value = {"hello": "world"}
+
+        image_collection.timeseries = timeseries
 
     return image_collection
 
