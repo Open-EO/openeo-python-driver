@@ -79,7 +79,7 @@ def execute():
 
         if isinstance(result, ImageCollection):
             filename = result.download(None, bbox="", time="", **post_data['output'])
-            return send_from_directory(os.path.dirname(filename),os.path.basename(filename))
+            return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
         else:
             return jsonify(result)
     else:

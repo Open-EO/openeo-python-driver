@@ -4,6 +4,7 @@ import json
 import os
 import pickle
 from typing import Dict, List
+from shapely.geometry import shape
 
 from openeo import ImageCollection
 from .ProcessDetails import ProcessDetails
@@ -116,7 +117,14 @@ def filter_bbox(input_collection:List[ImageCollection],args:Dict,viewingParamete
 def zonal_statistics(args: Dict, viewingParameters) -> Dict:
     image_collection = extract_arg(args, 'imagery')
     geometry = extract_arg(args, 'geometry')
-    return image_collection.polygon_timeseries(geometry)
+    func = args.get('func', 'avg')
+
+    # TODO: extract srs from geometry
+
+    if func == 'avg':
+        return image_collection.polygonal_mean_timeseries(shape(geometry))
+    else:
+        raise AttributeError("func %s is not supported" % func)
 
 
 def apply_process(process_id: str, args: Dict, viewingParameters):
