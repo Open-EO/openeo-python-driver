@@ -45,7 +45,7 @@ def point():
         enddate = request.args.get('enddate', '')
 
         process_graph = request.get_json()
-        image_collection = evaluate(process_graph, {})
+        image_collection = evaluate(process_graph)
         return jsonify(image_collection.timeseries(x, y, srs))
     else:
         return 'Usage: Query point timeseries using POST.'
@@ -59,7 +59,7 @@ def download():
         outputformat = request.args.get('outputformat', 'geotiff')
 
         process_graph = request.get_json()
-        image_collection = evaluate(process_graph, None)
+        image_collection = evaluate(process_graph)
         filename = image_collection.download(None,outputformat=outputformat)
 
         return send_from_directory(os.path.dirname(filename),os.path.basename(filename))
@@ -75,7 +75,7 @@ def execute():
 
         post_data = request.get_json()
 
-        result = evaluate(post_data['process_graph'], None)
+        result = evaluate(post_data['process_graph'])
 
         if isinstance(result, ImageCollection):
             filename = result.download(None, bbox="", time="", **post_data['output'])
@@ -92,7 +92,7 @@ def tile_service():
         print("Handling request: "+str(request))
         print("Post data: "+str(request.data))
         process_graph = request.get_json()
-        image_collection = evaluate(process_graph, None)
+        image_collection = evaluate(process_graph)
         return jsonify(image_collection.tiled_viewing_service())
     else:
         return 'Usage: Retrieve tile service endpoint.'
