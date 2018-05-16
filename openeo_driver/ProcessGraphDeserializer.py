@@ -93,12 +93,12 @@ def max_time(input_collection:List[ImageCollection],args:Dict,viewingParameters)
          args=[ProcessDetails.Arg('imagery', "The image collection to filter."),
                ProcessDetails.Arg('from', "Includes all data newer than the specified ISO 8601 date or date-time with simultaneous consideration of to."),
                ProcessDetails.Arg('to', "Includes all data older than the specified ISO 8601 date or date-time with simultaneous consideration of from.")])
-def filter_daterange(input_collection:List[ImageCollection],args:Dict,viewingParameters)->ImageCollection:
+def filter_daterange(args: Dict, viewingParameters)->ImageCollection:
     #for now we take care of this filtering in 'viewingParameters'
     #from_date = extract_arg(args,'from')
     #to_date = extract_arg(args,'to')
-    return input_collection[0]
-
+    image_collection = extract_arg(args, 'imagery')
+    return image_collection
 
 @process(description="Specifies a bounding box to filter input image collections.",
          args=[ProcessDetails.Arg('imagery', "The image collection to filter."),

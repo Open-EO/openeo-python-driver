@@ -55,3 +55,21 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         assert json.loads(resp.get_data(as_text=True)) == {"hello": "world"}
+
+    def test_execute_filter_daterange(self):
+        resp = self.client.post('/openeo/execute', content_type='application/json', data=json.dumps({
+            'process_graph': {
+                'process_id': 'filter_daterange',
+                'args': {
+                    'imagery': {
+                        'collection_id': 'S2_FAPAR_CLOUDCOVER'
+                    },
+                    'from': "2018-01-01",
+                    'to': "2018-12-31"
+                }
+            },
+            'output': {}
+        }))
+
+        assert resp.status_code == 200
+        assert resp.content_length > 0
