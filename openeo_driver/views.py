@@ -22,11 +22,20 @@ def handle_invalid_usage(error):
 
 @app.route('%s' % ROOT)
 def index():
-    return 'OpenEO GeoPyspark backend. ' + url_for('timeseries')
+    return 'OpenEO GeoPyspark backend. ' + url_for('capabilities')
 
 @app.route('%s/health' % ROOT)
 def health():
     return health_check()
+
+@app.route('%s/capabilities' % ROOT)
+def capabilities():
+    return jsonify([
+      "/data",
+      "/execute",
+      "/processes"
+    ])
+
 
 @app.route('%s/timeseries' % ROOT)
 def timeseries():
