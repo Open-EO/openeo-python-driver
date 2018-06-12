@@ -22,7 +22,54 @@ def handle_invalid_usage(error):
 
 @app.route('%s' % ROOT)
 def index():
-    return 'OpenEO GeoPyspark backend. ' + url_for('capabilities')
+    return jsonify({
+      "version": "0.3.0",
+      "endpoints": [
+        {
+          "path": "%s/data"%ROOT,
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "path": "%s/data/{data_id}",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "path": "%s/jobs",
+          "methods": [
+            "GET",
+            "POST"
+          ]
+        },
+          {
+              "path": "%s/processes",
+              "methods": [
+                  "GET"
+              ]
+          },
+        {
+          "path": "%s/jobs/{job_id}",
+          "methods": [
+            "GET",
+            "DELETE",
+            "PATCH"
+          ]
+        }
+      ],
+      "billing": {
+        "currency": "EUR",
+        "plans": [
+          {
+            "name": "free",
+            "description": "Free plan. No limits!",
+            "url": "http://openeo.org/plans/free-plan"
+          }
+        ]
+      }
+    })
 
 @app.route('%s/health' % ROOT)
 def health():
@@ -34,6 +81,23 @@ def capabilities():
       "/data",
       "/execute",
       "/processes"
+    ])
+
+
+@app.route('%s/output_formats' % ROOT)
+def output_formats():
+    return jsonify({
+      "default": "GTiff",
+      "formats": {
+        "GTiff": {},
+        "GeoTiff": {}
+      }
+    })
+
+@app.route('%s/service_types' % ROOT)
+def service_types():
+    return jsonify([
+      "tms"
     ])
 
 
@@ -103,6 +167,22 @@ def tile_service():
         process_graph = request.get_json()
         image_collection = evaluate(process_graph)
         return jsonify(image_collection.tiled_viewing_service())
+    else:
+        return 'Usage: Retrieve tile service endpoint.'
+
+@app.route('%s/services' % ROOT, methods=['GET', 'POST'])
+def services():
+    if request.method == 'POST':
+        print("Handling request: "+str(request))
+        print("Post data: "+str(request.data))
+        json_request = request.get_json()
+        process_graph = json_request['process_graph']
+        type = json_request['type']
+        if 'tms' == type:
+            image_collection = evaluate(process_graph)
+            return jsonify(image_collection.tiled_viewing_service())
+        else:
+            raise NotImplementedError("Requested unsupported service type: " + type)
     else:
         return 'Usage: Retrieve tile service endpoint.'
 
