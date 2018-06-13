@@ -65,6 +65,10 @@ def apply_pixel(input_collection:List[ImageCollection], args:Dict, viewingParame
     decoded_function = pickle.loads(base64.standard_b64decode(function))
     return input_collection[0].apply_pixel(bands, decoded_function)
 
+def apply_tiles(input_collection:List[ImageCollection], args:Dict, viewingParameters)->ImageCollection:
+    function = extract_arg(args,'code')
+    return input_collection[0].apply_tiles(function['source'])
+
 
 @process(process_id="reduce_time",
          description="Applies a windowed reduction to a timeseries by applying a user defined function.",
