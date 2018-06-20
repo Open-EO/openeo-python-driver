@@ -92,3 +92,30 @@ class Test(TestCase):
         resp = self.client.post('/openeo/execute', content_type='application/json', data=json.dumps(graph))
 
         assert resp.status_code == 200
+        assert resp.content_length > 0
+
+    def test_execute_apply_tiles(self):
+        graph = {
+                    "process_graph": {"process_id": "apply_tiles", "args": {"imagery": {"process_id": "filter_bbox",
+                                                                                     "args": {"imagery": {
+                                                                                         "process_id": "filter_daterange",
+                                                                                         "args": {"imagery": {
+                                                                                             "collection_id": "CGS_SENTINEL2_RADIOMETRY_V101"},
+                                                                                                  "from": "2017-10-01",
+                                                                                                  "to": "2017-10-11"}},
+                                                                                              "srs": "EPSG:3857",
+                                                                                              "right": 763281,
+                                                                                              "top": 6544655,
+                                                                                              "bottom": 6543830,
+                                                                                              "left": 761104}},
+                                                                         "code": {"language": "python",
+                                                                                  "source": "# -*- coding: utf-8 -*-\n# Uncomment the import only for coding support\n#import numpy\n#import pandas\n#import torch\n#import torchvision\n#import tensorflow\n#import tensorboard\n#from openeo_udf.api.base import SpatialExtent, RasterCollectionTile, FeatureCollectionTile, UdfData\n\n__license__ = \"Apache License, Version 2.0\"\n__author__ = \"Soeren Gebbert\"\n__copyright__ = \"Copyright 2018, Soeren Gebbert\"\n__maintainer__ = \"Soeren Gebbert\"\n__email__ = \"soerengebbert@googlemail.com\"\n\n\ndef rct_ndvi(udf_data):\n    \"\"\"Compute the NDVI based on RED and NIR tiles\n\n    Tiles with ids \"red\" and \"nir\" are required. The NDVI computation will be applied\n    to all time stamped 2D raster tiles that have equal time stamps.\n\n    Args:\n        udf_data (UdfData): The UDF data object that contains raster and vector tiles\n\n    Returns:\n        This function will not return anything, the UdfData object \"udf_data\" must be used to store the resulting\n        data.\n\n    \"\"\"\n    red = None\n    nir = None\n\n    # Iterate over each tile\n    for tile in udf_data.raster_collection_tiles:\n        if \"red\" in tile.id.lower():\n            red = tile\n        if \"nir\" in tile.id.lower():\n            nir = tile\n    if red is None:\n        raise Exception(\"Red raster collection tile is missing in input\")\n    if nir is None:\n        raise Exception(\"Nir raster collection tile is missing in input\")\n    if red.start_times is None or red.start_times.tolist() == nir.start_times.tolist():\n        # Compute the NDVI\n        ndvi = (nir.data - red.data) / (nir.data + red.data)\n        # Create the new raster collection tile\n        rct = RasterCollectionTile(id=\"ndvi\", extent=red.extent, data=ndvi,\n                                   start_times=red.start_times, end_times=red.end_times)\n        # Insert the new tiles as list of raster collection tiles in the input object. The new tiles will\n        # replace the original input tiles.\n        udf_data.set_raster_collection_tiles([rct,])\n    else:\n        raise Exception(\"Time stamps are not equal\")\n\n\n# This function call is the entry point for the UDF.\n# The caller will provide all required data in the **data** object.\nrct_ndvi(data)\n"
+                                                                                  }
+                                                                         }
+                                   },
+                 "output": {}
+        }
+        resp = self.client.post('/openeo/execute', content_type='application/json', data=json.dumps(graph))
+        assert resp.status_code == 200
+        assert resp.content_length > 0
+
