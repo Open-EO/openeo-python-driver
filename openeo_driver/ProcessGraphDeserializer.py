@@ -42,6 +42,8 @@ def evaluate(processGraph: Dict, viewingParameters = {}):
         return getImageCollection(processGraph['collection_id'],viewingParameters)
     elif 'process_graph' in processGraph:
         return evaluate(processGraph['process_graph'], viewingParameters)
+    elif 'imagery' in processGraph:
+        return evaluate(processGraph['imagery'], viewingParameters)
     elif 'process_id' in processGraph:
         return apply_process(processGraph['process_id'], processGraph['args'], viewingParameters)
     else:
@@ -59,11 +61,11 @@ def extract_arg(args:Dict,name:str)->str:
 @process(description="Apply a function to the given set of bands in this image collection.",
          args=[ProcessDetails.Arg('function', "A function that gets the value of one pixel (including all bands) as input and produces a single scalar or tuple output."),
                ProcessDetails.Arg('bands', "A set of bands.")])
-def apply_pixel(input_collection:List[ImageCollection], args:Dict, viewingParameters)->ImageCollection:
+def apply_pixel( args:Dict, viewingParameters)->ImageCollection:
     function = extract_arg(args,'function')
     bands = extract_arg(args,'bands')
     decoded_function = pickle.loads(base64.standard_b64decode(function))
-    return input_collection[0].apply_pixel(bands, decoded_function)
+    return extract_arg(args, 'imagery').apply_pixel(bands, decoded_function)
 
 def apply_tiles(input_collection:List[ImageCollection], args:Dict, viewingParameters)->ImageCollection:
     function = extract_arg(args,'code')
@@ -74,23 +76,23 @@ def apply_tiles(input_collection:List[ImageCollection], args:Dict, viewingParame
          description="Applies a windowed reduction to a timeseries by applying a user defined function.",
          args=[ProcessDetails.Arg('function', "The function to apply to each time window."),
                ProcessDetails.Arg('temporal_window', "A time window.")])
-def reduce_by_time(input_collection:List[ImageCollection], args:Dict, viewingParameters)->ImageCollection:
+def reduce_by_time( args:Dict, viewingParameters)->ImageCollection:
     function = extract_arg(args,'function')
     temporal_window = extract_arg(args,'temporal_window')
     decoded_function = pickle.loads(base64.standard_b64decode(function))
-    return input_collection[0].aggregate_time(temporal_window, decoded_function)
+    return extract_arg(args, 'imagery').aggregate_time(temporal_window, decoded_function)
 
 
 @process(description="Finds the minimum value of time series for all bands of the input dataset.")
-def min_time(input_collection:List[ImageCollection],args:Dict,viewingParameters)->ImageCollection:
+def min_time(args:Dict,viewingParameters)->ImageCollection:
     #TODO this function should invalidate any filter_daterange set in a parent node
-    return input_collection[0].min_time()
+    return extract_arg(args, 'imagery').min_time()
 
 
 @process(description="Finds the maximum value of time series for all bands of the input dataset.")
-def max_time(input_collection:List[ImageCollection],args:Dict,viewingParameters)->ImageCollection:
+def max_time(args:Dict,viewingParameters)->ImageCollection:
     #TODO this function should invalidate any filter_daterange set in a parent node
-    return input_collection[0].max_time()
+    return  extract_arg(args, 'imagery').max_time()
 
 
 @process(description="Specifies a date range filter to be applied on the ImageCollection.",
@@ -111,11 +113,12 @@ def filter_daterange(args: Dict, viewingParameters)->ImageCollection:
                ProcessDetails.Arg('top', "The top of the bounding box."),
                ProcessDetails.Arg('bottom', "The bottom of the bounding box."),
                ProcessDetails.Arg('srs', "The spatial reference system of the bounding box.")])
-def filter_bbox(input_collection:List[ImageCollection],args:Dict,viewingParameters)->ImageCollection:
+def filter_bbox(args:Dict,viewingParameters)->ImageCollection:
     #for now we take care of this filtering in 'viewingParameters'
     #from_date = extract_arg(args,'from')
     #to_date = extract_arg(args,'to')
-    return input_collection[0]
+    image_collection = extract_arg(args, 'imagery')
+    return image_collection
 
 
 def zonal_statistics(args: Dict, viewingParameters) -> Dict:
@@ -145,7 +148,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         viewingParameters["bottom"] = extract_arg(args,"bottom")
         viewingParameters["srs"] = extract_arg(args,"srs")
 
-    args = {name: evaluate(expr, viewingParameters) for (name, expr) in args.items()}
+    args = {name: evaluate(expr, viewingParameters) for (name, expr) in args.items() if type(expr) is dict}
 
     print(globals().keys())
     process_function = globals()[process_id]

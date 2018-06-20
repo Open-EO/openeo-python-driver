@@ -73,3 +73,22 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         assert resp.content_length > 0
+
+    def test_execute_max_time(self):
+        graph = {"process_graph": {"process_id": "max_time", "args": {"imagery": {"process_id": "filter_bbox",
+                                                                          "args": {"srs": "EPSG:4326", "right": 5.7,
+                                                                                   "top": 50.28, "left": 4.3,
+                                                                                   "imagery": {
+                                                                                       "process_id": "filter_daterange",
+                                                                                       "args": {"imagery": {
+                                                                                           "collection_id": "S2_FAPAR"},
+                                                                                                "to": "2017-08-10",
+                                                                                                "from": "2017-06-01"}},
+                                                                                   "bottom": 50.55
+                                                                                   }
+                                                                                  }
+                                                                      }
+                                   }, "output": {}}
+        resp = self.client.post('/openeo/execute', content_type='application/json', data=json.dumps(graph))
+
+        assert resp.status_code == 200

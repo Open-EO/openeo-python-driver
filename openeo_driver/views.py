@@ -10,12 +10,12 @@ from openeo import ImageCollection
 ROOT = '/openeo'
 
 @app.errorhandler(Exception)
-def handle_invalid_usage(error):
-    logging.exception(error)
-
+def handle_invalid_usage(error:Exception):
     error_json = {
         "message":str(error)
     }
+    import traceback
+    print(traceback.format_exception(None,error,error.__traceback__))
     response = jsonify(error_json)
     response.status_code = 500
     return response
@@ -32,26 +32,26 @@ def index():
           ]
         },
         {
-          "path": "%s/data/{data_id}",
+          "path": "%s/data/{data_id}"%ROOT,
           "methods": [
             "GET"
           ]
         },
         {
-          "path": "%s/jobs",
+          "path": "%s/jobs"%ROOT,
           "methods": [
             "GET",
             "POST"
           ]
         },
           {
-              "path": "%s/processes",
+              "path": "%s/processes"%ROOT,
               "methods": [
                   "GET"
               ]
           },
         {
-          "path": "%s/jobs/{job_id}",
+          "path": "%s/jobs/{job_id}"%ROOT,
           "methods": [
             "GET",
             "DELETE",
