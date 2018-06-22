@@ -4,7 +4,7 @@ import logging
 from flask import request, url_for, jsonify, send_from_directory, abort
 
 from openeo_driver import app
-from .ProcessGraphDeserializer import evaluate, health_check, get_layers, getProcesses, getProcess
+from .ProcessGraphDeserializer import evaluate, health_check, get_layers, getProcesses, getProcess, get_layer
 from openeo import ImageCollection
 
 ROOT = '/openeo'
@@ -198,8 +198,7 @@ def data():
 @app.route('%s/data/<collection_id>' % ROOT, methods=['GET'])
 def collection(collection_id):
     print("Handling request: "+str(request))
-    layers = get_layers()
-    return jsonify(layers[collection_id])
+    return jsonify(get_layer(collection_id))
 
 
 @app.route('%s/processes' % ROOT, methods=['GET'])

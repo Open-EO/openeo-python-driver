@@ -31,12 +31,15 @@ def getImageCollection(product_id, viewingParameters):
     return image_collection
 
 
+fapar_layer = {'product_id': 'S2_FAPAR_CLOUDCOVER'}
 def get_layers():
-    return {
-        'S2_FAPAR_CLOUDCOVER':{
-            'product_id':'S2_FAPAR_CLOUDCOVER'
-        }
-    }
+    return [fapar_layer]
+
+def get_layer(product_id):
+    if product_id == 'S2_FAPAR_CLOUDCOVER':
+        return fapar_layer
+    else:
+        raise ValueError("Unknown collection: " + product_id)
 
 
 def health_check():
