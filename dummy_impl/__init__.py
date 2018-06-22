@@ -32,7 +32,11 @@ def getImageCollection(product_id, viewingParameters):
 
 
 def get_layers():
-    pass
+    return {
+        'S2_FAPAR_CLOUDCOVER':{
+            'product_id':'S2_FAPAR_CLOUDCOVER'
+        }
+    }
 
 
 def health_check():

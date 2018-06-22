@@ -1,6 +1,7 @@
 from unittest import TestCase, skip
 from openeo_driver import app
 import json
+from flask import jsonify
 
 
 class Test(TestCase):
@@ -13,6 +14,22 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         assert "OK" in resp.get_data(as_text=True)
+
+    def test_data(self):
+        resp = self.client.get('/openeo/data')
+
+        assert resp.status_code == 200
+        collections = json.loads(resp.get_data().decode('utf-8'))
+        assert collections is not None
+        assert 'S2_FAPAR_CLOUDCOVER' in collections
+
+    def test_data_detail(self):
+        resp = self.client.get('/openeo/data/S2_FAPAR_CLOUDCOVER')
+
+        assert resp.status_code == 200
+        collections = json.loads(resp.get_data().decode('utf-8'))
+        assert collections is not None
+        assert 'product_id' in collections
 
     def test_execute_image_collection(self):
         resp = self.client.post('/openeo/execute', content_type='application/json', data=json.dumps({

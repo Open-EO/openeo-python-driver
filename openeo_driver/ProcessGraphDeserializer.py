@@ -67,9 +67,11 @@ def apply_pixel( args:Dict, viewingParameters)->ImageCollection:
     decoded_function = pickle.loads(base64.standard_b64decode(function))
     return extract_arg(args, 'imagery').apply_pixel(bands, decoded_function)
 
-def apply_tiles(input_collection:List[ImageCollection], args:Dict, viewingParameters)->ImageCollection:
+@process(description="Apply a function to the tiles of this image collection.",
+         args=[ProcessDetails.Arg('function', "A function that gets a tile as input and produces a tile as output. The function should follow the openeo_udf specification.")])
+def apply_tiles(args:Dict, viewingParameters)->ImageCollection:
     function = extract_arg(args,'code')
-    return input_collection[0].apply_tiles(function['source'])
+    return extract_arg(args, 'imagery').apply_tiles(function['source'])
 
 
 @process(process_id="reduce_time",
@@ -120,16 +122,19 @@ def filter_bbox(args:Dict,viewingParameters)->ImageCollection:
     image_collection = extract_arg(args, 'imagery')
     return image_collection
 
-
+@process(description="Computes zonal statistics over a given polygon",
+         args=[ProcessDetails.Arg('imagery', "The image collection to compute statistics on."),
+               ProcessDetails.Arg('regions', "The GeoJson Polygon defining the zone.")
+               ])
 def zonal_statistics(args: Dict, viewingParameters) -> Dict:
     image_collection = extract_arg(args, 'imagery')
-    geometry = extract_arg(args, 'geometry')
-    func = args.get('func', 'avg')
+    geometry = extract_arg(args, 'regions')
+    func = args.get('func', 'mean')
 
     # TODO: extract srs from geometry
 
-    if func == 'avg':
-        return image_collection.polygonal_mean_timeseries(shape(geometry))
+    if func == 'mean' or func == 'avg':
+        return image_collection.zonal_statistics(shape(geometry),func)
     else:
         raise AttributeError("func %s is not supported" % func)
 

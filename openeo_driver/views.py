@@ -84,6 +84,9 @@ def capabilities():
     ])
 
 
+#deprecated:
+@app.route('%s/capabilities/output_formats' % ROOT)
+#OpenEO 0.3.0:
 @app.route('%s/output_formats' % ROOT)
 def output_formats():
     return jsonify({
@@ -191,6 +194,12 @@ def data():
         print("Handling request: "+str(request))
         layers = get_layers()
         return jsonify(layers)
+
+@app.route('%s/data/<collection_id>' % ROOT, methods=['GET'])
+def collection(collection_id):
+    print("Handling request: "+str(request))
+    layers = get_layers()
+    return jsonify(layers[collection_id])
 
 
 @app.route('%s/processes' % ROOT, methods=['GET'])
