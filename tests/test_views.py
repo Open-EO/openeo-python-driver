@@ -1,7 +1,6 @@
 from unittest import TestCase, skip
 from openeo_driver import app
 import json
-from flask import jsonify
 
 
 class Test(TestCase):
@@ -20,16 +19,15 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         collections = json.loads(resp.get_data().decode('utf-8'))
-        assert collections is not None
-        assert 'S2_FAPAR_CLOUDCOVER' in collections
+        assert collections
+        assert 'S2_FAPAR_CLOUDCOVER' in [collection['product_id'] for collection in collections]
 
     def test_data_detail(self):
         resp = self.client.get('/openeo/data/S2_FAPAR_CLOUDCOVER')
 
         assert resp.status_code == 200
-        collections = json.loads(resp.get_data().decode('utf-8'))
-        assert collections is not None
-        assert 'product_id' in collections
+        collection = json.loads(resp.get_data().decode('utf-8'))
+        assert collection['product_id'] == 'S2_FAPAR_CLOUDCOVER'
 
     def test_execute_image_collection(self):
         resp = self.client.post('/openeo/execute', content_type='application/json', data=json.dumps({
@@ -58,7 +56,7 @@ class Test(TestCase):
                     "imagery": {
                         "product_id": "Sentinel2-L1C"
                     },
-                    "geometry": {
+                    "regions": {
                         "type": "Polygon",
                         "coordinates": [
                             [[7.022705078125007, 51.75432477678571], [7.659912109375007, 51.74333844866071],

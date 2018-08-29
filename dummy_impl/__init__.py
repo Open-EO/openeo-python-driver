@@ -18,15 +18,15 @@ def getImageCollection(product_id, viewingParameters):
 
         image_collection.timeseries = timeseries
 
-        def is_polygon_or_multipolygon(return_value, *args):
-            assert len(args) == 1
-            assert isinstance(args[0], Polygon) or isinstance(args[0], MultiPolygon)
+        def is_polygon_or_multipolygon(return_value, regions, func):
+            assert func == 'mean' or func == 'avg'
+            assert isinstance(regions, Polygon) or isinstance(regions, MultiPolygon)
             return return_value
 
-        polygonal_mean_timeseries = Mock(name='polygonal_mean_timeseries')
-        polygonal_mean_timeseries.side_effect = lambda args: is_polygon_or_multipolygon({'hello': 'world'}, args)
+        zonal_statistics = Mock(name='zonal_statistics')
+        zonal_statistics.side_effect = lambda regions, func: is_polygon_or_multipolygon({'hello': 'world'}, regions, func)
 
-        image_collection.polygonal_mean_timeseries = polygonal_mean_timeseries
+        image_collection.zonal_statistics = zonal_statistics
 
     return image_collection
 
