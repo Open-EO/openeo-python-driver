@@ -1,10 +1,10 @@
 import os
 import logging
 
-from flask import request, url_for, jsonify, send_from_directory, abort
+from flask import request, url_for, jsonify, send_from_directory, abort, make_response
 
 from openeo_driver import app
-from .ProcessGraphDeserializer import evaluate, health_check, get_layers, getProcesses, getProcess, get_layer
+from .ProcessGraphDeserializer import evaluate, health_check, get_layers, getProcesses, getProcess, get_layer, run_batch_job
 from openeo import ImageCollection
 
 ROOT = '/openeo'
@@ -160,6 +160,24 @@ def execute():
             return jsonify(result)
     else:
         return 'Usage: Directly evaluate process graph using POST.'
+
+
+@app.route('%s/jobs' % ROOT, methods=['GET', 'POST'])
+def create_job():
+    if request.method == 'POST':
+        print("Handling request: "+str(request))
+        print("Post data: "+str(request.data))
+
+        post_data = request.get_json()
+
+        job_id = run_batch_job(post_data['process_graph'], post_data['output'])
+
+        response = make_response("", 201)
+        response.headers['Location'] = request.path + '/' + job_id
+
+        return response
+    else:
+        return 'Usage: Create a new batch processing job using POST'
 
 
 @app.route('%s/tile_service' % ROOT, methods=['GET', 'POST'])

@@ -44,3 +44,7 @@ def get_layer(product_id):
 
 def health_check():
     return "OK"
+
+
+def run_batch_job(process_graph, output):
+    return '07024ee9-7847-4b8a-b260-6c879a2b3cdc'

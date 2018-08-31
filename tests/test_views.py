@@ -134,3 +134,13 @@ class Test(TestCase):
         assert resp.status_code == 200
         assert resp.content_length > 0
 
+    def test_create_job(self):
+        resp = self.client.post('/openeo/jobs', content_type='application/json', data=json.dumps({
+            'process_graph': {},
+            'output': {}
+        }))
+
+        assert resp.status_code == 201
+        assert resp.content_length == 0
+        assert resp.headers['Location'].endswith('/openeo/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc')
+
