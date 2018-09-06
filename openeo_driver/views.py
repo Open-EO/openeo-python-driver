@@ -180,6 +180,14 @@ def create_job():
         return 'Usage: Create a new batch processing job using POST'
 
 
+@app.route('%s/jobs/<job_id>/results/<filename>' % ROOT, methods=['GET'])
+def get_job(job_id, filename):
+    print("Handling request: " + str(request))
+
+    output_dir = "/mnt/ceph/Projects/OpenEO/%s" % job_id
+    return send_from_directory(output_dir, filename)
+
+
 @app.route('%s/tile_service' % ROOT, methods=['GET', 'POST'])
 def tile_service():
     if request.method == 'POST':
