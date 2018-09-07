@@ -2,6 +2,7 @@ import os
 import logging
 
 from flask import request, url_for, jsonify, send_from_directory, abort, make_response
+from werkzeug.exceptions import HTTPException
 
 from openeo_driver import app
 from .ProcessGraphDeserializer import evaluate, health_check, get_layers, getProcesses, getProcess, get_layer, run_batch_job
@@ -9,16 +10,27 @@ from openeo import ImageCollection
 
 ROOT = '/openeo'
 
+
+@app.errorhandler(HTTPException)
+def handle_http_exceptions(error: HTTPException):
+    return _error_response(error, error.code)
+
+
 @app.errorhandler(Exception)
-def handle_invalid_usage(error:Exception):
+def handle_invalid_usage(error: Exception):
+    return _error_response(error, 500)
+
+
+def _error_response(error: Exception, status_code: int):
     error_json = {
         "message":str(error)
     }
     import traceback
     print(traceback.format_exception(None,error,error.__traceback__))
     response = jsonify(error_json)
-    response.status_code = 500
+    response.status_code = status_code
     return response
+
 
 @app.route('%s' % ROOT)
 def index():

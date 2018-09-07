@@ -144,3 +144,7 @@ class Test(TestCase):
         assert resp.content_length == 0
         assert resp.headers['Location'].endswith('/openeo/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc')
 
+    def test_api_propagates_http_status_codes(self):
+        resp = self.client.get('/openeo/jobs/unknown_job_id/results/some_file')
+
+        assert resp.status_code == 404
