@@ -97,11 +97,6 @@ def output_formats():
       }
     })
 
-@app.route('%s/service_types' % ROOT)
-def service_types():
-    return jsonify([
-      "tms"
-    ])
 
 
 @app.route('%s/timeseries' % ROOT)
@@ -187,6 +182,36 @@ def get_job(job_id, filename):
     output_dir = "/mnt/ceph/Projects/OpenEO/%s" % job_id
     return send_from_directory(output_dir, filename)
 
+#SERVICES API https://open-eo.github.io/openeo-api/v/0.3.0/apireference/#tag/Web-Service-Management
+
+
+@app.route('%s/service_types' % ROOT)
+def service_types():
+    return jsonify({
+  "WMTS": {
+    "parameters": {
+      "version": {
+        "type": "string",
+        "description": "The WMTS version to use.",
+        "default": "1.0.0",
+        "enum": [
+          "1.0.0"
+        ]
+      }
+    },
+    "attributes": {
+      "layers": {
+        "type": "array",
+        "description": "Array of layer names.",
+        "example": [
+          "roads",
+          "countries",
+          "water_bodies"
+        ]
+      }
+    }
+  }
+})
 
 @app.route('%s/tile_service' % ROOT, methods=['GET', 'POST'])
 def tile_service():
@@ -207,13 +232,22 @@ def services():
         json_request = request.get_json()
         process_graph = json_request['process_graph']
         type = json_request['type']
-        if 'tms' == type:
+
+        if 'tms' == type.lower():
             image_collection = evaluate(process_graph)
             return jsonify(image_collection.tiled_viewing_service())
+        if 'wmts' == type.lower():
+            image_collection = evaluate(process_graph,viewingParameters={
+                'service_type':type
+            })
+            return jsonify(image_collection.tiled_viewing_service(type=type))
         else:
             raise NotImplementedError("Requested unsupported service type: " + type)
+    elif request.method == 'GET':
+        #TODO implement retrieval of user specific web services
+        return []
     else:
-        return 'Usage: Retrieve tile service endpoint.'
+        abort(405)
 
 @app.route('%s/data' % ROOT, methods=['GET'])
 def data():
