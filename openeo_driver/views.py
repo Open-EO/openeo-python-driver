@@ -194,7 +194,7 @@ def get_job_info(job_id):
 
 
 @app.route('%s/jobs/<job_id>/results/<filename>' % ROOT, methods=['GET'])
-def get_job(job_id, filename):
+def get_job_result(job_id, filename):
     print("Handling request: " + str(request))
 
     output_dir = "/mnt/ceph/Projects/OpenEO/%s" % job_id
