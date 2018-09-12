@@ -5,7 +5,8 @@ from flask import request, url_for, jsonify, send_from_directory, abort, make_re
 from werkzeug.exceptions import HTTPException
 
 from openeo_driver import app
-from .ProcessGraphDeserializer import evaluate, health_check, get_layers, getProcesses, getProcess, get_layer, run_batch_job
+from .ProcessGraphDeserializer import (evaluate, health_check, get_layers, getProcesses, getProcess, get_layer,
+                                       run_batch_job, get_batch_job_info)
 from openeo import ImageCollection
 
 ROOT = '/openeo'
@@ -185,6 +186,11 @@ def create_job():
         return response
     else:
         return 'Usage: Create a new batch processing job using POST'
+
+
+@app.route('%s/jobs/<job_id>' % ROOT, methods=['GET'])
+def get_job_info(job_id):
+    return jsonify(get_batch_job_info(job_id))
 
 
 @app.route('%s/jobs/<job_id>/results/<filename>' % ROOT, methods=['GET'])

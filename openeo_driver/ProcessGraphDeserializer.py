@@ -32,6 +32,7 @@ getImageCollection = i.getImageCollection
 get_layers = i.get_layers
 get_layer = i.get_layer
 run_batch_job = i.run_batch_job
+get_batch_job_info = i.get_batch_job_info
 
 if i.health_check is not None:
     health_check = i.health_check
