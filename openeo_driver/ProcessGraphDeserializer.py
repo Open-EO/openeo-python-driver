@@ -31,6 +31,7 @@ i = importlib.import_module(os.getenv('DRIVER_IMPLEMENTATION_PACKAGE', "openeoge
 getImageCollection = i.getImageCollection
 get_layers = i.get_layers
 get_layer = i.get_layer
+create_batch_job = i.create_batch_job
 run_batch_job = i.run_batch_job
 get_batch_job_info = i.get_batch_job_info
 

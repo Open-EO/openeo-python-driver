@@ -46,9 +46,12 @@ def health_check():
     return "OK"
 
 
-def run_batch_job(process_graph, output):
+def create_batch_job(*_):
     return '07024ee9-7847-4b8a-b260-6c879a2b3cdc'
 
+
+def run_batch_job(*_):
+    return
 
 def get_batch_job_info(job_id):
     return {
