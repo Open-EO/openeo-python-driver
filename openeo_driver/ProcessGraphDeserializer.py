@@ -37,19 +37,19 @@ if i.health_check is not None:
     health_check = i.health_check
 
 
-def evaluate(processGraph: Dict, viewingParameters = {}):
-    if 'product_id' in processGraph:
-        return getImageCollection(processGraph['product_id'],viewingParameters)
-    elif 'collection_id' in processGraph:
-        return getImageCollection(processGraph['collection_id'],viewingParameters)
-    elif 'process_graph' in processGraph:
-        return evaluate(processGraph['process_graph'], viewingParameters)
-    elif 'imagery' in processGraph:
-        return evaluate(processGraph['imagery'], viewingParameters)
-    elif 'process_id' in processGraph:
-        return apply_process(processGraph['process_id'], processGraph['args'], viewingParameters)
-    else:
-        return processGraph
+def evaluate(processGraph, viewingParameters = {}):
+    if type(processGraph) is dict:
+        if 'product_id' in processGraph:
+            return getImageCollection(processGraph['product_id'],viewingParameters)
+        elif 'collection_id' in processGraph:
+            return getImageCollection(processGraph['collection_id'],viewingParameters)
+        elif 'process_graph' in processGraph:
+            return evaluate(processGraph['process_graph'], viewingParameters)
+        elif 'imagery' in processGraph:
+            return evaluate(processGraph['imagery'], viewingParameters)
+        elif 'process_id' in processGraph:
+            return apply_process(processGraph['process_id'], processGraph['args'], viewingParameters)
+    return processGraph
 
 
 def extract_arg(args:Dict,name:str)->str:
@@ -57,7 +57,7 @@ def extract_arg(args:Dict,name:str)->str:
         return args[name]
     except KeyError:
         raise AttributeError(
-            "Required argument " +name +" should not be null in band_arithmetic. Arguments: \n" + json.dumps(args,indent=1))
+            "Required argument " +name +" should not be null. Arguments: \n" + json.dumps(args,indent=1))
 
 
 @process(description="Apply a function to the given set of bands in this image collection.",
@@ -155,7 +155,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         viewingParameters["bottom"] = extract_arg(args,"bottom")
         viewingParameters["srs"] = extract_arg(args,"srs")
 
-    args = {name: evaluate(expr, viewingParameters) for (name, expr) in args.items() if type(expr) is dict}
+    args = {name: evaluate(expr, viewingParameters) for (name, expr) in args.items() }
 
     print(globals().keys())
     process_function = globals()[process_id]

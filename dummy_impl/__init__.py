@@ -28,6 +28,9 @@ def getImageCollection(product_id, viewingParameters):
 
         image_collection.zonal_statistics = zonal_statistics
 
+        image_collection.apply_pixel = Mock(name = "apply_pixel")
+        image_collection.apply_pixel.return_value = image_collection
+
     return image_collection
 
 

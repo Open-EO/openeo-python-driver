@@ -134,6 +134,30 @@ class Test(TestCase):
         assert resp.status_code == 200
         assert resp.content_length > 0
 
+    def test_execute_apply_pixels(self):
+        graph = {
+                "process_graph":
+                     {
+                         "process_id": "max_time",
+                         "args":
+                             {
+                                 "imagery":
+                                     {
+                                         "process_id": "apply_pixel",
+                                         "args": {
+                                             "bands": [],
+                                             "function": "gASVTgEAAAAAAACMF2Nsb3VkcGlja2xlLmNsb3VkcGlja2xllIwOX2ZpbGxfZnVuY3Rpb26Uk5QoaACMD19tYWtlX3NrZWxfZnVuY5STlGgAjA1fYnVpbHRpbl90eXBllJOUjAhDb2RlVHlwZZSFlFKUKEsCSwBLAksES0NDIHwAAGQBABl8AABkAgAZGHwAAGQBABl8AABkAgAZFxtTlE5LA0sCh5QpjAVjZWxsc5SMBm5vZGF0YZSGlIwfPGlweXRob24taW5wdXQtMTEtNzQ5OGQ0YWM4Y2RiPpSMCDxsYW1iZGE+lEsBQwCUKSl0lFKUSv////99lIeUUpR9lCiMBGRpY3SUfZSMCGRlZmF1bHRzlE6MCHF1YWxuYW1llGgQjAZtb2R1bGWUjAhfX21haW5fX5SMB2dsb2JhbHOUfZSMDmNsb3N1cmVfdmFsdWVzlE51dFIu",
+                                             "imagery": {
+                                                 "process_id": "filter_bbox",
+                                                 "args": {
+                                                     "bottom": 6543830, "srs": "EPSG:3857", "right": 763281, "top": 6544655, "left": 761104,
+                                                     "imagery": {
+                                                         "process_id": "filter_daterange",
+                                                         "args": {"to": "2017-10-17", "from": "2017-10-14", "imagery": {"collection_id": "CGS_SENTINEL2_RADIOMETRY_V101"}}}}}}}}}, "output": {}}
+        resp = self.client.post('/openeo/execute', content_type='application/json', data=json.dumps(graph))
+        assert resp.status_code == 200
+        assert resp.content_length > 0
+
     def test_create_job(self):
         resp = self.client.post('/openeo/jobs', content_type='application/json', data=json.dumps({
             'process_graph': {},
