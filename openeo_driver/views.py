@@ -5,7 +5,8 @@ from flask import request, url_for, jsonify, send_from_directory, abort, make_re
 from werkzeug.exceptions import HTTPException
 
 from openeo_driver import app
-from .ProcessGraphDeserializer import evaluate, health_check, get_layers, getProcesses, getProcess, get_layer, run_batch_job
+from .ProcessGraphDeserializer import (evaluate, health_check, get_layers, getProcesses, getProcess, get_layer,
+                                       create_batch_job, run_batch_job, get_batch_job_info)
 from openeo import ImageCollection
 
 ROOT = '/openeo'
@@ -177,18 +178,54 @@ def create_job():
 
         post_data = request.get_json()
 
-        job_id = run_batch_job(post_data['process_graph'], post_data['output'])
+        job_id = create_batch_job(post_data['process_graph'], post_data['output'])
 
         response = make_response("", 201)
-        response.headers['Location'] = request.path + '/' + job_id
+        response.headers['Location'] = request.base_url + '/' + job_id
 
         return response
     else:
         return 'Usage: Create a new batch processing job using POST'
 
 
+@app.route('%s/jobs/<job_id>' % ROOT, methods=['GET'])
+def get_job_info(job_id):
+    job_info = get_batch_job_info(job_id)
+    return jsonify(job_info) if job_info else abort(404)
+
+
+@app.route('%s/jobs/<job_id>/results' % ROOT, methods=['POST'])
+def queue_job(job_id):
+    print("Handling request: " + str(request))
+
+    job_info = get_batch_job_info(job_id)
+
+    if job_info:
+        run_batch_job(job_id)
+        return make_response("", 202)
+    else:
+        abort(404)
+
+
+@app.route('%s/jobs/<job_id>/results' % ROOT, methods=['GET'])
+def list_job_results(job_id):
+    print("Handling request: " + str(request))
+
+    job_info = get_batch_job_info(job_id)
+    results_available = job_info and job_info.get('status') == 'finished'
+
+    if results_available:
+        job_results = {
+            "links": [request.base_url + '/out']
+        }
+
+        return jsonify(job_results)
+    else:
+        return abort(404)
+
+
 @app.route('%s/jobs/<job_id>/results/<filename>' % ROOT, methods=['GET'])
-def get_job(job_id, filename):
+def get_job_result(job_id, filename):
     print("Handling request: " + str(request))
 
     output_dir = "/mnt/ceph/Projects/OpenEO/%s" % job_id
