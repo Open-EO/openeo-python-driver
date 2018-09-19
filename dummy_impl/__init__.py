@@ -56,8 +56,17 @@ def create_batch_job(*_):
 def run_batch_job(*_):
     return
 
+
 def get_batch_job_info(job_id):
     return {
         'job_id': job_id,
         'status': 'running'
     }
+
+
+def get_batch_job_result_filenames(job_id):
+    pass
+
+
+def get_batch_job_result_output_dir(job_id):
+    return "/path/to/%s" % job_id
