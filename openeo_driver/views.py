@@ -6,7 +6,8 @@ from werkzeug.exceptions import HTTPException
 
 from openeo_driver import app
 from .ProcessGraphDeserializer import (evaluate, health_check, get_layers, getProcesses, getProcess, get_layer,
-                                       create_batch_job, run_batch_job, get_batch_job_info)
+                                       create_batch_job, run_batch_job, get_batch_job_info,
+                                       get_batch_job_result_filenames, get_batch_job_result_output_dir)
 from openeo import ImageCollection
 
 ROOT = '/openeo'
@@ -211,12 +212,11 @@ def queue_job(job_id):
 def list_job_results(job_id):
     print("Handling request: " + str(request))
 
-    job_info = get_batch_job_info(job_id)
-    results_available = job_info and job_info.get('status') == 'finished'
+    filenames = get_batch_job_result_filenames(job_id)
 
-    if results_available:
+    if filenames is not None:
         job_results = {
-            "links": [request.base_url + '/out']
+            "links": [{"href": request.base_url + "/" + filename} for filename in filenames]
         }
 
         return jsonify(job_results)
@@ -228,7 +228,7 @@ def list_job_results(job_id):
 def get_job_result(job_id, filename):
     print("Handling request: " + str(request))
 
-    output_dir = "/mnt/ceph/Projects/OpenEO/%s" % job_id
+    output_dir = get_batch_job_result_output_dir(job_id)
     return send_from_directory(output_dir, filename)
 
 #SERVICES API https://open-eo.github.io/openeo-api/v/0.3.0/apireference/#tag/Web-Service-Management
