@@ -177,9 +177,12 @@ def create_job():
         print("Handling request: "+str(request))
         print("Post data: "+str(request.data))
 
-        post_data = request.get_json()
+        job_specification = request.get_json()
 
-        job_id = create_batch_job(post_data['process_graph'], post_data['output'])
+        if 'process_graph' not in job_specification:
+            return abort(400)
+
+        job_id = create_batch_job(job_specification)
 
         response = make_response("", 201)
         response.headers['Location'] = request.base_url + '/' + job_id
