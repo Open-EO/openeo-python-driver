@@ -163,7 +163,8 @@ def execute():
         result = evaluate(post_data['process_graph'])
 
         if isinstance(result, ImageCollection):
-            filename = result.download(None, bbox="", time="", **post_data['output'])
+            format_options = post_data.get('output',{})
+            filename = result.download(None, bbox="", time="", **format_options)
             return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
         else:
             return jsonify(result)
