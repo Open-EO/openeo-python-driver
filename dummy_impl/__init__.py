@@ -6,6 +6,7 @@ from shapely.geometry import Polygon, MultiPolygon
 
 def getImageCollection(product_id, viewingParameters):
     image_collection = ImageCollection()
+    image_collection.viewingParameters = viewingParameters
 
     if product_id == 'S2_FAPAR_CLOUDCOVER':
         download = Mock(name='download')
@@ -14,7 +15,9 @@ def getImageCollection(product_id, viewingParameters):
         image_collection.download = download
     else:
         timeseries = Mock(name='timeseries')
-        timeseries.return_value = {"hello": "world"}
+        timeseries.return_value = {
+            "viewingParameters" : image_collection.viewingParameters
+        }
 
         image_collection.timeseries = timeseries
 

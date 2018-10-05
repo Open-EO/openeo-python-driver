@@ -1,7 +1,8 @@
 from unittest import TestCase, skip
 from openeo_driver import app
 import json
-
+import os
+os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "dummy_impl"
 
 class Test(TestCase):
     def setUp(self):
@@ -40,13 +41,29 @@ class Test(TestCase):
         assert resp.status_code == 200
         assert resp.content_length > 0
 
+
+
     def test_point(self):
         resp = self.client.post('/openeo/timeseries/point?x=1&y=2', content_type='application/json', data=json.dumps({
             'collection_id': 'Sentinel2-L1C'
         }))
 
         assert resp.status_code == 200
-        assert json.loads(resp.get_data(as_text=True)) == {"hello": "world"}
+        result = json.loads(resp.get_data(as_text=True))
+        assert result == {"viewingParameters" : {}}
+
+    def test_point_with_bbox(self):
+        bbox = { 'left': 3, 'right': 6, 'top': 52, 'bottom': 50, 'srs': 'EPSG:4326'}
+        process_graph = {'process_graph': {'process_id': 'filter_bbox',
+                                            'args': {'imagery': {'collection_id': 'SENTINEL2_FAPAR'}, 'left': 3,
+                                                     'right': 6, 'top': 52, 'bottom': 50, 'srs': 'EPSG:4326'}}}
+
+        resp = self.client.post('/openeo/timeseries/point?x=1&y=2', content_type='application/json', data=json.dumps(process_graph))
+
+        assert resp.status_code == 200
+        result = json.loads(resp.get_data(as_text=True))
+        print(result)
+        assert result == {"viewingParameters" : bbox}
 
     def test_execute_zonal_statistics(self):
         resp = self.client.post('/openeo/execute', content_type='application/json', data=json.dumps({
