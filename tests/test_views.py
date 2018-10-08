@@ -65,6 +65,39 @@ class Test(TestCase):
         print(result)
         assert result == {"viewingParameters" : bbox}
 
+    def test_execute_mask(self):
+        resp = self.client.post('/openeo/execute', content_type='application/json', data=json.dumps({
+            "process_graph": {
+                "process_id": "mask",
+                "args": {
+                    "imagery": {
+                        "product_id": "S2_FAPAR_CLOUDCOVER"
+                    },
+                    "mask_shape": {
+                        "type": "Polygon",
+                        "crs": {
+                            'type': 'name',
+                            'properties': {
+                                'name': "EPSG:4326"
+                            }
+                        },
+                        "coordinates": [
+                            [[7.022705078125007, 51.75432477678571], [7.659912109375007, 51.74333844866071],
+                             [7.659912109375007, 51.29289899553571], [7.044677734375007, 51.31487165178571],
+                             [7.022705078125007, 51.75432477678571]]
+                        ]
+                    }
+                }
+            }
+        }))
+
+        assert resp.status_code == 200
+        assert resp.content_length > 0
+
+        import dummy_impl
+        print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
+        dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask.assert_called_once()
+
     def test_execute_zonal_statistics(self):
         resp = self.client.post('/openeo/execute', content_type='application/json', data=json.dumps({
             "process_graph": {
@@ -87,6 +120,18 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         assert json.loads(resp.get_data(as_text=True)) == {"hello": "world"}
+
+    def test_execute_simple_download(self):
+        download_expected_graph = {'process_id': 'filter_bbox', 'args': {'imagery': {'process_id': 'filter_daterange',
+                                                                                     'args': {'imagery': {'collection_id': 'S2_FAPAR_V102'},
+                                                                                              'from': '2018-08-06T00:00:00Z',
+                                                                                              'to': '2018-08-06T00:00:00Z'}},
+                                                                         'left': 5.027, 'right': 5.0438, 'top': 51.2213,
+                                                                         'bottom': 51.1974, 'srs': 'EPSG:4326'}}
+        resp = self.client.post('/openeo/execute', content_type='application/json', data=json.dumps({"process_graph":download_expected_graph}))
+
+        assert resp.status_code == 200
+        assert resp.content_length > 0
 
     def test_execute_filter_daterange(self):
         resp = self.client.post('/openeo/execute', content_type='application/json', data=json.dumps({

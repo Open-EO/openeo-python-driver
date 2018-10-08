@@ -56,7 +56,7 @@ def evaluate(processGraph, viewingParameters = {}):
     return processGraph
 
 
-def extract_arg(args:Dict,name:str)->str:
+def extract_arg(args:Dict,name:str):
     try:
         return args[name]
     except KeyError:
@@ -101,6 +101,15 @@ def min_time(args:Dict,viewingParameters)->ImageCollection:
 def max_time(args:Dict,viewingParameters)->ImageCollection:
     #TODO this function should invalidate any filter_daterange set in a parent node
     return  extract_arg(args, 'imagery').max_time()
+
+
+@process(description="Mask the image collection using a polygon. All pixels outside the polygon should be set to the nodata value. "
+                     "All pixels inside, or intersecting the polygon should retain their original value.",
+         args=[ProcessDetails.Arg('mask_shape', "The shape to use as a mask")])
+def mask(args:Dict,viewingParameters)->ImageCollection:
+    geometry = extract_arg(args, 'mask_shape')
+    srs_code = geometry.get("crs",{}).get("name","EPSG:4326")
+    return  extract_arg(args, 'imagery').mask(shape(geometry),srs_code)
 
 
 @process(description="Specifies a date range filter to be applied on the ImageCollection.",

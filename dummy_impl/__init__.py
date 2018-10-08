@@ -3,10 +3,14 @@ from openeo import ImageCollection
 import os
 from shapely.geometry import Polygon, MultiPolygon
 
+collections = {}
 
 def getImageCollection(product_id, viewingParameters):
     image_collection = ImageCollection()
     image_collection.viewingParameters = viewingParameters
+
+    image_collection.mask = Mock(name="mask")
+    image_collection.mask.return_value = image_collection
 
     if product_id == 'S2_FAPAR_CLOUDCOVER':
         download = Mock(name='download')
@@ -34,6 +38,7 @@ def getImageCollection(product_id, viewingParameters):
         image_collection.apply_pixel = Mock(name = "apply_pixel")
         image_collection.apply_pixel.return_value = image_collection
 
+    collections[product_id] = image_collection
     return image_collection
 
 
