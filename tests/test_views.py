@@ -128,7 +128,8 @@ class Test(TestCase):
 
         import dummy_impl
         print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
-        dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask.assert_called_once()
+        assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask.call_count == 1
+
 
     def test_execute_zonal_statistics(self):
         resp = self.client.post('/openeo/execute', content_type='application/json', data=json.dumps({
@@ -167,7 +168,7 @@ class Test(TestCase):
 
         import dummy_impl
         print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
-        dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].download.assert_called_once()
+        assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].download.call_count == 1
 
     def test_execute_filter_daterange(self):
         resp = self.client.post('/openeo/execute', content_type='application/json', data=json.dumps({
