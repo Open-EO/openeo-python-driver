@@ -1,4 +1,36 @@
 from unittest import TestCase, skip
+
+def setup_local_spark():
+    '''
+    For local debugging, we can run with the openeogeotrellis backend, which requires a local spark to be running.
+    :return:
+    '''
+    from pyspark import find_spark_home
+    import os, sys
+    from glob import glob
+
+    spark_python = os.path.join(find_spark_home._find_spark_home(), 'python')
+    py4j = glob(os.path.join(spark_python, 'lib', 'py4j-*.zip'))[0]
+    sys.path[:0] = [spark_python, py4j]
+    if 'TRAVIS' in os.environ:
+        master_str = "local[2]"
+    else:
+        master_str = "local[*]"
+
+    from geopyspark import geopyspark_conf, Pyramid, TiledRasterLayer
+
+    conf = geopyspark_conf(master=master_str, appName="test")
+    conf.set('spark.kryoserializer.buffer.max', value='1G')
+    conf.set('spark.ui.enabled', True)
+
+    if 'TRAVIS' in os.environ:
+        conf.set(key='spark.driver.memory', value='2G')
+        conf.set(key='spark.executor.memory', value='2G')
+
+    from pyspark import SparkContext
+    pysc = SparkContext.getOrCreate(conf)
+#setup_local_spark()
+
 from openeo_driver import app
 import json
 import os
@@ -123,7 +155,7 @@ class Test(TestCase):
 
     def test_execute_simple_download(self):
         download_expected_graph = {'process_id': 'filter_bbox', 'args': {'imagery': {'process_id': 'filter_daterange',
-                                                                                     'args': {'imagery': {'collection_id': 'S2_FAPAR_V102'},
+                                                                                     'args': {'imagery': {'collection_id': 'S2_FAPAR_CLOUDCOVER'},
                                                                                               'from': '2018-08-06T00:00:00Z',
                                                                                               'to': '2018-08-06T00:00:00Z'}},
                                                                          'left': 5.027, 'right': 5.0438, 'top': 51.2213,
@@ -132,6 +164,10 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         assert resp.content_length > 0
+
+        import dummy_impl
+        print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
+        dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].download.assert_called_once()
 
     def test_execute_filter_daterange(self):
         resp = self.client.post('/openeo/execute', content_type='application/json', data=json.dumps({
