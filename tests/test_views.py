@@ -62,6 +62,20 @@ class Test(TestCase):
         collection = json.loads(resp.get_data().decode('utf-8'))
         assert collection['product_id'] == 'S2_FAPAR_CLOUDCOVER'
 
+    def test_processes(self):
+        resp = self.client.get('/openeo/processes')
+
+        assert resp.status_code == 200
+        process_dict = {item['process_id']: item for item in resp.json}
+        print(process_dict)
+        assert 'apply_pixel' in process_dict
+
+    def test_process_details(self):
+        resp = self.client.get('/openeo/processes/apply_pixel')
+
+        assert resp.status_code == 200
+        print(resp.json)
+
     def test_execute_image_collection(self):
         resp = self.client.post('/openeo/execute', content_type='application/json', data=json.dumps({
             'process_graph': {

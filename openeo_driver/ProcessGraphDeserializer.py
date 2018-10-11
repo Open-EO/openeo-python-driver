@@ -111,6 +111,12 @@ def mask(args:Dict,viewingParameters)->ImageCollection:
     srs_code = geometry.get("crs",{}).get("name","EPSG:4326")
     return  extract_arg(args, 'imagery').mask(shape(geometry),srs_code)
 
+@process(description="Mask the image collection using another image collection. "
+                     "The mask image collection will be regridded to match this image collection.",
+         args=[ProcessDetails.Arg('mask', "The image collection to use as a mask")])
+def mask_by_raster(args:Dict,viewingParameters)->ImageCollection:
+    raise NotImplementedError("Not yet implemented")
+
 
 @process(description="Specifies a date range filter to be applied on the ImageCollection.",
          args=[ProcessDetails.Arg('imagery', "The image collection to filter."),
@@ -178,10 +184,10 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
 
 
 def getProcesses(substring: str = None):
-    def filter_details(process_details):
-        return {k: v for k, v in process_details.items() if k in ['process_id', 'description']}
+    #def filter_details(process_details):
+    #    return {k: v for k, v in process_details.items() if k in ['process_id', 'description']}
 
-    return [filter_details(process_details.serialize()) for process_id, process_details in process_registry.items()
+    return [process_details.serialize() for process_id, process_details in process_registry.items()
             if not substring or substring.lower() in process_id.lower()]
 
 
