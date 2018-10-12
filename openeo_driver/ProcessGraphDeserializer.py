@@ -41,7 +41,9 @@ if i.health_check is not None:
     health_check = i.health_check
 
 
-def evaluate(processGraph, viewingParameters = {}):
+def evaluate(processGraph, viewingParameters = None):
+    if viewingParameters is None:
+        viewingParameters = {}
     if type(processGraph) is dict:
         if 'product_id' in processGraph:
             return getImageCollection(processGraph['product_id'],viewingParameters)
