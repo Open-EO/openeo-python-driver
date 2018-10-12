@@ -173,6 +173,15 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         viewingParameters["top"] = extract_arg(args,"top")
         viewingParameters["bottom"] = extract_arg(args,"bottom")
         viewingParameters["srs"] = extract_arg(args,"srs")
+    elif 'zonal_statistics' == process_id:
+        geometry = extract_arg(args, 'regions')
+        bbox = shape(geometry).bounds
+        if(viewingParameters.get("left") is None ):
+            viewingParameters["left"] = bbox[0]
+            viewingParameters["right"] = bbox[2]
+            viewingParameters["bottom"] = bbox[1]
+            viewingParameters["top"] = bbox[3]
+            viewingParameters["srs"] = "EPSG:4326"
 
     args = {name: evaluate(expr, viewingParameters) for (name, expr) in args.items() }
 
