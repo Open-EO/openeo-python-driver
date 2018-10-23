@@ -1,5 +1,5 @@
 from unittest import TestCase, skip
-
+from multiprocessing import Pool
 def setup_local_spark():
     '''
     For local debugging, we can run with the openeogeotrellis backend, which requires a local spark to be running.
@@ -35,6 +35,8 @@ from openeo_driver import app
 import json
 import os
 os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "dummy_impl"
+
+client = app.test_client()
 
 class Test(TestCase):
     def setUp(self):
@@ -179,10 +181,45 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         assert resp.content_length > 0
+        assert resp.headers['Content-Type'] == "application/octet-stream"
 
         import dummy_impl
         print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].download.call_count == 1
+
+
+
+    @classmethod
+    def _post_download(cls,index):
+        download_expected_graph = {'process_id': 'filter_bbox', 'args': {'imagery': {'process_id': 'filter_daterange',
+                                                                                     'args': {'imagery': {
+                                                                                         'collection_id': 'S2_FAPAR_SCENECLASSIFICATION_V102_PYRAMID'},
+                                                                                              'from': '2018-08-06T00:00:00Z',
+                                                                                              'to': '2018-08-06T00:00:00Z'}},
+                                                                         'left': 5.027, 'right': 5.0438, 'top': 51.2213,
+                                                                         'bottom': 51.1974, 'srs': 'EPSG:4326'}}
+
+        post_request = json.dumps({"process_graph": download_expected_graph})
+        resp = client.post('/openeo/execute', content_type='application/json',data=post_request)
+        assert resp.status_code == 200
+        assert resp.content_length > 0
+        return index
+
+    @skip
+    def test_execute_download_parallel(self):
+        """
+        Tests downloading in parallel, see EP-2743
+        Spark related issues are only exposed/tested when not using the dummy backend
+        :return:
+        """
+        Test._post_download(1)
+
+        with Pool(2) as pool:
+            result = pool.map(Test._post_download,range(1,3))
+
+        print(result)
+
+
 
     def test_execute_filter_daterange(self):
         resp = self.client.post('/openeo/execute', content_type='application/json', data=json.dumps({

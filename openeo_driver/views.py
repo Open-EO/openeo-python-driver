@@ -166,6 +166,8 @@ def execute():
             format_options = post_data.get('output',{})
             filename = result.download(None, bbox="", time="", **format_options)
             return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
+        elif result is None:
+            abort(500,"No result")
         else:
             return jsonify(result)
     else:
@@ -268,6 +270,10 @@ def service_types():
 
 @app.route('%s/tile_service' % ROOT, methods=['GET', 'POST'])
 def tile_service():
+    """
+    This is deprecated, pre-0.3.0 API
+    :return:
+    """
     if request.method == 'POST':
         print("Handling request: "+str(request))
         print("Post data: "+str(request.data))
@@ -279,6 +285,15 @@ def tile_service():
 
 @app.route('%s/services' % ROOT, methods=['GET', 'POST'])
 def services():
+    """
+    GET: Requests to this endpoint will list all running secondary web services submitted by a user with given id.
+    POST: Calling this endpoint will create a secondary web service such as WMTS, TMS or WCS. The underlying data is processes on-demand, but a process graph may simply access results from a batch job. Computations should be performed in the sense that it is only evaluated for the requested spatial / temporal extent and resolution.
+
+    Note: Costs incurred by shared secondary web services are usually paid by the owner, but this depends on the service type and whether it supports charging fees or not.
+    https://open-eo.github.io/openeo-api/v/0.3.0/apireference/#tag/Secondary-Services-Management/paths/~1services/post
+
+    :return:
+    """
     if request.method == 'POST':
         print("Handling request: "+str(request))
         print("Post data: "+str(request.data))
