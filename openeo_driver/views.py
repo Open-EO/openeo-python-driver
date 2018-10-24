@@ -303,12 +303,12 @@ def services():
 
         if 'tms' == type.lower():
             image_collection = evaluate(process_graph)
-            return jsonify(image_collection.tiled_viewing_service())
+            return jsonify(image_collection.tiled_viewing_service(**json_request)),201, {'ContentType':'application/json','Location':url_for('services')}
         if 'wmts' == type.lower():
             image_collection = evaluate(process_graph,viewingParameters={
                 'service_type':type
             })
-            return jsonify(image_collection.tiled_viewing_service(type=type))
+            return jsonify(image_collection.tiled_viewing_service(**json_request)),201, {'ContentType':'application/json','Location':url_for('services')}
         else:
             raise NotImplementedError("Requested unsupported service type: " + type)
     elif request.method == 'GET':

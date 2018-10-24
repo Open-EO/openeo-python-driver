@@ -22,7 +22,7 @@ def process(description: str, args: List[ProcessDetails.Arg] = [], process_id: s
 
 
 def getImageCollection(product_id:str, viewingParameters):
-    raise "Please provide getImageCollection method in your base package."
+    raise Exception("Please provide getImageCollection method in your base package.")
 
 def health_check():
     return "Default health check OK!"

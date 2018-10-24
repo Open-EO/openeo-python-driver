@@ -12,6 +12,12 @@ def getImageCollection(product_id, viewingParameters):
     image_collection.mask = Mock(name="mask")
     image_collection.mask.return_value = image_collection
 
+    image_collection.tiled_viewing_service = Mock(name="tiled_viewing_service")
+    image_collection.tiled_viewing_service.return_value = {
+                "type": "WMTS",
+                "url": "http://openeo.vgt.vito.be/service/wmts"
+            }
+
     if product_id == 'S2_FAPAR_CLOUDCOVER':
         download = Mock(name='download')
         download.return_value = os.path.realpath(__file__)

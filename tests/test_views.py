@@ -337,3 +337,26 @@ class Test(TestCase):
         resp = self.client.get('/openeo/jobs/unknown_job_id/results/some_file')
 
         assert resp.status_code == 404
+
+    def test_create_wmts(self):
+        resp = self.client.post('/openeo/services',content_type='application/json', json={
+                "custom_param":45,
+                "process_graph":{'product_id': 'S2'},
+                "type":'WMTS',
+                "title":"My Service",
+                "description":"Service description"
+            })
+
+        self.assertEqual(201,resp.status_code )
+        self.assertDictEqual(resp.json,{
+                "type": "WMTS",
+                "url": "http://openeo.vgt.vito.be/service/wmts"
+            })
+        #TODO fix and check on Location Header
+        #self.assertEqual("http://.../openeo/services/myservice", resp.location)
+
+        import dummy_impl
+        print(dummy_impl.collections["S2"])
+        self.assertEqual(1, dummy_impl.collections["S2"].tiled_viewing_service.call_count )
+        dummy_impl.collections["S2"].tiled_viewing_service.assert_called_with(custom_param=45,
+                                                                              description='Service description', process_graph={'product_id': 'S2'}, title='My Service', type='WMTS')
