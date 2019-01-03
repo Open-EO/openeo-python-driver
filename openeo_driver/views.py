@@ -187,7 +187,7 @@ def execute():
 
         post_data = request.get_json()
 
-        result = evaluate(post_data['process_graph'])
+        result = evaluate(post_data,viewingParameters={'version':g.version})
 
         if isinstance(result, ImageCollection):
             format_options = post_data.get('output',{})

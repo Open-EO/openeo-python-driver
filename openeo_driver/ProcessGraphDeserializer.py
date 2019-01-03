@@ -8,6 +8,8 @@ from shapely.geometry import shape
 
 from openeo import ImageCollection
 from .ProcessDetails import ProcessDetails
+from distutils.version import LooseVersion
+
 
 process_registry = {}
 
@@ -27,7 +29,7 @@ def getImageCollection(product_id:str, viewingParameters):
 def health_check():
     return "Default health check OK!"
 
-i = importlib.import_module(os.getenv('DRIVER_IMPLEMENTATION_PACKAGE', "openeogeotrellis"))
+i = importlib.import_module(os.getenv('DRIVER_IMPLEMENTATION_PACKAGE', "dummy_impl"))
 getImageCollection = i.getImageCollection
 get_layers = i.get_layers
 get_layer = i.get_layer
@@ -41,21 +43,90 @@ if i.health_check is not None:
     health_check = i.health_check
 
 
+def evaluate_040(processGraph, viewingParameters = None):
+    top_level_node = list_to_graph(processGraph)
+    return convert_node(processGraph[top_level_node],viewingParameters)
+
+
+def list_to_graph(processGraph):
+    """
+    Converts a list of process graph nodes into an actual graph, by resolving the references.
+    :param processGraph:
+    :return: a list containing the top level nodes in the DAG
+    """
+    result_node = None
+    for node in processGraph:
+        node_dict = processGraph.get(node)
+        if(node_dict.get("result", False)):
+            result_node = node
+        arguments = node_dict.get("arguments",{})
+        for a in arguments:
+            arg = arguments[a]
+            if type(arg) is dict and "from_node" in arg:
+                from_node_id = arg["from_node"]
+                from_node = processGraph.get(from_node_id,None)
+                if(from_node is None):
+                    raise ValueError("Node not found in process graph: " + from_node_id + ". Referenced by: " + node)
+                arg["node"] = from_node
+
+    if result_node is None:
+        raise ValueError("The provided process graph does not contain a result node.")
+    return result_node
+
 def evaluate(processGraph, viewingParameters = None):
+    """
+    Converts the json representation of a (part of a) process graph into the corresponding Python ImageCollection.
+    :param processGraph:
+    :param viewingParameters:
+    :return:  an ImageCollection
+    """
+
+
     if viewingParameters is None:
-        viewingParameters = {}
+        viewingParameters = {
+            'version' : '0.3.1'
+        }
+    if LooseVersion(viewingParameters.get('version','0.3.1')) >= LooseVersion('0.4.0'):
+        return evaluate_040(processGraph,viewingParameters)
+
+    return convert_node(processGraph,viewingParameters)
+
+
+def convert_node_03x(processGraph, viewingParameters = None):
     if type(processGraph) is dict:
         if 'product_id' in processGraph:
             return getImageCollection(processGraph['product_id'],viewingParameters)
         elif 'collection_id' in processGraph:
             return getImageCollection(processGraph['collection_id'],viewingParameters)
         elif 'process_graph' in processGraph:
-            return evaluate(processGraph['process_graph'], viewingParameters)
+            return convert_node(processGraph['process_graph'], viewingParameters)
         elif 'imagery' in processGraph:
-            return evaluate(processGraph['imagery'], viewingParameters)
+            return convert_node(processGraph['imagery'], viewingParameters)
         elif 'process_id' in processGraph:
             return apply_process(processGraph['process_id'], processGraph['args'], viewingParameters)
     return processGraph
+
+def convert_node_04x(processGraph, viewingParameters = None):
+    if type(processGraph) is dict:
+        if 'process_id' in processGraph:
+            return apply_process(processGraph['process_id'], processGraph.get('arguments',{}), viewingParameters)
+        elif 'node' in processGraph:
+            return convert_node(processGraph['node'],viewingParameters)
+        else:
+            raise ValueError('Unsupported process graph node: \n' + json.dumps(processGraph,indent=1))
+    return processGraph
+
+def convert_node(dag, viewingParameters = None):
+    """
+    Depth first traversion and conversion of process graph
+    :param dag:
+    :param viewingParameters:
+    :return:
+    """
+    if LooseVersion(viewingParameters.get('version', '0.3.1')) >= LooseVersion('0.4.0'):
+        return convert_node_04x(dag, viewingParameters)
+    else:
+        return convert_node_03x(dag,viewingParameters)
 
 
 def extract_arg(args:Dict,name:str):
@@ -65,6 +136,11 @@ def extract_arg(args:Dict,name:str):
         raise AttributeError(
             "Required argument " +name +" should not be null. Arguments: \n" + json.dumps(args,indent=1))
 
+@process(description="Load an data cube (image collection) based on it's name",
+         args=[ProcessDetails.Arg('name', "The name of the collection to load."),])
+def get_collection( args:Dict, viewingParameters)->ImageCollection:
+    name = extract_arg(args,'name')
+    return getImageCollection(name,viewingParameters)
 
 @process(description="Apply a function to the given set of bands in this image collection.",
          args=[ProcessDetails.Arg('function', "A function that gets the value of one pixel (including all bands) as input and produces a single scalar or tuple output."),
@@ -131,6 +207,17 @@ def filter_daterange(args: Dict, viewingParameters)->ImageCollection:
     image_collection = extract_arg(args, 'imagery')
     return image_collection
 
+@process(description="Specifies a temporal filter to be applied on a data cube.",
+         args=[ProcessDetails.Arg('data', "The data cube to filter."),
+               ProcessDetails.Arg('from', "Includes all data newer than the specified ISO 8601 date or date-time with simultaneous consideration of to."),
+               ProcessDetails.Arg('to', "Includes all data older than the specified ISO 8601 date or date-time with simultaneous consideration of from.")])
+def filter_temporal(args: Dict, viewingParameters)->ImageCollection:
+    #for now we take care of this filtering in 'viewingParameters'
+    #from_date = extract_arg(args,'from')
+    #to_date = extract_arg(args,'to')
+    image_collection = extract_arg(args, 'data')
+    return image_collection
+
 @process(description="Specifies a bounding box to filter input image collections.",
          args=[ProcessDetails.Arg('imagery', "The image collection to filter."),
                ProcessDetails.Arg('left', "The left side of the bounding box."),
@@ -139,10 +226,13 @@ def filter_daterange(args: Dict, viewingParameters)->ImageCollection:
                ProcessDetails.Arg('bottom', "The bottom of the bounding box."),
                ProcessDetails.Arg('srs', "The spatial reference system of the bounding box.")])
 def filter_bbox(args:Dict,viewingParameters)->ImageCollection:
-    #for now we take care of this filtering in 'viewingParameters'
-    #from_date = extract_arg(args,'from')
-    #to_date = extract_arg(args,'to')
-    image_collection = extract_arg(args, 'imagery')
+
+    left = extract_arg(args, "left")
+    right = extract_arg(args, "right")
+    top = extract_arg(args, "top")
+    bottom = extract_arg(args, "bottom")
+    srs = extract_arg(args, "srs")
+    image_collection = extract_arg(args, 'imagery').bbox_filter(left,right,top,bottom,srs)
     return image_collection
 
 @process(description="Computes zonal statistics over a given polygon",
@@ -164,17 +254,30 @@ def zonal_statistics(args: Dict, viewingParameters) -> Dict:
 
 def apply_process(process_id: str, args: Dict, viewingParameters):
 
-    if 'filter_daterange' == process_id:
+    if 'filter_daterange' == process_id or 'filter_temporal' == process_id:
+        """
+        filter_daterange <= pre 0.3.x
+        filter_temporal >= 0.4.x
+        """
         viewingParameters = viewingParameters or {}
         viewingParameters["from"] = extract_arg(args,"from")
         viewingParameters["to"] = extract_arg(args,"to")
     elif 'filter_bbox' == process_id:
         viewingParameters = viewingParameters or {}
-        viewingParameters["left"] = extract_arg(args,"left")
-        viewingParameters["right"] = extract_arg(args,"right")
-        viewingParameters["top"] = extract_arg(args,"top")
-        viewingParameters["bottom"] = extract_arg(args,"bottom")
-        viewingParameters["srs"] = extract_arg(args,"srs")
+        if "left" in args:
+            # <=0.3.x
+            viewingParameters["left"] = extract_arg(args,"left")
+            viewingParameters["right"] = extract_arg(args,"right")
+            viewingParameters["top"] = extract_arg(args,"top")
+            viewingParameters["bottom"] = extract_arg(args,"bottom")
+            viewingParameters["srs"] = extract_arg(args,"srs")
+        else:
+            # >=0.4.x
+            viewingParameters["left"] = extract_arg(args, "west")
+            viewingParameters["right"] = extract_arg(args, "east")
+            viewingParameters["top"] = extract_arg(args, "north")
+            viewingParameters["bottom"] = extract_arg(args, "south")
+            viewingParameters["srs"] = extract_arg(args, "crs")
     elif 'zonal_statistics' == process_id:
         geometry = extract_arg(args, 'regions')
         bbox = shape(geometry).bounds
@@ -185,7 +288,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             viewingParameters["top"] = bbox[3]
             viewingParameters["srs"] = "EPSG:4326"
 
-    args = {name: evaluate(expr, viewingParameters) for (name, expr) in args.items() }
+    args = {name: convert_node(expr, viewingParameters) for (name, expr) in args.items() }
 
     print(globals().keys())
     process_function = globals()[process_id]

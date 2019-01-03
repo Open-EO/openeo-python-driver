@@ -12,37 +12,46 @@ def getImageCollection(product_id, viewingParameters):
     image_collection.mask = Mock(name="mask")
     image_collection.mask.return_value = image_collection
 
+    image_collection.bbox_filter = Mock(name="bbox_filter")
+    image_collection.bbox_filter.return_value = image_collection
+
     image_collection.tiled_viewing_service = Mock(name="tiled_viewing_service")
     image_collection.tiled_viewing_service.return_value = {
                 "type": "WMTS",
                 "url": "http://openeo.vgt.vito.be/service/wmts"
             }
 
-    if product_id == 'S2_FAPAR_CLOUDCOVER':
-        download = Mock(name='download')
-        download.return_value = os.path.realpath(__file__)
 
-        image_collection.download = download
-    else:
-        timeseries = Mock(name='timeseries')
-        timeseries.return_value = {
-            "viewingParameters" : image_collection.viewingParameters
-        }
+    download = Mock(name='download')
+    download.return_value = os.path.realpath(__file__)
 
-        image_collection.timeseries = timeseries
+    image_collection.download = download
 
-        def is_polygon_or_multipolygon(return_value, regions, func):
-            assert func == 'mean' or func == 'avg'
-            assert isinstance(regions, Polygon) or isinstance(regions, MultiPolygon)
-            return return_value
+    timeseries = Mock(name='timeseries')
+    timeseries.return_value = {
+        "viewingParameters" : image_collection.viewingParameters
+    }
 
-        zonal_statistics = Mock(name='zonal_statistics')
-        zonal_statistics.side_effect = lambda regions, func: is_polygon_or_multipolygon({'hello': 'world'}, regions, func)
+    image_collection.timeseries = timeseries
 
-        image_collection.zonal_statistics = zonal_statistics
+    def is_polygon_or_multipolygon(return_value, regions, func):
+        assert func == 'mean' or func == 'avg'
+        assert isinstance(regions, Polygon) or isinstance(regions, MultiPolygon)
+        return return_value
 
-        image_collection.apply_pixel = Mock(name = "apply_pixel")
-        image_collection.apply_pixel.return_value = image_collection
+    zonal_statistics = Mock(name='zonal_statistics')
+    zonal_statistics.side_effect = lambda regions, func: is_polygon_or_multipolygon({'hello': 'world'}, regions, func)
+
+    image_collection.zonal_statistics = zonal_statistics
+
+    image_collection.apply_pixel = Mock(name = "apply_pixel")
+    image_collection.apply_pixel.return_value = image_collection
+
+    image_collection.apply_tiles = Mock(name="apply_tiles")
+    image_collection.apply_tiles.return_value = image_collection
+
+    image_collection.max_time = Mock(name="max_time")
+    image_collection.max_time.return_value = image_collection
 
     collections[product_id] = image_collection
     return image_collection
