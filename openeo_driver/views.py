@@ -11,7 +11,7 @@ from .ProcessGraphDeserializer import (evaluate, health_check, get_layers, getPr
                                        get_batch_job_result_filenames, get_batch_job_result_output_dir)
 from openeo import ImageCollection
 
-SUPPORTED_VERSIONS = ['0.3.0', '0.4.0']
+SUPPORTED_VERSIONS = ['0.3.0','0.3.1', '0.4.0']
 
 openeo_bp = Blueprint('openeo', __name__)
 
@@ -23,11 +23,11 @@ def add_language_code(endpoint, values):
     if app.url_map.is_endpoint_expecting(endpoint, 'version'):
         values['version'] = g.version
     else:
-        values['version'] = '0.3.0'
+        values['version'] = '0.3.1'
 
 @openeo_bp.url_value_preprocessor
 def pull_version(endpoint, values):
-    g.version = values.pop('version', '0.3.0')
+    g.version = values.pop('version', '0.3.1')
     if g.version not in SUPPORTED_VERSIONS:
         error = HTTPException(response={
             "id": "550e8400-e29b-11d4-a716-446655440000",
@@ -67,13 +67,13 @@ def index():
       "version": g.version,
       "endpoints": [
         {
-          "path": url_for('.data'),
+          "path": url_for('.collections'),
           "methods": [
             "GET"
           ]
         },
         {
-          "path": url_for('.data') + '/{data_id}',
+          "path": url_for('.collections') + '/{collection_id}',
           "methods": [
             "GET"
           ]
@@ -346,12 +346,28 @@ def services():
 
 @openeo_bp.route('/data' , methods=['GET'])
 def data():
-        print("Handling request: "+str(request))
-        layers = get_layers()
-        return jsonify(layers)
+    """
+    deprecated, use /collections
+    :return:
+    """
+    return collections()
 
 @openeo_bp.route('/data/<collection_id>' , methods=['GET'])
 def collection(collection_id):
+    """
+    deprecated, use /collections
+    :return:
+    """
+    return collection_by_id(collection_id)
+
+
+@openeo_bp.route('/collections' , methods=['GET'])
+def collections():
+        layers = get_layers()
+        return jsonify(layers)
+
+@openeo_bp.route('/collections/<collection_id>' , methods=['GET'])
+def collection_by_id(collection_id):
     print("Handling request: "+str(request))
     return jsonify(get_layer(collection_id))
 
