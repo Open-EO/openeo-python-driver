@@ -178,6 +178,9 @@ def download():
     else:
         return 'Usage: Download image using POST.'
 
+@openeo_bp.route('/preview' , methods=['GET', 'POST'])
+def preview():
+    return execute()
 
 @openeo_bp.route('/execute' , methods=['GET', 'POST'])
 def execute():

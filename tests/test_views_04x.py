@@ -14,7 +14,7 @@ class Test(TestCase):
 
 
     def test_execute_filter_temporal(self):
-        resp = self.client.post('/openeo/0.4.0/execute', content_type='application/json', data=json.dumps({
+        resp = self.client.post('/openeo/0.4.0/execute', content_type='application/json', data=json.dumps({'process_graph':{
             'filter_temp': {
                 'process_id': 'filter_temporal',
                 'arguments': {
@@ -24,7 +24,7 @@ class Test(TestCase):
                     'from': "2018-01-01",
                     'to': "2018-12-31"
                 },
-                'result':'true'
+                'result':True
             },
             'collection': {
                 'process_id': 'get_collection',
@@ -32,6 +32,8 @@ class Test(TestCase):
                     'name': 'S2_FAPAR_CLOUDCOVER'
                 }
             }
+        }
+
         }))
 
         assert resp.status_code == 200

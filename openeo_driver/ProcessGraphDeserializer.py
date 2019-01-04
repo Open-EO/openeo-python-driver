@@ -87,7 +87,7 @@ def evaluate(processGraph, viewingParameters = None):
             'version' : '0.3.1'
         }
     if LooseVersion(viewingParameters.get('version','0.3.1')) >= LooseVersion('0.4.0'):
-        return evaluate_040(processGraph,viewingParameters)
+        return evaluate_040(processGraph.get('process_graph',processGraph),viewingParameters)
 
     return convert_node(processGraph,viewingParameters)
 
@@ -136,6 +136,15 @@ def extract_arg(args:Dict,name:str):
         raise AttributeError(
             "Required argument " +name +" should not be null. Arguments: \n" + json.dumps(args,indent=1))
 
+def extract_arg_list(args:Dict,names:list):
+    for name in names:
+        value = args.get(name, None)
+        if value is not None:
+            return value
+    raise AttributeError(
+            "Required argument " +str(names) +" should not be null. Arguments: \n" + json.dumps(args,indent=1))
+
+
 @process(description="Load an data cube (image collection) based on it's name",
          args=[ProcessDetails.Arg('name', "The name of the collection to load."),])
 def get_collection( args:Dict, viewingParameters)->ImageCollection:
@@ -149,13 +158,13 @@ def apply_pixel( args:Dict, viewingParameters)->ImageCollection:
     function = extract_arg(args,'function')
     bands = extract_arg(args,'bands')
     decoded_function = pickle.loads(base64.standard_b64decode(function))
-    return extract_arg(args, 'imagery').apply_pixel(bands, decoded_function)
+    return extract_arg_list(args, ['data','imagery']).apply_pixel(bands, decoded_function)
 
 @process(description="Apply a function to the tiles of this image collection.",
          args=[ProcessDetails.Arg('function', "A function that gets a tile as input and produces a tile as output. The function should follow the openeo_udf specification.")])
 def apply_tiles(args:Dict, viewingParameters)->ImageCollection:
     function = extract_arg(args,'code')
-    return extract_arg(args, 'imagery').apply_tiles(function['source'])
+    return extract_arg_list(args, ['data','imagery']).apply_tiles(function['source'])
 
 
 @process(process_id="reduce_time",
@@ -172,13 +181,13 @@ def reduce_by_time( args:Dict, viewingParameters)->ImageCollection:
 @process(description="Finds the minimum value of time series for all bands of the input dataset.")
 def min_time(args:Dict,viewingParameters)->ImageCollection:
     #TODO this function should invalidate any filter_daterange set in a parent node
-    return extract_arg(args, 'imagery').min_time()
+    return extract_arg_list(args, ['data','imagery']).min_time()
 
 
 @process(description="Finds the maximum value of time series for all bands of the input dataset.")
 def max_time(args:Dict,viewingParameters)->ImageCollection:
     #TODO this function should invalidate any filter_daterange set in a parent node
-    return  extract_arg(args, 'imagery').max_time()
+    return  extract_arg_list(args, ['data','imagery']).max_time()
 
 
 @process(description="Mask the image collection using a polygon. All pixels outside the polygon should be set to the nodata value. "
@@ -187,7 +196,7 @@ def max_time(args:Dict,viewingParameters)->ImageCollection:
 def mask(args:Dict,viewingParameters)->ImageCollection:
     geometry = extract_arg(args, 'mask_shape')
     srs_code = geometry.get("crs",{}).get("name","EPSG:4326")
-    return  extract_arg(args, 'imagery').mask(shape(geometry),srs_code)
+    return  extract_arg_list(args, ['data','imagery']).mask(shape(geometry),srs_code)
 
 @process(description="Mask the image collection using another image collection. "
                      "The mask image collection will be regridded to match this image collection.",
@@ -227,12 +236,12 @@ def filter_temporal(args: Dict, viewingParameters)->ImageCollection:
                ProcessDetails.Arg('srs', "The spatial reference system of the bounding box.")])
 def filter_bbox(args:Dict,viewingParameters)->ImageCollection:
 
-    left = extract_arg(args, "left")
-    right = extract_arg(args, "right")
-    top = extract_arg(args, "top")
-    bottom = extract_arg(args, "bottom")
-    srs = extract_arg(args, "srs")
-    image_collection = extract_arg(args, 'imagery').bbox_filter(left,right,top,bottom,srs)
+    left = viewingParameters["left"]
+    right = viewingParameters["right"]
+    top = viewingParameters["top"]
+    bottom = viewingParameters["bottom"]
+    srs = viewingParameters["srs"]
+    image_collection = extract_arg_list(args, ['data','imagery']).bbox_filter(left,right,top,bottom,srs)
     return image_collection
 
 @process(description="Computes zonal statistics over a given polygon",
@@ -240,7 +249,7 @@ def filter_bbox(args:Dict,viewingParameters)->ImageCollection:
                ProcessDetails.Arg('regions', "The GeoJson Polygon defining the zone.")
                ])
 def zonal_statistics(args: Dict, viewingParameters) -> Dict:
-    image_collection = extract_arg(args, 'imagery')
+    image_collection = extract_arg_list(args, ['data','imagery'])
     geometry = extract_arg(args, 'regions')
     func = args.get('func', 'mean')
 
