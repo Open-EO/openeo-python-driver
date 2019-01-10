@@ -91,6 +91,18 @@ def index():
                   "GET"
               ]
           },
+          {
+              "path": "/output_formats",
+              "methods": [
+                  "GET"
+              ]
+          },
+          {
+              "path": "/service_types",
+              "methods": [
+                  "GET"
+              ]
+          },
         {
           "path": "/jobs/{job_id}",#unquote(url_for('.get_job_info', job_id = '{job_id}')),
           "methods": [
