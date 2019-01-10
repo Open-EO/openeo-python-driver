@@ -20,8 +20,15 @@ class ProcessDetails:
 
     def serialize(self):
         serialized = {
-            "process_id": self.process_id,
-            "description": self.description
+            "name": self.process_id,
+            "description": self.description,
+            "returns":{
+                "description" : "Raster Data Cube",
+                "schema": {
+                    "type": "object",
+                    "format": "raster-cube"
+                }
+            }
         }
 
         if self.args:
