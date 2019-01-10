@@ -67,32 +67,32 @@ def index():
       "version": g.version,
       "endpoints": [
         {
-          "path": url_for('.collections'),
+          "path": "/collections",
           "methods": [
             "GET"
           ]
         },
         {
-          "path": url_for('.collections') + '/{collection_id}',
+          "path": '/collections/{collection_id}',
           "methods": [
             "GET"
           ]
         },
         {
-          "path": url_for('.create_job'),
+          "path": "/jobs",#url_for('.create_job'),
           "methods": [
             "GET",
             "POST"
           ]
         },
           {
-              "path": url_for('.processes'),
+              "path": "/processes",#url_for('.processes'),
               "methods": [
                   "GET"
               ]
           },
         {
-          "path": unquote(url_for('.get_job_info', job_id = '{job_id}')),
+          "path": "/jobs/{job_id}",#unquote(url_for('.get_job_info', job_id = '{job_id}')),
           "methods": [
             "GET",
             "DELETE",
