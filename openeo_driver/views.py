@@ -367,7 +367,10 @@ def collection(collection_id):
 @openeo_bp.route('/collections' , methods=['GET'])
 def collections():
         layers = get_layers()
-        return jsonify(layers)
+        return jsonify({
+            'collections':layers,
+            'links':[]
+        })
 
 @openeo_bp.route('/collections/<collection_id>' , methods=['GET'])
 def collection_by_id(collection_id):
@@ -381,7 +384,10 @@ def processes():
 
     substring = request.args.get('qname')
 
-    return jsonify(getProcesses(substring))
+    return jsonify({
+        'processes':getProcesses(substring),
+        'links':[]
+    })
 
 
 @openeo_bp.route('/processes/<process_id>' , methods=['GET'])

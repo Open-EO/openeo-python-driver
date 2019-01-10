@@ -50,12 +50,12 @@ class Test(TestCase):
         assert "OK" in resp.get_data(as_text=True)
 
     def test_data(self):
-        resp = self.client.get('/openeo/data')
+        resp = self.client.get('/openeo/collections')
 
         assert resp.status_code == 200
         collections = json.loads(resp.get_data().decode('utf-8'))
         assert collections
-        assert 'S2_FAPAR_CLOUDCOVER' in [collection['product_id'] for collection in collections]
+        assert 'S2_FAPAR_CLOUDCOVER' in [collection['product_id'] for collection in collections['collections']]
 
     def test_data_detail(self):
         resp = self.client.get('/openeo/data/S2_FAPAR_CLOUDCOVER')
@@ -68,7 +68,7 @@ class Test(TestCase):
         resp = self.client.get('/openeo/processes')
 
         assert resp.status_code == 200
-        process_dict = {item['process_id']: item for item in resp.json}
+        process_dict = {item['process_id']: item for item in resp.json['processes']}
         print(process_dict)
         assert 'apply_pixel' in process_dict
 
