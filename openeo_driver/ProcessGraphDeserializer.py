@@ -178,13 +178,13 @@ def reduce_by_time( args:Dict, viewingParameters)->ImageCollection:
     return extract_arg(args, 'imagery').aggregate_time(temporal_window, decoded_function)
 
 
-@process(description="Finds the minimum value of time series for all bands of the input dataset.")
+@process(description="Finds the minimum value of time series for all bands of the input dataset.", args=[ProcessDetails.Arg('data', "The raster data cube.")])
 def min_time(args:Dict,viewingParameters)->ImageCollection:
     #TODO this function should invalidate any filter_daterange set in a parent node
     return extract_arg_list(args, ['data','imagery']).min_time()
 
 
-@process(description="Finds the maximum value of time series for all bands of the input dataset.")
+@process(description="Finds the maximum value of time series for all bands of the input dataset.", args=[ProcessDetails.Arg('data', "The raster data cube.")])
 def max_time(args:Dict,viewingParameters)->ImageCollection:
     #TODO this function should invalidate any filter_daterange set in a parent node
     return  extract_arg_list(args, ['data','imagery']).max_time()
