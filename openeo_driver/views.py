@@ -79,6 +79,12 @@ def index():
           ]
         },
         {
+          "path": "/preview",
+          "methods": [
+              "POST"
+          ]
+        },
+        {
           "path": "/jobs",#url_for('.create_job'),
           "methods": [
             "GET",
@@ -103,12 +109,27 @@ def index():
                   "GET"
               ]
           },
+          {
+              "path": "/services",
+              "methods": [
+                  "GET",
+                  "POST"
+              ]
+          },
         {
           "path": "/jobs/{job_id}",#unquote(url_for('.get_job_info', job_id = '{job_id}')),
           "methods": [
             "GET",
             "DELETE",
             "PATCH"
+          ]
+        },
+        {
+          "path": "/jobs/{job_id}/results",
+          "methods": [
+              "GET",
+              "DELETE",
+              "POST"
           ]
         }
       ],
