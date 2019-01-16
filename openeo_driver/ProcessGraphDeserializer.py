@@ -44,6 +44,10 @@ if i.health_check is not None:
 
 
 def evaluate_040(processGraph, viewingParameters = None):
+    if viewingParameters is None:
+        viewingParameters = {
+            'version' : '0.4.0'
+        }
     top_level_node = list_to_graph(processGraph)
     return convert_node(processGraph[top_level_node],viewingParameters)
 
@@ -112,6 +116,11 @@ def convert_node_04x(processGraph, viewingParameters = None):
             return apply_process(processGraph['process_id'], processGraph.get('arguments',{}), viewingParameters)
         elif 'node' in processGraph:
             return convert_node(processGraph['node'],viewingParameters)
+        elif 'callback' in processGraph:
+            #a callback object is a new process graph, don't evaluate it in the parent graph
+            return processGraph
+        elif 'from_argument' in processGraph and processGraph.get('from_argument') == 'dimension_data':
+            return viewingParameters.get('dimension_data')
         else:
             raise ValueError('Unsupported process graph node: \n' + json.dumps(processGraph,indent=1))
     return processGraph
@@ -165,6 +174,30 @@ def apply_pixel( args:Dict, viewingParameters)->ImageCollection:
 def apply_tiles(args:Dict, viewingParameters)->ImageCollection:
     function = extract_arg(args,'code')
     return extract_arg_list(args, ['data','imagery']).apply_tiles(function['source'])
+
+@process(description="Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.",
+         args=[ProcessDetails.Arg('process', "A process (callback) to be applied on each value. The specified process must be unary meaning that it must work on a single value."),
+                ProcessDetails.Arg('dimensions', "The names of the dimensions to apply the process on. Defaults to an empty array so that all dimensions are used.")
+
+               ])
+def apply(args:Dict, viewingParameters)->ImageCollection:
+    """
+    Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
+
+    :param args:
+    :param viewingParameters:
+    :return:
+    """
+    process = extract_arg(args,'process')
+    callback = extract_arg(process,'callback')
+    dimensions = args.get('dimensions',[])
+    data_cube = extract_arg_list(args, ['data', 'imagery'])
+    return evaluate_040(callback,{
+        "dimension_data":data_cube,
+        "parent_process":"apply",
+        "version":"0.4.0"
+    })
+
 
 
 @process(process_id="reduce_time",
@@ -297,13 +330,18 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             viewingParameters["top"] = bbox[3]
             viewingParameters["srs"] = "EPSG:4326"
 
+    #first we resolve child nodes and arguments
     args = {name: convert_node(expr, viewingParameters) for (name, expr) in args.items() }
 
-    print(globals().keys())
-    process_function = globals()[process_id]
-    if process_function is None:
-        raise RuntimeError("No process found with name: "+process_id)
-    return process_function(args, viewingParameters)
+    #when all arguments and dependencies are resolved, we can run the process
+    if(viewingParameters.get("parent_process",None) is "apply"):
+        image_collection = extract_arg_list(args, ['data', 'imagery'])
+        return image_collection.apply(process_id)
+    else:
+        process_function = globals()[process_id]
+        if process_function is None:
+            raise RuntimeError("No process found with name: "+process_id)
+        return process_function(args, viewingParameters)
 
 
 def getProcesses(substring: str = None):

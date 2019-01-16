@@ -38,3 +38,49 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         assert resp.content_length > 0
+
+    def test_execute_apply_unary(self):
+        resp = self.client.post('/openeo/0.4.0/execute', content_type='application/json', data=json.dumps({'process_graph':{
+            'apply': {
+                'process_id': 'apply',
+                'arguments': {
+                    'data': {
+                        'from_node': 'collection'
+                    },
+
+                    'process':{
+                        'callback':{
+                            "abs":{
+                                "arguments":{
+                                    "data": {
+                                        "from_argument": "dimension_data"
+                                    }
+                                },
+                                "process_id":"abs"
+                            },
+                            "cos": {
+                                "arguments":{
+                                    "data": {
+                                        "from_node": "abs"
+                                    }
+                                },
+                                "process_id": "cos",
+                                "result": True
+                            }
+                        }
+                    }
+                },
+                'result':True
+            },
+            'collection': {
+                'process_id': 'get_collection',
+                'arguments':{
+                    'name': 'S2_FAPAR_CLOUDCOVER'
+                }
+            }
+        }
+
+        }))
+
+        assert resp.status_code == 200
+        assert resp.content_length > 0
