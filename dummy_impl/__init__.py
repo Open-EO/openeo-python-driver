@@ -53,6 +53,12 @@ def getImageCollection(product_id, viewingParameters):
     image_collection.apply = Mock(name="apply")
     image_collection.apply.return_value = image_collection
 
+    image_collection.reduce= Mock(name="reduce")
+    image_collection.reduce.return_value = image_collection
+
+    image_collection.aggregate_temporal= Mock(name="aggregate_temporal")
+    image_collection.aggregate_temporal.return_value = image_collection
+
     image_collection.max_time = Mock(name="max_time")
     image_collection.max_time.return_value = image_collection
 

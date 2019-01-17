@@ -142,8 +142,9 @@ def extract_arg(args:Dict,name:str):
     try:
         return args[name]
     except KeyError:
+        args_clean = { k:str(v) for (k,v) in args.items()}
         raise AttributeError(
-            "Required argument " +name +" should not be null. Arguments: \n" + json.dumps(args,indent=1))
+            "Required argument " +name +" should not be null. Arguments: \n" + json.dumps(args_clean,indent=1))
 
 def extract_arg_list(args:Dict,names:list):
     for name in names:
@@ -190,7 +191,6 @@ def apply(args:Dict, viewingParameters)->ImageCollection:
     """
     process = extract_arg(args,'process')
     callback = extract_arg(process,'callback')
-    dimensions = args.get('dimensions',[])
     data_cube = extract_arg_list(args, ['data', 'imagery'])
     return evaluate_040(callback,{
         "dimension_data":data_cube,
@@ -198,6 +198,59 @@ def apply(args:Dict, viewingParameters)->ImageCollection:
         "version":"0.4.0"
     })
 
+@process(description="Applies a reducer to a data cube dimension by collapsing all the input values along the specified dimension into a single output value computed by the reducer.\nThe reducer must accept an array and return a single value (see parameter reducer). Nominal values are possible, but need to be mapped, e.g. band names to wavelengths, date strings to numeric timestamps since 1970 etc.",
+         args=[ProcessDetails.Arg('reducer', "A reducer to be applied on the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median."),
+                ProcessDetails.Arg('dimension', "The dimension over which to reduce.")
+
+               ])
+def reduce(args:Dict, viewingParameters)->ImageCollection:
+    """
+    https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#reduce
+
+    :param args:
+    :param viewingParameters:
+    :return:
+    """
+    reducer = extract_arg(args,'reducer')
+    callback = extract_arg(reducer,'callback')
+    dimension = extract_arg(args,'dimension')
+    data_cube = extract_arg_list(args, ['data', 'imagery'])
+    return evaluate_040(callback,{
+        "dimension_data":data_cube,
+        "parent_process":"reduce",
+        "dimension":dimension,
+        "version":"0.4.0"
+    })
+
+@process(description='Computes a temporal aggregation based on an array of date and/or time intervals.\nCalendar hierarchies such as year, month, week etc. must be transformed into specific intervals by the clients. For each interval, all data along the dimension will be passed through the reducer. The computed values will be projected to the labels, so the number of labels and the number of intervals need to be equal.\n If the dimension is not set, the data cube is expected to only have one temporal dimension.',
+         args=[ProcessDetails.Arg('intervals','Temporal left-closed intervals so that the start time is contained, but not the end time.'),
+               ProcessDetails.Arg('labels','Labels for the intervals. The number of labels and the number of groups need to be equal.'),
+               ProcessDetails.Arg('reducer','A reducer to be applied on the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median.'),
+               ProcessDetails.Arg('dimension','The temporal dimension for aggregation. All data along the dimension will be passed through the specified reducer. If the dimension is not set, the data cube is expected to only have one temporal dimension.')
+
+               ])
+def aggregate_temporal(args:Dict, viewingParameters)->ImageCollection:
+    """
+    https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#reduce
+
+    :param args:
+    :param viewingParameters:
+    :return:
+    """
+    reducer = extract_arg(args,'reducer')
+    callback = extract_arg(reducer,'callback')
+    dimension = extract_arg(args,'dimension')
+    intervals = extract_arg(args, 'intervals')
+    labels = extract_arg(args, 'labels')
+    data_cube = extract_arg_list(args, ['data', 'imagery'])
+    return evaluate_040(callback,{
+        "dimension_data":data_cube,
+        "parent_process":"aggregate_temporal",
+        "intervals":intervals,
+        "labels":labels,
+        "dimension":dimension,
+        "version":"0.4.0"
+    })
 
 
 @process(process_id="reduce_time",
@@ -334,9 +387,15 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
     args = {name: convert_node(expr, viewingParameters) for (name, expr) in args.items() }
 
     #when all arguments and dependencies are resolved, we can run the process
-    if(viewingParameters.get("parent_process",None) is "apply"):
+    if(viewingParameters.get("parent_process",None) == "apply"):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
-        return image_collection.apply(process_id)
+        return image_collection.apply(process_id,args)
+    elif (viewingParameters.get("parent_process", None) == "reduce"):
+        image_collection = extract_arg_list(args, ['data', 'imagery'])
+        return image_collection.reduce(process_id, args)
+    elif (viewingParameters.get("parent_process", None) == "aggregate_temporal"):
+        image_collection = extract_arg_list(args, ['data', 'imagery'])
+        return image_collection.aggregate_temporal(process_id, args)
     else:
         process_function = globals()[process_id]
         if process_function is None:

@@ -14,7 +14,7 @@ class Test(TestCase):
 
 
     def test_execute_filter_temporal(self):
-        resp = self.client.post('/openeo/0.4.0/execute', content_type='application/json', data=json.dumps({'process_graph':{
+        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps({'process_graph':{
             'filter_temp': {
                 'process_id': 'filter_temporal',
                 'arguments': {
@@ -40,7 +40,7 @@ class Test(TestCase):
         assert resp.content_length > 0
 
     def test_execute_apply_unary(self):
-        resp = self.client.post('/openeo/0.4.0/execute', content_type='application/json', data=json.dumps({'process_graph':{
+        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps({'process_graph':{
             'apply': {
                 'process_id': 'apply',
                 'arguments': {
@@ -81,6 +81,85 @@ class Test(TestCase):
         }
 
         }))
+
+        assert resp.status_code == 200
+        assert resp.content_length > 0
+
+    def test_execute_reduce_max(self):
+        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps({'process_graph':{
+            'apply': {
+                'process_id': 'reduce',
+                'arguments': {
+                    'data': {
+                        'from_node': 'collection'
+                    },
+                    'dimension': 'temporal',
+                    'reducer':{
+                        'callback':{
+                            "max":{
+                                "arguments":{
+                                    "data": {
+                                        "from_argument": "dimension_data"
+                                    }
+                                },
+                                "process_id":"max",
+                                "result":True
+                            }
+                        }
+                    }
+                },
+                'result':True
+            },
+            'collection': {
+                'process_id': 'get_collection',
+                'arguments':{
+                    'name': 'S2_FAPAR_CLOUDCOVER'
+                }
+            }
+        }
+
+        }))
+
+        assert resp.status_code == 200
+        assert resp.content_length > 0
+
+    def test_preview_aggregate_temporal_max(self):
+        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json',
+                                data=json.dumps({'process_graph': {
+                                    'apply': {
+                                        'process_id': 'aggregate_temporal',
+                                        'arguments': {
+                                            'data': {
+                                                'from_node': 'collection'
+                                            },
+                                            'dimension': 'temporal',
+                                            'intervals': [],
+                                            'labels':[],
+                                            'reducer': {
+                                                'callback': {
+                                                    "max": {
+                                                        "arguments": {
+                                                            "data": {
+                                                                "from_argument": "dimension_data"
+                                                            }
+                                                        },
+                                                        "process_id": "max",
+                                                        "result": True
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        'result': True
+                                    },
+                                    'collection': {
+                                        'process_id': 'get_collection',
+                                        'arguments': {
+                                            'name': 'S2_FAPAR_CLOUDCOVER'
+                                        }
+                                    }
+                                }
+
+                                }))
 
         assert resp.status_code == 200
         assert resp.content_length > 0
