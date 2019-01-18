@@ -22,6 +22,31 @@ def process(description: str, args: List[ProcessDetails.Arg] = [], process_id: s
 
     return add_to_registry
 
+def register_extra_processes():
+    descriptions = [
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/max.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/min.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/mean.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/variance.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/absolute.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/ln.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/ceil.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/floor.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/cos.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/sin.json'
+    ]
+
+    import requests
+    def load_details(url:str):
+        json_description = requests.get(url).json()
+        parameters = json_description['parameters']
+        args = [ProcessDetails.Arg(k,v['description'],v.get('required',False),v['schema']) for (k,v) in parameters.items()]
+        return ProcessDetails(process_id=json_description['id'], description=json_description['description'],args=args)
+    details = [ load_details(d) for d in descriptions]
+    process_registry.update({d.process_id:d for d in details})
+    print(process_registry)
+register_extra_processes()
+
 
 def getImageCollection(product_id:str, viewingParameters):
     raise Exception("Please provide getImageCollection method in your base package.")
@@ -254,10 +279,16 @@ def aggregate_temporal(args:Dict, viewingParameters)->ImageCollection:
 
 
 @process(process_id="reduce_time",
-         description="Applies a windowed reduction to a timeseries by applying a user defined function.",
+         description="Applies a windowed reduction to a timeseries by applying a user defined function.\n Deprecated: use aggregate_temporal",
          args=[ProcessDetails.Arg('function', "The function to apply to each time window."),
                ProcessDetails.Arg('temporal_window', "A time window.")])
 def reduce_by_time( args:Dict, viewingParameters)->ImageCollection:
+    """
+    Deprecated, use aggregate_temporal
+    :param args:
+    :param viewingParameters:
+    :return:
+    """
     function = extract_arg(args,'function')
     temporal_window = extract_arg(args,'temporal_window')
     decoded_function = pickle.loads(base64.standard_b64decode(function))
@@ -392,7 +423,8 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         return image_collection.apply(process_id,args)
     elif (viewingParameters.get("parent_process", None) == "reduce"):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
-        return image_collection.reduce(process_id, args)
+        dimension = extract_arg(args,"dimension")
+        return image_collection.reduce(process_id,dimension)
     elif (viewingParameters.get("parent_process", None) == "aggregate_temporal"):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
         return image_collection.aggregate_temporal(process_id, args)
