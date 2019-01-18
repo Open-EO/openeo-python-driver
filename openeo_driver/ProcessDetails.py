@@ -13,7 +13,14 @@ class ProcessDetails:
             self.required = required
             self.schema = schema
 
-    def __init__(self, process_id: str, description: str, args: List[Arg] = []):
+    def __init__(self, process_id: str, description: str, args: List[Arg] = [], returns:Dict = {
+                "description" : "Raster Data Cube",
+                "schema": {
+                    "type": "object",
+                    "format": "raster-cube"
+                }
+            } ):
+        self.returns = returns
         self.process_id = process_id
         self.description = description
         self.args = args
@@ -22,13 +29,7 @@ class ProcessDetails:
         serialized = {
             "name": self.process_id,
             "description": self.description,
-            "returns":{
-                "description" : "Raster Data Cube",
-                "schema": {
-                    "type": "object",
-                    "format": "raster-cube"
-                }
-            }
+            "returns":self.returns
         }
 
         if self.args:

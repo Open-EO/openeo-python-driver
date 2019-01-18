@@ -41,10 +41,9 @@ def register_extra_processes():
         json_description = requests.get(url).json()
         parameters = json_description['parameters']
         args = [ProcessDetails.Arg(k,v['description'],v.get('required',False),v['schema']) for (k,v) in parameters.items()]
-        return ProcessDetails(process_id=json_description['id'], description=json_description['description'],args=args)
+        return ProcessDetails(process_id=json_description['id'], description=json_description['description'],args=args,returns=json_description['returns'])
     details = [ load_details(d) for d in descriptions]
     process_registry.update({d.process_id:d for d in details})
-    print(process_registry)
 register_extra_processes()
 
 
