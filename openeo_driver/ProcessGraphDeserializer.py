@@ -426,7 +426,10 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         return image_collection.reduce(process_id,dimension)
     elif (viewingParameters.get("parent_process", None) == "aggregate_temporal"):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
-        return image_collection.aggregate_temporal(process_id, args)
+        intervals = extract_arg(args,"intervals")
+        labels = extract_arg(args,"labels")
+        dimension = args.get("dimension",None)
+        return image_collection.aggregate_temporal(intervals,labels,process_id,dimension)
     else:
         process_function = globals()[process_id]
         if process_function is None:
