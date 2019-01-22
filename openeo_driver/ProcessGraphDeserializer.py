@@ -309,16 +309,19 @@ def max_time(args:Dict,viewingParameters)->ImageCollection:
 @process(description="Mask the image collection using a polygon. All pixels outside the polygon should be set to the nodata value. "
                      "All pixels inside, or intersecting the polygon should retain their original value.",
          args=[ProcessDetails.Arg('mask_shape', "The shape to use as a mask")])
-def mask(args:Dict,viewingParameters)->ImageCollection:
+def mask_polygon(args:Dict,viewingParameters)->ImageCollection:
     geometry = extract_arg(args, 'mask_shape')
     srs_code = geometry.get("crs",{}).get("name","EPSG:4326")
-    return  extract_arg_list(args, ['data','imagery']).mask(shape(geometry),srs_code)
+    return  extract_arg_list(args, ['data','imagery']).mask_polygon(shape(geometry),srs_code)
 
-@process(description="Mask the image collection using another image collection. "
-                     "The mask image collection will be regridded to match this image collection.",
-         args=[ProcessDetails.Arg('mask', "The image collection to use as a mask")])
-def mask_by_raster(args:Dict,viewingParameters)->ImageCollection:
-    raise NotImplementedError("Not yet implemented")
+@process(description="Applies a mask to a raster data cube. Therefore, compares the parallel elements of the raster data cubes specified for data and mask and replaces all elements in data that are non-zero (for numbers) or true (for boolean values) in mask. These elements are replaced with the value specified for replacement, which defaults to null (no data). No data values will be left untouched.",
+         args=[ProcessDetails.Arg('mask', "The image collection to use as a mask"),
+               ProcessDetails.Arg('replacement', "The value used to replace non-zero and true values with.")])
+def mask(args:Dict,viewingParameters)->ImageCollection:
+    mask = extract_arg(args,'mask')
+    replacement = float(extract_arg(args, 'replacement'))
+    image_collection = extract_arg_list(args, ['data', 'imagery']).mask(mask,replacement)
+    return image_collection
 
 
 @process(description="Specifies a date range filter to be applied on the ImageCollection.",

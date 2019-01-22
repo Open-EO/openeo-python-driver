@@ -123,6 +123,43 @@ class Test(TestCase):
         assert resp.status_code == 200
         assert resp.content_length > 0
 
+    def test_execute_mask(self):
+        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps({'process_graph':{
+            'apply': {
+                'process_id': 'mask',
+                'arguments': {
+                    'data': {
+                        'from_node': 'collection'
+                    },
+                    'mask': {
+                        'from_node': 'mask_collection'
+                    },
+                    'replacement':'10'
+                },
+                'result':True
+            },
+            'collection': {
+                'process_id': 'get_collection',
+                'arguments':{
+                    'name': 'S2_FAPAR_CLOUDCOVER'
+                }
+            },
+            'mask_collection': {
+                'process_id': 'get_collection',
+                'arguments': {
+                    'name': 'S2_FAPAR_CLOUDCOVER'
+                }
+            }
+        }
+
+        }))
+
+        assert resp.status_code == 200
+        assert resp.content_length > 0
+        import dummy_impl
+        print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
+        assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask.call_count == 1
+
     def test_preview_aggregate_temporal_max(self):
         resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json',
                                 data=json.dumps({'process_graph': {

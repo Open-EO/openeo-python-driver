@@ -116,7 +116,7 @@ class Test(TestCase):
     def test_execute_mask(self):
         resp = self.client.post('/openeo/execute', content_type='application/json', data=json.dumps({
             "process_graph": {
-                "process_id": "mask",
+                "process_id": "mask_polygon",
                 "args": {
                     "imagery": {
                         "product_id": "S2_FAPAR_CLOUDCOVER"
@@ -144,7 +144,7 @@ class Test(TestCase):
 
         import dummy_impl
         print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
-        assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask.call_count == 1
+        assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask_polygon.call_count == 1
 
 
     def test_execute_zonal_statistics(self):

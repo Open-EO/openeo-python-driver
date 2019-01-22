@@ -6,11 +6,16 @@ from shapely.geometry import Polygon, MultiPolygon
 collections = {}
 
 def getImageCollection(product_id, viewingParameters):
+    if product_id in collections:
+        return collections[product_id]
     image_collection = ImageCollection()
     image_collection.viewingParameters = viewingParameters
 
     image_collection.mask = Mock(name="mask")
     image_collection.mask.return_value = image_collection
+
+    image_collection.mask_polygon = Mock(name="mask_polygon")
+    image_collection.mask_polygon.return_value = image_collection
 
     image_collection.bbox_filter = Mock(name="bbox_filter")
     image_collection.bbox_filter.return_value = image_collection
