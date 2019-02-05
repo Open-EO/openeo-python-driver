@@ -351,6 +351,16 @@ def filter_bbox(args:Dict,viewingParameters)->ImageCollection:
     image_collection = extract_arg_list(args, ['data','imagery']).bbox_filter(left,right,top,bottom,srs)
     return image_collection
 
+@process(description="Filters the bands in the data cube so that bands that don't match any of the criteria are dropped from the data cube. The data cube is expected to have only one spectral dimension.\n\nThe following criteria can be used to select bands:\n\n* `bands`: band name (e.g. `B01` or `B8A`)\n* `common_names`: common band names (e.g. `red` or `nir`)\n* `wavelengths`: ranges of wavelengths in micrometres (μm) (e.g. 0.5 - 0.6)\n\nTo keep algorithms interoperable it is recommended to prefer the common bands names or the wavelengths over collection and/or back-end specific band names.\n\nIf multiple criteria are specified, any of them must match and not all of them, i.e. they are combined with an OR-operation. If no criteria is specified, the `BandFilterParameterMissing` exception must be thrown.\n\n**Important:** The order of the specified array defines the order of the bands in the data cube, which can be important for subsequent processes.",
+         args=[
+               ProcessDetails.Arg("data", "A data cube with bands."),
+               ProcessDetails.Arg("bands", "A list of band names.\nThe order of the specified array defines the order of the bands in the data cube!"),
+              ])
+def filter_bands(args:Dict,viewingParameters)->ImageCollection:
+    bands = extract_arg(args, 'bands')
+    image_collection = extract_arg_list(args, ['data','imagery']).band_filter(bands)
+    return image_collection
+
 @process(description="Computes zonal statistics over a given polygon",
          args=[ProcessDetails.Arg('imagery', "The image collection to compute statistics on."),
                ProcessDetails.Arg('regions', "The GeoJson Polygon defining the zone.")
