@@ -68,7 +68,7 @@ class Test(TestCase):
         resp = self.client.get('/openeo/processes')
 
         assert resp.status_code == 200
-        process_dict = {item['process_id']: item for item in resp.json['processes']}
+        process_dict = {item['name']: item for item in resp.json['processes']}
         print(process_dict)
         assert 'apply_pixel' in process_dict
 

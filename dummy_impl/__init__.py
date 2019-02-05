@@ -61,6 +61,9 @@ def getImageCollection(product_id, viewingParameters):
     image_collection.reduce= Mock(name="reduce")
     image_collection.reduce.return_value = image_collection
 
+    image_collection.reduce_bands= Mock(name="reduce_bands")
+    image_collection.reduce_bands.return_value = image_collection
+
     image_collection.aggregate_temporal= Mock(name="aggregate_temporal")
     image_collection.aggregate_temporal.return_value = image_collection
 
@@ -107,3 +110,12 @@ def get_batch_job_result_filenames(job_id):
 
 def get_batch_job_result_output_dir(job_id):
     return "/path/to/%s" % job_id
+
+from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+class DummyVisitor(ProcessGraphVisitor):
+
+    def __init__(self):
+        super(DummyVisitor, self).__init__()
+
+def create_process_visitor():
+    return DummyVisitor()

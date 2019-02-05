@@ -57,6 +57,10 @@ i = importlib.import_module(os.getenv('DRIVER_IMPLEMENTATION_PACKAGE', "dummy_im
 getImageCollection = i.getImageCollection
 get_layers = i.get_layers
 get_layer = i.get_layer
+try:
+    create_process_visitor = i.create_process_visitor
+except AttributeError as e:
+    create_process_visitor = None
 create_batch_job = i.create_batch_job
 run_batch_job = i.run_batch_job
 get_batch_job_info = i.get_batch_job_info
@@ -72,34 +76,11 @@ def evaluate_040(processGraph, viewingParameters = None):
         viewingParameters = {
             'version' : '0.4.0'
         }
-    top_level_node = list_to_graph(processGraph)
+    from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+    top_level_node = ProcessGraphVisitor._list_to_graph(processGraph)
     return convert_node(processGraph[top_level_node],viewingParameters)
 
 
-def list_to_graph(processGraph):
-    """
-    Converts a list of process graph nodes into an actual graph, by resolving the references.
-    :param processGraph:
-    :return: a list containing the top level nodes in the DAG
-    """
-    result_node = None
-    for node in processGraph:
-        node_dict = processGraph.get(node)
-        if(node_dict.get("result", False)):
-            result_node = node
-        arguments = node_dict.get("arguments",{})
-        for a in arguments:
-            arg = arguments[a]
-            if type(arg) is dict and "from_node" in arg:
-                from_node_id = arg["from_node"]
-                from_node = processGraph.get(from_node_id,None)
-                if(from_node is None):
-                    raise ValueError("Node not found in process graph: " + from_node_id + ". Referenced by: " + node)
-                arg["node"] = from_node
-
-    if result_node is None:
-        raise ValueError("The provided process graph does not contain a result node.")
-    return result_node
 
 def evaluate(processGraph, viewingParameters = None):
     """
@@ -239,12 +220,19 @@ def reduce(args:Dict, viewingParameters)->ImageCollection:
     callback = extract_arg(reducer,'callback')
     dimension = extract_arg(args,'dimension')
     data_cube = extract_arg_list(args, ['data', 'imagery'])
-    return evaluate_040(callback,{
-        "dimension_data":data_cube,
-        "parent_process":"reduce",
-        "dimension":dimension,
-        "version":"0.4.0"
-    })
+    if dimension == 'spectral_bands':
+        if create_process_visitor is not None:
+            converted_process_graph = create_process_visitor().accept_process_graph(callback)
+            return data_cube.reduce_bands(converted_process_graph)
+        else:
+            raise AttributeError('Reduce on spectral_bands is not supported by this backend.')
+    else:
+        return evaluate_040(callback,{
+            "dimension_data":data_cube,
+            "parent_process":"reduce",
+            "dimension":dimension,
+            "version":"0.4.0"
+        })
 
 @process(description='Computes a temporal aggregation based on an array of date and/or time intervals.\nCalendar hierarchies such as year, month, week etc. must be transformed into specific intervals by the clients. For each interval, all data along the dimension will be passed through the reducer. The computed values will be projected to the labels, so the number of labels and the number of intervals need to be equal.\n If the dimension is not set, the data cube is expected to only have one temporal dimension.',
          args=[ProcessDetails.Arg('intervals','Temporal left-closed intervals so that the start time is contained, but not the end time.'),
