@@ -1,5 +1,5 @@
 from unittest import TestCase
-from openeo_driver.ProcessGraphDeserializer import list_to_graph
+from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 
 import os
 os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "dummy_impl"
@@ -33,7 +33,7 @@ class Test(TestCase):
 
             }
         }
-        result = list_to_graph(graph)
+        result = ProcessGraphVisitor._list_to_graph(graph)
 
         self.assertEqual(result,"node2")
         self.assertEqual(graph["node1"],graph[result]["arguments"]["data1"]["node"])
@@ -43,7 +43,7 @@ class Test(TestCase):
 
     def test_simple_graph_to_list_no_result(self):
         with self.assertRaises(ValueError):
-            result = list_to_graph({
+            result = ProcessGraphVisitor._list_to_graph({
                 "node1":{
 
                 },
@@ -68,5 +68,5 @@ class Test(TestCase):
         }
         with self.assertRaises(ValueError):
 
-            result = list_to_graph(graph)
+            result = ProcessGraphVisitor._list_to_graph(graph)
 

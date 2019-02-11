@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest.mock import MagicMock,call,ANY
 
-from openeo_driver.ProcessGraphVisitor import ProcessGraphVisitor
+from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 
 class GraphVisitorTest(TestCase):
 
