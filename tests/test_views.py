@@ -91,15 +91,6 @@ class Test(TestCase):
 
 
 
-    def test_point(self):
-        resp = self.client.post('/openeo/timeseries/point?x=1&y=2', content_type='application/json', data=json.dumps({
-            'collection_id': 'Sentinel2-L1C'
-        }))
-
-        assert resp.status_code == 200
-        result = json.loads(resp.get_data(as_text=True))
-        assert result == {"viewingParameters" : {"version":"0.3.1"}}
-
     def test_point_with_bbox(self):
         bbox = { 'left': 3, 'right': 6, 'top': 52, 'bottom': 50, 'srs': 'EPSG:4326','version':'0.3.1'}
         process_graph = {'process_graph': {'process_id': 'filter_bbox',
@@ -171,6 +162,8 @@ class Test(TestCase):
         assert json.loads(resp.get_data(as_text=True)) == {"hello": "world"}
 
     def test_execute_simple_download(self):
+        import dummy_impl
+        dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].download.reset_mock()
         download_expected_graph = {'process_id': 'filter_bbox', 'args': {'imagery': {'process_id': 'filter_daterange',
                                                                                      'args': {'imagery': {'collection_id': 'S2_FAPAR_CLOUDCOVER'},
                                                                                               'from': '2018-08-06T00:00:00Z',
@@ -183,9 +176,10 @@ class Test(TestCase):
         assert resp.content_length > 0
         #assert resp.headers['Content-Type'] == "application/octet-stream"
 
-        import dummy_impl
+
         print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
-        assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].download.call_count == 1
+        self.assertEquals(1,dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].download.call_count)
+
 
 
 
