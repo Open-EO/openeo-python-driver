@@ -206,7 +206,6 @@ def apply(args:Dict, viewingParameters)->ImageCollection:
 @process(description="Applies a reducer to a data cube dimension by collapsing all the input values along the specified dimension into a single output value computed by the reducer.\nThe reducer must accept an array and return a single value (see parameter reducer). Nominal values are possible, but need to be mapped, e.g. band names to wavelengths, date strings to numeric timestamps since 1970 etc.",
          args=[ProcessDetails.Arg('reducer', "A reducer to be applied on the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median."),
                 ProcessDetails.Arg('dimension', "The dimension over which to reduce.")
-
                ])
 def reduce(args:Dict, viewingParameters)->ImageCollection:
     """
@@ -423,13 +422,13 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         return image_collection.apply(process_id,args)
     elif (viewingParameters.get("parent_process", None) == "reduce"):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
-        dimension = extract_arg(args,"dimension")
+        dimension = extract_arg(viewingParameters,"dimension")
         return image_collection.reduce(process_id,dimension)
     elif (viewingParameters.get("parent_process", None) == "aggregate_temporal"):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
-        intervals = extract_arg(args,"intervals")
-        labels = extract_arg(args,"labels")
-        dimension = args.get("dimension",None)
+        intervals = extract_arg(viewingParameters,"intervals")
+        labels = extract_arg(viewingParameters,"labels")
+        dimension = viewingParameters.get("dimension",None)
         return image_collection.aggregate_temporal(intervals,labels,process_id,dimension)
     else:
         process_function = globals()[process_id]
