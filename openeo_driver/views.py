@@ -98,6 +98,12 @@ def index():
               ]
           },
           {
+              "path": "/udf_runtimes",
+              "methods": [
+                  "GET"
+              ]
+          },
+          {
               "path": "/output_formats",
               "methods": [
                   "GET"
@@ -169,6 +175,32 @@ def output_formats():
         "GTiff": {},
         "GeoTiff": {}
       }
+    })
+
+@openeo_bp.route('/udf_runtimes' )
+def udf_runtimes():
+    return jsonify({
+      "Python": {
+        "description": "Predefined Python runtime environment.",
+        "default": "latest",
+        "versions": {
+            "3.5.1":{
+                "libraries":{
+                    "numpy":{
+                        "version":"1.14.3"
+                    },
+                    "pandas": {
+                        "version": "0.22.0"
+                    },
+                    "tensorflow":{
+                        "version":"1.11.0"
+                    }
+                }
+
+            }
+        }
+      }
+
     })
 
 

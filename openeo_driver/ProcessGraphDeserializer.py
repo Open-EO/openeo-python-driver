@@ -33,7 +33,8 @@ def register_extra_processes():
         'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/ceil.json',
         'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/floor.json',
         'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/cos.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/sin.json'
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/sin.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/run_udf.json'
     ]
 
     import requests
@@ -197,6 +198,7 @@ def apply(args:Dict, viewingParameters)->ImageCollection:
     process = extract_arg(args,'process')
     callback = extract_arg(process,'callback')
     data_cube = extract_arg_list(args, ['data', 'imagery'])
+
     return evaluate_040(callback,{
         "dimension_data":data_cube,
         "parent_process":"apply",
@@ -419,7 +421,19 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
     #when all arguments and dependencies are resolved, we can run the process
     if(viewingParameters.get("parent_process",None) == "apply"):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
-        return image_collection.apply(process_id,args)
+        if process_id == "run_udf":
+            udf = extract_arg(args, "udf")
+            runtime = extract_arg(args,"runtime")
+            #TODO allow registration of supported runtimes, so we can be more generic
+            if runtime != "Python":
+                raise NotImplementedError("Unsupported runtime: " + runtime + " this backend only supports the Python runtime.")
+            version = args.get("version",None)
+            if version is not None and version != "3.5.1":
+                raise NotImplementedError("Unsupported Python version: " + version + "this backend only support version 3.5.1.")
+
+            return image_collection.apply_tiles(udf)
+        else:
+           return image_collection.apply(process_id,args)
     elif (viewingParameters.get("parent_process", None) == "reduce"):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
         dimension = extract_arg(viewingParameters,"dimension")

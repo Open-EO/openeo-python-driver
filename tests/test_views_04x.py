@@ -12,6 +12,12 @@ class Test(TestCase):
         app.config['TESTING'] = True
         self.client = app.test_client()
 
+    def test_udf_runtimes(self):
+        runtimes = self.client.get('/openeo/0.4.0/udf_runtimes').json
+        print(runtimes)
+        self.assertIn("Python",runtimes)
+
+
 
     def test_execute_filter_temporal(self):
         resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps({'process_graph':{
@@ -84,6 +90,59 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         assert resp.content_length > 0
+
+    def test_execute_apply_run_udf(self):
+        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps({'process_graph':{
+            'apply': {
+                'process_id': 'apply',
+                'arguments': {
+                    'data': {
+                        'from_node': 'collection'
+                    },
+
+                    'process':{
+                        'callback':{
+                            "abs":{
+                                "arguments":{
+                                    "data": {
+                                        "from_argument": "dimension_data"
+                                    }
+                                },
+                                "process_id":"abs"
+                            },
+                            "udf": {
+                                "arguments":{
+                                    "data": {
+                                        "from_node": "abs"
+                                    },
+                                    "runtime":"Python",
+                                    "version":"3.5.1",
+                                    "udf":"my python code"
+
+                                },
+                                "process_id": "run_udf",
+                                "result": True
+                            }
+                        }
+                    }
+                },
+                'result':True
+            },
+            'collection': {
+                'process_id': 'get_collection',
+                'arguments':{
+                    'name': 'S2_FAPAR_CLOUDCOVER'
+                }
+            }
+        }
+
+        }))
+
+        assert resp.status_code == 200
+        assert resp.content_length > 0
+        import dummy_impl
+        print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
+        assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles.call_count == 1
 
     def test_execute_reduce_max(self):
         resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps({'process_graph':{
