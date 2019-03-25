@@ -422,14 +422,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
     if(viewingParameters.get("parent_process",None) == "apply"):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
         if process_id == "run_udf":
-            udf = extract_arg(args, "udf")
-            runtime = extract_arg(args,"runtime")
-            #TODO allow registration of supported runtimes, so we can be more generic
-            if runtime != "Python":
-                raise NotImplementedError("Unsupported runtime: " + runtime + " this backend only supports the Python runtime.")
-            version = args.get("version",None)
-            if version is not None and version != "3.5.1":
-                raise NotImplementedError("Unsupported Python version: " + version + "this backend only support version 3.5.1.")
+            udf = _get_udf(args)
 
             return image_collection.apply_tiles(udf)
         else:
@@ -437,6 +430,10 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
     elif (viewingParameters.get("parent_process", None) == "reduce"):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
         dimension = extract_arg(viewingParameters,"dimension")
+        if 'run_udf' == process_id and 'temporal' == dimension:
+            udf = _get_udf(args)
+            #EP-2760 a special case of reduce where only a single udf based callback is provided. The more generic case is not yet supported.
+            return image_collection.apply_tiles_spatiotemporal(udf)
         return image_collection.reduce(process_id,dimension)
     elif (viewingParameters.get("parent_process", None) == "aggregate_temporal"):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
@@ -449,6 +446,18 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         if process_function is None:
             raise RuntimeError("No process found with name: "+process_id)
         return process_function(args, viewingParameters)
+
+
+def _get_udf(args):
+    udf = extract_arg(args, "udf")
+    runtime = extract_arg(args, "runtime")
+    # TODO allow registration of supported runtimes, so we can be more generic
+    if runtime != "Python":
+        raise NotImplementedError("Unsupported runtime: " + runtime + " this backend only supports the Python runtime.")
+    version = args.get("version", None)
+    if version is not None and version != "3.5.1":
+        raise NotImplementedError("Unsupported Python version: " + version + "this backend only support version 3.5.1.")
+    return udf
 
 
 def getProcesses(substring: str = None):
