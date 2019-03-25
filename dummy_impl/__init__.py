@@ -52,6 +52,9 @@ def getImageCollection(product_id, viewingParameters):
     image_collection.apply_pixel = Mock(name = "apply_pixel")
     image_collection.apply_pixel.return_value = image_collection
 
+    image_collection.apply_tiles_spatiotemporal = Mock(name="apply_tiles_spatiotemporal")
+    image_collection.apply_tiles_spatiotemporal.return_value = image_collection
+
     image_collection.apply_tiles = Mock(name="apply_tiles")
     image_collection.apply_tiles.return_value = image_collection
 
