@@ -84,6 +84,12 @@ def index():
               "POST"
           ]
         },
+          {
+              "path": "/result",
+              "methods": [
+                  "POST"
+              ]
+          },
         {
           "path": "/jobs",#url_for('.create_job'),
           "methods": [
@@ -242,6 +248,10 @@ def download():
         return send_from_directory(os.path.dirname(filename),os.path.basename(filename))
     else:
         return 'Usage: Download image using POST.'
+
+@openeo_bp.route('/result' , methods=['GET', 'POST'])
+def result():
+    return execute()
 
 @openeo_bp.route('/preview' , methods=['GET', 'POST'])
 def preview():

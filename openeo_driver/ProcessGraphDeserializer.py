@@ -221,6 +221,8 @@ def reduce(args:Dict, viewingParameters)->ImageCollection:
     callback = extract_arg(reducer,'callback')
     dimension = extract_arg(args,'dimension')
     binary = args.get('binary',False)
+    if type(binary) == str:
+        binary = binary.upper() == 'TRUE'
     data_cube = extract_arg_list(args, ['data', 'imagery'])
     if dimension == 'spectral_bands':
         if create_process_visitor is not None:
@@ -458,7 +460,7 @@ def _get_udf(args):
     if runtime != "Python":
         raise NotImplementedError("Unsupported runtime: " + runtime + " this backend only supports the Python runtime.")
     version = args.get("version", None)
-    if version is not None and version != "3.5.1":
+    if version is not None and version != "3.5.1" and version != "latest" :
         raise NotImplementedError("Unsupported Python version: " + version + "this backend only support version 3.5.1.")
     return udf
 
