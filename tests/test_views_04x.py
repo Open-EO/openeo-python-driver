@@ -363,3 +363,48 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         assert resp.content_length > 0
+
+
+    def test_create_wmts(self):
+        process_graph = {
+            'collection': {
+                'arguments': {
+                    'name': 'S2'
+                },
+                'process_id': 'get_collection'
+            },
+            'filter_temp': {
+                'arguments': {
+                    'data': {
+                        'from_node': 'collection'
+                    },
+                    'from': "2018-01-01",
+                    'to': "2018-12-31"
+                },
+                'process_id': 'filter_temporal',
+                'result': True
+            }
+        }
+        from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+        resp = self.client.post('/openeo/0.4.0/services',content_type='application/json', json={
+            "custom_param":45,
+            "process_graph": process_graph,
+            "type":'WMTS',
+            "title":"My Service",
+            "description":"Service description"
+        })
+
+        self.assertEqual(201,resp.status_code )
+        self.assertDictEqual(resp.json,{
+            "type": "WMTS",
+            "url": "http://openeo.vgt.vito.be/service/wmts"
+        })
+        #TODO fix and check on Location Header
+        #self.assertEqual("http://.../openeo/services/myservice", resp.location)
+
+        import dummy_impl
+        print(dummy_impl.collections["S2"])
+        self.assertEqual(1, dummy_impl.collections["S2"].tiled_viewing_service.call_count )
+        result_node = ProcessGraphVisitor._list_to_graph(process_graph)
+        dummy_impl.collections["S2"].tiled_viewing_service.assert_called_with(custom_param=45,
+                                                                              description='Service description', process_graph=process_graph, title='My Service', type='WMTS')

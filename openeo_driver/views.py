@@ -411,6 +411,7 @@ def services():
             return jsonify(image_collection.tiled_viewing_service(**json_request)),201, {'ContentType':'application/json','Location':url_for('.services')}
         if 'wmts' == type.lower():
             image_collection = evaluate(process_graph,viewingParameters={
+                'version': g.version,
                 'service_type':type
             })
             return jsonify(image_collection.tiled_viewing_service(**json_request)),201, {'ContentType':'application/json','Location':url_for('.services')}
