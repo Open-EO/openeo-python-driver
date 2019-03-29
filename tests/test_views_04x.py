@@ -364,6 +364,57 @@ class Test(TestCase):
         assert resp.status_code == 200
         assert resp.content_length > 0
 
+    def test_execute_zonal_statistics(self):
+
+        process_graph = {
+            'process_graph': {
+            'apply': {
+                'process_id': 'aggregate_polygon',
+                'arguments': {
+                    'data': {
+                        'from_node': 'collection'
+                    },
+                    'polygons': {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [[7.022705078125007, 51.75432477678571], [7.659912109375007, 51.74333844866071],
+                             [7.659912109375007, 51.29289899553571], [7.044677734375007, 51.31487165178571],
+                             [7.022705078125007, 51.75432477678571]]
+                        ]
+                    },
+                    'reducer': {
+                        'callback': {
+                            "max": {
+                                "arguments": {
+                                    "data": {
+                                        "from_argument": "dimension_data"
+                                    }
+                                },
+                                "process_id": "mean",
+                                "result": True
+                            }
+                        }
+                    },
+                    'name':'my_name'
+                },
+                'result': True
+            },
+            'collection': {
+                'process_id': 'get_collection',
+                'arguments': {
+                    'name': 'S2_FAPAR_CLOUDCOVER'
+                }
+            }
+        }
+
+        }
+
+
+        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps(process_graph))
+
+        assert resp.status_code == 200
+        assert json.loads(resp.get_data(as_text=True)) == {"hello": "world"}
+
 
     def test_create_wmts(self):
         process_graph = {

@@ -128,7 +128,8 @@ def convert_node_04x(processGraph, viewingParameters = None):
         elif 'from_argument' in processGraph and processGraph.get('from_argument') == 'dimension_data':
             return viewingParameters.get('dimension_data')
         else:
-            raise ValueError('Unsupported process graph node: \n' + json.dumps(processGraph,indent=1))
+            #simply return nodes that do not require special handling, this is the case for geojson polygons
+            return processGraph
     return processGraph
 
 def convert_node(dag, viewingParameters = None):
@@ -269,6 +270,33 @@ def aggregate_temporal(args:Dict, viewingParameters)->ImageCollection:
         "version":"0.4.0"
     })
 
+@process(description='Aggregates zonal statistics for one or multiple polygons over the spatial dimensions.\n\nThe process considers all pixels for which the point at the pixel center intersects with the corresponding polygon (as defined in the Simple Features standard by the OGC).\n\nThe data cube must have been reduced to only contain two raster dimensions and a third dimension the values are aggregated for, for example the temporal dimension to get a time series. Otherwise this process fails with the `TooManyDimensions` error.\n\nThe number of total and valid pixels is returned together with the calculated values.',
+         args=[ProcessDetails.Arg('data','A data cube.'),
+               ProcessDetails.Arg('polygons','One or more polygons to calculate zonal statistics for. Either specified as GeoJSON or vector data cube.\n\nFor GeoJSON this can be one of the following GeoJSON types:\n\n* A `Polygon` geometry,\n* a `GeometryCollection` containing Polygons,\n* a `Feature` with a `Polygon` geometry or\n* a `FeatureCollection` containing `Feature`s with a `Polygon` geometry.'),
+               ProcessDetails.Arg('reducer','A reducer to be applied on all values of each geometry. The reducer must be a callable process (or a set of processes as process graph) such as ``mean()`` that accepts by default array as input. The process can also work on two values by setting the parameter `binary` to `true`.'),
+               ProcessDetails.Arg('name','The property name (for GeoJSON) or the new dimension name (for vector cubes) to be used for storing the results. Defaults to `result`.'),
+               ProcessDetails.Arg('binary','Specifies whether the process should pass two values to the reducer or a list of values (default).\n\nIf the process passes two values, the reducer must be both associative and commutative as the execution may be executed in parallel and therefore the order of execution is arbitrary.\n\nThis parameter is especially useful for UDFs passed as reducers. Back-ends may still optimize and parallelize processes that work on list of values.')
+
+               ])
+def aggregate_polygon(args:Dict, viewingParameters)->ImageCollection:
+    """
+    https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#reduce
+
+    :param args:
+    :param viewingParameters:
+    :return:
+    """
+    reducer = extract_arg(args,'reducer')
+    callback = extract_arg(reducer, 'callback')
+    polygons = extract_arg(args,'polygons')
+    name = args.get('name','result')
+    binary = args.get('binary',False)
+
+    data_cube = extract_arg_list(args, ['data', 'imagery'])
+    statistics_result = evaluate_040(callback,
+                              {"dimension_data": data_cube, "parent_process": "aggregate_polygon", "polygons": polygons,
+                               "name": name, "binary": binary, "version": "0.4.0"})
+    return statistics_result
 
 @process(process_id="reduce_time",
          description="Applies a windowed reduction to a timeseries by applying a user defined function.\n Deprecated: use aggregate_temporal",
@@ -409,8 +437,8 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             viewingParameters["top"] = extract_arg(args, "north")
             viewingParameters["bottom"] = extract_arg(args, "south")
             viewingParameters["srs"] = extract_arg(args, "crs")
-    elif 'zonal_statistics' == process_id:
-        geometry = extract_arg(args, 'regions')
+    elif 'zonal_statistics' == process_id or 'aggregate_polygon' == process_id:
+        geometry = extract_arg_list(args, ['regions','polygons'])
         bbox = shape(geometry).bounds
         if(viewingParameters.get("left") is None ):
             viewingParameters["left"] = bbox[0]
@@ -440,6 +468,13 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             #EP-2760 a special case of reduce where only a single udf based callback is provided. The more generic case is not yet supported.
             return image_collection.apply_tiles_spatiotemporal(udf)
         return image_collection.reduce(process_id,dimension)
+    elif (viewingParameters.get("parent_process", None) == "aggregate_polygon"):
+        image_collection: ImageCollection = extract_arg_list(args, ['data', 'imagery'])
+        binary = extract_arg(viewingParameters, "binary")
+        name = extract_arg(viewingParameters, "name")
+        polygons = extract_arg(viewingParameters, "polygons")
+
+        return image_collection.zonal_statistics(shape(polygons),process_id)
     elif (viewingParameters.get("parent_process", None) == "aggregate_temporal"):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
         intervals = extract_arg(viewingParameters,"intervals")
