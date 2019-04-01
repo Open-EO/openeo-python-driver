@@ -6,6 +6,7 @@ from flask import request, url_for, jsonify, send_from_directory, abort, make_re
 from werkzeug.exceptions import HTTPException, BadRequest
 
 from openeo_driver import app
+from openeo_driver.save_result import SaveResult
 from .ProcessGraphDeserializer import (evaluate, health_check, get_layers, getProcesses, getProcess, get_layer,
                                        create_batch_job, run_batch_job, get_batch_job_info,
                                        get_batch_job_result_filenames, get_batch_job_result_output_dir)
@@ -273,6 +274,8 @@ def execute():
             return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
         elif result is None:
             abort(500,"No result")
+        elif isinstance(result, SaveResult):
+            return result.create_flask_response()
         else:
             return jsonify(result)
     else:

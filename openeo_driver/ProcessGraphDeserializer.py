@@ -7,6 +7,7 @@ from typing import Dict, List
 from shapely.geometry import shape
 
 from openeo import ImageCollection
+from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
 from .ProcessDetails import ProcessDetails
 from distutils.version import LooseVersion
 
@@ -176,6 +177,22 @@ def apply_pixel( args:Dict, viewingParameters)->ImageCollection:
     bands = extract_arg(args,'bands')
     decoded_function = pickle.loads(base64.standard_b64decode(function))
     return extract_arg_list(args, ['data','imagery']).apply_pixel(bands, decoded_function)
+
+
+@process(description="Save processed data to storage or export to http.",
+         args=[ProcessDetails.Arg('data', "The data to save."),
+               ProcessDetails.Arg('format', "The file format to save to. It must be one of the values that the server reports as supported output formats, which usually correspond to the short GDAL/OGR codes. This parameter is case insensitive."),
+               ProcessDetails.Arg('options', "The file format options to be used to create the file(s). Must correspond to the options that the server reports as supported options for the chosen format. The option names and valid values usually correspond to the GDAL/OGR format options.")])
+def save_result( args:Dict, viewingParameters)->SaveResult:
+    format = extract_arg(args,'format')
+    options = args.get('options',{})
+    data = extract_arg(args, 'data')
+    if isinstance(data, ImageCollection):
+        return ImageCollectionResult(data,format,options)
+    elif data is None:
+        return data
+    else:
+        return JSONResult(data,format,options)
 
 @process(description="Apply a function to the tiles of this image collection.",
          args=[ProcessDetails.Arg('function', "A function that gets a tile as input and produces a tile as output. The function should follow the openeo_udf specification.")])
