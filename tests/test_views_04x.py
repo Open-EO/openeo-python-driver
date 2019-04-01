@@ -368,7 +368,7 @@ class Test(TestCase):
 
         process_graph = {
             'process_graph': {
-            'apply': {
+            'aggregate_polygon': {
                 'process_id': 'aggregate_polygon',
                 'arguments': {
                     'data': {
@@ -397,6 +397,16 @@ class Test(TestCase):
                     },
                     'name':'my_name'
                 },
+
+            },
+            'save_result':{
+                'process_id': 'save_result',
+                'arguments': {
+                    'data': {
+                        'from_node': 'aggregate_polygon'
+                    },
+                    'format':'VITO-TSService-JSON'
+                },
                 'result': True
             },
             'collection': {
@@ -410,7 +420,7 @@ class Test(TestCase):
         }
 
 
-        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps(process_graph))
+        resp = self.client.post('/openeo/0.4.0/result', content_type='application/json', data=json.dumps(process_graph))
 
         assert resp.status_code == 200
         assert json.loads(resp.get_data(as_text=True)) == {"hello": "world"}
