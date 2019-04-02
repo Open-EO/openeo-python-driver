@@ -486,7 +486,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             return image_collection.apply_tiles_spatiotemporal(udf)
         return image_collection.reduce(process_id,dimension)
     elif (viewingParameters.get("parent_process", None) == "aggregate_polygon"):
-        image_collection: ImageCollection = extract_arg_list(args, ['data', 'imagery'])
+        image_collection = extract_arg_list(args, ['data', 'imagery'])
         binary = extract_arg(viewingParameters, "binary")
         name = extract_arg(viewingParameters, "name")
         polygons = extract_arg(viewingParameters, "polygons")
