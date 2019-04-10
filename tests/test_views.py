@@ -341,13 +341,8 @@ class Test(TestCase):
                 "description":"Service description"
             })
 
-        self.assertEqual(201,resp.status_code )
-        self.assertDictEqual(resp.json,{
-                "type": "WMTS",
-                "url": "http://openeo.vgt.vito.be/service/wmts"
-            })
-        #TODO fix and check on Location Header
-        #self.assertEqual("http://.../openeo/services/myservice", resp.location)
+        self.assertEqual(201, resp.status_code)
+        self.assertTrue(resp.location.endswith('/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec'))
 
         import dummy_impl
         print(dummy_impl.collections["S2"])

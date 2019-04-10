@@ -9,7 +9,8 @@ from openeo_driver import app
 from openeo_driver.save_result import SaveResult
 from .ProcessGraphDeserializer import (evaluate, health_check, get_layers, getProcesses, getProcess, get_layer,
                                        create_batch_job, run_batch_job, get_batch_job_info,
-                                       get_batch_job_result_filenames, get_batch_job_result_output_dir)
+                                       get_batch_job_result_filenames, get_batch_job_result_output_dir,
+                                       get_secondary_services_info, get_secondary_service_info)
 from openeo import ImageCollection
 
 SUPPORTED_VERSIONS = ['0.3.0','0.3.1', '0.4.0']
@@ -417,14 +418,22 @@ def services():
                 'version': g.version,
                 'service_type':type
             })
-            return jsonify(image_collection.tiled_viewing_service(**json_request)),201, {'ContentType':'application/json','Location':url_for('.services')}
+            service_id = image_collection.tiled_viewing_service(**json_request)
+            return "", 201, {'Location': url_for('.services') + "/" + service_id}
         else:
             raise NotImplementedError("Requested unsupported service type: " + type)
     elif request.method == 'GET':
         #TODO implement retrieval of user specific web services
-        return []
+        return jsonify(get_secondary_services_info())
     else:
         abort(405)
+
+
+@openeo_bp.route('/services/<service_id>', methods=['GET'])
+def get_service_info(service_id):
+    service_info = get_secondary_service_info(service_id)
+    return jsonify(service_info) if service_info else abort(404)
+
 
 @openeo_bp.route('/data' , methods=['GET'])
 def data():

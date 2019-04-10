@@ -21,11 +21,7 @@ def getImageCollection(product_id, viewingParameters):
     image_collection.bbox_filter.return_value = image_collection
 
     image_collection.tiled_viewing_service = Mock(name="tiled_viewing_service")
-    image_collection.tiled_viewing_service.return_value = {
-                "type": "WMTS",
-                "url": "http://openeo.vgt.vito.be/service/wmts"
-            }
-
+    image_collection.tiled_viewing_service.return_value = "c63d6c27-c4c2-4160-b7bd-9e32f582daec"
 
     download = Mock(name='download')
     download.return_value = os.path.realpath(__file__)
@@ -122,3 +118,11 @@ class DummyVisitor(ProcessGraphVisitor):
 
 def create_process_visitor():
     return DummyVisitor()
+
+
+def get_secondary_services_info():
+    pass
+
+
+def get_secondary_service_info(service_id):
+    pass
