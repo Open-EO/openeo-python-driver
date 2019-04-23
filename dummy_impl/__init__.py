@@ -21,7 +21,10 @@ def getImageCollection(product_id, viewingParameters):
     image_collection.bbox_filter.return_value = image_collection
 
     image_collection.tiled_viewing_service = Mock(name="tiled_viewing_service")
-    image_collection.tiled_viewing_service.return_value = "c63d6c27-c4c2-4160-b7bd-9e32f582daec"
+    image_collection.tiled_viewing_service.return_value = {
+        'type': 'WMTS',
+        'url': "http://openeo.vgt.vito.be/openeo/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec/service/wmts"
+    }
 
     download = Mock(name='download')
     download.return_value = os.path.realpath(__file__)

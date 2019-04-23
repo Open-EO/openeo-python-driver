@@ -418,8 +418,8 @@ def services():
                 'version': g.version,
                 'service_type':type
             })
-            service_id = image_collection.tiled_viewing_service(**json_request)
-            return "", 201, {'Location': url_for('.services') + "/" + service_id}
+            url = image_collection.tiled_viewing_service(**json_request)['url']
+            return "", 201, {'Location': url}
         else:
             raise NotImplementedError("Requested unsupported service type: " + type)
     elif request.method == 'GET':

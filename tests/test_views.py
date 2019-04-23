@@ -333,16 +333,16 @@ class Test(TestCase):
         assert resp.status_code == 404
 
     def test_create_wmts(self):
-        resp = self.client.post('/openeo/services',content_type='application/json', json={
-                "custom_param":45,
-                "process_graph":{'product_id': 'S2'},
-                "type":'WMTS',
-                "title":"My Service",
-                "description":"Service description"
-            })
+        resp = self.client.post('/openeo/services', content_type='application/json', json={
+            "process_graph": {'product_id': 'S2'},
+            "type": 'WMTS',
+            "parameters": {'version': "1.3.0"},
+            "title": "My Service",
+            "description": "Service description"
+        })
 
         self.assertEqual(201, resp.status_code)
-        self.assertTrue(resp.location.endswith('/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec'))
+        self.assertTrue(resp.location.endswith('/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec/service/wmts'))
 
         import dummy_impl
         print(dummy_impl.collections["S2"])
