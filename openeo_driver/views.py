@@ -8,7 +8,7 @@ from werkzeug.exceptions import HTTPException, BadRequest
 from openeo_driver import app
 from openeo_driver.save_result import SaveResult
 from .ProcessGraphDeserializer import (evaluate, health_check, get_layers, getProcesses, getProcess, get_layer,
-                                       create_batch_job, run_batch_job, get_batch_job_info,
+                                       create_batch_job, run_batch_job, get_batch_job_info, cancel_batch_job,
                                        get_batch_job_result_filenames, get_batch_job_result_output_dir,
                                        get_secondary_services_info, get_secondary_service_info)
 from openeo import ImageCollection
@@ -345,6 +345,19 @@ def get_job_result(job_id, filename):
 
     output_dir = get_batch_job_result_output_dir(job_id)
     return send_from_directory(output_dir, filename)
+
+
+@openeo_bp.route('/jobs/<job_id>/results', methods=['DELETE'])
+def cancel_job(job_id):
+    print("Handling request: " + str(request))
+
+    job_info = get_batch_job_info(job_id)
+
+    if job_info:
+        cancel_batch_job(job_id)
+        return make_response("", 204)
+    else:
+        abort(404)
 
 #SERVICES API https://open-eo.github.io/openeo-api/v/0.3.0/apireference/#tag/Web-Service-Management
 

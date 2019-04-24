@@ -327,6 +327,11 @@ class Test(TestCase):
         self.assertEqual(info['job_id'], '07024ee9-7847-4b8a-b260-6c879a2b3cdc')
         self.assertEqual(info['status'], 'running')
 
+    def test_cancel_job(self):
+        resp = self.client.delete('/openeo/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results')
+
+        self.assertEqual(204, resp.status_code)
+
     def test_api_propagates_http_status_codes(self):
         resp = self.client.get('/openeo/jobs/unknown_job_id/results/some_file')
 

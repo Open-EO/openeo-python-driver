@@ -68,6 +68,7 @@ run_batch_job = i.run_batch_job
 get_batch_job_info = i.get_batch_job_info
 get_batch_job_result_filenames = i.get_batch_job_result_filenames
 get_batch_job_result_output_dir = i.get_batch_job_result_output_dir
+cancel_batch_job = i.cancel_batch_job
 get_secondary_services_info = i.get_secondary_services_info
 get_secondary_service_info = i.get_secondary_service_info
 

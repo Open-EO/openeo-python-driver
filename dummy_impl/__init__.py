@@ -113,6 +113,11 @@ def get_batch_job_result_filenames(job_id):
 def get_batch_job_result_output_dir(job_id):
     return "/path/to/%s" % job_id
 
+
+def cancel_batch_job(job_id):
+    pass
+
+
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 class DummyVisitor(ProcessGraphVisitor):
 
