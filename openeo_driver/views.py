@@ -40,8 +40,7 @@ def pull_version(endpoint, values):
         raise error
 
 
-
-@openeo_bp.errorhandler(HTTPException)
+@app.errorhandler(HTTPException)
 def handle_http_exceptions(error: HTTPException):
     return _error_response(error, error.code)
 
@@ -434,12 +433,12 @@ def services():
             url = image_collection.tiled_viewing_service(**json_request)['url']
             return "", 201, {'Location': url}
         else:
-            raise NotImplementedError("Requested unsupported service type: " + type)
+            raise BadRequest("Requested unsupported service type: " + type)
     elif request.method == 'GET':
         #TODO implement retrieval of user specific web services
         return jsonify(get_secondary_services_info())
-    else:
-        abort(405)
+
+    raise AssertionError(request.method)
 
 
 @openeo_bp.route('/services/<service_id>', methods=['GET'])

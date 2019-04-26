@@ -339,9 +339,9 @@ class Test(TestCase):
 
     def test_create_wmts(self):
         resp = self.client.post('/openeo/services', content_type='application/json', json={
+            "custom_param": 45,
             "process_graph": {'product_id': 'S2'},
             "type": 'WMTS',
-            "parameters": {'version': "1.3.0"},
             "title": "My Service",
             "description": "Service description"
         })
@@ -354,3 +354,26 @@ class Test(TestCase):
         self.assertEqual(1, dummy_impl.collections["S2"].tiled_viewing_service.call_count )
         dummy_impl.collections["S2"].tiled_viewing_service.assert_called_with(custom_param=45,
                                                                               description='Service description', process_graph={'product_id': 'S2'}, title='My Service', type='WMTS')
+
+    def test_create_unsupported_service_type_returns_BadRequest(self):
+        resp = self.client.post('/openeo/services', content_type='application/json', json={
+            "process_graph": {'product_id': 'S2'},
+            "type": '???',
+        })
+
+        self.assertEqual(400, resp.status_code)
+
+    def test_unsupported_services_methods_return_MethodNotAllowed(self):
+        resp = self.client.put('/openeo/services', content_type='application/json', json={
+            "process_graph": {'product_id': 'S2'},
+            "type": 'WMTS',
+        })
+
+        self.assertEqual(405, resp.status_code)
+
+    def test_uncaught_exceptions_return_InternalServerError(self):
+        resp = self.client.post('/openeo/services', content_type='application/json', json={
+            "process_graph": {'product_id': 'S2'}
+        })
+
+        self.assertEqual(500, resp.status_code)
