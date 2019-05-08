@@ -10,8 +10,10 @@ from openeo_driver.save_result import SaveResult
 from .ProcessGraphDeserializer import (evaluate, health_check, get_layers, getProcesses, getProcess, get_layer,
                                        create_batch_job, run_batch_job, get_batch_job_info, cancel_batch_job,
                                        get_batch_job_result_filenames, get_batch_job_result_output_dir,
-                                       get_secondary_services_info, get_secondary_service_info)
+                                       get_secondary_services_info, get_secondary_service_info,
+                                       summarize_exception)
 from openeo import ImageCollection
+from openeo.error_summary import ErrorSummary
 
 SUPPORTED_VERSIONS = ['0.3.0','0.3.1', '0.4.0']
 
@@ -46,13 +48,19 @@ def handle_http_exceptions(error: HTTPException):
 
 
 @app.errorhandler(Exception)
-def handle_invalid_usage(error: Exception):
+def handle_error(error: Exception):
+    error = summarize_exception(error)
+
+    if isinstance(error, ErrorSummary):
+        return _error_response(error, 400, error.summary) if error.is_client_error \
+            else _error_response(error, 500, error.summary)
+
     return _error_response(error, 500)
 
 
-def _error_response(error: Exception, status_code: int):
+def _error_response(error: Exception, status_code: int, summary: str = None):
     error_json = {
-        "message":str(error)
+        "message": summary if summary else str(error)
     }
     if type(error) is HTTPException and type(error.response) is dict:
         error_json = error.response

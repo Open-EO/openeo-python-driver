@@ -71,6 +71,7 @@ get_batch_job_result_output_dir = i.get_batch_job_result_output_dir
 cancel_batch_job = i.cancel_batch_job
 get_secondary_services_info = i.get_secondary_services_info
 get_secondary_service_info = i.get_secondary_service_info
+summarize_exception = i.summarize_exception if hasattr(i, 'summarize_exception') else lambda exception: exception
 
 if i.health_check is not None:
     health_check = i.health_check
