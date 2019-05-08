@@ -130,8 +130,12 @@ def convert_node_04x(processGraph, viewingParameters = None):
         elif 'callback' in processGraph:
             #a callback object is a new process graph, don't evaluate it in the parent graph
             return processGraph
-        elif 'from_argument' in processGraph and processGraph.get('from_argument') == 'dimension_data':
-            return viewingParameters.get('dimension_data')
+        elif 'from_argument' in processGraph:
+            argument_reference = processGraph.get('from_argument')
+            #backwards compatibility for clients that still use 'dimension_data', can be removed when clients are upgraded
+            if argument_reference == 'dimension_data':
+                argument_reference = 'data'
+            return viewingParameters.get(argument_reference)
         else:
             #simply return nodes that do not require special handling, this is the case for geojson polygons
             return processGraph
@@ -217,15 +221,9 @@ def apply(args:Dict, viewingParameters)->ImageCollection:
     :param viewingParameters:
     :return:
     """
-    process = extract_arg(args,'process')
-    callback = extract_arg(process,'callback')
-    data_cube = extract_arg_list(args, ['data', 'imagery'])
 
-    return evaluate_040(callback,{
-        "dimension_data":data_cube,
-        "parent_process":"apply",
-        "version":"0.4.0"
-    })
+    return _evaluate_callback_process(args,'process','apply')
+
 
 @process(description="Applies a reducer to a data cube dimension by collapsing all the input values along the specified dimension into a single output value computed by the reducer.\nThe reducer must accept an array and return a single value (see parameter reducer). Nominal values are possible, but need to be mapped, e.g. band names to wavelengths, date strings to numeric timestamps since 1970 etc.",
          args=[ProcessDetails.Arg('reducer', "A reducer to be applied on the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median."),
@@ -245,6 +243,8 @@ def reduce(args:Dict, viewingParameters)->ImageCollection:
     binary = args.get('binary',False)
     if type(binary) == str:
         binary = binary.upper() == 'TRUE'
+        args['binary'] = binary
+
     data_cube = extract_arg_list(args, ['data', 'imagery'])
     if dimension == 'spectral_bands':
         if create_process_visitor is not None:
@@ -253,13 +253,8 @@ def reduce(args:Dict, viewingParameters)->ImageCollection:
         else:
             raise AttributeError('Reduce on spectral_bands is not supported by this backend.')
     else:
-        return evaluate_040(callback,{
-            "dimension_data":data_cube,
-            "parent_process":"reduce",
-            "dimension":dimension,
-            "binary":binary,
-            "version":"0.4.0"
-        })
+        return _evaluate_callback_process(args, 'reducer','reduce')
+
 
 @process(description='Computes a temporal aggregation based on an array of date and/or time intervals.\nCalendar hierarchies such as year, month, week etc. must be transformed into specific intervals by the clients. For each interval, all data along the dimension will be passed through the reducer. The computed values will be projected to the labels, so the number of labels and the number of intervals need to be equal.\n If the dimension is not set, the data cube is expected to only have one temporal dimension.',
          args=[ProcessDetails.Arg('intervals','Temporal left-closed intervals so that the start time is contained, but not the end time.'),
@@ -276,20 +271,23 @@ def aggregate_temporal(args:Dict, viewingParameters)->ImageCollection:
     :param viewingParameters:
     :return:
     """
-    reducer = extract_arg(args,'reducer')
-    callback = extract_arg(reducer,'callback')
-    dimension = extract_arg(args,'dimension')
-    intervals = extract_arg(args, 'intervals')
-    labels = extract_arg(args, 'labels')
-    data_cube = extract_arg_list(args, ['data', 'imagery'])
-    return evaluate_040(callback,{
-        "dimension_data":data_cube,
-        "parent_process":"aggregate_temporal",
-        "intervals":intervals,
-        "labels":labels,
-        "dimension":dimension,
-        "version":"0.4.0"
-    })
+    return _evaluate_callback_process(args,'reducer','aggregate_temporal')
+
+def _evaluate_callback_process(args,callback_name:str,parent_process:str):
+    """
+    Helper function to unwrap and evaluate callback
+
+    :param args:
+    :param callback_name:
+    :return:
+    """
+
+    callback_block = extract_arg(args,callback_name)
+    callback = extract_arg(callback_block, 'callback')
+    args["parent_process"] = parent_process
+    args["version"] = "0.4.0"
+    return evaluate_040(callback, args)
+
 
 @process(description='Aggregates zonal statistics for one or multiple polygons over the spatial dimensions.\n\nThe process considers all pixels for which the point at the pixel center intersects with the corresponding polygon (as defined in the Simple Features standard by the OGC).\n\nThe data cube must have been reduced to only contain two raster dimensions and a third dimension the values are aggregated for, for example the temporal dimension to get a time series. Otherwise this process fails with the `TooManyDimensions` error.\n\nThe number of total and valid pixels is returned together with the calculated values.',
          args=[ProcessDetails.Arg('data','A data cube.'),
@@ -307,17 +305,7 @@ def aggregate_polygon(args:Dict, viewingParameters)->ImageCollection:
     :param viewingParameters:
     :return:
     """
-    reducer = extract_arg(args,'reducer')
-    callback = extract_arg(reducer, 'callback')
-    polygons = extract_arg(args,'polygons')
-    name = args.get('name','result')
-    binary = args.get('binary',False)
-
-    data_cube = extract_arg_list(args, ['data', 'imagery'])
-    statistics_result = evaluate_040(callback,
-                              {"dimension_data": data_cube, "parent_process": "aggregate_polygon", "polygons": polygons,
-                               "name": name, "binary": binary, "version": "0.4.0"})
-    return statistics_result
+    return _evaluate_callback_process(args,'reducer','aggregate_polygon')
 
 @process(process_id="reduce_time",
          description="Applies a windowed reduction to a timeseries by applying a user defined function.\n Deprecated: use aggregate_temporal",
@@ -480,27 +468,27 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             return image_collection.apply_tiles(udf)
         else:
            return image_collection.apply(process_id,args)
-    elif (viewingParameters.get("parent_process", None) == "reduce"):
+    elif (viewingParameters.get('parent_process', None) == 'reduce'):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
-        dimension = extract_arg(viewingParameters,"dimension")
-        binary = extract_arg(viewingParameters, "binary")
+        dimension = extract_arg(viewingParameters, 'dimension')
+        binary = viewingParameters.get('binary',False)
         if 'run_udf' == process_id and 'temporal' == dimension and not binary:
             udf = _get_udf(args)
             #EP-2760 a special case of reduce where only a single udf based callback is provided. The more generic case is not yet supported.
             return image_collection.apply_tiles_spatiotemporal(udf)
         return image_collection.reduce(process_id,dimension)
-    elif (viewingParameters.get("parent_process", None) == "aggregate_polygon"):
+    elif (viewingParameters.get('parent_process', None) == 'aggregate_polygon'):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
-        binary = extract_arg(viewingParameters, "binary")
-        name = extract_arg(viewingParameters, "name")
-        polygons = extract_arg(viewingParameters, "polygons")
+        binary = viewingParameters.get('binary',False)
+        name = viewingParameters.get('name', 'result')
+        polygons = extract_arg(viewingParameters, 'polygons')
 
         return image_collection.zonal_statistics(shape(polygons),process_id)
-    elif (viewingParameters.get("parent_process", None) == "aggregate_temporal"):
+    elif (viewingParameters.get('parent_process', None) == 'aggregate_temporal'):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
-        intervals = extract_arg(viewingParameters,"intervals")
-        labels = extract_arg(viewingParameters,"labels")
-        dimension = viewingParameters.get("dimension",None)
+        intervals = extract_arg(viewingParameters, 'intervals')
+        labels = extract_arg(viewingParameters, 'labels')
+        dimension = viewingParameters.get('dimension', None)
         return image_collection.aggregate_temporal(intervals,labels,process_id,dimension)
     else:
         process_function = globals()[process_id]

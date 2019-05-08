@@ -59,7 +59,7 @@ class Test(TestCase):
                             "abs":{
                                 "arguments":{
                                     "data": {
-                                        "from_argument": "dimension_data"
+                                        "from_argument": "data"
                                     }
                                 },
                                 "process_id":"abs"
@@ -105,7 +105,7 @@ class Test(TestCase):
                             "abs":{
                                 "arguments":{
                                     "data": {
-                                        "from_argument": "dimension_data"
+                                        "from_argument": "data"
                                     }
                                 },
                                 "process_id":"abs"
@@ -159,7 +159,7 @@ class Test(TestCase):
                             "udf": {
                                 "arguments":{
                                     "data": {
-                                        "from_argument": "dimension_data"
+                                        "from_argument": "data"
                                     },
                                     "runtime":"Python",
                                     "version":"3.5.1",
@@ -204,7 +204,7 @@ class Test(TestCase):
                             "max":{
                                 "arguments":{
                                     "data": {
-                                        "from_argument": "dimension_data"
+                                        "from_argument": "data"
                                     }
                                 },
                                 "process_id":"max",
@@ -243,7 +243,7 @@ class Test(TestCase):
                                                     "sum": {
                                                         "arguments": {
                                                             "data": {
-                                                                "from_argument": "dimension_data"
+                                                                "from_argument": "data"
                                                             }
                                                         },
                                                         "process_id": "sum"
@@ -251,7 +251,7 @@ class Test(TestCase):
                                                     "subtract": {
                                                         "arguments": {
                                                             "data": {
-                                                                "from_argument": "dimension_data"
+                                                                "from_argument": "data"
                                                             }
                                                         },
                                                         "process_id": "subtract"
@@ -340,7 +340,7 @@ class Test(TestCase):
                                                     "max": {
                                                         "arguments": {
                                                             "data": {
-                                                                "from_argument": "dimension_data"
+                                                                "from_argument": "data"
                                                             }
                                                         },
                                                         "process_id": "max",
@@ -387,7 +387,7 @@ class Test(TestCase):
                             "max": {
                                 "arguments": {
                                     "data": {
-                                        "from_argument": "dimension_data"
+                                        "from_argument": "data"
                                     }
                                 },
                                 "process_id": "mean",
