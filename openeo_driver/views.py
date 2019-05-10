@@ -65,7 +65,13 @@ def _error_response(error: Exception, status_code: int, summary: str = None):
     if type(error) is HTTPException and type(error.response) is dict:
         error_json = error.response
     import traceback
-    print(traceback.format_exception(None,error,error.__traceback__))
+    if type(error) is ErrorSummary:
+        exception = error.exception
+    else:
+        exception = error
+
+
+    print(traceback.format_exception(None,exception,exception.__traceback__))
     response = jsonify(error_json)
     response.status_code = status_code
     return response
