@@ -177,14 +177,30 @@ def get_collection( args:Dict, viewingParameters)->ImageCollection:
     name = extract_arg(args,'name')
     return getImageCollection(name,viewingParameters)
 
-@process(description="Apply a function to the given set of bands in this image collection.",
+@process(description="Apply a function to the given set of bands in this image collection. DEPRECATED, use 'apply'",
          args=[ProcessDetails.Arg('function', "A function that gets the value of one pixel (including all bands) as input and produces a single scalar or tuple output."),
                ProcessDetails.Arg('bands', "A set of bands.")])
 def apply_pixel( args:Dict, viewingParameters)->ImageCollection:
+    """
+    DEPRECATED
+    :param args:
+    :param viewingParameters:
+    :return:
+    """
     function = extract_arg(args,'function')
     bands = extract_arg(args,'bands')
     decoded_function = pickle.loads(base64.standard_b64decode(function))
     return extract_arg_list(args, ['data','imagery']).apply_pixel(bands, decoded_function)
+
+@process(description="""Applies an n-ary process (i.e. takes an array of pixel values instead of a single pixel value) to a raster data cube. In contrast, the process apply applies an unary process to all pixel values.\n\n
+By default, apply_dimension applies the the process on all pixel values in the data cube as apply does, but the parameter dimension can be specified to work only on a particular dimension only. For example, if the temporal dimension is specified the process will work on a time series of pixel values.\n\n
+The n-ary process must return as many elements in the returned array as there are in the input array. Otherwise a CardinalityChanged error must be returned.
+""",
+         args=[ProcessDetails.Arg('process', """A process (callback) to be applied on each dimension. The specified process needs to accept an array as parameter and must return as many elements in the returned array as there are in the input array."""),
+               ProcessDetails.Arg('dimension','The name of the dimension to apply the process on. By default, applies the the process on all pixel values (as apply does).')])
+def apply_dimension( args:Dict, viewingParameters)->ImageCollection:
+    return _evaluate_callback_process(args, 'process', 'apply_dimension')
+
 
 
 @process(description="Save processed data to storage or export to http.",
@@ -477,6 +493,20 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             #EP-2760 a special case of reduce where only a single udf based callback is provided. The more generic case is not yet supported.
             return image_collection.apply_tiles_spatiotemporal(udf)
         return image_collection.reduce(process_id,dimension)
+    elif (viewingParameters.get('parent_process', None) == 'apply_dimension'):
+        image_collection = extract_arg(args, 'data')
+        dimension = viewingParameters.get('dimension',None) # By default, applies the the process on all pixel values (as apply does).
+        if process_id == "run_udf":
+            udf = _get_udf(args)
+            if 'temporal' == dimension:
+                return image_collection.apply_tiles_spatiotemporal(udf)
+            else:
+                return image_collection.apply_tiles(udf)
+
+        else:
+
+            return image_collection.apply_dimension(process_id,dimension)
+
     elif (viewingParameters.get('parent_process', None) == 'aggregate_polygon'):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
         binary = viewingParameters.get('binary',False)

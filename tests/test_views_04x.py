@@ -146,7 +146,7 @@ class Test(TestCase):
 
     def test_execute_reduce_temporal_run_udf(self):
         resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps({'process_graph':{
-            'apply': {
+            'reduce': {
                 'process_id': 'reduce',
                 'arguments': {
                     'data': {
@@ -190,9 +190,65 @@ class Test(TestCase):
         print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles_spatiotemporal.call_count == 1
 
+    def test_execute_apply_dimension_temporal_run_udf(self):
+        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps({'process_graph':{
+            'apply_dimension': {
+                'process_id': 'apply_dimension',
+                'arguments': {
+                    'data': {
+                        'from_node': 'collection'
+                    },
+                    'dimension':'temporal',
+
+                    'process':{
+                        'callback':{
+                            'cumsum':{
+                                "arguments": {
+                                    "data": {
+                                        "from_argument": "data"
+                                    }
+
+                                },
+                                "process_id": "cumsum"
+                            },
+                            "udf": {
+                                "arguments":{
+                                    "data": {
+                                        "from_node": "cumsum"
+                                    },
+                                    "runtime":"Python",
+                                    "version":"3.5.1",
+                                    "udf":"my python code"
+
+                                },
+                                "process_id": "run_udf",
+                                "result": True
+                            }
+                        }
+                    }
+                },
+                'result':True
+            },
+            'collection': {
+                'process_id': 'get_collection',
+                'arguments':{
+                    'name': 'S2_FAPAR_CLOUDCOVER'
+                }
+            }
+        }
+
+        }))
+
+        assert resp.status_code == 200
+        assert resp.content_length > 0
+        import dummy_impl
+        print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
+        self.assertEqual(1, dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles_spatiotemporal.call_count )
+        self.assertEqual(1, dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_dimension.call_count)
+
     def test_execute_reduce_max(self):
         resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps({'process_graph':{
-            'apply': {
+            'reduce': {
                 'process_id': 'reduce',
                 'arguments': {
                     'data': {
