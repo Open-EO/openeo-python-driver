@@ -35,7 +35,16 @@ def register_extra_processes():
         'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/floor.json',
         'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/cos.json',
         'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/sin.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/run_udf.json'
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/run_udf.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/not.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/eq.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/lt.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/lte.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/gt.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/gte.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/or.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/and.json'
+
     ]
 
     import requests
