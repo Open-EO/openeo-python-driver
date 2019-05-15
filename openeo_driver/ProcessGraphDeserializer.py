@@ -375,7 +375,10 @@ def mask_polygon(args:Dict,viewingParameters)->ImageCollection:
 def mask(args:Dict,viewingParameters)->ImageCollection:
     mask = extract_arg(args,'mask')
     replacement = float(extract_arg(args, 'replacement'))
-    image_collection = extract_arg_list(args, ['data', 'imagery']).mask(mask,replacement)
+    if isinstance(mask, ImageCollection):
+        image_collection = extract_arg_list(args, ['data', 'imagery']).mask(rastermask = mask, replacement=replacement)
+    else:
+        image_collection = extract_arg_list(args, ['data', 'imagery']).mask(polygon = mask,replacement=replacement)
     return image_collection
 
 
