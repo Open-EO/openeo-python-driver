@@ -79,7 +79,8 @@ def _error_response(error: Exception, status_code: int, summary: str = None):
 @openeo_bp.route('/' )
 def index():
     return jsonify({
-      "version": g.version,
+      "version": g.version,  # Deprecated pre-0.4.0 API version field
+      "api_version": g.version,  # API version field since 0.4.0
       "endpoints": [
         {
           "path": "/collections",
