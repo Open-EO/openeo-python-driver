@@ -483,6 +483,9 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             viewingParameters["bottom"] = bbox[1]
             viewingParameters["top"] = bbox[3]
             viewingParameters["srs"] = "EPSG:4326"
+    elif 'filter_bands' == process_id:
+        viewingParameters = viewingParameters or {}
+        viewingParameters["bands"] = extract_arg(args, "bands")
 
     #first we resolve child nodes and arguments
     args = {name: convert_node(expr, viewingParameters) for (name, expr) in args.items() }
