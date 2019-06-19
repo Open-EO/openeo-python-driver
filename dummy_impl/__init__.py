@@ -79,12 +79,27 @@ def getImageCollection(product_id, viewingParameters):
     return image_collection
 
 
-fapar_layer = {'product_id': 'S2_FAPAR_CLOUDCOVER'}
+
+fapar_layer = {
+    'product_id': 'DUMMY_S2_FAPAR_CLOUDCOVER',
+    'name': 'DUMMY_S2_FAPAR_CLOUDCOVER',
+    'id': 'DUMMY_S2_FAPAR_CLOUDCOVER',
+    'description': 'fraction of the solar radiation absorbed by live leaves for the photosynthesis activity',
+    'license': 'free',
+    'extent': {
+        'spatial': [-180, -90, 180, 90],
+        'temporal': ["2019-01-02", "2019-02-03"],
+    },
+    'links': [],
+    'stac_version': '0.1.2',
+    'properties': {'cube:dimensions': {}},
+    'other_properties': {},
+}
 def get_layers():
     return [fapar_layer]
 
 def get_layer(product_id):
-    if product_id == 'S2_FAPAR_CLOUDCOVER':
+    if product_id == 'DUMMY_S2_FAPAR_CLOUDCOVER':
         return fapar_layer
     else:
         raise ValueError("Unknown collection: " + product_id)
