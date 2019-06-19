@@ -1,5 +1,6 @@
 import os
 import logging
+from distutils.version import LooseVersion
 from urllib.parse import unquote
 
 from flask import request, url_for, jsonify, send_from_directory, abort, make_response,Blueprint,g, current_app
@@ -192,13 +193,20 @@ def capabilities():
 #OpenEO 0.3.0:
 @openeo_bp.route('/output_formats' )
 def output_formats():
-    return jsonify({
-      "default": "GTiff",
-      "formats": {
-        "GTiff": {},
-        "GeoTiff": {}
-      }
-    })
+    if LooseVersion(g.version) >= LooseVersion('0.4.0'):
+        return jsonify({
+            "GTiff": {"gis_data_types": ["raster"]},
+            "GeoTiff": {"gis_data_types": ["raster"]},
+        })
+    else:
+        return jsonify({
+            "default": "GTiff",
+            "formats": {
+                "GTiff": {"gis_data_types": ["raster"]},
+                "GeoTiff": {"gis_data_types": ["raster"]},
+            }
+        })
+
 
 @openeo_bp.route('/udf_runtimes' )
 def udf_runtimes():
