@@ -186,6 +186,26 @@ def get_collection( args:Dict, viewingParameters)->ImageCollection:
     name = extract_arg(args,'name')
     return getImageCollection(name,viewingParameters)
 
+@process(description='Loads a collection from the current back-end by its id and returns it as processable data cube. The data that is added to the data cube can be restricted with the additional spatial_extent, temporal_extent, bands and properties.',
+         args=[ProcessDetails.Arg('id', 'The collection id.'), ])
+def load_collection( args:Dict, viewingParameters)->ImageCollection:
+    name = extract_arg(args,'id')
+    if 'temporal_extent' in args:
+        extent = args['temporal_extent']
+        if len(extent) != 2:
+            raise AttributeError("temporal_extent property should be an array of length 2, but got: " + str(extent))
+        viewingParameters["from"] = extent[0]
+        viewingParameters["to"] = extent[1]
+    if "spatial_extent" in args:
+        extent = args["spatial_extent"]
+        viewingParameters["left"] = extract_arg(extent, "west")
+        viewingParameters["right"] = extract_arg(extent, "east")
+        viewingParameters["top"] = extract_arg(extent, "north")
+        viewingParameters["bottom"] = extract_arg(extent, "south")
+        viewingParameters["srs"] = extent.get("crs", "EPSG:4326")
+
+    return getImageCollection(name,viewingParameters)
+
 @process(description="Apply a function to the given set of bands in this image collection. DEPRECATED, use 'apply'",
          args=[ProcessDetails.Arg('function', "A function that gets the value of one pixel (including all bands) as input and produces a single scalar or tuple output."),
                ProcessDetails.Arg('bands', "A set of bands.")])
@@ -456,8 +476,17 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         filter_temporal >= 0.4.x
         """
         viewingParameters = viewingParameters or {}
-        viewingParameters["from"] = extract_arg(args,"from")
-        viewingParameters["to"] = extract_arg(args,"to")
+
+        if 'extent' in args:
+            #version >= 0.4
+            extent = args['extent']
+            if len(extent) != 2:
+                raise AttributeError("extent property should be an array of length 2, but got: " + str(extent))
+            viewingParameters["from"] = extent[0]
+            viewingParameters["to"] = extent[1]
+        else:
+            viewingParameters["from"] = extract_arg(args,"from")
+            viewingParameters["to"] = extract_arg(args,"to")
     elif 'filter_bbox' == process_id:
         viewingParameters = viewingParameters or {}
         if "left" in args:
@@ -468,12 +497,15 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             viewingParameters["bottom"] = extract_arg(args,"bottom")
             viewingParameters["srs"] = extract_arg(args,"srs")
         else:
+            extent = args
+            if "extent" in args:
+                extent = args["extent"]
             # >=0.4.x
-            viewingParameters["left"] = extract_arg(args, "west")
-            viewingParameters["right"] = extract_arg(args, "east")
-            viewingParameters["top"] = extract_arg(args, "north")
-            viewingParameters["bottom"] = extract_arg(args, "south")
-            viewingParameters["srs"] = extract_arg(args, "crs")
+            viewingParameters["left"] = extract_arg(extent, "west")
+            viewingParameters["right"] = extract_arg(extent, "east")
+            viewingParameters["top"] = extract_arg(extent, "north")
+            viewingParameters["bottom"] = extract_arg(extent, "south")
+            viewingParameters["srs"] = extent.get("crs", "EPSG:4326")
     elif 'zonal_statistics' == process_id or 'aggregate_polygon' == process_id:
         geometry = extract_arg_list(args, ['regions','polygons'])
         bbox = shape(geometry).bounds

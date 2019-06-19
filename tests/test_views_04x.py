@@ -27,15 +27,14 @@ class Test(TestCase):
                     'data': {
                         'from_node': 'collection'
                     },
-                    'from': "2018-01-01",
-                    'to': "2018-12-31"
+                    'extent':['2018-01-01', '2018-12-31']
                 },
                 'result':True
             },
             'collection': {
-                'process_id': 'get_collection',
+                'process_id': 'load_collection',
                 'arguments':{
-                    'name': 'S2_FAPAR_CLOUDCOVER'
+                    'id': 'S2_FAPAR_CLOUDCOVER'
                 }
             }
         }
@@ -44,6 +43,87 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         assert resp.content_length > 0
+
+    def test_execute_simple_download(self):
+        import dummy_impl
+
+
+
+        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json',
+                                data=json.dumps({'process_graph': {
+                                    'filter_bbox':{
+                                        'process_id': 'filter_bbox',
+                                        'result': True,
+                                        'arguments':{
+                                            'data': {
+                                                'from_node': 'filter_temp'
+                                            },
+                                            'extent':{
+                                                'west': 5.027, 'east': 5.0438, 'north': 51.2213,
+                                                'south': 51.1974, 'crs': 'EPSG:4326'
+                                            }
+                                        }
+                                    },
+                                    'filter_temp': {
+                                        'process_id': 'filter_temporal',
+                                        'arguments': {
+                                            'data': {
+                                                'from_node': 'collection'
+                                            },
+                                            'extent': ['2018-01-01', '2018-12-31']
+                                        },
+                                        'result': False
+                                    },
+                                    'collection': {
+                                        'process_id': 'load_collection',
+                                        'arguments': {
+                                            'id': 'S2_FAPAR_CLOUDCOVER'
+                                        }
+                                    }
+                                }
+
+                                }))
+
+        assert resp.status_code == 200
+        assert resp.content_length > 0
+        # assert resp.headers['Content-Type'] == "application/octet-stream"
+
+        print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
+        self.assertEquals(1, dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].download.call_count)
+
+    def test_load_collection_filter(self):
+        import dummy_impl
+
+
+
+        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json',
+                                data=json.dumps({'process_graph': {
+                                    'collection': {
+                                        'process_id': 'load_collection',
+                                        'arguments': {
+                                            'id': 'S2_FAPAR_CLOUDCOVER',
+                                            'spatial_extent': {
+                                                'west': 5.027, 'east': 5.0438, 'north': 51.2213,
+                                                'south': 51.1974, 'crs': 'EPSG:4326'
+                                            },
+                                            'temporal_extent': ['2018-01-01', '2018-12-31']
+                                        },
+                                        'result': True
+                                    }
+                                }
+
+                                }))
+
+        assert resp.status_code == 200
+        assert resp.content_length > 0
+        # assert resp.headers['Content-Type'] == "application/octet-stream"
+
+        print(dummy_impl.collections['S2_FAPAR_CLOUDCOVER'])
+        self.assertEquals(1, dummy_impl.collections['S2_FAPAR_CLOUDCOVER'].download.call_count)
+
+        expected_params = {'version': '0.4.0', 'from': '2018-01-01', 'to': '2018-12-31', 'left': 5.027, 'right': 5.0438,
+                        'top': 51.2213, 'bottom': 51.1974, 'srs': 'EPSG:4326'}
+        self.assertDictEqual(expected_params, dummy_impl.collections['S2_FAPAR_CLOUDCOVER'].viewingParameters)
 
     def test_execute_apply_unary(self):
         resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps({'process_graph':{
