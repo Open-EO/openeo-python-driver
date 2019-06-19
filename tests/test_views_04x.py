@@ -379,6 +379,51 @@ class Test(TestCase):
         print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask.call_count == 1
 
+    def test_execute_mask_polygon(self):
+        resp = self.client.post('/openeo/0.4.0/execute', content_type='application/json', data=json.dumps({
+            "process_graph": {
+                "mask":{
+                    "process_id": "mask",
+                    "arguments": {
+                        'data': {
+                            'from_node': 'collection'
+                        },
+                        "mask": {
+                            "type": "Polygon",
+                            "crs": {
+                                'type': 'name',
+                                'properties': {
+                                    'name': "EPSG:4326"
+                                }
+                            },
+                            "coordinates": [
+                                [[7.022705078125007, 51.75432477678571], [7.659912109375007, 51.74333844866071],
+                                 [7.659912109375007, 51.29289899553571], [7.044677734375007, 51.31487165178571],
+                                 [7.022705078125007, 51.75432477678571]]
+                            ]
+                        }
+                    },
+                    'result': True
+                },
+                'collection': {
+                    'process_id': 'get_collection',
+                    'arguments': {
+                        'name': 'S2_FAPAR_CLOUDCOVER'
+                    }
+                }
+
+            }
+        }))
+
+        assert resp.status_code == 200
+        assert resp.content_length > 0
+
+        import dummy_impl
+        print(dummy_impl.collections)
+        assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask.call_count == 1
+        import shapely.geometry
+        self.assertIsInstance(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask.call_args[1]['polygon'], shapely.geometry.Polygon)
+
     def test_preview_aggregate_temporal_max(self):
         resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json',
                                 data=json.dumps({'process_graph': {

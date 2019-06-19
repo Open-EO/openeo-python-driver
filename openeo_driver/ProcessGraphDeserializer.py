@@ -374,11 +374,11 @@ def mask_polygon(args:Dict,viewingParameters)->ImageCollection:
                ProcessDetails.Arg('replacement', "The value used to replace non-zero and true values with.")])
 def mask(args:Dict,viewingParameters)->ImageCollection:
     mask = extract_arg(args,'mask')
-    replacement = float(extract_arg(args, 'replacement'))
+    replacement = args.get( 'replacement', None)
     if isinstance(mask, ImageCollection):
         image_collection = extract_arg_list(args, ['data', 'imagery']).mask(rastermask = mask, replacement=replacement)
     else:
-        image_collection = extract_arg_list(args, ['data', 'imagery']).mask(polygon = mask,replacement=replacement)
+        image_collection = extract_arg_list(args, ['data', 'imagery']).mask(polygon = shape(mask),replacement=replacement)
     return image_collection
 
 
