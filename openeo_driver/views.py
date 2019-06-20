@@ -82,6 +82,10 @@ def index():
     return jsonify({
       "version": g.version,  # Deprecated pre-0.4.0 API version field
       "api_version": g.version,  # API version field since 0.4.0
+      "backend_version": "0.0.1",  # TODO specify actual backend version
+      # TODO: finetune title and description
+      "title": "VITO Remote Sensing OpenEO API",
+      "description": "This is the OpenEO API to the VITO Remote Sensing product catalog and services.",
       "endpoints": [
         {
           "path": "/collections",
