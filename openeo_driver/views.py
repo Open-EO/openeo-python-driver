@@ -167,7 +167,8 @@ def index():
           {
             "name": "free",
             "description": "Free plan. No limits!",
-            "url": "http://openeo.org/plans/free-plan"
+            "url": "http://openeo.org/plans/free-plan",
+            "paid": False
           }
         ]
       }
