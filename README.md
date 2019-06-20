@@ -13,9 +13,11 @@ A REST service based on Flask translates incoming calls to this local API.
 
 ### Running locally
 For development, you can run the service using Flask:
-export FLASK_APP=openeo_driver/__init__.py
-export SPARK_HOME=/usr/lib64/python3.6/site-packages/pyspark
-FLASK_DEBUG=1 flask run
+
+    export FLASK_APP=openeo_driver/__init__.py
+    export SPARK_HOME=/usr/lib64/python3.6/site-packages/pyspark
+    FLASK_DEBUG=1 flask run
 
 For production, a gunicorn server script is available:
-PYTHONPATH=. python openeogeotrellis/server.py 
+
+    PYTHONPATH=. python openeogeotrellis/server.py

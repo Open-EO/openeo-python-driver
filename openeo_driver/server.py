@@ -7,6 +7,7 @@ from openeo_driver import app
 Script to start a production server. This script can serve as the entry-point for doing spark-submit.
 """
 
+
 def number_of_workers():
     return 4#(multiprocessing.cpu_count() * 2) + 1
 
@@ -36,4 +37,4 @@ if __name__ == '__main__':
         'timeout':1000
     }
     # Modification 3: pass Flask app instead of handler_app
-StandaloneApplication(app, options).run()
+    StandaloneApplication(app, options).run()
