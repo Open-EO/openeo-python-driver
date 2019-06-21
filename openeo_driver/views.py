@@ -312,6 +312,7 @@ def execute():
 
 @openeo_bp.route('/jobs', methods=['GET', 'POST'])
 def create_job():
+    # TODO required authenticated user
     if request.method == 'POST':
         print("Handling request: "+str(request))
         print("Post data: "+str(request.data))
@@ -328,6 +329,7 @@ def create_job():
 
         return response
     else:
+        # TODO "GET Requests to this endpoint will list all batch jobs submitted by a user"
         return 'Usage: Create a new batch processing job using POST'
 
 
@@ -443,6 +445,7 @@ def services():
 
     :return:
     """
+    # TODO require authenticated user
     if request.method == 'POST':
         print("Handling request: "+str(request))
         print("Post data: "+str(request.data))
