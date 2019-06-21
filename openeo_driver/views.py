@@ -531,5 +531,22 @@ def process(process_id):
 
     return jsonify(process_details) if process_details else abort(404)
 
+
 app.register_blueprint(openeo_bp, url_prefix='/openeo')
 app.register_blueprint(openeo_bp, url_prefix='/openeo/<version>')
+
+
+# Note: /.well-known/openeo should be available directly under domain, without version prefix.
+@app.route('/.well-known/openeo', methods=['GET'])
+def well_known_openeo():
+    return jsonify({
+        'versions': [
+            {
+                "url": url_for('openeo.index', version=version, _external=True),
+                "api_version": version,
+                # TODO: flag some versions as not available for production?
+                "production": True,
+            }
+            for version in SUPPORTED_VERSIONS
+        ]
+    })
