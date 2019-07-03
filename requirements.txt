@@ -2,3 +2,4 @@ flask
 requests
 shapely
 werkzeug
+openeo-api
