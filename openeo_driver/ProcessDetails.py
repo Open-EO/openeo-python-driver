@@ -27,7 +27,8 @@ class ProcessDetails:
 
     def serialize(self):
         serialized = {
-            "name": self.process_id,
+            "name": self.process_id,  # Pre 0.4.0 style id field
+            "id": self.process_id,  # id field since 0.4.0
             "description": self.description,
             "returns":self.returns
         }

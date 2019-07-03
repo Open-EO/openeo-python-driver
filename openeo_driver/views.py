@@ -16,22 +16,22 @@ from openeo import ImageCollection
 from openeo.error_summary import ErrorSummary
 
 SUPPORTED_VERSIONS = ['0.3.0','0.3.1', '0.4.0']
+DEFAULT_VERSION = '0.3.1'
 
 openeo_bp = Blueprint('openeo', __name__)
 
 
 @openeo_bp.url_defaults
-def add_language_code(endpoint, values):
-    if 'version' in values or not g.version:
-        return
-    if app.url_map.is_endpoint_expecting(endpoint, 'version'):
-        values['version'] = g.version
-    else:
-        values['version'] = '0.3.1'
+def _add_version(endpoint, values):
+    """Callback to automatically add "version" argument in `url_for` calls."""
+    if 'version' not in values and app.url_map.is_endpoint_expecting(endpoint, 'version'):
+        values['version'] = g.get('version', DEFAULT_VERSION)
+
 
 @openeo_bp.url_value_preprocessor
-def pull_version(endpoint, values):
-    g.version = values.pop('version', '0.3.1')
+def _pull_version(endpoint, values):
+    """Get API version from request and store in global context"""
+    g.version = values.pop('version', DEFAULT_VERSION)
     if g.version not in SUPPORTED_VERSIONS:
         error = HTTPException(response={
             "id": "550e8400-e29b-11d4-a716-446655440000",
@@ -167,7 +167,8 @@ def index():
           {
             "name": "free",
             "description": "Free plan. No limits!",
-            "url": "http://openeo.org/plans/free-plan"
+            "url": "http://openeo.org/plans/free-plan",
+            "paid": False
           }
         ]
       }
