@@ -446,7 +446,8 @@ def services():
                 'version': g.version,
                 'service_type':type
             })
-            url = image_collection.tiled_viewing_service(**json_request)['url']
+            service = image_collection.tiled_viewing_service(**json_request)
+            url = service['url']
             return "", 201, {'Location': url}
         else:
             raise BadRequest("Requested unsupported service type: " + type)
@@ -490,8 +491,11 @@ def collections():
 
 @openeo_bp.route('/collections/<collection_id>' , methods=['GET'])
 def collection_by_id(collection_id):
-    print("Handling request: "+str(request))
-    return jsonify(get_layer(collection_id))
+    try:
+        layer = get_layer(collection_id)
+    except ValueError as e:
+        abort(404,"The requested collection: %s was not found." % collection_id)
+    return jsonify(layer)
 
 
 @openeo_bp.route('/processes' , methods=['GET'])

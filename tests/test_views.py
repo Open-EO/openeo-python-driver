@@ -34,6 +34,7 @@ def setup_local_spark():
 from openeo_driver import app
 import json
 import os
+import dummy_impl
 os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "dummy_impl"
 
 client = app.test_client()
@@ -42,6 +43,7 @@ class Test(TestCase):
     def setUp(self):
         app.config['TESTING'] = True
         self.client = app.test_client()
+        dummy_impl.collections = {}
 
     def test_health(self):
         resp = self.client.get('/openeo/health')
@@ -55,14 +57,20 @@ class Test(TestCase):
         assert resp.status_code == 200
         collections = json.loads(resp.get_data().decode('utf-8'))
         assert collections
-        assert 'S2_FAPAR_CLOUDCOVER' in [collection['product_id'] for collection in collections['collections']]
+        assert 'DUMMY_S2_FAPAR_CLOUDCOVER' in [collection['product_id'] for collection in collections['collections']]
 
     def test_data_detail(self):
-        resp = self.client.get('/openeo/data/S2_FAPAR_CLOUDCOVER')
+        resp = self.client.get('/openeo/data/DUMMY_S2_FAPAR_CLOUDCOVER')
 
         assert resp.status_code == 200
         collection = json.loads(resp.get_data().decode('utf-8'))
-        assert collection['product_id'] == 'S2_FAPAR_CLOUDCOVER'
+        assert collection['product_id'] == 'DUMMY_S2_FAPAR_CLOUDCOVER'
+
+    def test_data_detail_error(self):
+        resp = self.client.get('/openeo/data/S2_FAPAR_CLOUDCOVER')
+
+        assert resp.status_code == 404
+
 
     def test_processes(self):
         resp = self.client.get('/openeo/processes')
@@ -163,7 +171,7 @@ class Test(TestCase):
 
     def test_execute_simple_download(self):
         import dummy_impl
-        dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].download.reset_mock()
+
         download_expected_graph = {'process_id': 'filter_bbox', 'args': {'imagery': {'process_id': 'filter_daterange',
                                                                                      'args': {'imagery': {'collection_id': 'S2_FAPAR_CLOUDCOVER'},
                                                                                               'from': '2018-08-06T00:00:00Z',

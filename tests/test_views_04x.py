@@ -3,6 +3,7 @@ from unittest import TestCase, skip
 from openeo_driver import app
 import json
 import os
+import dummy_impl
 os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "dummy_impl"
 
 client = app.test_client()
@@ -11,6 +12,8 @@ class Test(TestCase):
     def setUp(self):
         app.config['TESTING'] = True
         self.client = app.test_client()
+
+        dummy_impl.collections = {}
 
     def test_udf_runtimes(self):
         runtimes = self.client.get('/openeo/0.4.0/udf_runtimes').json
@@ -45,9 +48,6 @@ class Test(TestCase):
         assert resp.content_length > 0
 
     def test_execute_simple_download(self):
-        import dummy_impl
-
-
 
         resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json',
                                 data=json.dumps({'process_graph': {
@@ -608,6 +608,8 @@ class Test(TestCase):
 
 
     def test_create_wmts(self):
+
+
         process_graph = {
             'collection': {
                 'arguments': {
@@ -637,14 +639,11 @@ class Test(TestCase):
         })
 
         self.assertEqual(201,resp.status_code )
-        self.assertDictEqual(resp.json,{
-            "type": "WMTS",
-            "url": "http://openeo.vgt.vito.be/service/wmts"
-        })
-        #TODO fix and check on Location Header
-        #self.assertEqual("http://.../openeo/services/myservice", resp.location)
 
-        import dummy_impl
+        self.assertIn("http://openeo.vgt.vito.be/openeo/services/",resp.location)
+
+
+
         print(dummy_impl.collections["S2"])
         self.assertEqual(1, dummy_impl.collections["S2"].tiled_viewing_service.call_count )
         result_node = ProcessGraphVisitor._list_to_graph(process_graph)
