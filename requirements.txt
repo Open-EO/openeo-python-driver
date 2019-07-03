@@ -3,3 +3,4 @@ requests
 shapely
 werkzeug
 openeo-api
+gunicorn
