@@ -203,6 +203,8 @@ def load_collection( args:Dict, viewingParameters)->ImageCollection:
         viewingParameters["top"] = extract_arg(extent, "north")
         viewingParameters["bottom"] = extract_arg(extent, "south")
         viewingParameters["srs"] = extent.get("crs", "EPSG:4326")
+    if "bands" in args:
+        viewingParameters["bands"] = extract_arg(args, "bands")
 
     return getImageCollection(name,viewingParameters)
 
