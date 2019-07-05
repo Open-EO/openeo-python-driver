@@ -309,7 +309,7 @@ def create_job():
         if 'process_graph' not in job_specification:
             return abort(400)
 
-        job_id = create_batch_job(job_specification)
+        job_id = create_batch_job(g.version, job_specification)
 
         response = make_response("", 201)
         response.headers['Location'] = request.base_url + '/' + job_id
