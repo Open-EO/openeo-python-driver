@@ -159,7 +159,7 @@ def create_process_visitor():
 
 
 def get_secondary_services_info():
-    pass
+    return []
 
 
 def get_secondary_service_info(service_id):

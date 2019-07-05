@@ -464,11 +464,11 @@ def tile_service():
     else:
         return 'Usage: Retrieve tile service endpoint.'
 
-@openeo_bp.route('/services' , methods=['GET', 'POST'])
-def services():
+
+@openeo_bp.route('/services', methods=['POST'])
+def services_post():
     """
-    GET: Requests to this endpoint will list all running secondary web services submitted by a user with given id.
-    POST: Calling this endpoint will create a secondary web service such as WMTS, TMS or WCS. The underlying data is processes on-demand, but a process graph may simply access results from a batch job. Computations should be performed in the sense that it is only evaluated for the requested spatial / temporal extent and resolution.
+    Create a secondary web service such as WMTS, TMS or WCS. The underlying data is processes on-demand, but a process graph may simply access results from a batch job. Computations should be performed in the sense that it is only evaluated for the requested spatial / temporal extent and resolution.
 
     Note: Costs incurred by shared secondary web services are usually paid by the owner, but this depends on the service type and whether it supports charging fees or not.
     https://open-eo.github.io/openeo-api/v/0.3.0/apireference/#tag/Secondary-Services-Management/paths/~1services/post
@@ -476,31 +476,33 @@ def services():
     :return:
     """
     # TODO require authenticated user
-    if request.method == 'POST':
-        print("Handling request: "+str(request))
-        print("Post data: "+str(request.data))
-        json_request = request.get_json()
-        process_graph = json_request['process_graph']
-        type = json_request['type']
+    print("Handling request: " + str(request))
+    print("Post data: " + str(request.data))
+    json_request = request.get_json()
+    process_graph = json_request['process_graph']
+    type = json_request['type']
 
-        if 'tms' == type.lower():
-            image_collection = evaluate(process_graph)
-            return jsonify(image_collection.tiled_viewing_service(**json_request)),201, {'ContentType':'application/json','Location':url_for('.services')}
-        if 'wmts' == type.lower():
-            image_collection = evaluate(process_graph,viewingParameters={
-                'version': g.version,
-                'service_type':type
-            })
-            service = image_collection.tiled_viewing_service(**json_request)
-            url = service['url']
-            return "", 201, {'Location': url}
-        else:
-            raise BadRequest("Requested unsupported service type: " + type)
-    elif request.method == 'GET':
-        #TODO implement retrieval of user specific web services
-        return jsonify(get_secondary_services_info())
+    if 'tms' == type.lower():
+        image_collection = evaluate(process_graph)
+        return jsonify(image_collection.tiled_viewing_service(**json_request)), 201, {'ContentType': 'application/json',
+                                                                                      'Location': url_for('.services_get')}
+    if 'wmts' == type.lower():
+        image_collection = evaluate(process_graph, viewingParameters={
+            'version': g.version,
+            'service_type': type
+        })
+        service = image_collection.tiled_viewing_service(**json_request)
+        url = service['url']
+        return "", 201, {'Location': url}
+    else:
+        raise BadRequest("Requested unsupported service type: " + type)
 
-    raise AssertionError(request.method)
+
+@openeo_bp.route('/services', methods=['GET'])
+def services_get():
+    """List all running secondary web services for authenticated user"""
+    # TODO implement retrieval of user specific web services
+    return jsonify(get_secondary_services_info())
 
 
 @openeo_bp.route('/services/<service_id>', methods=['GET'])
