@@ -3,7 +3,7 @@ import logging
 from distutils.version import LooseVersion
 from urllib.parse import unquote
 
-from flask import request, url_for, jsonify, send_from_directory, abort, make_response,Blueprint,g, current_app
+from flask import request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, current_app
 from werkzeug.exceptions import HTTPException, BadRequest, NotFound
 
 from openeo_driver import app
@@ -12,7 +12,7 @@ from openeo_driver.save_result import SaveResult
 from .ProcessGraphDeserializer import (evaluate, health_check, get_layers, getProcesses, getProcess, get_layer,
                                        create_batch_job, run_batch_job, get_batch_job_info, cancel_batch_job,
                                        get_batch_job_result_filenames, get_batch_job_result_output_dir,
-                                       get_secondary_services_info, get_secondary_service_info,
+                                       backend_implementation,
                                        summarize_exception)
 from openeo import ImageCollection
 from openeo.error_summary import ErrorSummary
@@ -42,6 +42,7 @@ def _pull_version(endpoint, values):
     """Get API version from request and store in global context"""
     g.version = values.pop('version', DEFAULT_VERSION)
     if g.version not in SUPPORTED_VERSIONS:
+        # TODO replace with OpenEOApiException?
         error = HTTPException(response={
             "id": "550e8400-e29b-11d4-a716-446655440000",
             "code": 400,
@@ -105,6 +106,11 @@ def _error_response(error: Exception, status_code: int, summary: str = None):
     response = jsonify(error_json)
     response.status_code = status_code
     return response
+
+
+def response_204_no_content():
+    return make_response('', 204, {"Content-Type": "application/json"})
+
 
 @openeo_bp.route('/' )
 def index():
@@ -421,33 +427,10 @@ def cancel_job(job_id):
 #SERVICES API https://open-eo.github.io/openeo-api/v/0.3.0/apireference/#tag/Web-Service-Management
 
 
-@openeo_bp.route('/service_types' )
+@openeo_bp.route('/service_types', methods=['GET'])
 def service_types():
-    return jsonify({
-  "WMTS": {
-    "parameters": {
-      "version": {
-        "type": "string",
-        "description": "The WMTS version to use.",
-        "default": "1.0.0",
-        "enum": [
-          "1.0.0"
-        ]
-      }
-    },
-    "attributes": {
-      "layers": {
-        "type": "array",
-        "description": "Array of layer names.",
-        "example": [
-          "roads",
-          "countries",
-          "water_bodies"
-        ]
-      }
-    }
-  }
-})
+    return jsonify(backend_implementation.secondary_services.service_types())
+
 
 @openeo_bp.route('/tile_service' , methods=['GET', 'POST'])
 def tile_service():
@@ -478,37 +461,45 @@ def services_post():
     # TODO require authenticated user
     print("Handling request: " + str(request))
     print("Post data: " + str(request.data))
-    json_request = request.get_json()
-    process_graph = json_request['process_graph']
-    type = json_request['type']
+    data = request.get_json()
+    # TODO avoid passing api version this hackish way?
+    data['api_version'] = g.version
+    url, identifier = backend_implementation.secondary_services.create_service(data)
 
-    if 'tms' == type.lower():
-        image_collection = evaluate(process_graph)
-        return jsonify(image_collection.tiled_viewing_service(**json_request)), 201, {'ContentType': 'application/json',
-                                                                                      'Location': url_for('.services_get')}
-    if 'wmts' == type.lower():
-        image_collection = evaluate(process_graph, viewingParameters={
-            'version': g.version,
-            'service_type': type
-        })
-        service = image_collection.tiled_viewing_service(**json_request)
-        url = service['url']
-        return "", 201, {'Location': url}
-    else:
-        raise BadRequest("Requested unsupported service type: " + type)
+    return make_response('', 201, {
+        'Content-Type': 'application/json',
+        'Location': url,
+        'OpenEO-Identifier': identifier,
+    })
 
 
 @openeo_bp.route('/services', methods=['GET'])
 def services_get():
     """List all running secondary web services for authenticated user"""
-    # TODO implement retrieval of user specific web services
-    return jsonify(get_secondary_services_info())
+    # TODO Require authentication
+    return jsonify(backend_implementation.secondary_services.list_services())
 
 
 @openeo_bp.route('/services/<service_id>', methods=['GET'])
 def get_service_info(service_id):
-    service_info = get_secondary_service_info(service_id)
-    return jsonify(service_info) if service_info else abort(404)
+    # TODO Require authentication
+    return jsonify(backend_implementation.secondary_services.service_info(service_id))
+
+
+@openeo_bp.route('/services/<service_id>', methods=['PATCH'])
+def service_patch(service_id):
+    # TODO Require authentication
+    data = request.get_json()
+    # TODO sanitize/check data?
+    backend_implementation.secondary_services.update_service(service_id, data=data)
+    return response_204_no_content()
+
+
+@openeo_bp.route('/services/<service_id>', methods=['DELETE'])
+def service_delete(service_id):
+    # TODO Require authentication
+    backend_implementation.secondary_services.remove_service(service_id)
+    return response_204_no_content()
 
 
 @openeo_bp.route('/data' , methods=['GET'])

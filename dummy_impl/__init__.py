@@ -6,6 +6,8 @@ from typing import Union
 from openeo.error_summary import *
 import numbers
 
+from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation
+
 collections = {}
 
 def getImageCollection(product_id, viewingParameters):
@@ -158,9 +160,11 @@ def create_process_visitor():
     return DummyVisitor()
 
 
-def get_secondary_services_info():
-    return []
-
-
-def get_secondary_service_info(service_id):
+class DummySecondaryServices(SecondaryServices):
     pass
+
+
+def get_openeo_backend_implementation() -> OpenEoBackendImplementation:
+    return OpenEoBackendImplementation(
+        secondary_services=DummySecondaryServices()
+    )

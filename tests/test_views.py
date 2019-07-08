@@ -141,8 +141,6 @@ class Test(TestCase):
         assert resp.status_code == 200
         assert resp.content_length > 0
 
-        import dummy_impl
-        print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask_polygon.call_count == 1
 
 
@@ -170,7 +168,6 @@ class Test(TestCase):
         assert json.loads(resp.get_data(as_text=True)) == {"hello": "world"}
 
     def test_execute_simple_download(self):
-        import dummy_impl
 
         download_expected_graph = {'process_id': 'filter_bbox', 'args': {'imagery': {'process_id': 'filter_daterange',
                                                                                      'args': {'imagery': {'collection_id': 'S2_FAPAR_CLOUDCOVER'},
@@ -184,8 +181,6 @@ class Test(TestCase):
         assert resp.content_length > 0
         #assert resp.headers['Content-Type'] == "application/octet-stream"
 
-
-        print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
         self.assertEquals(1,dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].download.call_count)
 
 
@@ -354,14 +349,15 @@ class Test(TestCase):
             "description": "Service description"
         })
 
-        self.assertEqual(201, resp.status_code)
-        self.assertTrue(resp.location.endswith('/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec/service/wmts'))
+        assert resp.status_code == 201
+        assert resp.location.endswith('/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec/service/wmts')
 
-        import dummy_impl
-        print(dummy_impl.collections["S2"])
-        self.assertEqual(1, dummy_impl.collections["S2"].tiled_viewing_service.call_count )
-        dummy_impl.collections["S2"].tiled_viewing_service.assert_called_with(custom_param=45,
-                                                                              description='Service description', process_graph={'product_id': 'S2'}, title='My Service', type='WMTS')
+        callback = dummy_impl.collections["S2"].tiled_viewing_service
+        assert callback.call_count == 1
+        callback.assert_called_with(
+            custom_param=45, description='Service description', process_graph={'product_id': 'S2'}, title='My Service',
+            type='WMTS'
+        )
 
     def test_create_unsupported_service_type_returns_BadRequest(self):
         resp = self.client.post('/openeo/services', content_type='application/json', json={

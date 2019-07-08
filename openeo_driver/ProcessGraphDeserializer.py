@@ -1,6 +1,7 @@
 import base64
 import importlib
 import json
+import logging
 import os
 import pickle
 from typing import Dict, List
@@ -11,6 +12,7 @@ from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveRes
 from .ProcessDetails import ProcessDetails
 from distutils.version import LooseVersion
 
+_log = logging.getLogger(__name__)
 
 process_registry = {}
 
@@ -64,29 +66,8 @@ def getImageCollection(product_id:str, viewingParameters):
 def health_check():
     return "Default health check OK!"
 
-i = importlib.import_module(os.getenv('DRIVER_IMPLEMENTATION_PACKAGE', "dummy_impl"))
-getImageCollection = i.getImageCollection
-get_layers = i.get_layers
-get_layer = i.get_layer
-try:
-    create_process_visitor = i.create_process_visitor
-except AttributeError as e:
-    create_process_visitor = None
-create_batch_job = i.create_batch_job
-run_batch_job = i.run_batch_job
-get_batch_job_info = i.get_batch_job_info
-get_batch_job_result_filenames = i.get_batch_job_result_filenames
-get_batch_job_result_output_dir = i.get_batch_job_result_output_dir
-cancel_batch_job = i.cancel_batch_job
-get_secondary_services_info = i.get_secondary_services_info
-get_secondary_service_info = i.get_secondary_service_info
-summarize_exception = i.summarize_exception if hasattr(i, 'summarize_exception') else lambda exception: exception
 
-if i.health_check is not None:
-    health_check = i.health_check
-
-
-def evaluate_040(processGraph, viewingParameters = None):
+def evaluate_040(processGraph: dict, viewingParameters = None):
     if viewingParameters is None:
         viewingParameters = {
             'version' : '0.4.0'
@@ -96,8 +77,7 @@ def evaluate_040(processGraph, viewingParameters = None):
     return convert_node(processGraph[top_level_node],viewingParameters)
 
 
-
-def evaluate(processGraph, viewingParameters = None):
+def evaluate(processGraph: dict, viewingParameters = None) -> ImageCollection:
     """
     Converts the json representation of a (part of a) process graph into the corresponding Python ImageCollection.
     :param processGraph:
@@ -130,8 +110,8 @@ def convert_node_03x(processGraph, viewingParameters = None):
             return apply_process(processGraph['process_id'], processGraph['args'], viewingParameters)
     return processGraph
 
-def convert_node_04x(processGraph, viewingParameters = None):
-    if type(processGraph) is dict:
+def convert_node_04x(processGraph:dict, viewingParameters = None):
+    if isinstance(processGraph, dict):
         if 'process_id' in processGraph:
             return apply_process(processGraph['process_id'], processGraph.get('arguments',{}), viewingParameters)
         elif 'node' in processGraph:
@@ -150,7 +130,7 @@ def convert_node_04x(processGraph, viewingParameters = None):
             return processGraph
     return processGraph
 
-def convert_node(dag, viewingParameters = None):
+def convert_node(dag:dict, viewingParameters = None):
     """
     Depth first traversion and conversion of process graph
     :param dag:
@@ -578,7 +558,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         dimension = viewingParameters.get('dimension', None)
         return image_collection.aggregate_temporal(intervals,labels,process_id,dimension)
     else:
-        process_function = globals()[process_id]
+        process_function = globals()[process_id]  # TODO: avoid globals, this can be security hole.
         if process_function is None:
             raise RuntimeError("No process found with name: "+process_id)
         return process_function(args, viewingParameters)
@@ -607,3 +587,42 @@ def getProcesses(substring: str = None):
 def getProcess(process_id: str):
     process_details = process_registry.get(process_id)
     return process_details.serialize() if process_details else None
+
+
+
+
+
+# TODO: avoid dumping all these functions at toplevel: wrap all this in a container with defined API and helpful type hinting
+# TODO: move all this to views.py (where it will be used) or backend.py?
+_driver_implementation_package = os.getenv('DRIVER_IMPLEMENTATION_PACKAGE', "dummy_impl")
+_log.info('Using driver implementation package {d}'.format(d=_driver_implementation_package))
+i = importlib.import_module(_driver_implementation_package)
+getImageCollection = i.getImageCollection
+get_layers = i.get_layers
+get_layer = i.get_layer
+try:
+    create_process_visitor = i.create_process_visitor
+except AttributeError as e:
+    create_process_visitor = None
+create_batch_job = i.create_batch_job
+run_batch_job = i.run_batch_job
+get_batch_job_info = i.get_batch_job_info
+get_batch_job_result_filenames = i.get_batch_job_result_filenames
+get_batch_job_result_output_dir = i.get_batch_job_result_output_dir
+cancel_batch_job = i.cancel_batch_job
+
+# TODO: this just-in-time import is to avoid circular dependency hell
+from openeo_driver.backend import OpenEoBackendImplementation
+
+
+def get_openeo_backend_implementation() -> OpenEoBackendImplementation:
+    return i.get_openeo_backend_implementation()
+
+
+backend_implementation = get_openeo_backend_implementation()
+
+summarize_exception = i.summarize_exception if hasattr(i, 'summarize_exception') else lambda exception: exception
+
+if i.health_check is not None:
+    health_check = i.health_check
+
