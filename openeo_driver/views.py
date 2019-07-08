@@ -2,7 +2,7 @@ import os
 import logging
 from urllib.parse import unquote
 
-from flask import request, url_for, jsonify, send_from_directory, abort, make_response,Blueprint,g
+from flask import request, url_for, jsonify, send_from_directory, abort, make_response,Blueprint,g, current_app
 from werkzeug.exceptions import HTTPException, BadRequest
 
 from openeo_driver import app
@@ -70,8 +70,8 @@ def _error_response(error: Exception, status_code: int, summary: str = None):
     else:
         exception = error
 
+    current_app.logger.error(exception, exc_info=True)
 
-    print(traceback.format_exception(None,exception,exception.__traceback__))
     response = jsonify(error_json)
     response.status_code = status_code
     return response
