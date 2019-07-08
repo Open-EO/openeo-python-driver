@@ -190,20 +190,20 @@ def get_collection( args:Dict, viewingParameters)->ImageCollection:
          args=[ProcessDetails.Arg('id', 'The collection id.'), ])
 def load_collection( args:Dict, viewingParameters)->ImageCollection:
     name = extract_arg(args,'id')
-    if 'temporal_extent' in args:
+    if 'temporal_extent' in args and args['temporal_extent'] is not None:
         extent = args['temporal_extent']
         if len(extent) != 2:
             raise AttributeError("temporal_extent property should be an array of length 2, but got: " + str(extent))
         viewingParameters["from"] = extent[0]
         viewingParameters["to"] = extent[1]
-    if "spatial_extent" in args:
+    if "spatial_extent" in args and args['spatial_extent'] is not None:
         extent = args["spatial_extent"]
         viewingParameters["left"] = extract_arg(extent, "west")
         viewingParameters["right"] = extract_arg(extent, "east")
         viewingParameters["top"] = extract_arg(extent, "north")
         viewingParameters["bottom"] = extract_arg(extent, "south")
         viewingParameters["srs"] = extent.get("crs", "EPSG:4326")
-    if "bands" in args:
+    if "bands" in args and args['bands'] is not None:
         viewingParameters["bands"] = extract_arg(args, "bands")
 
     return getImageCollection(name,viewingParameters)
