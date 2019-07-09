@@ -33,7 +33,7 @@ setup(
     tests_require=['pytest','mock','requests-mock'],
     install_requires=[
         'flask',
-        'openeo-api',
+        'openeo',
         'gunicorn',
         'shapely'
     ],
