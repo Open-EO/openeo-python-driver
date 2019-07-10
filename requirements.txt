@@ -2,5 +2,5 @@ flask
 requests
 shapely
 werkzeug
-openeo-api
+openeo
 gunicorn
