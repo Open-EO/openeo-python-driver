@@ -1,5 +1,6 @@
 from unittest import TestCase, skip
 
+from . import load_json_resource
 from openeo_driver import app
 import json
 import os
@@ -269,6 +270,17 @@ class Test(TestCase):
         import dummy_impl
         print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles_spatiotemporal.call_count == 1
+
+
+    def test_execute_reduce_bands_run_udf(self):
+        request = load_json_resource("udf.json")
+        resp = self.client.post('/openeo/0.4.0/result', content_type='application/json', json=request)
+
+        assert resp.status_code == 200
+        assert resp.content_length > 0
+        import dummy_impl
+        print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
+        self.assertEquals(1,dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles.call_count)
 
     def test_execute_apply_dimension_temporal_run_udf(self):
         resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps({'process_graph':{

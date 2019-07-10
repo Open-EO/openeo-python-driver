@@ -294,6 +294,9 @@ def reduce(args:Dict, viewingParameters)->ImageCollection:
 
     data_cube = extract_arg_list(args, ['data', 'imagery'])
     if dimension == 'spectral_bands':
+        if not binary and len(callback)==1 and next(iter(callback.values())).get('process_id') == 'run_udf':
+            #it would be better to avoid having special cases everywhere to support udf's
+            return _evaluate_callback_process(args, 'reducer', 'reduce')
         if create_process_visitor is not None:
             converted_process_graph = create_process_visitor().accept_process_graph(callback)
             return data_cube.reduce_bands(converted_process_graph)
@@ -537,10 +540,15 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
         dimension = extract_arg(viewingParameters, 'dimension')
         binary = viewingParameters.get('binary',False)
-        if 'run_udf' == process_id and 'temporal' == dimension and not binary:
-            udf = _get_udf(args)
-            #EP-2760 a special case of reduce where only a single udf based callback is provided. The more generic case is not yet supported.
-            return image_collection.apply_tiles_spatiotemporal(udf)
+        if 'run_udf' == process_id and not binary:
+            if 'temporal' == dimension:
+                udf = _get_udf(args)
+                #EP-2760 a special case of reduce where only a single udf based callback is provided. The more generic case is not yet supported.
+                return image_collection.apply_tiles_spatiotemporal(udf)
+            elif 'spectral_bands' == dimension:
+                udf = _get_udf(args)
+                return image_collection.apply_tiles(udf)
+
         return image_collection.reduce(process_id,dimension)
     elif (viewingParameters.get('parent_process', None) == 'apply_dimension'):
         image_collection = extract_arg(args, 'data')

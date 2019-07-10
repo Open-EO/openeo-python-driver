@@ -2,6 +2,9 @@ from unittest.mock import Mock
 from openeo import ImageCollection
 import os
 from shapely.geometry import Polygon, MultiPolygon
+from typing import Union
+from openeo.error_summary import *
+import numbers
 
 collections = {}
 
@@ -141,6 +144,15 @@ class DummyVisitor(ProcessGraphVisitor):
 
     def __init__(self):
         super(DummyVisitor, self).__init__()
+
+    def constantArgument(self, argument_id: str, value):
+        if isinstance(value, numbers.Real):
+            pass
+        else:
+            raise ValueError(
+                'Only numeric constants are accepted, but got: ' + str(value) + ' for argument: ' + str(
+                    argument_id))
+        return self
 
 def create_process_visitor():
     return DummyVisitor()
