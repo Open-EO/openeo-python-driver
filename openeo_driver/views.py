@@ -1,11 +1,13 @@
 import os
 import logging
+from distutils.version import LooseVersion
 from urllib.parse import unquote
 
 from flask import request, url_for, jsonify, send_from_directory, abort, make_response,Blueprint,g, current_app
-from werkzeug.exceptions import HTTPException, BadRequest
+from werkzeug.exceptions import HTTPException, BadRequest, NotFound
 
 from openeo_driver import app
+from openeo_driver.errors import OpenEOApiException, CollectionNotFoundException
 from openeo_driver.save_result import SaveResult
 from .ProcessGraphDeserializer import (evaluate, health_check, get_layers, getProcesses, getProcess, get_layer,
                                        create_batch_job, run_batch_job, get_batch_job_info, cancel_batch_job,
@@ -15,11 +17,18 @@ from .ProcessGraphDeserializer import (evaluate, health_check, get_layers, getPr
 from openeo import ImageCollection
 from openeo.error_summary import ErrorSummary
 
-SUPPORTED_VERSIONS = ['0.3.0','0.3.1', '0.4.0']
+SUPPORTED_VERSIONS = [
+    '0.3.0',
+    '0.3.1',
+    '0.4.0',
+    '0.4.1',
+    '0.4.2',
+]
 DEFAULT_VERSION = '0.3.1'
 
 openeo_bp = Blueprint('openeo', __name__)
 
+_log = logging.getLogger('openeo.driver')
 
 @openeo_bp.url_defaults
 def _add_version(endpoint, values):
@@ -44,11 +53,31 @@ def _pull_version(endpoint, values):
 
 @app.errorhandler(HTTPException)
 def handle_http_exceptions(error: HTTPException):
-    return _error_response(error, error.code)
+    # Convert to OpenEOApiException based handling
+    return handle_openeoapi_exception(OpenEOApiException(
+        message=str(error),
+        code="NotFound" if isinstance(error, NotFound) else "Internal",
+        status_code=error.code
+    ))
+
+
+@app.errorhandler(OpenEOApiException)
+def handle_openeoapi_exception(error: OpenEOApiException):
+    error_json = {
+        "message": str(error),
+        "code": error.code,
+        "id": error.id,
+    }
+    if error.url:
+        error_json['url'] = error.url
+
+    _log.error(str(error_json), exc_info=True)
+    return jsonify(error_json), error.status_code
 
 
 @app.errorhandler(Exception)
 def handle_error(error: Exception):
+    # TODO: convert to OpenEOApiException based handling
     error = summarize_exception(error)
 
     if isinstance(error, ErrorSummary):
@@ -59,6 +88,7 @@ def handle_error(error: Exception):
 
 
 def _error_response(error: Exception, status_code: int, summary: str = None):
+    # TODO: convert to OpenEOApiException based handling
     error_json = {
         "message": summary if summary else str(error)
     }
@@ -81,6 +111,10 @@ def index():
     return jsonify({
       "version": g.version,  # Deprecated pre-0.4.0 API version field
       "api_version": g.version,  # API version field since 0.4.0
+      "backend_version": "0.0.1",  # TODO specify actual backend version
+      # TODO: finetune title and description
+      "title": "VITO Remote Sensing OpenEO API",
+      "description": "This is the OpenEO API to the VITO Remote Sensing product catalog and services.",
       "endpoints": [
         {
           "path": "/collections",
@@ -192,13 +226,20 @@ def capabilities():
 #OpenEO 0.3.0:
 @openeo_bp.route('/output_formats' )
 def output_formats():
-    return jsonify({
-      "default": "GTiff",
-      "formats": {
-        "GTiff": {},
-        "GeoTiff": {}
-      }
-    })
+    if LooseVersion(g.version) >= LooseVersion('0.4.0'):
+        return jsonify({
+            "GTiff": {"gis_data_types": ["raster"]},
+            "GeoTiff": {"gis_data_types": ["raster"]},
+        })
+    else:
+        return jsonify({
+            "default": "GTiff",
+            "formats": {
+                "GTiff": {"gis_data_types": ["raster"]},
+                "GeoTiff": {"gis_data_types": ["raster"]},
+            }
+        })
+
 
 @openeo_bp.route('/udf_runtimes' )
 def udf_runtimes():
@@ -300,6 +341,7 @@ def execute():
 
 @openeo_bp.route('/jobs', methods=['GET', 'POST'])
 def create_job():
+    # TODO required authenticated user
     if request.method == 'POST':
         print("Handling request: "+str(request))
         print("Post data: "+str(request.data))
@@ -316,6 +358,7 @@ def create_job():
 
         return response
     else:
+        # TODO "GET Requests to this endpoint will list all batch jobs submitted by a user"
         return 'Usage: Create a new batch processing job using POST'
 
 
@@ -431,6 +474,7 @@ def services():
 
     :return:
     """
+    # TODO require authenticated user
     if request.method == 'POST':
         print("Handling request: "+str(request))
         print("Post data: "+str(request.data))
@@ -489,12 +533,13 @@ def collections():
             'links':[]
         })
 
+
 @openeo_bp.route('/collections/<collection_id>' , methods=['GET'])
 def collection_by_id(collection_id):
     try:
         layer = get_layer(collection_id)
-    except ValueError as e:
-        abort(404,"The requested collection: %s was not found." % collection_id)
+    except ValueError:
+        raise CollectionNotFoundException(collection_id)
     return jsonify(layer)
 
 
@@ -519,5 +564,22 @@ def process(process_id):
 
     return jsonify(process_details) if process_details else abort(404)
 
+
 app.register_blueprint(openeo_bp, url_prefix='/openeo')
 app.register_blueprint(openeo_bp, url_prefix='/openeo/<version>')
+
+
+# Note: /.well-known/openeo should be available directly under domain, without version prefix.
+@app.route('/.well-known/openeo', methods=['GET'])
+def well_known_openeo():
+    return jsonify({
+        'versions': [
+            {
+                "url": url_for('openeo.index', version=version, _external=True),
+                "api_version": version,
+                # TODO: flag some versions as not available for production?
+                "production": True,
+            }
+            for version in SUPPORTED_VERSIONS
+        ]
+    })
