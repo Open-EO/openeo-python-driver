@@ -17,7 +17,13 @@ from .ProcessGraphDeserializer import (evaluate, health_check, get_layers, getPr
 from openeo import ImageCollection
 from openeo.error_summary import ErrorSummary
 
-SUPPORTED_VERSIONS = ['0.3.0','0.3.1', '0.4.0', '0.4.1']
+SUPPORTED_VERSIONS = [
+    '0.3.0',
+    '0.3.1',
+    '0.4.0',
+    '0.4.1',
+    '0.4.2',
+]
 DEFAULT_VERSION = '0.3.1'
 
 openeo_bp = Blueprint('openeo', __name__)
