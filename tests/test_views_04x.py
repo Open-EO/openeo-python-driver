@@ -658,6 +658,6 @@ class Test(TestCase):
 
         print(dummy_impl.collections["S2"])
         self.assertEqual(1, dummy_impl.collections["S2"].tiled_viewing_service.call_count )
-        result_node = ProcessGraphVisitor._list_to_graph(process_graph)
+        result_node = ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
         dummy_impl.collections["S2"].tiled_viewing_service.assert_called_with(custom_param=45,
                                                                               description='Service description', process_graph=process_graph, title='My Service', type='WMTS')

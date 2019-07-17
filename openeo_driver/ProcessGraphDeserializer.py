@@ -73,7 +73,7 @@ def evaluate_040(processGraph: dict, viewingParameters = None):
             'version' : '0.4.0'
         }
     from openeo.internal.process_graph_visitor import ProcessGraphVisitor
-    top_level_node = ProcessGraphVisitor._list_to_graph(processGraph)
+    top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(processGraph)
     return convert_node(processGraph[top_level_node],viewingParameters)
 
 
