@@ -618,10 +618,7 @@ class Test(TestCase):
         assert resp.status_code == 200
         assert json.loads(resp.get_data(as_text=True)) == {"hello": "world"}
 
-
     def test_create_wmts(self):
-
-
         process_graph = {
             'collection': {
                 'arguments': {
@@ -642,22 +639,22 @@ class Test(TestCase):
             }
         }
         from openeo.internal.process_graph_visitor import ProcessGraphVisitor
-        resp = self.client.post('/openeo/0.4.0/services',content_type='application/json', json={
-            "custom_param":45,
+        resp = self.client.post('/openeo/0.4.0/services', content_type='application/json', json={
+            "custom_param": 45,
             "process_graph": process_graph,
-            "type":'WMTS',
-            "title":"My Service",
-            "description":"Service description"
+            "type": 'WMTS',
+            "title": "My Service",
+            "description": "Service description"
         })
 
-        self.assertEqual(201,resp.status_code )
+        assert resp.status_code == 201
+        assert resp.headers['OpenEO-Identifier'] == 'c63d6c27-c4c2-4160-b7bd-9e32f582daec'
+        assert resp.headers['Location'].endswith("/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec/service/wmts")
 
-        self.assertIn("http://openeo.vgt.vito.be/openeo/services/",resp.location)
-
-
-
-        print(dummy_impl.collections["S2"])
-        self.assertEqual(1, dummy_impl.collections["S2"].tiled_viewing_service.call_count )
-        result_node = ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
-        dummy_impl.collections["S2"].tiled_viewing_service.assert_called_with(custom_param=45,
-                                                                              description='Service description', process_graph=process_graph, title='My Service', type='WMTS')
+        tiled_viewing_service = dummy_impl.collections["S2"].tiled_viewing_service
+        assert tiled_viewing_service.call_count == 1
+        ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
+        tiled_viewing_service.assert_called_with(
+            custom_param=45, description='Service description', process_graph=process_graph, title='My Service',
+            type='WMTS'
+        )

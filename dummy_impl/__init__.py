@@ -28,7 +28,8 @@ def getImageCollection(product_id, viewingParameters):
     image_collection.tiled_viewing_service = Mock(name="tiled_viewing_service")
     image_collection.tiled_viewing_service.return_value = {
         'type': 'WMTS',
-        'url': "http://openeo.vgt.vito.be/openeo/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec/service/wmts"
+        'url': "http://openeo.vgt.vito.be/openeo/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec/service/wmts",
+        'service_id': 'c63d6c27-c4c2-4160-b7bd-9e32f582daec',
     }
 
     download = Mock(name='download')
@@ -161,7 +162,33 @@ def create_process_visitor():
 
 
 class DummySecondaryServices(SecondaryServices):
-    pass
+    def service_types(self) -> dict:
+        return {
+            "WMTS": {
+                "parameters": {
+                    "version": {
+                        "type": "string",
+                        "description": "The WMTS version to use.",
+                        "default": "1.0.0",
+                        "enum": [
+                            "1.0.0"
+                        ]
+                    }
+                },
+                "attributes": {
+                    "layers": {
+                        "type": "array",
+                        "description": "Array of layer names.",
+                        "example": [
+                            "roads",
+                            "countries",
+                            "water_bodies"
+                        ]
+                    }
+                }
+            }
+        }
+
 
 
 def get_openeo_backend_implementation() -> OpenEoBackendImplementation:

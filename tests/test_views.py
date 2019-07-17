@@ -350,7 +350,8 @@ class Test(TestCase):
         })
 
         assert resp.status_code == 201
-        assert resp.location.endswith('/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec/service/wmts')
+        assert resp.headers['OpenEO-Identifier'] == 'c63d6c27-c4c2-4160-b7bd-9e32f582daec'
+        assert resp.headers['Location'].endswith("/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec/service/wmts")
 
         callback = dummy_impl.collections["S2"].tiled_viewing_service
         assert callback.call_count == 1
