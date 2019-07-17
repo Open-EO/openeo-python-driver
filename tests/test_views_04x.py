@@ -1,7 +1,7 @@
 from unittest import TestCase, skip
 
 from . import load_json_resource
-from openeo_driver import app
+from openeo_driver.views import app
 import json
 import os
 import dummy_impl
