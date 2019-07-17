@@ -108,13 +108,14 @@ def _error_response(error: Exception, status_code: int, summary: str = None):
 
 @openeo_bp.route('/' )
 def index():
+    app_config = current_app.config
     return jsonify({
       "version": g.version,  # Deprecated pre-0.4.0 API version field
       "api_version": g.version,  # API version field since 0.4.0
-      "backend_version": "0.0.1",  # TODO specify actual backend version
-      # TODO: finetune title and description
-      "title": "VITO Remote Sensing OpenEO API",
-      "description": "This is the OpenEO API to the VITO Remote Sensing product catalog and services.",
+      "backend_version": app_config.get('OPENEO_BACKEND_VERSION', '0.0.1'),
+      "title": app_config.get('OPENEO_TITLE', 'OpenEO API'),
+      "description": app_config.get('OPENEO_DESCRIPTION', 'OpenEO API'),
+      # TODO only list endpoints that are actually supported by the backend.
       "endpoints": [
         {
           "path": "/collections",
