@@ -1,12 +1,10 @@
 import os
 import logging
 from distutils.version import LooseVersion
-from urllib.parse import unquote
 
-from flask import request, url_for, jsonify, send_from_directory, abort, make_response,Blueprint,g, current_app
+from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response,Blueprint,g, current_app
 from werkzeug.exceptions import HTTPException, BadRequest, NotFound
 
-from openeo_driver import app
 from openeo_driver.errors import OpenEOApiException, CollectionNotFoundException
 from openeo_driver.save_result import SaveResult
 from .ProcessGraphDeserializer import (evaluate, health_check, get_layers, getProcesses, getProcess, get_layer,
@@ -26,6 +24,11 @@ SUPPORTED_VERSIONS = [
 ]
 DEFAULT_VERSION = '0.3.1'
 
+
+app = Flask(__name__)
+app.config['APPLICATION_ROOT'] = '/openeo'
+
+
 openeo_bp = Blueprint('openeo', __name__)
 
 _log = logging.getLogger('openeo.driver')
@@ -33,7 +36,7 @@ _log = logging.getLogger('openeo.driver')
 @openeo_bp.url_defaults
 def _add_version(endpoint, values):
     """Callback to automatically add "version" argument in `url_for` calls."""
-    if 'version' not in values and app.url_map.is_endpoint_expecting(endpoint, 'version'):
+    if 'version' not in values and current_app.url_map.is_endpoint_expecting(endpoint, 'version'):
         values['version'] = g.get('version', DEFAULT_VERSION)
 
 

@@ -31,7 +31,7 @@ def setup_local_spark():
     pysc = SparkContext.getOrCreate(conf)
 #setup_local_spark()
 
-from openeo_driver import app
+from openeo_driver.views import app
 import json
 import os
 import dummy_impl
