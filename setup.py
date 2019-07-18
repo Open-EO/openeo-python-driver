@@ -27,7 +27,7 @@ else:
 setup(
     name='openeo_driver',
     version=version,
-    packages=find_packages(include=['openeo*']),
+    packages=find_packages(include=['openeo*','dummy_impl']),
     include_package_data=True,
     setup_requires=['pytest-runner'],
     tests_require=['pytest','mock','requests-mock'],
