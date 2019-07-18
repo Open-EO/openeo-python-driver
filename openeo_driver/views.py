@@ -1,30 +1,43 @@
 import os
 import logging
-from urllib.parse import unquote
+from distutils.version import LooseVersion
 
-from flask import request, url_for, jsonify, send_from_directory, abort, make_response,Blueprint,g, current_app
-from werkzeug.exceptions import HTTPException, BadRequest
+from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response,Blueprint,g, current_app
 
-from openeo_driver import app
+from werkzeug.exceptions import HTTPException, BadRequest, NotFound
+
+from openeo_driver.errors import OpenEOApiException, CollectionNotFoundException
 from openeo_driver.save_result import SaveResult
 from .ProcessGraphDeserializer import (evaluate, health_check, get_layers, getProcesses, getProcess, get_layer,
                                        create_batch_job, run_batch_job, get_batch_job_info, cancel_batch_job,
                                        get_batch_job_result_filenames, get_batch_job_result_output_dir,
-                                       get_secondary_services_info, get_secondary_service_info,
+                                       backend_implementation,
                                        summarize_exception)
 from openeo import ImageCollection
 from openeo.error_summary import ErrorSummary
 
-SUPPORTED_VERSIONS = ['0.3.0','0.3.1', '0.4.0']
+SUPPORTED_VERSIONS = [
+    '0.3.0',
+    '0.3.1',
+    '0.4.0',
+    '0.4.1',
+    '0.4.2',
+]
 DEFAULT_VERSION = '0.3.1'
+
+
+app = Flask(__name__)
+app.config['APPLICATION_ROOT'] = '/openeo'
+
 
 openeo_bp = Blueprint('openeo', __name__)
 
+_log = logging.getLogger('openeo.driver')
 
 @openeo_bp.url_defaults
 def _add_version(endpoint, values):
     """Callback to automatically add "version" argument in `url_for` calls."""
-    if 'version' not in values and app.url_map.is_endpoint_expecting(endpoint, 'version'):
+    if 'version' not in values and current_app.url_map.is_endpoint_expecting(endpoint, 'version'):
         values['version'] = g.get('version', DEFAULT_VERSION)
 
 
@@ -33,6 +46,7 @@ def _pull_version(endpoint, values):
     """Get API version from request and store in global context"""
     g.version = values.pop('version', DEFAULT_VERSION)
     if g.version not in SUPPORTED_VERSIONS:
+        # TODO replace with OpenEOApiException?
         error = HTTPException(response={
             "id": "550e8400-e29b-11d4-a716-446655440000",
             "code": 400,
@@ -44,11 +58,31 @@ def _pull_version(endpoint, values):
 
 @app.errorhandler(HTTPException)
 def handle_http_exceptions(error: HTTPException):
-    return _error_response(error, error.code)
+    # Convert to OpenEOApiException based handling
+    return handle_openeoapi_exception(OpenEOApiException(
+        message=str(error),
+        code="NotFound" if isinstance(error, NotFound) else "Internal",
+        status_code=error.code
+    ))
+
+
+@app.errorhandler(OpenEOApiException)
+def handle_openeoapi_exception(error: OpenEOApiException):
+    error_json = {
+        "message": str(error),
+        "code": error.code,
+        "id": error.id,
+    }
+    if error.url:
+        error_json['url'] = error.url
+
+    _log.error(str(error_json), exc_info=True)
+    return jsonify(error_json), error.status_code
 
 
 @app.errorhandler(Exception)
 def handle_error(error: Exception):
+    # TODO: convert to OpenEOApiException based handling
     error = summarize_exception(error)
 
     if isinstance(error, ErrorSummary):
@@ -59,6 +93,7 @@ def handle_error(error: Exception):
 
 
 def _error_response(error: Exception, status_code: int, summary: str = None):
+    # TODO: convert to OpenEOApiException based handling
     error_json = {
         "message": summary if summary else str(error)
     }
@@ -76,11 +111,21 @@ def _error_response(error: Exception, status_code: int, summary: str = None):
     response.status_code = status_code
     return response
 
+
+def response_204_no_content():
+    return make_response('', 204, {"Content-Type": "application/json"})
+
+
 @openeo_bp.route('/' )
 def index():
+    app_config = current_app.config
     return jsonify({
       "version": g.version,  # Deprecated pre-0.4.0 API version field
       "api_version": g.version,  # API version field since 0.4.0
+      "backend_version": app_config.get('OPENEO_BACKEND_VERSION', '0.0.1'),
+      "title": app_config.get('OPENEO_TITLE', 'OpenEO API'),
+      "description": app_config.get('OPENEO_DESCRIPTION', 'OpenEO API'),
+      # TODO only list endpoints that are actually supported by the backend.
       "endpoints": [
         {
           "path": "/collections",
@@ -192,13 +237,20 @@ def capabilities():
 #OpenEO 0.3.0:
 @openeo_bp.route('/output_formats' )
 def output_formats():
-    return jsonify({
-      "default": "GTiff",
-      "formats": {
-        "GTiff": {},
-        "GeoTiff": {}
-      }
-    })
+    if LooseVersion(g.version) >= LooseVersion('0.4.0'):
+        return jsonify({
+            "GTiff": {"gis_data_types": ["raster"]},
+            "GeoTiff": {"gis_data_types": ["raster"]},
+        })
+    else:
+        return jsonify({
+            "default": "GTiff",
+            "formats": {
+                "GTiff": {"gis_data_types": ["raster"]},
+                "GeoTiff": {"gis_data_types": ["raster"]},
+            }
+        })
+
 
 @openeo_bp.route('/udf_runtimes' )
 def udf_runtimes():
@@ -300,6 +352,7 @@ def execute():
 
 @openeo_bp.route('/jobs', methods=['GET', 'POST'])
 def create_job():
+    # TODO required authenticated user
     if request.method == 'POST':
         print("Handling request: "+str(request))
         print("Post data: "+str(request.data))
@@ -316,6 +369,7 @@ def create_job():
 
         return response
     else:
+        # TODO "GET Requests to this endpoint will list all batch jobs submitted by a user"
         return 'Usage: Create a new batch processing job using POST'
 
 
@@ -377,33 +431,10 @@ def cancel_job(job_id):
 #SERVICES API https://open-eo.github.io/openeo-api/v/0.3.0/apireference/#tag/Web-Service-Management
 
 
-@openeo_bp.route('/service_types' )
+@openeo_bp.route('/service_types', methods=['GET'])
 def service_types():
-    return jsonify({
-  "WMTS": {
-    "parameters": {
-      "version": {
-        "type": "string",
-        "description": "The WMTS version to use.",
-        "default": "1.0.0",
-        "enum": [
-          "1.0.0"
-        ]
-      }
-    },
-    "attributes": {
-      "layers": {
-        "type": "array",
-        "description": "Array of layer names.",
-        "example": [
-          "roads",
-          "countries",
-          "water_bodies"
-        ]
-      }
-    }
-  }
-})
+    return jsonify(backend_implementation.secondary_services.service_types())
+
 
 @openeo_bp.route('/tile_service' , methods=['GET', 'POST'])
 def tile_service():
@@ -420,48 +451,59 @@ def tile_service():
     else:
         return 'Usage: Retrieve tile service endpoint.'
 
-@openeo_bp.route('/services' , methods=['GET', 'POST'])
-def services():
+
+@openeo_bp.route('/services', methods=['POST'])
+def services_post():
     """
-    GET: Requests to this endpoint will list all running secondary web services submitted by a user with given id.
-    POST: Calling this endpoint will create a secondary web service such as WMTS, TMS or WCS. The underlying data is processes on-demand, but a process graph may simply access results from a batch job. Computations should be performed in the sense that it is only evaluated for the requested spatial / temporal extent and resolution.
+    Create a secondary web service such as WMTS, TMS or WCS. The underlying data is processes on-demand, but a process graph may simply access results from a batch job. Computations should be performed in the sense that it is only evaluated for the requested spatial / temporal extent and resolution.
 
     Note: Costs incurred by shared secondary web services are usually paid by the owner, but this depends on the service type and whether it supports charging fees or not.
     https://open-eo.github.io/openeo-api/v/0.3.0/apireference/#tag/Secondary-Services-Management/paths/~1services/post
 
     :return:
     """
-    if request.method == 'POST':
-        print("Handling request: "+str(request))
-        print("Post data: "+str(request.data))
-        json_request = request.get_json()
-        process_graph = json_request['process_graph']
-        type = json_request['type']
+    # TODO require authenticated user
+    print("Handling request: " + str(request))
+    print("Post data: " + str(request.data))
+    data = request.get_json()
+    # TODO avoid passing api version this hackish way?
+    data['api_version'] = g.version
+    url, identifier = backend_implementation.secondary_services.create_service(data)
 
-        if 'tms' == type.lower():
-            image_collection = evaluate(process_graph)
-            return jsonify(image_collection.tiled_viewing_service(**json_request)),201, {'ContentType':'application/json','Location':url_for('.services')}
-        if 'wmts' == type.lower():
-            image_collection = evaluate(process_graph,viewingParameters={
-                'version': g.version,
-                'service_type':type
-            })
-            service = image_collection.tiled_viewing_service(**json_request)
-            url = service['url']
-            return "", 201, {'Location': url}
-        else:
-            raise BadRequest("Requested unsupported service type: " + type)
-    elif request.method == 'GET':
-        #TODO implement retrieval of user specific web services
-        return jsonify(get_secondary_services_info())
+    return make_response('', 201, {
+        'Content-Type': 'application/json',
+        'Location': url,
+        'OpenEO-Identifier': identifier,
+    })
 
-    raise AssertionError(request.method)
+
+@openeo_bp.route('/services', methods=['GET'])
+def services_get():
+    """List all running secondary web services for authenticated user"""
+    # TODO Require authentication
+    return jsonify(backend_implementation.secondary_services.list_services())
 
 
 @openeo_bp.route('/services/<service_id>', methods=['GET'])
 def get_service_info(service_id):
-    service_info = get_secondary_service_info(service_id)
-    return jsonify(service_info) if service_info else abort(404)
+    # TODO Require authentication
+    return jsonify(backend_implementation.secondary_services.service_info(service_id))
+
+
+@openeo_bp.route('/services/<service_id>', methods=['PATCH'])
+def service_patch(service_id):
+    # TODO Require authentication
+    data = request.get_json()
+    # TODO sanitize/check data?
+    backend_implementation.secondary_services.update_service(service_id, data=data)
+    return response_204_no_content()
+
+
+@openeo_bp.route('/services/<service_id>', methods=['DELETE'])
+def service_delete(service_id):
+    # TODO Require authentication
+    backend_implementation.secondary_services.remove_service(service_id)
+    return response_204_no_content()
 
 
 @openeo_bp.route('/data' , methods=['GET'])
@@ -489,12 +531,13 @@ def collections():
             'links':[]
         })
 
+
 @openeo_bp.route('/collections/<collection_id>' , methods=['GET'])
 def collection_by_id(collection_id):
     try:
         layer = get_layer(collection_id)
-    except ValueError as e:
-        abort(404,"The requested collection: %s was not found." % collection_id)
+    except ValueError:
+        raise CollectionNotFoundException(collection_id)
     return jsonify(layer)
 
 
@@ -519,5 +562,22 @@ def process(process_id):
 
     return jsonify(process_details) if process_details else abort(404)
 
+
 app.register_blueprint(openeo_bp, url_prefix='/openeo')
 app.register_blueprint(openeo_bp, url_prefix='/openeo/<version>')
+
+
+# Note: /.well-known/openeo should be available directly under domain, without version prefix.
+@app.route('/.well-known/openeo', methods=['GET'])
+def well_known_openeo():
+    return jsonify({
+        'versions': [
+            {
+                "url": url_for('openeo.index', version=version, _external=True),
+                "api_version": version,
+                # TODO: flag some versions as not available for production?
+                "production": True,
+            }
+            for version in SUPPORTED_VERSIONS
+        ]
+    })
