@@ -40,3 +40,12 @@ class CollectionNotFoundException(OpenEOApiException):
             code="CollectionNotFound",
             status_code=404
         )
+
+
+class SecondaryServiceNotFound(OpenEOApiException):
+    def __init__(self, service_id: str):
+        super(SecondaryServiceNotFound, self).__init__(
+            message="Service does not exist: {s!r}".format(s=service_id),
+            code="ServiceNotFound",
+            status_code=404
+        )
