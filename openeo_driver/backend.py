@@ -10,8 +10,6 @@ Also see https://github.com/Open-EO/openeo-python-driver/issues/8
 """
 
 from typing import List, Tuple
-
-from openeo_driver.ProcessGraphDeserializer import evaluate
 from openeo_driver.errors import OpenEOApiException
 
 
@@ -40,6 +38,7 @@ class SecondaryServices:
         https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1services/post
         :return: (location, openeo_identifier)
         """
+        from openeo_driver.ProcessGraphDeserializer import evaluate
         # TODO require auth/user handle?
         process_graph = data['process_graph']
 
