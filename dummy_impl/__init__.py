@@ -2,6 +2,7 @@ from unittest.mock import Mock
 from openeo import ImageCollection
 import os
 from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry.collection import GeometryCollection
 from typing import Union
 from openeo.error_summary import *
 import numbers
@@ -44,13 +45,22 @@ def getImageCollection(product_id, viewingParameters):
 
     image_collection.timeseries = timeseries
 
-    def is_polygon_or_multipolygon(return_value, regions, func):
+    def is_one_or_more_polygons(return_value, regions, func):
         assert func == 'mean' or func == 'avg'
-        assert isinstance(regions, Polygon) or isinstance(regions, MultiPolygon)
+
+        def assert_polygon_or_multipolygon(geometry):
+            assert isinstance(geometry, Polygon) or isinstance(geometry, MultiPolygon)
+
+        if isinstance(regions, GeometryCollection):
+            for geometry in regions:
+                assert_polygon_or_multipolygon(geometry)
+        else:
+            assert_polygon_or_multipolygon(regions)
+
         return return_value
 
     zonal_statistics = Mock(name='zonal_statistics')
-    zonal_statistics.side_effect = lambda regions, func: is_polygon_or_multipolygon({'hello': 'world'}, regions, func)
+    zonal_statistics.side_effect = lambda regions, func: is_one_or_more_polygons({'hello': 'world'}, regions, func)
 
     image_collection.zonal_statistics = zonal_statistics
 

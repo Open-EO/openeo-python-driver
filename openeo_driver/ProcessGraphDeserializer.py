@@ -492,14 +492,16 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             viewingParameters["bottom"] = extract_arg(extent, "south")
             viewingParameters["srs"] = extent.get("crs", "EPSG:4326")
     elif 'zonal_statistics' == process_id or 'aggregate_polygon' == process_id:
-        geometry = extract_arg_list(args, ['regions','polygons'])
-        bbox = shape(geometry).bounds
-        if(viewingParameters.get("left") is None ):
-            viewingParameters["left"] = bbox[0]
-            viewingParameters["right"] = bbox[2]
-            viewingParameters["bottom"] = bbox[1]
-            viewingParameters["top"] = bbox[3]
-            viewingParameters["srs"] = "EPSG:4326"
+        polygons = extract_arg_list(args, ['regions','polygons'])
+
+        if "type" in polygons:  # it's GeoJSON
+            bbox = shape(polygons).bounds
+            if(viewingParameters.get("left") is None ):
+                viewingParameters["left"] = bbox[0]
+                viewingParameters["right"] = bbox[2]
+                viewingParameters["bottom"] = bbox[1]
+                viewingParameters["top"] = bbox[3]
+                viewingParameters["srs"] = "EPSG:4326"
     elif 'filter_bands' == process_id:
         viewingParameters = viewingParameters or {}
         viewingParameters["bands"] = extract_arg(args, "bands")
@@ -562,6 +564,28 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         if process_function is None:
             raise RuntimeError("No process found with name: "+process_id)
         return process_function(args, viewingParameters)
+
+
+@process(description="Reads vector data from a file or a URL.",
+         args=[ProcessDetails.Arg('filename', "filename or http url of a vector file")])
+def read_vector(args: Dict, viewingParameters):
+    filename = extract_arg(args, 'filename')
+
+    # currently supports only a local file (and not an URL)
+    with open(filename, 'r') as f:
+        geojson = json.load(f)  # currently supports only GeoJSON (and not a Shapefile)
+        geometry = shape(geojson)
+
+        bbox = shape(geometry).bounds
+
+        if viewingParameters.get("left") is None:
+            viewingParameters["left"] = bbox[0]
+            viewingParameters["right"] = bbox[2]
+            viewingParameters["bottom"] = bbox[1]
+            viewingParameters["top"] = bbox[3]
+            viewingParameters["srs"] = "EPSG:4326"
+
+        return geometry  # FIXME: what is the API response of a read_vector-only process graph?
 
 
 def _get_udf(args):

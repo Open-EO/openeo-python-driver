@@ -658,3 +658,81 @@ class Test(TestCase):
             custom_param=45, description='Service description', process_graph=process_graph, title='My Service',
             type='WMTS'
         )
+
+    def test_read_vector(self):
+        """
+        process_graph = {
+            'geojson_file': {
+                'process_id': 'read_vector',
+                'arguments': {
+                    'filename': "/data/users/Public/vdboschj/EP-3025/GeometryCollection.geojson"
+                },
+                'result': True
+            }
+        }
+        """
+
+        process_graph = {
+          "process_graph": {
+            "loadco1": {
+              "process_id": "load_collection",
+              "arguments": {
+                "id": "PROBAV_L3_S10_TOC_NDVI_333M_V2",
+                "spatial_extent": {
+                  "west": 5,
+                  "east": 6,
+                  "north": 52,
+                  "south": 51
+                },
+                "temporal_extent": [
+                  "2017-11-21",
+                  "2017-12-21"
+                ]
+              }
+            },
+            "geojson_file": {
+                "process_id": "read_vector",
+                "arguments": {
+                    "filename": "/data/users/Public/vdboschj/EP-3025/GeometryCollection.geojson"
+                }
+            },
+            "aggreg1": {
+              "process_id": "aggregate_polygon",
+              "arguments": {
+                "data": {
+                  "from_node": "loadco1"
+                },
+                "polygons": {
+                  "from_node": "geojson_file"
+                },
+                "reducer": {
+                  "callback": {
+                    "mean1": {
+                      "process_id": "mean",
+                      "arguments": {
+                        "data": {
+                          "from_argument": "data"
+                        }
+                      },
+                      "result": True
+                    }
+                  }
+                }
+              }
+            },
+            "save": {
+              "process_id": "save_result",
+              "arguments": {
+                "data": {
+                  "from_node": "aggreg1"
+                },
+                "format": "JSON"
+              },
+              "result": True
+            }
+          }
+        }
+
+        resp = self.client.post('/openeo/0.4.0/result', content_type='application/json', data=json.dumps(process_graph))
+
+        assert resp.status_code == 200
