@@ -5,8 +5,10 @@ import logging
 import os
 import pickle
 import requests
+import geopandas as gpd
 from typing import Dict, List
 from shapely.geometry import shape
+from shapely.geometry.collection import GeometryCollection
 
 from openeo import ImageCollection
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
@@ -573,13 +575,17 @@ def read_vector(args: Dict, viewingParameters):
 
     if filename.startswith("http"):
         geojson = requests.get(filename).json()
+        geometry = shape(geojson)
     else:  # it's a file on disk
-        with open(filename, 'r') as f:
-            geojson = json.load(f)  # currently supports only GeoJSON (and not a Shapefile)
+        if filename.endswith(".shp"):
+            shp = gpd.read_file(filename)
+            geometry = GeometryCollection(shp.loc[:, 'geometry'].values)
+        else:  # it's GeoJSON
+            with open(filename, 'r') as f:
+                geojson = json.load(f)
+                geometry = shape(geojson)
 
-    geometry = shape(geojson)
-
-    bbox = shape(geometry).bounds
+    bbox = geometry.bounds
 
     if viewingParameters.get("left") is None:
         viewingParameters["left"] = bbox[0]
