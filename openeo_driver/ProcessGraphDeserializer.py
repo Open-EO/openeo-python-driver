@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import pickle
+import requests
 from typing import Dict, List
 from shapely.geometry import shape
 
@@ -49,7 +50,6 @@ def register_extra_processes():
 
     ]
 
-    import requests
     def load_details(url:str):
         json_description = requests.get(url).json()
         parameters = json_description['parameters']
@@ -571,21 +571,24 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
 def read_vector(args: Dict, viewingParameters):
     filename = extract_arg(args, 'filename')
 
-    # currently supports only a local file (and not an URL)
-    with open(filename, 'r') as f:
-        geojson = json.load(f)  # currently supports only GeoJSON (and not a Shapefile)
-        geometry = shape(geojson)
+    if filename.startswith("http"):
+        geojson = requests.get(filename).json()
+    else:  # it's a file on disk
+        with open(filename, 'r') as f:
+            geojson = json.load(f)  # currently supports only GeoJSON (and not a Shapefile)
 
-        bbox = shape(geometry).bounds
+    geometry = shape(geojson)
 
-        if viewingParameters.get("left") is None:
-            viewingParameters["left"] = bbox[0]
-            viewingParameters["right"] = bbox[2]
-            viewingParameters["bottom"] = bbox[1]
-            viewingParameters["top"] = bbox[3]
-            viewingParameters["srs"] = "EPSG:4326"
+    bbox = shape(geometry).bounds
 
-        return geometry  # FIXME: what is the API response of a read_vector-only process graph?
+    if viewingParameters.get("left") is None:
+        viewingParameters["left"] = bbox[0]
+        viewingParameters["right"] = bbox[2]
+        viewingParameters["bottom"] = bbox[1]
+        viewingParameters["top"] = bbox[3]
+        viewingParameters["srs"] = "EPSG:4326"
+
+    return geometry  # FIXME: what is the API response of a read_vector-only process graph?
 
 
 def _get_udf(args):
