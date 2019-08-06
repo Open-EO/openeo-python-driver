@@ -9,6 +9,8 @@ import geopandas as gpd
 from typing import Dict, List
 from shapely.geometry import shape
 from shapely.geometry.collection import GeometryCollection
+from urllib.parse import urlparse
+from datetime import datetime, timedelta
 
 from openeo import ImageCollection
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
@@ -574,8 +576,13 @@ def read_vector(args: Dict, viewingParameters):
     filename = extract_arg(args, 'filename')
 
     if filename.startswith("http"):
-        geojson = requests.get(filename).json()
-        geometry = shape(geojson)
+        if _is_shapefile(filename):
+            local_shp_file = _download_shapefile(filename)
+            shp = gpd.read_file(local_shp_file)
+            geometry = GeometryCollection(shp.loc[:, 'geometry'].values)
+        else:  # it's GeoJSON
+            geojson = requests.get(filename).json()
+            geometry = shape(geojson)
     else:  # it's a file on disk
         if filename.endswith(".shp"):
             shp = gpd.read_file(filename)
@@ -595,6 +602,46 @@ def read_vector(args: Dict, viewingParameters):
         viewingParameters["srs"] = "EPSG:4326"
 
     return geometry  # FIXME: what is the API response of a read_vector-only process graph?
+
+
+def _filename(url: str) -> str:
+    return urlparse(url).path.split("/")[-1]
+
+
+def _is_shapefile(url: str) -> bool:
+    return _filename(url).endswith(".shp")
+
+
+def _download_shapefile(shp_url: str) -> str:
+    def expiring_download_directory():
+        now = datetime.now()
+        now_hourly_truncated = now - timedelta(minutes=now.minute, seconds=now.second, microseconds=now.microsecond)
+        hourly_id = hash(shp_url + str(now_hourly_truncated))
+        return "/mnt/ceph/Projects/OpenEO/download_%s" % hourly_id
+
+    def save_as(src_url: str, dest_path: str):
+        with open(dest_path, 'wb') as f:
+            f.write(requests.get(src_url).content)
+
+    download_directory = expiring_download_directory()
+    shp_file = download_directory + "/" + _filename(shp_url)
+
+    try:
+        os.mkdir(download_directory)
+
+        shx_file = shp_file.replace(".shp", ".shx")
+        dbf_file = shp_file.replace(".shp", ".dbf")
+
+        shx_url = shp_url.replace(".shp", ".shx")
+        dbf_url = shp_url.replace(".shp", ".dbf")
+
+        save_as(shp_url, shp_file)
+        save_as(shx_url, shx_file)
+        save_as(dbf_url, dbf_file)
+    except FileExistsError:
+        pass
+
+    return shp_file
 
 
 def _get_udf(args):
