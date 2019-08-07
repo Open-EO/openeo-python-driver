@@ -723,4 +723,4 @@ class Test(TestCase):
 
         resp = self.client.post('/openeo/0.4.0/result', content_type='application/json', data=json.dumps(process_graph))
 
-        assert resp.status_code == 200
+        assert resp.status_code == 200, resp.get_data(as_text=True)
