@@ -660,18 +660,6 @@ class Test(TestCase):
         )
 
     def test_read_vector(self):
-        """
-        process_graph = {
-            'geojson_file': {
-                'process_id': 'read_vector',
-                'arguments': {
-                    'filename': "/data/users/Public/vdboschj/EP-3025/GeometryCollection.geojson"
-                },
-                'result': True
-            }
-        }
-        """
-
         process_graph = {
           "process_graph": {
             "loadco1": {
@@ -693,7 +681,7 @@ class Test(TestCase):
             "geojson_file": {
                 "process_id": "read_vector",
                 "arguments": {
-                    "filename": "/data/users/Public/vdboschj/EP-3025/GeometryCollection.geojson"
+                    "filename": "/data/testdata/OpenEO/GeometryCollection.shp"
                 }
             },
             "aggreg1": {
