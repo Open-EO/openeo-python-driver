@@ -659,6 +659,7 @@ class Test(TestCase):
             type='WMTS'
         )
 
+    @skip("needs /data/testdata mounted in the Docker container")
     def test_read_vector(self):
         process_graph = {
           "process_graph": {
