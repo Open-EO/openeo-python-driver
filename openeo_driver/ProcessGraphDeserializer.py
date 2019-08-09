@@ -579,14 +579,14 @@ def read_vector(args: Dict, viewingParameters):
         if _is_shapefile(filename):
             local_shp_file = _download_shapefile(filename)
             shp = gpd.read_file(local_shp_file)
-            geometry = GeometryCollection(shp.loc[:, 'geometry'].values)
+            geometry = GeometryCollection(shp.loc[:, 'geometry'].values.tolist())
         else:  # it's GeoJSON
             geojson = requests.get(filename).json()
             geometry = shape(geojson)
     else:  # it's a file on disk
         if filename.endswith(".shp"):
             shp = gpd.read_file(filename)
-            geometry = GeometryCollection(shp.loc[:, 'geometry'].values)
+            geometry = GeometryCollection(shp.loc[:, 'geometry'].values.tolist())
         else:  # it's GeoJSON
             with open(filename, 'r') as f:
                 geojson = json.load(f)
