@@ -60,7 +60,10 @@ def getImageCollection(product_id, viewingParameters):
         return return_value
 
     zonal_statistics = Mock(name='zonal_statistics')
-    zonal_statistics.side_effect = lambda regions, func: is_one_or_more_polygons({'hello': 'world'}, regions, func)
+    zonal_statistics.side_effect = lambda regions, func: is_one_or_more_polygons({
+        "2015-07-06T00:00:00": [2.9829132080078127],
+        "2015-08-22T00:00:00": [float('nan')]
+    }, regions, func)
 
     image_collection.zonal_statistics = zonal_statistics
 

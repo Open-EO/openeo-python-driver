@@ -1,5 +1,6 @@
 from abc import ABC
 from typing import Dict
+from math import isnan
 
 from flask import send_from_directory, jsonify
 import os
@@ -40,6 +41,24 @@ class JSONResult(SaveResult):
         self.json_dict = json_dict
         super().__init__(format, options)
 
-
     def create_flask_response(self):
-        return jsonify(self.json_dict)
+        return jsonify(JSONResult._replace_nan_values(self.json_dict))
+
+    @staticmethod
+    def _replace_nan_values(o):
+        if isinstance(o, float) and isnan(o):
+            return None
+
+        if isinstance(o, str):
+            return o
+
+        if isinstance(o, dict):
+            return {JSONResult._replace_nan_values(key): JSONResult._replace_nan_values(value)
+                    for key, value in o.items()}
+
+        try:
+            return [JSONResult._replace_nan_values(elem) for elem in o]
+        except TypeError:
+            pass
+
+        return o

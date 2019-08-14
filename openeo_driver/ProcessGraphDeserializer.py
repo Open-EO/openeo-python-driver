@@ -452,7 +452,7 @@ def zonal_statistics(args: Dict, viewingParameters) -> Dict:
     # TODO: extract srs from geometry
 
     if func == 'mean' or func == 'avg':
-        return image_collection.zonal_statistics(shape(geometry), func)
+        return JSONResult(json_dict=image_collection.zonal_statistics(shape(geometry), func), format=None, options=None)
     else:
         raise AttributeError("func %s is not supported" % func)
 

@@ -165,7 +165,10 @@ class Test(TestCase):
         }))
 
         assert resp.status_code == 200
-        assert json.loads(resp.get_data(as_text=True)) == {"hello": "world"}
+        assert json.loads(resp.get_data(as_text=True)) == {
+            "2015-07-06T00:00:00": [2.9829132080078127],
+            "2015-08-22T00:00:00": [None]
+        }
 
     def test_execute_simple_download(self):
 

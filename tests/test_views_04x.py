@@ -1,6 +1,6 @@
 from unittest import TestCase, skip
 
-from . import load_json_resource
+from . import  get_test_resource, load_json_resource
 from openeo_driver.views import app
 import json
 import os
@@ -616,7 +616,10 @@ class Test(TestCase):
         resp = self.client.post('/openeo/0.4.0/result', content_type='application/json', data=json.dumps(process_graph))
 
         assert resp.status_code == 200
-        assert json.loads(resp.get_data(as_text=True)) == {"hello": "world"}
+        assert json.loads(resp.get_data(as_text=True)) == {
+            "2015-07-06T00:00:00": [2.9829132080078127],
+            "2015-08-22T00:00:00": [None]
+        }
 
     def test_create_wmts(self):
         process_graph = {
@@ -659,7 +662,6 @@ class Test(TestCase):
             type='WMTS'
         )
 
-    @skip("needs /data/testdata mounted in the Docker container")
     def test_read_vector(self):
         process_graph = {
           "process_graph": {
@@ -682,7 +684,7 @@ class Test(TestCase):
             "geojson_file": {
                 "process_id": "read_vector",
                 "arguments": {
-                    "filename": "/data/testdata/OpenEO/GeometryCollection.shp"
+                    "filename": get_test_resource("GeometryCollection.geojson")
                 }
             },
             "aggreg1": {
@@ -723,5 +725,12 @@ class Test(TestCase):
         }
 
         resp = self.client.post('/openeo/0.4.0/result', content_type='application/json', data=json.dumps(process_graph))
+        body = resp.get_data(as_text=True)
 
-        assert resp.status_code == 200, resp.get_data(as_text=True)
+        self.assertEquals(200, resp.status_code)
+        self.assertNotIn('NaN', body)
+
+        self.assertEqual({
+            "2015-07-06T00:00:00": [2.9829132080078127],
+            "2015-08-22T00:00:00": [None]
+        }, json.loads(body), body)
