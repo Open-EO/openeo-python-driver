@@ -734,3 +734,91 @@ class Test(TestCase):
             "2015-07-06T00:00:00": [2.9829132080078127],
             "2015-08-22T00:00:00": [None]
         }, json.loads(body), body)
+
+    def test_no_nested_JSONResult(self):
+        process_graph = {
+            "budget": None,
+            "title": None,
+            "description": None,
+            "plan": None,
+            "process_graph": {
+                "loadcollection1": {
+                    "result": None,
+                    "process_id": "load_collection",
+                    "arguments": {
+                        "id": "PROBAV_L3_S10_TOC_NDVI_333M_V2",
+                        "spatial_extent": None,
+                        "temporal_extent": None
+                    }
+                },
+                "zonalstatistics1": {
+                    "result": None,
+                    "process_id": "zonal_statistics",
+                    "arguments": {
+                        "func": "mean",
+                        "data": {
+                            "from_node": "filtertemporal1"
+                        },
+                        "scale": 1000,
+                        "interval": "day",
+                        "regions": {
+                            "coordinates": [
+                                [
+                                    [
+                                        7.022705078125007,
+                                        51.75432477678571
+                                    ],
+                                    [
+                                        7.659912109375007,
+                                        51.74333844866071
+                                    ],
+                                    [
+                                        7.659912109375007,
+                                        51.29289899553571
+                                    ],
+                                    [
+                                        7.044677734375007,
+                                        51.31487165178571
+                                    ],
+                                    [
+                                        7.022705078125007,
+                                        51.75432477678571
+                                    ]
+                                ]
+                            ],
+                            "type": "Polygon"
+                        }
+                    }
+                },
+                "saveresult1": {
+                    "result": True,
+                    "process_id": "save_result",
+                    "arguments": {
+                        "format": "GTIFF",
+                        "data": {
+                            "from_node": "zonalstatistics1"
+                        },
+                        "options": {
+
+                        }
+                    }
+                },
+                "filtertemporal1": {
+                    "result": False,
+                    "process_id": "filter_temporal",
+                    "arguments": {
+                        "data": {
+                            "from_node": "loadcollection1"
+                        },
+                        "extent": [
+                            "2017-01-01",
+                            "2017-11-21"
+                        ]
+                    }
+                }
+            }
+        }
+
+        resp = self.client.post('/openeo/0.4.0/result', content_type='application/json', data=json.dumps(process_graph))
+
+        self.assertEquals(200, resp.status_code)

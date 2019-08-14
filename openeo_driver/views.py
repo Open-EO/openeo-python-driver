@@ -13,6 +13,7 @@ from .ProcessGraphDeserializer import (evaluate, health_check, get_layers, getPr
                                        get_batch_job_result_filenames, get_batch_job_result_output_dir,
                                        backend_implementation,
                                        summarize_exception)
+from . import replace_nan_values
 from openeo import ImageCollection
 from openeo.error_summary import ErrorSummary
 
@@ -345,7 +346,7 @@ def execute():
         elif isinstance(result, SaveResult):
             return result.create_flask_response()
         else:
-            return jsonify(result)
+            return jsonify(replace_nan_values(result))
     else:
         return 'Usage: Directly evaluate process graph using POST.'
 
