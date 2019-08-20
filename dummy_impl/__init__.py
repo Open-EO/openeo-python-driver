@@ -94,6 +94,9 @@ def getImageCollection(product_id, viewingParameters):
     image_collection.max_time = Mock(name="max_time")
     image_collection.max_time.return_value = image_collection
 
+    image_collection.apply_kernel = Mock(name="apply_kernel")
+    image_collection.apply_kernel.return_value = image_collection
+
     collections[product_id] = image_collection
     return image_collection
 

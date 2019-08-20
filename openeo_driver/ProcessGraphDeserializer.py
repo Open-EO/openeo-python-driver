@@ -11,6 +11,7 @@ from shapely.geometry import shape
 from shapely.geometry.collection import GeometryCollection
 from urllib.parse import urlparse
 from datetime import datetime, timedelta
+import numpy as np
 
 from openeo import ImageCollection
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
@@ -455,6 +456,19 @@ def zonal_statistics(args: Dict, viewingParameters) -> Dict:
         return image_collection.zonal_statistics(shape(geometry), func)
     else:
         raise AttributeError("func %s is not supported" % func)
+
+@process(description="Applies a kernel to compute pixel-wise values. This is also known as a 2D convolution. ",
+         args=[
+               ProcessDetails.Arg("data", "A data cube."),
+               ProcessDetails.Arg("kernel", "The 2D kernel to be applied on the data cube. The kernel is also referred to as the 'neighbourhood'. It is a two-dimensional array of numbers."),
+                ProcessDetails.Arg("factor", """A factor that is multiplied to each value computed by the focal operation.
+This is basically a shortcut for explicitly multiplying each value by a factor afterwards, which is often required for some kernel-based algorithms such as the Gaussian blur.""")
+              ])
+def apply_kernel(args: Dict, viewingParameters)->ImageCollection:
+    image_collection = extract_arg(args, 'data')
+    kernel = np.asarray(extract_arg(args, 'kernel'))
+    factor = args.get('factor', 1.0)
+    return image_collection.apply_kernel(kernel,factor)
 
 
 def apply_process(process_id: str, args: Dict, viewingParameters):

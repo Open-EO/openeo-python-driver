@@ -48,6 +48,40 @@ class Test(TestCase):
         assert resp.status_code == 200
         assert resp.content_length > 0
 
+    def test_execute_apply_kernel(self):
+        kernel_list = [[0, 1, 0], [1, 1, 1], [0, 1, 0]]
+        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json',
+                                data=json.dumps({'process_graph': {
+                                    'kernel': {
+                                        'process_id': 'apply_kernel',
+                                        'arguments': {
+                                            'data': {
+                                                'from_node': 'collection'
+                                            },
+                                            'kernel': kernel_list,
+                                            'factor':3
+                                        },
+                                        'result': True
+                                    },
+                                    'collection': {
+                                        'process_id': 'load_collection',
+                                        'arguments': {
+                                            'id': 'S2_FAPAR_CLOUDCOVER'
+                                        }
+                                    }
+                                }
+
+                                }))
+
+        assert resp.status_code == 200
+        assert resp.content_length > 0
+        import dummy_impl
+        assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_kernel.call_count == 1
+
+        np_kernel = dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_kernel.call_args[0][0]
+        self.assertListEqual(np_kernel.tolist(),kernel_list)
+        self.assertEqual(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_kernel.call_args[0][1], 3)
+
     def test_execute_simple_download(self):
 
         resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json',
