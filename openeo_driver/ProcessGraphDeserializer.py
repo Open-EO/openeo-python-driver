@@ -51,7 +51,11 @@ def register_extra_processes():
         'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/gt.json',
         'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/gte.json',
         'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/or.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/and.json'
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/and.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/divide.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/product.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/subtract.json',
+        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/sum.json'
 
     ]
 
