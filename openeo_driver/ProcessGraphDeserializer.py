@@ -674,9 +674,12 @@ def _get_udf(args):
     return udf
 
 
+
 def getProcesses(substring: str = None):
     #def filter_details(process_details):
     #    return {k: v for k, v in process_details.items() if k in ['process_id', 'description']}
+
+    # TODO: move this also to OpenEoBackendImplementation ?
 
     return [process_details.serialize() for process_id, process_details in process_registry.items()
             if not substring or substring.lower() in process_id.lower()]
