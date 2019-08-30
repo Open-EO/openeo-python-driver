@@ -313,36 +313,35 @@ def download():
     else:
         return 'Usage: Download image using POST.'
 
-@openeo_bp.route('/result' , methods=['GET', 'POST'])
+
+@openeo_bp.route('/result' , methods=['POST'])
 def result():
     return execute()
+
 
 @openeo_bp.route('/preview' , methods=['GET', 'POST'])
 def preview():
     return execute()
 
-@openeo_bp.route('/execute' , methods=['GET', 'POST'])
+
+@openeo_bp.route('/execute', methods=['POST'])
 def execute():
-    if request.method == 'POST':
-        print("Handling request: "+str(request))
-        print("Post data: "+str(request.data))
+    print("Handling request: " + str(request))
+    print("Post data: " + str(request.data))
 
-        post_data = request.get_json()
+    post_data = request.get_json()
+    result = evaluate(post_data, viewingParameters={'version': g.version})
 
-        result = evaluate(post_data,viewingParameters={'version':g.version})
-
-        if isinstance(result, ImageCollection):
-            format_options = post_data.get('output',{})
-            filename = result.download(None, bbox="", time="", **format_options)
-            return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
-        elif result is None:
-            abort(500,"No result")
-        elif isinstance(result, SaveResult):
-            return result.create_flask_response()
-        else:
-            return jsonify(replace_nan_values(result))
+    if isinstance(result, ImageCollection):
+        format_options = post_data.get('output', {})
+        filename = result.download(None, bbox="", time="", **format_options)
+        return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
+    elif result is None:
+        abort(500, "No result")
+    elif isinstance(result, SaveResult):
+        return result.create_flask_response()
     else:
-        return 'Usage: Directly evaluate process graph using POST.'
+        return jsonify(replace_nan_values(result))
 
 
 @openeo_bp.route('/jobs', methods=['GET', 'POST'])
