@@ -25,15 +25,20 @@ class ProcessDetails:
         self.description = description
         self.args = args
 
-    def serialize(self):
+    def serialize(self) -> dict:
+        """Convert to JSON-able dictionary."""
+        # TODO give this function a better name?
         serialized = {
-            "name": self.process_id,  # Pre 0.4.0 style id field
+            "name": self.process_id,  # Pre 0.4.0 style id field  # TODO DEPRECATED
             "id": self.process_id,  # id field since 0.4.0
             "description": self.description,
-            "returns":self.returns
+            "returns": self.returns,
+            "parameters": {
+                arg.name: {"description": arg.description, "required": arg.required, "schema": arg.schema}
+                for arg in self.args
+            },
         }
-
-        if self.args:
-            serialized["parameters"] = {arg.name: {"description": arg.description,"required": arg.required,"schema":arg.schema} for arg in self.args}
+        if len(self.args) >= 2:
+            serialized["parameter_order"] = [a.name for a in self.args]
 
         return serialized
