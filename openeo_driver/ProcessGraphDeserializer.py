@@ -152,13 +152,12 @@ def convert_node(dag:dict, viewingParameters = None):
         return convert_node_03x(dag,viewingParameters)
 
 
-def extract_arg(args:Dict,name:str):
+def extract_arg(args: Dict, name: str):
     try:
         return args[name]
     except KeyError:
-        args_clean = { k:str(v) for (k,v) in args.items()}
-        raise AttributeError(
-            "Required argument " +name +" should not be null. Arguments: \n" + json.dumps(args_clean,indent=1))
+        raise ValueError("Required argument {n!r} should not be null. Arguments: {a!r}".format(n=name, a=args))
+
 
 def extract_arg_list(args:Dict,names:list):
     for name in names:
@@ -191,7 +190,7 @@ def load_collection( args:Dict, viewingParameters)->ImageCollection:
         viewingParameters["right"] = extract_arg(extent, "east")
         viewingParameters["top"] = extract_arg(extent, "north")
         viewingParameters["bottom"] = extract_arg(extent, "south")
-        viewingParameters["srs"] = extent.get("crs", "EPSG:4326")
+        viewingParameters["srs"] = extent.get("crs") or "EPSG:4326"
     if "bands" in args and args['bands'] is not None:
         viewingParameters["bands"] = extract_arg(args, "bands")
 
@@ -512,7 +511,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             viewingParameters["right"] = extract_arg(extent, "east")
             viewingParameters["top"] = extract_arg(extent, "north")
             viewingParameters["bottom"] = extract_arg(extent, "south")
-            viewingParameters["srs"] = extent.get("crs", "EPSG:4326")
+            viewingParameters["srs"] = extent.get("crs") or "EPSG:4326"
     elif 'zonal_statistics' == process_id or 'aggregate_polygon' == process_id:
         polygons = extract_arg_list(args, ['regions','polygons'])
 
