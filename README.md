@@ -12,6 +12,9 @@ of [GeoPySpark](https://github.com/locationtech-labs/geopyspark/).
 A REST service based on Flask translates incoming calls to this local API.
 
 ### Running locally
+
+Note: make sure that the git submodules are checked out and updated properly (e.g. run `git submodule update --init`).
+
 For development, you can run the service using Flask:
 
     export FLASK_APP=openeo_driver.views

@@ -1,0 +1,3 @@
+include openeo_driver/data/openeo-processes/*.json
+include openeo_driver/data/openeo-processes/*.md
+include openeo_driver/data/openeo-processes/LICENSE*

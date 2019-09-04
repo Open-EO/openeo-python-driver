@@ -37,7 +37,7 @@ def test_process_spec_no_params():
                                   "returns": {"description": "output", "schema": {"type": "number"}}}
 
 
-def test_process_sepc_no_returns():
+def test_process_spec_no_returns():
     spec = ProcessSpec("foo", "bar").param("input", "Input", schema=ProcessSpec.RASTERCUBE)
     with pytest.raises(AssertionError):
         spec.to_dict()
@@ -51,6 +51,14 @@ def test_process_registry_add_by_name():
     assert spec['id'] == 'max'
     assert 'largest value' in spec['description']
     assert all(k in spec for k in ['parameters', 'parameter_order', 'returns'])
+
+
+def test_process_registry_load_predefined_specs():
+    """Test if all spec json files load properly"""
+    reg = ProcessRegistry()
+    for name in reg.list_predefined_specs().keys():
+        spec = reg.load_predefined_spec(name)
+        assert spec["id"] == name
 
 
 def test_process_registry_add_function():

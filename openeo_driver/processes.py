@@ -1,8 +1,10 @@
 import functools
+import json
 import warnings
-from typing import Callable
+from pathlib import Path
+from typing import Callable, Dict
 
-import requests
+import openeo_driver
 
 
 class ProcessSpec:
@@ -68,18 +70,22 @@ class ProcessRegistry:
     """
 
     def __init__(self):
+        self._processes_spec_root = Path(openeo_driver.__file__).parent / 'data/openeo-processes'
+        # Dictionary of registered process spec dicts (keyed by process id)
         self._specs = {}
+        # Dictionary of registered process functions (keyed by function name), includes legacy processes without spec
         self._functions = {}
 
-    def _fetch_spec(self, name: str) -> dict:
-        """Get process specification (dict) based on process name."""
+    def load_predefined_spec(self, name: str) -> dict:
+        """Get predefined process specification (dict) based on process name."""
         try:
-            # TODO use git submodule of openeo-processes project instead of doing HTTP requests
-            url = 'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/{n}.json'.format(n=name)
-            spec = requests.get(url).json()
+            with (self._processes_spec_root / '{n}.json'.format(n=name)).open('r', encoding="utf-8") as f:
+                return json.load(f)
         except Exception:
-            raise RuntimeError("Failed to get spec of process {n!r}".format(n=name))
-        return spec
+            raise RuntimeError("Failed to load predefined spec of process {n!r}".format(n=name))
+
+    def list_predefined_specs(self) -> Dict[str, Path]:
+        return {p.stem: p for p in self._processes_spec_root.glob("*.json")}
 
     def add_spec(self, spec: dict):
         """Add process specification dictionary."""
@@ -89,7 +95,7 @@ class ProcessRegistry:
 
     def add_by_name(self, name):
         """Add process by name"""
-        self.add_spec(self._fetch_spec(name))
+        self.add_spec(self.load_predefined_spec(name))
 
     def add_function(self, f: Callable):
         """To be used as function decorator: register the process corresponding the function name."""
