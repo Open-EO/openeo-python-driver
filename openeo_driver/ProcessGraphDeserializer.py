@@ -15,58 +15,25 @@ import numpy as np
 
 from openeo import ImageCollection
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
-from .ProcessDetails import ProcessDetails
 from distutils.version import LooseVersion
+from openeo_driver.processes import ProcessRegistry, ProcessSpec
+
 
 _log = logging.getLogger(__name__)
 
-process_registry = {}
 
+# Set up process registry
+process_registry = ProcessRegistry()
 
-def process(description: str, args: List[ProcessDetails.Arg] = [], process_id: str = None):
-    def add_to_registry(f):
-        process_details = ProcessDetails(process_id or f.__name__, description, args)
-        process_registry[process_details.process_id] = process_details
-        return f
+# Bootstrap with some mathematical/logical processes
+for p in [
+    'max', 'min', 'mean', 'variance', 'absolute', 'ln', 'ceil', 'floor', 'cos', 'sin', 'run_udf',
+    'not', 'eq', 'lt', 'lte', 'gt', 'gte', 'or', 'and', 'divide', 'product', 'subtract', 'sum',
+]:
+    process_registry.add_by_name(p)
 
-    return add_to_registry
-
-def register_extra_processes():
-    descriptions = [
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/max.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/min.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/mean.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/variance.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/absolute.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/ln.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/ceil.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/floor.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/cos.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/sin.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/run_udf.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/not.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/eq.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/lt.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/lte.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/gt.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/gte.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/or.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/and.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/divide.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/product.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/subtract.json',
-        'https://raw.githubusercontent.com/Open-EO/openeo-processes/master/sum.json'
-
-    ]
-
-    def load_details(url:str):
-        json_description = requests.get(url).json()
-        parameters = json_description['parameters']
-        args = [ProcessDetails.Arg(k,v['description'],v.get('required',False),v['schema']) for (k,v) in parameters.items()]
-        return ProcessDetails(process_id=json_description['id'], description=json_description['description'],args=args,returns=json_description['returns'])
-    details = [ load_details(d) for d in descriptions]
-    process_registry.update({d.process_id:d for d in details})
-register_extra_processes()
+# Decorator shortcut to easily register functions as processes
+process = process_registry.add_by_function_name
 
 
 def getImageCollection(product_id:str, viewingParameters):
@@ -168,15 +135,14 @@ def extract_arg_list(args:Dict,names:list):
             "Required argument " +str(names) +" should not be null. Arguments: \n" + json.dumps(args,indent=1))
 
 
-@process(description="Load an data cube (image collection) based on it's name",
-         args=[ProcessDetails.Arg('name', "The name of the collection to load."),])
-def get_collection( args:Dict, viewingParameters)->ImageCollection:
+# TODO deprecated process
+def get_collection(args: Dict, viewingParameters) -> ImageCollection:
     name = extract_arg(args,'name')
     return getImageCollection(name,viewingParameters)
 
-@process(description='Loads a collection from the current back-end by its id and returns it as processable data cube. The data that is added to the data cube can be restricted with the additional spatial_extent, temporal_extent, bands and properties.',
-         args=[ProcessDetails.Arg('id', 'The collection id.'), ])
-def load_collection( args:Dict, viewingParameters)->ImageCollection:
+
+@process
+def load_collection(args: Dict, viewingParameters) -> ImageCollection:
     name = extract_arg(args,'id')
     if 'temporal_extent' in args and args['temporal_extent'] is not None:
         extent = args['temporal_extent']
@@ -196,10 +162,9 @@ def load_collection( args:Dict, viewingParameters)->ImageCollection:
 
     return getImageCollection(name,viewingParameters)
 
-@process(description="Apply a function to the given set of bands in this image collection. DEPRECATED, use 'apply'",
-         args=[ProcessDetails.Arg('function', "A function that gets the value of one pixel (including all bands) as input and produces a single scalar or tuple output."),
-               ProcessDetails.Arg('bands', "A set of bands.")])
-def apply_pixel( args:Dict, viewingParameters)->ImageCollection:
+
+# TODO deprecated process
+def apply_pixel(args: Dict, viewingParameters) -> ImageCollection:
     """
     DEPRECATED
     :param args:
@@ -211,22 +176,14 @@ def apply_pixel( args:Dict, viewingParameters)->ImageCollection:
     decoded_function = pickle.loads(base64.standard_b64decode(function))
     return extract_arg_list(args, ['data','imagery']).apply_pixel(bands, decoded_function)
 
-@process(description="""Applies an n-ary process (i.e. takes an array of pixel values instead of a single pixel value) to a raster data cube. In contrast, the process apply applies an unary process to all pixel values.\n\n
-By default, apply_dimension applies the the process on all pixel values in the data cube as apply does, but the parameter dimension can be specified to work only on a particular dimension only. For example, if the temporal dimension is specified the process will work on a time series of pixel values.\n\n
-The n-ary process must return as many elements in the returned array as there are in the input array. Otherwise a CardinalityChanged error must be returned.
-""",
-         args=[ProcessDetails.Arg('process', """A process (callback) to be applied on each dimension. The specified process needs to accept an array as parameter and must return as many elements in the returned array as there are in the input array."""),
-               ProcessDetails.Arg('dimension','The name of the dimension to apply the process on. By default, applies the the process on all pixel values (as apply does).')])
-def apply_dimension( args:Dict, viewingParameters)->ImageCollection:
+
+@process
+def apply_dimension(args: Dict, viewingParameters) -> ImageCollection:
     return _evaluate_callback_process(args, 'process', 'apply_dimension')
 
 
-
-@process(description="Save processed data to storage or export to http.",
-         args=[ProcessDetails.Arg('data', "The data to save."),
-               ProcessDetails.Arg('format', "The file format to save to. It must be one of the values that the server reports as supported output formats, which usually correspond to the short GDAL/OGR codes. This parameter is case insensitive."),
-               ProcessDetails.Arg('options', "The file format options to be used to create the file(s). Must correspond to the options that the server reports as supported options for the chosen format. The option names and valid values usually correspond to the GDAL/OGR format options.")])
-def save_result( args:Dict, viewingParameters)->SaveResult:
+@process
+def save_result(args: Dict, viewingParameters) -> SaveResult:
     format = extract_arg(args,'format')
     options = args.get('options',{})
     data = extract_arg(args, 'data')
@@ -237,17 +194,14 @@ def save_result( args:Dict, viewingParameters)->SaveResult:
     else:
         return JSONResult(data,format,options)
 
-@process(description="Apply a function to the tiles of this image collection.",
-         args=[ProcessDetails.Arg('function', "A function that gets a tile as input and produces a tile as output. The function should follow the openeo_udf specification.")])
-def apply_tiles(args:Dict, viewingParameters)->ImageCollection:
+
+# TODO deprecated process
+def apply_tiles(args: Dict, viewingParameters) -> ImageCollection:
     function = extract_arg(args,'code')
     return extract_arg_list(args, ['data','imagery']).apply_tiles(function['source'])
 
-@process(description="Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.",
-         args=[ProcessDetails.Arg('process', "A process (callback) to be applied on each value. The specified process must be unary meaning that it must work on a single value."),
-                ProcessDetails.Arg('dimensions', "The names of the dimensions to apply the process on. Defaults to an empty array so that all dimensions are used.")
 
-               ])
+@process
 def apply(args:Dict, viewingParameters)->ImageCollection:
     """
     Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
@@ -260,11 +214,8 @@ def apply(args:Dict, viewingParameters)->ImageCollection:
     return _evaluate_callback_process(args,'process','apply')
 
 
-@process(description="Applies a reducer to a data cube dimension by collapsing all the input values along the specified dimension into a single output value computed by the reducer.\nThe reducer must accept an array and return a single value (see parameter reducer). Nominal values are possible, but need to be mapped, e.g. band names to wavelengths, date strings to numeric timestamps since 1970 etc.",
-         args=[ProcessDetails.Arg('reducer', "A reducer to be applied on the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median."),
-                ProcessDetails.Arg('dimension', "The dimension over which to reduce.")
-               ])
-def reduce(args:Dict, viewingParameters)->ImageCollection:
+@process
+def reduce(args: Dict, viewingParameters) -> ImageCollection:
     """
     https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#reduce
 
@@ -294,14 +245,8 @@ def reduce(args:Dict, viewingParameters)->ImageCollection:
         return _evaluate_callback_process(args, 'reducer','reduce')
 
 
-@process(description='Computes a temporal aggregation based on an array of date and/or time intervals.\nCalendar hierarchies such as year, month, week etc. must be transformed into specific intervals by the clients. For each interval, all data along the dimension will be passed through the reducer. The computed values will be projected to the labels, so the number of labels and the number of intervals need to be equal.\n If the dimension is not set, the data cube is expected to only have one temporal dimension.',
-         args=[ProcessDetails.Arg('intervals','Temporal left-closed intervals so that the start time is contained, but not the end time.'),
-               ProcessDetails.Arg('labels','Labels for the intervals. The number of labels and the number of groups need to be equal.'),
-               ProcessDetails.Arg('reducer','A reducer to be applied on the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median.'),
-               ProcessDetails.Arg('dimension','The temporal dimension for aggregation. All data along the dimension will be passed through the specified reducer. If the dimension is not set, the data cube is expected to only have one temporal dimension.')
-
-               ])
-def aggregate_temporal(args:Dict, viewingParameters)->ImageCollection:
+@process
+def aggregate_temporal(args: Dict, viewingParameters) -> ImageCollection:
     """
     https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#reduce
 
@@ -327,15 +272,8 @@ def _evaluate_callback_process(args,callback_name:str,parent_process:str):
     return evaluate_040(callback, args)
 
 
-@process(description='Aggregates zonal statistics for one or multiple polygons over the spatial dimensions.\n\nThe process considers all pixels for which the point at the pixel center intersects with the corresponding polygon (as defined in the Simple Features standard by the OGC).\n\nThe data cube must have been reduced to only contain two raster dimensions and a third dimension the values are aggregated for, for example the temporal dimension to get a time series. Otherwise this process fails with the `TooManyDimensions` error.\n\nThe number of total and valid pixels is returned together with the calculated values.',
-         args=[ProcessDetails.Arg('data','A data cube.'),
-               ProcessDetails.Arg('polygons','One or more polygons to calculate zonal statistics for. Either specified as GeoJSON or vector data cube.\n\nFor GeoJSON this can be one of the following GeoJSON types:\n\n* A `Polygon` geometry,\n* a `GeometryCollection` containing Polygons,\n* a `Feature` with a `Polygon` geometry or\n* a `FeatureCollection` containing `Feature`s with a `Polygon` geometry.'),
-               ProcessDetails.Arg('reducer','A reducer to be applied on all values of each geometry. The reducer must be a callable process (or a set of processes as process graph) such as ``mean()`` that accepts by default array as input. The process can also work on two values by setting the parameter `binary` to `true`.'),
-               ProcessDetails.Arg('name','The property name (for GeoJSON) or the new dimension name (for vector cubes) to be used for storing the results. Defaults to `result`.'),
-               ProcessDetails.Arg('binary','Specifies whether the process should pass two values to the reducer or a list of values (default).\n\nIf the process passes two values, the reducer must be both associative and commutative as the execution may be executed in parallel and therefore the order of execution is arbitrary.\n\nThis parameter is especially useful for UDFs passed as reducers. Back-ends may still optimize and parallelize processes that work on list of values.')
-
-               ])
-def aggregate_polygon(args:Dict, viewingParameters)->ImageCollection:
+@process
+def aggregate_polygon(args: Dict, viewingParameters) -> ImageCollection:
     """
     https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#reduce
 
@@ -345,10 +283,8 @@ def aggregate_polygon(args:Dict, viewingParameters)->ImageCollection:
     """
     return _evaluate_callback_process(args,'reducer','aggregate_polygon')
 
-@process(process_id="reduce_time",
-         description="Applies a windowed reduction to a timeseries by applying a user defined function.\n Deprecated: use aggregate_temporal",
-         args=[ProcessDetails.Arg('function', "The function to apply to each time window."),
-               ProcessDetails.Arg('temporal_window', "A time window.")])
+
+# TODO deprecated process
 def reduce_by_time( args:Dict, viewingParameters)->ImageCollection:
     """
     Deprecated, use aggregate_temporal
@@ -362,30 +298,42 @@ def reduce_by_time( args:Dict, viewingParameters)->ImageCollection:
     return extract_arg(args, 'imagery').aggregate_time(temporal_window, decoded_function)
 
 
-@process(description="Finds the minimum value of time series for all bands of the input dataset.", args=[ProcessDetails.Arg('data', "The raster data cube.")])
-def min_time(args:Dict,viewingParameters)->ImageCollection:
+@process_registry.add_function_with_spec(
+    ProcessSpec(id="min_time", description="Finds the minimum value of time series for all bands of the input dataset.")
+        .param("data", "Raster data cube", schema=ProcessSpec.RASTERCUBE)
+        .returns("Raster data cube", schema=ProcessSpec.RASTERCUBE)
+)
+def min_time(args: Dict, viewingParameters) -> ImageCollection:
     #TODO this function should invalidate any filter_daterange set in a parent node
     return extract_arg_list(args, ['data','imagery']).min_time()
 
 
-@process(description="Finds the maximum value of time series for all bands of the input dataset.", args=[ProcessDetails.Arg('data', "The raster data cube.")])
-def max_time(args:Dict,viewingParameters)->ImageCollection:
+@process_registry.add_function_with_spec(
+    ProcessSpec(id="max_time", description="Finds the maximum value of time series for all bands of the input dataset.")
+        .param("data", "Raster data cube", schema=ProcessSpec.RASTERCUBE)
+        .returns("Raster data cube", schema=ProcessSpec.RASTERCUBE)
+)
+def max_time(args: Dict, viewingParameters) -> ImageCollection:
     #TODO this function should invalidate any filter_daterange set in a parent node
     return  extract_arg_list(args, ['data','imagery']).max_time()
 
 
-@process(description="Mask the image collection using a polygon. All pixels outside the polygon should be set to the nodata value. "
-                     "All pixels inside, or intersecting the polygon should retain their original value.",
-         args=[ProcessDetails.Arg('mask_shape', "The shape to use as a mask")])
-def mask_polygon(args:Dict,viewingParameters)->ImageCollection:
+# TODO deprecated process?
+@process_registry.add_function_with_spec(
+    ProcessSpec(id="mask_polygon",
+                description="Mask the image collection using a polygon. All pixels outside the polygon should be set to the nodata value. "
+                            "All pixels inside, or intersecting the polygon should retain their original value.", )
+        .param('mask_shape', "The shape to use as a mask", schema={"type": "object"})
+        .returns("Raster data cube", schema=ProcessSpec.RASTERCUBE)
+)
+def mask_polygon(args: Dict, viewingParameters) -> ImageCollection:
     geometry = extract_arg(args, 'mask_shape')
     srs_code = geometry.get("crs",{}).get("name","EPSG:4326")
     return  extract_arg_list(args, ['data','imagery']).mask_polygon(shape(geometry),srs_code)
 
-@process(description="Applies a mask to a raster data cube. Therefore, compares the parallel elements of the raster data cubes specified for data and mask and replaces all elements in data that are non-zero (for numbers) or true (for boolean values) in mask. These elements are replaced with the value specified for replacement, which defaults to null (no data). No data values will be left untouched.",
-         args=[ProcessDetails.Arg('mask', "The image collection to use as a mask"),
-               ProcessDetails.Arg('replacement', "The value used to replace non-zero and true values with.")])
-def mask(args:Dict,viewingParameters)->ImageCollection:
+
+@process
+def mask(args: Dict, viewingParameters) -> ImageCollection:
     mask = extract_arg(args,'mask')
     replacement = args.get( 'replacement', None)
     if isinstance(mask, ImageCollection):
@@ -395,37 +343,26 @@ def mask(args:Dict,viewingParameters)->ImageCollection:
     return image_collection
 
 
-@process(description="Specifies a date range filter to be applied on the ImageCollection.",
-         args=[ProcessDetails.Arg('imagery', "The image collection to filter."),
-               ProcessDetails.Arg('from', "Includes all data newer than the specified ISO 8601 date or date-time with simultaneous consideration of to."),
-               ProcessDetails.Arg('to', "Includes all data older than the specified ISO 8601 date or date-time with simultaneous consideration of from.")])
-def filter_daterange(args: Dict, viewingParameters)->ImageCollection:
+# TODO deprecated process
+def filter_daterange(args: Dict, viewingParameters) -> ImageCollection:
     #for now we take care of this filtering in 'viewingParameters'
     #from_date = extract_arg(args,'from')
     #to_date = extract_arg(args,'to')
     image_collection = extract_arg(args, 'imagery')
     return image_collection
 
-@process(description="Specifies a temporal filter to be applied on a data cube.",
-         args=[ProcessDetails.Arg('data', "The data cube to filter."),
-               ProcessDetails.Arg('from', "Includes all data newer than the specified ISO 8601 date or date-time with simultaneous consideration of to."),
-               ProcessDetails.Arg('to', "Includes all data older than the specified ISO 8601 date or date-time with simultaneous consideration of from.")])
-def filter_temporal(args: Dict, viewingParameters)->ImageCollection:
+
+@process
+def filter_temporal(args: Dict, viewingParameters) -> ImageCollection:
     #for now we take care of this filtering in 'viewingParameters'
     #from_date = extract_arg(args,'from')
     #to_date = extract_arg(args,'to')
     image_collection = extract_arg(args, 'data')
     return image_collection
 
-@process(description="Specifies a bounding box to filter input image collections.",
-         args=[ProcessDetails.Arg('imagery', "The image collection to filter."),
-               ProcessDetails.Arg('left', "The left side of the bounding box."),
-               ProcessDetails.Arg('right', "The right side of the bounding box."),
-               ProcessDetails.Arg('top', "The top of the bounding box."),
-               ProcessDetails.Arg('bottom', "The bottom of the bounding box."),
-               ProcessDetails.Arg('srs', "The spatial reference system of the bounding box.")])
-def filter_bbox(args:Dict,viewingParameters)->ImageCollection:
 
+@process
+def filter_bbox(args: Dict, viewingParameters) -> ImageCollection:
     left = viewingParameters["left"]
     right = viewingParameters["right"]
     top = viewingParameters["top"]
@@ -434,20 +371,15 @@ def filter_bbox(args:Dict,viewingParameters)->ImageCollection:
     image_collection = extract_arg_list(args, ['data','imagery']).bbox_filter(left,right,top,bottom,srs)
     return image_collection
 
-@process(description="Filters the bands in the data cube so that bands that don't match any of the criteria are dropped from the data cube. The data cube is expected to have only one spectral dimension.\n\nThe following criteria can be used to select bands:\n\n* `bands`: band name (e.g. `B01` or `B8A`)\n* `common_names`: common band names (e.g. `red` or `nir`)\n* `wavelengths`: ranges of wavelengths in micrometres (μm) (e.g. 0.5 - 0.6)\n\nTo keep algorithms interoperable it is recommended to prefer the common bands names or the wavelengths over collection and/or back-end specific band names.\n\nIf multiple criteria are specified, any of them must match and not all of them, i.e. they are combined with an OR-operation. If no criteria is specified, the `BandFilterParameterMissing` exception must be thrown.\n\n**Important:** The order of the specified array defines the order of the bands in the data cube, which can be important for subsequent processes.",
-         args=[
-               ProcessDetails.Arg("data", "A data cube with bands."),
-               ProcessDetails.Arg("bands", "A list of band names.\nThe order of the specified array defines the order of the bands in the data cube!"),
-              ])
-def filter_bands(args:Dict,viewingParameters)->ImageCollection:
+
+@process
+def filter_bands(args: Dict, viewingParameters) -> ImageCollection:
     bands = extract_arg(args, 'bands')
     image_collection = extract_arg_list(args, ['data','imagery']).band_filter(bands)
     return image_collection
 
-@process(description="Computes zonal statistics over a given polygon",
-         args=[ProcessDetails.Arg('imagery', "The image collection to compute statistics on."),
-               ProcessDetails.Arg('regions', "The GeoJson Polygon defining the zone.")
-               ])
+
+# TODO deprecated process?
 def zonal_statistics(args: Dict, viewingParameters) -> Dict:
     image_collection = extract_arg_list(args, ['data','imagery'])
     geometry = extract_arg(args, 'regions')
@@ -460,14 +392,9 @@ def zonal_statistics(args: Dict, viewingParameters) -> Dict:
     else:
         raise AttributeError("func %s is not supported" % func)
 
-@process(description="Applies a kernel to compute pixel-wise values. This is also known as a 2D convolution. ",
-         args=[
-               ProcessDetails.Arg("data", "A data cube."),
-               ProcessDetails.Arg("kernel", "The 2D kernel to be applied on the data cube. The kernel is also referred to as the 'neighbourhood'. It is a two-dimensional array of numbers."),
-                ProcessDetails.Arg("factor", """A factor that is multiplied to each value computed by the focal operation.
-This is basically a shortcut for explicitly multiplying each value by a factor afterwards, which is often required for some kernel-based algorithms such as the Gaussian blur.""")
-              ])
-def apply_kernel(args: Dict, viewingParameters)->ImageCollection:
+
+@process
+def apply_kernel(args: Dict, viewingParameters) -> ImageCollection:
     image_collection = extract_arg(args, 'data')
     kernel = np.asarray(extract_arg(args, 'kernel'))
     factor = args.get('factor', 1.0)
@@ -587,8 +514,11 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         return process_function(args, viewingParameters)
 
 
-@process(description="Reads vector data from a file or a URL.",
-         args=[ProcessDetails.Arg('filename', "filename or http url of a vector file")])
+@process_registry.add_function_with_spec(
+    ProcessSpec("read_vector", description="Reads vector data from a file or a URL.")
+        .param('filename', description="filename or http url of a vector file", schema={"type": "string"})
+        .returns("Raster data cube", schema={"type": "TODO"})
+)
 def read_vector(args: Dict, viewingParameters):
     filename = extract_arg(args, 'filename')
 
@@ -675,18 +605,12 @@ def _get_udf(args):
 
 
 def getProcesses(substring: str = None):
-    #def filter_details(process_details):
-    #    return {k: v for k, v in process_details.items() if k in ['process_id', 'description']}
-
     # TODO: move this also to OpenEoBackendImplementation ?
-
-    return [process_details.serialize() for process_id, process_details in process_registry.items()
-            if not substring or substring.lower() in process_id.lower()]
+    return [spec for spec in process_registry.processes.values() if not substring or substring.lower() in spec['id']]
 
 
 def getProcess(process_id: str):
-    process_details = process_registry.get(process_id)
-    return process_details.serialize() if process_details else None
+    return process_registry.processes.get(process_id)
 
 
 

@@ -71,20 +71,14 @@ class Test(TestCase):
 
         assert resp.status_code == 404
 
-
     def test_processes(self):
         resp = self.client.get('/openeo/processes')
-
         assert resp.status_code == 200
-        process_dict = {item['name']: item for item in resp.json['processes']}
-        print(process_dict)
-        assert 'apply_pixel' in process_dict
+        assert 'max' in {spec['id'] for spec in resp.json['processes']}
 
     def test_process_details(self):
-        resp = self.client.get('/openeo/processes/apply_pixel')
-
+        resp = self.client.get('/openeo/processes/max')
         assert resp.status_code == 200
-        print(resp.json)
 
     def test_execute_image_collection(self):
         resp = self.client.post('/openeo/execute', content_type='application/json', data=json.dumps({
