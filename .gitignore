@@ -103,3 +103,5 @@ ENV/
 
 # JetBrains
 .idea
+/.project
+/.pydevproject
