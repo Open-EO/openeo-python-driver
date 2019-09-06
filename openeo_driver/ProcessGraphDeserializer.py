@@ -354,28 +354,22 @@ def filter_daterange(args: Dict, viewingParameters) -> ImageCollection:
 
 @process
 def filter_temporal(args: Dict, viewingParameters) -> ImageCollection:
-    #for now we take care of this filtering in 'viewingParameters'
-    #from_date = extract_arg(args,'from')
-    #to_date = extract_arg(args,'to')
+    # Note: the temporal range is already extracted in `apply_process` and applied in `getImageCollection` through the viewingParameters
     image_collection = extract_arg(args, 'data')
     return image_collection
 
 
 @process
 def filter_bbox(args: Dict, viewingParameters) -> ImageCollection:
-    left = viewingParameters["left"]
-    right = viewingParameters["right"]
-    top = viewingParameters["top"]
-    bottom = viewingParameters["bottom"]
-    srs = viewingParameters["srs"]
-    image_collection = extract_arg_list(args, ['data','imagery']).bbox_filter(left,right,top,bottom,srs)
+    # Note: the bbox is already extracted in `apply_process` and applied in `getImageCollection` through the viewingParameters
+    image_collection = extract_arg_list(args, ['data','imagery'])
     return image_collection
 
 
 @process
 def filter_bands(args: Dict, viewingParameters) -> ImageCollection:
-    bands = extract_arg(args, 'bands')
-    image_collection = extract_arg_list(args, ['data','imagery']).band_filter(bands)
+    # Note: the bands are already extracted in `apply_process` and applied in `getImageCollection` through the viewingParameters
+    image_collection = extract_arg_list(args, ['data','imagery'])
     return image_collection
 
 
