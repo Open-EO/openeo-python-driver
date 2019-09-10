@@ -1,3 +1,4 @@
+import functools
 import warnings
 from typing import Callable
 
@@ -67,9 +68,10 @@ class ProcessRegistry:
     """
 
     def __init__(self):
-        self.processes = {}
+        self._specs = {}
+        self._functions = {}
 
-    def get_spec(self, name: str) -> dict:
+    def _fetch_spec(self, name: str) -> dict:
         """Get process specification (dict) based on process name."""
         try:
             # TODO use git submodule of openeo-processes project instead of doing HTTP requests
@@ -83,24 +85,53 @@ class ProcessRegistry:
         """Add process specification dictionary."""
         # Basic health check
         assert all(k in spec for k in ['id', 'description', 'parameters', 'returns'])
-        self.processes[spec['id']] = spec
+        self._specs[spec['id']] = spec
 
     def add_by_name(self, name):
         """Add process by name"""
-        self.add_spec(self.get_spec(name))
+        self.add_spec(self._fetch_spec(name))
 
-    def add_by_function_name(self, f: Callable):
+    def add_function(self, f: Callable):
         """To be used as function decorator: register the process corresponding the function name."""
         # TODO check if function arguments correspond with spec
         self.add_by_name(f.__name__)
+        self._functions[f.__name__] = f
         return f
 
     def add_function_with_spec(self, spec: ProcessSpec):
         """To be used as function decorator: register a custom process based on function name and given spec."""
 
-        def wrapper(f: Callable):
+        def decorator(f: Callable):
             assert f.__name__ == spec.id
             self.add_spec(spec.to_dict())
+            self._functions[f.__name__] = f
             return f
 
-        return wrapper
+        return decorator
+
+    def add_deprecated(self, f: Callable):
+        """To be used as function decorator: just register the function for callback, but don't register the spec."""
+
+        @functools.wraps(f)
+        def wrapped(*args, **kwargs):
+            warnings.warn("Calling deprecated process function {f}".format(f=f.__name__))
+            return f(*args, **kwargs)
+
+        self._functions[f.__name__] = wrapped
+        return f
+
+    def get_spec(self, name):
+        """Get spec of given process name"""
+        if name not in self._specs:
+            raise NoSuchProcessException(name)
+        return self._specs[name]
+
+    def get_function(self, name):
+        """Get Python function (if available) corresponding with given process name"""
+        if name not in self._functions:
+            raise NoSuchProcessException(name)
+        return self._functions[name]
+
+
+class NoSuchProcessException(ValueError):
+    pass
