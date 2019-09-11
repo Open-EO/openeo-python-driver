@@ -200,8 +200,8 @@ def reduce(args: Dict, viewingParameters) -> ImageCollection:
             #it would be better to avoid having special cases everywhere to support udf's
             return _evaluate_callback_process(args, 'reducer', 'reduce')
         if create_process_visitor is not None:
-            converted_process_graph = create_process_visitor().accept_process_graph(callback)
-            return data_cube.reduce_bands(converted_process_graph)
+            visitor = create_process_visitor().accept_process_graph(callback)
+            return data_cube.reduce_bands(visitor)
         else:
             raise AttributeError('Reduce on spectral_bands is not supported by this backend.')
     else:
@@ -356,6 +356,13 @@ def apply_kernel(args: Dict, viewingParameters) -> ImageCollection:
     kernel = np.asarray(extract_arg(args, 'kernel'))
     factor = args.get('factor', 1.0)
     return image_collection.apply_kernel(kernel,factor)
+
+
+@process
+def ndvi(args: dict, viewingParameters: dict) -> ImageCollection:
+    image_collection = extract_arg(args, 'data')
+    name = args.get("name", "ndvi")
+    return image_collection.ndvi(name=name)
 
 
 def apply_process(process_id: str, args: Dict, viewingParameters):
