@@ -39,84 +39,47 @@ process = process_registry.add_function
 def getImageCollection(product_id:str, viewingParameters):
     raise Exception("Please provide getImageCollection method in your base package.")
 
+
 def health_check():
     return "Default health check OK!"
 
 
-def evaluate_040(processGraph: dict, viewingParameters = None):
-    if viewingParameters is None:
-        viewingParameters = {
-            'version' : '0.4.0'
-        }
-    from openeo.internal.process_graph_visitor import ProcessGraphVisitor
-    top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(processGraph)
-    return convert_node(processGraph[top_level_node],viewingParameters)
-
-
-def evaluate(processGraph: dict, viewingParameters = None) -> ImageCollection:
+def evaluate(processGraph: dict, viewingParameters=None) -> ImageCollection:
     """
     Converts the json representation of a (part of a) process graph into the corresponding Python ImageCollection.
     :param processGraph:
     :param viewingParameters:
     :return:  an ImageCollection
     """
-
-
     if viewingParameters is None:
         viewingParameters = {
-            'version' : '0.3.1'
+            'version': '0.4.0'
         }
-    if LooseVersion(viewingParameters.get('version','0.3.1')) >= LooseVersion('0.4.0'):
-        return evaluate_040(processGraph.get('process_graph',processGraph),viewingParameters)
+    # TODO avoid local import
+    from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+    top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(processGraph)
+    return convert_node(processGraph[top_level_node], viewingParameters)
 
-    return convert_node(processGraph,viewingParameters)
 
-
-def convert_node_03x(processGraph, viewingParameters = None):
-    if type(processGraph) is dict:
-        if 'product_id' in processGraph:
-            return getImageCollection(processGraph['product_id'],viewingParameters)
-        elif 'collection_id' in processGraph:
-            return getImageCollection(processGraph['collection_id'],viewingParameters)
-        elif 'process_graph' in processGraph:
-            return convert_node(processGraph['process_graph'], viewingParameters)
-        elif 'imagery' in processGraph:
-            return convert_node(processGraph['imagery'], viewingParameters)
-        elif 'process_id' in processGraph:
-            return apply_process(processGraph['process_id'], processGraph['args'], viewingParameters)
-    return processGraph
-
-def convert_node_04x(processGraph:dict, viewingParameters = None):
+def convert_node(processGraph: dict, viewingParameters=None):
     if isinstance(processGraph, dict):
         if 'process_id' in processGraph:
-            return apply_process(processGraph['process_id'], processGraph.get('arguments',{}), viewingParameters)
+            return apply_process(processGraph['process_id'], processGraph.get('arguments', {}), viewingParameters)
         elif 'node' in processGraph:
-            return convert_node(processGraph['node'],viewingParameters)
+            return convert_node(processGraph['node'], viewingParameters)
         elif 'callback' in processGraph:
-            #a callback object is a new process graph, don't evaluate it in the parent graph
+            # a callback object is a new process graph, don't evaluate it in the parent graph
             return processGraph
         elif 'from_argument' in processGraph:
             argument_reference = processGraph.get('from_argument')
-            #backwards compatibility for clients that still use 'dimension_data', can be removed when clients are upgraded
+            # backwards compatibility for clients that still use 'dimension_data', can be removed when clients are upgraded
             if argument_reference == 'dimension_data':
                 argument_reference = 'data'
             return viewingParameters.get(argument_reference)
         else:
-            #simply return nodes that do not require special handling, this is the case for geojson polygons
+            # simply return nodes that do not require special handling, this is the case for geojson polygons
             return processGraph
     return processGraph
-
-def convert_node(dag:dict, viewingParameters = None):
-    """
-    Depth first traversion and conversion of process graph
-    :param dag:
-    :param viewingParameters:
-    :return:
-    """
-    if LooseVersion(viewingParameters.get('version', '0.3.1')) >= LooseVersion('0.4.0'):
-        return convert_node_04x(dag, viewingParameters)
-    else:
-        return convert_node_03x(dag,viewingParameters)
 
 
 def extract_arg(args: Dict, name: str):
@@ -240,8 +203,8 @@ def reduce(args: Dict, viewingParameters) -> ImageCollection:
             #it would be better to avoid having special cases everywhere to support udf's
             return _evaluate_callback_process(args, 'reducer', 'reduce')
         if create_process_visitor is not None:
-            converted_process_graph = create_process_visitor().accept_process_graph(callback)
-            return data_cube.reduce_bands(converted_process_graph)
+            visitor = create_process_visitor().accept_process_graph(callback)
+            return data_cube.reduce_bands(visitor)
         else:
             raise AttributeError('Reduce on spectral_bands is not supported by this backend.')
     else:
@@ -272,7 +235,7 @@ def _evaluate_callback_process(args,callback_name:str,parent_process:str):
     callback = extract_arg(callback_block, 'callback')
     args["parent_process"] = parent_process
     args["version"] = "0.4.0"
-    return evaluate_040(callback, args)
+    return evaluate(callback, args)
 
 
 @process
@@ -395,6 +358,13 @@ def apply_kernel(args: Dict, viewingParameters) -> ImageCollection:
     return image_collection.apply_kernel(kernel,factor)
 
 
+@process
+def ndvi(args: dict, viewingParameters: dict) -> ImageCollection:
+    image_collection = extract_arg(args, 'data')
+    name = args.get("name", "ndvi")
+    return image_collection.ndvi(name=name)
+
+
 def apply_process(process_id: str, args: Dict, viewingParameters):
 
     if 'filter_daterange' == process_id or 'filter_temporal' == process_id:
@@ -402,6 +372,8 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         filter_daterange <= pre 0.3.x
         filter_temporal >= 0.4.x
         """
+        # TODO `viewingParameters` is function argument, but written to/manipulated (used as some kind of state object)
+        #       which is not obvious and confusing when debugging
         viewingParameters = viewingParameters or {}
 
         if 'extent' in args:
