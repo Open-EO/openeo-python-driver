@@ -1,21 +1,19 @@
-import os
 import logging
+import os
 from distutils.version import LooseVersion
 
-from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response,Blueprint,g, current_app
+from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, current_app
+from werkzeug.exceptions import HTTPException, NotFound
 
-from werkzeug.exceptions import HTTPException, BadRequest, NotFound
-
-from openeo_driver.errors import OpenEOApiException, CollectionNotFoundException
-from openeo_driver.save_result import SaveResult
-from .ProcessGraphDeserializer import (evaluate, health_check, get_layers, getProcesses, getProcess, get_layer,
-                                       create_batch_job, run_batch_job, get_batch_job_info, cancel_batch_job,
-                                       get_batch_job_result_filenames, get_batch_job_result_output_dir,
-                                       backend_implementation,
-                                       summarize_exception)
-from . import replace_nan_values
 from openeo import ImageCollection
 from openeo.error_summary import ErrorSummary
+from openeo_driver import replace_nan_values
+from openeo_driver.ProcessGraphDeserializer import (
+    evaluate, health_check, get_layers, getProcesses, getProcess, get_layer, create_batch_job, run_batch_job,
+    get_batch_job_info, cancel_batch_job, get_batch_job_result_filenames, get_batch_job_result_output_dir,
+    backend_implementation, summarize_exception)
+from openeo_driver.errors import OpenEOApiException, CollectionNotFoundException
+from openeo_driver.save_result import SaveResult
 
 SUPPORTED_VERSIONS = [
     '0.3.0',
@@ -100,7 +98,6 @@ def _error_response(error: Exception, status_code: int, summary: str = None):
     }
     if type(error) is HTTPException and type(error.response) is dict:
         error_json = error.response
-    import traceback
     if type(error) is ErrorSummary:
         exception = error.exception
     else:

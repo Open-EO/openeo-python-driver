@@ -1,10 +1,11 @@
-from . import replace_nan_values
-
+import os
 from abc import ABC
 from typing import Dict
 
 from flask import send_from_directory, jsonify
-import os
+
+from openeo_driver import replace_nan_values
+
 
 class SaveResult(ABC):
     """

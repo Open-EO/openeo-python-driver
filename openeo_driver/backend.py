@@ -10,6 +10,7 @@ Also see https://github.com/Open-EO/openeo-python-driver/issues/8
 """
 
 from typing import List, Tuple
+
 from openeo_driver.errors import OpenEOApiException
 
 

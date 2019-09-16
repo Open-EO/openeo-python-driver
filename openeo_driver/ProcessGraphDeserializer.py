@@ -4,20 +4,19 @@ import json
 import logging
 import os
 import pickle
-import requests
+from datetime import datetime, timedelta
+from typing import Dict
+from urllib.parse import urlparse
+
 import geopandas as gpd
-from typing import Dict, List
+import numpy as np
+import requests
 from shapely.geometry import shape
 from shapely.geometry.collection import GeometryCollection
-from urllib.parse import urlparse
-from datetime import datetime, timedelta
-import numpy as np
 
 from openeo import ImageCollection
-from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
-from distutils.version import LooseVersion
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
-
+from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
 
 _log = logging.getLogger(__name__)
 

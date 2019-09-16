@@ -1,12 +1,11 @@
-from unittest.mock import Mock
-from openeo import ImageCollection
+import numbers
 import os
+from unittest.mock import Mock
+
 from shapely.geometry import Polygon, MultiPolygon
 from shapely.geometry.collection import GeometryCollection
-from typing import Union
-from openeo.error_summary import *
-import numbers
 
+from openeo import ImageCollection
 from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation
 
 collections = {}

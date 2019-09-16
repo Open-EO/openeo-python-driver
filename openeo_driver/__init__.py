@@ -1,6 +1,6 @@
-from  openeo_driver._version import __version__
 from math import isnan
 
+from openeo_driver._version import __version__
 
 def replace_nan_values(o):
     """
