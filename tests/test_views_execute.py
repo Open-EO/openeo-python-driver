@@ -3,18 +3,17 @@ import os
 from unittest import TestCase
 
 import dummy_impl
+from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo_driver.views import app
 from . import get_test_resource, load_json_resource
 
 os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "dummy_impl"
 
-client = app.test_client()
 
 class Test(TestCase):
     def setUp(self):
         app.config['TESTING'] = True
         self.client = app.test_client()
-
         dummy_impl.collections = {}
 
     def _post_process_graph(self, process_graph: dict, url='preview'):
@@ -28,7 +27,7 @@ class Test(TestCase):
     def test_udf_runtimes(self):
         runtimes = self.client.get('/openeo/0.4.0/udf_runtimes').json
         print(runtimes)
-        self.assertIn("Python",runtimes)
+        self.assertIn("Python", runtimes)
 
     def test_load_collection(self):
         resp = self._post_process_graph({
@@ -65,73 +64,66 @@ class Test(TestCase):
 
     def test_execute_apply_kernel(self):
         kernel_list = [[0, 1, 0], [1, 1, 1], [0, 1, 0]]
-        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json',
-                                data=json.dumps({'process_graph': {
-                                    'kernel': {
-                                        'process_id': 'apply_kernel',
-                                        'arguments': {
-                                            'data': {
-                                                'from_node': 'collection'
-                                            },
-                                            'kernel': kernel_list,
-                                            'factor':3
-                                        },
-                                        'result': True
-                                    },
-                                    'collection': {
-                                        'process_id': 'load_collection',
-                                        'arguments': {
-                                            'id': 'S2_FAPAR_CLOUDCOVER'
-                                        }
-                                    }
-                                }
-
-                                }))
+        resp = self._post_process_graph({
+            'kernel': {
+                'process_id': 'apply_kernel',
+                'arguments': {
+                    'data': {
+                        'from_node': 'collection'
+                    },
+                    'kernel': kernel_list,
+                    'factor': 3
+                },
+                'result': True
+            },
+            'collection': {
+                'process_id': 'load_collection',
+                'arguments': {
+                    'id': 'S2_FAPAR_CLOUDCOVER'
+                }
+            }
+        })
 
         assert resp.status_code == 200
         assert resp.content_length > 0
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_kernel.call_count == 1
 
         np_kernel = dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_kernel.call_args[0][0]
-        self.assertListEqual(np_kernel.tolist(),kernel_list)
+        self.assertListEqual(np_kernel.tolist(), kernel_list)
         self.assertEqual(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_kernel.call_args[0][1], 3)
 
     def test_execute_simple_download(self):
-
-        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json',
-                                data=json.dumps({'process_graph': {
-                                    'filter_bbox':{
-                                        'process_id': 'filter_bbox',
-                                        'result': True,
-                                        'arguments':{
-                                            'data': {
-                                                'from_node': 'filter_temp'
-                                            },
-                                            'extent':{
-                                                'west': 5.027, 'east': 5.0438, 'north': 51.2213,
-                                                'south': 51.1974, 'crs': 'EPSG:4326'
-                                            }
-                                        }
-                                    },
-                                    'filter_temp': {
-                                        'process_id': 'filter_temporal',
-                                        'arguments': {
-                                            'data': {
-                                                'from_node': 'collection'
-                                            },
-                                            'extent': ['2018-01-01', '2018-12-31']
-                                        },
-                                        'result': False
-                                    },
-                                    'collection': {
-                                        'process_id': 'load_collection',
-                                        'arguments': {
-                                            'id': 'S2_FAPAR_CLOUDCOVER'
-                                        }
-                                    }
-                                }
-
-                                }))
+        resp = self._post_process_graph({
+            'filter_bbox': {
+                'process_id': 'filter_bbox',
+                'result': True,
+                'arguments': {
+                    'data': {
+                        'from_node': 'filter_temp'
+                    },
+                    'extent': {
+                        'west': 5.027, 'east': 5.0438, 'north': 51.2213,
+                        'south': 51.1974, 'crs': 'EPSG:4326'
+                    }
+                }
+            },
+            'filter_temp': {
+                'process_id': 'filter_temporal',
+                'arguments': {
+                    'data': {
+                        'from_node': 'collection'
+                    },
+                    'extent': ['2018-01-01', '2018-12-31']
+                },
+                'result': False
+            },
+            'collection': {
+                'process_id': 'load_collection',
+                'arguments': {
+                    'id': 'S2_FAPAR_CLOUDCOVER'
+                }
+            }
+        })
 
         assert resp.status_code == 200
         assert resp.content_length > 0
@@ -141,24 +133,20 @@ class Test(TestCase):
         self.assertEquals(1, dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].download.call_count)
 
     def test_load_collection_filter(self):
-        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json',
-                                data=json.dumps({'process_graph': {
-                                    'collection': {
-                                        'process_id': 'load_collection',
-                                        'arguments': {
-                                            'id': 'S2_FAPAR_CLOUDCOVER',
-                                            'spatial_extent': {
-                                                'west': 5.027, 'east': 5.0438, 'north': 51.2213,
-                                                'south': 51.1974, 'crs': 'EPSG:4326'
-                                            },
-                                            'temporal_extent': ['2018-01-01', '2018-12-31']
-                                        },
-                                        'result': True
-                                    }
-                                }
-
-                                }))
-
+        resp = self._post_process_graph({
+            'collection': {
+                'process_id': 'load_collection',
+                'arguments': {
+                    'id': 'S2_FAPAR_CLOUDCOVER',
+                    'spatial_extent': {
+                        'west': 5.027, 'east': 5.0438, 'north': 51.2213,
+                        'south': 51.1974, 'crs': 'EPSG:4326'
+                    },
+                    'temporal_extent': ['2018-01-01', '2018-12-31']
+                },
+                'result': True
+            }
+        })
         assert resp.status_code == 200
         assert resp.content_length > 0
         # assert resp.headers['Content-Type'] == "application/octet-stream"
@@ -166,12 +154,12 @@ class Test(TestCase):
         print(dummy_impl.collections['S2_FAPAR_CLOUDCOVER'])
         self.assertEquals(1, dummy_impl.collections['S2_FAPAR_CLOUDCOVER'].download.call_count)
 
-        expected_params = {'version': '0.4.0', 'from': '2018-01-01', 'to': '2018-12-31', 'left': 5.027, 'right': 5.0438,
-                        'top': 51.2213, 'bottom': 51.1974, 'srs': 'EPSG:4326'}
+        expected_params = {'version': '0.4.2', 'from': '2018-01-01', 'to': '2018-12-31', 'left': 5.027, 'right': 5.0438,
+                           'top': 51.2213, 'bottom': 51.1974, 'srs': 'EPSG:4326'}
         self.assertDictEqual(expected_params, dummy_impl.collections['S2_FAPAR_CLOUDCOVER'].viewingParameters)
 
     def test_execute_apply_unary(self):
-        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps({'process_graph':{
+        resp = self._post_process_graph({
             'apply': {
                 'process_id': 'apply',
                 'arguments': {
@@ -179,18 +167,18 @@ class Test(TestCase):
                         'from_node': 'collection'
                     },
 
-                    'process':{
-                        'callback':{
-                            "abs":{
-                                "arguments":{
+                    'process': {
+                        'callback': {
+                            "abs": {
+                                "arguments": {
                                     "data": {
                                         "from_argument": "data"
                                     }
                                 },
-                                "process_id":"abs"
+                                "process_id": "abs"
                             },
                             "cos": {
-                                "arguments":{
+                                "arguments": {
                                     "data": {
                                         "from_node": "abs"
                                     }
@@ -201,23 +189,21 @@ class Test(TestCase):
                         }
                     }
                 },
-                'result':True
+                'result': True
             },
             'collection': {
                 'process_id': 'get_collection',
-                'arguments':{
+                'arguments': {
                     'name': 'S2_FAPAR_CLOUDCOVER'
                 }
             }
-        }
-
-        }))
+        })
 
         assert resp.status_code == 200
         assert resp.content_length > 0
 
     def test_execute_apply_run_udf(self):
-        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps({'process_graph':{
+        resp = self._post_process_graph({
             'apply': {
                 'process_id': 'apply',
                 'arguments': {
@@ -225,24 +211,24 @@ class Test(TestCase):
                         'from_node': 'collection'
                     },
 
-                    'process':{
-                        'callback':{
-                            "abs":{
-                                "arguments":{
+                    'process': {
+                        'callback': {
+                            "abs": {
+                                "arguments": {
                                     "data": {
                                         "from_argument": "data"
                                     }
                                 },
-                                "process_id":"abs"
+                                "process_id": "abs"
                             },
                             "udf": {
-                                "arguments":{
+                                "arguments": {
                                     "data": {
                                         "from_node": "abs"
                                     },
-                                    "runtime":"Python",
-                                    "version":"3.5.1",
-                                    "udf":"my python code"
+                                    "runtime": "Python",
+                                    "version": "3.5.1",
+                                    "udf": "my python code"
 
                                 },
                                 "process_id": "run_udf",
@@ -251,17 +237,15 @@ class Test(TestCase):
                         }
                     }
                 },
-                'result':True
+                'result': True
             },
             'collection': {
                 'process_id': 'get_collection',
-                'arguments':{
+                'arguments': {
                     'name': 'S2_FAPAR_CLOUDCOVER'
                 }
             }
-        }
-
-        }))
+        })
 
         assert resp.status_code == 200
         assert resp.content_length > 0
@@ -269,25 +253,25 @@ class Test(TestCase):
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles.call_count == 1
 
     def test_execute_reduce_temporal_run_udf(self):
-        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps({'process_graph':{
+        resp = self._post_process_graph({
             'reduce': {
                 'process_id': 'reduce',
                 'arguments': {
                     'data': {
                         'from_node': 'collection'
                     },
-                    'dimension':'temporal',
-                    #'binary': False,
-                    'reducer':{
-                        'callback':{
+                    'dimension': 'temporal',
+                    # 'binary': False,
+                    'reducer': {
+                        'callback': {
                             "udf": {
-                                "arguments":{
+                                "arguments": {
                                     "data": {
                                         "from_argument": "data"
                                     },
-                                    "runtime":"Python",
-                                    "version":"3.5.1",
-                                    "udf":"my python code"
+                                    "runtime": "Python",
+                                    "version": "3.5.1",
+                                    "udf": "my python code"
 
                                 },
                                 "process_id": "run_udf",
@@ -296,22 +280,19 @@ class Test(TestCase):
                         }
                     }
                 },
-                'result':True
+                'result': True
             },
             'collection': {
                 'process_id': 'get_collection',
-                'arguments':{
+                'arguments': {
                     'name': 'S2_FAPAR_CLOUDCOVER'
                 }
             }
-        }
-
-        }))
+        })
 
         assert resp.status_code == 200
         assert resp.content_length > 0
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles_spatiotemporal.call_count == 1
-
 
     def test_execute_reduce_bands_run_udf(self):
         request = load_json_resource("udf.json")
@@ -319,21 +300,21 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         assert resp.content_length > 0
-        self.assertEquals(1,dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles.call_count)
+        self.assertEquals(1, dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles.call_count)
 
     def test_execute_apply_dimension_temporal_run_udf(self):
-        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps({'process_graph':{
+        resp = self._post_process_graph({
             'apply_dimension': {
                 'process_id': 'apply_dimension',
                 'arguments': {
                     'data': {
                         'from_node': 'collection'
                     },
-                    'dimension':'temporal',
+                    'dimension': 'temporal',
 
-                    'process':{
-                        'callback':{
-                            'cumsum':{
+                    'process': {
+                        'callback': {
+                            'cumsum': {
                                 "arguments": {
                                     "data": {
                                         "from_argument": "data"
@@ -343,13 +324,13 @@ class Test(TestCase):
                                 "process_id": "cumsum"
                             },
                             "udf": {
-                                "arguments":{
+                                "arguments": {
                                     "data": {
                                         "from_node": "cumsum"
                                     },
-                                    "runtime":"Python",
-                                    "version":"3.5.1",
-                                    "udf":"my python code"
+                                    "runtime": "Python",
+                                    "version": "3.5.1",
+                                    "udf": "my python code"
 
                                 },
                                 "process_id": "run_udf",
@@ -358,25 +339,23 @@ class Test(TestCase):
                         }
                     }
                 },
-                'result':True
+                'result': True
             },
             'collection': {
                 'process_id': 'get_collection',
-                'arguments':{
+                'arguments': {
                     'name': 'S2_FAPAR_CLOUDCOVER'
                 }
             }
-        }
-
-        }))
+        })
 
         assert resp.status_code == 200
         assert resp.content_length > 0
-        self.assertEqual(1, dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles_spatiotemporal.call_count )
+        self.assertEqual(1, dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles_spatiotemporal.call_count)
         self.assertEqual(1, dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_dimension.call_count)
 
     def test_execute_reduce_max(self):
-        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps({'process_graph':{
+        resp = self._post_process_graph({
             'reduce': {
                 'process_id': 'reduce',
                 'arguments': {
@@ -384,95 +363,90 @@ class Test(TestCase):
                         'from_node': 'collection'
                     },
                     'dimension': 'temporal',
-                    'reducer':{
-                        'callback':{
-                            "max":{
-                                "arguments":{
+                    'reducer': {
+                        'callback': {
+                            "max": {
+                                "arguments": {
                                     "data": {
                                         "from_argument": "data"
                                     }
                                 },
-                                "process_id":"max",
-                                "result":True
+                                "process_id": "max",
+                                "result": True
                             }
                         }
                     }
                 },
-                'result':True
+                'result': True
             },
             'collection': {
                 'process_id': 'get_collection',
-                'arguments':{
+                'arguments': {
                     'name': 'S2_FAPAR_CLOUDCOVER'
                 }
             }
-        }
-
-        }))
+        })
 
         assert resp.status_code == 200
         assert resp.content_length > 0
 
     def test_execute_reduce_bands(self):
-        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json',
-                                data=json.dumps({'process_graph': {
-                                    'apply': {
-                                        'process_id': 'reduce',
-                                        'arguments': {
-                                            'data': {
-                                                'from_node': 'collection'
-                                            },
-                                            'dimension': 'spectral_bands',
-                                            'reducer': {
-                                                'callback': {
-                                                    "sum": {
-                                                        "arguments": {
-                                                            "data": {
-                                                                "from_argument": "data"
-                                                            }
-                                                        },
-                                                        "process_id": "sum"
-                                                    },
-                                                    "subtract": {
-                                                        "arguments": {
-                                                            "data": {
-                                                                "from_argument": "data"
-                                                            }
-                                                        },
-                                                        "process_id": "subtract"
-                                                    },
-                                                    "divide": {
-                                                        "arguments": {
-                                                            "y": {
-                                                                "from_node": "subtract"
-                                                            },
-                                                            "x": {
-                                                                "from_node": "sum"
-                                                            }
-                                                        },
-                                                        "process_id": "divide",
-                                                        "result": True
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        'result': True
-                                    },
-                                    'collection': {
-                                        'process_id': 'get_collection',
-                                        'arguments': {
-                                            'name': 'S2_FAPAR_CLOUDCOVER'
-                                        }
+        resp = self._post_process_graph({
+            'apply': {
+                'process_id': 'reduce',
+                'arguments': {
+                    'data': {
+                        'from_node': 'collection'
+                    },
+                    'dimension': 'spectral_bands',
+                    'reducer': {
+                        'callback': {
+                            "sum": {
+                                "arguments": {
+                                    "data": {
+                                        "from_argument": "data"
                                     }
-                                }
-
-                                }))
+                                },
+                                "process_id": "sum"
+                            },
+                            "subtract": {
+                                "arguments": {
+                                    "data": {
+                                        "from_argument": "data"
+                                    }
+                                },
+                                "process_id": "subtract"
+                            },
+                            "divide": {
+                                "arguments": {
+                                    "y": {
+                                        "from_node": "subtract"
+                                    },
+                                    "x": {
+                                        "from_node": "sum"
+                                    }
+                                },
+                                "process_id": "divide",
+                                "result": True
+                            }
+                        }
+                    }
+                },
+                'result': True
+            },
+            'collection': {
+                'process_id': 'get_collection',
+                'arguments': {
+                    'name': 'S2_FAPAR_CLOUDCOVER'
+                }
+            }
+        })
 
         assert resp.status_code == 200
         assert resp.content_length > 0
 
     def test_execute_mask(self):
-        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps({'process_graph':{
+        resp = self._post_process_graph({
             'apply': {
                 'process_id': 'mask',
                 'arguments': {
@@ -482,13 +456,13 @@ class Test(TestCase):
                     'mask': {
                         'from_node': 'mask_collection'
                     },
-                    'replacement':'10'
+                    'replacement': '10'
                 },
-                'result':True
+                'result': True
             },
             'collection': {
                 'process_id': 'get_collection',
-                'arguments':{
+                'arguments': {
                     'name': 'S2_FAPAR_CLOUDCOVER'
                 }
             },
@@ -498,9 +472,7 @@ class Test(TestCase):
                     'name': 'S2_FAPAR_CLOUDCOVER'
                 }
             }
-        }
-
-        }))
+        })
 
         assert resp.status_code == 200
         assert resp.content_length > 0
@@ -546,45 +518,43 @@ class Test(TestCase):
         assert resp.content_length > 0
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask.call_count == 1
         import shapely.geometry
-        self.assertIsInstance(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask.call_args[1]['polygon'], shapely.geometry.Polygon)
+        self.assertIsInstance(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask.call_args[1]['polygon'],
+                              shapely.geometry.Polygon)
 
     def test_preview_aggregate_temporal_max(self):
-        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json',
-                                data=json.dumps({'process_graph': {
-                                    'apply': {
-                                        'process_id': 'aggregate_temporal',
-                                        'arguments': {
-                                            'data': {
-                                                'from_node': 'collection'
-                                            },
-                                            'dimension': 'temporal',
-                                            'intervals': [],
-                                            'labels':[],
-                                            'reducer': {
-                                                'callback': {
-                                                    "max": {
-                                                        "arguments": {
-                                                            "data": {
-                                                                "from_argument": "data"
-                                                            }
-                                                        },
-                                                        "process_id": "max",
-                                                        "result": True
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        'result': True
-                                    },
-                                    'collection': {
-                                        'process_id': 'get_collection',
-                                        'arguments': {
-                                            'name': 'S2_FAPAR_CLOUDCOVER'
-                                        }
+        resp = self._post_process_graph({
+            'apply': {
+                'process_id': 'aggregate_temporal',
+                'arguments': {
+                    'data': {
+                        'from_node': 'collection'
+                    },
+                    'dimension': 'temporal',
+                    'intervals': [],
+                    'labels': [],
+                    'reducer': {
+                        'callback': {
+                            "max": {
+                                "arguments": {
+                                    "data": {
+                                        "from_argument": "data"
                                     }
-                                }
-
-                                }))
+                                },
+                                "process_id": "max",
+                                "result": True
+                            }
+                        }
+                    }
+                },
+                'result': True
+            },
+            'collection': {
+                'process_id': 'get_collection',
+                'arguments': {
+                    'name': 'S2_FAPAR_CLOUDCOVER'
+                }
+            }
+        })
 
         assert resp.status_code == 200
         assert resp.content_length > 0
@@ -666,7 +636,6 @@ class Test(TestCase):
                 'result': True
             }
         }
-        from openeo.internal.process_graph_visitor import ProcessGraphVisitor
         resp = self.client.post('/openeo/0.4.0/services', content_type='application/json', json={
             "custom_param": 45,
             "process_graph": process_graph,
@@ -689,22 +658,21 @@ class Test(TestCase):
 
     def test_read_vector(self):
         process_graph = {
-          "process_graph": {
             "loadco1": {
-              "process_id": "load_collection",
-              "arguments": {
-                "id": "PROBAV_L3_S10_TOC_NDVI_333M_V2",
-                "spatial_extent": {
-                  "west": 5,
-                  "east": 6,
-                  "north": 52,
-                  "south": 51
-                },
-                "temporal_extent": [
-                  "2017-11-21",
-                  "2017-12-21"
-                ]
-              }
+                "process_id": "load_collection",
+                "arguments": {
+                    "id": "PROBAV_L3_S10_TOC_NDVI_333M_V2",
+                    "spatial_extent": {
+                        "west": 5,
+                        "east": 6,
+                        "north": 52,
+                        "south": 51
+                    },
+                    "temporal_extent": [
+                        "2017-11-21",
+                        "2017-12-21"
+                    ]
+                }
             },
             "geojson_file": {
                 "process_id": "read_vector",
@@ -713,43 +681,42 @@ class Test(TestCase):
                 }
             },
             "aggreg1": {
-              "process_id": "aggregate_polygon",
-              "arguments": {
-                "data": {
-                  "from_node": "loadco1"
-                },
-                "polygons": {
-                  "from_node": "geojson_file"
-                },
-                "reducer": {
-                  "callback": {
-                    "mean1": {
-                      "process_id": "mean",
-                      "arguments": {
-                        "data": {
-                          "from_argument": "data"
+                "process_id": "aggregate_polygon",
+                "arguments": {
+                    "data": {
+                        "from_node": "loadco1"
+                    },
+                    "polygons": {
+                        "from_node": "geojson_file"
+                    },
+                    "reducer": {
+                        "callback": {
+                            "mean1": {
+                                "process_id": "mean",
+                                "arguments": {
+                                    "data": {
+                                        "from_argument": "data"
+                                    }
+                                },
+                                "result": True
+                            }
                         }
-                      },
-                      "result": True
                     }
-                  }
                 }
-              }
             },
             "save": {
-              "process_id": "save_result",
-              "arguments": {
-                "data": {
-                  "from_node": "aggreg1"
+                "process_id": "save_result",
+                "arguments": {
+                    "data": {
+                        "from_node": "aggreg1"
+                    },
+                    "format": "JSON"
                 },
-                "format": "JSON"
-              },
-              "result": True
+                "result": True
             }
-          }
         }
 
-        resp = self.client.post('/openeo/0.4.0/result', content_type='application/json', data=json.dumps(process_graph))
+        resp = self._post_process_graph(process_graph)
         body = resp.get_data(as_text=True)
 
         self.assertEquals(200, resp.status_code)

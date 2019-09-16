@@ -321,6 +321,7 @@ def result():
 
 @openeo_bp.route('/preview' , methods=['GET', 'POST'])
 def preview():
+    # TODO: is this an old endpoint/shortcut or a custom extension of the API?
     return execute()
 
 
