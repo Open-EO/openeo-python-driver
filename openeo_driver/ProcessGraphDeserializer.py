@@ -33,7 +33,7 @@ for p in [
     process_registry.add_by_name(p)
 
 # Decorator shortcut to easily register functions as processes
-process = process_registry.add_by_function_name
+process = process_registry.add_function
 
 
 def getImageCollection(product_id:str, viewingParameters):
@@ -136,6 +136,7 @@ def extract_arg_list(args:Dict,names:list):
 
 
 # TODO deprecated process
+@process_registry.add_deprecated
 def get_collection(args: Dict, viewingParameters) -> ImageCollection:
     name = extract_arg(args,'name')
     return getImageCollection(name,viewingParameters)
@@ -164,6 +165,7 @@ def load_collection(args: Dict, viewingParameters) -> ImageCollection:
 
 
 # TODO deprecated process
+@process_registry.add_deprecated
 def apply_pixel(args: Dict, viewingParameters) -> ImageCollection:
     """
     DEPRECATED
@@ -196,6 +198,7 @@ def save_result(args: Dict, viewingParameters) -> SaveResult:
 
 
 # TODO deprecated process
+@process_registry.add_deprecated
 def apply_tiles(args: Dict, viewingParameters) -> ImageCollection:
     function = extract_arg(args,'code')
     return extract_arg_list(args, ['data','imagery']).apply_tiles(function['source'])
@@ -285,6 +288,7 @@ def aggregate_polygon(args: Dict, viewingParameters) -> ImageCollection:
 
 
 # TODO deprecated process
+@process_registry.add_deprecated
 def reduce_by_time( args:Dict, viewingParameters)->ImageCollection:
     """
     Deprecated, use aggregate_temporal
@@ -319,13 +323,7 @@ def max_time(args: Dict, viewingParameters) -> ImageCollection:
 
 
 # TODO deprecated process?
-@process_registry.add_function_with_spec(
-    ProcessSpec(id="mask_polygon",
-                description="Mask the image collection using a polygon. All pixels outside the polygon should be set to the nodata value. "
-                            "All pixels inside, or intersecting the polygon should retain their original value.", )
-        .param('mask_shape', "The shape to use as a mask", schema={"type": "object"})
-        .returns("Raster data cube", schema=ProcessSpec.RASTERCUBE)
-)
+@process_registry.add_deprecated
 def mask_polygon(args: Dict, viewingParameters) -> ImageCollection:
     geometry = extract_arg(args, 'mask_shape')
     srs_code = geometry.get("crs",{}).get("name","EPSG:4326")
@@ -344,6 +342,7 @@ def mask(args: Dict, viewingParameters) -> ImageCollection:
 
 
 # TODO deprecated process
+@process_registry.add_deprecated
 def filter_daterange(args: Dict, viewingParameters) -> ImageCollection:
     #for now we take care of this filtering in 'viewingParameters'
     #from_date = extract_arg(args,'from')
@@ -374,6 +373,7 @@ def filter_bands(args: Dict, viewingParameters) -> ImageCollection:
 
 
 # TODO deprecated process?
+@process_registry.add_deprecated
 def zonal_statistics(args: Dict, viewingParameters) -> Dict:
     image_collection = extract_arg_list(args, ['data','imagery'])
     geometry = extract_arg(args, 'regions')
@@ -502,9 +502,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         dimension = viewingParameters.get('dimension', None)
         return image_collection.aggregate_temporal(intervals,labels,process_id,dimension)
     else:
-        process_function = globals()[process_id]  # TODO: avoid globals, this can be security hole.
-        if process_function is None:
-            raise RuntimeError("No process found with name: "+process_id)
+        process_function = process_registry.get_function(process_id)
         return process_function(args, viewingParameters)
 
 
@@ -600,11 +598,11 @@ def _get_udf(args):
 
 def getProcesses(substring: str = None):
     # TODO: move this also to OpenEoBackendImplementation ?
-    return [spec for spec in process_registry.processes.values() if not substring or substring.lower() in spec['id']]
+    return [spec for spec in process_registry._specs.values() if not substring or substring.lower() in spec['id']]
 
 
 def getProcess(process_id: str):
-    return process_registry.processes.get(process_id)
+    return process_registry._specs.get(process_id)
 
 
 

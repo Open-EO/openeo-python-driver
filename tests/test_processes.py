@@ -1,6 +1,6 @@
 import pytest
 
-from openeo_driver.processes import ProcessSpec, ProcessRegistry
+from openeo_driver.processes import ProcessSpec, ProcessRegistry, NoSuchProcessException
 
 
 def test_process_spec_basic():
@@ -43,28 +43,30 @@ def test_process_sepc_no_returns():
         spec.to_dict()
 
 
-def test_process_registry_by_name():
+def test_process_registry_add_by_name():
     reg = ProcessRegistry()
     reg.add_by_name("max")
-    assert set(reg.processes.keys()) == {"max"}
-    spec = reg.processes['max']
+    assert set(reg._specs.keys()) == {"max"}
+    spec = reg.get_spec('max')
     assert spec['id'] == 'max'
     assert 'largest value' in spec['description']
     assert all(k in spec for k in ['parameters', 'parameter_order', 'returns'])
 
 
-def test_process_registry_by_function_name():
+def test_process_registry_add_function():
     reg = ProcessRegistry()
 
-    @reg.add_by_function_name
+    @reg.add_function
     def max(*args):
         return max(*args)
 
-    assert set(reg.processes.keys()) == {"max"}
-    spec = reg.processes['max']
+    assert set(reg._specs.keys()) == {"max"}
+    spec = reg.get_spec('max')
     assert spec['id'] == 'max'
     assert 'largest value' in spec['description']
     assert all(k in spec for k in ['parameters', 'parameter_order', 'returns'])
+
+    assert reg.get_function('max') is max
 
 
 def test_process_registry_with_spec():
@@ -78,15 +80,27 @@ def test_process_registry_with_spec():
     def foo(*args):
         return 42
 
-    assert reg.processes == {
-        "foo": {
-            "id": "foo",
-            "description": "bar",
-            "parameters": {
-                "input": {"description": "Input", "schema": {"type": "object", "format": "raster-cube"},
-                          "required": True},
-            },
-            "parameter_order": ["input"],
-            "returns": {"description": "Output", "schema": {"type": "object", "format": "raster-cube"}}
-        }
+    assert reg.get_spec('foo') == {
+        "id": "foo",
+        "description": "bar",
+        "parameters": {
+            "input": {"description": "Input", "schema": {"type": "object", "format": "raster-cube"},
+                      "required": True},
+        },
+        "parameter_order": ["input"],
+        "returns": {"description": "Output", "schema": {"type": "object", "format": "raster-cube"}}
     }
+
+
+def test_process_registry_add_deprecated():
+    reg = ProcessRegistry()
+
+    @reg.add_deprecated
+    def foo(*args):
+        return 42
+
+    new_foo = reg.get_function('foo')
+    with pytest.warns(UserWarning, match="deprecated process"):
+        assert new_foo() == 42
+    with pytest.raises(NoSuchProcessException):
+        reg.get_spec('foo')
