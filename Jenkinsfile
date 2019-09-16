@@ -11,4 +11,5 @@
 pythonPipeline {
   package_name = 'openeo_driver'
   wipeout_workspace = true
+  python_version = ["3.6"]
 }
