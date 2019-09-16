@@ -337,7 +337,7 @@ def execute():
         filename = result.download(None, bbox="", time="", **format_options)
         return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
     elif result is None:
-        abort(500, "No result")
+        abort(500, "Process graph evaluation gave no result")
     elif isinstance(result, SaveResult):
         return result.create_flask_response()
     else:
