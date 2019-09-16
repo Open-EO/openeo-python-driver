@@ -1,10 +1,11 @@
-from unittest import TestCase, skip
-
-from . import  get_test_resource, load_json_resource
-from openeo_driver.views import app
 import json
 import os
+from unittest import TestCase
+
 import dummy_impl
+from openeo_driver.views import app
+from . import get_test_resource, load_json_resource
+
 os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "dummy_impl"
 
 client = app.test_client()
@@ -16,35 +17,49 @@ class Test(TestCase):
 
         dummy_impl.collections = {}
 
+    def _post_process_graph(self, process_graph: dict, url='preview'):
+        if not url.startswith('/openeo/'):
+            url = '/openeo/0.4.2/' + url.lstrip("/")
+        resp = self.client.post(
+            url, content_type='application/json',
+            data=json.dumps({'process_graph': process_graph}))
+        return resp
+
     def test_udf_runtimes(self):
         runtimes = self.client.get('/openeo/0.4.0/udf_runtimes').json
         print(runtimes)
         self.assertIn("Python",runtimes)
 
-
+    def test_load_collection(self):
+        resp = self._post_process_graph({
+            'collection': {
+                'process_id': 'load_collection',
+                'arguments': {'id': 'S2_FAPAR_CLOUDCOVER'},
+                'result': True
+            }
+        })
+        assert resp.status_code == 200
+        assert resp.content_length > 0
 
     def test_execute_filter_temporal(self):
-        resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json', data=json.dumps({'process_graph':{
+        resp = self._post_process_graph({
             'filter_temp': {
                 'process_id': 'filter_temporal',
                 'arguments': {
                     'data': {
                         'from_node': 'collection'
                     },
-                    'extent':['2018-01-01', '2018-12-31']
+                    'extent': ['2018-01-01', '2018-12-31']
                 },
-                'result':True
+                'result': True
             },
             'collection': {
                 'process_id': 'load_collection',
-                'arguments':{
+                'arguments': {
                     'id': 'S2_FAPAR_CLOUDCOVER'
                 }
             }
-        }
-
-        }))
-
+        })
         assert resp.status_code == 200
         assert resp.content_length > 0
 
@@ -75,7 +90,6 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         assert resp.content_length > 0
-        import dummy_impl
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_kernel.call_count == 1
 
         np_kernel = dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_kernel.call_args[0][0]
@@ -127,10 +141,6 @@ class Test(TestCase):
         self.assertEquals(1, dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].download.call_count)
 
     def test_load_collection_filter(self):
-        import dummy_impl
-
-
-
         resp = self.client.post('/openeo/0.4.0/preview', content_type='application/json',
                                 data=json.dumps({'process_graph': {
                                     'collection': {
@@ -255,7 +265,6 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         assert resp.content_length > 0
-        import dummy_impl
         print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles.call_count == 1
 
@@ -301,8 +310,6 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         assert resp.content_length > 0
-        import dummy_impl
-        print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles_spatiotemporal.call_count == 1
 
 
@@ -312,8 +319,6 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         assert resp.content_length > 0
-        import dummy_impl
-        print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
         self.assertEquals(1,dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles.call_count)
 
     def test_execute_apply_dimension_temporal_run_udf(self):
@@ -367,8 +372,6 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         assert resp.content_length > 0
-        import dummy_impl
-        print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
         self.assertEqual(1, dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles_spatiotemporal.call_count )
         self.assertEqual(1, dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_dimension.call_count)
 
@@ -501,14 +504,12 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         assert resp.content_length > 0
-        import dummy_impl
-        print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask.call_count == 1
 
     def test_execute_mask_polygon(self):
-        resp = self.client.post('/openeo/0.4.0/execute', content_type='application/json', data=json.dumps({
-            "process_graph": {
-                "mask":{
+        resp = self._post_process_graph(
+            {
+                "mask": {
                     "process_id": "mask",
                     "arguments": {
                         'data': {
@@ -539,13 +540,10 @@ class Test(TestCase):
                 }
 
             }
-        }))
+        )
 
         assert resp.status_code == 200
         assert resp.content_length > 0
-
-        import dummy_impl
-        print(dummy_impl.collections)
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask.call_count == 1
         import shapely.geometry
         self.assertIsInstance(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask.call_args[1]['polygon'], shapely.geometry.Polygon)
@@ -592,9 +590,7 @@ class Test(TestCase):
         assert resp.content_length > 0
 
     def test_execute_zonal_statistics(self):
-
         process_graph = {
-            'process_graph': {
             'aggregate_polygon': {
                 'process_id': 'aggregate_polygon',
                 'arguments': {
@@ -622,17 +618,17 @@ class Test(TestCase):
                             }
                         }
                     },
-                    'name':'my_name'
+                    'name': 'my_name'
                 },
 
             },
-            'save_result':{
+            'save_result': {
                 'process_id': 'save_result',
                 'arguments': {
                     'data': {
                         'from_node': 'aggregate_polygon'
                     },
-                    'format':'VITO-TSService-JSON'
+                    'format': 'VITO-TSService-JSON'
                 },
                 'result': True
             },
@@ -643,12 +639,7 @@ class Test(TestCase):
                 }
             }
         }
-
-        }
-
-
-        resp = self.client.post('/openeo/0.4.0/result', content_type='application/json', data=json.dumps(process_graph))
-
+        resp = self._post_process_graph(process_graph)
         assert resp.status_code == 200
         assert json.loads(resp.get_data(as_text=True)) == {
             "2015-07-06T00:00:00": [2.9829132080078127],
@@ -856,3 +847,49 @@ class Test(TestCase):
         resp = self.client.post('/openeo/0.4.0/result', content_type='application/json', data=json.dumps(process_graph))
 
         self.assertEquals(200, resp.status_code)
+
+    def test_point_with_bbox(self):
+        process_graph = {
+            "loadcollection1": {
+                'process_id': 'load_collection',
+                'arguments': {'id': 'S2_FAPAR_CLOUDCOVER'},
+            },
+            "filterbbox": {
+                "process_id": "filter_bbox",
+                "arguments": {
+                    "data": {"from_node": "loadcollection1"},
+                    "extent": {"west": 3, "east": 6, "south": 50, "north": 51, "crs": "EPSG:4326"}
+                },
+                "result": True
+            }
+        }
+        resp = self._post_process_graph(process_graph, url="timeseries/point?x=1&y=2")
+        assert resp.status_code == 200
+        assert resp.json == {"viewingParameters": {
+            "left": 3, "right": 6, "bottom": 50, "top": 51, "srs": "EPSG:4326", "version": "0.4.2"
+        }}
+
+    def test_max_time(self):
+        process_graph = {
+            "loadcollection1": {
+                'process_id': 'load_collection',
+                'arguments': {'id': 'S2_FAPAR_CLOUDCOVER'},
+            },
+            "filterbbox": {
+                "process_id": "filter_bbox",
+                "arguments": {
+                    "data": {"from_node": "loadcollection1"},
+                    "extent": {"west": 3, "east": 6, "south": 50, "north": 51, "crs": "EPSG:4326"}
+                },
+            },
+            "maxtime": {
+                "process_id": "max_time",
+                "arguments": {
+                    "data": {"from_node": "filterbbox"}
+                },
+                "result": True
+            }
+        }
+        resp = self._post_process_graph(process_graph)
+        assert resp.status_code == 200
+        assert resp.content_length > 0

@@ -293,7 +293,7 @@ def point():
     x = float(request.args.get('x', ''))
     y = float(request.args.get('y', ''))
     srs = request.args.get('srs', None)
-    process_graph = request.get_json()
+    process_graph = request.get_json()['process_graph']
     image_collection = evaluate(process_graph, viewingParameters={'version': g.version})
     return jsonify(image_collection.timeseries(x, y, srs))
 
