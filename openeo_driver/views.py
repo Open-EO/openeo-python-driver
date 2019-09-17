@@ -7,13 +7,15 @@ from werkzeug.exceptions import HTTPException, NotFound
 
 from openeo import ImageCollection
 from openeo.error_summary import ErrorSummary
-from openeo_driver import replace_nan_values
 from openeo_driver.ProcessGraphDeserializer import (
-    evaluate, health_check, get_layers, getProcesses, getProcess, get_layer, create_batch_job, run_batch_job,
-    get_batch_job_info, cancel_batch_job, get_batch_job_result_filenames, get_batch_job_result_output_dir,
-    backend_implementation, summarize_exception)
-from openeo_driver.errors import OpenEOApiException, CollectionNotFoundException
+    evaluate, health_check, getProcesses, getProcess,
+    create_batch_job, run_batch_job, get_batch_job_info, cancel_batch_job,
+    get_batch_job_result_filenames, get_batch_job_result_output_dir,
+    backend_implementation,
+    summarize_exception)
+from openeo_driver.errors import OpenEOApiException
 from openeo_driver.save_result import SaveResult
+from openeo_driver.utils import replace_nan_values
 
 SUPPORTED_VERSIONS = [
     '0.3.0',
@@ -516,22 +518,17 @@ def collection(collection_id):
     return collection_by_id(collection_id)
 
 
-@openeo_bp.route('/collections' , methods=['GET'])
+@openeo_bp.route('/collections', methods=['GET'])
 def collections():
-        layers = get_layers()
-        return jsonify({
-            'collections':layers,
-            'links':[]
-        })
+    return jsonify({
+        'collections': backend_implementation.catalog.get_all_metadata(),
+        'links': []
+    })
 
 
-@openeo_bp.route('/collections/<collection_id>' , methods=['GET'])
+@openeo_bp.route('/collections/<collection_id>', methods=['GET'])
 def collection_by_id(collection_id):
-    try:
-        layer = get_layer(collection_id)
-    except ValueError:
-        raise CollectionNotFoundException(collection_id)
-    return jsonify(layer)
+    return jsonify(backend_implementation.catalog.get_collection_metadata(collection_id))
 
 
 @openeo_bp.route('/processes' , methods=['GET'])

@@ -23,25 +23,24 @@ class Test(TestCase):
         assert resp.status_code == 200
         assert "OK" in resp.get_data(as_text=True)
 
-    def test_data(self):
+    def test_collections(self):
         resp = self.client.get('/openeo/collections')
-
         assert resp.status_code == 200
-        collections = json.loads(resp.get_data().decode('utf-8'))
-        assert collections
-        assert 'DUMMY_S2_FAPAR_CLOUDCOVER' in [collection['product_id'] for collection in collections['collections']]
+        collections = resp.json
+        assert 'DUMMY_S2_FAPAR_CLOUDCOVER' in [c['id'] for c in collections['collections']]
 
-    def test_data_detail(self):
-        resp = self.client.get('/openeo/data/DUMMY_S2_FAPAR_CLOUDCOVER')
-
+    def test_collections_detail(self):
+        resp = self.client.get('/openeo/collections/DUMMY_S2_FAPAR_CLOUDCOVER')
         assert resp.status_code == 200
-        collection = json.loads(resp.get_data().decode('utf-8'))
-        assert collection['product_id'] == 'DUMMY_S2_FAPAR_CLOUDCOVER'
+        collection = resp.json
+        assert collection['id'] == 'DUMMY_S2_FAPAR_CLOUDCOVER'
 
     def test_data_detail_error(self):
-        resp = self.client.get('/openeo/data/S2_FAPAR_CLOUDCOVER')
-
+        resp = self.client.get('/openeo/collections/S2_FAPAR_CLOUDCOVER')
         assert resp.status_code == 404
+        error = resp.json
+        assert error["code"] == "CollectionNotFound"
+        assert "Collection does not exist" in error["message"]
 
     def test_processes(self):
         resp = self.client.get('/openeo/processes')
