@@ -35,13 +35,6 @@ for p in [
 process = process_registry.add_function
 
 
-def getImageCollection(product_id:str, viewingParameters):
-    raise Exception("Please provide getImageCollection method in your base package.")
-
-
-def health_check():
-    return "Default health check OK!"
-
 
 def evaluate(processGraph: dict, viewingParameters=None) -> ImageCollection:
     """
@@ -101,7 +94,7 @@ def extract_arg_list(args:Dict,names:list):
 @process_registry.add_deprecated
 def get_collection(args: Dict, viewingParameters) -> ImageCollection:
     name = extract_arg(args,'name')
-    return getImageCollection(name,viewingParameters)
+    return backend_implementation.catalog.load_collection(name, viewingParameters)
 
 
 @process
@@ -123,7 +116,7 @@ def load_collection(args: Dict, viewingParameters) -> ImageCollection:
     if "bands" in args and args['bands'] is not None:
         viewingParameters["bands"] = extract_arg(args, "bands")
 
-    return getImageCollection(name,viewingParameters)
+    return backend_implementation.catalog.load_collection(name, viewingParameters)
 
 
 # TODO deprecated process
@@ -315,21 +308,21 @@ def filter_daterange(args: Dict, viewingParameters) -> ImageCollection:
 
 @process
 def filter_temporal(args: Dict, viewingParameters) -> ImageCollection:
-    # Note: the temporal range is already extracted in `apply_process` and applied in `getImageCollection` through the viewingParameters
+    # Note: the temporal range is already extracted in `apply_process` and applied in `GeoPySparkLayerCatalog.load_collection` through the viewingParameters
     image_collection = extract_arg(args, 'data')
     return image_collection
 
 
 @process
 def filter_bbox(args: Dict, viewingParameters) -> ImageCollection:
-    # Note: the bbox is already extracted in `apply_process` and applied in `getImageCollection` through the viewingParameters
+    # Note: the bbox is already extracted in `apply_process` and applied in `GeoPySparkLayerCatalog.load_collection` through the viewingParameters
     image_collection = extract_arg_list(args, ['data','imagery'])
     return image_collection
 
 
 @process
 def filter_bands(args: Dict, viewingParameters) -> ImageCollection:
-    # Note: the bands are already extracted in `apply_process` and applied in `getImageCollection` through the viewingParameters
+    # Note: the bands are already extracted in `apply_process` and applied in `GeoPySparkLayerCatalog.load_collection` through the viewingParameters
     image_collection = extract_arg_list(args, ['data','imagery'])
     return image_collection
 
@@ -584,9 +577,6 @@ def getProcess(process_id: str):
 _driver_implementation_package = os.getenv('DRIVER_IMPLEMENTATION_PACKAGE', "dummy_impl")
 _log.info('Using driver implementation package {d}'.format(d=_driver_implementation_package))
 i = importlib.import_module(_driver_implementation_package)
-getImageCollection = i.getImageCollection
-get_layers = i.get_layers
-get_layer = i.get_layer
 try:
     create_process_visitor = i.create_process_visitor
 except AttributeError as e:
@@ -609,7 +599,4 @@ def get_openeo_backend_implementation() -> OpenEoBackendImplementation:
 backend_implementation = get_openeo_backend_implementation()
 
 summarize_exception = i.summarize_exception if hasattr(i, 'summarize_exception') else lambda exception: exception
-
-if i.health_check is not None:
-    health_check = i.health_check
 

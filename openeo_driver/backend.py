@@ -9,9 +9,14 @@ to allow composability, isolation and better reuse.
 Also see https://github.com/Open-EO/openeo-python-driver/issues/8
 """
 
-from typing import List, Tuple
+import copy
+import warnings
+from pathlib import Path
+from typing import List, Tuple, Union, Dict
 
-from openeo_driver.errors import OpenEOApiException
+from openeo import ImageCollection
+from openeo_driver.errors import OpenEOApiException, CollectionNotFoundException
+from openeo_driver.utils import read_json
 
 
 class SecondaryServices:
@@ -69,10 +74,83 @@ class SecondaryServices:
     # TODO https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1subscription/get
 
 
+class CollectionCatalog:
+    """
+    Basic implementation of a catalog of collections/EO data
+    """
+
+    _stac_version = "0.7.0"
+
+    def __init__(self, all_metadata: List[dict]):
+        self._catalog = {layer["id"]: dict(layer) for layer in all_metadata}
+
+    @classmethod
+    def from_json_file(cls, filename: Union[str, Path] = "layercatalog.json", *args, **kwargs):
+        """Factory to read catalog from a JSON file"""
+        return cls(read_json(filename), *args, **kwargs)
+
+    def assert_collection_id(self, collection_id):
+        if collection_id not in self._catalog:
+            raise CollectionNotFoundException(collection_id)
+
+    def get_all_metadata(self) -> List[dict]:
+        """
+        Basic metadata for all datasets
+        https://open-eo.github.io/openeo-api/apireference/#tag/EO-Data-Discovery/paths/~1collections/get
+        :return:
+        """
+        return [self._normalize_layer_metadata(m) for m in self._catalog.values()]
+
+    def get_collection_metadata(self, collection_id) -> dict:
+        """
+        Full metadata for a specific dataset
+        https://open-eo.github.io/openeo-api/apireference/#tag/EO-Data-Discovery/paths/~1collections~1{collection_id}/get
+        :param collection_id:
+        :return:
+        """
+
+        self.assert_collection_id(collection_id)
+        return self._normalize_layer_metadata(self._catalog[collection_id])
+
+    def load_collection(self, collection_id: str, viewing_parameters: dict) -> ImageCollection:
+        raise NotImplementedError
+
+    def _normalize_layer_metadata(self, metadata: dict) -> dict:
+        """
+        Make sure the given layer metadata roughly complies to OpenEO spec.
+        """
+        metadata = copy.deepcopy(metadata)
+
+        # Metadata should at least contain an id.
+        collection_id = metadata["id"]
+
+        # Make sure required fields are set.
+        metadata.setdefault("stac_version", self._stac_version)
+        metadata.setdefault("links", [])
+        metadata.setdefault("other_properties", {})
+        # Warn about missing fields where sensible defaults are not feasible
+        fallbacks = {
+            "description": "Description of {c} (#TODO)".format(c=collection_id),
+            "license": "proprietary",
+            "extent": {"spatial": [0, 0, 0, 0], "temporal": [None, None]},
+            "properties": {"cube:dimensions": {}},
+        }
+        for key, value in fallbacks.items():
+            if key not in metadata:
+                warnings.warn("Collection {c} is missing required metadata field {k!r}.".format(c=collection_id, k=key))
+                metadata[key] = value
+
+        return metadata
+
+
 class OpenEoBackendImplementation:
     """
     Simple container of all openEo "microservices"
     """
 
-    def __init__(self, secondary_services: SecondaryServices):
+    def __init__(self, secondary_services: SecondaryServices, catalog: CollectionCatalog):
         self.secondary_services = secondary_services
+        self.catalog = catalog
+
+    def health_check(self) -> str:
+        return "OK"
