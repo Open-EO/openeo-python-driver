@@ -8,7 +8,7 @@ from werkzeug.exceptions import HTTPException, NotFound
 from openeo import ImageCollection
 from openeo.error_summary import ErrorSummary
 from openeo_driver.ProcessGraphDeserializer import (
-    evaluate, health_check, getProcesses, getProcess,
+    evaluate, getProcesses, getProcess,
     create_batch_job, run_batch_job, get_batch_job_info, cancel_batch_job,
     get_batch_job_result_filenames, get_batch_job_result_output_dir,
     backend_implementation,
@@ -219,9 +219,13 @@ def index():
       }
     })
 
-@openeo_bp.route('/health' )
+
+@openeo_bp.route('/health')
 def health():
-    return health_check()
+    return jsonify({
+        "health": backend_implementation.health_check()
+    })
+
 
 @openeo_bp.route('/capabilities')
 def capabilities():

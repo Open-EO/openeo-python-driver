@@ -35,9 +35,6 @@ for p in [
 process = process_registry.add_function
 
 
-def health_check():
-    return "Default health check OK!"
-
 
 def evaluate(processGraph: dict, viewingParameters=None) -> ImageCollection:
     """
@@ -602,7 +599,4 @@ def get_openeo_backend_implementation() -> OpenEoBackendImplementation:
 backend_implementation = get_openeo_backend_implementation()
 
 summarize_exception = i.summarize_exception if hasattr(i, 'summarize_exception') else lambda exception: exception
-
-if i.health_check is not None:
-    health_check = i.health_check
 

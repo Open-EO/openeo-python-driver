@@ -151,3 +151,6 @@ class OpenEoBackendImplementation:
     def __init__(self, secondary_services: SecondaryServices, catalog: CollectionCatalog):
         self.secondary_services = secondary_services
         self.catalog = catalog
+
+    def health_check(self) -> str:
+        return "OK"

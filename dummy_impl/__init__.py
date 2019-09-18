@@ -11,10 +11,6 @@ from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation
 collections = {}
 
 
-def health_check():
-    return "OK"
-
-
 def create_batch_job(*_):
     return '07024ee9-7847-4b8a-b260-6c879a2b3cdc'
 
