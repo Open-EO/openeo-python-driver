@@ -144,12 +144,13 @@ def save_result(args: Dict, viewingParameters) -> SaveResult:
     format = extract_arg(args,'format')
     options = args.get('options',{})
     data = extract_arg(args, 'data')
+
     if isinstance(data, ImageCollection):
-        return ImageCollectionResult(data,format,options)
+        return ImageCollectionResult(data, format, {**viewingParameters, **options})
     elif data is None:
         return data
     else:
-        return JSONResult(data,format,options)
+        return JSONResult(data, format, options)
 
 
 # TODO deprecated process
