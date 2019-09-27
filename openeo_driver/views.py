@@ -1,12 +1,17 @@
+import base64
+import hashlib
 import logging
 import os
 from distutils.version import LooseVersion
 
-from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, current_app
+import requests
+from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, \
+    current_app, redirect
 from werkzeug.exceptions import HTTPException, NotFound
 
 from openeo import ImageCollection
 from openeo.error_summary import ErrorSummary
+from openeo.rest.auth.auth import BearerAuth
 from openeo_driver.ProcessGraphDeserializer import (
     evaluate, getProcesses, getProcess,
     create_batch_job, run_batch_job, get_batch_job_info, cancel_batch_job,
@@ -29,7 +34,8 @@ DEFAULT_VERSION = '0.3.1'
 
 app = Flask(__name__)
 app.config['APPLICATION_ROOT'] = '/openeo'
-
+# TODO: get this OpenID config url from a real config
+app.config['OPENID_CONNECT_CONFIG_URL'] = "https://sso-dev.vgt.vito.be/auth/realms/terrascope/.well-known/openid-configuration"
 
 openeo_bp = Blueprint('openeo', __name__)
 
@@ -204,7 +210,9 @@ def index():
               "DELETE",
               "POST"
           ]
-        }
+        },
+          {"path": "/credentials/basic", "methods": ["GET"]},
+          {"path": "/credentials/oidc", "methods": ["GET"]},
       ],
       "billing": {
         "currency": "EUR",
@@ -282,6 +290,42 @@ def udf_runtimes():
 
     })
 
+
+@openeo_bp.route("/credentials/basic", methods=["GET"])
+def credentials_basic():
+    auth_type, auth_code = request.headers["Authorization"].split(' ')
+    if auth_type != 'Basic':
+        raise OpenEOApiException(message="Authentication method not supported", code="AuthenticationSchemeInvalid",
+                                 status_code=403)
+    username, password = base64.b64decode(auth_code.encode('ascii')).decode('utf-8').split(':')
+    password_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
+    _log.info("Handling basic auth for user {u!r} with sha256(pwd)={p})".format(u=username, p=password_hash))
+    # TODO: do real password check
+    if password != username + '123':
+        raise OpenEOApiException(message="Credentials are not correct", code="CredentialsInvalid", status_code=403)
+    # TODO: generate real access token and link to user in some key value store
+    access_token = "basic:" + base64.urlsafe_b64encode(username.encode('utf-8')).decode('ascii')
+    return jsonify({"access_token": access_token, "user_id": username})
+
+
+@openeo_bp.route("/credentials/oidc", methods=["GET"])
+def credentials_oidc():
+    return redirect(current_app.config["OPENID_CONNECT_CONFIG_URL"])
+
+
+@openeo_bp.route("/me", methods=["GET"])
+def me():
+    # Get bearer token
+    auth_type, auth_code = request.headers["Authorization"].split(' ')
+    if auth_type != 'Bearer':
+        raise OpenEOApiException(message="Unauthorized", code="AuthenticationRequired", status_code=401)
+    if auth_code.startswith("basic:"):
+        return jsonify({"user": "TODO"})
+    else:
+        # Assume token is OpenID Connect access token: get user info from `userinfo` endpoint
+        userinfo_url = requests.get(current_app.config["OPENID_CONNECT_CONFIG_URL"]).json()["userinfo_endpoint"]
+        r = requests.get(userinfo_url, auth=BearerAuth(bearer=auth_code))
+        return jsonify(r.json())
 
 
 @openeo_bp.route('/timeseries' )
