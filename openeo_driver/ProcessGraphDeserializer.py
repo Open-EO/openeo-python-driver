@@ -17,6 +17,7 @@ from shapely.geometry.collection import GeometryCollection
 from openeo import ImageCollection
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
+from openeo_driver.errors import OpenEOApiException
 
 _log = logging.getLogger(__name__)
 
@@ -291,9 +292,16 @@ def mask(args: Dict, viewingParameters) -> ImageCollection:
     mask = extract_arg(args,'mask')
     replacement = args.get( 'replacement', None)
     if isinstance(mask, ImageCollection):
-        image_collection = extract_arg_list(args, ['data', 'imagery']).mask(rastermask = mask, replacement=replacement)
+        image_collection = extract_arg_list(args, ['data', 'imagery']).mask(rastermask=mask, replacement=replacement)
     else:
-        image_collection = extract_arg_list(args, ['data', 'imagery']).mask(polygon = shape(mask),replacement=replacement)
+        polygon = shape(mask)
+        if polygon.area == 0:
+            raise OpenEOApiException(
+                message="Mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area),
+                code="ProcessArgumentInvalid", status_code=400
+            )
+
+        image_collection = extract_arg_list(args, ['data', 'imagery']).mask(polygon=polygon, replacement=replacement)
     return image_collection
 
 
