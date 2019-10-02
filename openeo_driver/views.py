@@ -75,16 +75,9 @@ def handle_http_exceptions(error: HTTPException):
 
 @app.errorhandler(OpenEOApiException)
 def handle_openeoapi_exception(error: OpenEOApiException):
-    error_json = {
-        "message": str(error),
-        "code": error.code,
-        "id": error.id,
-    }
-    if error.url:
-        error_json['url'] = error.url
-
-    _log.error(str(error_json), exc_info=True)
-    return jsonify(error_json), error.status_code
+    error_dict = error.to_dict()
+    _log.error(str(error_dict), exc_info=True)
+    return jsonify(error_dict), error.status_code
 
 
 @app.errorhandler(Exception)
