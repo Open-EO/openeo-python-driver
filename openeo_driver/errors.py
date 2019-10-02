@@ -525,6 +525,9 @@ class ServiceNotFoundException(OpenEOApiException):
     _description = 'The requested secondary service does not exist.'
     _tags = ['Secondary Services Management']
 
+    def __init__(self, service_id: str):
+        super().__init__(message="Service does not exist: {s!r}".format(s=service_id))
+
 
 class ServiceArgumentInvalidException(OpenEOApiException):
     status_code = 400
