@@ -1,3 +1,6 @@
 [submodule "openeo_driver/data/openeo-processes"]
 	path = openeo_driver/data/openeo-processes
 	url = https://github.com/Open-EO/openeo-processes.git
+[submodule "openeo_driver/data/openeo-api"]
+	path = openeo_driver/data/openeo-api
+	url = https://github.com/Open-EO/openeo-api.git
