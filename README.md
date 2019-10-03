@@ -1,6 +1,7 @@
-## OpenEO Geopyspark Driver
+## openEO Python Driver
 
-[![Status](https://img.shields.io/badge/Status-proof--of--concept-yellow.svg)]()
+[![Status](https://img.shields.io/badge/Status-proof--of--concept-yellow.svg)]() [![Build Status](https://travis-ci.org/Open-EO/openeo-python-driver.svg?branch=master)](https://travis-ci.org/Open-EO/openeo-python-driver)
+
 
 Python version: 3.5
 
