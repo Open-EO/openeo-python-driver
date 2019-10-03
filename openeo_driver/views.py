@@ -2,7 +2,8 @@ import logging
 import os
 from distutils.version import LooseVersion
 
-from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, current_app
+from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, \
+    current_app, redirect
 from werkzeug.exceptions import HTTPException, NotFound
 
 from openeo import ImageCollection
@@ -15,6 +16,7 @@ from openeo_driver.ProcessGraphDeserializer import (
     summarize_exception)
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.save_result import SaveResult
+from openeo_driver.users import HttpAuthHandler, User
 from openeo_driver.utils import replace_nan_values
 
 SUPPORTED_VERSIONS = [
@@ -29,7 +31,10 @@ DEFAULT_VERSION = '0.3.1'
 
 app = Flask(__name__)
 app.config['APPLICATION_ROOT'] = '/openeo'
+# TODO: get this OpenID config url from a real config
+app.config['OPENID_CONNECT_CONFIG_URL'] = "https://sso-dev.vgt.vito.be/auth/realms/terrascope/.well-known/openid-configuration"
 
+auth_handler = HttpAuthHandler()
 
 openeo_bp = Blueprint('openeo', __name__)
 
@@ -69,16 +74,9 @@ def handle_http_exceptions(error: HTTPException):
 
 @app.errorhandler(OpenEOApiException)
 def handle_openeoapi_exception(error: OpenEOApiException):
-    error_json = {
-        "message": str(error),
-        "code": error.code,
-        "id": error.id,
-    }
-    if error.url:
-        error_json['url'] = error.url
-
-    _log.error(str(error_json), exc_info=True)
-    return jsonify(error_json), error.status_code
+    error_dict = error.to_dict()
+    _log.error(str(error_dict), exc_info=True)
+    return jsonify(error_dict), error.status_code
 
 
 @app.errorhandler(Exception)
@@ -204,7 +202,10 @@ def index():
               "DELETE",
               "POST"
           ]
-        }
+        },
+          {"path": "/credentials/basic", "methods": ["GET"]},
+          {"path": "/credentials/oidc", "methods": ["GET"]},
+          {"path": "/me", "methods": ["GET"]},
       ],
       "billing": {
         "currency": "EUR",
@@ -282,6 +283,28 @@ def udf_runtimes():
 
     })
 
+
+@openeo_bp.route("/credentials/basic", methods=["GET"])
+@auth_handler.requires_http_basic_auth
+def credentials_basic():
+    access_token, user_id = auth_handler.authenticate_basic(request)
+    return jsonify({"access_token": access_token, "user_id": user_id})
+
+
+@openeo_bp.route("/credentials/oidc", methods=["GET"])
+@auth_handler.public
+def credentials_oidc():
+    return redirect(current_app.config["OPENID_CONNECT_CONFIG_URL"])
+
+
+@openeo_bp.route("/me", methods=["GET"])
+@auth_handler.requires_bearer_auth
+def me(user: User):
+    return jsonify({
+        "user_id": user.user_id,
+        "info": user.info,
+        # TODO more fields
+    })
 
 
 @openeo_bp.route('/timeseries' )
