@@ -137,10 +137,17 @@ class CollectionCatalog:
         }
         for key, value in fallbacks.items():
             if key not in metadata:
-                warnings.warn("Collection {c} is missing required metadata field {k!r}.".format(c=collection_id, k=key))
+                warnings.warn(
+                    "Collection {c} is missing required metadata field {k!r}.".format(c=collection_id, k=key),
+                    category=CollectionIncompleteMetadataWarning
+                )
                 metadata[key] = value
 
         return metadata
+
+
+class CollectionIncompleteMetadataWarning(UserWarning):
+    pass
 
 
 class OpenEoBackendImplementation:

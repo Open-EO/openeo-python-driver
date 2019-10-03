@@ -129,8 +129,7 @@ class Test(TestCase):
         assert resp.content_length > 0
         # assert resp.headers['Content-Type'] == "application/octet-stream"
 
-        print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
-        self.assertEquals(1, dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].download.call_count)
+        assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].download.call_count == 1
 
     def test_load_collection_filter(self):
         resp = self._post_process_graph({
@@ -151,12 +150,10 @@ class Test(TestCase):
         assert resp.content_length > 0
         # assert resp.headers['Content-Type'] == "application/octet-stream"
 
-        print(dummy_impl.collections['S2_FAPAR_CLOUDCOVER'])
-        self.assertEquals(1, dummy_impl.collections['S2_FAPAR_CLOUDCOVER'].download.call_count)
-
-        expected_params = {'version': '0.4.2', 'from': '2018-01-01', 'to': '2018-12-31', 'left': 5.027, 'right': 5.0438,
-                           'top': 51.2213, 'bottom': 51.1974, 'srs': 'EPSG:4326'}
-        self.assertDictEqual(expected_params, dummy_impl.collections['S2_FAPAR_CLOUDCOVER'].viewingParameters)
+        assert dummy_impl.collections['S2_FAPAR_CLOUDCOVER'].download.call_count == 1
+        assert dummy_impl.collections['S2_FAPAR_CLOUDCOVER'].viewingParameters == {
+            'version': '0.4.2', 'from': '2018-01-01', 'to': '2018-12-31',
+            'left': 5.027, 'right': 5.0438, 'top': 51.2213, 'bottom': 51.1974, 'srs': 'EPSG:4326'}
 
     def test_execute_apply_unary(self):
         resp = self._post_process_graph({
@@ -300,7 +297,7 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         assert resp.content_length > 0
-        self.assertEquals(1, dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles.call_count)
+        assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles.call_count == 1
 
     def test_execute_apply_dimension_temporal_run_udf(self):
         resp = self._post_process_graph({
@@ -719,13 +716,12 @@ class Test(TestCase):
         resp = self._post_process_graph(process_graph)
         body = resp.get_data(as_text=True)
 
-        self.assertEquals(200, resp.status_code)
-        self.assertNotIn('NaN', body)
-
-        self.assertEqual({
+        assert resp.status_code == 200
+        assert 'NaN' not in body
+        assert json.loads(body) == {
             "2015-07-06T00:00:00": [2.9829132080078127],
             "2015-08-22T00:00:00": [None]
-        }, json.loads(body), body)
+        }
 
     def test_no_nested_JSONResult(self):
         process_graph = {
@@ -813,7 +809,7 @@ class Test(TestCase):
 
         resp = self.client.post('/openeo/0.4.0/result', content_type='application/json', data=json.dumps(process_graph))
 
-        self.assertEquals(200, resp.status_code)
+        assert resp.status_code == 200
 
     def test_point_with_bbox(self):
         process_graph = {
