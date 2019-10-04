@@ -17,7 +17,7 @@ from shapely.geometry.collection import GeometryCollection
 from openeo import ImageCollection
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
-from openeo_driver.errors import ProcessArgumentInvalidException
+from openeo_driver.errors import ProcessArgumentInvalidException, ProcessUnsupportedException
 
 _log = logging.getLogger(__name__)
 
@@ -118,6 +118,11 @@ def load_collection(args: Dict, viewingParameters) -> ImageCollection:
         viewingParameters["bands"] = extract_arg(args, "bands")
 
     return backend_implementation.catalog.load_collection(name, viewingParameters)
+
+
+@process
+def create_collection(args: Dict, viewingParameters) -> ImageCollection:
+    raise ProcessUnsupportedException('create_collection')
 
 
 # TODO deprecated process

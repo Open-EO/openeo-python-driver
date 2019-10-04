@@ -856,3 +856,17 @@ class Test(TestCase):
         resp = self._post_process_graph(process_graph)
         assert resp.status_code == 200
         assert resp.content_length > 0
+
+    def test_create_process(self):
+        process_graph = {
+            "createcollection1": {
+                'process_id': 'create_collection',
+                'arguments': {
+                    'not': ['sure', 'yet']
+                },
+                'result': True
+            }
+        }
+
+        with self._post_process_graph(process_graph) as resp:
+            self.assertEqual(400, resp.status_code)
