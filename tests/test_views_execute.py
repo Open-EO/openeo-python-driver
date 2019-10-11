@@ -859,7 +859,7 @@ class Test(TestCase):
 
     def test_load_disk_data(self):
         process_graph = {
-            "createcollection1": {
+            "loaddiskdata": {
                 'process_id': 'load_disk_data',
                 'arguments': {
                     'format': 'GTiff',
@@ -867,10 +867,17 @@ class Test(TestCase):
                     'options': {
                         'date_regex': r"_(\d{4})(\d{2})(\d{2})T"
                     }
+                }
+            },
+            "filterbbox": {
+                "process_id": "filter_bbox",
+                "arguments": {
+                    "data": {"from_node": "loaddiskdata"},
+                    "extent": {"west": 3, "east": 6, "south": 50, "north": 51, "crs": "EPSG:4326"}
                 },
                 'result': True
             }
         }
 
         with self._post_process_graph(process_graph) as resp:
-            self.assertEqual(400, resp.status_code)
+            self.assertEqual(200, resp.status_code)

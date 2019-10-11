@@ -161,3 +161,6 @@ class OpenEoBackendImplementation:
 
     def health_check(self) -> str:
         return "OK"
+
+    def load_disk_data(self, format: str, glob_pattern: str, options: dict, viewing_parameters: dict) -> object:
+        raise NotImplementedError

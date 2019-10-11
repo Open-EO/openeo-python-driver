@@ -198,8 +198,15 @@ class DummyCatalog(CollectionCatalog):
         return image_collection
 
 
+class DummyBackendImplementation(OpenEoBackendImplementation):
+    def __init__(self):
+        super(DummyBackendImplementation, self).__init__(
+            secondary_services=DummySecondaryServices(), catalog=DummyCatalog()
+        )
+
+    def load_disk_data(self, format: str, glob_pattern: str, options: dict, viewing_parameters: dict) -> object:
+        return {}
+
+
 def get_openeo_backend_implementation() -> OpenEoBackendImplementation:
-    return OpenEoBackendImplementation(
-        secondary_services=DummySecondaryServices(),
-        catalog=DummyCatalog(),
-    )
+    return DummyBackendImplementation()

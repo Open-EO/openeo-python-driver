@@ -17,7 +17,7 @@ from shapely.geometry.collection import GeometryCollection
 from openeo import ImageCollection
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
-from openeo_driver.errors import ProcessArgumentInvalidException, ProcessUnsupportedException
+from openeo_driver.errors import ProcessArgumentInvalidException, FeatureUnsupportedException
 
 _log = logging.getLogger(__name__)
 
@@ -128,7 +128,11 @@ def load_collection(args: Dict, viewingParameters) -> ImageCollection:
         .returns(description="the data as a data cube", schema={})
 )
 def load_disk_data(args: Dict, viewingParameters) -> object:
-    raise ProcessUnsupportedException('load_disk_data')
+    format = extract_arg(args, 'format')
+    glob_pattern = extract_arg(args, 'glob_pattern')
+    options = args.get('options', {})
+
+    return backend_implementation.load_disk_data(format, glob_pattern, options, viewingParameters)
 
 
 # TODO deprecated process
