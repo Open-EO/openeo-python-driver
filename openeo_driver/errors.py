@@ -30,7 +30,7 @@ import re
 import textwrap
 import uuid
 from pathlib import Path
-from typing import List
+from typing import List, Set
 
 import openeo_driver
 
@@ -51,7 +51,7 @@ class OpenEOApiException(Exception):
     """
     status_code = 500
     code = "Internal"
-    message = "Server error"
+    message = "Unspecified Internal server error"
     _description = "Internal/generic error"
     _tags = ["General"]
     url = None
@@ -111,12 +111,12 @@ class AuthenticationSchemeInvalidException(OpenEOApiException):
 class CollectionNotFoundException(OpenEOApiException):
     status_code = 404
     code = 'CollectionNotFound'
-    message = 'Collection does not exist.'
+    message = "Collection '{identifier}' does not exist."
     _description = 'The requested collection does not exist.'
     _tags = ['EO Data Discovery', 'Processes']
 
     def __init__(self, collection_id: str):
-        super().__init__(message="Collection does not exist: {collection_id}".format(collection_id=collection_id))
+        super().__init__(message=self.message.format(identifier=collection_id))
 
 
 class FileLockedException(OpenEOApiException):
@@ -198,9 +198,12 @@ class StorageQuotaExceededException(OpenEOApiException):
 class FileNotFoundException(OpenEOApiException):
     status_code = 404
     code = 'FileNotFound'
-    message = 'File does not exist.'
+    message = "File '{file}' does not exist."
     _description = 'The requested file does not exist.'
     _tags = ['File Management', 'Processes']
+
+    def __init__(self, filename: str):
+        super().__init__(message=self.message.format(file=filename))
 
 
 class FileContentInvalidException(OpenEOApiException):
@@ -209,6 +212,17 @@ class FileContentInvalidException(OpenEOApiException):
     message = 'File content is invalid.'
     _description = 'The content of the file is invalid.'
     _tags = ['File Management', 'Processes']
+
+
+class InternalException(OpenEOApiException):
+    status_code = 500
+    code = 'Internal'
+    message = 'Server error: {message}'
+    _description = 'An internal server error with a proprietary message.'
+    _tags = ['General']
+
+    def __init__(self, message: str):
+        super().__init__(message=self.message.format(message=message))
 
 
 class InfrastructureMaintenanceException(OpenEOApiException):
@@ -384,9 +398,12 @@ class NoDataForUpdateException(OpenEOApiException):
 class JobNotFoundException(OpenEOApiException):
     status_code = 404
     code = 'JobNotFound'
-    message = 'The job does not exist.'
+    message = "The job '{identifier}' does not exist."
     _description = 'The requested job does not exist.'
     _tags = ['Job Management', 'Processes']
+
+    def __init__(self, job_id: str):
+        super().__init__(message=self.message.format(identifier=job_id))
 
 
 class BillingPlanInvalidException(OpenEOApiException):
@@ -416,9 +433,12 @@ class BudgetInvalidException(OpenEOApiException):
 class ProcessGraphNotFoundException(OpenEOApiException):
     status_code = 404
     code = 'ProcessGraphNotFound'
-    message = 'Process graph does not exist.'
+    message = "Process graph '{identifier}' does not exist."
     _description = 'The requested process graph does not exist.'
     _tags = ['Process Graph Management']
+
+    def __init__(self, process_graph_id: str):
+        super().__init__(message=self.message.format(identifier=process_graph_id))
 
 
 class ProcessArgumentsMissingException(OpenEOApiException):
@@ -528,12 +548,12 @@ class ServiceArgumentRequiredException(OpenEOApiException):
 class ServiceNotFoundException(OpenEOApiException):
     status_code = 404
     code = 'ServiceNotFound'
-    message = 'Service does not exist.'
+    message = "Service '{identifier}' does not exist."
     _description = 'The requested secondary service does not exist.'
     _tags = ['Secondary Services Management']
 
     def __init__(self, service_id: str):
-        super().__init__(message="Service does not exist: {s!r}".format(s=service_id))
+        super().__init__(message=self.message.format(identifier=service_id))
 
 
 class ServiceArgumentInvalidException(OpenEOApiException):
@@ -608,8 +628,8 @@ class OpenEOApiErrorSpecHelper:
         return src
 
     @classmethod
-    def extract_placeholders(cls, message) -> List[str]:
-        return cls._placeholder_regex.findall(message)
+    def extract_placeholders(cls, message) -> Set[str]:
+        return set(cls._placeholder_regex.findall(message))
 
 
 if __name__ == '__main__':

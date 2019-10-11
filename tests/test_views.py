@@ -40,7 +40,7 @@ class Test(TestCase):
         assert resp.status_code == 404
         error = resp.json
         assert error["code"] == "CollectionNotFound"
-        assert "Collection does not exist" in error["message"]
+        assert error["message"] == "Collection 'S2_FAPAR_CLOUDCOVER' does not exist."
 
     def test_processes(self):
         resp = self.client.get('/openeo/processes')
