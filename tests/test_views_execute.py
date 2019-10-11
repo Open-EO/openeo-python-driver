@@ -857,12 +857,16 @@ class Test(TestCase):
         assert resp.status_code == 200
         assert resp.content_length > 0
 
-    def test_create_process(self):
+    def test_load_disk_data(self):
         process_graph = {
             "createcollection1": {
-                'process_id': 'create_collection',
+                'process_id': 'load_disk_data',
                 'arguments': {
-                    'not': ['sure', 'yet']
+                    'format': 'GTiff',
+                    'glob_pattern': "/data/MTDA/CGS_S2/CGS_S2_FAPAR/2019/04/24/*/*/10M/*_FAPAR_10M_V102.tif",
+                    'options': {
+                        'date_regex': r"_(\d{4})(\d{2})(\d{2})T"
+                    }
                 },
                 'result': True
             }

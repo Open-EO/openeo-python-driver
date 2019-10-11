@@ -120,9 +120,15 @@ def load_collection(args: Dict, viewingParameters) -> ImageCollection:
     return backend_implementation.catalog.load_collection(name, viewingParameters)
 
 
-@process
-def create_collection(args: Dict, viewingParameters) -> ImageCollection:
-    raise ProcessUnsupportedException('create_collection')
+@process_registry.add_function_with_spec(
+    ProcessSpec(id='load_disk_data', description="Loads arbitrary from disk.")
+        .param(name='format', description="the file format, e.g. 'GTiff'", schema={"type": "string"}, required=True)
+        .param(name='glob_pattern', description="a glob pattern that matches the files to load from disk", schema={"type": "string"}, required=True)
+        .param(name='options', description="options specific to the file format", schema={"type": "object"})
+        .returns(description="the data as a data cube", schema={})
+)
+def load_disk_data(args: Dict, viewingParameters) -> object:
+    raise ProcessUnsupportedException('load_disk_data')
 
 
 # TODO deprecated process
