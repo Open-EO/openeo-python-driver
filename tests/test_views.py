@@ -23,6 +23,12 @@ class Test(TestCase):
         assert resp.status_code == 200
         assert "OK" in resp.get_data(as_text=True)
 
+    def test_output_formats(self):
+        resp = self.client.get('/openeo/output_formats')
+        assert resp.status_code == 200
+        assert resp.json == {"GTiff": {"gis_data_types": ["raster"]}, }
+
+
     def test_collections(self):
         resp = self.client.get('/openeo/collections')
         assert resp.status_code == 200

@@ -39,6 +39,8 @@ def cancel_batch_job(job_id):
 
 
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+
+
 class DummyVisitor(ProcessGraphVisitor):
 
     def __init__(self):
@@ -52,6 +54,7 @@ class DummyVisitor(ProcessGraphVisitor):
                 'Only numeric constants are accepted, but got: ' + str(value) + ' for argument: ' + str(
                     argument_id))
         return self
+
 
 def create_process_visitor():
     return DummyVisitor()
@@ -203,6 +206,11 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
         super(DummyBackendImplementation, self).__init__(
             secondary_services=DummySecondaryServices(), catalog=DummyCatalog()
         )
+
+    def output_formats(self) -> dict:
+        return {
+            "GTiff": {"gis_data_types": ["raster"]},
+        }
 
     def load_disk_data(self, format: str, glob_pattern: str, options: dict, viewing_parameters: dict) -> object:
         return {}

@@ -162,5 +162,9 @@ class OpenEoBackendImplementation:
     def health_check(self) -> str:
         return "OK"
 
+    def output_formats(self) -> dict:
+        """https://open-eo.github.io/openeo-api/apireference/#tag/Capabilities/paths/~1output_formats/get"""
+        return {}
+
     def load_disk_data(self, format: str, glob_pattern: str, options: dict, viewing_parameters: dict) -> object:
         raise NotImplementedError

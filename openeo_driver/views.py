@@ -237,24 +237,9 @@ def capabilities():
     ])
 
 
-#deprecated:
-@openeo_bp.route('/capabilities/output_formats' )
-#OpenEO 0.3.0:
-@openeo_bp.route('/output_formats' )
+@openeo_bp.route('/output_formats')
 def output_formats():
-    if LooseVersion(g.version) >= LooseVersion('0.4.0'):
-        return jsonify({
-            "GTiff": {"gis_data_types": ["raster"]},
-            "GeoTiff": {"gis_data_types": ["raster"]},
-        })
-    else:
-        return jsonify({
-            "default": "GTiff",
-            "formats": {
-                "GTiff": {"gis_data_types": ["raster"]},
-                "GeoTiff": {"gis_data_types": ["raster"]},
-            }
-        })
+    return jsonify(backend_implementation.output_formats())
 
 
 @openeo_bp.route('/udf_runtimes' )
