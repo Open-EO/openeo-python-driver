@@ -318,6 +318,7 @@ def download():
 
         process_graph = request.get_json()
         image_collection = evaluate(process_graph)
+        # TODO Unify with execute?
         filename = image_collection.download(None,outputformat=outputformat)
 
         return send_from_directory(os.path.dirname(filename),os.path.basename(filename))
@@ -345,6 +346,7 @@ def execute():
     process_graph = post_data['process_graph']
     result = evaluate(process_graph, viewingParameters={'version': g.version})
 
+    # TODO unify all this output handling within SaveResult logic?
     if isinstance(result, ImageCollection):
         format_options = post_data.get('output', {})
         filename = result.download(None, bbox="", time="", **format_options)

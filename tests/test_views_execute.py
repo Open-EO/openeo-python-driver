@@ -5,7 +5,7 @@ from unittest import TestCase
 import dummy_impl
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo_driver.views import app
-from . import get_test_resource, load_json_resource
+from .data import load_json, get_path
 
 os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "dummy_impl"
 
@@ -292,7 +292,7 @@ class Test(TestCase):
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles_spatiotemporal.call_count == 1
 
     def test_execute_reduce_bands_run_udf(self):
-        request = load_json_resource("udf.json")
+        request = load_json("udf.json")
         resp = self.client.post('/openeo/0.4.0/result', content_type='application/json', json=request)
 
         assert resp.status_code == 200
@@ -674,7 +674,7 @@ class Test(TestCase):
             "geojson_file": {
                 "process_id": "read_vector",
                 "arguments": {
-                    "filename": get_test_resource("GeometryCollection.geojson")
+                    "filename": str(get_path("GeometryCollection.geojson"))
                 }
             },
             "aggreg1": {

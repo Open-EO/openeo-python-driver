@@ -161,11 +161,15 @@ def save_result(args: Dict, viewingParameters) -> SaveResult:
     options = args.get('options',{})
     data = extract_arg(args, 'data')
 
+    if isinstance(data, SaveResult):
+        data.set_format(format, data)
+        return data
     if isinstance(data, ImageCollection):
         return ImageCollectionResult(data, format, {**viewingParameters, **options})
     elif data is None:
         return data
     else:
+        # Assume generic JSON result
         return JSONResult(data, format, options)
 
 
@@ -479,7 +483,6 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         binary = viewingParameters.get('binary',False)
         name = viewingParameters.get('name', 'result')
         polygons = extract_arg(viewingParameters, 'polygons')
-
         return image_collection.zonal_statistics(shape(polygons),process_id)
     elif (viewingParameters.get('parent_process', None) == 'aggregate_temporal'):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
