@@ -609,6 +609,7 @@ except AttributeError as e:
 create_batch_job = i.create_batch_job
 run_batch_job = i.run_batch_job
 get_batch_job_info = i.get_batch_job_info
+get_batch_jobs_info = i.get_batch_jobs_info
 get_batch_job_result_filenames = i.get_batch_job_result_filenames
 get_batch_job_result_output_dir = i.get_batch_job_result_output_dir
 cancel_batch_job = i.cancel_batch_job
