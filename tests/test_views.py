@@ -15,6 +15,7 @@ class Test(TestCase):
     def setUp(self):
         app.config['TESTING'] = True
         self.client = app.test_client()
+        self._auth_header = {"Authorization": "Bearer basic.dGVzdA=="}
         dummy_impl.collections = {}
 
     def test_health(self):
@@ -88,7 +89,7 @@ class Test(TestCase):
         print(result)
 
     def test_create_job(self):
-        resp = self.client.post('/openeo/jobs', content_type='application/json', data=json.dumps({
+        resp = self.client.post('/openeo/jobs', content_type='application/json', headers=self._auth_header, data=json.dumps({
             'process_graph': {},
             'output': {}
         }))
@@ -98,12 +99,12 @@ class Test(TestCase):
         assert resp.headers['Location'].endswith('/openeo/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc')
 
     def test_queue_job(self):
-        resp = self.client.post('/openeo/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results')
+        resp = self.client.post('/openeo/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self._auth_header)
 
         self.assertEqual(202, resp.status_code)
 
     def test_get_job_info(self):
-        resp = self.client.get('/openeo/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc')
+        resp = self.client.get('/openeo/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc', headers=self._auth_header)
 
         self.assertEqual(200, resp.status_code)
 
@@ -113,12 +114,12 @@ class Test(TestCase):
         self.assertEqual(info['status'], 'running')
 
     def test_cancel_job(self):
-        resp = self.client.delete('/openeo/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results')
+        resp = self.client.delete('/openeo/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self._auth_header)
 
         self.assertEqual(204, resp.status_code)
 
     def test_api_propagates_http_status_codes(self):
-        resp = self.client.get('/openeo/jobs/unknown_job_id/results/some_file')
+        resp = self.client.get('/openeo/jobs/unknown_job_id/results/some_file', headers=self._auth_header)
 
         assert resp.status_code == 404
 
