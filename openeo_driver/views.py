@@ -443,7 +443,7 @@ def cancel_job(job_id, user: User):
     job_info = get_batch_job_info(job_id, user.user_id)
 
     if job_info:
-        cancel_batch_job(job_id)
+        cancel_batch_job(job_id, user.user_id)
         return make_response("", 204)
     else:
         abort(404)

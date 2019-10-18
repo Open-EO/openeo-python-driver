@@ -38,7 +38,7 @@ def get_batch_job_result_output_dir(job_id):
     return "/path/to/%s" % job_id
 
 
-def cancel_batch_job(job_id):
+def cancel_batch_job(job_id, user_id):
     pass
 
 
