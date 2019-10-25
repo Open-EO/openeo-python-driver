@@ -278,26 +278,6 @@ def reduce_by_time( args:Dict, viewingParameters)->ImageCollection:
     return extract_arg(args, 'imagery').aggregate_time(temporal_window, decoded_function)
 
 
-@process_registry.add_function_with_spec(
-    ProcessSpec(id="min_time", description="Finds the minimum value of time series for all bands of the input dataset.")
-        .param("data", "Raster data cube", schema=ProcessSpec.RASTERCUBE)
-        .returns("Raster data cube", schema=ProcessSpec.RASTERCUBE)
-)
-def min_time(args: Dict, viewingParameters) -> ImageCollection:
-    #TODO this function should invalidate any filter_daterange set in a parent node
-    return extract_arg_list(args, ['data','imagery']).min_time()
-
-
-@process_registry.add_function_with_spec(
-    ProcessSpec(id="max_time", description="Finds the maximum value of time series for all bands of the input dataset.")
-        .param("data", "Raster data cube", schema=ProcessSpec.RASTERCUBE)
-        .returns("Raster data cube", schema=ProcessSpec.RASTERCUBE)
-)
-def max_time(args: Dict, viewingParameters) -> ImageCollection:
-    #TODO this function should invalidate any filter_daterange set in a parent node
-    return  extract_arg_list(args, ['data','imagery']).max_time()
-
-
 # TODO deprecated process?
 @process_registry.add_deprecated
 def mask_polygon(args: Dict, viewingParameters) -> ImageCollection:
