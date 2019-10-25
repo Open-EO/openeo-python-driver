@@ -362,6 +362,15 @@ def ndvi(args: dict, viewingParameters: dict) -> ImageCollection:
     name = args.get("name", "ndvi")
     return image_collection.ndvi(name=name)
 
+@process
+def resample_spatial(args: dict, viewingParameters: dict) -> ImageCollection:
+    image_collection = extract_arg(args, 'data')
+    resolution = args.get('resolution', 0)
+    projection = args.get('projection', None)
+    method = args.get('method', 'near')
+    align = args.get('align', 'lower-left')
+    return image_collection.resample_spatial(resolution=resolution,projection=projection,method=method,align=align)
+
 
 def apply_process(process_id: str, args: Dict, viewingParameters):
 
