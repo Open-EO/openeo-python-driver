@@ -832,30 +832,6 @@ class Test(TestCase):
             "left": 3, "right": 6, "bottom": 50, "top": 51, "srs": "EPSG:4326", "version": "0.4.2"
         }}
 
-    def test_max_time(self):
-        process_graph = {
-            "loadcollection1": {
-                'process_id': 'load_collection',
-                'arguments': {'id': 'S2_FAPAR_CLOUDCOVER'},
-            },
-            "filterbbox": {
-                "process_id": "filter_bbox",
-                "arguments": {
-                    "data": {"from_node": "loadcollection1"},
-                    "extent": {"west": 3, "east": 6, "south": 50, "north": 51, "crs": "EPSG:4326"}
-                },
-            },
-            "maxtime": {
-                "process_id": "max_time",
-                "arguments": {
-                    "data": {"from_node": "filterbbox"}
-                },
-                "result": True
-            }
-        }
-        resp = self._post_process_graph(process_graph)
-        assert resp.status_code == 200
-        assert resp.content_length > 0
 
     def test_load_disk_data(self):
         process_graph = {
