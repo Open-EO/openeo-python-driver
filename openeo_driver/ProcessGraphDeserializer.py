@@ -383,6 +383,17 @@ def ndvi(args: dict, viewingParameters: dict) -> ImageCollection:
     return image_collection.ndvi(name=name)
 
 
+@process
+def linear_scale_range(args:dict,viewingParameters:dict) -> ImageCollection:
+    image_collection = extract_arg(args, 'x')
+
+    inputMin = extract_arg(args, "inputMin")
+    inputMax = extract_arg(args, "inputMax")
+    outputMax = args.get("outputMax", 1.0)
+    outputMin = args.get("outputMin", 0.0)
+
+    return image_collection.linear_scale_range(inputMin,inputMax,outputMin,outputMax)
+
 def apply_process(process_id: str, args: Dict, viewingParameters):
 
     if 'filter_daterange' == process_id or 'filter_temporal' == process_id:
