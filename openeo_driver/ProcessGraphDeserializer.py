@@ -510,6 +510,10 @@ def read_vector(args: Dict, viewingParameters):
             geometry = GeometryCollection(shp.loc[:, 'geometry'].values.tolist())
         else:  # it's GeoJSON
             geojson = requests.get(filename).json()
+
+            if geojson['type'] == 'FeatureCollection':
+                geojson = _as_geometry_collection(geojson)
+
             geometry = shape(geojson)
     else:  # it's a file on disk
         if filename.endswith(".shp"):
@@ -518,6 +522,10 @@ def read_vector(args: Dict, viewingParameters):
         else:  # it's GeoJSON
             with open(filename, 'r') as f:
                 geojson = json.load(f)
+
+                if geojson['type'] == 'FeatureCollection':
+                    geojson = _as_geometry_collection(geojson)
+
                 geometry = shape(geojson)
 
     bbox = geometry.bounds
@@ -530,6 +538,15 @@ def read_vector(args: Dict, viewingParameters):
         viewingParameters["srs"] = "EPSG:4326"
 
     return geometry  # FIXME: what is the API response of a read_vector-only process graph?
+
+
+def _as_geometry_collection(feature_collection: Dict) -> Dict:
+    geometries = [feature['geometry'] for feature in feature_collection['features']]
+
+    return {
+        'type': 'GeometryCollection',
+        'geometries': geometries
+    }
 
 
 def _filename(url: str) -> str:

@@ -723,6 +723,76 @@ class Test(TestCase):
             "2015-08-22T00:00:00": [None]
         }
 
+    def test_read_vector_from_FeatureCollection(self):
+        process_graph = {
+            "loadco1": {
+                "process_id": "load_collection",
+                "arguments": {
+                    "id": "PROBAV_L3_S10_TOC_NDVI_333M_V2",
+                    "spatial_extent": {
+                        "west": 5,
+                        "east": 6,
+                        "north": 52,
+                        "south": 51
+                    },
+                    "temporal_extent": [
+                        "2017-11-21",
+                        "2017-12-21"
+                    ]
+                }
+            },
+            "geojson_file": {
+                "process_id": "read_vector",
+                "arguments": {
+                    "filename": str(get_path("FeatureCollection.geojson"))
+                }
+            },
+            "aggreg1": {
+                "process_id": "aggregate_polygon",
+                "arguments": {
+                    "data": {
+                        "from_node": "loadco1"
+                    },
+                    "polygons": {
+                        "from_node": "geojson_file"
+                    },
+                    "reducer": {
+                        "callback": {
+                            "mean1": {
+                                "process_id": "mean",
+                                "arguments": {
+                                    "data": {
+                                        "from_argument": "data"
+                                    }
+                                },
+                                "result": True
+                            }
+                        }
+                    }
+                }
+            },
+            "save": {
+                "process_id": "save_result",
+                "arguments": {
+                    "data": {
+                        "from_node": "aggreg1"
+                    },
+                    "format": "JSON"
+                },
+                "result": True
+            }
+        }
+
+        resp = self._post_process_graph(process_graph)
+        body = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200, body
+        assert 'NaN' not in body
+        assert json.loads(body) == {
+            "2015-07-06T00:00:00": [2.9829132080078127],
+            "2015-08-22T00:00:00": [None]
+        }
+
     def test_no_nested_JSONResult(self):
         process_graph = {
             "budget": None,
