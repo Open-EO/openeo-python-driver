@@ -424,22 +424,36 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             viewingParameters["bottom"] = extract_arg(extent, "south")
             viewingParameters["srs"] = extent.get("crs") or "EPSG:4326"
     elif 'zonal_statistics' == process_id or 'aggregate_polygon' == process_id:
-        polygons = extract_arg_list(args, ['regions','polygons'])
+        polygons = extract_arg_list(args, ['regions', 'polygons'])
 
-        if "type" in polygons:  # it's GeoJSON
-            bbox = shape(polygons).bounds
-            if(viewingParameters.get("left") is None ):
+        if viewingParameters.get("left") is None:
+            if "type" in polygons:  # it's GeoJSON
+                bbox = shape(polygons).bounds
+
                 viewingParameters["left"] = bbox[0]
                 viewingParameters["right"] = bbox[2]
                 viewingParameters["bottom"] = bbox[1]
                 viewingParameters["top"] = bbox[3]
                 viewingParameters["srs"] = "EPSG:4326"
+
+            if "from_node" in polygons:  # it's a dereferenced from_node
+                geometry = convert_node(polygons["node"], viewingParameters)
+                bbox = geometry.bounds
+
+                viewingParameters["left"] = bbox[0]
+                viewingParameters["right"] = bbox[2]
+                viewingParameters["bottom"] = bbox[1]
+                viewingParameters["top"] = bbox[3]
+                viewingParameters["srs"] = "EPSG:4326"
+
+                args['polygons'] = geometry  # might as well cache the value instead of re-evaluating it further on
+
     elif 'filter_bands' == process_id:
         viewingParameters = viewingParameters or {}
         viewingParameters["bands"] = extract_arg(args, "bands")
 
     #first we resolve child nodes and arguments
-    args = {name: convert_node(expr, viewingParameters) for (name, expr) in args.items() }
+    args = {name: convert_node(expr, viewingParameters) for (name, expr) in args.items()}
 
     #when all arguments and dependencies are resolved, we can run the process
     if(viewingParameters.get("parent_process",None) == "apply"):
@@ -527,15 +541,6 @@ def read_vector(args: Dict, viewingParameters):
                     geojson = _as_geometry_collection(geojson)
 
                 geometry = shape(geojson)
-
-    bbox = geometry.bounds
-
-    if viewingParameters.get("left") is None:
-        viewingParameters["left"] = bbox[0]
-        viewingParameters["right"] = bbox[2]
-        viewingParameters["bottom"] = bbox[1]
-        viewingParameters["top"] = bbox[3]
-        viewingParameters["srs"] = "EPSG:4326"
 
     return geometry  # FIXME: what is the API response of a read_vector-only process graph?
 
