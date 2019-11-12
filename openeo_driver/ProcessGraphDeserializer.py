@@ -567,7 +567,7 @@ def _download_shapefile(shp_url: str) -> str:
         now = datetime.now()
         now_hourly_truncated = now - timedelta(minutes=now.minute, seconds=now.second, microseconds=now.microsecond)
         hourly_id = hash(shp_url + str(now_hourly_truncated))
-        return "/mnt/ceph/Projects/OpenEO/download_%s" % hourly_id
+        return "/data/projects/OpenEO/download_%s" % hourly_id
 
     def save_as(src_url: str, dest_path: str):
         with open(dest_path, 'wb') as f:
