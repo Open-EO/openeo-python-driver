@@ -28,7 +28,7 @@ process_registry = ProcessRegistry()
 # Bootstrap with some mathematical/logical processes
 for p in [
     'max', 'min', 'mean', 'variance', 'absolute', 'ln', 'ceil', 'floor', 'cos', 'sin', 'run_udf',
-    'not', 'eq', 'lt', 'lte', 'gt', 'gte', 'or', 'and', 'divide', 'product', 'subtract', 'sum', 'median', 'sd'
+    'not', 'eq', 'lt', 'lte', 'gt', 'gte', 'or', 'and', 'divide', 'product', 'subtract', 'sum', 'median', 'sd', 'array_element'
 ]:
     process_registry.add_by_name(p)
 
