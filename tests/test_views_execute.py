@@ -436,6 +436,8 @@ class Test(TestCase):
         assert resp.status_code == 200
         assert resp.content_length > 0
         print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].merge.call_args)
+        print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].merge.call_args.args)
+        print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].merge.call_args.args[0])
 
         self.assertEquals(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].merge.call_args.args[1],"or")
 
