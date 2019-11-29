@@ -201,6 +201,9 @@ class DummyCatalog(CollectionCatalog):
         image_collection.apply_kernel = Mock(name="apply_kernel")
         image_collection.apply_kernel.return_value = image_collection
 
+        image_collection.merge = Mock(name="merge")
+        image_collection.merge.return_value = image_collection
+
         collections[collection_id] = image_collection
         return image_collection
 

@@ -371,6 +371,21 @@ def resample_spatial(args: dict, viewingParameters: dict) -> ImageCollection:
     align = args.get('align', 'lower-left')
     return image_collection.resample_spatial(resolution=resolution,projection=projection,method=method,align=align)
 
+@process
+def merge_cubes(args:dict, viewingParameters:dict) -> ImageCollection:
+    cube1 = extract_arg(args,'cube1')
+    cube2 = extract_arg(args, 'cube2')
+    overlap_resolver = args.get('overlap_resolver',None)
+    #TODO raise check if cubes overlap and raise exception if resolver is missing
+    resolver_process = None
+    if(overlap_resolver is not None):
+        processes = list(overlap_resolver.get('callback', {}).values())
+        if(len(processes) != 1 ):
+            raise ProcessArgumentInvalidException('overlap_resolver','merge_cubes','This backend only supports overlap resolvers with exactly one process for now.')
+        resolver_process = extract_arg(processes[0],'process_id')
+    return cube1.merge(cube2,resolver_process)
+
+
 
 @process
 def linear_scale_range(args:dict,viewingParameters:dict) -> ImageCollection:

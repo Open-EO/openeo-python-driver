@@ -387,6 +387,56 @@ class Test(TestCase):
         assert resp.status_code == 200
         assert resp.content_length > 0
 
+    def test_execute_merge_cubes(self):
+        resp = self._post_process_graph({
+              "mergecubes1": {
+                "process_id": "merge_cubes",
+                "arguments": {
+                  "cube1": {
+                    "from_node": "collection1"
+                  },
+                  "cube2": {
+                    "from_node": "collection2"
+                  },
+                  "overlap_resolver": {
+                    "callback": {
+                      "or1": {
+                        "process_id": "or",
+                        "arguments": {
+                          "expressions": [
+                            {
+                              "from_argument": "cube1"
+                            },
+                            {
+                              "from_argument": "cube2"
+                            }
+                          ]
+                        },
+                        "result": True
+                      }
+                    }
+                  }
+                },
+                "result": True
+              },
+            'collection1': {
+                'process_id': 'get_collection',
+                'arguments': {
+                    'name': 'S2_FAPAR_CLOUDCOVER'
+                }
+            },
+            'collection2': {
+                'process_id': 'get_collection',
+                'arguments': {
+                    'name': 'S2_FAPAR_CLOUDCOVER'
+                }
+            }
+        })
+
+        assert resp.status_code == 200
+        assert resp.content_length > 0
+        self.assertEquals(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].merge.call_args.args[1],"or")
+
     def test_execute_reduce_bands(self):
         resp = self._post_process_graph({
             'apply': {
