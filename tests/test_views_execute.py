@@ -395,7 +395,7 @@ class Test(TestCase):
                     'data': {
                         'from_node': 'collection'
                     },
-                    'dimension': 'spectral_bands',
+                    'dimension': 'bands',
                     'reducer': {
                         'callback': {
                             "sum": {

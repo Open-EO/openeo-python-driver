@@ -211,7 +211,7 @@ def reduce(args: Dict, viewingParameters) -> ImageCollection:
         args['binary'] = binary
 
     data_cube = extract_arg_list(args, ['data', 'imagery'])
-    if dimension == 'spectral_bands':
+    if dimension == 'spectral_bands' or dimension == 'bands':#spectral_bands is deprecated!
         if not binary and len(callback)==1 and next(iter(callback.values())).get('process_id') == 'run_udf':
             #it would be better to avoid having special cases everywhere to support udf's
             return _evaluate_callback_process(args, 'reducer', 'reduce')
@@ -219,7 +219,7 @@ def reduce(args: Dict, viewingParameters) -> ImageCollection:
             visitor = create_process_visitor().accept_process_graph(callback)
             return data_cube.reduce_bands(visitor)
         else:
-            raise AttributeError('Reduce on spectral_bands is not supported by this backend.')
+            raise AttributeError('Reduce on bands is not supported by this backend.')
     else:
         return _evaluate_callback_process(args, 'reducer','reduce')
 
@@ -459,7 +459,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
                 udf = _get_udf(args)
                 #EP-2760 a special case of reduce where only a single udf based callback is provided. The more generic case is not yet supported.
                 return image_collection.apply_tiles_spatiotemporal(udf)
-            elif 'spectral_bands' == dimension:
+            elif 'spectral_bands' == dimension or 'bands' == dimension:
                 udf = _get_udf(args)
                 return image_collection.apply_tiles(udf)
 

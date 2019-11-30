@@ -20,7 +20,7 @@
       "result": false,
       "arguments": {
         "binary": "false",
-        "dimension": "spectral_bands",
+        "dimension": "bands",
         "reducer": {
           "callback": {
             "udf": {
