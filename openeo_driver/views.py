@@ -1,6 +1,5 @@
 import logging
 import os
-from distutils.version import LooseVersion
 
 from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, \
     current_app, redirect
@@ -60,6 +59,19 @@ def _pull_version(endpoint, values):
         })
         error.code = 400
         raise error
+
+
+@openeo_bp.before_request
+def _before_request():
+    # Log some info about request
+    data = request.data
+    if len(data) > 1000:
+        data = repr(data[:1000] + b'...') + ' ({b} bytes)'.format(b=len(data))
+    else:
+        data = repr(data)
+    _log.info("Handling {method} {url} with data {data}".format(
+        method=request.method, url=request.url, data=data
+    ))
 
 
 @app.errorhandler(HTTPException)
@@ -299,8 +311,6 @@ def timeseries():
 
 @openeo_bp.route('/timeseries/point', methods=['POST'])
 def point():
-    print("Handling request: " + str(request))
-    print("Post data: " + str(request.data))
     x = float(request.args.get('x', ''))
     y = float(request.args.get('y', ''))
     srs = request.args.get('srs', None)
@@ -312,8 +322,6 @@ def point():
 @openeo_bp.route('/download' , methods=['GET', 'POST'])
 def download():
     if request.method == 'POST':
-        print("Handling request: "+str(request))
-        print("Post data: "+str(request.data))
         outputformat = request.args.get('outputformat', 'geotiff')
 
         process_graph = request.get_json()
@@ -339,9 +347,6 @@ def preview():
 
 @openeo_bp.route('/execute', methods=['POST'])
 def execute():
-    print("Handling request: " + str(request))
-    print("Post data: " + str(request.data))
-
     post_data = request.get_json()
     process_graph = post_data['process_graph']
     result = evaluate(process_graph, viewingParameters={'version': g.version})
@@ -363,9 +368,6 @@ def execute():
 @auth_handler.requires_bearer_auth
 def create_job(user: User):
     if request.method == 'POST':
-        print("Handling request: "+str(request))
-        print("Post data: "+str(request.data))
-
         job_specification = request.get_json()
 
         if 'process_graph' not in job_specification:
@@ -393,8 +395,6 @@ def get_job_info(job_id, user: User):
 @openeo_bp.route('/jobs/<job_id>/results', methods=['POST'])
 @auth_handler.requires_bearer_auth
 def queue_job(job_id, user: User):
-    print("Handling request: " + str(request))
-
     job_info = get_batch_job_info(job_id, user.user_id)
 
     if job_info:
@@ -407,8 +407,6 @@ def queue_job(job_id, user: User):
 @openeo_bp.route('/jobs/<job_id>/results', methods=['GET'])
 @auth_handler.requires_bearer_auth
 def list_job_results(job_id, user: User):
-    print("Handling request: " + str(request))
-
     filenames = get_batch_job_result_filenames(job_id, user.user_id)
 
     if filenames is not None:
@@ -424,8 +422,6 @@ def list_job_results(job_id, user: User):
 @openeo_bp.route('/jobs/<job_id>/results/<filename>', methods=['GET'])
 @auth_handler.requires_bearer_auth
 def get_job_result(job_id, filename, user: User):
-    print("Handling request: " + str(request))
-
     job_info = get_batch_job_info(job_id, user.user_id)
 
     if job_info:
@@ -438,8 +434,6 @@ def get_job_result(job_id, filename, user: User):
 @openeo_bp.route('/jobs/<job_id>/results', methods=['DELETE'])
 @auth_handler.requires_bearer_auth
 def cancel_job(job_id, user: User):
-    print("Handling request: " + str(request))
-
     job_info = get_batch_job_info(job_id, user.user_id)
 
     if job_info:
@@ -463,8 +457,6 @@ def tile_service():
     :return:
     """
     if request.method == 'POST':
-        print("Handling request: "+str(request))
-        print("Post data: "+str(request.data))
         process_graph = request.get_json()
         image_collection = evaluate(process_graph)
         return jsonify(image_collection.tiled_viewing_service())
@@ -483,8 +475,6 @@ def services_post():
     :return:
     """
     # TODO require authenticated user
-    print("Handling request: " + str(request))
-    print("Post data: " + str(request.data))
     data = request.get_json()
     # TODO avoid passing api version this hackish way?
     data['api_version'] = g.version
@@ -558,8 +548,6 @@ def collection_by_id(collection_id):
 
 @openeo_bp.route('/processes' , methods=['GET'])
 def processes():
-    print("Handling request: " + str(request))
-
     substring = request.args.get('qname')
 
     return jsonify({
@@ -570,11 +558,7 @@ def processes():
 
 @openeo_bp.route('/processes/<process_id>' , methods=['GET'])
 def process(process_id):
-    print("Handling request: " + str(request))
-
     process_details = getProcess(process_id)
-    print(process_details)
-
     return jsonify(process_details) if process_details else abort(404)
 
 

@@ -28,7 +28,7 @@ process_registry = ProcessRegistry()
 # Bootstrap with some mathematical/logical processes
 for p in [
     'max', 'min', 'mean', 'variance', 'absolute', 'ln', 'ceil', 'floor', 'cos', 'sin', 'run_udf',
-    'not', 'eq', 'lt', 'lte', 'gt', 'gte', 'or', 'and', 'divide', 'product', 'subtract', 'sum', 'median', 'sd'
+    'not', 'eq', 'lt', 'lte', 'gt', 'gte', 'or', 'and', 'divide', 'product', 'subtract', 'sum', 'median', 'sd', 'array_element'
 ]:
     process_registry.add_by_name(p)
 
@@ -371,6 +371,21 @@ def resample_spatial(args: dict, viewingParameters: dict) -> ImageCollection:
     align = args.get('align', 'lower-left')
     return image_collection.resample_spatial(resolution=resolution,projection=projection,method=method,align=align)
 
+@process
+def merge_cubes(args:dict, viewingParameters:dict) -> ImageCollection:
+    cube1 = extract_arg(args,'cube1')
+    cube2 = extract_arg(args, 'cube2')
+    overlap_resolver = args.get('overlap_resolver',None)
+    #TODO raise check if cubes overlap and raise exception if resolver is missing
+    resolver_process = None
+    if(overlap_resolver is not None):
+        processes = list(overlap_resolver.get('callback', {}).values())
+        if(len(processes) != 1 ):
+            raise ProcessArgumentInvalidException('overlap_resolver','merge_cubes','This backend only supports overlap resolvers with exactly one process for now.')
+        resolver_process = extract_arg(processes[0],'process_id')
+    return cube1.merge(cube2,resolver_process)
+
+
 
 @process
 def linear_scale_range(args:dict,viewingParameters:dict) -> ImageCollection:
@@ -424,22 +439,36 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             viewingParameters["bottom"] = extract_arg(extent, "south")
             viewingParameters["srs"] = extent.get("crs") or "EPSG:4326"
     elif 'zonal_statistics' == process_id or 'aggregate_polygon' == process_id:
-        polygons = extract_arg_list(args, ['regions','polygons'])
+        polygons = extract_arg_list(args, ['regions', 'polygons'])
 
-        if "type" in polygons:  # it's GeoJSON
-            bbox = shape(polygons).bounds
-            if(viewingParameters.get("left") is None ):
+        if viewingParameters.get("left") is None:
+            if "type" in polygons:  # it's GeoJSON
+                bbox = shape(polygons).bounds
+
                 viewingParameters["left"] = bbox[0]
                 viewingParameters["right"] = bbox[2]
                 viewingParameters["bottom"] = bbox[1]
                 viewingParameters["top"] = bbox[3]
                 viewingParameters["srs"] = "EPSG:4326"
+
+            if "from_node" in polygons:  # it's a dereferenced from_node
+                geometry = convert_node(polygons["node"], viewingParameters)
+                bbox = geometry.bounds
+
+                viewingParameters["left"] = bbox[0]
+                viewingParameters["right"] = bbox[2]
+                viewingParameters["bottom"] = bbox[1]
+                viewingParameters["top"] = bbox[3]
+                viewingParameters["srs"] = "EPSG:4326"
+
+                args['polygons'] = geometry  # might as well cache the value instead of re-evaluating it further on
+
     elif 'filter_bands' == process_id:
         viewingParameters = viewingParameters or {}
         viewingParameters["bands"] = extract_arg(args, "bands")
 
     #first we resolve child nodes and arguments
-    args = {name: convert_node(expr, viewingParameters) for (name, expr) in args.items() }
+    args = {name: convert_node(expr, viewingParameters) for (name, expr) in args.items()}
 
     #when all arguments and dependencies are resolved, we can run the process
     if(viewingParameters.get("parent_process",None) == "apply"):
@@ -510,6 +539,10 @@ def read_vector(args: Dict, viewingParameters):
             geometry = GeometryCollection(shp.loc[:, 'geometry'].values.tolist())
         else:  # it's GeoJSON
             geojson = requests.get(filename).json()
+
+            if geojson['type'] == 'FeatureCollection':
+                geojson = _as_geometry_collection(geojson)
+
             geometry = shape(geojson)
     else:  # it's a file on disk
         if filename.endswith(".shp"):
@@ -518,18 +551,22 @@ def read_vector(args: Dict, viewingParameters):
         else:  # it's GeoJSON
             with open(filename, 'r') as f:
                 geojson = json.load(f)
+
+                if geojson['type'] == 'FeatureCollection':
+                    geojson = _as_geometry_collection(geojson)
+
                 geometry = shape(geojson)
 
-    bbox = geometry.bounds
-
-    if viewingParameters.get("left") is None:
-        viewingParameters["left"] = bbox[0]
-        viewingParameters["right"] = bbox[2]
-        viewingParameters["bottom"] = bbox[1]
-        viewingParameters["top"] = bbox[3]
-        viewingParameters["srs"] = "EPSG:4326"
-
     return geometry  # FIXME: what is the API response of a read_vector-only process graph?
+
+
+def _as_geometry_collection(feature_collection: Dict) -> Dict:
+    geometries = [feature['geometry'] for feature in feature_collection['features']]
+
+    return {
+        'type': 'GeometryCollection',
+        'geometries': geometries
+    }
 
 
 def _filename(url: str) -> str:
@@ -545,7 +582,7 @@ def _download_shapefile(shp_url: str) -> str:
         now = datetime.now()
         now_hourly_truncated = now - timedelta(minutes=now.minute, seconds=now.second, microseconds=now.microsecond)
         hourly_id = hash(shp_url + str(now_hourly_truncated))
-        return "/mnt/ceph/Projects/OpenEO/download_%s" % hourly_id
+        return "/data/projects/OpenEO/download_%s" % hourly_id
 
     def save_as(src_url: str, dest_path: str):
         with open(dest_path, 'wb') as f:

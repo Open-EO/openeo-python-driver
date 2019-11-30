@@ -38,7 +38,7 @@ setup(
     install_requires=[
         'flask',
         'openeo',
-        'gunicorn',
+        'gunicorn==19.9.0',
         'shapely'
     ],
     classifiers=[

@@ -3,5 +3,5 @@ requests
 shapely
 werkzeug
 openeo
-gunicorn
+gunicorn==19.9.0
 geopandas==0.3.0
