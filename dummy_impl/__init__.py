@@ -30,7 +30,7 @@ def get_batch_jobs_info(_):
     return [get_batch_job_info('07024ee9-7847-4b8a-b260-6c879a2b3cdc', 'test')]
 
 
-def get_batch_job_result_filenames(job_id):
+def get_batch_job_result_filenames(job_id, user_id):
     pass
 
 

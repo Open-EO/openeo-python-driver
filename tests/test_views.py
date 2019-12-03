@@ -145,3 +145,8 @@ class Test(TestCase):
         })
 
         self.assertEqual(500, resp.status_code)
+
+    def test_list_results_for_unknown_job_returns_NotFound(self):
+        resp = self.client.get('/openeo/jobs/unknown_job_id/results', headers=self._auth_header)
+
+        self.assertEqual(404, resp.status_code)
