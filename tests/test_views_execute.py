@@ -498,7 +498,38 @@ class Test(TestCase):
 
     def test_execute_mask(self):
         resp = self._post_process_graph({
-            'apply': {
+            'aggregate_polygon': {
+                'process_id': 'aggregate_polygon',
+                'arguments': {
+                    'data': {
+                        'from_node': 'mask'
+                    },
+                    'polygons': {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [[7.022705078125007, 51.75432477678571], [7.659912109375007, 51.74333844866071],
+                             [7.659912109375007, 51.29289899553571], [7.044677734375007, 51.31487165178571],
+                             [7.022705078125007, 51.75432477678571]]
+                        ]
+                    },
+                    'reducer': {
+                        'callback': {
+                            "max": {
+                                "arguments": {
+                                    "data": {
+                                        "from_argument": "data"
+                                    }
+                                },
+                                "process_id": "mean",
+                                "result": True
+                            }
+                        }
+                    },
+                    'name': 'my_name'
+                },
+                'result': True
+            },
+            'mask': {
                 'process_id': 'mask',
                 'arguments': {
                     'data': {
@@ -509,7 +540,7 @@ class Test(TestCase):
                     },
                     'replacement': '10'
                 },
-                'result': True
+
             },
             'collection': {
                 'process_id': 'get_collection',
@@ -520,7 +551,7 @@ class Test(TestCase):
             'mask_collection': {
                 'process_id': 'get_collection',
                 'arguments': {
-                    'name': 'S2_FAPAR_CLOUDCOVER'
+                    'name': 'PROBAV_L3_S10_TOC_NDVI_333M_V2'
                 }
             }
         })
@@ -528,6 +559,17 @@ class Test(TestCase):
         assert resp.status_code == 200
         assert resp.content_length > 0
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask.call_count == 1
+
+        def check_params(viewing_parameters):
+
+            self.assertAlmostEqual(viewing_parameters['left'], 7.022705078125007, delta=0.0001)
+            self.assertAlmostEqual(viewing_parameters['bottom'], 51.29289899553571, delta=0.0001)
+            self.assertAlmostEqual(viewing_parameters['right'], 7.659912109375007, delta=0.0001)
+            self.assertAlmostEqual(viewing_parameters['top'], 51.75432477678571, delta=0.0001)
+            self.assertEquals(viewing_parameters['srs'], 'EPSG:4326')
+        check_params(dummy_impl.collections['PROBAV_L3_S10_TOC_NDVI_333M_V2'].viewingParameters)
+        check_params(dummy_impl.collections['S2_FAPAR_CLOUDCOVER'].viewingParameters)
+
 
     def test_execute_mask_polygon(self):
         resp = self._post_process_graph(
