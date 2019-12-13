@@ -435,11 +435,9 @@ class Test(TestCase):
 
         assert resp.status_code == 200
         assert resp.content_length > 0
-        print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].merge.call_args)
-        print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].merge.call_args.args)
-        print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].merge.call_args.args[0])
-
-        self.assertEquals(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].merge.call_args.args[1],"or")
+        assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].merge.call_count == 1
+        args, kwargs = dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].merge.call_args
+        assert args[1:] == ('or', )
 
     def test_execute_reduce_bands(self):
         resp = self._post_process_graph({
