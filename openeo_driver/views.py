@@ -377,6 +377,7 @@ def create_job(user: User):
 
         response = make_response("", 201)
         response.headers['Location'] = request.base_url + '/' + job_id
+        response.headers['OpenEO-Identifier'] = str(job_id)
 
         return response
     else:

@@ -97,6 +97,7 @@ class Test(TestCase):
         assert resp.status_code == 201
         assert resp.content_length == 0
         assert resp.headers['Location'].endswith('/openeo/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc')
+        assert resp.headers['OpenEO-Identifier'] == '07024ee9-7847-4b8a-b260-6c879a2b3cdc'
 
     def test_queue_job(self):
         resp = self.client.post('/openeo/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self._auth_header)
