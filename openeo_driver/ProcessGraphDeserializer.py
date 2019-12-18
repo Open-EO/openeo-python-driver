@@ -4,20 +4,16 @@ import json
 import logging
 import os
 import pickle
-from datetime import datetime, timedelta
 from typing import Dict
-from urllib.parse import urlparse
 
-import geopandas as gpd
 import numpy as np
-import requests
-from shapely.geometry import shape
-from shapely.geometry.collection import GeometryCollection
+from shapely.geometry import shape, mapping
 
 from openeo import ImageCollection
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
 from openeo_driver.errors import ProcessArgumentInvalidException, FeatureUnsupportedException
+from openeo_driver.delayed_vector import DelayedVector
 
 _log = logging.getLogger(__name__)
 
@@ -166,6 +162,9 @@ def save_result(args: Dict, viewingParameters) -> SaveResult:
         return data
     if isinstance(data, ImageCollection):
         return ImageCollectionResult(data, format, {**viewingParameters, **options})
+    elif isinstance(data, DelayedVector):
+        geojsons = (mapping(geometry) for geometry in data.geometries)
+        return JSONResult(geojsons)
     elif data is None:
         return data
     else:
@@ -451,9 +450,9 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
                 viewingParameters["top"] = bbox[3]
                 viewingParameters["srs"] = "EPSG:4326"
 
-            if "from_node" in polygons:  # it's a dereferenced from_node
-                geometry = convert_node(polygons["node"], viewingParameters)
-                bbox = geometry.bounds
+            if "from_node" in polygons:  # it's a dereferenced from_node that contains a DelayedVector
+                geometries = convert_node(polygons["node"], viewingParameters)
+                bbox = geometries.bounds
 
                 viewingParameters["left"] = bbox[0]
                 viewingParameters["right"] = bbox[2]
@@ -461,7 +460,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
                 viewingParameters["top"] = bbox[3]
                 viewingParameters["srs"] = "EPSG:4326"
 
-                args['polygons'] = geometry  # might as well cache the value instead of re-evaluating it further on
+                args['polygons'] = geometries  # might as well cache the value instead of re-evaluating it further on
 
     elif 'filter_bands' == process_id:
         viewingParameters = viewingParameters or {}
@@ -512,7 +511,16 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         binary = viewingParameters.get('binary',False)
         name = viewingParameters.get('name', 'result')
         polygons = extract_arg(viewingParameters, 'polygons')
-        return image_collection.zonal_statistics(shape(polygons),process_id)
+
+        # can be either (inline) GeoJSON or something returned by read_vector
+        is_geojson = isinstance(polygons, Dict)
+
+        if is_geojson:
+            geometries = shape(polygons)
+            return image_collection.zonal_statistics(geometries, process_id)
+
+        return image_collection.zonal_statistics(polygons.path, process_id)
+
     elif (viewingParameters.get('parent_process', None) == 'aggregate_temporal'):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
         intervals = extract_arg(viewingParameters, 'intervals')
@@ -527,86 +535,11 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
 @process_registry.add_function_with_spec(
     ProcessSpec("read_vector", description="Reads vector data from a file or a URL.")
         .param('filename', description="filename or http url of a vector file", schema={"type": "string"})
-        .returns("Raster data cube", schema={"type": "TODO"})
+        .returns("TODO", schema={"type": "TODO"})
 )
-def read_vector(args: Dict, viewingParameters):
-    filename = extract_arg(args, 'filename')
-
-    if filename.startswith("http"):
-        if _is_shapefile(filename):
-            local_shp_file = _download_shapefile(filename)
-            shp = gpd.read_file(local_shp_file)
-            geometry = GeometryCollection(shp.loc[:, 'geometry'].values.tolist())
-        else:  # it's GeoJSON
-            geojson = requests.get(filename).json()
-
-            if geojson['type'] == 'FeatureCollection':
-                geojson = _as_geometry_collection(geojson)
-
-            geometry = shape(geojson)
-    else:  # it's a file on disk
-        if filename.endswith(".shp"):
-            shp = gpd.read_file(filename)
-            geometry = GeometryCollection(shp.loc[:, 'geometry'].values.tolist())
-        else:  # it's GeoJSON
-            with open(filename, 'r') as f:
-                geojson = json.load(f)
-
-                if geojson['type'] == 'FeatureCollection':
-                    geojson = _as_geometry_collection(geojson)
-
-                geometry = shape(geojson)
-
-    return geometry  # FIXME: what is the API response of a read_vector-only process graph?
-
-
-def _as_geometry_collection(feature_collection: Dict) -> Dict:
-    geometries = [feature['geometry'] for feature in feature_collection['features']]
-
-    return {
-        'type': 'GeometryCollection',
-        'geometries': geometries
-    }
-
-
-def _filename(url: str) -> str:
-    return urlparse(url).path.split("/")[-1]
-
-
-def _is_shapefile(url: str) -> bool:
-    return _filename(url).endswith(".shp")
-
-
-def _download_shapefile(shp_url: str) -> str:
-    def expiring_download_directory():
-        now = datetime.now()
-        now_hourly_truncated = now - timedelta(minutes=now.minute, seconds=now.second, microseconds=now.microsecond)
-        hourly_id = hash(shp_url + str(now_hourly_truncated))
-        return "/data/projects/OpenEO/download_%s" % hourly_id
-
-    def save_as(src_url: str, dest_path: str):
-        with open(dest_path, 'wb') as f:
-            f.write(requests.get(src_url).content)
-
-    download_directory = expiring_download_directory()
-    shp_file = download_directory + "/" + _filename(shp_url)
-
-    try:
-        os.mkdir(download_directory)
-
-        shx_file = shp_file.replace(".shp", ".shx")
-        dbf_file = shp_file.replace(".shp", ".dbf")
-
-        shx_url = shp_url.replace(".shp", ".shx")
-        dbf_url = shp_url.replace(".shp", ".dbf")
-
-        save_as(shp_url, shp_file)
-        save_as(shx_url, shx_file)
-        save_as(dbf_url, dbf_file)
-    except FileExistsError:
-        pass
-
-    return shp_file
+def read_vector(args: Dict, viewingParameters) -> DelayedVector:
+    path = extract_arg(args, 'filename')
+    return DelayedVector(path)
 
 
 def _get_udf(args):
@@ -662,4 +595,3 @@ def get_openeo_backend_implementation() -> OpenEoBackendImplementation:
 backend_implementation = get_openeo_backend_implementation()
 
 summarize_exception = i.summarize_exception if hasattr(i, 'summarize_exception') else lambda exception: exception
-

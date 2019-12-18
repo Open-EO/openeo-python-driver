@@ -6,6 +6,7 @@ from shapely.geometry import Polygon, MultiPolygon
 from shapely.geometry.collection import GeometryCollection
 
 from openeo import ImageCollection
+from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation, CollectionCatalog
 
 collections = {}
@@ -155,7 +156,10 @@ class DummyCatalog(CollectionCatalog):
             def assert_polygon_or_multipolygon(geometry):
                 assert isinstance(geometry, Polygon) or isinstance(geometry, MultiPolygon)
 
-            if isinstance(regions, GeometryCollection):
+            if isinstance(regions, str):
+                for geometry in DelayedVector(regions).geometries:
+                    assert_polygon_or_multipolygon(geometry)
+            elif isinstance(regions, GeometryCollection):
                 for geometry in regions:
                     assert_polygon_or_multipolygon(geometry)
             else:
