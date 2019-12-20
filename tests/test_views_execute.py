@@ -1069,7 +1069,6 @@ class Test(TestCase):
             "left": 3, "right": 6, "bottom": 50, "top": 51, "srs": "EPSG:4326", "version": "0.4.2"
         }}
 
-
     def test_load_disk_data(self):
         process_graph = {
             "loaddiskdata": {
@@ -1094,3 +1093,81 @@ class Test(TestCase):
 
         with self._post_process_graph(process_graph) as resp:
             self.assertEqual(200, resp.status_code)
+
+    def test_mask_with_vector_file(self):
+        process_graph = {
+            "loadcollection2": {
+                "process_id": "load_collection",
+                "arguments": {
+                    "id": "CGS_SENTINEL2_RADIOMETRY_V102_FILE",
+                    "bands": [
+                        "1",
+                        "2",
+                        "3",
+                        "4"
+                    ]
+                },
+                "result": False
+            },
+            "filterbbox1": {
+                "process_id": "filter_bbox",
+                "arguments": {
+                    "data": {
+                        "from_node": "loadcollection2"
+                    },
+                    "extent": {
+                        "west": 3.43,
+                        "east": 3.46,
+                        "north": 51.02,
+                        "south": 51.0,
+                        "crs": "EPSG:4326"
+                    }
+                },
+                "result": False
+            },
+            "filtertemporal1": {
+                "process_id": "filter_temporal",
+                "arguments": {
+                    "data": {
+                        "from_node": "filterbbox1"
+                    },
+                    "extent": [
+                        "2018-05-06",
+                        "2018-05-06"
+                    ]
+                },
+                "result": False
+            },
+            "readvector1": {
+                "process_id": "read_vector",
+                "arguments": {
+                    "filename": "/data/users/Public/lippenss/sieusoil/mask_polygons_3.43_51.00_3.46_51.02.json"
+                },
+                "result": False
+            },
+            "mask1": {
+                "process_id": "mask",
+                "arguments": {
+                    "data": {
+                        "from_node": "filtertemporal1"
+                    },
+                    "mask": {
+                        "from_node": "readvector1"
+                    }
+                },
+                "result": False
+            },
+            "saveresult4": {
+                "process_id": "save_result",
+                "arguments": {
+                    "data": {
+                        "from_node": "mask1"
+                    },
+                    "format": "GTIFF"
+                },
+                "result": True
+            }
+        }
+
+        with self._post_process_graph(process_graph) as resp:
+            self.assertEqual(200, resp.status_code, msg=resp.get_data(as_text=True))

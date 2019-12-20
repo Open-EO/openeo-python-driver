@@ -292,7 +292,8 @@ def mask(args: Dict, viewingParameters) -> ImageCollection:
     if isinstance(mask, ImageCollection):
         image_collection = extract_arg_list(args, ['data', 'imagery']).mask(rastermask=mask, replacement=replacement)
     else:
-        polygon = shape(mask)
+        polygon = mask.geometries[0] if isinstance(mask, DelayedVector) else shape(mask)
+
         if polygon.area == 0:
             reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
             raise ProcessArgumentInvalidException(argument='mask', process='mask', reason=reason)

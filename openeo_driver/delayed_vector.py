@@ -11,6 +11,16 @@ from functools import reduce
 
 
 class DelayedVector:
+    """
+        Represents the result of a read_vector process.
+
+        A DelayedVector essentially wraps a reference to a vector file (a path); it's delayed in that it does not load
+        geometries into memory until needed to avoid MemoryErrors.
+
+        DelayedVector.path contains the path.
+        DelayedVector.geometries loads the vector file into memory so don't do that if it contains a lot of geometries
+        (use path instead); DelayedVector.bounds should be safe to use.
+    """
     def __init__(self, path: str):
         self.path = path
         self._downloaded_shapefile = None
