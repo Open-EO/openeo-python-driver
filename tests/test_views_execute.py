@@ -1141,7 +1141,7 @@ class Test(TestCase):
             "readvector1": {
                 "process_id": "read_vector",
                 "arguments": {
-                    "filename": "/data/users/Public/lippenss/sieusoil/mask_polygons_3.43_51.00_3.46_51.02.json"
+                    "filename": str(get_path("mask_polygons_3.43_51.00_3.46_51.02.json"))
                 },
                 "result": False
             },
