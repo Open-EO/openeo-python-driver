@@ -52,7 +52,12 @@ class Test(TestCase):
     def test_processes(self):
         resp = self.client.get('/openeo/processes')
         assert resp.status_code == 200
-        assert 'max' in {spec['id'] for spec in resp.json['processes']}
+        processes = {spec['id']: spec for spec in resp.json['processes']}
+
+        assert 'max' in processes.keys()
+
+        histogram_spec = processes['histogram']
+        assert 'data' in histogram_spec['parameters'].keys()
 
     def test_process_details(self):
         resp = self.client.get('/openeo/processes/max')

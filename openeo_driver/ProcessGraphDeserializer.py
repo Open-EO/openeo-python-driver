@@ -12,7 +12,7 @@ from shapely.geometry import shape, mapping
 from openeo import ImageCollection
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
-from openeo_driver.errors import ProcessArgumentInvalidException, FeatureUnsupportedException
+from openeo_driver.errors import ProcessArgumentInvalidException, ProcessUnsupportedException
 from openeo_driver.delayed_vector import DelayedVector
 
 _log = logging.getLogger(__name__)
@@ -398,6 +398,27 @@ def linear_scale_range(args:dict,viewingParameters:dict) -> ImageCollection:
 
     return image_collection.linear_scale_range(inputMin,inputMax,outputMin,outputMax)
 
+
+@process_registry.add_function_with_spec(
+    ProcessSpec(id='histogram', description="A histogram groups data into bins and plots the number of members in each bin versus the bin number.")
+    .param(name='data', description='An array of numbers', schema={
+                "type": "array",
+                "items": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                }
+            })
+    .returns(description="A sequence of (bin, count) pairs", schema={
+        "type": "object"
+    })
+)
+def histogram(_args, _viewingParameters) -> None:
+    # currently only available as a reducer passed to e.g. aggregate_polygon
+    raise ProcessUnsupportedException('histogram')
+
+
 def apply_process(process_id: str, args: Dict, viewingParameters):
 
     if 'filter_daterange' == process_id or 'filter_temporal' == process_id:
@@ -518,9 +539,9 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
 
         if is_geojson:
             geometries = shape(polygons)
-            return image_collection.zonal_statistics(geometries, process_id)
+            return image_collection.zonal_statistics(geometries, func=process_id)
 
-        return image_collection.zonal_statistics(polygons.path, process_id)
+        return image_collection.zonal_statistics(polygons.path, func=process_id)
 
     elif (viewingParameters.get('parent_process', None) == 'aggregate_temporal'):
         image_collection = extract_arg_list(args, ['data', 'imagery'])
