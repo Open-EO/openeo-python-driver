@@ -39,7 +39,8 @@ setup(
         'flask',
         'openeo',
         'gunicorn==19.9.0',
-        'shapely'
+        'shapely',
+        'geopandas',
     ],
     classifiers=[
         'Programming Language :: Python :: 3',
