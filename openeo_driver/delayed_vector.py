@@ -1,4 +1,5 @@
 import fiona
+import geopandas as gpd
 from shapely.geometry import shape, box
 from shapely.geometry.base import BaseGeometry
 from urllib.parse import urlparse
@@ -22,6 +23,7 @@ class DelayedVector:
         (use path instead); DelayedVector.bounds should be safe to use.
     """
     def __init__(self, path: str):
+        # TODO: support pathlib too?
         self.path = path
         self._downloaded_shapefile = None
 
@@ -144,14 +146,11 @@ class DelayedVector:
     @staticmethod
     def _read_geojson_bounds(geojson: Dict) -> (float, float, float, float):
         if geojson['type'] == 'FeatureCollection':
-            geojson = DelayedVector._as_geometry_collection(geojson)
-
-        if geojson['type'] == 'GeometryCollection':
-            geometries = (shape(geometry) for geometry in geojson['geometries'])
-            individual_bboxes = (box(*geometry.bounds) for geometry in geometries)
-            bounds = reduce(lambda combined, individual: combined.union(individual), individual_bboxes).bounds
+            bounds = gpd.GeoSeries(shape(f["geometry"]) for f in geojson["features"]).total_bounds
+        elif geojson['type'] == 'GeometryCollection':
+            bounds = gpd.GeoSeries(shape(g) for g in geojson['geometries']).total_bounds
         else:
             geometry = shape(geojson)
             bounds = geometry.bounds
 
-        return bounds
+        return tuple(bounds)
