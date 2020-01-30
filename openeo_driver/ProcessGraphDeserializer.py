@@ -464,25 +464,19 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
 
         if viewingParameters.get("left") is None:
             if "type" in polygons:  # it's GeoJSON
-                bbox = shape(polygons).bounds
-
-                viewingParameters["left"] = bbox[0]
-                viewingParameters["right"] = bbox[2]
-                viewingParameters["bottom"] = bbox[1]
-                viewingParameters["top"] = bbox[3]
-                viewingParameters["srs"] = "EPSG:4326"
-
+                geometries = _as_geometry_collection(polygons) if polygons['type'] == 'FeatureCollection' else polygons
+                bbox = shape(geometries).bounds
             if "from_node" in polygons:  # it's a dereferenced from_node that contains a DelayedVector
                 geometries = convert_node(polygons["node"], viewingParameters)
                 bbox = geometries.bounds
 
-                viewingParameters["left"] = bbox[0]
-                viewingParameters["right"] = bbox[2]
-                viewingParameters["bottom"] = bbox[1]
-                viewingParameters["top"] = bbox[3]
-                viewingParameters["srs"] = "EPSG:4326"
+            viewingParameters["left"] = bbox[0]
+            viewingParameters["right"] = bbox[2]
+            viewingParameters["bottom"] = bbox[1]
+            viewingParameters["top"] = bbox[3]
+            viewingParameters["srs"] = "EPSG:4326"
 
-                args['polygons'] = geometries  # might as well cache the value instead of re-evaluating it further on
+            args['polygons'] = geometries  # might as well cache the value instead of re-evaluating it further on
 
     elif 'filter_bands' == process_id:
         viewingParameters = viewingParameters or {}
@@ -586,6 +580,13 @@ def getProcess(process_id: str):
     return process_registry._specs.get(process_id)
 
 
+def _as_geometry_collection(feature_collection: dict) -> dict:
+    geometries = [feature['geometry'] for feature in feature_collection['features']]
+
+    return {
+        'type': 'GeometryCollection',
+        'geometries': geometries
+    }
 
 
 

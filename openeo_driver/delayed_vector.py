@@ -1,6 +1,6 @@
 import fiona
 import geopandas as gpd
-from shapely.geometry import shape, box
+from shapely.geometry import shape
 from shapely.geometry.base import BaseGeometry
 from urllib.parse import urlparse
 import requests
@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 import os
 import json
 from typing import Iterable, List, Dict
-from functools import reduce
 
 
 class DelayedVector:

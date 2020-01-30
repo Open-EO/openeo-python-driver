@@ -554,7 +554,7 @@ class Test(TestCase):
             }
         })
 
-        assert resp.status_code == 200
+        self.assertEqual(200, resp.status_code, msg=resp.get_data(as_text=True))
         assert resp.content_length > 0
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask.call_count == 1
 
@@ -701,7 +701,7 @@ class Test(TestCase):
             }
         }
         resp = self._post_process_graph(process_graph)
-        assert resp.status_code == 200
+        self.assertEqual(200, resp.status_code, msg=resp.get_data(as_text=True))
         assert json.loads(resp.get_data(as_text=True)) == {
             "2015-07-06T00:00:00": [2.9829132080078127],
             "2015-08-22T00:00:00": [None]
@@ -1046,7 +1046,7 @@ class Test(TestCase):
 
         resp = self.client.post('/openeo/0.4.0/result', content_type='application/json', data=json.dumps(process_graph))
 
-        assert resp.status_code == 200
+        self.assertEqual(200, resp.status_code, msg=resp.get_data(as_text=True))
 
     def test_point_with_bbox(self):
         process_graph = {
@@ -1164,6 +1164,96 @@ class Test(TestCase):
                         "from_node": "mask1"
                     },
                     "format": "GTIFF"
+                },
+                "result": True
+            }
+        }
+
+        with self._post_process_graph(process_graph) as resp:
+            self.assertEqual(200, resp.status_code, msg=resp.get_data(as_text=True))
+
+    def test_aggregate_feature_collection(self):
+        process_graph = {
+            "loadco1": {
+                "process_id": "load_collection",
+                "arguments": {
+                    "id": "PROBAV_L3_S10_TOC_NDVI_333M",
+                    "spatial_extent": {
+                        "west": 5,
+                        "east": 6,
+                        "north": 52,
+                        "south": 51
+                    },
+                    "temporal_extent": [
+                        "2017-11-21",
+                        "2017-11-21"
+                    ]
+                }
+            },
+            "aggreg1": {
+                "process_id": "aggregate_polygon",
+                "arguments": {
+                    "data": {
+                        "from_node": "loadco1"
+                    },
+                    "polygons": {
+                        "type": "FeatureCollection",
+                        "features": [
+                            {
+                                "type": "Feature",
+                                "properties": {},
+                                "geometry": {
+                                    "type": "Polygon",
+                                    "coordinates": [
+                                        [
+                                            [
+                                                5.0761587693484875,
+                                                51.21222494794898
+                                            ],
+                                            [
+                                                5.166854684377381,
+                                                51.21222494794898
+                                            ],
+                                            [
+                                                5.166854684377381,
+                                                51.268936260927404
+                                            ],
+                                            [
+                                                5.0761587693484875,
+                                                51.268936260927404
+                                            ],
+                                            [
+                                                5.0761587693484875,
+                                                51.21222494794898
+                                            ]
+                                        ]
+                                    ]
+                                }
+                            }
+                        ]
+                    },
+                    "reducer": {
+                        "callback": {
+                            "mean1": {
+                                "process_id": "mean",
+                                "arguments": {
+                                    "data": {
+                                        "from_argument": "data"
+                                    }
+                                },
+                                "result": True
+                            }
+                        }
+                    }
+                }
+            },
+            "save": {
+                "process_id": "save_result",
+                "arguments": {
+                    "data": {
+                        "from_node": "aggreg1"
+                    },
+                    "format": "JSON"
                 },
                 "result": True
             }

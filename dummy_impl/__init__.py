@@ -157,9 +157,13 @@ class DummyCatalog(CollectionCatalog):
                 assert isinstance(geometry, Polygon) or isinstance(geometry, MultiPolygon)
 
             if isinstance(regions, str):
-                for geometry in DelayedVector(regions).geometries:
+                geometries = [geometry for geometry in DelayedVector(regions).geometries]
+
+                assert len(geometries) > 0
+                for geometry in geometries:
                     assert_polygon_or_multipolygon(geometry)
             elif isinstance(regions, GeometryCollection):
+                assert len(regions) > 0
                 for geometry in regions:
                     assert_polygon_or_multipolygon(geometry)
             else:
