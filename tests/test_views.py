@@ -27,8 +27,17 @@ class Test(TestCase):
     def test_output_formats(self):
         resp = self.client.get('/openeo/output_formats')
         assert resp.status_code == 200
-        assert resp.json == {"GTiff": {"gis_data_types": ["raster"]}, }
+        assert resp.json == {"GTiff": {"title": "GeoTiff", "gis_data_types": ["raster"]}, }
 
+    def test_file_formats(self):
+        resp = self.client.get('/openeo/file_formats')
+        assert resp.status_code == 200
+        assert resp.json == {
+            "input": {"GeoJSON": {"gis_data_type": ["vector"]}},
+            "output": {
+                "GTiff": {"title": "GeoTiff", "gis_data_types": ["raster"]},
+            }
+        }
 
     def test_collections(self):
         resp = self.client.get('/openeo/collections')

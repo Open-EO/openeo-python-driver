@@ -222,9 +222,19 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
             secondary_services=DummySecondaryServices(), catalog=DummyCatalog()
         )
 
-    def output_formats(self) -> dict:
+    def file_formats(self) -> dict:
         return {
-            "GTiff": {"gis_data_types": ["raster"]},
+            "input": {
+                "GeoJSON": {
+                    "gis_data_type": ["vector"]
+                }
+            },
+            "output": {
+                "GTiff": {
+                    "title": "GeoTiff",
+                    "gis_data_types": ["raster"]
+                },
+            },
         }
 
     def load_disk_data(self, format: str, glob_pattern: str, options: dict, viewing_parameters: dict) -> object:

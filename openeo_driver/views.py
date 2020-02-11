@@ -136,6 +136,7 @@ def index():
       "title": app_config.get('OPENEO_TITLE', 'OpenEO API'),
       "description": app_config.get('OPENEO_DESCRIPTION', 'OpenEO API'),
       # TODO only list endpoints that are actually supported by the backend.
+        # TODO: automatically extract this listing from openeo_bp?
       "endpoints": [
         {
           "path": "/collections",
@@ -181,7 +182,7 @@ def index():
               ]
           },
           {
-              "path": "/output_formats",
+              "path": "/file_formats",
               "methods": [
                   "GET"
               ]
@@ -251,7 +252,14 @@ def capabilities():
 
 @openeo_bp.route('/output_formats')
 def output_formats():
-    return jsonify(backend_implementation.output_formats())
+    # TODO deprecated endpoint, remove it when v0.4 API support is not necessary anymore
+    return jsonify(backend_implementation.file_formats()["output"])
+
+
+@openeo_bp.route('/file_formats')
+def file_formats():
+    return jsonify(backend_implementation.file_formats())
+
 
 
 @openeo_bp.route('/udf_runtimes' )
