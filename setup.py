@@ -24,6 +24,12 @@ if os.environ.get('BUILD_NUMBER') and os.environ.get('BRANCH_NAME'):
 else:
     version = __version__
 
+tests_require = [
+    'pytest',
+    'mock',
+    'requests-mock'
+]
+
 setup(
     name='openeo_driver',
     version=version,
@@ -34,7 +40,7 @@ setup(
     packages=find_packages(include=['openeo*','dummy_impl']),
     include_package_data=True,
     setup_requires=['pytest-runner'],
-    tests_require=['pytest','mock','requests-mock'],
+    tests_require=tests_require,
     install_requires=[
         'flask',
         'werkzeug',
@@ -45,11 +51,7 @@ setup(
         'geopandas',
     ],
     extras_require={
-        "dev": [
-            "pytest",
-            "mock",
-            "requests-mock",
-        ],
+        "dev": tests_require,
     },
     classifiers=[
         'Programming Language :: Python :: 3',
