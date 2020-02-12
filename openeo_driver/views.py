@@ -6,6 +6,7 @@ from flask import Flask, request, url_for, jsonify, send_from_directory, abort, 
 from werkzeug.exceptions import HTTPException, NotFound
 
 from openeo import ImageCollection
+from openeo.capabilities import ComparableVersion
 from openeo.error_summary import ErrorSummary
 from openeo_driver.ProcessGraphDeserializer import (
     evaluate, getProcesses, getProcess,
@@ -21,6 +22,12 @@ from openeo_driver.utils import replace_nan_values
 SUPPORTED_VERSIONS = [
     '0.3.0',
     '0.3.1',
+    '0.4.0',
+    '0.4.1',
+    '0.4.2',
+    '1.0.0',
+]
+ADVERTISED_VERSIONS = [
     '0.4.0',
     '0.4.1',
     '0.4.2',
@@ -55,7 +62,7 @@ def _pull_version(endpoint, values):
         error = HTTPException(response={
             "id": "550e8400-e29b-11d4-a716-446655440000",
             "code": 400,
-            "message": "Unsupported version: " + g.version + ".  Supported versions: " + str(SUPPORTED_VERSIONS)
+            "message": "Unsupported version: " + g.version + ".  Supported versions: " + str(ADVERTISED_VERSIONS)
         })
         error.code = 400
         raise error
@@ -394,11 +401,26 @@ def create_job(user: User):
         }
 
 
+def _normalize_batch_job_info(job_info: dict) -> dict:
+    """Normalize batch info based on API version"""
+    # TODO eliminate this when not necessary anymore?
+    # TODO wider status checking coverage?
+    if ComparableVersion(g.version).below("1.0.0"):
+        mapping = {"created": "submitted"}
+    else:
+        mapping = {"submitted": "created"}
+    status = job_info["status"].lower()
+    if status in mapping:
+        job_info = job_info.copy()
+        job_info["status"] = mapping[status]
+    return job_info
+
+
 @openeo_bp.route('/jobs/<job_id>' , methods=['GET'])
 @auth_handler.requires_bearer_auth
 def get_job_info(job_id, user: User):
     job_info = get_batch_job_info(job_id, user.user_id)
-    return jsonify(job_info) if job_info else abort(404)
+    return jsonify(_normalize_batch_job_info(job_info)) if job_info else abort(404)
 
 
 @openeo_bp.route('/jobs/<job_id>/results', methods=['POST'])
@@ -586,6 +608,6 @@ def well_known_openeo():
                 # TODO: flag some versions as not available for production?
                 "production": True,
             }
-            for version in SUPPORTED_VERSIONS
+            for version in ADVERTISED_VERSIONS
         ]
     })
