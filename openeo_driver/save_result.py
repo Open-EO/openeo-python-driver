@@ -1,6 +1,9 @@
 import os
 import warnings
 from abc import ABC
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+from zipfile import ZipFile
 
 import numpy as np
 from flask import send_from_directory, jsonify
@@ -170,3 +173,25 @@ class AggregatePolygonResult(JSONResult):
             "parameters": parameters,
             "ranges": ranges
         }
+
+
+class MultipleFilesResult(SaveResult):
+    def __init__(self, format: str, *files: Path):
+        super().__init__(format=format)
+        self.files = list(files)
+
+    def assemble(self) -> Path:
+        if len(self.files) > 1:
+            temp_file = NamedTemporaryFile(delete=False)  # FIXME: how to delete temp_file after serving it?
+
+            with ZipFile(temp_file, "w") as zip_file:
+                for file in self.files:
+                    zip_file.write(filename=file, arcname=file.name)
+
+            return Path(temp_file.name)
+        else:
+            return self.files[0]
+
+    def create_flask_response(self):
+        assembly = self.assemble()
+        return send_from_directory(directory=assembly.parent, filename=assembly.name)
