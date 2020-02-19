@@ -2,8 +2,9 @@ import os
 import warnings
 from abc import ABC
 from pathlib import Path
-from tempfile import NamedTemporaryFile
+from tempfile import mkstemp
 from zipfile import ZipFile
+from typing import Union
 
 import numpy as np
 from flask import send_from_directory, jsonify
@@ -180,18 +181,30 @@ class MultipleFilesResult(SaveResult):
         super().__init__(format=format)
         self.files = list(files)
 
-    def assemble(self) -> Path:
-        if len(self.files) > 1:
-            temp_file = NamedTemporaryFile(delete=False)  # FIXME: how to delete temp_file after serving it?
+    def reduce(self, output_file: Union[str, Path], delete_originals: bool):
+        with ZipFile(output_file, "w") as zip_file:
+            for file in self.files:
+                zip_file.write(filename=file, arcname=file.name)
 
-            with ZipFile(temp_file, "w") as zip_file:
-                for file in self.files:
-                    zip_file.write(filename=file, arcname=file.name)
-
-            return Path(temp_file.name)
-        else:
-            return self.files[0]
+        if delete_originals:
+            for file in self.files:
+                file.unlink()
 
     def create_flask_response(self):
-        assembly = self.assemble()
-        return send_from_directory(directory=assembly.parent, filename=assembly.name)
+        from flask import current_app
+
+        _, temp_file_name = mkstemp(suffix=".zip", dir=Path.cwd())
+        temp_file = Path(temp_file_name)
+
+        def stream_and_remove():
+            self.reduce(temp_file, delete_originals=True)
+
+            with open(temp_file, "rb") as f:
+                yield from f
+
+            temp_file.unlink()
+
+        resp = current_app.response_class(stream_and_remove(), mimetype="application/zip")
+        resp.headers.set('Content-Disposition', 'attachment', filename=temp_file.name)
+
+        return resp
