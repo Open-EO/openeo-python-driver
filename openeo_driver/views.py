@@ -11,7 +11,7 @@ from openeo.error_summary import ErrorSummary
 from openeo_driver.ProcessGraphDeserializer import (
     evaluate, getProcesses, getProcess,
     create_batch_job, run_batch_job, get_batch_job_info, get_batch_jobs_info, cancel_batch_job,
-    get_batch_job_result_filenames, get_batch_job_result_output_dir,
+    get_batch_job_result_filenames, get_batch_job_result_output_dir, get_batch_job_log_entries,
     backend_implementation,
     summarize_exception)
 from openeo_driver.errors import OpenEOApiException
@@ -460,6 +460,16 @@ def get_job_result(job_id, filename, user: User):
         return send_from_directory(output_dir, filename)
     else:
         abort(404)
+
+
+@openeo_bp.route('/jobs/<job_id>/logs', methods=['GET'])
+@auth_handler.requires_bearer_auth
+def get_job_logs(job_id, user: User):
+    offset = request.args.get('offset', 0)
+
+    return jsonify({
+        'logs': get_batch_job_log_entries(job_id, user.user_id, offset)
+    })
 
 
 @openeo_bp.route('/jobs/<job_id>/results', methods=['DELETE'])

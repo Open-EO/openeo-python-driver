@@ -161,6 +161,14 @@ class Test(TestCase):
 
         self.assertEqual(500, resp.status_code)
 
+    def test_get_batch_job_logs(self):
+        resp = self.client.get('/openeo/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs', headers=self._auth_header)
+
+        self.assertEqual(200, resp.status_code)
+
+        log_entries = resp.get_json()['logs']
+        self.assertEqual([], log_entries)
+
     def test_list_results_for_unknown_job_returns_NotFound(self):
         resp = self.client.get('/openeo/jobs/unknown_job_id/results', headers=self._auth_header)
 

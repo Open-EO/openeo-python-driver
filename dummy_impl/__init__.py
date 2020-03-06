@@ -43,6 +43,10 @@ def cancel_batch_job(job_id, user_id):
     pass
 
 
+def get_batch_job_log_entries(job_id, user_id, offset):
+    return []
+
+
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 
 
