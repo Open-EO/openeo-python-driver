@@ -36,3 +36,11 @@ def read_json(filename: Union[str, Path]) -> Union[dict, list]:
     """Read a dict or list from a JSON file"""
     with Path(filename).open(encoding='utf-8') as f:
         return json.load(f)
+
+
+def smart_bool(value):
+    """Convert given value to bool, using a bit more interpretation for strings."""
+    if isinstance(value, str) and value.lower() in ["0", "no", "off", "false"]:
+        return False
+    else:
+        return bool(value)

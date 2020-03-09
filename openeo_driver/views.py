@@ -17,7 +17,7 @@ from openeo_driver.ProcessGraphDeserializer import (
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.save_result import SaveResult
 from openeo_driver.users import HttpAuthHandler, User
-from openeo_driver.utils import replace_nan_values
+from openeo_driver.utils import replace_nan_values, smart_bool
 
 SUPPORTED_VERSIONS = [
     '0.3.0',
@@ -142,6 +142,8 @@ def index():
       "backend_version": app_config.get('OPENEO_BACKEND_VERSION', '0.0.1'),
       "title": app_config.get('OPENEO_TITLE', 'OpenEO API'),
       "description": app_config.get('OPENEO_DESCRIPTION', 'OpenEO API'),
+      # TODO: flag some versions as not available for production?
+      "production": smart_bool(app_config.get('OPENEO_IS_PRODUCTION', True)),
       # TODO only list endpoints that are actually supported by the backend.
         # TODO: automatically extract this listing from openeo_bp?
       "endpoints": [
