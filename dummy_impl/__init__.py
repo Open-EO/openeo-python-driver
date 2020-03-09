@@ -73,7 +73,7 @@ class DummySecondaryServices(SecondaryServices):
     def service_types(self) -> dict:
         return {
             "WMTS": {
-                "parameters": {
+                "configuration": {
                     "version": {
                         "type": "string",
                         "description": "The WMTS version to use.",
@@ -83,17 +83,8 @@ class DummySecondaryServices(SecondaryServices):
                         ]
                     }
                 },
-                "attributes": {
-                    "layers": {
-                        "type": "array",
-                        "description": "Array of layer names.",
-                        "example": [
-                            "roads",
-                            "countries",
-                            "water_bodies"
-                        ]
-                    }
-                }
+                "process_parameters": [],
+                "links": [],
             }
         }
 

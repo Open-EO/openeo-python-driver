@@ -138,6 +138,24 @@ class Test(TestCase):
 
         assert resp.status_code == 404
 
+    def test_service_types_v040(self):
+        resp = self.client.get('/openeo/0.4.0/service_types')
+        service_types = resp.json
+        assert list(service_types.keys()) == ["WMTS"]
+        wmts = service_types["WMTS"]
+        assert wmts["parameters"]["version"]["default"] == "1.0.0"
+        assert wmts["variables"] == []
+        assert wmts["attributes"] == []
+
+    def test_service_types_v100(self):
+        resp = self.client.get('/openeo/1.0.0/service_types')
+        service_types = resp.json
+        assert list(service_types.keys()) == ["WMTS"]
+        wmts = service_types["WMTS"]
+        assert wmts["configuration"]["version"]["default"] == "1.0.0"
+        assert wmts["process_parameters"] == []
+        assert wmts["links"] == []
+
     def test_create_unsupported_service_type_returns_BadRequest(self):
         resp = self.client.post('/openeo/services', content_type='application/json', json={
             "process_graph": {'product_id': 'S2'},

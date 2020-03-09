@@ -68,6 +68,11 @@ def _pull_version(endpoint, values):
         raise error
 
 
+def requested_api_version() -> ComparableVersion:
+    """Get the currently requested API version as a ComparableVersion object"""
+    return ComparableVersion(g.version)
+
+
 @openeo_bp.before_request
 def _before_request():
     # Log some info about request
@@ -407,7 +412,7 @@ def _normalize_batch_job_info(job_info: dict) -> dict:
     """Normalize batch info based on API version"""
     # TODO eliminate this when not necessary anymore?
     # TODO wider status checking coverage?
-    if ComparableVersion(g.version).below("1.0.0"):
+    if requested_api_version().below("1.0.0"):
         mapping = {"created": "submitted"}
     else:
         mapping = {"submitted": "created"}
@@ -490,7 +495,17 @@ def cancel_job(job_id, user: User):
 
 @openeo_bp.route('/service_types', methods=['GET'])
 def service_types():
-    return jsonify(backend_implementation.secondary_services.service_types())
+    service_types = backend_implementation.secondary_services.service_types()
+    expected_fields = {"configuration", "process_parameters", "links"}
+    assert all(set(st.keys()) == expected_fields for st in service_types.values())
+    if requested_api_version().below("1.0.0"):
+        # Old style response  (https://github.com/Open-EO/openeo-api/issues/161)
+        service_types = {
+            name: {"parameters": st["configuration"], "attributes": [],
+                   "variables": st["process_parameters"], "links": st["links"]}
+            for name, st in service_types.items()
+        }
+    return jsonify(service_types)
 
 
 @openeo_bp.route('/tile_service' , methods=['GET', 'POST'])
