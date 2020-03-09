@@ -7,6 +7,7 @@ import dummy_impl
 from openeo_driver.views import app
 
 os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "dummy_impl"
+app.config["OPENEO_TITLE"] = "OpenEO Test API"
 
 client = app.test_client()
 
@@ -17,6 +18,15 @@ class Test(TestCase):
         self.client = app.test_client()
         self._auth_header = {"Authorization": "Bearer basic.dGVzdA=="}
         dummy_impl.collections = {}
+
+    def test_capabilities(self):
+        resp = self.client.get('/openeo/1.0.0/')
+        capabilities = resp.json
+        assert capabilities["api_version"] == "1.0.0"
+        assert capabilities["stac_version"] == "0.9.0"
+        assert capabilities["title"] == "OpenEO Test API"
+        assert capabilities["id"] == "openeotestapi1.0.0"
+
 
     def test_health(self):
         resp = self.client.get('/openeo/health')

@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 
 from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, \
     current_app, redirect
@@ -141,11 +142,17 @@ def response_204_no_content():
 @openeo_bp.route('/' )
 def index():
     app_config = current_app.config
+
+    api_version = requested_api_version().to_string()
+    title = app_config.get('OPENEO_TITLE', 'OpenEO API')
+    service_id = app_config.get('OPENEO_SERVICE_ID', re.sub(r"\s+", "", title.lower() + api_version))
     return jsonify({
-      "version": g.version,  # Deprecated pre-0.4.0 API version field
-      "api_version": g.version,  # API version field since 0.4.0
+      "version": api_version,  # Deprecated pre-0.4.0 API version field
+      "api_version": api_version,  # API version field since 0.4.0
       "backend_version": app_config.get('OPENEO_BACKEND_VERSION', '0.0.1'),
-      "title": app_config.get('OPENEO_TITLE', 'OpenEO API'),
+      "stac_version": "0.9.0",
+      "id": service_id,
+      "title": title,
       "description": app_config.get('OPENEO_DESCRIPTION', 'OpenEO API'),
       # TODO: flag some versions as not available for production?
       "production": smart_bool(app_config.get('OPENEO_IS_PRODUCTION', True)),
