@@ -2,9 +2,10 @@ import json
 import os
 from multiprocessing import Pool
 from unittest import TestCase, skip
-
+import flask
 import dummy_impl
-from openeo_driver.views import app
+from openeo.capabilities import ComparableVersion
+from openeo_driver.views import app, EndpointRegistry
 
 os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "dummy_impl"
 app.config["OPENEO_TITLE"] = "OpenEO Test API"
@@ -27,6 +28,40 @@ class Test(TestCase):
         assert capabilities["title"] == "OpenEO Test API"
         assert capabilities["id"] == "openeotestapi1.0.0"
 
+    def test_capabilities_endpoints(self):
+        capabilities = self.client.get('/openeo/1.0.0/').json
+        endpoints = {e["path"]: sorted(e["methods"]) for e in capabilities["endpoints"]}
+        assert endpoints["/collections"] == ["GET"]
+        assert endpoints["/collections/{collection_id}"] == ["GET"]
+        assert endpoints["/result"] == ["POST"]
+        assert endpoints["/jobs"] == ["GET", "POST"]
+        assert endpoints["/processes"] == ["GET"]
+        assert endpoints["/processes/{process_id}"] == ["GET"]
+        assert endpoints["/udf_runtimes"] == ["GET"]
+        assert endpoints["/file_formats"] == ["GET"]
+        assert endpoints["/service_types"] == ["GET"]
+        assert endpoints["/services"] == ["GET", "POST"]
+        assert endpoints["/services/{service_id}"] == ["DELETE", "GET", "PATCH"]
+        assert endpoints["/subscription"] == ["GET"]
+        assert endpoints["/jobs/{job_id}"] == ["DELETE", "GET", "PATCH"]
+        assert endpoints["/jobs/{job_id}/results"] == ["DELETE", "GET", "POST"]
+        assert endpoints["/credentials/basic"] == ["GET"]
+        assert endpoints["/credentials/oidc"] == ["GET"]
+        assert endpoints["/me"] == ["GET"]
+
+    def test_capabilities_endpoints_issue_28_v040(self):
+        """https://github.com/Open-EO/openeo-python-driver/issues/28"""
+        capabilities = self.client.get('/openeo/0.4.0/').json
+        endpoints = {e["path"]: e["methods"] for e in capabilities["endpoints"]}
+        assert endpoints["/output_formats"] == ["GET"]
+        assert "/file_formats" not in endpoints
+
+    def test_capabilities_endpoints_issue_28_v100(self):
+        """https://github.com/Open-EO/openeo-python-driver/issues/28"""
+        capabilities = self.client.get('/openeo/1.0.0/').json
+        endpoints = {e["path"]: e["methods"] for e in capabilities["endpoints"]}
+        assert endpoints["/file_formats"] == ["GET"]
+        assert "/output_formats" not in endpoints
 
     def test_health(self):
         resp = self.client.get('/openeo/health')
@@ -201,3 +236,73 @@ class Test(TestCase):
         resp = self.client.get('/openeo/jobs/unknown_job_id/results', headers=self._auth_header)
 
         self.assertEqual(404, resp.status_code)
+
+
+def test_endpoint_registry():
+    app = flask.Flask(__name__)
+    bp = flask.Blueprint("test", __name__)
+    endpoint = EndpointRegistry()
+
+    @bp.route("/hello")
+    def hello():
+        return "not an endpoint"
+
+    @endpoint
+    @bp.route("/foo")
+    def foo():
+        return "simple endpoint"
+
+    @endpoint(hidden=True)
+    @bp.route("/secret")
+    def secret():
+        return "secret endpoint"
+
+    @endpoint(version=ComparableVersion("1.0.0").accept_lower)
+    @bp.route("/old")
+    def old():
+        return "old endpoint"
+
+    app.register_blueprint(bp, url_prefix="/bar")
+
+    result = endpoint.get_path_metadata(bp)
+
+    # Check metadata
+    assert len(result) == 3
+    paths, methods, metadatas = zip(*sorted(result))
+    assert paths == ('/foo', '/old', '/secret')
+    assert methods == ({"GET"},) * 3
+    assert metadatas[0].hidden is False
+    assert metadatas[0].for_version is None
+    assert metadatas[1].for_version("0.4.0") is True
+    assert metadatas[1].for_version("1.0.0") is False
+    assert metadatas[2].hidden is True
+
+    # Check that view functions still work
+    client = app.test_client()
+    assert b"not an endpoint" == client.get("/bar/hello").data
+    assert b"simple endpoint" == client.get("/bar/foo").data
+    assert b"secret endpoint" == client.get("/bar/secret").data
+    assert b"old endpoint" == client.get("/bar/old").data
+
+
+def test_endpoint_registry_multiple_methods():
+    bp = flask.Blueprint("test", __name__)
+    endpoint = EndpointRegistry()
+
+    @endpoint
+    @bp.route("/foo", methods=["GET"])
+    def foo_get():
+        return "get"
+
+    @endpoint
+    @bp.route("/foo", methods=["POST"])
+    def foo_post():
+        return "post"
+
+    result = endpoint.get_path_metadata(bp)
+
+    # Check metadata
+    assert len(result) == 2
+    paths, methods, metadatas = zip(*sorted(result))
+    assert paths == ('/foo', '/foo')
+    assert methods == ({"GET"}, {"POST"})
