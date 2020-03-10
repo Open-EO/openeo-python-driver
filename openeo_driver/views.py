@@ -23,6 +23,8 @@ from openeo_driver.save_result import SaveResult
 from openeo_driver.users import HttpAuthHandler, User
 from openeo_driver.utils import replace_nan_values, smart_bool
 
+_log = logging.getLogger(__name__)
+
 SUPPORTED_VERSIONS = [
     '0.3.0',
     '0.3.1',
@@ -48,7 +50,6 @@ auth_handler = HttpAuthHandler()
 
 openeo_bp = Blueprint('openeo', __name__)
 
-_log = logging.getLogger('openeo.driver')
 
 @openeo_bp.url_defaults
 def _add_version(endpoint, values):
@@ -325,6 +326,7 @@ def me(user: User):
 
 @openeo_bp.route('/timeseries' )
 def timeseries():
+    # TODO: is this deprecated?
     return 'OpenEO GeoPyspark backend. ' + url_for('.point')
 
 
@@ -340,6 +342,7 @@ def point():
 
 @openeo_bp.route('/download' , methods=['GET', 'POST'])
 def download():
+    # TODO: deprecated?
     if request.method == 'POST':
         outputformat = request.args.get('outputformat', 'geotiff')
 
@@ -368,6 +371,7 @@ def preview():
 
 @openeo_bp.route('/execute', methods=['POST'])
 def execute():
+    # TODO:  This is not an official endpoint, does this "/execute" still have to be exposed as route?
     post_data = request.get_json()
     process_graph = post_data['process_graph']
     result = evaluate(process_graph, viewingParameters={'version': g.version})
@@ -528,20 +532,6 @@ def service_types():
     return jsonify(service_types)
 
 
-@openeo_bp.route('/tile_service' , methods=['GET', 'POST'])
-def tile_service():
-    """
-    This is deprecated, pre-0.3.0 API
-    :return:
-    """
-    if request.method == 'POST':
-        process_graph = request.get_json()
-        image_collection = evaluate(process_graph)
-        return jsonify(image_collection.tiled_viewing_service())
-    else:
-        return 'Usage: Retrieve tile service endpoint.'
-
-
 @api_endpoint
 @openeo_bp.route('/services', methods=['POST'])
 def services_post():
@@ -598,22 +588,6 @@ def service_delete(service_id):
     backend_implementation.secondary_services.remove_service(service_id)
     return response_204_no_content()
 
-
-@openeo_bp.route('/data' , methods=['GET'])
-def data():
-    """
-    deprecated, use /collections
-    :return:
-    """
-    return collections()
-
-@openeo_bp.route('/data/<collection_id>' , methods=['GET'])
-def collection(collection_id):
-    """
-    deprecated, use /collections
-    :return:
-    """
-    return collection_by_id(collection_id)
 @api_endpoint
 @openeo_bp.route('/subscription', methods=["GET"])
 def subscription():
