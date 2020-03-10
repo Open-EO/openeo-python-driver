@@ -1,8 +1,0 @@
-flask
-requests
-shapely
-werkzeug
-openeo>=0.1.0
-gunicorn==19.9.0
-geopandas==0.3.0
-requests-mock

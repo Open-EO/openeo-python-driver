@@ -6,8 +6,7 @@ python:
 #- '3.8-dev'
 # command to install dependencies
 install:
-  - pip install -r requirements.txt --extra-index-url https://artifactory.vgt.vito.be/api/pypi/python-openeo/simple
-  - pip install -e .[dev]
+  - pip install -e .[dev]  --extra-index-url https://artifactory.vgt.vito.be/api/pypi/python-openeo/simple
 # command to run tests
 script:
   - pytest

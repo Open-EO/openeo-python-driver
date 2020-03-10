@@ -45,10 +45,10 @@ setup(
         'flask',
         'werkzeug',
         'requests',
-        'openeo',
+        'openeo>=0.1.0',
         'gunicorn==19.9.0',
         'shapely',
-        'geopandas',
+        'geopandas==0.3.0',
     ],
     extras_require={
         "dev": tests_require,

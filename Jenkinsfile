@@ -13,4 +13,5 @@ pythonPipeline {
   wipeout_workspace = true
   python_version = ["3.6"]
   wheel_repo = 'python-openeo'
+  extras_require = 'dev'
 }
