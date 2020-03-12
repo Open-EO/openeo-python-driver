@@ -1,6 +1,4 @@
 from setuptools import setup, find_packages
-import os
-import datetime
 
 # Load the openeo version info.
 #
@@ -11,18 +9,11 @@ import datetime
 #   https://packaging.python.org/guides/single-sourcing-package-version
 
 __version__ = None
-date = datetime.datetime.today().strftime('%Y%m%d')
 
 with open('openeo_driver/_version.py') as fp:
     exec(fp.read())
 
-if os.environ.get('BUILD_NUMBER') and os.environ.get('BRANCH_NAME'):
-    if os.environ.get('BRANCH_NAME') == 'develop':
-        version = __version__ + '.' + date + '.' + os.environ['BUILD_NUMBER']
-    else:
-        version = __version__ + '.' + date + '.' + os.environ['BUILD_NUMBER'] + '+' + os.environ['BRANCH_NAME']
-else:
-    version = __version__
+version = __version__
 
 tests_require = [
     'pytest',
