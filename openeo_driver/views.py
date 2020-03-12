@@ -215,7 +215,7 @@ def index():
     # TODO only list endpoints that are actually supported by the backend.
     endpoints = EndpointRegistry.get_capabilities_endpoints(_openeo_endpoint_metadata, api_version=api_version)
 
-    return jsonify({
+    capabilities = {
         "version": api_version,  # Deprecated pre-0.4.0 API version field
         "api_version": api_version,  # API version field since 0.4.0
         "backend_version": app_config.get('OPENEO_BACKEND_VERSION', '0.0.1'),
@@ -237,7 +237,13 @@ def index():
                 }
             ]
         }
-    })
+    }
+
+    backend_deploy_metadata = app_config.get('OPENEO_BACKEND_DEPLOY_METADATA')
+    if backend_deploy_metadata:
+        capabilities['_backend_deploy_metadata'] = backend_deploy_metadata
+
+    return jsonify(capabilities)
 
 
 @openeo_bp.route('/health')
