@@ -8,6 +8,7 @@ from typing import Callable, Tuple, List
 from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, \
     current_app, redirect
 from werkzeug.exceptions import HTTPException, NotFound
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from openeo import ImageCollection
 from openeo.capabilities import ComparableVersion
@@ -42,6 +43,10 @@ DEFAULT_VERSION = '0.3.1'
 
 
 app = Flask(__name__)
+
+# Make sure app handles reverse proxy aspects (e.g. HTTPS) correctly.
+app.wsgi_app = ProxyFix(app.wsgi_app)
+
 app.config['APPLICATION_ROOT'] = '/openeo'
 # TODO: get this OpenID config url from a real config
 app.config['OPENID_CONNECT_CONFIG_URL'] = "https://sso-dev.vgt.vito.be/auth/realms/terrascope/.well-known/openid-configuration"
