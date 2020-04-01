@@ -61,7 +61,10 @@ def convert_node(processGraph: dict, viewingParameters=None):
         elif 'callback' in processGraph or 'process_graph' in processGraph:
             # a "process_graph" object is a new process graph, don't evaluate it in the parent graph
             return processGraph
+        elif 'from_parameter' in processGraph:
+            return viewingParameters[processGraph.get('from_parameter')]
         elif 'from_argument' in processGraph:
+            # 0.4-style argument referencer (equivalent with 1.0-style "from_parameter")
             argument_reference = processGraph.get('from_argument')
             # backwards compatibility for clients that still use 'dimension_data', can be removed when clients are upgraded
             if argument_reference == 'dimension_data':
