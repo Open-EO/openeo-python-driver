@@ -2,6 +2,10 @@ import json
 import os
 from unittest import TestCase
 
+import pytest
+from flask import Response
+from flask.testing import FlaskClient
+
 import dummy_impl
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo_driver.views import app
@@ -17,6 +21,7 @@ class Test(TestCase):
         dummy_impl.collections = {}
 
     def _post_process_graph(self, process_graph: dict, url='preview'):
+        # TODO #33 "preview" is an old 0.3-style endpoint. The 1.0-style endpoint for synchronous execution is "/result"
         if not url.startswith('/openeo/'):
             url = '/openeo/0.4.2/' + url.lstrip("/")
         resp = self.client.post(
@@ -72,13 +77,6 @@ class Test(TestCase):
         np_kernel = dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_kernel.call_args[0][0]
         self.assertListEqual(np_kernel.tolist(), kernel_list)
         self.assertEqual(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_kernel.call_args[0][1], 3)
-
-    def test_execute_simple_download(self):
-        resp = self._post_process_graph(load_json("pg/0.4/basic.json"))
-        assert resp.status_code == 200
-        assert resp.content_length > 0
-        # assert resp.headers['Content-Type'] == "application/octet-stream"
-        assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].download.call_count == 1
 
     def test_load_collection_filter(self):
         resp = self._post_process_graph({
@@ -315,3 +313,60 @@ class Test(TestCase):
         process_graph = load_json("pg/0.4/aggregate_feature_collection.json")
         with self._post_process_graph(process_graph) as resp:
             self.assertEqual(200, resp.status_code, msg=resp.get_data(as_text=True))
+
+
+@pytest.fixture(params=["0.4.0", "1.0.0"])
+def api_version(request):
+    return request.param
+
+
+@pytest.fixture
+def client():
+    app.config['TESTING'] = True
+    return app.test_client()
+
+
+class TestApi:
+    """Helper container class for compact writing of api version aware `views` tests"""
+
+    def __init__(self, api_version: str, client: FlaskClient, impl=dummy_impl):
+        self.api_version = api_version
+        self.client = client
+        self.impl = impl
+
+    def load_json(self, filename) -> dict:
+        """Load test process graph from json file"""
+        version = ".".join(self.api_version.split(".")[:2])
+        return load_json("pg/{v}/{f}".format(v=version, f=filename))
+
+    def result(self, process_graph: dict) -> Response:
+        """post process graph dict to api and get result"""
+        response = self.client.post(
+            path="/openeo/{v}/result".format(v=self.api_version),
+            content_type='application/json',
+            json={'process_graph': process_graph},
+        )
+        # TODO Make basic asserts optional
+        assert response.status_code == 200
+        assert response.content_length > 0
+
+        return response
+
+    def result_from_file(self, filename: str) -> Response:
+        return self.result(self.load_json(filename))
+
+    @property
+    def collections(self) ->dict:
+        return self.impl.collections
+
+
+@pytest.fixture
+def api(api_version, client) -> TestApi:
+    dummy_impl.collections = {}
+    return TestApi(api_version=api_version, client=client, impl=dummy_impl)
+
+
+
+def test_execute_simple_download(api):
+    resp = api.result_from_file("basic.json")
+    assert api.collections["S2_FAPAR_CLOUDCOVER"].download.call_count == 1

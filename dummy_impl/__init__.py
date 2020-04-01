@@ -134,6 +134,7 @@ class DummyCatalog(CollectionCatalog):
         }
 
         download = Mock(name='download')
+        # TODO: download something more real to allow higher quality testing
         download.return_value = os.path.realpath(__file__)
 
         image_collection.download = download
