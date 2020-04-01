@@ -19,7 +19,7 @@
     "reduce1": {
       "result": false,
       "arguments": {
-        "binary": "false",
+        "binary": false,
         "dimension": "bands",
         "reducer": {
           "callback": {

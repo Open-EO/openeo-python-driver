@@ -116,7 +116,7 @@ class ProcessRegistry:
         return decorator
 
     def add_deprecated(self, f: Callable):
-        """To be used as function decorator: just register the function for callback, but don't register the spec."""
+        """To be used as function decorator: just register the function, but don't register spec for (public) listing."""
 
         @functools.wraps(f)
         def wrapped(*args, **kwargs):

@@ -1,6 +1,7 @@
+# TODO: rename this module to something in snake case? It doesn't even implement a ProcessGraphDeserializer class.
+
 import base64
 import importlib
-import json
 import logging
 import os
 import pickle
@@ -10,9 +11,10 @@ import numpy as np
 from shapely.geometry import shape, mapping
 
 from openeo import ImageCollection
+from openeo_driver.errors import ProcessArgumentInvalidException, ProcessUnsupportedException, OpenEOApiException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
-from openeo_driver.errors import ProcessArgumentInvalidException, ProcessUnsupportedException
+from openeo_driver.utils import smart_bool
 from openeo_driver.delayed_vector import DelayedVector
 
 _log = logging.getLogger(__name__)
@@ -56,8 +58,8 @@ def convert_node(processGraph: dict, viewingParameters=None):
             return apply_process(processGraph['process_id'], processGraph.get('arguments', {}), viewingParameters)
         elif 'node' in processGraph:
             return convert_node(processGraph['node'], viewingParameters)
-        elif 'callback' in processGraph:
-            # a callback object is a new process graph, don't evaluate it in the parent graph
+        elif 'callback' in processGraph or 'process_graph' in processGraph:
+            # a "process_graph" object is a new process graph, don't evaluate it in the parent graph
             return processGraph
         elif 'from_argument' in processGraph:
             argument_reference = processGraph.get('from_argument')
@@ -71,20 +73,42 @@ def convert_node(processGraph: dict, viewingParameters=None):
     return processGraph
 
 
-def extract_arg(args: Dict, name: str):
+class ProcessArgumentMissingException(OpenEOApiException):
+    # TODO use correct exception subclass from errors.py. see #32 #31
+    pass
+
+
+def extract_arg(args: dict, name: str):
+    """Get process argument by name."""
     try:
         return args[name]
     except KeyError:
-        raise ValueError("Required argument {n!r} should not be null. Arguments: {a!r}".format(n=name, a=args))
+        raise ProcessArgumentMissingException("Missing argument {n} in {args!r}".format(n=name, args=args))
 
 
-def extract_arg_list(args:Dict,names:list):
+def extract_arg_list(args: dict, names: list):
+    """Get process argument by list of (legacy/fallback/...) names."""
     for name in names:
-        value = args.get(name, None)
-        if value is not None:
-            return value
-    raise AttributeError(
-            "Required argument " +str(names) +" should not be null. Arguments: \n" + json.dumps(args,indent=1))
+        if name in args:
+            return args[name]
+    raise ProcessArgumentMissingException("Missing argument (any of {n!r}) in {args!r}".format(n=names, args=args))
+
+
+def extract_deep(args: dict, *steps):
+    """
+    Walk recursively through a dictionary to get to a value.
+    Also support trying multiple (legacy/fallback/...) keys at a certain level: specify step as a list of options
+    """
+    value = args
+    for step in steps:
+        keys = [step] if not isinstance(step, list) else step
+        for key in keys:
+            if key in value:
+                value = value[key]
+                break
+        else:
+            raise ProcessArgumentMissingException("Missing argument at {s!r} in {a!r}".format(s=steps, a=args))
+    return value
 
 
 # TODO deprecated process
@@ -148,7 +172,7 @@ def apply_pixel(args: Dict, viewingParameters) -> ImageCollection:
 
 @process
 def apply_dimension(args: Dict, viewingParameters) -> ImageCollection:
-    return _evaluate_callback_process(args, 'process', 'apply_dimension')
+    return _evaluate_sub_process_graph(args, 'process', 'apply_dimension')
 
 
 @process
@@ -189,11 +213,11 @@ def apply(args:Dict, viewingParameters)->ImageCollection:
     :return:
     """
 
-    return _evaluate_callback_process(args,'process','apply')
+    return _evaluate_sub_process_graph(args, 'process', 'apply')
 
 
 @process
-def reduce(args: Dict, viewingParameters) -> ImageCollection:
+def reduce(args: dict, viewingParameters) -> ImageCollection:
     """
     https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#reduce
 
@@ -201,26 +225,23 @@ def reduce(args: Dict, viewingParameters) -> ImageCollection:
     :param viewingParameters:
     :return:
     """
-    reducer = extract_arg(args,'reducer')
-    callback = extract_arg(reducer,'callback')
+    reduce_pg = extract_deep(args, "reducer", ["process_graph", "callback"])
     dimension = extract_arg(args,'dimension')
-    binary = args.get('binary',False)
-    if type(binary) == str:
-        binary = binary.upper() == 'TRUE'
-        args['binary'] = binary
+    binary = smart_bool(args.get('binary',False))
 
     data_cube = extract_arg_list(args, ['data', 'imagery'])
-    if dimension == 'spectral_bands' or dimension == 'bands':#spectral_bands is deprecated!
-        if not binary and len(callback)==1 and next(iter(callback.values())).get('process_id') == 'run_udf':
+    # TODO band dimension name should not be hardcoded Open-EO/openeo-python-client#93
+    if dimension == 'spectral_bands' or dimension == 'bands':
+        if not binary and len(reduce_pg) == 1 and next(iter(reduce_pg.values())).get('process_id') == 'run_udf':
             #it would be better to avoid having special cases everywhere to support udf's
-            return _evaluate_callback_process(args, 'reducer', 'reduce')
+            return _evaluate_sub_process_graph(args, 'reducer', 'reduce')  # TODO #33: reduce -> reduce_dimension
         if create_process_visitor is not None:
-            visitor = create_process_visitor().accept_process_graph(callback)
+            visitor = create_process_visitor().accept_process_graph(reduce_pg)
             return data_cube.reduce_bands(visitor)
         else:
             raise AttributeError('Reduce on bands is not supported by this backend.')
     else:
-        return _evaluate_callback_process(args, 'reducer','reduce')
+        return _evaluate_sub_process_graph(args, 'reducer', 'reduce')  # TODO #33: reduce -> reduce_dimension
 
 
 @process
@@ -232,22 +253,23 @@ def aggregate_temporal(args: Dict, viewingParameters) -> ImageCollection:
     :param viewingParameters:
     :return:
     """
-    return _evaluate_callback_process(args,'reducer','aggregate_temporal')
+    return _evaluate_sub_process_graph(args, 'reducer', 'aggregate_temporal')
 
-def _evaluate_callback_process(args,callback_name:str,parent_process:str):
+
+def _evaluate_sub_process_graph(args, name: str, parent_process: str):
     """
-    Helper function to unwrap and evaluate callback
+    Helper function to unwrap and evaluate a sub-process_graph
 
-    :param args:
-    :param callback_name:
+    :param args: arguments dictionary
+    :param name: argument name
     :return:
     """
-
-    callback_block = extract_arg(args,callback_name)
-    callback = extract_arg(callback_block, 'callback')
+    pg = extract_deep(args, name, ["process_graph", "callback"])
+    # TODO: viewingParams are injected into args dict? looks strange
     args["parent_process"] = parent_process
+    # TODO: why not taking original version? #33
     args["version"] = "0.4.0"
-    return evaluate(callback, args)
+    return evaluate(pg, viewingParameters=args)
 
 
 @process
@@ -259,7 +281,7 @@ def aggregate_polygon(args: Dict, viewingParameters) -> ImageCollection:
     :param viewingParameters:
     :return:
     """
-    return _evaluate_callback_process(args,'reducer','aggregate_polygon')
+    return _evaluate_sub_process_graph(args, 'reducer', 'aggregate_polygon')  # TODO #33: aggregate_spatial
 
 
 # TODO deprecated process
@@ -375,16 +397,17 @@ def resample_spatial(args: dict, viewingParameters: dict) -> ImageCollection:
 def merge_cubes(args:dict, viewingParameters:dict) -> ImageCollection:
     cube1 = extract_arg(args,'cube1')
     cube2 = extract_arg(args, 'cube2')
-    overlap_resolver = args.get('overlap_resolver',None)
+    overlap_resolver = args.get('overlap_resolver')
     #TODO raise check if cubes overlap and raise exception if resolver is missing
     resolver_process = None
-    if(overlap_resolver is not None):
-        processes = list(overlap_resolver.get('callback', {}).values())
-        if(len(processes) != 1 ):
-            raise ProcessArgumentInvalidException('overlap_resolver','merge_cubes','This backend only supports overlap resolvers with exactly one process for now.')
-        resolver_process = extract_arg(processes[0],'process_id')
-    return cube1.merge(cube2,resolver_process)
-
+    if overlap_resolver:
+        pg = extract_arg_list(overlap_resolver, ["process_graph", "callback"])
+        if len(pg) != 1:
+            raise ProcessArgumentInvalidException(
+                argument='overlap_resolver', process='merge_cubes',
+                reason='This backend only supports overlap resolvers with exactly one process for now.')
+        resolver_process = next(iter(pg.values()))["process_id"]
+    return cube1.merge(cube2, resolver_process)
 
 
 @process

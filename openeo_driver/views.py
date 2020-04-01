@@ -58,7 +58,7 @@ openeo_bp = Blueprint('openeo', __name__)
 
 @openeo_bp.url_defaults
 def _add_version(endpoint, values):
-    """Callback to automatically add "version" argument in `url_for` calls."""
+    """Blueprint.url_defaults handler to automatically add "version" argument in `url_for` calls."""
     if 'version' not in values and current_app.url_map.is_endpoint_expecting(endpoint, 'version'):
         values['version'] = g.get('version', DEFAULT_VERSION)
 
