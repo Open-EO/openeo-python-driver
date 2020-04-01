@@ -1,0 +1,35 @@
+{
+  "collection": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "S2_FAPAR_CLOUDCOVER"
+    }
+  },
+  "kernel": {
+    "process_id": "apply_kernel",
+    "arguments": {
+      "data": {
+        "from_node": "collection"
+      },
+      "kernel": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          0,
+          1,
+          0
+        ]
+      ],
+      "factor": 3
+    },
+    "result": true
+  }
+}

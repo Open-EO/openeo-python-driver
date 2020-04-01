@@ -6,7 +6,7 @@
     }
   },
   "mask": {
-    "process_id": "mask",
+    "process_id": "mask_polygon",
     "arguments": {
       "data": {
         "from_node": "collection"

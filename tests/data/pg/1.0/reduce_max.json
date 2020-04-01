@@ -5,29 +5,22 @@
       "id": "S2_FAPAR_CLOUDCOVER"
     }
   },
-  "apply": {
-    "process_id": "apply",
+  "reduce": {
+    "process_id": "reduce",
     "arguments": {
       "data": {
         "from_node": "collection"
       },
-      "process": {
-        "callback": {
-          "abs": {
+      "dimension": "temporal",
+      "reducer": {
+        "process_graph": {
+          "max": {
             "arguments": {
               "data": {
-                "from_argument": "data"
+                "from_parameter": "data"
               }
             },
-            "process_id": "abs"
-          },
-          "cos": {
-            "arguments": {
-              "data": {
-                "from_node": "abs"
-              }
-            },
-            "process_id": "cos",
+            "process_id": "max",
             "result": true
           }
         }

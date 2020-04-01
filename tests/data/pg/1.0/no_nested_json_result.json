@@ -1,0 +1,80 @@
+{
+  "budget": null,
+  "title": null,
+  "description": null,
+  "plan": null,
+  "process_graph": {
+    "loadcollection1": {
+      "result": null,
+      "process_id": "load_collection",
+      "arguments": {
+        "id": "PROBAV_L3_S10_TOC_NDVI_333M_V2",
+        "spatial_extent": null,
+        "temporal_extent": null
+      }
+    },
+    "zonalstatistics1": {
+      "result": null,
+      "process_id": "zonal_statistics",
+      "arguments": {
+        "func": "mean",
+        "data": {
+          "from_node": "filtertemporal1"
+        },
+        "scale": 1000,
+        "interval": "day",
+        "regions": {
+          "coordinates": [
+            [
+              [
+                7.022705078125007,
+                51.75432477678571
+              ],
+              [
+                7.659912109375007,
+                51.74333844866071
+              ],
+              [
+                7.659912109375007,
+                51.29289899553571
+              ],
+              [
+                7.044677734375007,
+                51.31487165178571
+              ],
+              [
+                7.022705078125007,
+                51.75432477678571
+              ]
+            ]
+          ],
+          "type": "Polygon"
+        }
+      }
+    },
+    "saveresult1": {
+      "result": true,
+      "process_id": "save_result",
+      "arguments": {
+        "format": "GTIFF",
+        "data": {
+          "from_node": "zonalstatistics1"
+        },
+        "options": {}
+      }
+    },
+    "filtertemporal1": {
+      "result": false,
+      "process_id": "filter_temporal",
+      "arguments": {
+        "data": {
+          "from_node": "loadcollection1"
+        },
+        "extent": [
+          "2017-01-01",
+          "2017-11-21"
+        ]
+      }
+    }
+  }
+}

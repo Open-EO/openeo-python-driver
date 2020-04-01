@@ -12,14 +12,14 @@
         "from_node": "collection"
       },
       "process": {
-        "callback": {
+        "process_graph": {
           "abs": {
+            "process_id": "abs",
             "arguments": {
               "data": {
-                "from_argument": "data"
+                "from_parameter": "data"
               }
-            },
-            "process_id": "abs"
+            }
           },
           "cos": {
             "arguments": {

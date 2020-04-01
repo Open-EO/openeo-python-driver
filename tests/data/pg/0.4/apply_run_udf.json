@@ -1,4 +1,10 @@
 {
+  "collection": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "S2_FAPAR_CLOUDCOVER"
+    }
+  },
   "apply": {
     "process_id": "apply",
     "arguments": {
@@ -31,11 +37,5 @@
       }
     },
     "result": true
-  },
-  "collection": {
-    "process_id": "get_collection",
-    "arguments": {
-      "name": "S2_FAPAR_CLOUDCOVER"
-    }
   }
 }

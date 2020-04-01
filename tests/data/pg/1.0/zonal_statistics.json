@@ -5,20 +5,14 @@
       "id": "S2_FAPAR_CLOUDCOVER"
     }
   },
-  "mask": {
-    "process_id": "mask",
+  "aggregate_polygon": {
+    "process_id": "aggregate_polygon",
     "arguments": {
       "data": {
         "from_node": "collection"
       },
-      "mask": {
+      "polygons": {
         "type": "Polygon",
-        "crs": {
-          "type": "name",
-          "properties": {
-            "name": "EPSG:4326"
-          }
-        },
         "coordinates": [
           [
             [
@@ -43,7 +37,30 @@
             ]
           ]
         ]
-      }
+      },
+      "reducer": {
+        "process_graph": {
+          "max": {
+            "arguments": {
+              "data": {
+                "from_parameter": "data"
+              }
+            },
+            "process_id": "mean",
+            "result": true
+          }
+        }
+      },
+      "name": "my_name"
+    }
+  },
+  "save_result": {
+    "process_id": "save_result",
+    "arguments": {
+      "data": {
+        "from_node": "aggregate_polygon"
+      },
+      "format": "VITO-TSService-JSON"
     },
     "result": true
   }

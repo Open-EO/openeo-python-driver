@@ -6,28 +6,23 @@
     }
   },
   "apply": {
-    "process_id": "apply",
+    "process_id": "aggregate_temporal",
     "arguments": {
       "data": {
         "from_node": "collection"
       },
-      "process": {
-        "callback": {
-          "abs": {
+      "dimension": "temporal",
+      "intervals": [],
+      "labels": [],
+      "reducer": {
+        "process_graph": {
+          "max": {
             "arguments": {
               "data": {
-                "from_argument": "data"
+                "from_parameter": "data"
               }
             },
-            "process_id": "abs"
-          },
-          "cos": {
-            "arguments": {
-              "data": {
-                "from_node": "abs"
-              }
-            },
-            "process_id": "cos",
+            "process_id": "max",
             "result": true
           }
         }

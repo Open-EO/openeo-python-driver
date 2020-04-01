@@ -21,18 +21,16 @@
         "from_node": "collection2"
       },
       "overlap_resolver": {
-        "callback": {
+        "process_graph": {
           "or1": {
             "process_id": "or",
             "arguments": {
-              "expressions": [
-                {
-                  "from_argument": "cube1"
-                },
-                {
-                  "from_argument": "cube2"
-                }
-              ]
+              "x": {
+                "from_parameter": "x"
+              },
+              "y": {
+                "from_parameter": "y"
+              }
             },
             "result": true
           }

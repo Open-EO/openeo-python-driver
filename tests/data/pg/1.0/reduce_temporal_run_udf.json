@@ -13,14 +13,17 @@
       },
       "dimension": "temporal",
       "reducer": {
-        "callback": {
-          "max": {
+        "process_graph": {
+          "udf": {
             "arguments": {
               "data": {
-                "from_argument": "data"
-              }
+                "from_parameter": "data"
+              },
+              "runtime": "Python",
+              "version": "3.5.1",
+              "udf": "my python code"
             },
-            "process_id": "max",
+            "process_id": "run_udf",
             "result": true
           }
         }

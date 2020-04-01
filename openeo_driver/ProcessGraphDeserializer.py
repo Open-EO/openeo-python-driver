@@ -86,7 +86,7 @@ def extract_arg(args: dict, name: str):
     try:
         return args[name]
     except KeyError:
-        raise ProcessArgumentMissingException("Missing argument {n} in {args!r}".format(n=name, args=args))
+        raise ProcessArgumentMissingException("Missing argument {n!r} in {args!r}".format(n=name, args=args))
 
 
 def extract_arg_list(args: dict, names: list):
@@ -300,15 +300,6 @@ def reduce_by_time( args:Dict, viewingParameters)->ImageCollection:
     temporal_window = extract_arg(args,'temporal_window')
     decoded_function = pickle.loads(base64.standard_b64decode(function))
     return extract_arg(args, 'imagery').aggregate_time(temporal_window, decoded_function)
-
-
-# TODO deprecated process?
-@process_registry.add_deprecated
-def mask_polygon(args: Dict, viewingParameters) -> ImageCollection:
-    geometry = extract_arg(args, 'mask_shape')
-    srs_code = geometry.get("crs",{}).get("name","EPSG:4326")
-    return  extract_arg_list(args, ['data','imagery']).mask_polygon(shape(geometry),srs_code)
-
 
 @process
 def mask(args: Dict, viewingParameters) -> ImageCollection:

@@ -13,11 +13,11 @@
       },
       "dimension": "bands",
       "reducer": {
-        "callback": {
+        "process_graph": {
           "sum": {
             "arguments": {
               "data": {
-                "from_argument": "data"
+                "from_parameter": "data"
               }
             },
             "process_id": "sum"
@@ -25,7 +25,7 @@
           "subtract": {
             "arguments": {
               "data": {
-                "from_argument": "data"
+                "from_parameter": "data"
               }
             },
             "process_id": "subtract"

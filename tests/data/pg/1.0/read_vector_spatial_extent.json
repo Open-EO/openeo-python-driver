@@ -1,0 +1,52 @@
+{
+  "loadco1": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "PROBAV_L3_S10_TOC_NDVI_333M_V2",
+      "temporal_extent": [
+        "2017-11-21",
+        "2017-12-21"
+      ]
+    }
+  },
+  "geojson_file": {
+    "process_id": "read_vector",
+    "arguments": {
+      "filename": "PLACEHOLDER"
+    }
+  },
+  "aggreg1": {
+    "process_id": "aggregate_polygon",
+    "arguments": {
+      "data": {
+        "from_node": "loadco1"
+      },
+      "polygons": {
+        "from_node": "geojson_file"
+      },
+      "reducer": {
+        "process_graph": {
+          "mean1": {
+            "process_id": "mean",
+            "arguments": {
+              "data": {
+                "from_parameter": "data"
+              }
+            },
+            "result": true
+          }
+        }
+      }
+    }
+  },
+  "save": {
+    "process_id": "save_result",
+    "arguments": {
+      "data": {
+        "from_node": "aggreg1"
+      },
+      "format": "JSON"
+    },
+    "result": true
+  }
+}

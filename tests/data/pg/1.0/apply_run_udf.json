@@ -12,22 +12,25 @@
         "from_node": "collection"
       },
       "process": {
-        "callback": {
+        "process_graph": {
           "abs": {
+            "process_id": "abs",
             "arguments": {
               "data": {
-                "from_argument": "data"
+                "from_parameter": "data"
               }
-            },
-            "process_id": "abs"
+            }
           },
-          "cos": {
+          "udf": {
+            "process_id": "run_udf",
             "arguments": {
               "data": {
                 "from_node": "abs"
-              }
+              },
+              "runtime": "Python",
+              "version": "3.5.1",
+              "udf": "my python code"
             },
-            "process_id": "cos",
             "result": true
           }
         }

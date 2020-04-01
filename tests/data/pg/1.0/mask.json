@@ -12,12 +12,12 @@
     }
   },
   "aggregate_polygon": {
-    "process_id": "aggregate_polygon",
+    "process_id": "aggregate_spatial",
     "arguments": {
       "data": {
         "from_node": "mask"
       },
-      "polygons": {
+      "geometries": {
         "type": "Polygon",
         "coordinates": [
           [
@@ -45,11 +45,11 @@
         ]
       },
       "reducer": {
-        "callback": {
+        "process_graph": {
           "max": {
             "arguments": {
               "data": {
-                "from_argument": "data"
+                "from_parameter": "data"
               }
             },
             "process_id": "mean",
