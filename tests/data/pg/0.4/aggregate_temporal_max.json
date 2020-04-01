@@ -1,0 +1,33 @@
+{
+  "collection": {
+    "process_id": "get_collection",
+    "arguments": {
+      "name": "S2_FAPAR_CLOUDCOVER"
+    }
+  },
+  "apply": {
+    "process_id": "aggregate_temporal",
+    "arguments": {
+      "data": {
+        "from_node": "collection"
+      },
+      "dimension": "temporal",
+      "intervals": [],
+      "labels": [],
+      "reducer": {
+        "callback": {
+          "max": {
+            "arguments": {
+              "data": {
+                "from_argument": "data"
+              }
+            },
+            "process_id": "max",
+            "result": true
+          }
+        }
+      }
+    },
+    "result": true
+  }
+}

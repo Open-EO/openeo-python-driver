@@ -1,0 +1,38 @@
+{
+  "collection": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "S2_FAPAR_CLOUDCOVER"
+    },
+    "result": false
+  },
+  "filter_temp": {
+    "process_id": "filter_temporal",
+    "arguments": {
+      "data": {
+        "from_node": "collection"
+      },
+      "extent": [
+        "2018-01-01",
+        "2018-12-31"
+      ]
+    },
+    "result": false
+  },
+  "filter_bbox": {
+    "process_id": "filter_bbox",
+    "arguments": {
+      "data": {
+        "from_node": "filter_temp"
+      },
+      "extent": {
+        "west": 5.027,
+        "east": 5.0438,
+        "north": 51.2213,
+        "south": 51.1974,
+        "crs": "EPSG:4326"
+      }
+    },
+    "result": true
+  }
+}

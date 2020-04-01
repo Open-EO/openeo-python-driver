@@ -64,26 +64,7 @@ class Test(TestCase):
 
     def test_execute_apply_kernel(self):
         kernel_list = [[0, 1, 0], [1, 1, 1], [0, 1, 0]]
-        resp = self._post_process_graph({
-            'kernel': {
-                'process_id': 'apply_kernel',
-                'arguments': {
-                    'data': {
-                        'from_node': 'collection'
-                    },
-                    'kernel': kernel_list,
-                    'factor': 3
-                },
-                'result': True
-            },
-            'collection': {
-                'process_id': 'load_collection',
-                'arguments': {
-                    'id': 'S2_FAPAR_CLOUDCOVER'
-                }
-            }
-        })
-
+        resp = self._post_process_graph(load_json("pg/0.4/apply_kernel.json"))
         assert resp.status_code == 200
         assert resp.content_length > 0
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_kernel.call_count == 1
@@ -93,42 +74,10 @@ class Test(TestCase):
         self.assertEqual(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_kernel.call_args[0][1], 3)
 
     def test_execute_simple_download(self):
-        resp = self._post_process_graph({
-            'filter_bbox': {
-                'process_id': 'filter_bbox',
-                'result': True,
-                'arguments': {
-                    'data': {
-                        'from_node': 'filter_temp'
-                    },
-                    'extent': {
-                        'west': 5.027, 'east': 5.0438, 'north': 51.2213,
-                        'south': 51.1974, 'crs': 'EPSG:4326'
-                    }
-                }
-            },
-            'filter_temp': {
-                'process_id': 'filter_temporal',
-                'arguments': {
-                    'data': {
-                        'from_node': 'collection'
-                    },
-                    'extent': ['2018-01-01', '2018-12-31']
-                },
-                'result': False
-            },
-            'collection': {
-                'process_id': 'load_collection',
-                'arguments': {
-                    'id': 'S2_FAPAR_CLOUDCOVER'
-                }
-            }
-        })
-
+        resp = self._post_process_graph(load_json("pg/0.4/basic.json"))
         assert resp.status_code == 200
         assert resp.content_length > 0
         # assert resp.headers['Content-Type'] == "application/octet-stream"
-
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].download.call_count == 1
 
     def test_load_collection_filter(self):
@@ -156,137 +105,19 @@ class Test(TestCase):
             'left': 5.027, 'right': 5.0438, 'top': 51.2213, 'bottom': 51.1974, 'srs': 'EPSG:4326'}
 
     def test_execute_apply_unary(self):
-        resp = self._post_process_graph({
-            'apply': {
-                'process_id': 'apply',
-                'arguments': {
-                    'data': {
-                        'from_node': 'collection'
-                    },
-
-                    'process': {
-                        'callback': {
-                            "abs": {
-                                "arguments": {
-                                    "data": {
-                                        "from_argument": "data"
-                                    }
-                                },
-                                "process_id": "abs"
-                            },
-                            "cos": {
-                                "arguments": {
-                                    "data": {
-                                        "from_node": "abs"
-                                    }
-                                },
-                                "process_id": "cos",
-                                "result": True
-                            }
-                        }
-                    }
-                },
-                'result': True
-            },
-            'collection': {
-                'process_id': 'get_collection',
-                'arguments': {
-                    'name': 'S2_FAPAR_CLOUDCOVER'
-                }
-            }
-        })
-
+        resp = self._post_process_graph(load_json("pg/0.4/apply_unary.json"))
         assert resp.status_code == 200
         assert resp.content_length > 0
 
     def test_execute_apply_run_udf(self):
-        resp = self._post_process_graph({
-            'apply': {
-                'process_id': 'apply',
-                'arguments': {
-                    'data': {
-                        'from_node': 'collection'
-                    },
-
-                    'process': {
-                        'callback': {
-                            "abs": {
-                                "arguments": {
-                                    "data": {
-                                        "from_argument": "data"
-                                    }
-                                },
-                                "process_id": "abs"
-                            },
-                            "udf": {
-                                "arguments": {
-                                    "data": {
-                                        "from_node": "abs"
-                                    },
-                                    "runtime": "Python",
-                                    "version": "3.5.1",
-                                    "udf": "my python code"
-
-                                },
-                                "process_id": "run_udf",
-                                "result": True
-                            }
-                        }
-                    }
-                },
-                'result': True
-            },
-            'collection': {
-                'process_id': 'get_collection',
-                'arguments': {
-                    'name': 'S2_FAPAR_CLOUDCOVER'
-                }
-            }
-        })
-
+        resp = self._post_process_graph(load_json("pg/0.4/apply_run_udf.json"))
         assert resp.status_code == 200
         assert resp.content_length > 0
         print(dummy_impl.collections["S2_FAPAR_CLOUDCOVER"])
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles.call_count == 1
 
     def test_execute_reduce_temporal_run_udf(self):
-        resp = self._post_process_graph({
-            'reduce': {
-                'process_id': 'reduce',
-                'arguments': {
-                    'data': {
-                        'from_node': 'collection'
-                    },
-                    'dimension': 'temporal',
-                    # 'binary': False,
-                    'reducer': {
-                        'callback': {
-                            "udf": {
-                                "arguments": {
-                                    "data": {
-                                        "from_argument": "data"
-                                    },
-                                    "runtime": "Python",
-                                    "version": "3.5.1",
-                                    "udf": "my python code"
-
-                                },
-                                "process_id": "run_udf",
-                                "result": True
-                            }
-                        }
-                    }
-                },
-                'result': True
-            },
-            'collection': {
-                'process_id': 'get_collection',
-                'arguments': {
-                    'name': 'S2_FAPAR_CLOUDCOVER'
-                }
-            }
-        })
-
+        resp = self._post_process_graph(load_json("pg/0.4/reduce_temporal_run_udf.json"))
         assert resp.status_code == 200
         assert resp.content_length > 0
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles_spatiotemporal.call_count == 1
@@ -300,139 +131,19 @@ class Test(TestCase):
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles.call_count == 1
 
     def test_execute_apply_dimension_temporal_run_udf(self):
-        resp = self._post_process_graph({
-            'apply_dimension': {
-                'process_id': 'apply_dimension',
-                'arguments': {
-                    'data': {
-                        'from_node': 'collection'
-                    },
-                    'dimension': 'temporal',
-
-                    'process': {
-                        'callback': {
-                            'cumsum': {
-                                "arguments": {
-                                    "data": {
-                                        "from_argument": "data"
-                                    }
-
-                                },
-                                "process_id": "cumsum"
-                            },
-                            "udf": {
-                                "arguments": {
-                                    "data": {
-                                        "from_node": "cumsum"
-                                    },
-                                    "runtime": "Python",
-                                    "version": "3.5.1",
-                                    "udf": "my python code"
-
-                                },
-                                "process_id": "run_udf",
-                                "result": True
-                            }
-                        }
-                    }
-                },
-                'result': True
-            },
-            'collection': {
-                'process_id': 'get_collection',
-                'arguments': {
-                    'name': 'S2_FAPAR_CLOUDCOVER'
-                }
-            }
-        })
-
+        resp = self._post_process_graph(load_json("pg/0.4/apply_dimension_temporal_run_udf.json"))
         assert resp.status_code == 200
         assert resp.content_length > 0
         self.assertEqual(1, dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles_spatiotemporal.call_count)
         self.assertEqual(1, dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].apply_dimension.call_count)
 
     def test_execute_reduce_max(self):
-        resp = self._post_process_graph({
-            'reduce': {
-                'process_id': 'reduce',
-                'arguments': {
-                    'data': {
-                        'from_node': 'collection'
-                    },
-                    'dimension': 'temporal',
-                    'reducer': {
-                        'callback': {
-                            "max": {
-                                "arguments": {
-                                    "data": {
-                                        "from_argument": "data"
-                                    }
-                                },
-                                "process_id": "max",
-                                "result": True
-                            }
-                        }
-                    }
-                },
-                'result': True
-            },
-            'collection': {
-                'process_id': 'get_collection',
-                'arguments': {
-                    'name': 'S2_FAPAR_CLOUDCOVER'
-                }
-            }
-        })
-
+        resp = self._post_process_graph(load_json("pg/0.4/reduce_max.json"))
         assert resp.status_code == 200
         assert resp.content_length > 0
 
     def test_execute_merge_cubes(self):
-        resp = self._post_process_graph({
-              "mergecubes1": {
-                "process_id": "merge_cubes",
-                "arguments": {
-                  "cube1": {
-                    "from_node": "collection1"
-                  },
-                  "cube2": {
-                    "from_node": "collection2"
-                  },
-                  "overlap_resolver": {
-                    "callback": {
-                      "or1": {
-                        "process_id": "or",
-                        "arguments": {
-                          "expressions": [
-                            {
-                              "from_argument": "cube1"
-                            },
-                            {
-                              "from_argument": "cube2"
-                            }
-                          ]
-                        },
-                        "result": True
-                      }
-                    }
-                  }
-                },
-                "result": True
-              },
-            'collection1': {
-                'process_id': 'get_collection',
-                'arguments': {
-                    'name': 'S2_FAPAR_CLOUDCOVER'
-                }
-            },
-            'collection2': {
-                'process_id': 'get_collection',
-                'arguments': {
-                    'name': 'OTHER_COLLECTION'
-                }
-            }
-        })
-
+        resp = self._post_process_graph(load_json("pg/0.4/merge_cubes.json"))
         assert resp.status_code == 200
         assert resp.content_length > 0
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].merge.call_count == 1
@@ -440,126 +151,17 @@ class Test(TestCase):
         assert args[1:] == ('or', )
 
     def test_execute_reduce_bands(self):
-        resp = self._post_process_graph({
-            'apply': {
-                'process_id': 'reduce',
-                'arguments': {
-                    'data': {
-                        'from_node': 'collection'
-                    },
-                    'dimension': 'bands',
-                    'reducer': {
-                        'callback': {
-                            "sum": {
-                                "arguments": {
-                                    "data": {
-                                        "from_argument": "data"
-                                    }
-                                },
-                                "process_id": "sum"
-                            },
-                            "subtract": {
-                                "arguments": {
-                                    "data": {
-                                        "from_argument": "data"
-                                    }
-                                },
-                                "process_id": "subtract"
-                            },
-                            "divide": {
-                                "arguments": {
-                                    "y": {
-                                        "from_node": "subtract"
-                                    },
-                                    "x": {
-                                        "from_node": "sum"
-                                    }
-                                },
-                                "process_id": "divide",
-                                "result": True
-                            }
-                        }
-                    }
-                },
-                'result': True
-            },
-            'collection': {
-                'process_id': 'get_collection',
-                'arguments': {
-                    'name': 'S2_FAPAR_CLOUDCOVER'
-                }
-            }
-        })
-
+        resp = self._post_process_graph(load_json("pg/0.4/reduce_bands.json"))
         assert resp.status_code == 200
         assert resp.content_length > 0
 
     def test_execute_mask(self):
-        resp = self._post_process_graph({
-            'aggregate_polygon': {
-                'process_id': 'aggregate_polygon',
-                'arguments': {
-                    'data': {
-                        'from_node': 'mask'
-                    },
-                    'polygons': {
-                        "type": "Polygon",
-                        "coordinates": [
-                            [[7.022705078125007, 51.75432477678571], [7.659912109375007, 51.74333844866071],
-                             [7.659912109375007, 51.29289899553571], [7.044677734375007, 51.31487165178571],
-                             [7.022705078125007, 51.75432477678571]]
-                        ]
-                    },
-                    'reducer': {
-                        'callback': {
-                            "max": {
-                                "arguments": {
-                                    "data": {
-                                        "from_argument": "data"
-                                    }
-                                },
-                                "process_id": "mean",
-                                "result": True
-                            }
-                        }
-                    },
-                    'name': 'my_name'
-                },
-                'result': True
-            },
-            'mask': {
-                'process_id': 'mask',
-                'arguments': {
-                    'data': {
-                        'from_node': 'collection'
-                    },
-                    'mask': {
-                        'from_node': 'mask_collection'
-                    },
-                    'replacement': '10'
-                },
-
-            },
-            'collection': {
-                'process_id': 'get_collection',
-                'arguments': {
-                    'name': 'S2_FAPAR_CLOUDCOVER'
-                }
-            },
-            'mask_collection': {
-                'process_id': 'get_collection',
-                'arguments': {
-                    'name': 'PROBAV_L3_S10_TOC_NDVI_333M_V2'
-                }
-            }
-        })
-
+        resp = self._post_process_graph(load_json("pg/0.4/mask.json"))
         self.assertEqual(200, resp.status_code, msg=resp.get_data(as_text=True))
         assert resp.content_length > 0
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask.call_count == 1
 
         def check_params(viewing_parameters):
-
             self.assertAlmostEqual(viewing_parameters['left'], 7.022705078125007, delta=0.0001)
             self.assertAlmostEqual(viewing_parameters['bottom'], 51.29289899553571, delta=0.0001)
             self.assertAlmostEqual(viewing_parameters['right'], 7.659912109375007, delta=0.0001)
@@ -570,41 +172,7 @@ class Test(TestCase):
 
 
     def test_execute_mask_polygon(self):
-        resp = self._post_process_graph(
-            {
-                "mask": {
-                    "process_id": "mask",
-                    "arguments": {
-                        'data': {
-                            'from_node': 'collection'
-                        },
-                        "mask": {
-                            "type": "Polygon",
-                            "crs": {
-                                'type': 'name',
-                                'properties': {
-                                    'name': "EPSG:4326"
-                                }
-                            },
-                            "coordinates": [
-                                [[7.022705078125007, 51.75432477678571], [7.659912109375007, 51.74333844866071],
-                                 [7.659912109375007, 51.29289899553571], [7.044677734375007, 51.31487165178571],
-                                 [7.022705078125007, 51.75432477678571]]
-                            ]
-                        }
-                    },
-                    'result': True
-                },
-                'collection': {
-                    'process_id': 'get_collection',
-                    'arguments': {
-                        'name': 'S2_FAPAR_CLOUDCOVER'
-                    }
-                }
-
-            }
-        )
-
+        resp = self._post_process_graph(load_json("pg/0.4/mask_polygon.json"))
         assert resp.status_code == 200
         assert resp.content_length > 0
         assert dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].mask.call_count == 1
@@ -613,122 +181,22 @@ class Test(TestCase):
                               shapely.geometry.Polygon)
 
     def test_preview_aggregate_temporal_max(self):
-        resp = self._post_process_graph({
-            'apply': {
-                'process_id': 'aggregate_temporal',
-                'arguments': {
-                    'data': {
-                        'from_node': 'collection'
-                    },
-                    'dimension': 'temporal',
-                    'intervals': [],
-                    'labels': [],
-                    'reducer': {
-                        'callback': {
-                            "max": {
-                                "arguments": {
-                                    "data": {
-                                        "from_argument": "data"
-                                    }
-                                },
-                                "process_id": "max",
-                                "result": True
-                            }
-                        }
-                    }
-                },
-                'result': True
-            },
-            'collection': {
-                'process_id': 'get_collection',
-                'arguments': {
-                    'name': 'S2_FAPAR_CLOUDCOVER'
-                }
-            }
-        })
-
+        resp = self._post_process_graph(load_json("pg/0.4/aggregate_temporal_max.json"))
         assert resp.status_code == 200
         assert resp.content_length > 0
 
     def test_execute_zonal_statistics(self):
-        process_graph = {
-            'aggregate_polygon': {
-                'process_id': 'aggregate_polygon',
-                'arguments': {
-                    'data': {
-                        'from_node': 'collection'
-                    },
-                    'polygons': {
-                        "type": "Polygon",
-                        "coordinates": [
-                            [[7.022705078125007, 51.75432477678571], [7.659912109375007, 51.74333844866071],
-                             [7.659912109375007, 51.29289899553571], [7.044677734375007, 51.31487165178571],
-                             [7.022705078125007, 51.75432477678571]]
-                        ]
-                    },
-                    'reducer': {
-                        'callback': {
-                            "max": {
-                                "arguments": {
-                                    "data": {
-                                        "from_argument": "data"
-                                    }
-                                },
-                                "process_id": "mean",
-                                "result": True
-                            }
-                        }
-                    },
-                    'name': 'my_name'
-                },
-
-            },
-            'save_result': {
-                'process_id': 'save_result',
-                'arguments': {
-                    'data': {
-                        'from_node': 'aggregate_polygon'
-                    },
-                    'format': 'VITO-TSService-JSON'
-                },
-                'result': True
-            },
-            'collection': {
-                'process_id': 'get_collection',
-                'arguments': {
-                    'name': 'S2_FAPAR_CLOUDCOVER'
-                }
-            }
-        }
+        process_graph = load_json("pg/0.4/zonal_statistics.json")
         resp = self._post_process_graph(process_graph)
         self.assertEqual(200, resp.status_code, msg=resp.get_data(as_text=True))
         assert json.loads(resp.get_data(as_text=True)) == {
             "2015-07-06T00:00:00": [2.9829132080078127],
             "2015-08-22T00:00:00": [None]
         }
-
         assert dummy_impl.collections['S2_FAPAR_CLOUDCOVER'].viewingParameters['srs'] == 'EPSG:4326'
 
     def test_create_wmts(self):
-        process_graph = {
-            'collection': {
-                'arguments': {
-                    'name': 'S2'
-                },
-                'process_id': 'get_collection'
-            },
-            'filter_temp': {
-                'arguments': {
-                    'data': {
-                        'from_node': 'collection'
-                    },
-                    'from': "2018-01-01",
-                    'to': "2018-12-31"
-                },
-                'process_id': 'filter_temporal',
-                'result': True
-            }
-        }
+        process_graph = load_json("pg/0.4/filter_temporal.json")
         resp = self.client.post('/openeo/0.4.0/services', content_type='application/json', json={
             "custom_param": 45,
             "process_graph": process_graph,
@@ -750,65 +218,10 @@ class Test(TestCase):
         )
 
     def test_read_vector(self):
-        process_graph = {
-            "loadco1": {
-                "process_id": "load_collection",
-                "arguments": {
-                    "id": "PROBAV_L3_S10_TOC_NDVI_333M_V2",
-                    "spatial_extent": {
-                        "west": 5,
-                        "east": 6,
-                        "north": 52,
-                        "south": 51
-                    },
-                    "temporal_extent": [
-                        "2017-11-21",
-                        "2017-12-21"
-                    ]
-                }
-            },
-            "geojson_file": {
-                "process_id": "read_vector",
-                "arguments": {
-                    "filename": str(get_path("GeometryCollection.geojson"))
-                }
-            },
-            "aggreg1": {
-                "process_id": "aggregate_polygon",
-                "arguments": {
-                    "data": {
-                        "from_node": "loadco1"
-                    },
-                    "polygons": {
-                        "from_node": "geojson_file"
-                    },
-                    "reducer": {
-                        "callback": {
-                            "mean1": {
-                                "process_id": "mean",
-                                "arguments": {
-                                    "data": {
-                                        "from_argument": "data"
-                                    }
-                                },
-                                "result": True
-                            }
-                        }
-                    }
-                }
-            },
-            "save": {
-                "process_id": "save_result",
-                "arguments": {
-                    "data": {
-                        "from_node": "aggreg1"
-                    },
-                    "format": "JSON"
-                },
-                "result": True
-            }
-        }
-
+        process_graph = load_json(
+            "pg/0.4/read_vector.json",
+            preprocess=lambda s: s.replace("PLACEHOLDER", str(get_path("GeometryCollection.geojson")))
+        )
         resp = self._post_process_graph(process_graph)
         body = resp.get_data(as_text=True)
 
@@ -820,58 +233,10 @@ class Test(TestCase):
         }
 
     def test_load_collection_without_spatial_extent_incorporates_read_vector_extent(self):
-        process_graph = {
-            "loadco1": {
-                "process_id": "load_collection",
-                "arguments": {
-                    "id": "PROBAV_L3_S10_TOC_NDVI_333M_V2",
-                    "temporal_extent": [
-                        "2017-11-21",
-                        "2017-12-21"
-                    ]
-                }
-            },
-            "geojson_file": {
-                "process_id": "read_vector",
-                "arguments": {
-                    "filename": str(get_path("GeometryCollection.geojson"))
-                }
-            },
-            "aggreg1": {
-                "process_id": "aggregate_polygon",
-                "arguments": {
-                    "data": {
-                        "from_node": "loadco1"
-                    },
-                    "polygons": {
-                        "from_node": "geojson_file"
-                    },
-                    "reducer": {
-                        "callback": {
-                            "mean1": {
-                                "process_id": "mean",
-                                "arguments": {
-                                    "data": {
-                                        "from_argument": "data"
-                                    }
-                                },
-                                "result": True
-                            }
-                        }
-                    }
-                }
-            },
-            "save": {
-                "process_id": "save_result",
-                "arguments": {
-                    "data": {
-                        "from_node": "aggreg1"
-                    },
-                    "format": "JSON"
-                },
-                "result": True
-            }
-        }
+        process_graph = load_json(
+            "pg/0.4/read_vector_spatial_extent.json",
+            preprocess=lambda s: s.replace("PLACEHOLDER", str(get_path("GeometryCollection.geojson")))
+        )
 
         resp = self._post_process_graph(process_graph)
         body = resp.get_data(as_text=True)
@@ -891,64 +256,10 @@ class Test(TestCase):
         self.assertEquals(viewing_parameters['srs'], 'EPSG:4326')
 
     def test_read_vector_from_FeatureCollection(self):
-        process_graph = {
-            "loadco1": {
-                "process_id": "load_collection",
-                "arguments": {
-                    "id": "PROBAV_L3_S10_TOC_NDVI_333M_V2",
-                    "spatial_extent": {
-                        "west": 5,
-                        "east": 6,
-                        "north": 52,
-                        "south": 51
-                    },
-                    "temporal_extent": [
-                        "2017-11-21",
-                        "2017-12-21"
-                    ]
-                }
-            },
-            "geojson_file": {
-                "process_id": "read_vector",
-                "arguments": {
-                    "filename": str(get_path("FeatureCollection.geojson"))
-                }
-            },
-            "aggreg1": {
-                "process_id": "aggregate_polygon",
-                "arguments": {
-                    "data": {
-                        "from_node": "loadco1"
-                    },
-                    "polygons": {
-                        "from_node": "geojson_file"
-                    },
-                    "reducer": {
-                        "callback": {
-                            "mean1": {
-                                "process_id": "mean",
-                                "arguments": {
-                                    "data": {
-                                        "from_argument": "data"
-                                    }
-                                },
-                                "result": True
-                            }
-                        }
-                    }
-                }
-            },
-            "save": {
-                "process_id": "save_result",
-                "arguments": {
-                    "data": {
-                        "from_node": "aggreg1"
-                    },
-                    "format": "JSON"
-                },
-                "result": True
-            }
-        }
+        process_graph = load_json(
+            "pg/0.4/read_vector_feature_collection.json",
+            preprocess=lambda s: s.replace("PLACEHOLDER", str(get_path("FeatureCollection.geojson")))
+        )
 
         resp = self._post_process_graph(process_graph)
         body = resp.get_data(as_text=True)
@@ -961,89 +272,7 @@ class Test(TestCase):
         }
 
     def test_no_nested_JSONResult(self):
-        process_graph = {
-            "budget": None,
-            "title": None,
-            "description": None,
-            "plan": None,
-            "process_graph": {
-                "loadcollection1": {
-                    "result": None,
-                    "process_id": "load_collection",
-                    "arguments": {
-                        "id": "PROBAV_L3_S10_TOC_NDVI_333M_V2",
-                        "spatial_extent": None,
-                        "temporal_extent": None
-                    }
-                },
-                "zonalstatistics1": {
-                    "result": None,
-                    "process_id": "zonal_statistics",
-                    "arguments": {
-                        "func": "mean",
-                        "data": {
-                            "from_node": "filtertemporal1"
-                        },
-                        "scale": 1000,
-                        "interval": "day",
-                        "regions": {
-                            "coordinates": [
-                                [
-                                    [
-                                        7.022705078125007,
-                                        51.75432477678571
-                                    ],
-                                    [
-                                        7.659912109375007,
-                                        51.74333844866071
-                                    ],
-                                    [
-                                        7.659912109375007,
-                                        51.29289899553571
-                                    ],
-                                    [
-                                        7.044677734375007,
-                                        51.31487165178571
-                                    ],
-                                    [
-                                        7.022705078125007,
-                                        51.75432477678571
-                                    ]
-                                ]
-                            ],
-                            "type": "Polygon"
-                        }
-                    }
-                },
-                "saveresult1": {
-                    "result": True,
-                    "process_id": "save_result",
-                    "arguments": {
-                        "format": "GTIFF",
-                        "data": {
-                            "from_node": "zonalstatistics1"
-                        },
-                        "options": {
-
-                        }
-                    }
-                },
-                "filtertemporal1": {
-                    "result": False,
-                    "process_id": "filter_temporal",
-                    "arguments": {
-                        "data": {
-                            "from_node": "loadcollection1"
-                        },
-                        "extent": [
-                            "2017-01-01",
-                            "2017-11-21"
-                        ]
-                    }
-                }
-            }
-        }
-
+        process_graph = load_json("pg/0.4/no_nested_json_result.json")
         resp = self.client.post('/openeo/0.4.0/result', content_type='application/json', data=json.dumps(process_graph))
 
         self.assertEqual(200, resp.status_code, msg=resp.get_data(as_text=True))
@@ -1070,194 +299,19 @@ class Test(TestCase):
         }}
 
     def test_load_disk_data(self):
-        process_graph = {
-            "loaddiskdata": {
-                'process_id': 'load_disk_data',
-                'arguments': {
-                    'format': 'GTiff',
-                    'glob_pattern': "/data/MTDA/CGS_S2/CGS_S2_FAPAR/2019/04/24/*/*/10M/*_FAPAR_10M_V102.tif",
-                    'options': {
-                        'date_regex': r"_(\d{4})(\d{2})(\d{2})T"
-                    }
-                }
-            },
-            "filterbbox": {
-                "process_id": "filter_bbox",
-                "arguments": {
-                    "data": {"from_node": "loaddiskdata"},
-                    "extent": {"west": 3, "east": 6, "south": 50, "north": 51, "crs": "EPSG:4326"}
-                },
-                'result': True
-            }
-        }
-
+        process_graph = load_json("pg/0.4/load_disk_data.json")
         with self._post_process_graph(process_graph) as resp:
             self.assertEqual(200, resp.status_code)
 
     def test_mask_with_vector_file(self):
-        process_graph = {
-            "loadcollection2": {
-                "process_id": "load_collection",
-                "arguments": {
-                    "id": "CGS_SENTINEL2_RADIOMETRY_V102_FILE",
-                    "bands": [
-                        "1",
-                        "2",
-                        "3",
-                        "4"
-                    ]
-                },
-                "result": False
-            },
-            "filterbbox1": {
-                "process_id": "filter_bbox",
-                "arguments": {
-                    "data": {
-                        "from_node": "loadcollection2"
-                    },
-                    "extent": {
-                        "west": 3.43,
-                        "east": 3.46,
-                        "north": 51.02,
-                        "south": 51.0,
-                        "crs": "EPSG:4326"
-                    }
-                },
-                "result": False
-            },
-            "filtertemporal1": {
-                "process_id": "filter_temporal",
-                "arguments": {
-                    "data": {
-                        "from_node": "filterbbox1"
-                    },
-                    "extent": [
-                        "2018-05-06",
-                        "2018-05-06"
-                    ]
-                },
-                "result": False
-            },
-            "readvector1": {
-                "process_id": "read_vector",
-                "arguments": {
-                    "filename": str(get_path("mask_polygons_3.43_51.00_3.46_51.02.json"))
-                },
-                "result": False
-            },
-            "mask1": {
-                "process_id": "mask",
-                "arguments": {
-                    "data": {
-                        "from_node": "filtertemporal1"
-                    },
-                    "mask": {
-                        "from_node": "readvector1"
-                    }
-                },
-                "result": False
-            },
-            "saveresult4": {
-                "process_id": "save_result",
-                "arguments": {
-                    "data": {
-                        "from_node": "mask1"
-                    },
-                    "format": "GTIFF"
-                },
-                "result": True
-            }
-        }
-
+        process_graph = load_json(
+            "pg/0.4/mask_with_vector_file.json",
+            preprocess=lambda s:s.replace("PLACEHOLDER", str(get_path("mask_polygons_3.43_51.00_3.46_51.02.json")))
+        )
         with self._post_process_graph(process_graph) as resp:
             self.assertEqual(200, resp.status_code, msg=resp.get_data(as_text=True))
 
     def test_aggregate_feature_collection(self):
-        process_graph = {
-            "loadco1": {
-                "process_id": "load_collection",
-                "arguments": {
-                    "id": "PROBAV_L3_S10_TOC_NDVI_333M",
-                    "spatial_extent": {
-                        "west": 5,
-                        "east": 6,
-                        "north": 52,
-                        "south": 51
-                    },
-                    "temporal_extent": [
-                        "2017-11-21",
-                        "2017-11-21"
-                    ]
-                }
-            },
-            "aggreg1": {
-                "process_id": "aggregate_polygon",
-                "arguments": {
-                    "data": {
-                        "from_node": "loadco1"
-                    },
-                    "polygons": {
-                        "type": "FeatureCollection",
-                        "features": [
-                            {
-                                "type": "Feature",
-                                "properties": {},
-                                "geometry": {
-                                    "type": "Polygon",
-                                    "coordinates": [
-                                        [
-                                            [
-                                                5.0761587693484875,
-                                                51.21222494794898
-                                            ],
-                                            [
-                                                5.166854684377381,
-                                                51.21222494794898
-                                            ],
-                                            [
-                                                5.166854684377381,
-                                                51.268936260927404
-                                            ],
-                                            [
-                                                5.0761587693484875,
-                                                51.268936260927404
-                                            ],
-                                            [
-                                                5.0761587693484875,
-                                                51.21222494794898
-                                            ]
-                                        ]
-                                    ]
-                                }
-                            }
-                        ]
-                    },
-                    "reducer": {
-                        "callback": {
-                            "mean1": {
-                                "process_id": "mean",
-                                "arguments": {
-                                    "data": {
-                                        "from_argument": "data"
-                                    }
-                                },
-                                "result": True
-                            }
-                        }
-                    }
-                }
-            },
-            "save": {
-                "process_id": "save_result",
-                "arguments": {
-                    "data": {
-                        "from_node": "aggreg1"
-                    },
-                    "format": "JSON"
-                },
-                "result": True
-            }
-        }
-
+        process_graph = load_json("pg/0.4/aggregate_feature_collection.json")
         with self._post_process_graph(process_graph) as resp:
             self.assertEqual(200, resp.status_code, msg=resp.get_data(as_text=True))

@@ -1,0 +1,38 @@
+{
+  "apply": {
+    "process_id": "apply",
+    "arguments": {
+      "data": {
+        "from_node": "collection"
+      },
+      "process": {
+        "callback": {
+          "abs": {
+            "arguments": {
+              "data": {
+                "from_argument": "data"
+              }
+            },
+            "process_id": "abs"
+          },
+          "cos": {
+            "arguments": {
+              "data": {
+                "from_node": "abs"
+              }
+            },
+            "process_id": "cos",
+            "result": true
+          }
+        }
+      }
+    },
+    "result": true
+  },
+  "collection": {
+    "process_id": "get_collection",
+    "arguments": {
+      "name": "S2_FAPAR_CLOUDCOVER"
+    }
+  }
+}

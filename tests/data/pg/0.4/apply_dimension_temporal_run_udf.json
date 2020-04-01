@@ -1,0 +1,42 @@
+{
+  "collection": {
+    "process_id": "get_collection",
+    "arguments": {
+      "name": "S2_FAPAR_CLOUDCOVER"
+    }
+  },
+  "apply_dimension": {
+    "process_id": "apply_dimension",
+    "arguments": {
+      "data": {
+        "from_node": "collection"
+      },
+      "dimension": "temporal",
+      "process": {
+        "callback": {
+          "cumsum": {
+            "arguments": {
+              "data": {
+                "from_argument": "data"
+              }
+            },
+            "process_id": "cumsum"
+          },
+          "udf": {
+            "arguments": {
+              "data": {
+                "from_node": "cumsum"
+              },
+              "runtime": "Python",
+              "version": "3.5.1",
+              "udf": "my python code"
+            },
+            "process_id": "run_udf",
+            "result": true
+          }
+        }
+      }
+    },
+    "result": true
+  }
+}

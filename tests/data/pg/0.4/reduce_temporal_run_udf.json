@@ -1,0 +1,34 @@
+{
+  "collection": {
+    "process_id": "get_collection",
+    "arguments": {
+      "name": "S2_FAPAR_CLOUDCOVER"
+    }
+  },
+  "reduce": {
+    "process_id": "reduce",
+    "arguments": {
+      "data": {
+        "from_node": "collection"
+      },
+      "dimension": "temporal",
+      "reducer": {
+        "callback": {
+          "udf": {
+            "arguments": {
+              "data": {
+                "from_argument": "data"
+              },
+              "runtime": "Python",
+              "version": "3.5.1",
+              "udf": "my python code"
+            },
+            "process_id": "run_udf",
+            "result": true
+          }
+        }
+      }
+    },
+    "result": true
+  }
+}

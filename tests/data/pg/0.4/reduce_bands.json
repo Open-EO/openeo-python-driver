@@ -1,0 +1,50 @@
+{
+  "collection": {
+    "process_id": "get_collection",
+    "arguments": {
+      "name": "S2_FAPAR_CLOUDCOVER"
+    }
+  },
+  "apply": {
+    "process_id": "reduce",
+    "arguments": {
+      "data": {
+        "from_node": "collection"
+      },
+      "dimension": "bands",
+      "reducer": {
+        "callback": {
+          "sum": {
+            "arguments": {
+              "data": {
+                "from_argument": "data"
+              }
+            },
+            "process_id": "sum"
+          },
+          "subtract": {
+            "arguments": {
+              "data": {
+                "from_argument": "data"
+              }
+            },
+            "process_id": "subtract"
+          },
+          "divide": {
+            "arguments": {
+              "y": {
+                "from_node": "subtract"
+              },
+              "x": {
+                "from_node": "sum"
+              }
+            },
+            "process_id": "divide",
+            "result": true
+          }
+        }
+      }
+    },
+    "result": true
+  }
+}

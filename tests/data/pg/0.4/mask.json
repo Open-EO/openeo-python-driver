@@ -1,0 +1,76 @@
+{
+  "collection": {
+    "process_id": "get_collection",
+    "arguments": {
+      "name": "S2_FAPAR_CLOUDCOVER"
+    }
+  },
+  "mask_collection": {
+    "process_id": "get_collection",
+    "arguments": {
+      "name": "PROBAV_L3_S10_TOC_NDVI_333M_V2"
+    }
+  },
+  "aggregate_polygon": {
+    "process_id": "aggregate_polygon",
+    "arguments": {
+      "data": {
+        "from_node": "mask"
+      },
+      "polygons": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              7.022705078125007,
+              51.75432477678571
+            ],
+            [
+              7.659912109375007,
+              51.74333844866071
+            ],
+            [
+              7.659912109375007,
+              51.29289899553571
+            ],
+            [
+              7.044677734375007,
+              51.31487165178571
+            ],
+            [
+              7.022705078125007,
+              51.75432477678571
+            ]
+          ]
+        ]
+      },
+      "reducer": {
+        "callback": {
+          "max": {
+            "arguments": {
+              "data": {
+                "from_argument": "data"
+              }
+            },
+            "process_id": "mean",
+            "result": true
+          }
+        }
+      },
+      "name": "my_name"
+    },
+    "result": true
+  },
+  "mask": {
+    "process_id": "mask",
+    "arguments": {
+      "data": {
+        "from_node": "collection"
+      },
+      "mask": {
+        "from_node": "mask_collection"
+      },
+      "replacement": "10"
+    }
+  }
+}
