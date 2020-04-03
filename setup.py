@@ -40,6 +40,7 @@ setup(
         'gunicorn==19.9.0',
         'shapely',
         'geopandas==0.3.0',
+        'xarray==0.12.3'
     ],
     extras_require={
         "dev": tests_require,
