@@ -240,7 +240,7 @@ def test_create_wmts_040(api):
     resp = api.client.post('/openeo/0.4.0/services', content_type='application/json', json=post_data)
     assert resp.status_code == 201
     assert resp.headers['OpenEO-Identifier'] == 'c63d6c27-c4c2-4160-b7bd-9e32f582daec'
-    assert resp.headers['Location'].endswith("/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec/service/wmts")
+    assert resp.headers['Location'].endswith("/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec")
 
     tiled_viewing_service = api.collections["S2"].tiled_viewing_service
     assert tiled_viewing_service.call_count == 1
@@ -267,7 +267,7 @@ def test_create_wmts_100(api):
     resp = api.client.post('/openeo/1.0.0/services', content_type='application/json', json=post_data)
     assert resp.status_code == 201
     assert resp.headers['OpenEO-Identifier'] == 'c63d6c27-c4c2-4160-b7bd-9e32f582daec'
-    assert resp.headers['Location'].endswith("/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec/service/wmts")
+    assert resp.headers['Location'].endswith("/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec")
 
     tiled_viewing_service = api.collections["S2"].tiled_viewing_service
     assert tiled_viewing_service.call_count == 1

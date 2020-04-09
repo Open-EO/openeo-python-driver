@@ -1,3 +1,4 @@
+from datetime import datetime
 import numbers
 import os
 from typing import List
@@ -8,7 +9,7 @@ from shapely.geometry.collection import GeometryCollection
 
 from openeo import ImageCollection
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation, CollectionCatalog
+from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata
 
 collections = {}
 
@@ -71,6 +72,19 @@ def create_process_visitor():
 
 
 class DummySecondaryServices(SecondaryServices):
+    _registry = [
+        ServiceMetadata(
+            id="wmts-foo",
+            process={"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
+            url='https://oeo.net/wmts/foo',
+            type="WMTS",
+            enabled=True,
+            attributes={},
+            title="Test service",
+            created=datetime(2020, 4, 9, 15, 5, 8)
+        )
+    ]
+
     def service_types(self) -> dict:
         return {
             "WMTS": {
@@ -89,27 +103,12 @@ class DummySecondaryServices(SecondaryServices):
             }
         }
 
-    def list_services(self) -> List[dict]:
-        return [
-            {
-                'id': 'wmts-foo',
-                'type': ' WMTS',
-                'url': 'https://oeo.net/wmts/foo',
-                'enabled': True
-            }
-        ]
+    def list_services(self) -> List[ServiceMetadata]:
+        return self._registry
 
-    def service_info(self, service_id: str) -> dict:
-        assert service_id == 'wmts-foo'
-        return {
-            'id': 'wmts-foo',
-            'type': 'WMTS',
-            'process': {'process_graph': {"foo": {"process_id": "foo", "arguments": {}}}},
-            'url': 'https://oeo.net/wmts/foo',
-            'enabled': True,
-            'parameters': {},
-            'attributes': {},
-        }
+    def service_info(self, service_id: str) -> ServiceMetadata:
+        return next(s for s in self._registry if s.id == service_id)
+
 
 class DummyCatalog(CollectionCatalog):
     _COLLECTIONS = [{
@@ -149,11 +148,14 @@ class DummyCatalog(CollectionCatalog):
         image_collection.bbox_filter.return_value = image_collection
 
         image_collection.tiled_viewing_service = Mock(name="tiled_viewing_service")
-        image_collection.tiled_viewing_service.return_value = {
-            'type': 'WMTS',
-            'url': "http://openeo.vgt.vito.be/openeo/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec/service/wmts",
-            'service_id': 'c63d6c27-c4c2-4160-b7bd-9e32f582daec',
-        }
+        image_collection.tiled_viewing_service.return_value = ServiceMetadata(
+            id='c63d6c27-c4c2-4160-b7bd-9e32f582daec',
+            process={"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
+            url="http://openeo.vgt.vito.be/openeo/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec/service/wmts",
+            type="WMTS",
+            enabled=True,
+            attributes={},
+        )
 
         download = Mock(name='download')
         # TODO: download something more real to allow higher quality testing

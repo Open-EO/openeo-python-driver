@@ -5,6 +5,7 @@ from unittest import TestCase, skip
 import flask
 import dummy_impl
 from openeo.capabilities import ComparableVersion
+from openeo_driver.errors import ServiceNotFoundException
 from openeo_driver.views import app, EndpointRegistry
 
 os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "dummy_impl"
@@ -229,9 +230,11 @@ class Test(TestCase):
         assert metadata == {
             "services": [{
                 'id': 'wmts-foo',
-                'type': ' WMTS',
+                'type': 'WMTS',
                 'enabled': True,
-                'url': 'https://oeo.net/wmts/foo'
+                'url': 'https://oeo.net/wmts/foo',
+                'submitted': '2020-04-09T15:05:08Z',
+                'title': 'Test service',
             }],
             "links": []
         }
@@ -241,16 +244,18 @@ class Test(TestCase):
         assert metadata == {
             "services": [{
                 'id': 'wmts-foo',
-                'type': ' WMTS',
+                'type': 'WMTS',
                 'enabled': True,
-                'url': 'https://oeo.net/wmts/foo'
+                'url': 'https://oeo.net/wmts/foo',
+                'title': 'Test service',
+                'created': '2020-04-09T15:05:08Z',
             }],
             "links": []
         }
 
     def test_get_service_metadata_040(self):
         metadata = self.client.get('/openeo/0.4.0/services/wmts-foo').json
-        expected = {
+        assert metadata == {
             "id": "wmts-foo",
             "process_graph": {"foo": {"process_id": "foo", "arguments": {}}},
             "url": "https://oeo.net/wmts/foo",
@@ -258,20 +263,27 @@ class Test(TestCase):
             "enabled": True,
             "parameters": {},
             "attributes": {},
+            "title": "Test service",
+            'submitted': '2020-04-09T15:05:08Z',
         }
-        assert {k: metadata[k] for k in expected.keys()} == expected
 
     def test_get_service_metadata_100(self):
         metadata = self.client.get('/openeo/1.0.0/services/wmts-foo').json
-        expected = {
+        assert metadata == {
             "id": "wmts-foo",
             "process": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
             "url": "https://oeo.net/wmts/foo",
             "type": "WMTS",
             "enabled": True,
             "attributes": {},
+            "title": "Test service",
+            'created': '2020-04-09T15:05:08Z',
         }
-        assert {k: metadata[k] for k in expected.keys()} == expected
+
+    def test_get_service_metadata_wrong_id(self):
+        res = self.client.get('/openeo/1.0.0/services/wmts-invalid')
+        assert res.status_code == 404
+        assert res.json['code'] == 'ServiceNotFound'
 
 
     def test_get_batch_job_logs(self):
