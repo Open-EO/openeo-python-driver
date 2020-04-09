@@ -1,5 +1,6 @@
 import numbers
 import os
+from typing import List
 from unittest.mock import Mock
 
 from shapely.geometry import Polygon, MultiPolygon
@@ -88,6 +89,27 @@ class DummySecondaryServices(SecondaryServices):
             }
         }
 
+    def list_services(self) -> List[dict]:
+        return [
+            {
+                'id': 'wmts-foo',
+                'type': ' WMTS',
+                'url': 'https://oeo.net/wmts/foo',
+                'enabled': True
+            }
+        ]
+
+    def service_info(self, service_id: str) -> dict:
+        assert service_id == 'wmts-foo'
+        return {
+            'id': 'wmts-foo',
+            'type': 'WMTS',
+            'process': {'process_graph': {"foo": {"process_id": "foo", "arguments": {}}}},
+            'url': 'https://oeo.net/wmts/foo',
+            'enabled': True,
+            'parameters': {},
+            'attributes': {},
+        }
 
 class DummyCatalog(CollectionCatalog):
     _COLLECTIONS = [{

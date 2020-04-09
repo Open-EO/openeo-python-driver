@@ -572,10 +572,13 @@ def services_post():
     :return:
     """
     # TODO require authenticated user
-    data = request.get_json()
-    # TODO avoid passing api version this hackish way?
-    data['api_version'] = g.version
-    url, identifier = backend_implementation.secondary_services.create_service(data)
+    post_data = request.get_json()
+    url, identifier = backend_implementation.secondary_services.create_service(
+        process_graph=_extract_process_graph(post_data),
+        service_type=post_data["type"],
+        api_version=g.version,
+        post_data=post_data,
+    )
 
     return make_response('', 201, {
         'Content-Type': 'application/json',
@@ -589,23 +592,30 @@ def services_post():
 def services_get():
     """List all running secondary web services for authenticated user"""
     # TODO Require authentication
-    return jsonify(backend_implementation.secondary_services.list_services())
+    return jsonify({
+        # TODO: encapsulate service info in a predefined struct instead of free form dict? #8
+        "services": backend_implementation.secondary_services.list_services(),
+        "links": [],
+    })
 
 
 @api_endpoint
 @openeo_bp.route('/services/<service_id>', methods=['GET'])
 def get_service_info(service_id):
     # TODO Require authentication
-    return jsonify(backend_implementation.secondary_services.service_info(service_id))
+    service_info = backend_implementation.secondary_services.service_info(service_id)
+    # TODO: encapsulate service info in a predefined struct instead of free form dict? #8
+    if requested_api_version().below("1.0.0"):
+        service_info["process_graph"] = service_info["process"]["process_graph"]
+    return jsonify(service_info)
 
 
 @api_endpoint
 @openeo_bp.route('/services/<service_id>', methods=['PATCH'])
 def service_patch(service_id):
     # TODO Require authentication
-    data = request.get_json()
-    # TODO sanitize/check data?
-    backend_implementation.secondary_services.update_service(service_id, data=data)
+    process_graph = _extract_process_graph(request.get_json())
+    backend_implementation.secondary_services.update_service(service_id, process_graph=process_graph)
     return response_204_no_content()
 
 

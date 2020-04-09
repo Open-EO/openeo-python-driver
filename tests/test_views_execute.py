@@ -228,15 +228,16 @@ def test_execute_zonal_statistics(api):
     assert api.collections['S2_FAPAR_CLOUDCOVER'].viewingParameters['srs'] == 'EPSG:4326'
 
 
-def test_create_wmts(api):
+def test_create_wmts_040(api):
     process_graph = api.load_json("filter_temporal.json")
-    resp = api.client.post('/openeo/0.4.0/services', content_type='application/json', json={
-        "custom_param": 45,
-        "process_graph": process_graph,
+    post_data = {
         "type": 'WMTS',
+        "process_graph": process_graph,
+        "custom_param": 45,
         "title": "My Service",
         "description": "Service description"
-    })
+    }
+    resp = api.client.post('/openeo/0.4.0/services', content_type='application/json', json=post_data)
     assert resp.status_code == 201
     assert resp.headers['OpenEO-Identifier'] == 'c63d6c27-c4c2-4160-b7bd-9e32f582daec'
     assert resp.headers['Location'].endswith("/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec/service/wmts")
@@ -245,9 +246,38 @@ def test_create_wmts(api):
     assert tiled_viewing_service.call_count == 1
     ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
     tiled_viewing_service.assert_called_with(
-        custom_param=45, description='Service description', process_graph=process_graph, title='My Service',
-        type='WMTS'
+        service_type="WMTS",
+        process_graph=process_graph,
+        post_data=post_data
     )
+
+
+def test_create_wmts_100(api):
+    process_graph = api.load_json("filter_temporal.json")
+    post_data = {
+        "type": 'WMTS',
+        "process": {
+            "process_graph": process_graph,
+            "id": "filter_temporal_wmts"
+        },
+        "custom_param": 45,
+        "title": "My Service",
+        "description": "Service description"
+    }
+    resp = api.client.post('/openeo/1.0.0/services', content_type='application/json', json=post_data)
+    assert resp.status_code == 201
+    assert resp.headers['OpenEO-Identifier'] == 'c63d6c27-c4c2-4160-b7bd-9e32f582daec'
+    assert resp.headers['Location'].endswith("/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec/service/wmts")
+
+    tiled_viewing_service = api.collections["S2"].tiled_viewing_service
+    assert tiled_viewing_service.call_count == 1
+    ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
+    tiled_viewing_service.assert_called_with(
+        service_type="WMTS",
+        process_graph=process_graph,
+        post_data=post_data
+    )
+
 
 
 def test_read_vector(api):

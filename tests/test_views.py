@@ -224,6 +224,56 @@ class Test(TestCase):
 
         self.assertEqual(500, resp.status_code)
 
+    def test_list_services_040(self):
+        metadata = self.client.get('/openeo/0.4.0/services').json
+        assert metadata == {
+            "services": [{
+                'id': 'wmts-foo',
+                'type': ' WMTS',
+                'enabled': True,
+                'url': 'https://oeo.net/wmts/foo'
+            }],
+            "links": []
+        }
+
+    def test_list_services_100(self):
+        metadata = self.client.get('/openeo/1.0.0/services').json
+        assert metadata == {
+            "services": [{
+                'id': 'wmts-foo',
+                'type': ' WMTS',
+                'enabled': True,
+                'url': 'https://oeo.net/wmts/foo'
+            }],
+            "links": []
+        }
+
+    def test_get_service_metadata_040(self):
+        metadata = self.client.get('/openeo/0.4.0/services/wmts-foo').json
+        expected = {
+            "id": "wmts-foo",
+            "process_graph": {"foo": {"process_id": "foo", "arguments": {}}},
+            "url": "https://oeo.net/wmts/foo",
+            "type": "WMTS",
+            "enabled": True,
+            "parameters": {},
+            "attributes": {},
+        }
+        assert {k: metadata[k] for k in expected.keys()} == expected
+
+    def test_get_service_metadata_100(self):
+        metadata = self.client.get('/openeo/1.0.0/services/wmts-foo').json
+        expected = {
+            "id": "wmts-foo",
+            "process": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
+            "url": "https://oeo.net/wmts/foo",
+            "type": "WMTS",
+            "enabled": True,
+            "attributes": {},
+        }
+        assert {k: metadata[k] for k in expected.keys()} == expected
+
+
     def test_get_batch_job_logs(self):
         resp = self.client.get('/openeo/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs', headers=self._auth_header)
 

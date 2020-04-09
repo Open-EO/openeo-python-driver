@@ -31,37 +31,32 @@ class SecondaryServices:
 
     def list_services(self) -> List[dict]:
         """https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1services/get"""
-        # TODO require auth/user handle?
+        # TODO: encapsulate service info in a predefined struct instead of free form dict? #8
         return []
 
     def service_info(self, service_id: str) -> dict:
         """https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1services~1{service_id}/get"""
-        # TODO require auth/user handle?
+        # TODO: encapsulate service info in a predefined struct instead of free form dict? #8
         raise NotImplementedError()
 
-    def create_service(self, data: dict) -> Tuple[str, str]:
+    def create_service(self, process_graph: dict, service_type: str, api_version: str, post_data: dict) -> Tuple[str, str]:
         """
         https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1services/post
         :return: (location, openeo_identifier)
         """
         from openeo_driver.ProcessGraphDeserializer import evaluate
         # TODO require auth/user handle?
-        process_graph = data['process_graph']
-
-        service_type = data['type']
         if service_type.lower() not in set(st.lower() for st in self.service_types()):
             raise OpenEOApiException(
                 message="Secondary service type {t!r} is not supported.".format(t=service_type),
                 code="ServiceUnsupported", status_code=400
             )
 
-        # TODO: avoid passing api version?
-        api_version = data.pop('api_version')
         image_collection = evaluate(process_graph, viewingParameters={'version': api_version})
-        service_info = image_collection.tiled_viewing_service(**data)
+        service_info = image_collection.tiled_viewing_service(service_type=service_type, process_graph=process_graph, post_data=post_data)
         return service_info['url'], service_info.get('service_id', 'unknown')
 
-    def update_service(self, service_id: str, data: dict) -> None:
+    def update_service(self, service_id: str, process_graph: dict) -> None:
         """https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1services~1{service_id}/patch"""
         # TODO require auth/user handle?
         raise NotImplementedError()
