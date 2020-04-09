@@ -7,7 +7,9 @@ from flask.testing import FlaskClient
 from typing import Union, Callable
 
 import dummy_impl
+from openeo.capabilities import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+from openeo_driver.errors import ProcessGraphMissingException
 from openeo_driver.views import app
 from .data import load_json, get_path
 
@@ -44,10 +46,14 @@ class ApiTester:
 
     def post_result(self, process_graph: dict, path="/result") -> Response:
         """Post process graph to API and get response"""
+        if ComparableVersion("1.0.0").or_higher(self.api_version):
+            data = {"process": {'process_graph': process_graph}}
+        else:
+            data = {'process_graph': process_graph}
         return self.client.post(
             path=self.url(path),
             content_type='application/json',
-            json={'process_graph': process_graph},
+            json=data,
         )
 
     def check_result(self, process_graph: Union[dict, str], path="/result"):
@@ -334,3 +340,22 @@ def test_mask_with_vector_file(api):
 
 def test_aggregate_feature_collection(api):
     api.check_result("aggregate_feature_collection.json")
+
+
+def test_post_result_process_100(client):
+    api = ApiTester(api_version="1.0.0", client=client, impl=dummy_impl)
+    response = api.client.post(
+        path=api.url('/result'),
+        json={"process": {"process_graph": api.load_json("basic.json")}},
+    )
+    assert response.status_code == 200
+    assert response.content_length > 0
+
+
+def test_missing_process_graph(api):
+    response = api.client.post(
+        path=api.url('/result'),
+        json={"foo": "bar"},
+    )
+    assert response.status_code == ProcessGraphMissingException.status_code
+    assert response.json['code'] == 'ProcessGraphMissing'

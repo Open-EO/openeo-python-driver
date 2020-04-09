@@ -19,7 +19,7 @@ from openeo_driver.ProcessGraphDeserializer import (
     get_batch_job_result_filenames, get_batch_job_result_output_dir, get_batch_job_log_entries,
     backend_implementation,
     summarize_exception)
-from openeo_driver.errors import OpenEOApiException
+from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException
 from openeo_driver.save_result import SaveResult
 from openeo_driver.users import HttpAuthHandler, User
 from openeo_driver.utils import replace_nan_values, smart_bool
@@ -337,16 +337,17 @@ def me(user: User):
 
 @openeo_bp.route('/timeseries' )
 def timeseries():
-    # TODO: is this deprecated?
+    # TODO: deprecated? do we still need this endpoint? #35
     return 'OpenEO GeoPyspark backend. ' + url_for('.point')
 
 
 @openeo_bp.route('/timeseries/point', methods=['POST'])
 def point():
+    # TODO: deprecated? do we still need this endpoint? #35
     x = float(request.args.get('x', ''))
     y = float(request.args.get('y', ''))
     srs = request.args.get('srs', None)
-    process_graph = request.get_json()['process_graph']
+    process_graph = _extract_process_graph(request.json)
     image_collection = evaluate(process_graph, viewingParameters={'version': g.version})
     return jsonify(image_collection.timeseries(x, y, srs))
 
@@ -367,14 +368,30 @@ def download():
         return 'Usage: Download image using POST.'
 
 
+def _extract_process_graph(post_data: dict) -> dict:
+    """
+    Extract process graph dictionary from POST data
+
+    see https://github.com/Open-EO/openeo-api/pull/262
+    """
+    try:
+        if requested_api_version().at_least("1.0.0"):
+            return post_data["process"]["process_graph"]
+        else:
+            # API v0.4 style
+            return post_data['process_graph']
+    except KeyError:
+        raise ProcessGraphMissingException
+
+
 @api_endpoint
-@openeo_bp.route('/result' , methods=['POST'])
+@openeo_bp.route('/result', methods=['POST'])
 def result():
     return execute()
 
 
 @api_endpoint(version=ComparableVersion("0.3.1").or_lower)
-@openeo_bp.route('/preview' , methods=['GET', 'POST'])
+@openeo_bp.route('/preview', methods=['GET', 'POST'])
 def preview():
     # TODO: is this an old endpoint/shortcut or a custom extension of the API?
     return execute()
@@ -384,7 +401,7 @@ def preview():
 def execute():
     # TODO:  This is not an official endpoint, does this "/execute" still have to be exposed as route?
     post_data = request.get_json()
-    process_graph = post_data['process_graph']
+    process_graph = _extract_process_graph(post_data)
     result = evaluate(process_graph, viewingParameters={'version': g.version})
 
     # TODO unify all this output handling within SaveResult logic?
