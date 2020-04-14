@@ -88,8 +88,8 @@ class AggregatePolygonResult(JSONResult):
         if self.format.lower() in ('netcdf'):
             filename = self.to_netcdf()
             return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
-        else:
-            super().create_flask_response()
+
+        return super().create_flask_response()
 
     def create_point_timeseries_xarray(self, feature_ids, timestamps,lats,lons,averages_by_feature):
         import xarray as xr
