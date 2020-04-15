@@ -12,11 +12,53 @@ Also see https://github.com/Open-EO/openeo-python-driver/issues/8
 import copy
 import warnings
 from pathlib import Path
-from typing import List, Tuple, Union, Dict
+from typing import List, Tuple, Union, NamedTuple
+from datetime import datetime
 
 from openeo import ImageCollection
+from openeo.util import date_to_rfc3339
 from openeo_driver.errors import OpenEOApiException, CollectionNotFoundException
 from openeo_driver.utils import read_json
+
+
+class ServiceMetadata(NamedTuple):
+    """
+    Container for service metadata
+    """
+    # TODO: move this to openeo-python-client?
+    # TODO: also add user metadata?
+
+    # Required fields (no default)
+    id: str
+    process: dict  # TODO: also encapsulate this "process graph with metadata" struct (instead of free-form dict)?
+    url: str
+    type: str
+    enabled: bool
+    attributes: dict
+
+    # Optional fields (with default)
+    title: str = None
+    description: str = None
+    configuration: dict = None
+    created: datetime = None
+    plan: str = None
+    costs: float = None
+    budget: float = None
+
+    def prepare_for_json(self) -> dict:
+        """Prepare metadata for JSON serialization"""
+        d = self._asdict()
+        d["created"] = date_to_rfc3339(self.created) if self.created else None
+        return d
+
+    @classmethod
+    def from_dict(cls, d:dict) -> 'ServiceMetadata':
+        """Load ServiceMetadata from dict (e.g. parsed JSON dump)."""
+        created = d.get("created")
+        if isinstance(created, str):
+            d = d.copy()
+            d["created"] = datetime.strptime(created, '%Y-%m-%dT%H:%M:%SZ')
+        return cls(**d)
 
 
 class SecondaryServices:
@@ -29,39 +71,36 @@ class SecondaryServices:
         """https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1service_types/get"""
         return {}
 
-    def list_services(self) -> List[dict]:
+    def list_services(self) -> List[ServiceMetadata]:
         """https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1services/get"""
-        # TODO require auth/user handle?
         return []
 
-    def service_info(self, service_id: str) -> dict:
+    def service_info(self, service_id: str) -> ServiceMetadata:
         """https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1services~1{service_id}/get"""
-        # TODO require auth/user handle?
         raise NotImplementedError()
 
-    def create_service(self, data: dict) -> Tuple[str, str]:
+    def create_service(self, process_graph: dict, service_type: str, api_version: str, post_data: dict) -> ServiceMetadata:
         """
         https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1services/post
         :return: (location, openeo_identifier)
         """
         from openeo_driver.ProcessGraphDeserializer import evaluate
         # TODO require auth/user handle?
-        process_graph = data['process_graph']
-
-        service_type = data['type']
         if service_type.lower() not in set(st.lower() for st in self.service_types()):
             raise OpenEOApiException(
                 message="Secondary service type {t!r} is not supported.".format(t=service_type),
                 code="ServiceUnsupported", status_code=400
             )
 
-        # TODO: avoid passing api version?
-        api_version = data.pop('api_version')
         image_collection = evaluate(process_graph, viewingParameters={'version': api_version})
-        service_info = image_collection.tiled_viewing_service(**data)
-        return service_info['url'], service_info.get('service_id', 'unknown')
+        service_metadata = image_collection.tiled_viewing_service(
+            service_type=service_type,
+            process_graph=process_graph,
+            post_data=post_data
+        )
+        return service_metadata
 
-    def update_service(self, service_id: str, data: dict) -> None:
+    def update_service(self, service_id: str, process_graph: dict) -> None:
         """https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1services~1{service_id}/patch"""
         # TODO require auth/user handle?
         raise NotImplementedError()

@@ -7,7 +7,9 @@ from flask.testing import FlaskClient
 from typing import Union, Callable
 
 import dummy_impl
+from openeo.capabilities import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+from openeo_driver.errors import ProcessGraphMissingException
 from openeo_driver.views import app
 from .data import load_json, get_path
 
@@ -44,10 +46,14 @@ class ApiTester:
 
     def post_result(self, process_graph: dict, path="/result") -> Response:
         """Post process graph to API and get response"""
+        if ComparableVersion("1.0.0").or_higher(self.api_version):
+            data = {"process": {'process_graph': process_graph}}
+        else:
+            data = {'process_graph': process_graph}
         return self.client.post(
             path=self.url(path),
             content_type='application/json',
-            json={'process_graph': process_graph},
+            json=data,
         )
 
     def check_result(self, process_graph: Union[dict, str], path="/result"):
@@ -222,26 +228,56 @@ def test_execute_zonal_statistics(api):
     assert api.collections['S2_FAPAR_CLOUDCOVER'].viewingParameters['srs'] == 'EPSG:4326'
 
 
-def test_create_wmts(api):
+def test_create_wmts_040(api):
     process_graph = api.load_json("filter_temporal.json")
-    resp = api.client.post('/openeo/0.4.0/services', content_type='application/json', json={
-        "custom_param": 45,
-        "process_graph": process_graph,
+    post_data = {
         "type": 'WMTS',
+        "process_graph": process_graph,
+        "custom_param": 45,
         "title": "My Service",
         "description": "Service description"
-    })
+    }
+    resp = api.client.post('/openeo/0.4.0/services', content_type='application/json', json=post_data)
     assert resp.status_code == 201
     assert resp.headers['OpenEO-Identifier'] == 'c63d6c27-c4c2-4160-b7bd-9e32f582daec'
-    assert resp.headers['Location'].endswith("/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec/service/wmts")
+    assert resp.headers['Location'].endswith("/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec")
 
     tiled_viewing_service = api.collections["S2"].tiled_viewing_service
     assert tiled_viewing_service.call_count == 1
     ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
     tiled_viewing_service.assert_called_with(
-        custom_param=45, description='Service description', process_graph=process_graph, title='My Service',
-        type='WMTS'
+        service_type="WMTS",
+        process_graph=process_graph,
+        post_data=post_data
     )
+
+
+def test_create_wmts_100(api):
+    process_graph = api.load_json("filter_temporal.json")
+    post_data = {
+        "type": 'WMTS',
+        "process": {
+            "process_graph": process_graph,
+            "id": "filter_temporal_wmts"
+        },
+        "custom_param": 45,
+        "title": "My Service",
+        "description": "Service description"
+    }
+    resp = api.client.post('/openeo/1.0.0/services', content_type='application/json', json=post_data)
+    assert resp.status_code == 201
+    assert resp.headers['OpenEO-Identifier'] == 'c63d6c27-c4c2-4160-b7bd-9e32f582daec'
+    assert resp.headers['Location'].endswith("/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec")
+
+    tiled_viewing_service = api.collections["S2"].tiled_viewing_service
+    assert tiled_viewing_service.call_count == 1
+    ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
+    tiled_viewing_service.assert_called_with(
+        service_type="WMTS",
+        process_graph=process_graph,
+        post_data=post_data
+    )
+
 
 
 def test_read_vector(api):
@@ -334,3 +370,22 @@ def test_mask_with_vector_file(api):
 
 def test_aggregate_feature_collection(api):
     api.check_result("aggregate_feature_collection.json")
+
+
+def test_post_result_process_100(client):
+    api = ApiTester(api_version="1.0.0", client=client, impl=dummy_impl)
+    response = api.client.post(
+        path=api.url('/result'),
+        json={"process": {"process_graph": api.load_json("basic.json")}},
+    )
+    assert response.status_code == 200
+    assert response.content_length > 0
+
+
+def test_missing_process_graph(api):
+    response = api.client.post(
+        path=api.url('/result'),
+        json={"foo": "bar"},
+    )
+    assert response.status_code == ProcessGraphMissingException.status_code
+    assert response.json['code'] == 'ProcessGraphMissing'

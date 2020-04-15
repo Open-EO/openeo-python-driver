@@ -5,6 +5,7 @@ from unittest import TestCase, skip
 import flask
 import dummy_impl
 from openeo.capabilities import ComparableVersion
+from openeo_driver.errors import ServiceNotFoundException
 from openeo_driver.views import app, EndpointRegistry
 
 os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "dummy_impl"
@@ -223,6 +224,67 @@ class Test(TestCase):
         })
 
         self.assertEqual(500, resp.status_code)
+
+    def test_list_services_040(self):
+        metadata = self.client.get('/openeo/0.4.0/services').json
+        assert metadata == {
+            "services": [{
+                'id': 'wmts-foo',
+                'type': 'WMTS',
+                'enabled': True,
+                'url': 'https://oeo.net/wmts/foo',
+                'submitted': '2020-04-09T15:05:08Z',
+                'title': 'Test service',
+            }],
+            "links": []
+        }
+
+    def test_list_services_100(self):
+        metadata = self.client.get('/openeo/1.0.0/services').json
+        assert metadata == {
+            "services": [{
+                'id': 'wmts-foo',
+                'type': 'WMTS',
+                'enabled': True,
+                'url': 'https://oeo.net/wmts/foo',
+                'title': 'Test service',
+                'created': '2020-04-09T15:05:08Z',
+            }],
+            "links": []
+        }
+
+    def test_get_service_metadata_040(self):
+        metadata = self.client.get('/openeo/0.4.0/services/wmts-foo').json
+        assert metadata == {
+            "id": "wmts-foo",
+            "process_graph": {"foo": {"process_id": "foo", "arguments": {}}},
+            "url": "https://oeo.net/wmts/foo",
+            "type": "WMTS",
+            "enabled": True,
+            "parameters": {},
+            "attributes": {},
+            "title": "Test service",
+            'submitted': '2020-04-09T15:05:08Z',
+        }
+
+    def test_get_service_metadata_100(self):
+        metadata = self.client.get('/openeo/1.0.0/services/wmts-foo').json
+        assert metadata == {
+            "id": "wmts-foo",
+            "process": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
+            "url": "https://oeo.net/wmts/foo",
+            "type": "WMTS",
+            "enabled": True,
+            "attributes": {},
+            "title": "Test service",
+            'created': '2020-04-09T15:05:08Z',
+        }
+
+    def test_get_service_metadata_wrong_id(self):
+        res = self.client.get('/openeo/1.0.0/services/wmts-invalid')
+        assert res.status_code == 404
+        assert res.json['code'] == 'ServiceNotFound'
+
 
     def test_get_batch_job_logs(self):
         resp = self.client.get('/openeo/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs', headers=self._auth_header)

@@ -13,13 +13,15 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from openeo import ImageCollection
 from openeo.capabilities import ComparableVersion
 from openeo.error_summary import ErrorSummary
+from openeo.util import date_to_rfc3339, dict_no_none
+from openeo_driver.backend import ServiceMetadata
 from openeo_driver.ProcessGraphDeserializer import (
     evaluate, getProcesses, getProcess,
     create_batch_job, run_batch_job, get_batch_job_info, get_batch_jobs_info, cancel_batch_job,
     get_batch_job_result_filenames, get_batch_job_result_output_dir, get_batch_job_log_entries,
     backend_implementation,
     summarize_exception)
-from openeo_driver.errors import OpenEOApiException
+from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException
 from openeo_driver.save_result import SaveResult
 from openeo_driver.users import HttpAuthHandler, User
 from openeo_driver.utils import replace_nan_values, smart_bool
@@ -337,16 +339,17 @@ def me(user: User):
 
 @openeo_bp.route('/timeseries' )
 def timeseries():
-    # TODO: is this deprecated?
+    # TODO: deprecated? do we still need this endpoint? #35
     return 'OpenEO GeoPyspark backend. ' + url_for('.point')
 
 
 @openeo_bp.route('/timeseries/point', methods=['POST'])
 def point():
+    # TODO: deprecated? do we still need this endpoint? #35
     x = float(request.args.get('x', ''))
     y = float(request.args.get('y', ''))
     srs = request.args.get('srs', None)
-    process_graph = request.get_json()['process_graph']
+    process_graph = _extract_process_graph(request.json)
     image_collection = evaluate(process_graph, viewingParameters={'version': g.version})
     return jsonify(image_collection.timeseries(x, y, srs))
 
@@ -367,14 +370,30 @@ def download():
         return 'Usage: Download image using POST.'
 
 
+def _extract_process_graph(post_data: dict) -> dict:
+    """
+    Extract process graph dictionary from POST data
+
+    see https://github.com/Open-EO/openeo-api/pull/262
+    """
+    try:
+        if requested_api_version().at_least("1.0.0"):
+            return post_data["process"]["process_graph"]
+        else:
+            # API v0.4 style
+            return post_data['process_graph']
+    except KeyError:
+        raise ProcessGraphMissingException
+
+
 @api_endpoint
-@openeo_bp.route('/result' , methods=['POST'])
+@openeo_bp.route('/result', methods=['POST'])
 def result():
     return execute()
 
 
 @api_endpoint(version=ComparableVersion("0.3.1").or_lower)
-@openeo_bp.route('/preview' , methods=['GET', 'POST'])
+@openeo_bp.route('/preview', methods=['GET', 'POST'])
 def preview():
     # TODO: is this an old endpoint/shortcut or a custom extension of the API?
     return execute()
@@ -384,7 +403,7 @@ def preview():
 def execute():
     # TODO:  This is not an official endpoint, does this "/execute" still have to be exposed as route?
     post_data = request.get_json()
-    process_graph = post_data['process_graph']
+    process_graph = _extract_process_graph(post_data)
     result = evaluate(process_graph, viewingParameters={'version': g.version})
 
     # TODO unify all this output handling within SaveResult logic?
@@ -555,16 +574,32 @@ def services_post():
     :return:
     """
     # TODO require authenticated user
-    data = request.get_json()
-    # TODO avoid passing api version this hackish way?
-    data['api_version'] = g.version
-    url, identifier = backend_implementation.secondary_services.create_service(data)
+    post_data = request.get_json()
+    service_metadata = backend_implementation.secondary_services.create_service(
+        process_graph=_extract_process_graph(post_data),
+        service_type=post_data["type"],
+        api_version=g.version,
+        post_data=post_data,
+    )
 
     return make_response('', 201, {
         'Content-Type': 'application/json',
-        'Location': url,
-        'OpenEO-Identifier': identifier,
+        'Location': url_for('.get_service_info', service_id=service_metadata.id),
+        'OpenEO-Identifier': service_metadata.id,
     })
+
+
+def _service_metadata_to_json(metadata: ServiceMetadata, full=True) -> dict:
+    """API-version-aware conversion of service metadata to jsonable dict"""
+    d = metadata.prepare_for_json()
+    if not full:
+        d.pop("process")
+        d.pop("attributes")
+    if requested_api_version().below("1.0.0"):
+        d["process_graph"] = d.pop("process", {}).get("process_graph")
+        d["parameters"] = d.pop("configuration", None) or ({} if full else None)
+        d["submitted"] = d.pop("created", None)
+    return dict_no_none(**d)
 
 
 @api_endpoint
@@ -572,23 +607,32 @@ def services_post():
 def services_get():
     """List all running secondary web services for authenticated user"""
     # TODO Require authentication
-    return jsonify(backend_implementation.secondary_services.list_services())
+    return jsonify({
+        "services": [
+            _service_metadata_to_json(m, full=False)
+            for m in backend_implementation.secondary_services.list_services()
+        ],
+        "links": [],
+    })
 
 
 @api_endpoint
 @openeo_bp.route('/services/<service_id>', methods=['GET'])
 def get_service_info(service_id):
     # TODO Require authentication
-    return jsonify(backend_implementation.secondary_services.service_info(service_id))
+    try:
+        metadata = backend_implementation.secondary_services.service_info(service_id)
+    except Exception:
+        raise ServiceNotFoundException(service_id)
+    return jsonify(_service_metadata_to_json(metadata, full=True))
 
 
 @api_endpoint
 @openeo_bp.route('/services/<service_id>', methods=['PATCH'])
 def service_patch(service_id):
     # TODO Require authentication
-    data = request.get_json()
-    # TODO sanitize/check data?
-    backend_implementation.secondary_services.update_service(service_id, data=data)
+    process_graph = _extract_process_graph(request.get_json())
+    backend_implementation.secondary_services.update_service(service_id, process_graph=process_graph)
     return response_204_no_content()
 
 
