@@ -17,11 +17,10 @@ from openeo.util import date_to_rfc3339, dict_no_none
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata
 from openeo_driver.ProcessGraphDeserializer import (
     evaluate, getProcesses, getProcess,
-    run_batch_job, cancel_batch_job,
-    get_batch_job_result_filenames, get_batch_job_result_output_dir, get_batch_job_log_entries,
     backend_implementation,
     summarize_exception)
-from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException
+from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
+    FilePathInvalidException
 from openeo_driver.save_result import SaveResult
 from openeo_driver.users import HttpAuthHandler, User
 from openeo_driver.utils import replace_nan_values, smart_bool
@@ -49,7 +48,6 @@ app = Flask(__name__)
 # Make sure app handles reverse proxy aspects (e.g. HTTPS) correctly.
 app.wsgi_app = ProxyFix(app.wsgi_app)
 
-app.config['APPLICATION_ROOT'] = '/openeo'
 # TODO: get this OpenID config url from a real config
 app.config['OPENID_CONNECT_CONFIG_URL'] = "https://sso-dev.vgt.vito.be/auth/realms/terrascope/.well-known/openid-configuration"
 
@@ -492,46 +490,48 @@ def modify_job(job_id, user: User):
 @openeo_bp.route('/jobs/<job_id>/results', methods=['POST'])
 @auth_handler.requires_bearer_auth
 def queue_job(job_id, user: User):
-    # TODO #8 raise JobNotFoundException instead of abort(404)
-    job_info = backend_implementation.batch_jobs.get_job_info(job_id, user.user_id)
-
-    if job_info:
-        run_batch_job(job_id, user.user_id)
-        return make_response("", 202)
-    else:
-        abort(404)
+    backend_implementation.batch_jobs.start_job(job_id=job_id, user_id=user.user_id)
+    return make_response("", 202)
 
 
 @api_endpoint
 @openeo_bp.route('/jobs/<job_id>/results', methods=['GET'])
 @auth_handler.requires_bearer_auth
 def list_job_results(job_id, user: User):
-    # TODO #8 raise JobNotFoundException instead of abort(404)
-    filenames = get_batch_job_result_filenames(job_id, user.user_id)
-
-    if filenames is not None:
-        job_results = {
-            # TODO: use `url_for` instead of diy url building?
-            "links": [{"href": request.base_url + "/" + filename} for filename in filenames]
+    # TODO: error JobNotFinished when job is not finished yet
+    results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
+    filenames = results.keys()
+    if requested_api_version().at_least("1.0.0"):
+        result = {
+            # TODO: #EP-3281 API 1.0 required fields: "stac_version", "id", "type", "bbox", "geometry", "properties", "assets"
+            "assets": {
+                filename: {
+                    "href": url_for('.download_job_result', job_id=job_id, filename=filename, _external=True)
+                    # TODO #EP-3281 add "type" field with media type
+                }
+                for filename in filenames
+            }
+        }
+    else:
+        result = {
+            "links": [
+                {"href": url_for('.download_job_result', job_id=job_id, filename=filename, _external=True)}
+                for filename in filenames
+            ]
         }
 
-        return jsonify(job_results)
-    else:
-        return abort(404)
+    return jsonify(result)
 
 
 @api_endpoint
 @openeo_bp.route('/jobs/<job_id>/results/<filename>', methods=['GET'])
 @auth_handler.requires_bearer_auth
-def get_job_result(job_id, filename, user: User):
-    # TODO #8 raise JobNotFoundException instead of abort(404)
-    job_info = backend_implementation.batch_jobs.get_job_info(job_id, user.user_id)
-
-    if job_info:
-        output_dir = get_batch_job_result_output_dir(job_id)
-        return send_from_directory(output_dir, filename)
-    else:
-        abort(404)
+def download_job_result(job_id, filename, user: User):
+    results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
+    if filename not in results:
+        raise FilePathInvalidException
+    output_dir = results[filename]
+    return send_from_directory(output_dir, filename)
 
 
 @api_endpoint
@@ -539,9 +539,9 @@ def get_job_result(job_id, filename, user: User):
 @auth_handler.requires_bearer_auth
 def get_job_logs(job_id, user: User):
     offset = request.args.get('offset', 0)
-
     return jsonify({
-        'logs': get_batch_job_log_entries(job_id, user.user_id, offset)
+        "logs": backend_implementation.batch_jobs.get_log_entries(job_id=job_id, user_id=user.user_id, offset=offset),
+        "links": [],
     })
 
 
@@ -549,14 +549,8 @@ def get_job_logs(job_id, user: User):
 @openeo_bp.route('/jobs/<job_id>/results', methods=['DELETE'])
 @auth_handler.requires_bearer_auth
 def cancel_job(job_id, user: User):
-    # TODO #8 raise JobNotFoundException instead of abort(404)
-    job_info = backend_implementation.batch_jobs.get_job_info(job_id, user.user_id)
-
-    if job_info:
-        cancel_batch_job(job_id, user.user_id)
-        return make_response("", 204)
-    else:
-        abort(404)
+    backend_implementation.batch_jobs.cancel_job(job_id=job_id, user_id=user.user_id)
+    return make_response("", 204)
 
 #SERVICES API https://open-eo.github.io/openeo-api/v/0.3.0/apireference/#tag/Web-Service-Management
 

@@ -12,7 +12,7 @@ Also see https://github.com/Open-EO/openeo-python-driver/issues/8
 import copy
 import warnings
 from pathlib import Path
-from typing import List, Tuple, Union, NamedTuple
+from typing import List, Tuple, Union, NamedTuple, Dict
 from datetime import datetime
 
 from openeo import ImageCollection
@@ -249,6 +249,36 @@ class BatchJobs(MicroService):
         """
         Get details about all batch jobs of a user
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-jobs
+        """
+        raise NotImplementedError
+
+    def start_job(self, job_id: str, user_id: str):
+        """
+        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/start-job
+        """
+        raise NotImplementedError
+
+    def get_results(self, job_id: str, user_id: str) -> Dict[str, str]:
+        """
+        Return result files as (filename, output_dir) mapping: `filename` is the part that
+        the user can see (in download url), `output_dir` is internal (root) dir where
+        output is stored.
+
+        related:
+        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-results
+        """
+        # TODO: #EP-3281 not only return asset path, but also media type, description, ...
+        raise NotImplementedError
+
+    def get_log_entries(self, job_id: str, user_id: str, offset: str) -> List[dict]:
+        """
+        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/debug-job
+        """
+        raise NotImplementedError
+
+    def cancel_job(self, job_id:str, user_id:str):
+        """
+        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/stop-job
         """
         raise NotImplementedError
 

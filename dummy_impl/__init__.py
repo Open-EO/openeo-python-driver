@@ -1,7 +1,8 @@
 from datetime import datetime
 import numbers
 import os
-from typing import List
+from pathlib import Path
+from typing import List, Dict
 from unittest.mock import Mock
 
 from shapely.geometry import Polygon, MultiPolygon
@@ -11,35 +12,12 @@ from openeo import ImageCollection
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata, BatchJobs, BatchJobMetadata
 from openeo_driver.errors import JobNotFoundException
+from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 
 TEST_BATCH_JOB_ID = '07024ee9-7847-4b8a-b260-6c879a2b3cdc'
 TEST_USER = "Mr.Test"
 
 collections = {}
-
-
-def run_batch_job(*_):
-    return
-
-
-
-def get_batch_job_result_filenames(job_id, user_id):
-    pass
-
-
-def get_batch_job_result_output_dir(job_id):
-    return "/path/to/%s" % job_id
-
-
-def cancel_batch_job(job_id, user_id):
-    pass
-
-
-def get_batch_job_log_entries(job_id, user_id, offset):
-    return []
-
-
-from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 
 
 class DummyVisitor(ProcessGraphVisitor):
@@ -247,6 +225,27 @@ class DummyBatchJobs(BatchJobs):
             return [self.get_job_info(TEST_BATCH_JOB_ID, TEST_USER)]
         else:
             return []
+
+    def start_job(self, job_id: str, user_id: str):
+        self.get_job_info(job_id=job_id, user_id=user_id)
+
+    def _output_root(self) -> Path:
+        return Path("/data/jobs")
+
+    def get_results(self, job_id: str, user_id: str) -> Dict[str, str]:
+        self.get_job_info(job_id=job_id, user_id=user_id)
+        return {
+            "output.tiff": str(self._output_root() / job_id / "out")
+        }
+
+    def get_log_entries(self, job_id: str, user_id: str, offset: str) -> List[dict]:
+        self.get_job_info(job_id=job_id, user_id=user_id)
+        return [
+            {"id": "1", "level": "info", "message": "hello world", "path": []}
+        ]
+
+    def cancel_job(self, job_id: str, user_id: str):
+        self.get_job_info(job_id=job_id, user_id=user_id)
 
 
 class DummyBackendImplementation(OpenEoBackendImplementation):
