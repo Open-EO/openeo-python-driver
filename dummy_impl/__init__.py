@@ -24,6 +24,10 @@ class DummyVisitor(ProcessGraphVisitor):
 
     def __init__(self):
         super(DummyVisitor, self).__init__()
+        self.processes = []
+
+    def enterProcess(self, process_id: str, arguments: dict):
+        self.processes.append((process_id, arguments))
 
     def constantArgument(self, argument_id: str, value):
         if isinstance(value, numbers.Real):
@@ -33,10 +37,6 @@ class DummyVisitor(ProcessGraphVisitor):
                 'Only numeric constants are accepted, but got: ' + str(value) + ' for argument: ' + str(
                     argument_id))
         return self
-
-
-def create_process_visitor():
-    return DummyVisitor()
 
 
 class DummySecondaryServices(SecondaryServices):
@@ -273,6 +273,9 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
 
     def load_disk_data(self, format: str, glob_pattern: str, options: dict, viewing_parameters: dict) -> object:
         return {}
+
+    def visit_process_graph(self, process_graph: dict) -> ProcessGraphVisitor:
+        return DummyVisitor().accept_process_graph(process_graph)
 
 
 def get_openeo_backend_implementation() -> OpenEoBackendImplementation:

@@ -238,11 +238,8 @@ def reduce(args: dict, viewingParameters) -> ImageCollection:
         if not binary and len(reduce_pg) == 1 and next(iter(reduce_pg.values())).get('process_id') == 'run_udf':
             #it would be better to avoid having special cases everywhere to support udf's
             return _evaluate_sub_process_graph(args, 'reducer', 'reduce')  # TODO #33: reduce -> reduce_dimension
-        if create_process_visitor is not None:
-            visitor = create_process_visitor().accept_process_graph(reduce_pg)
-            return data_cube.reduce_bands(visitor)
-        else:
-            raise AttributeError('Reduce on bands is not supported by this backend.')
+        visitor = backend_implementation.visit_process_graph(reduce_pg)
+        return data_cube.reduce_bands(visitor)
     else:
         return _evaluate_sub_process_graph(args, 'reducer', 'reduce')  # TODO #33: reduce -> reduce_dimension
 
@@ -612,10 +609,6 @@ def _as_geometry_collection(feature_collection: dict) -> dict:
 _driver_implementation_package = os.getenv('DRIVER_IMPLEMENTATION_PACKAGE', "dummy_impl")
 _log.info('Using driver implementation package {d}'.format(d=_driver_implementation_package))
 i = importlib.import_module(_driver_implementation_package)
-try:
-    create_process_visitor = i.create_process_visitor
-except AttributeError as e:
-    create_process_visitor = None
 
 # TODO: this just-in-time import is to avoid circular dependency hell
 from openeo_driver.backend import OpenEoBackendImplementation

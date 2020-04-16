@@ -16,6 +16,7 @@ from typing import List, Tuple, Union, NamedTuple, Dict
 from datetime import datetime
 
 from openeo import ImageCollection
+from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.util import date_to_rfc3339
 from openeo_driver.errors import OpenEOApiException, CollectionNotFoundException
 from openeo_driver.utils import read_json
@@ -310,3 +311,7 @@ class OpenEoBackendImplementation:
     def load_disk_data(self, format: str, glob_pattern: str, options: dict, viewing_parameters: dict) -> object:
         # TODO: move this to catalog "microservice"
         raise NotImplementedError
+
+    def visit_process_graph(self, process_graph: dict) -> ProcessGraphVisitor:
+        """Create a process graph visitor and accept given process graph"""
+        return ProcessGraphVisitor().accept_process_graph(process_graph)

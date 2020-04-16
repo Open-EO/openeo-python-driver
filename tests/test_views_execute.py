@@ -187,6 +187,11 @@ def test_execute_merge_cubes(api):
 
 def test_execute_reduce_bands(api):
     api.check_result("reduce_bands.json")
+    reduce_bands = dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].reduce_bands
+    reduce_bands.assert_called_once()
+    visitor = reduce_bands.call_args_list[0][0][0]
+    assert isinstance(visitor, dummy_impl.DummyVisitor)
+    assert set(p[0] for p in visitor.processes) == {"sum", "subtract", "divide"}
 
 
 def test_execute_mask(api):
