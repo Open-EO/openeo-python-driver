@@ -21,6 +21,15 @@ from openeo_driver.errors import OpenEOApiException, CollectionNotFoundException
 from openeo_driver.utils import read_json
 
 
+class MicroService:
+    """
+    Base class for a backend "microservice"
+    (grouped subset of backend functionality)
+
+    https://openeo.org/documentation/1.0/developers/arch.html#microservices
+    """
+
+
 class ServiceMetadata(NamedTuple):
     """
     Container for service metadata
@@ -61,10 +70,10 @@ class ServiceMetadata(NamedTuple):
         return cls(**d)
 
 
-class SecondaryServices:
+class SecondaryServices(MicroService):
     """
     Base contract/implementation for Secondary Services "microservice"
-    https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management
+    https://openeo.org/documentation/1.0/developers/api/reference.html#tag/Secondary-Services
     """
 
     def service_types(self) -> dict:
@@ -113,7 +122,7 @@ class SecondaryServices:
     # TODO https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1subscription/get
 
 
-class CollectionCatalog:
+class CollectionCatalog(MicroService):
     """
     Basic implementation of a catalog of collections/EO data
     """
@@ -189,14 +198,75 @@ class CollectionIncompleteMetadataWarning(UserWarning):
     pass
 
 
+class BatchJobMetadata(NamedTuple):
+    """
+    Container for batch job metadata
+    """
+    # TODO: move this to openeo-python-client?
+    # TODO: also add user metadata?
+
+    # Required fields (no default)
+    id: str
+    process: dict  # TODO: also encapsulate this "process graph with metadata" struct (instead of free-form dict)?
+    status: str
+    created: datetime
+
+    # Optional fields (with default)
+    title: str = None
+    description: str = None
+    progress: float = None
+    updated: datetime = None
+    plan = None
+    costs = None
+    budget = None
+
+    def prepare_for_json(self) -> dict:
+        """Prepare metadata for JSON serialization"""
+        d = self._asdict()
+        d["created"] = date_to_rfc3339(self.created) if self.created else None
+        d["updated"] = date_to_rfc3339(self.updated) if self.updated else None
+        return d
+
+
+class BatchJobs(MicroService):
+    """
+    Base contract/implementation for Batch Jobs "microservice"
+    https://openeo.org/documentation/1.0/developers/api/reference.html#operation/stop-job
+    """
+
+    def create_job(self, user_id: str, job_specification: dict, api_version: str) -> BatchJobMetadata:
+        raise NotImplementedError
+
+    def get_job_info(self, job_id: str, user_id: str) -> BatchJobMetadata:
+        """
+        Get details about a batch job
+        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-job
+        Should raise `JobNotFoundException` on invalid job/user id
+        """
+        raise NotImplementedError
+
+    def get_user_jobs(self, user_id: str) -> List[BatchJobMetadata]:
+        """
+        Get details about all batch jobs of a user
+        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-jobs
+        """
+        raise NotImplementedError
+
+
 class OpenEoBackendImplementation:
     """
     Simple container of all openEo "microservices"
     """
 
-    def __init__(self, secondary_services: SecondaryServices, catalog: CollectionCatalog):
+    def __init__(
+            self,
+            secondary_services: SecondaryServices,
+            catalog: CollectionCatalog,
+            batch_jobs: BatchJobs,
+    ):
         self.secondary_services = secondary_services
         self.catalog = catalog
+        self.batch_jobs = batch_jobs
 
     def health_check(self) -> str:
         return "OK"
@@ -208,4 +278,5 @@ class OpenEoBackendImplementation:
         return {"input": {}, "output": {}}
 
     def load_disk_data(self, format: str, glob_pattern: str, options: dict, viewing_parameters: dict) -> object:
+        # TODO: move this to catalog "microservice"
         raise NotImplementedError

@@ -9,28 +9,18 @@ from shapely.geometry.collection import GeometryCollection
 
 from openeo import ImageCollection
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata
+from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata, BatchJobs, BatchJobMetadata
+from openeo_driver.errors import JobNotFoundException
+
+TEST_BATCH_JOB_ID = '07024ee9-7847-4b8a-b260-6c879a2b3cdc'
+TEST_USER = "Mr.Test"
 
 collections = {}
-
-
-def create_batch_job(*_):
-    return '07024ee9-7847-4b8a-b260-6c879a2b3cdc'
 
 
 def run_batch_job(*_):
     return
 
-
-def get_batch_job_info(job_id, user_id):
-    return {
-        'job_id': job_id,
-        'status': 'running'
-    }
-
-
-def get_batch_jobs_info(_):
-    return [get_batch_job_info('07024ee9-7847-4b8a-b260-6c879a2b3cdc', 'test')]
 
 
 def get_batch_job_result_filenames(job_id, user_id):
@@ -236,10 +226,35 @@ class DummyCatalog(CollectionCatalog):
         return image_collection
 
 
+class DummyBatchJobs(BatchJobs):
+
+    def create_job(self, user_id: str, job_specification: dict, api_version: str) -> BatchJobMetadata:
+        # TODO: actually "create" a new job instead of reusing an existing one?
+        return self.get_job_info(job_id=TEST_BATCH_JOB_ID, user_id=user_id)
+
+    def get_job_info(self, job_id: str, user_id: str) -> BatchJobMetadata:
+        if (job_id, user_id) == (TEST_BATCH_JOB_ID, TEST_USER):
+            return BatchJobMetadata(
+                id=job_id,
+                status='running',
+                process={'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
+                created=datetime(2017, 1, 1, 9, 32, 12),
+            )
+        raise JobNotFoundException(job_id=job_id)
+
+    def get_user_jobs(self, user_id: str) -> List[BatchJobMetadata]:
+        if user_id == TEST_USER:
+            return [self.get_job_info(TEST_BATCH_JOB_ID, TEST_USER)]
+        else:
+            return []
+
+
 class DummyBackendImplementation(OpenEoBackendImplementation):
     def __init__(self):
         super(DummyBackendImplementation, self).__init__(
-            secondary_services=DummySecondaryServices(), catalog=DummyCatalog()
+            secondary_services=DummySecondaryServices(),
+            catalog=DummyCatalog(),
+            batch_jobs=DummyBatchJobs(),
         )
 
     def file_formats(self) -> dict:

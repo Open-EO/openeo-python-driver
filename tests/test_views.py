@@ -5,7 +5,8 @@ from unittest import TestCase, skip
 import flask
 import dummy_impl
 from openeo.capabilities import ComparableVersion
-from openeo_driver.errors import ServiceNotFoundException
+from openeo_driver.errors import ServiceNotFoundException, JobNotFoundException
+from openeo_driver.users import HttpAuthHandler
 from openeo_driver.views import app, EndpointRegistry
 
 os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "dummy_impl"
@@ -18,7 +19,9 @@ class Test(TestCase):
     def setUp(self):
         app.config['TESTING'] = True
         self.client = app.test_client()
-        self._auth_header = {"Authorization": "Bearer basic.dGVzdA=="}
+        self._auth_header = {
+            "Authorization": "Bearer " + HttpAuthHandler().build_basic_access_token(user_id=dummy_impl.TEST_USER)
+        }
         dummy_impl.collections = {}
 
     def test_capabilities(self):
@@ -148,15 +151,26 @@ class Test(TestCase):
 
         print(result)
 
-    def test_create_job(self):
-        resp = self.client.post('/openeo/jobs', content_type='application/json', headers=self._auth_header, data=json.dumps({
-            'process_graph': {},
-            'output': {}
-        }))
-
+    def test_create_job_040(self):
+        resp = self.client.post('/openeo/0.4.0/jobs', headers=self._auth_header, json={
+            'title': 'foo job',
+            'process_graph': {"foo": {"process_id": "foo", "arguments": {}}},
+        })
         assert resp.status_code == 201
         assert resp.content_length == 0
-        assert resp.headers['Location'].endswith('/openeo/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc')
+        assert resp.headers['Location'].endswith('/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc')
+        assert resp.headers['OpenEO-Identifier'] == '07024ee9-7847-4b8a-b260-6c879a2b3cdc'
+
+    def test_create_job_100(self):
+        resp = self.client.post('/openeo/1.0.0/jobs', headers=self._auth_header, json={
+            'process': {
+                'process_graph': {"foo": {"process_id": "foo", "arguments": {}}},
+                'summary': 'my foo job',
+            },
+        })
+        assert resp.status_code == 201
+        assert resp.content_length == 0
+        assert resp.headers['Location'].endswith('/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc')
         assert resp.headers['OpenEO-Identifier'] == '07024ee9-7847-4b8a-b260-6c879a2b3cdc'
 
     def test_queue_job(self):
@@ -164,15 +178,60 @@ class Test(TestCase):
 
         self.assertEqual(202, resp.status_code)
 
-    def test_get_job_info(self):
-        resp = self.client.get('/openeo/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc', headers=self._auth_header)
+    def test_get_job_info_040(self):
+        resp = self.client.get('/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc', headers=self._auth_header)
+        assert resp.status_code == 200
+        assert resp.json == {
+            'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
+            'status': 'running',
+            'submitted': "2017-01-01T09:32:12Z",
+            'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}},
+        }
 
-        self.assertEqual(200, resp.status_code)
+    def test_get_job_info_100(self):
+        resp = self.client.get('/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc', headers=self._auth_header)
+        assert resp.status_code == 200
+        assert resp.json == {
+            'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
+            'status': 'running',
+            'created': "2017-01-01T09:32:12Z",
+            'process': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
+        }
 
-        info = resp.get_json()
+    def test_get_job_info_invalid(self):
+        resp = self.client.get('/openeo/1.0.0/jobs/deadbeef-f00-ba7', headers=self._auth_header)
+        assert resp.status_code == 404
+        error = resp.json
+        assert error["code"] == "JobNotFound"
+        assert error["message"] == "The job 'deadbeef-f00-ba7' does not exist."
 
-        self.assertEqual(info['job_id'], '07024ee9-7847-4b8a-b260-6c879a2b3cdc')
-        self.assertEqual(info['status'], 'running')
+    def test_list_user_jobs_040(self):
+        resp = self.client.get('/openeo/0.4.0/jobs', headers=self._auth_header)
+        assert resp.status_code == 200
+        assert resp.json == {
+            "jobs": [
+                {
+                    'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
+                    'status': 'running',
+                    'submitted': "2017-01-01T09:32:12Z",
+                }
+            ],
+            "links": []
+        }
+
+    def test_list_user_jobs_100(self):
+        resp = self.client.get('/openeo/1.0.0/jobs', headers=self._auth_header)
+        assert resp.status_code == 200
+        assert resp.json == {
+            "jobs": [
+                {
+                    'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
+                    'status': 'running',
+                    'created': "2017-01-01T09:32:12Z",
+                }
+            ],
+            "links": []
+        }
 
     def test_cancel_job(self):
         resp = self.client.delete('/openeo/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self._auth_header)
