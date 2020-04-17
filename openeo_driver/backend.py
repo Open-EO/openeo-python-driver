@@ -21,10 +21,8 @@ from datetime import datetime
 from openeo import ImageCollection
 from openeo.error_summary import ErrorSummary
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
-from openeo.util import date_to_rfc3339
 from openeo_driver.errors import OpenEOApiException, CollectionNotFoundException
-from openeo_driver.utils import read_json
-
+from openeo_driver.utils import read_json, date_to_rfc3339, parse_rfc3339
 
 logger = logging.getLogger(__name__)
 
@@ -68,12 +66,12 @@ class ServiceMetadata(NamedTuple):
         return d
 
     @classmethod
-    def from_dict(cls, d:dict) -> 'ServiceMetadata':
+    def from_dict(cls, d: dict) -> 'ServiceMetadata':
         """Load ServiceMetadata from dict (e.g. parsed JSON dump)."""
         created = d.get("created")
         if isinstance(created, str):
             d = d.copy()
-            d["created"] = datetime.strptime(created, '%Y-%m-%dT%H:%M:%SZ')
+            d["created"] = parse_rfc3339(created)
         return cls(**d)
 
 
