@@ -26,6 +26,19 @@ class Test(TestCase):
         }
         dummy_backend.collections = {}
 
+    def test_well_known_openeo(self):
+        resp = self.client.get('/.well-known/openeo')
+        assert resp.status_code == 200
+        expected = {'api_version': '1.0.0', 'production': False, 'url': 'http://oeo.net/openeo/1.0.0/'}
+        assert expected in resp.json["versions"]
+
+    def test_capabilities_invalid_api_version(self):
+        resp = self.client.get('/openeo/0.0.0/')
+        assert resp.status_code == 501
+        error = resp.json
+        assert error['code'] == 'UnsupportedApiVersion'
+        assert "Unsupported version: '0.0.0'" in error['message']
+
     def test_capabilities(self):
         resp = self.client.get('/openeo/1.0.0/')
         capabilities = resp.json

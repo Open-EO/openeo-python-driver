@@ -24,21 +24,20 @@ from openeo_driver.utils import replace_nan_values, smart_bool
 
 _log = logging.getLogger(__name__)
 
-SUPPORTED_VERSIONS = [
-    '0.3.0',
-    '0.3.1',
-    '0.4.0',
-    '0.4.1',
-    '0.4.2',
-    '1.0.0',
-]
-ADVERTISED_VERSIONS = [
-    '0.4.0',
-    '0.4.1',
-    '0.4.2',
-]
-DEFAULT_VERSION = '0.3.1'
+ApiVersionInfo = namedtuple("ApiVersionInfo", ["version", "supported", "advertised", "production"])
 
+API_VERSIONS = [
+    ApiVersionInfo(version="0.3.0", supported=False, advertised=False, production=False),
+    ApiVersionInfo(version="0.3.1", supported=False, advertised=False, production=False),
+    ApiVersionInfo(version="0.4.0", supported=True, advertised=True, production=True),
+    ApiVersionInfo(version="0.4.1", supported=True, advertised=True, production=True),
+    ApiVersionInfo(version="0.4.2", supported=True, advertised=True, production=True),
+    ApiVersionInfo(version="1.0.0", supported=True, advertised=True, production=False),
+]
+DEFAULT_VERSION = '0.4.2'
+
+_log.info("API Versions: {v}".format(v=API_VERSIONS))
+_log.info("Default API Version: {v}".format(v=DEFAULT_VERSION))
 
 app = Flask(__name__)
 
@@ -65,15 +64,14 @@ def _add_version(endpoint, values):
 def _pull_version(endpoint, values):
     """Get API version from request and store in global context"""
     g.version = values.pop('version', DEFAULT_VERSION)
-    if g.version not in SUPPORTED_VERSIONS:
-        # TODO replace with OpenEOApiException?
-        error = HTTPException(response={
-            "id": "550e8400-e29b-11d4-a716-446655440000",
-            "code": 400,
-            "message": "Unsupported version: " + g.version + ".  Supported versions: " + str(ADVERTISED_VERSIONS)
-        })
-        error.code = 400
-        raise error
+    if g.version not in set(v.version for v in API_VERSIONS if v.supported):
+        raise OpenEOApiException(
+            status_code=501,
+            code="UnsupportedApiVersion",
+            message="Unsupported version: {v!r}.  Supported versions: {s!r}".format(
+                v=g.version, s=[v.version for v in API_VERSIONS if v.advertised]
+            )
+        )
 
 
 def requested_api_version() -> ComparableVersion:
@@ -702,11 +700,11 @@ def well_known_openeo():
     return jsonify({
         'versions': [
             {
-                "url": url_for('openeo.index', version=version, _external=True),
-                "api_version": version,
-                # TODO: flag some versions as not available for production?
-                "production": True,
+                "url": url_for('openeo.index', version=v.version, _external=True),
+                "api_version": v.version,
+                "production": v.production,
             }
-            for version in ADVERTISED_VERSIONS
+            for v in API_VERSIONS
+            if v.advertised
         ]
     })
