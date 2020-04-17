@@ -3,10 +3,12 @@ from collections import Callable
 
 from pathlib import Path
 
+TEST_DATA_ROOT = Path(__file__).parent
+
 
 def get_path(filename: str) -> Path:
     """Get absolute pat to a test data file"""
-    return Path(__file__).parent / filename
+    return TEST_DATA_ROOT / filename
 
 
 def load_json(filename: str, preprocess: Callable = None) -> dict:

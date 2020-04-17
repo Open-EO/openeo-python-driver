@@ -13,9 +13,9 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata, BatchJobs, BatchJobMetadata
 from openeo_driver.errors import JobNotFoundException
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+from openeo_driver.testing import TEST_USER
 
 TEST_BATCH_JOB_ID = '07024ee9-7847-4b8a-b260-6c879a2b3cdc'
-TEST_USER = "Mr.Test"
 
 collections = {}
 
