@@ -116,7 +116,7 @@ def handle_openeoapi_exception(error: OpenEOApiException):
 @app.errorhandler(Exception)
 def handle_error(error: Exception):
     # TODO: convert to OpenEOApiException based handling
-    error = summarize_exception(error)
+    error = backend_implementation.summarize_exception(error)
 
     if isinstance(error, ErrorSummary):
         return _error_response(error, 400, error.summary) if error.is_client_error \

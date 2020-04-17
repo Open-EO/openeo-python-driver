@@ -16,6 +16,7 @@ from typing import List, Tuple, Union, NamedTuple, Dict
 from datetime import datetime
 
 from openeo import ImageCollection
+from openeo.error_summary import ErrorSummary
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.util import date_to_rfc3339
 from openeo_driver.errors import OpenEOApiException, CollectionNotFoundException
@@ -315,3 +316,6 @@ class OpenEoBackendImplementation:
     def visit_process_graph(self, process_graph: dict) -> ProcessGraphVisitor:
         """Create a process graph visitor and accept given process graph"""
         return ProcessGraphVisitor().accept_process_graph(process_graph)
+
+    def summarize_exception(self, error: Exception) -> Union[ErrorSummary, Exception]:
+        return error

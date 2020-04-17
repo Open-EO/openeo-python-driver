@@ -620,4 +620,3 @@ def get_openeo_backend_implementation() -> OpenEoBackendImplementation:
 
 backend_implementation = get_openeo_backend_implementation()
 
-summarize_exception = i.summarize_exception if hasattr(i, 'summarize_exception') else lambda exception: exception
