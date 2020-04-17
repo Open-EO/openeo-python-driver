@@ -6,14 +6,14 @@ from flask import Response
 from flask.testing import FlaskClient
 from typing import Union, Callable
 
-import dummy_impl
+from openeo_driver.dummy import dummy_backend
 from openeo.capabilities import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo_driver.errors import ProcessGraphMissingException
 from openeo_driver.views import app
 from .data import load_json, get_path
 
-os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "dummy_impl"
+os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "openeo_driver.dummy.dummy_backend"
 
 
 @pytest.fixture(params=["0.4.0", "1.0.0"])
@@ -30,7 +30,7 @@ def client():
 class ApiTester:
     """Helper container class for compact writing of api version aware `views` tests"""
 
-    def __init__(self, api_version: str, client: FlaskClient, impl=dummy_impl):
+    def __init__(self, api_version: str, client: FlaskClient, impl=dummy_backend):
         self.api_version = api_version
         self.client = client
         self.impl = impl
@@ -74,8 +74,8 @@ class ApiTester:
 
 @pytest.fixture
 def api(api_version, client) -> ApiTester:
-    dummy_impl.collections = {}
-    return ApiTester(api_version=api_version, client=client, impl=dummy_impl)
+    dummy_backend.collections = {}
+    return ApiTester(api_version=api_version, client=client, impl=dummy_backend)
 
 
 def test_udf_runtimes(api):
@@ -187,10 +187,10 @@ def test_execute_merge_cubes(api):
 
 def test_execute_reduce_bands(api):
     api.check_result("reduce_bands.json")
-    reduce_bands = dummy_impl.collections["S2_FAPAR_CLOUDCOVER"].reduce_bands
+    reduce_bands = dummy_backend.collections["S2_FAPAR_CLOUDCOVER"].reduce_bands
     reduce_bands.assert_called_once()
     visitor = reduce_bands.call_args_list[0][0][0]
-    assert isinstance(visitor, dummy_impl.DummyVisitor)
+    assert isinstance(visitor, dummy_backend.DummyVisitor)
     assert set(p[0] for p in visitor.processes) == {"sum", "subtract", "divide"}
 
 
@@ -378,7 +378,7 @@ def test_aggregate_feature_collection(api):
 
 
 def test_post_result_process_100(client):
-    api = ApiTester(api_version="1.0.0", client=client, impl=dummy_impl)
+    api = ApiTester(api_version="1.0.0", client=client, impl=dummy_backend)
     response = api.client.post(
         path=api.url('/result'),
         json={"process": {"process_graph": api.load_json("basic.json")}},

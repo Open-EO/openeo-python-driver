@@ -5,13 +5,12 @@ from pathlib import Path
 import tempfile
 from unittest import TestCase, skip, mock
 import flask
-import dummy_impl
+from openeo_driver.dummy import dummy_backend
 from openeo.capabilities import ComparableVersion
-from openeo_driver.errors import ServiceNotFoundException, JobNotFoundException
 from openeo_driver.users import HttpAuthHandler
 from openeo_driver.views import app, EndpointRegistry
 
-os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "dummy_impl"
+os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "openeo_driver.dummy.dummy_backend"
 app.config["OPENEO_TITLE"] = "OpenEO Test API"
 
 client = app.test_client()
@@ -23,9 +22,9 @@ class Test(TestCase):
         app.config['SERVER_NAME'] = 'oeo.net'
         self.client = app.test_client()
         self._auth_header = {
-            "Authorization": "Bearer " + HttpAuthHandler().build_basic_access_token(user_id=dummy_impl.TEST_USER)
+            "Authorization": "Bearer " + HttpAuthHandler().build_basic_access_token(user_id=dummy_backend.TEST_USER)
         }
-        dummy_impl.collections = {}
+        dummy_backend.collections = {}
 
     def test_capabilities(self):
         resp = self.client.get('/openeo/1.0.0/')
@@ -282,7 +281,7 @@ class Test(TestCase):
         # TODO: use fixture for tmp_dir?
         with tempfile.TemporaryDirectory() as d:
             output_root = Path(d)
-            with mock.patch.object(dummy_impl.DummyBatchJobs, '_output_root', return_value=output_root):
+            with mock.patch.object(dummy_backend.DummyBatchJobs, '_output_root', return_value=output_root):
                 output = output_root / "07024ee9-7847-4b8a-b260-6c879a2b3cdc" / "out" / "output.tiff"
                 output.parent.mkdir(parents=True)
                 with output.open("wb") as f:

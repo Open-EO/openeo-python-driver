@@ -28,7 +28,7 @@ setup(
     author_email='jeroen.dries@vito.be',
     description='Python implementation of openEO web service, with abstract implementation of processes.',
     url='https://github.com/Open-EO/openeo-python-driver',
-    packages=find_packages(include=['openeo*','dummy_impl']),
+    packages=find_packages(include=['openeo_driver']),
     include_package_data=True,
     setup_requires=['pytest-runner'],
     tests_require=tests_require,

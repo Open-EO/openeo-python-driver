@@ -1,3 +1,3 @@
 import os
 
-os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "dummy_impl"
+os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "openeo_driver.dummy.dummy_backend"
