@@ -10,7 +10,10 @@ Also see https://github.com/Open-EO/openeo-python-driver/issues/8
 """
 
 import copy
+import importlib
+import os
 import warnings
+import logging
 from pathlib import Path
 from typing import List, Tuple, Union, NamedTuple, Dict
 from datetime import datetime
@@ -22,6 +25,8 @@ from openeo.util import date_to_rfc3339
 from openeo_driver.errors import OpenEOApiException, CollectionNotFoundException
 from openeo_driver.utils import read_json
 
+
+logger = logging.getLogger(__name__)
 
 class MicroService:
     """
@@ -319,3 +324,17 @@ class OpenEoBackendImplementation:
 
     def summarize_exception(self, error: Exception) -> Union[ErrorSummary, Exception]:
         return error
+
+
+_backend_implementation = None
+
+
+def get_backend_implementation() -> OpenEoBackendImplementation:
+    global _backend_implementation
+    if _backend_implementation is None:
+        # TODO: #36 avoid non-standard importing through env var DRIVER_IMPLEMENTATION_PACKAGE
+        _driver_implementation_package = os.getenv('DRIVER_IMPLEMENTATION_PACKAGE', "dummy_impl")
+        logger.info('Using driver implementation package {d}'.format(d=_driver_implementation_package))
+        module = importlib.import_module(_driver_implementation_package)
+        _backend_implementation = module.get_openeo_backend_implementation()
+    return _backend_implementation

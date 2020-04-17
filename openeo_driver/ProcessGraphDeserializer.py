@@ -1,9 +1,7 @@
 # TODO: rename this module to something in snake case? It doesn't even implement a ProcessGraphDeserializer class.
 
 import base64
-import importlib
 import logging
-import os
 import pickle
 from typing import Dict
 
@@ -11,6 +9,7 @@ import numpy as np
 from shapely.geometry import shape, mapping
 
 from openeo import ImageCollection
+from openeo_driver.backend import get_backend_implementation
 from openeo_driver.errors import ProcessArgumentInvalidException, ProcessUnsupportedException, OpenEOApiException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
@@ -33,7 +32,7 @@ for p in [
 # Decorator shortcut to easily register functions as processes
 process = process_registry.add_function
 
-
+backend_implementation = get_backend_implementation()
 
 def evaluate(processGraph: dict, viewingParameters=None) -> ImageCollection:
     """
@@ -602,21 +601,4 @@ def _as_geometry_collection(feature_collection: dict) -> dict:
         'geometries': geometries
     }
 
-
-
-# TODO: avoid dumping all these functions at toplevel: wrap all this in a container with defined API and helpful type hinting
-# TODO: move all this to views.py (where it will be used) or backend.py?
-_driver_implementation_package = os.getenv('DRIVER_IMPLEMENTATION_PACKAGE', "dummy_impl")
-_log.info('Using driver implementation package {d}'.format(d=_driver_implementation_package))
-i = importlib.import_module(_driver_implementation_package)
-
-# TODO: this just-in-time import is to avoid circular dependency hell
-from openeo_driver.backend import OpenEoBackendImplementation
-
-
-def get_openeo_backend_implementation() -> OpenEoBackendImplementation:
-    return i.get_openeo_backend_implementation()
-
-
-backend_implementation = get_openeo_backend_implementation()
 

@@ -14,11 +14,8 @@ from openeo import ImageCollection
 from openeo.capabilities import ComparableVersion
 from openeo.error_summary import ErrorSummary
 from openeo.util import date_to_rfc3339, dict_no_none
-from openeo_driver.backend import ServiceMetadata, BatchJobMetadata
-from openeo_driver.ProcessGraphDeserializer import (
-    evaluate, getProcesses, getProcess,
-    backend_implementation,
-    summarize_exception)
+from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, get_backend_implementation
+from openeo_driver.ProcessGraphDeserializer import evaluate, getProcesses, getProcess
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException
 from openeo_driver.save_result import SaveResult
@@ -55,6 +52,7 @@ auth_handler = HttpAuthHandler()
 
 openeo_bp = Blueprint('openeo', __name__)
 
+backend_implementation = get_backend_implementation()
 
 @openeo_bp.url_defaults
 def _add_version(endpoint, values):
