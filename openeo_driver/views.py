@@ -14,42 +14,36 @@ from openeo import ImageCollection
 from openeo.capabilities import ComparableVersion
 from openeo.error_summary import ErrorSummary
 from openeo.util import date_to_rfc3339, dict_no_none
-from openeo_driver.backend import ServiceMetadata
-from openeo_driver.ProcessGraphDeserializer import (
-    evaluate, getProcesses, getProcess,
-    create_batch_job, run_batch_job, get_batch_job_info, get_batch_jobs_info, cancel_batch_job,
-    get_batch_job_result_filenames, get_batch_job_result_output_dir, get_batch_job_log_entries,
-    backend_implementation,
-    summarize_exception)
-from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException
+from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, get_backend_implementation
+from openeo_driver.ProcessGraphDeserializer import evaluate, getProcesses, getProcess
+from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
+    FilePathInvalidException
 from openeo_driver.save_result import SaveResult
 from openeo_driver.users import HttpAuthHandler, User
 from openeo_driver.utils import replace_nan_values, smart_bool
 
 _log = logging.getLogger(__name__)
 
-SUPPORTED_VERSIONS = [
-    '0.3.0',
-    '0.3.1',
-    '0.4.0',
-    '0.4.1',
-    '0.4.2',
-    '1.0.0',
-]
-ADVERTISED_VERSIONS = [
-    '0.4.0',
-    '0.4.1',
-    '0.4.2',
-]
-DEFAULT_VERSION = '0.3.1'
+ApiVersionInfo = namedtuple("ApiVersionInfo", ["version", "supported", "advertised", "production"])
 
+API_VERSIONS = [
+    ApiVersionInfo(version="0.3.0", supported=False, advertised=False, production=False),
+    ApiVersionInfo(version="0.3.1", supported=False, advertised=False, production=False),
+    ApiVersionInfo(version="0.4.0", supported=True, advertised=True, production=True),
+    ApiVersionInfo(version="0.4.1", supported=True, advertised=True, production=True),
+    ApiVersionInfo(version="0.4.2", supported=True, advertised=True, production=True),
+    ApiVersionInfo(version="1.0.0", supported=True, advertised=True, production=False),
+]
+DEFAULT_VERSION = '0.4.2'
+
+_log.info("API Versions: {v}".format(v=API_VERSIONS))
+_log.info("Default API Version: {v}".format(v=DEFAULT_VERSION))
 
 app = Flask(__name__)
 
 # Make sure app handles reverse proxy aspects (e.g. HTTPS) correctly.
 app.wsgi_app = ProxyFix(app.wsgi_app)
 
-app.config['APPLICATION_ROOT'] = '/openeo'
 # TODO: get this OpenID config url from a real config
 app.config['OPENID_CONNECT_CONFIG_URL'] = "https://sso-dev.vgt.vito.be/auth/realms/terrascope/.well-known/openid-configuration"
 
@@ -57,6 +51,7 @@ auth_handler = HttpAuthHandler()
 
 openeo_bp = Blueprint('openeo', __name__)
 
+backend_implementation = get_backend_implementation()
 
 @openeo_bp.url_defaults
 def _add_version(endpoint, values):
@@ -69,15 +64,14 @@ def _add_version(endpoint, values):
 def _pull_version(endpoint, values):
     """Get API version from request and store in global context"""
     g.version = values.pop('version', DEFAULT_VERSION)
-    if g.version not in SUPPORTED_VERSIONS:
-        # TODO replace with OpenEOApiException?
-        error = HTTPException(response={
-            "id": "550e8400-e29b-11d4-a716-446655440000",
-            "code": 400,
-            "message": "Unsupported version: " + g.version + ".  Supported versions: " + str(ADVERTISED_VERSIONS)
-        })
-        error.code = 400
-        raise error
+    if g.version not in set(v.version for v in API_VERSIONS if v.supported):
+        raise OpenEOApiException(
+            status_code=501,
+            code="UnsupportedApiVersion",
+            message="Unsupported version: {v!r}.  Supported versions: {s!r}".format(
+                v=g.version, s=[v.version for v in API_VERSIONS if v.advertised]
+            )
+        )
 
 
 def requested_api_version() -> ComparableVersion:
@@ -118,7 +112,7 @@ def handle_openeoapi_exception(error: OpenEOApiException):
 @app.errorhandler(Exception)
 def handle_error(error: Exception):
     # TODO: convert to OpenEOApiException based handling
-    error = summarize_exception(error)
+    error = backend_implementation.summarize_exception(error)
 
     if isinstance(error, ErrorSummary):
         return _error_response(error, 400, error.summary) if error.is_client_error \
@@ -418,50 +412,60 @@ def execute():
     else:
         return jsonify(replace_nan_values(result))
 
+
 @api_endpoint
-@openeo_bp.route('/jobs', methods=['GET', 'POST'])
+@openeo_bp.route('/jobs', methods=['POST'])
 @auth_handler.requires_bearer_auth
 def create_job(user: User):
-    if request.method == 'POST':
-        job_specification = request.get_json()
-
-        if 'process_graph' not in job_specification:
-            return abort(400)
-
-        job_id = create_batch_job(user.user_id, g.version, job_specification)
-
-        response = make_response("", 201)
-        response.headers['Location'] = request.base_url + '/' + job_id
-        response.headers['OpenEO-Identifier'] = str(job_id)
-
-        return response
-    else:
-        return {
-            'jobs': get_batch_jobs_info(user.user_id)
-        }
-
-
-def _normalize_batch_job_info(job_info: dict) -> dict:
-    """Normalize batch info based on API version"""
-    # TODO eliminate this when not necessary anymore?
-    # TODO wider status checking coverage?
-    if requested_api_version().below("1.0.0"):
-        mapping = {"created": "submitted"}
-    else:
-        mapping = {"submitted": "created"}
-    status = job_info["status"].lower()
-    if status in mapping:
-        job_info = job_info.copy()
-        job_info["status"] = mapping[status]
-    return job_info
+    # TODO: wrap this job specification in a 1.0-style ProcessGrahpWithMetadata?
+    job_specification = {"process_graph": _extract_process_graph(request.get_json())}
+    job_info = backend_implementation.batch_jobs.create_job(
+        user_id=user.user_id,
+        job_specification=job_specification,
+        api_version=g.version,
+    )
+    job_id = job_info.id
+    response = make_response("", 201)
+    response.headers['Location'] = url_for('.get_job_info', job_id=job_id)
+    response.headers['OpenEO-Identifier'] = str(job_id)
+    return response
 
 
 @api_endpoint
-@openeo_bp.route('/jobs/<job_id>' , methods=['GET'])
+@openeo_bp.route('/jobs', methods=['GET'])
+@auth_handler.requires_bearer_auth
+def list_jobs(user: User):
+    return jsonify({
+        "jobs": [
+            _jsonable_batch_job_metadata(m, full=False)
+            for m in backend_implementation.batch_jobs.get_user_jobs(user.user_id)
+        ],
+        "links": [],
+    })
+
+
+def _jsonable_batch_job_metadata(metadata: BatchJobMetadata, full=True) -> dict:
+    """API-version-aware conversion of service metadata to jsonable dict"""
+    d = metadata.prepare_for_json()
+    if not full:
+        d.pop("process")
+        d.pop("progress")
+    if requested_api_version().below("1.0.0"):
+        d["process_graph"] = d.pop("process", {}).get("process_graph")
+        d["submitted"] = d.pop("created", None)
+        # TODO wider status checking coverage?
+        if d["status"] == "created":
+            d["status"] = "submitted"
+
+    return dict_no_none(**d)
+
+
+@api_endpoint
+@openeo_bp.route('/jobs/<job_id>', methods=['GET'])
 @auth_handler.requires_bearer_auth
 def get_job_info(job_id, user: User):
-    job_info = get_batch_job_info(job_id, user.user_id)
-    return jsonify(_normalize_batch_job_info(job_info)) if job_info else abort(404)
+    job_info = backend_implementation.batch_jobs.get_job_info(job_id, user.user_id)
+    return jsonify(_jsonable_batch_job_metadata(job_info))
 
 
 @api_endpoint
@@ -482,42 +486,48 @@ def modify_job(job_id, user: User):
 @openeo_bp.route('/jobs/<job_id>/results', methods=['POST'])
 @auth_handler.requires_bearer_auth
 def queue_job(job_id, user: User):
-    job_info = get_batch_job_info(job_id, user.user_id)
-
-    if job_info:
-        run_batch_job(job_id, user.user_id)
-        return make_response("", 202)
-    else:
-        abort(404)
+    backend_implementation.batch_jobs.start_job(job_id=job_id, user_id=user.user_id)
+    return make_response("", 202)
 
 
 @api_endpoint
 @openeo_bp.route('/jobs/<job_id>/results', methods=['GET'])
 @auth_handler.requires_bearer_auth
 def list_job_results(job_id, user: User):
-    filenames = get_batch_job_result_filenames(job_id, user.user_id)
-
-    if filenames is not None:
-        job_results = {
-            "links": [{"href": request.base_url + "/" + filename} for filename in filenames]
+    # TODO: error JobNotFinished when job is not finished yet
+    results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
+    filenames = results.keys()
+    if requested_api_version().at_least("1.0.0"):
+        result = {
+            # TODO: #EP-3281 API 1.0 required fields: "stac_version", "id", "type", "bbox", "geometry", "properties", "assets"
+            "assets": {
+                filename: {
+                    "href": url_for('.download_job_result', job_id=job_id, filename=filename, _external=True)
+                    # TODO #EP-3281 add "type" field with media type
+                }
+                for filename in filenames
+            }
+        }
+    else:
+        result = {
+            "links": [
+                {"href": url_for('.download_job_result', job_id=job_id, filename=filename, _external=True)}
+                for filename in filenames
+            ]
         }
 
-        return jsonify(job_results)
-    else:
-        return abort(404)
+    return jsonify(result)
 
 
 @api_endpoint
 @openeo_bp.route('/jobs/<job_id>/results/<filename>', methods=['GET'])
 @auth_handler.requires_bearer_auth
-def get_job_result(job_id, filename, user: User):
-    job_info = get_batch_job_info(job_id, user.user_id)
-
-    if job_info:
-        output_dir = get_batch_job_result_output_dir(job_id)
-        return send_from_directory(output_dir, filename)
-    else:
-        abort(404)
+def download_job_result(job_id, filename, user: User):
+    results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
+    if filename not in results:
+        raise FilePathInvalidException
+    output_dir = results[filename]
+    return send_from_directory(output_dir, filename)
 
 
 @api_endpoint
@@ -525,9 +535,9 @@ def get_job_result(job_id, filename, user: User):
 @auth_handler.requires_bearer_auth
 def get_job_logs(job_id, user: User):
     offset = request.args.get('offset', 0)
-
     return jsonify({
-        'logs': get_batch_job_log_entries(job_id, user.user_id, offset)
+        "logs": backend_implementation.batch_jobs.get_log_entries(job_id=job_id, user_id=user.user_id, offset=offset),
+        "links": [],
     })
 
 
@@ -535,13 +545,8 @@ def get_job_logs(job_id, user: User):
 @openeo_bp.route('/jobs/<job_id>/results', methods=['DELETE'])
 @auth_handler.requires_bearer_auth
 def cancel_job(job_id, user: User):
-    job_info = get_batch_job_info(job_id, user.user_id)
-
-    if job_info:
-        cancel_batch_job(job_id, user.user_id)
-        return make_response("", 204)
-    else:
-        abort(404)
+    backend_implementation.batch_jobs.cancel_job(job_id=job_id, user_id=user.user_id)
+    return make_response("", 204)
 
 #SERVICES API https://open-eo.github.io/openeo-api/v/0.3.0/apireference/#tag/Web-Service-Management
 
@@ -589,7 +594,7 @@ def services_post():
     })
 
 
-def _service_metadata_to_json(metadata: ServiceMetadata, full=True) -> dict:
+def _jsonable_service_metadata(metadata: ServiceMetadata, full=True) -> dict:
     """API-version-aware conversion of service metadata to jsonable dict"""
     d = metadata.prepare_for_json()
     if not full:
@@ -609,7 +614,7 @@ def services_get():
     # TODO Require authentication
     return jsonify({
         "services": [
-            _service_metadata_to_json(m, full=False)
+            _jsonable_service_metadata(m, full=False)
             for m in backend_implementation.secondary_services.list_services()
         ],
         "links": [],
@@ -624,7 +629,7 @@ def get_service_info(service_id):
         metadata = backend_implementation.secondary_services.service_info(service_id)
     except Exception:
         raise ServiceNotFoundException(service_id)
-    return jsonify(_service_metadata_to_json(metadata, full=True))
+    return jsonify(_jsonable_service_metadata(metadata, full=True))
 
 
 @api_endpoint
@@ -679,6 +684,7 @@ def processes():
 @openeo_bp.route('/processes/<process_id>' , methods=['GET'])
 def process(process_id):
     process_details = getProcess(process_id)
+    # TODO raise proper OpenEOApiException
     return jsonify(process_details) if process_details else abort(404)
 
 
@@ -694,11 +700,11 @@ def well_known_openeo():
     return jsonify({
         'versions': [
             {
-                "url": url_for('openeo.index', version=version, _external=True),
-                "api_version": version,
-                # TODO: flag some versions as not available for production?
-                "production": True,
+                "url": url_for('openeo.index', version=v.version, _external=True),
+                "api_version": v.version,
+                "production": v.production,
             }
-            for version in ADVERTISED_VERSIONS
+            for v in API_VERSIONS
+            if v.advertised
         ]
     })

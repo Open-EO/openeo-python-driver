@@ -10,15 +10,29 @@ Also see https://github.com/Open-EO/openeo-python-driver/issues/8
 """
 
 import copy
+import importlib
+import os
 import warnings
+import logging
 from pathlib import Path
-from typing import List, Tuple, Union, NamedTuple
+from typing import List, Tuple, Union, NamedTuple, Dict
 from datetime import datetime
 
 from openeo import ImageCollection
-from openeo.util import date_to_rfc3339
+from openeo.error_summary import ErrorSummary
+from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo_driver.errors import OpenEOApiException, CollectionNotFoundException
-from openeo_driver.utils import read_json
+from openeo_driver.utils import read_json, date_to_rfc3339, parse_rfc3339
+
+logger = logging.getLogger(__name__)
+
+class MicroService:
+    """
+    Base class for a backend "microservice"
+    (grouped subset of backend functionality)
+
+    https://openeo.org/documentation/1.0/developers/arch.html#microservices
+    """
 
 
 class ServiceMetadata(NamedTuple):
@@ -52,19 +66,19 @@ class ServiceMetadata(NamedTuple):
         return d
 
     @classmethod
-    def from_dict(cls, d:dict) -> 'ServiceMetadata':
+    def from_dict(cls, d: dict) -> 'ServiceMetadata':
         """Load ServiceMetadata from dict (e.g. parsed JSON dump)."""
         created = d.get("created")
         if isinstance(created, str):
             d = d.copy()
-            d["created"] = datetime.strptime(created, '%Y-%m-%dT%H:%M:%SZ')
+            d["created"] = parse_rfc3339(created)
         return cls(**d)
 
 
-class SecondaryServices:
+class SecondaryServices(MicroService):
     """
     Base contract/implementation for Secondary Services "microservice"
-    https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management
+    https://openeo.org/documentation/1.0/developers/api/reference.html#tag/Secondary-Services
     """
 
     def service_types(self) -> dict:
@@ -113,7 +127,7 @@ class SecondaryServices:
     # TODO https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1subscription/get
 
 
-class CollectionCatalog:
+class CollectionCatalog(MicroService):
     """
     Basic implementation of a catalog of collections/EO data
     """
@@ -189,14 +203,105 @@ class CollectionIncompleteMetadataWarning(UserWarning):
     pass
 
 
+class BatchJobMetadata(NamedTuple):
+    """
+    Container for batch job metadata
+    """
+    # TODO: move this to openeo-python-client?
+    # TODO: also add user metadata?
+
+    # Required fields (no default)
+    id: str
+    process: dict  # TODO: also encapsulate this "process graph with metadata" struct (instead of free-form dict)?
+    status: str
+    created: datetime
+
+    # Optional fields (with default)
+    title: str = None
+    description: str = None
+    progress: float = None
+    updated: datetime = None
+    plan = None
+    costs = None
+    budget = None
+
+    def prepare_for_json(self) -> dict:
+        """Prepare metadata for JSON serialization"""
+        d = self._asdict()
+        d["created"] = date_to_rfc3339(self.created) if self.created else None
+        d["updated"] = date_to_rfc3339(self.updated) if self.updated else None
+        return d
+
+
+class BatchJobs(MicroService):
+    """
+    Base contract/implementation for Batch Jobs "microservice"
+    https://openeo.org/documentation/1.0/developers/api/reference.html#operation/stop-job
+    """
+
+    def create_job(self, user_id: str, job_specification: dict, api_version: str) -> BatchJobMetadata:
+        raise NotImplementedError
+
+    def get_job_info(self, job_id: str, user_id: str) -> BatchJobMetadata:
+        """
+        Get details about a batch job
+        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-job
+        Should raise `JobNotFoundException` on invalid job/user id
+        """
+        raise NotImplementedError
+
+    def get_user_jobs(self, user_id: str) -> List[BatchJobMetadata]:
+        """
+        Get details about all batch jobs of a user
+        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-jobs
+        """
+        raise NotImplementedError
+
+    def start_job(self, job_id: str, user_id: str):
+        """
+        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/start-job
+        """
+        raise NotImplementedError
+
+    def get_results(self, job_id: str, user_id: str) -> Dict[str, str]:
+        """
+        Return result files as (filename, output_dir) mapping: `filename` is the part that
+        the user can see (in download url), `output_dir` is internal (root) dir where
+        output is stored.
+
+        related:
+        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-results
+        """
+        # TODO: #EP-3281 not only return asset path, but also media type, description, ...
+        raise NotImplementedError
+
+    def get_log_entries(self, job_id: str, user_id: str, offset: str) -> List[dict]:
+        """
+        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/debug-job
+        """
+        raise NotImplementedError
+
+    def cancel_job(self, job_id:str, user_id:str):
+        """
+        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/stop-job
+        """
+        raise NotImplementedError
+
+
 class OpenEoBackendImplementation:
     """
     Simple container of all openEo "microservices"
     """
 
-    def __init__(self, secondary_services: SecondaryServices, catalog: CollectionCatalog):
+    def __init__(
+            self,
+            secondary_services: SecondaryServices,
+            catalog: CollectionCatalog,
+            batch_jobs: BatchJobs,
+    ):
         self.secondary_services = secondary_services
         self.catalog = catalog
+        self.batch_jobs = batch_jobs
 
     def health_check(self) -> str:
         return "OK"
@@ -208,4 +313,26 @@ class OpenEoBackendImplementation:
         return {"input": {}, "output": {}}
 
     def load_disk_data(self, format: str, glob_pattern: str, options: dict, viewing_parameters: dict) -> object:
+        # TODO: move this to catalog "microservice"
         raise NotImplementedError
+
+    def visit_process_graph(self, process_graph: dict) -> ProcessGraphVisitor:
+        """Create a process graph visitor and accept given process graph"""
+        return ProcessGraphVisitor().accept_process_graph(process_graph)
+
+    def summarize_exception(self, error: Exception) -> Union[ErrorSummary, Exception]:
+        return error
+
+
+_backend_implementation = None
+
+
+def get_backend_implementation() -> OpenEoBackendImplementation:
+    global _backend_implementation
+    if _backend_implementation is None:
+        # TODO: #36 avoid non-standard importing through env var DRIVER_IMPLEMENTATION_PACKAGE
+        _driver_implementation_package = os.getenv('DRIVER_IMPLEMENTATION_PACKAGE', "openeo_driver.dummy.dummy_backend")
+        logger.info('Using driver implementation package {d}'.format(d=_driver_implementation_package))
+        module = importlib.import_module(_driver_implementation_package)
+        _backend_implementation = module.get_openeo_backend_implementation()
+    return _backend_implementation

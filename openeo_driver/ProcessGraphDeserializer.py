@@ -1,9 +1,7 @@
 # TODO: rename this module to something in snake case? It doesn't even implement a ProcessGraphDeserializer class.
 
 import base64
-import importlib
 import logging
-import os
 import pickle
 from typing import Dict
 
@@ -11,6 +9,7 @@ import numpy as np
 from shapely.geometry import shape, mapping
 
 from openeo import ImageCollection
+from openeo_driver.backend import get_backend_implementation
 from openeo_driver.errors import ProcessArgumentInvalidException, ProcessUnsupportedException, OpenEOApiException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
@@ -33,7 +32,7 @@ for p in [
 # Decorator shortcut to easily register functions as processes
 process = process_registry.add_function
 
-
+backend_implementation = get_backend_implementation()
 
 def evaluate(processGraph: dict, viewingParameters=None) -> ImageCollection:
     """
@@ -238,11 +237,8 @@ def reduce(args: dict, viewingParameters) -> ImageCollection:
         if not binary and len(reduce_pg) == 1 and next(iter(reduce_pg.values())).get('process_id') == 'run_udf':
             #it would be better to avoid having special cases everywhere to support udf's
             return _evaluate_sub_process_graph(args, 'reducer', 'reduce')  # TODO #33: reduce -> reduce_dimension
-        if create_process_visitor is not None:
-            visitor = create_process_visitor().accept_process_graph(reduce_pg)
-            return data_cube.reduce_bands(visitor)
-        else:
-            raise AttributeError('Reduce on bands is not supported by this backend.')
+        visitor = backend_implementation.visit_process_graph(reduce_pg)
+        return data_cube.reduce_bands(visitor)
     else:
         return _evaluate_sub_process_graph(args, 'reducer', 'reduce')  # TODO #33: reduce -> reduce_dimension
 
@@ -606,33 +602,3 @@ def _as_geometry_collection(feature_collection: dict) -> dict:
     }
 
 
-
-# TODO: avoid dumping all these functions at toplevel: wrap all this in a container with defined API and helpful type hinting
-# TODO: move all this to views.py (where it will be used) or backend.py?
-_driver_implementation_package = os.getenv('DRIVER_IMPLEMENTATION_PACKAGE', "dummy_impl")
-_log.info('Using driver implementation package {d}'.format(d=_driver_implementation_package))
-i = importlib.import_module(_driver_implementation_package)
-try:
-    create_process_visitor = i.create_process_visitor
-except AttributeError as e:
-    create_process_visitor = None
-create_batch_job = i.create_batch_job
-run_batch_job = i.run_batch_job
-get_batch_job_info = i.get_batch_job_info
-get_batch_jobs_info = i.get_batch_jobs_info
-get_batch_job_result_filenames = i.get_batch_job_result_filenames
-get_batch_job_result_output_dir = i.get_batch_job_result_output_dir
-get_batch_job_log_entries = i.get_batch_job_log_entries
-cancel_batch_job = i.cancel_batch_job
-
-# TODO: this just-in-time import is to avoid circular dependency hell
-from openeo_driver.backend import OpenEoBackendImplementation
-
-
-def get_openeo_backend_implementation() -> OpenEoBackendImplementation:
-    return i.get_openeo_backend_implementation()
-
-
-backend_implementation = get_openeo_backend_implementation()
-
-summarize_exception = i.summarize_exception if hasattr(i, 'summarize_exception') else lambda exception: exception

@@ -70,7 +70,7 @@ class HttpAuthHandler:
         return decorated
 
     def get_auth_token(self, request: Request, type="Bearer") -> str:
-        """Get bearer/basic token from Authorization heeader in request"""
+        """Get bearer/basic token from Authorization header in request"""
         if "Authorization" not in request.headers:
             raise AuthenticationRequiredException
         try:
@@ -119,10 +119,12 @@ class HttpAuthHandler:
             raise CredentialsInvalidException
         # TODO real resolving of given user name to user_id
         user_id = username
-        # TODO: generate real access token and link to user in some key value store
-        access_token = self._BASIC_ACCESS_TOKEN_PREFIX + base64.urlsafe_b64encode(user_id.encode('utf-8')).decode(
-            'ascii')
+        access_token = self.build_basic_access_token(user_id)
         return access_token, user_id
+
+    def build_basic_access_token(self, user_id:str) -> str:
+        # TODO: generate real access token and link to user in some key value store
+        return self._BASIC_ACCESS_TOKEN_PREFIX + base64.urlsafe_b64encode(user_id.encode('utf-8')).decode('ascii')
 
     def resolve_basic_access_token(self, access_token: str) -> User:
         try:
