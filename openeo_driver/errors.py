@@ -28,11 +28,10 @@ where necessary or useful.
 import json
 import re
 import textwrap
-import uuid
-from pathlib import Path
 from typing import List, Set
+import uuid
 
-import openeo_driver
+from openeo_driver.specs import SPECS_ROOT
 
 
 class OpenEOApiException(Exception):
@@ -587,7 +586,7 @@ class OpenEOApiErrorSpecHelper:
 
     def __init__(self, spec: dict = None):
         if spec is None:
-            with (Path(openeo_driver.__file__).parent / 'data/openeo-api/errors.json').open('r', encoding='utf-8') as f:
+            with (SPECS_ROOT / 'openeo-api/0.4/errors.json').open('r', encoding='utf-8') as f:
                 spec = json.load(f)
         self._spec = spec
 

@@ -31,7 +31,8 @@ def test_extract_placeholders():
 def test_unknown_error_codes():
     from_spec = set(OpenEOApiErrorSpecHelper().get_error_codes())
     defined = set(get_defined_exceptions().keys())
-    assert defined.difference(from_spec) == set()
+    defined_but_not_in_spec = defined.difference(from_spec)
+    assert defined_but_not_in_spec == set()
 
 
 def test_generate_exception_class():

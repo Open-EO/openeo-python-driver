@@ -1,10 +1,10 @@
 import functools
 import json
-import warnings
 from pathlib import Path
 from typing import Callable, Dict
+import warnings
 
-import openeo_driver
+from openeo_driver.specs import SPECS_ROOT
 
 
 class ProcessSpec:
@@ -70,7 +70,7 @@ class ProcessRegistry:
     """
 
     def __init__(self):
-        self._processes_spec_root = Path(openeo_driver.__file__).parent / 'data/openeo-processes'
+        self._processes_spec_root = SPECS_ROOT / 'openeo-processes/0.4'
         # Dictionary of registered process spec dicts (keyed by process id)
         self._specs = {}
         # Dictionary of registered process functions (keyed by function name), includes legacy processes without spec
