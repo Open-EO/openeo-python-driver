@@ -21,7 +21,7 @@ from datetime import datetime
 from openeo import ImageCollection
 from openeo.error_summary import ErrorSummary
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
-from openeo_driver.errors import OpenEOApiException, CollectionNotFoundException
+from openeo_driver.errors import OpenEOApiException, CollectionNotFoundException, ServiceUnsupportedException
 from openeo_driver.utils import read_json, date_to_rfc3339, parse_rfc3339
 
 logger = logging.getLogger(__name__)
@@ -102,9 +102,8 @@ class SecondaryServices(MicroService):
         from openeo_driver.ProcessGraphDeserializer import evaluate
         # TODO require auth/user handle?
         if service_type.lower() not in set(st.lower() for st in self.service_types()):
-            raise OpenEOApiException(
+            raise ServiceUnsupportedException(
                 message="Secondary service type {t!r} is not supported.".format(t=service_type),
-                code="ServiceUnsupported", status_code=400
             )
 
         image_collection = evaluate(process_graph, viewingParameters={'version': api_version})

@@ -10,11 +10,12 @@ from shapely.geometry import shape, mapping
 
 from openeo import ImageCollection
 from openeo_driver.backend import get_backend_implementation
-from openeo_driver.errors import ProcessArgumentInvalidException, ProcessUnsupportedException, OpenEOApiException
+from openeo_driver.delayed_vector import DelayedVector
+from openeo_driver.errors import ProcessArgumentInvalidException, ProcessUnsupportedException, \
+    ProcessArgumentRequiredException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
 from openeo_driver.utils import smart_bool
-from openeo_driver.delayed_vector import DelayedVector
 
 _log = logging.getLogger(__name__)
 
@@ -75,17 +76,13 @@ def convert_node(processGraph: dict, viewingParameters=None):
     return processGraph
 
 
-class ProcessArgumentMissingException(OpenEOApiException):
-    # TODO use correct exception subclass from errors.py. see #32 #31
-    pass
-
-
 def extract_arg(args: dict, name: str):
     """Get process argument by name."""
     try:
         return args[name]
     except KeyError:
-        raise ProcessArgumentMissingException("Missing argument {n!r} in {args!r}".format(n=name, args=args))
+        # TODO: find out process id for proper error message?
+        raise ProcessArgumentRequiredException(process='n/a', argument=name)
 
 
 def extract_arg_list(args: dict, names: list):
@@ -93,7 +90,8 @@ def extract_arg_list(args: dict, names: list):
     for name in names:
         if name in args:
             return args[name]
-    raise ProcessArgumentMissingException("Missing argument (any of {n!r}) in {args!r}".format(n=names, args=args))
+    # TODO: find out process id for proper error message?
+    raise ProcessArgumentRequiredException(process='n/a', argument=str(names))
 
 
 def extract_deep(args: dict, *steps):
@@ -109,7 +107,8 @@ def extract_deep(args: dict, *steps):
                 value = value[key]
                 break
         else:
-            raise ProcessArgumentMissingException("Missing argument at {s!r} in {a!r}".format(s=steps, a=args))
+            # TODO: find out process id for proper error message?
+            raise ProcessArgumentRequiredException(process='n/a', argument=step)
     return value
 
 

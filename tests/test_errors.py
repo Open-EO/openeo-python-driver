@@ -47,7 +47,7 @@ def test_generate_exception_class():
     assert "    status_code = 418" in src_lines
     assert "    code = 'OutOfTea'" in src_lines
     assert "    message = 'The {color} tea pot is empty.'" in src_lines
-    assert "    def __init__(self, color:str):" in src_lines
+    assert "    def __init__(self, color: str):" in src_lines
     assert "        super().__init__(self.message.format(color=color))"
 
 
