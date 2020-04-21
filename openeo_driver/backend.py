@@ -26,6 +26,7 @@ from openeo_driver.utils import read_json, date_to_rfc3339, parse_rfc3339
 
 logger = logging.getLogger(__name__)
 
+
 class MicroService:
     """
     Base class for a backend "microservice"

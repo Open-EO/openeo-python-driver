@@ -1,19 +1,59 @@
 import json
-import os
 from multiprocessing import Pool
+import os
 from pathlib import Path
 import tempfile
+from typing import Callable
 from unittest import TestCase, skip, mock
+
 import flask
-from openeo_driver.dummy import dummy_backend
+from flask.testing import FlaskClient
+import pytest
+
 from openeo.capabilities import ComparableVersion
+from openeo_driver.dummy import dummy_backend
+import openeo_driver.testing
 from openeo_driver.users import HttpAuthHandler
 from openeo_driver.views import app, EndpointRegistry
+from openeo_driver.testing import load_json
+from .data import get_path, TEST_DATA_ROOT
+from .test_users import _build_basic_auth_header
 
 os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "openeo_driver.dummy.dummy_backend"
 app.config["OPENEO_TITLE"] = "OpenEO Test API"
 
-client = app.test_client()
+
+@pytest.fixture(params=["0.4.0", "1.0.0"])
+def api_version(request):
+    return request.param
+
+
+@pytest.fixture
+def client():
+    app.config['TESTING'] = True
+    return app.test_client()
+
+
+class ApiTester(openeo_driver.testing.ApiTester):
+    """Helper container class for compact writing of api version aware `views` tests"""
+
+    def __init__(self, api_version: str, client: FlaskClient):
+        super().__init__(api_version=api_version, client=client, data_root=TEST_DATA_ROOT)
+
+
+@pytest.fixture
+def api(api_version, client) -> ApiTester:
+    return ApiTester(api_version=api_version, client=client)
+
+
+@pytest.fixture
+def api040(client) -> ApiTester:
+    return ApiTester(api_version="0.4.0", client=client)
+
+
+@pytest.fixture
+def api100(client) -> ApiTester:
+    return ApiTester(api_version="1.0.0", client=client)
 
 
 class Test(TestCase):
@@ -135,36 +175,6 @@ class Test(TestCase):
     def test_process_details(self):
         resp = self.client.get('/openeo/processes/max')
         assert resp.status_code == 200
-
-    @classmethod
-    def _post_download(cls, index):
-        download_expected_graph = {'process_id': 'filter_bbox', 'args': {'imagery': {'process_id': 'filter_daterange',
-                                                                                     'args': {'imagery': {
-                                                                                         'collection_id': 'S2_FAPAR_SCENECLASSIFICATION_V102_PYRAMID'},
-                                                                                         'from': '2018-08-06T00:00:00Z',
-                                                                                         'to': '2018-08-06T00:00:00Z'}},
-                                                                         'left': 5.027, 'right': 5.0438, 'top': 51.2213,
-                                                                         'bottom': 51.1974, 'srs': 'EPSG:4326'}}
-
-        post_request = json.dumps({"process_graph": download_expected_graph})
-        resp = client.post('/openeo/execute', content_type='application/json', data=post_request)
-        assert resp.status_code == 200
-        assert resp.content_length > 0
-        return index
-
-    @skip
-    def test_execute_download_parallel(self):
-        """
-        Tests downloading in parallel, see EP-2743
-        Spark related issues are only exposed/tested when not using the dummy backend
-        :return:
-        """
-        Test._post_download(1)
-
-        with Pool(2) as pool:
-            result = pool.map(Test._post_download, range(1, 3))
-
-        print(result)
 
     def test_create_job_040(self):
         resp = self.client.post('/openeo/0.4.0/jobs', headers=self._auth_header, json={
@@ -423,6 +433,23 @@ class Test(TestCase):
         assert res.status_code == 404
         assert res.json['code'] == 'ServiceNotFound'
 
+
+def test_credentials_basic_no_headers(api):
+    api.get("/credentials/basic").assert_error(401, 'AuthenticationRequired')
+
+
+def test_credentials_basic_wrong_password(api):
+    headers = {"Authorization": _build_basic_auth_header(username="john", password="password123")}
+    api.get("/credentials/basic", headers=headers).assert_error(403, 'CredentialsInvalid')
+
+
+def test_credentials_basic(api):
+    headers = {"Authorization": _build_basic_auth_header(username="john", password="john123")}
+    response = api.get("/credentials/basic", headers=headers).assert_status_code(200).json
+    expected = {"access_token"}
+    if api.api_version_compare.below("1.0.0"):
+        expected.add("user_id")
+    assert set(response.keys()) == expected
 
 
 def test_endpoint_registry():

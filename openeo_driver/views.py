@@ -310,7 +310,10 @@ def udf_runtimes():
 @auth_handler.requires_http_basic_auth
 def credentials_basic():
     access_token, user_id = auth_handler.authenticate_basic(request)
-    return jsonify({"access_token": access_token, "user_id": user_id})
+    resp = {"access_token": access_token}
+    if requested_api_version().below("1.0.0"):
+        resp["user_id"] = user_id
+    return jsonify(resp)
 
 
 @api_endpoint
@@ -516,6 +519,7 @@ def list_job_results(job_id, user: User):
             ]
         }
 
+    # TODO "OpenEO-Costs" header?
     return jsonify(result)
 
 
