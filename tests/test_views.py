@@ -1,10 +1,9 @@
-import json
-from multiprocessing import Pool
+import os
+from pathlib import Path
 import os
 from pathlib import Path
 import tempfile
-from typing import Callable
-from unittest import TestCase, skip, mock
+from unittest import TestCase, mock
 
 import flask
 from flask.testing import FlaskClient
@@ -15,8 +14,7 @@ from openeo_driver.dummy import dummy_backend
 import openeo_driver.testing
 from openeo_driver.users import HttpAuthHandler
 from openeo_driver.views import app, EndpointRegistry
-from openeo_driver.testing import load_json
-from .data import get_path, TEST_DATA_ROOT
+from .data import TEST_DATA_ROOT
 from .test_users import _build_basic_auth_header
 
 os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "openeo_driver.dummy.dummy_backend"
@@ -31,6 +29,7 @@ def api_version(request):
 @pytest.fixture
 def client():
     app.config['TESTING'] = True
+    app.config['SERVER_NAME'] = 'oeo.net'
     return app.test_client()
 
 
@@ -56,39 +55,33 @@ def api100(client) -> ApiTester:
     return ApiTester(api_version="1.0.0", client=client)
 
 
-class Test(TestCase):
-    def setUp(self):
-        app.config['TESTING'] = True
-        app.config['SERVER_NAME'] = 'oeo.net'
-        self.client = app.test_client()
-        self._auth_header = {
-            "Authorization": "Bearer " + HttpAuthHandler().build_basic_access_token(user_id=dummy_backend.TEST_USER)
-        }
-        dummy_backend.collections = {}
+class TestGeneral:
+    """
+    General tests (capabilities, collections, processes)
+    """
 
-    def test_well_known_openeo(self):
-        resp = self.client.get('/.well-known/openeo')
+    def test_well_known_openeo(self, client):
+        resp = client.get('/.well-known/openeo')
         assert resp.status_code == 200
         expected = {'api_version': '1.0.0', 'production': False, 'url': 'http://oeo.net/openeo/1.0.0/'}
         assert expected in resp.json["versions"]
 
-    def test_capabilities_invalid_api_version(self):
-        resp = self.client.get('/openeo/0.0.0/')
+    def test_capabilities_invalid_api_version(self, client):
+        resp = client.get('/openeo/0.0.0/')
         assert resp.status_code == 501
         error = resp.json
         assert error['code'] == 'UnsupportedApiVersion'
         assert "Unsupported version: '0.0.0'" in error['message']
 
-    def test_capabilities(self):
-        resp = self.client.get('/openeo/1.0.0/')
-        capabilities = resp.json
+    def test_capabilities(self, api100):
+        capabilities = api100.get('/').assert_status_code(200).json
         assert capabilities["api_version"] == "1.0.0"
         assert capabilities["stac_version"] == "0.9.0"
         assert capabilities["title"] == "OpenEO Test API"
         assert capabilities["id"] == "openeotestapi1.0.0"
 
-    def test_capabilities_endpoints(self):
-        capabilities = self.client.get('/openeo/1.0.0/').json
+    def test_capabilities_endpoints(self, api100):
+        capabilities = api100.get("/").assert_status_code(200).json
         endpoints = {e["path"]: sorted(e["methods"]) for e in capabilities["endpoints"]}
         assert endpoints["/collections"] == ["GET"]
         assert endpoints["/collections/{collection_id}"] == ["GET"]
@@ -108,73 +101,101 @@ class Test(TestCase):
         assert endpoints["/credentials/oidc"] == ["GET"]
         assert endpoints["/me"] == ["GET"]
 
-    def test_capabilities_endpoints_issue_28_v040(self):
+    def test_capabilities_endpoints_issue_28_v040(self, api040):
         """https://github.com/Open-EO/openeo-python-driver/issues/28"""
-        capabilities = self.client.get('/openeo/0.4.0/').json
+        capabilities = api040.get("/").assert_status_code(200).json
         endpoints = {e["path"]: e["methods"] for e in capabilities["endpoints"]}
         assert endpoints["/output_formats"] == ["GET"]
         assert "/file_formats" not in endpoints
 
-    def test_capabilities_endpoints_issue_28_v100(self):
+    def test_capabilities_endpoints_issue_28_v100(self, api100):
         """https://github.com/Open-EO/openeo-python-driver/issues/28"""
-        capabilities = self.client.get('/openeo/1.0.0/').json
+        capabilities = api100.get("/").assert_status_code(200).json
         endpoints = {e["path"]: e["methods"] for e in capabilities["endpoints"]}
         assert endpoints["/file_formats"] == ["GET"]
         assert "/output_formats" not in endpoints
 
-    def test_health(self):
-        resp = self.client.get('/openeo/health')
+    def test_health(self, api):
+        resp = api.get('/health').assert_status_code(200).json
+        assert resp == {"health": "OK"}
 
-        assert resp.status_code == 200
-        assert "OK" in resp.get_data(as_text=True)
+    def test_output_formats(self, api040):
+        resp = api040.get('/output_formats').assert_status_code(200).json
+        assert resp == {"GTiff": {"title": "GeoTiff", "gis_data_types": ["raster"]}, }
 
-    def test_output_formats(self):
-        resp = self.client.get('/openeo/output_formats')
-        assert resp.status_code == 200
-        assert resp.json == {"GTiff": {"title": "GeoTiff", "gis_data_types": ["raster"]}, }
-
-    def test_file_formats(self):
-        resp = self.client.get('/openeo/file_formats')
-        assert resp.status_code == 200
-        assert resp.json == {
+    def test_file_formats(self, api100):
+        resp = api100.get('/file_formats').assert_status_code(200).json
+        assert resp == {
             "input": {"GeoJSON": {"gis_data_type": ["vector"]}},
             "output": {
                 "GTiff": {"title": "GeoTiff", "gis_data_types": ["raster"]},
             }
         }
 
-    def test_collections(self):
-        resp = self.client.get('/openeo/collections')
-        assert resp.status_code == 200
-        collections = resp.json
+    def test_collections(self, api):
+        collections = api.get('/collections').assert_status_code(200).json
         assert 'DUMMY_S2_FAPAR_CLOUDCOVER' in [c['id'] for c in collections['collections']]
 
-    def test_collections_detail(self):
-        resp = self.client.get('/openeo/collections/DUMMY_S2_FAPAR_CLOUDCOVER')
-        assert resp.status_code == 200
-        collection = resp.json
+    def test_collections_detail(self, api):
+        collection = api.get('/collections/DUMMY_S2_FAPAR_CLOUDCOVER').assert_status_code(200).json
         assert collection['id'] == 'DUMMY_S2_FAPAR_CLOUDCOVER'
 
-    def test_data_detail_error(self):
-        resp = self.client.get('/openeo/collections/S2_FAPAR_CLOUDCOVER')
-        assert resp.status_code == 404
-        error = resp.json
-        assert error["code"] == "CollectionNotFound"
+    def test_data_detail_error(self, api):
+        error = api.get('/collections/S2_FAPAR_CLOUDCOVER').assert_error(404, "CollectionNotFound").json
         assert error["message"] == "Collection 'S2_FAPAR_CLOUDCOVER' does not exist."
 
-    def test_processes(self):
-        resp = self.client.get('/openeo/processes')
-        assert resp.status_code == 200
-        processes = {spec['id']: spec for spec in resp.json['processes']}
+    def test_processes(self, api):
+        resp = api.get('/processes').assert_status_code(200).json
+        processes = resp["processes"]
+        process_ids = set(p['id'] for p in processes)
+        assert {"load_collection", "min", "max", "sin", "merge_cubes"}.issubset(process_ids)
+        expected_keys = {"id", "description", "parameters", "returns"}
+        for process in processes:
+            assert all(k in process for k in expected_keys)
 
-        assert 'max' in processes.keys()
+    def test_processes_non_standard_histogram(self, api):
+        resp = api.get('/processes').assert_status_code(200).json
+        histogram_spec, = [p for p in resp["processes"] if p['id'] == "histogram"]
+        assert "into bins" in histogram_spec["description"]
+        assert histogram_spec["parameters"] == {
+            'data': {
+                'description': 'An array of numbers',
+                'required': True,
+                'schema': {'type': 'array', 'items': {'type': ['number', 'null']}, }
+            }}
+        assert histogram_spec["returns"] == {
+            'description': 'A sequence of (bin, count) pairs',
+            'schema': {'type': 'object'}
+        }
 
-        histogram_spec = processes['histogram']
-        assert 'data' in histogram_spec['parameters'].keys()
+    def test_process_details(self, api):
+        spec = api.get('/processes/sin').assert_status_code(200).json
+        assert spec['id'] == 'sin'
+        assert "Computes the sine" in spec['description']
+        assert spec["parameters"] == {
+            'x': {
+                'description': 'An angle in radians.',
+                'required': True,
+                'schema': {'type': ['number', 'null']}
+            }
+        }
+        assert spec["returns"]["schema"] == {'type': ['number', 'null']}
 
-    def test_process_details(self):
-        resp = self.client.get('/openeo/processes/max')
-        assert resp.status_code == 200
+    def test_process_details_invalid(self, api):
+        api.get('/processes/blergh').assert_error(400, 'ProcessUnsupported')
+
+
+class TestBatchJobs(TestCase):
+    # TODO: port to pytest style fixtures instead of TestCase.setUp
+
+    def setUp(self):
+        app.config['TESTING'] = True
+        app.config['SERVER_NAME'] = 'oeo.net'
+        self.client = app.test_client()
+        self._auth_header = {
+            "Authorization": "Bearer " + HttpAuthHandler().build_basic_access_token(user_id=dummy_backend.TEST_USER)
+        }
+        dummy_backend.collections = {}
 
     def test_create_job_040(self):
         resp = self.client.post('/openeo/0.4.0/jobs', headers=self._auth_header, json={
@@ -331,6 +352,19 @@ class Test(TestCase):
         resp = self.client.delete('/openeo/jobs/deadbeef-f00/results', headers=self._auth_header)
         assert resp.status_code == 404
         assert resp.json["code"] == "JobNotFound"
+
+
+class TestSecondaryServices(TestCase):
+    # TODO: port to pytest style fixtures instead of TestCase.setUp
+
+    def setUp(self):
+        app.config['TESTING'] = True
+        app.config['SERVER_NAME'] = 'oeo.net'
+        self.client = app.test_client()
+        self._auth_header = {
+            "Authorization": "Bearer " + HttpAuthHandler().build_basic_access_token(user_id=dummy_backend.TEST_USER)
+        }
+        dummy_backend.collections = {}
 
     def test_service_types_v040(self):
         resp = self.client.get('/openeo/0.4.0/service_types')
