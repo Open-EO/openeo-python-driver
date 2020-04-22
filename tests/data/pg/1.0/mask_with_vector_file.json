@@ -48,8 +48,8 @@
     },
     "result": false
   },
-  "mask1": {
-    "process_id": "mask",
+  "maskpolygon1": {
+    "process_id": "mask_polygon",
     "arguments": {
       "data": {
         "from_node": "filtertemporal1"
@@ -64,7 +64,7 @@
     "process_id": "save_result",
     "arguments": {
       "data": {
-        "from_node": "mask1"
+        "from_node": "maskpolygon1"
       },
       "format": "GTIFF"
     },

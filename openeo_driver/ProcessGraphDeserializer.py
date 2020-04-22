@@ -27,14 +27,30 @@ process_registry_040 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/
 process_registry_100 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/1.0')
 
 # Bootstrap with some mathematical/logical processes
-# TODO: more processes to add here?
-for p in [
-    'max', 'min', 'mean', 'variance', 'absolute', 'ln', 'ceil', 'floor', 'cos', 'sin', 'run_udf',
-    'not', 'eq', 'lt', 'lte', 'gt', 'gte', 'or', 'and', 'divide', 'product', 'subtract', 'sum', 'median', 'sd',
-    'array_element'
-]:
-    process_registry_040.add_spec_by_name(p)
-    process_registry_100.add_spec_by_name(p)
+process_registry_040.add_spec_by_name(
+    'array_contains', 'array_element',
+    'count', 'first', 'last', 'order', 'rearrange', 'sort',
+    'between', 'eq', 'gt', 'gte', 'if', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
+    'and', 'if', 'not', 'or', 'xor',
+    'absolute', 'clip', 'divide', 'extrema', 'int', 'max', 'mean',
+    'median', 'min', 'mod', 'multiply', 'power', 'product', 'quantiles', 'sd', 'sgn', 'sqrt',
+    'subtract', 'sum', 'variance', 'e', 'pi', 'exp', 'ln', 'log',
+    'ceil', 'floor', 'int', 'round',
+    'arccos', 'arcosh', 'arcsin', 'arctan', 'arctan2', 'arsinh', 'artanh', 'cos', 'cosh', 'sin', 'sinh', 'tan', 'tanh',
+    'count', 'first', 'last', 'max', 'mean', 'median', 'min', 'product', 'sd', 'sum', 'variance'
+)
+process_registry_100.add_spec_by_name(
+    'array_apply', 'array_contains', 'array_element', 'array_filter', 'array_find', 'array_labels',
+    'count', 'first', 'last', 'order', 'rearrange', 'sort',
+    'between', 'eq', 'gt', 'gte', 'if', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
+    'all', 'and', 'any', 'if', 'not', 'or', 'xor',
+    'absolute', 'add', 'clip', 'divide', 'extrema', 'int', 'max', 'mean',
+    'median', 'min', 'mod', 'multiply', 'power', 'product', 'quantiles', 'sd', 'sgn', 'sqrt',
+    'subtract', 'sum', 'variance', 'e', 'pi', 'exp', 'ln', 'log',
+    'ceil', 'floor', 'int', 'round',
+    'arccos', 'arcosh', 'arcsin', 'arctan', 'arctan2', 'arsinh', 'artanh', 'cos', 'cosh', 'sin', 'sinh', 'tan', 'tanh',
+    'all', 'any', 'count', 'first', 'last', 'max', 'mean', 'median', 'min', 'product', 'sd', 'sum', 'variance'
+)
 
 
 def process(f: Callable) -> Callable:
@@ -345,22 +361,40 @@ def reduce_by_time( args:Dict, viewingParameters)->ImageCollection:
     decoded_function = pickle.loads(base64.standard_b64decode(function))
     return extract_arg(args, 'imagery').aggregate_time(temporal_window, decoded_function)
 
-@process
-def mask(args: Dict, viewingParameters) -> ImageCollection:
-    mask = extract_arg(args,'mask')
-    replacement = args.get( 'replacement', None)
+
+@process_registry_040.add_function
+def mask(args: dict, viewingParameters) -> ImageCollection:
+    mask = extract_arg(args, 'mask')
+    replacement = args.get('replacement', None)
     if isinstance(mask, ImageCollection):
         image_collection = extract_arg_list(args, ['data', 'imagery']).mask(rastermask=mask, replacement=replacement)
     else:
         polygon = mask.geometries[0] if isinstance(mask, DelayedVector) else shape(mask)
-
         if polygon.area == 0:
             reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
             raise ProcessArgumentInvalidException(argument='mask', process='mask', reason=reason)
-
         image_collection = extract_arg_list(args, ['data', 'imagery']).mask(polygon=polygon, replacement=replacement)
     return image_collection
 
+
+@process_registry_100.add_function
+def mask(args: dict, ctx: dict) -> ImageCollection:
+    mask = extract_arg(args, 'mask')
+    replacement = args.get('replacement', None)
+    image_collection = extract_arg(args, 'data').mask(rastermask=mask, replacement=replacement)
+    return image_collection
+
+
+@process_registry_100.add_function
+def mask_polygon(args: dict, ctx: dict) -> ImageCollection:
+    mask = extract_arg(args, 'mask')
+    replacement = args.get('replacement', None)
+    polygon = mask.geometries[0] if isinstance(mask, DelayedVector) else shape(mask)
+    if polygon.area == 0:
+        reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
+        raise ProcessArgumentInvalidException(argument='mask', process='mask', reason=reason)
+    image_collection = extract_arg(args, 'data').mask(polygon=polygon, replacement=replacement)
+    return image_collection
 
 # TODO deprecated process
 @deprecated_process

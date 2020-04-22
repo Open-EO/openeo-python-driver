@@ -207,8 +207,6 @@ def test_execute_mask(api):
 
 
 def test_execute_mask_polygon(api):
-    if api.api_version.startswith("1.0"):
-        pytest.skip("TODO #33 #31 mask_polygon not yet supported")
     api.check_result("mask_polygon.json")
     assert api.collections["S2_FAPAR_CLOUDCOVER"].mask.call_count == 1
     assert isinstance(api.collections["S2_FAPAR_CLOUDCOVER"].mask.call_args[1]['polygon'], shapely.geometry.Polygon)

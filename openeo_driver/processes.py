@@ -110,7 +110,7 @@ class ProcessRegistry:
         """
         Add a process to the registry, with callable function (optional) and specification dict (optional)
         """
-        assert name not in self._processes
+        assert name not in self._processes, name
         if spec:
             # Basic health check
             assert all(k in spec for k in ['id', 'description', 'parameters', 'returns'])
@@ -121,9 +121,10 @@ class ProcessRegistry:
         """Add process specification dictionary."""
         self.add_process(name=spec['id'], spec=spec)
 
-    def add_spec_by_name(self, name):
-        """Add process by name"""
-        self.add_spec(self.load_predefined_spec(name))
+    def add_spec_by_name(self, *names: str):
+        """Add process by name. Multiple processes can be given."""
+        for name in set(names):
+            self.add_spec(self.load_predefined_spec(name))
 
     def add_function(self, f: Callable, name: str = None, spec: dict = None) -> Callable:
         """
