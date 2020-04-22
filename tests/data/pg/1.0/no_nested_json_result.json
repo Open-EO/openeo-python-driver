@@ -14,17 +14,14 @@
           "temporal_extent": null
         }
       },
-      "zonalstatistics1": {
-        "result": null,
-        "process_id": "zonal_statistics",
+      "aggregatespatial1": {
+        "process_id": "aggregate_spatial",
         "arguments": {
-          "func": "mean",
           "data": {
-            "from_node": "filtertemporal1"
+            "from_node": "loadcollection1"
           },
-          "scale": 1000,
-          "interval": "day",
-          "regions": {
+          "polygons": {
+            "type": "Polygon",
             "coordinates": [
               [
                 [
@@ -48,9 +45,22 @@
                   51.75432477678571
                 ]
               ]
-            ],
-            "type": "Polygon"
-          }
+            ]
+          },
+          "reducer": {
+            "process_graph": {
+              "max": {
+                "arguments": {
+                  "data": {
+                    "from_parameter": "data"
+                  }
+                },
+                "process_id": "mean",
+                "result": true
+              }
+            }
+          },
+          "name": "my_name"
         }
       },
       "saveresult1": {
@@ -59,7 +69,7 @@
         "arguments": {
           "format": "GTIFF",
           "data": {
-            "from_node": "zonalstatistics1"
+            "from_node": "aggregatespatial1"
           },
           "options": {}
         }

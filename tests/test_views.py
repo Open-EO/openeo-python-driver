@@ -157,12 +157,23 @@ class TestGeneral:
         resp = api.get('/processes').assert_status_code(200).json
         histogram_spec, = [p for p in resp["processes"] if p['id'] == "histogram"]
         assert "into bins" in histogram_spec["description"]
-        assert histogram_spec["parameters"] == {
-            'data': {
-                'description': 'An array of numbers',
-                'required': True,
-                'schema': {'type': 'array', 'items': {'type': ['number', 'null']}, }
-            }}
+        if api.api_version_compare.at_least("1.0.0"):
+            assert histogram_spec["parameters"] == [
+                {
+                    'name': 'data',
+                    'description': 'An array of numbers',
+                    'optional': False,
+                    'schema': {'type': 'array', 'items': {'type': ['number', 'null']}, }
+                }
+            ]
+        else:
+            assert histogram_spec["parameters"] == {
+                'data': {
+                    'description': 'An array of numbers',
+                    'required': True,
+                    'schema': {'type': 'array', 'items': {'type': ['number', 'null']}, }
+                }
+            }
         assert histogram_spec["returns"] == {
             'description': 'A sequence of (bin, count) pairs',
             'schema': {'type': 'object'}
@@ -172,13 +183,16 @@ class TestGeneral:
         spec = api.get('/processes/sin').assert_status_code(200).json
         assert spec['id'] == 'sin'
         assert "Computes the sine" in spec['description']
-        assert spec["parameters"] == {
-            'x': {
-                'description': 'An angle in radians.',
-                'required': True,
-                'schema': {'type': ['number', 'null']}
+        if api.api_version_compare.at_least("1.0.0"):
+            assert spec["parameters"] == [
+                {'name': 'x', 'description': 'An angle in radians.', 'schema': {'type': ['number', 'null']}}
+            ]
+        else:
+            assert spec["parameters"] == {
+                'x': {
+                    'description': 'An angle in radians.', 'required': True, 'schema': {'type': ['number', 'null']}
+                }
             }
-        }
         assert spec["returns"]["schema"] == {'type': ['number', 'null']}
 
     def test_process_details_invalid(self, api):

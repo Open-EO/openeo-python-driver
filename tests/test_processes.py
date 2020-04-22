@@ -4,14 +4,14 @@ from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.processes import ProcessSpec, ProcessRegistry
 
 
-def test_process_spec_basic():
+def test_process_spec_basic_040():
     spec = (
         ProcessSpec("mean", "Mean value")
             .param("input", "Input data", schema={"type": "array", "items": {"type": "number"}})
             .param("mask", "The mask", schema=ProcessSpec.RASTERCUBE, required=False)
             .returns("Mean value of data", schema={"type": "number"})
     )
-    assert spec.to_dict() == {
+    assert spec.to_dict_040() == {
         "id": "mean",
         "description": "Mean value",
         "parameters": {
@@ -31,17 +31,56 @@ def test_process_spec_basic():
     }
 
 
-def test_process_spec_no_params():
+def test_process_spec_basic_100():
+    spec = (
+        ProcessSpec("mean", "Mean value")
+            .param("input", "Input data", schema={"type": "array", "items": {"type": "number"}})
+            .param("mask", "The mask", schema=ProcessSpec.RASTERCUBE, required=False)
+            .returns("Mean value of data", schema={"type": "number"})
+    )
+    assert spec.to_dict_100() == {
+        "id": "mean",
+        "description": "Mean value",
+        "parameters": [
+            {
+                "name": "input",
+                "description": "Input data",
+                "optional": False,
+                "schema": {"type": "array", "items": {"type": "number"}}
+            },
+            {
+                "name": "mask",
+                "description": "The mask",
+                "optional": True,
+                "schema": {"type": "object", "format": "raster-cube"}
+            }
+        ],
+        "returns": {"description": "Mean value of data", "schema": {"type": "number"}},
+    }
+
+
+def test_process_spec_no_params_040():
     spec = ProcessSpec("foo", "bar").returns("output", schema={"type": "number"})
     with pytest.warns(UserWarning):
-        assert spec.to_dict() == {"id": "foo", "description": "bar", "parameters": {}, "parameter_order": [],
-                                  "returns": {"description": "output", "schema": {"type": "number"}}}
+        assert spec.to_dict_040() == {
+            "id": "foo", "description": "bar", "parameters": {}, "parameter_order": [],
+            "returns": {"description": "output", "schema": {"type": "number"}}
+        }
+
+
+def test_process_spec_no_params_100():
+    spec = ProcessSpec("foo", "bar").returns("output", schema={"type": "number"})
+    with pytest.warns(UserWarning):
+        assert spec.to_dict_100() == {
+            "id": "foo", "description": "bar", "parameters": [],
+            "returns": {"description": "output", "schema": {"type": "number"}}
+        }
 
 
 def test_process_spec_no_returns():
     spec = ProcessSpec("foo", "bar").param("input", "Input", schema=ProcessSpec.RASTERCUBE)
     with pytest.raises(AssertionError):
-        spec.to_dict()
+        spec.to_dict_100()
 
 
 def test_process_registry_add_by_name():
@@ -78,10 +117,17 @@ def test_process_registry_add_function():
     assert reg.get_function('max') is max
 
 
-def test_process_registry_with_spec():
+def test_process_registry_with_spec_040():
     reg = ProcessRegistry()
 
-    @reg.add_function_with_spec(
+    def add_function_with_spec(spec: ProcessSpec):
+        def decorator(f):
+            reg.add_function(f=f, spec=spec.to_dict_040())
+            return f
+
+        return decorator
+
+    @add_function_with_spec(
         ProcessSpec("foo", "bar")
             .param("input", "Input", schema=ProcessSpec.RASTERCUBE)
             .returns(description="Output", schema=ProcessSpec.RASTERCUBE)
@@ -97,6 +143,35 @@ def test_process_registry_with_spec():
                       "required": True},
         },
         "parameter_order": ["input"],
+        "returns": {"description": "Output", "schema": {"type": "object", "format": "raster-cube"}}
+    }
+
+
+def test_process_registry_with_spec_100():
+    reg = ProcessRegistry()
+
+    def add_function_with_spec(spec: ProcessSpec):
+        def decorator(f):
+            reg.add_function(f=f, spec=spec.to_dict_100())
+            return f
+
+        return decorator
+
+    @add_function_with_spec(
+        ProcessSpec("foo", "bar")
+            .param("input", "Input", schema=ProcessSpec.RASTERCUBE)
+            .returns(description="Output", schema=ProcessSpec.RASTERCUBE)
+    )
+    def foo(*args):
+        return 42
+
+    assert reg.get_spec('foo') == {
+        "id": "foo",
+        "description": "bar",
+        "parameters": [
+            {"name": "input", "description": "Input", "schema": {"type": "object", "format": "raster-cube"},
+             "optional": False},
+        ],
         "returns": {"description": "Output", "schema": {"type": "object", "format": "raster-cube"}}
     }
 

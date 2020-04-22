@@ -5,8 +5,8 @@
       "id": "S2_FAPAR_CLOUDCOVER"
     }
   },
-  "aggregate_polygon": {
-    "process_id": "aggregate_polygon",
+  "aggregate_spatial": {
+    "process_id": "aggregate_spatial",
     "arguments": {
       "data": {
         "from_node": "collection"
@@ -58,7 +58,7 @@
     "process_id": "save_result",
     "arguments": {
       "data": {
-        "from_node": "aggregate_polygon"
+        "from_node": "aggregate_spatial"
       },
       "format": "VITO-TSService-JSON"
     },

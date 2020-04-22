@@ -9,6 +9,16 @@ from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.specs import SPECS_ROOT
 
 
+class ProcessParameter:
+    """Process Parameter."""
+
+    def __init__(self, name: str, description: str, schema: dict, required: bool = True):
+        self.name = name
+        self.description = description
+        self.schema = schema
+        self.required = required
+
+
 class ProcessSpec:
     """
     Helper object to easily build a process specification with a fluent/chained API.
@@ -19,27 +29,17 @@ class ProcessSpec:
     # Some predefined parameter schema's
     RASTERCUBE = {"type": "object", "format": "raster-cube"}
 
-    class Parameter:
-        """Process Parameter."""
-
-        def __init__(self, name: str, description: str, schema: dict, required: bool = True):
-            self.name = name
-            self.description = description
-            self.schema = schema
-            self.required = required
-
-        def to_dict(self):
-            return {"description": self.description, "schema": self.schema, "required": self.required}
-
     def __init__(self, id, description):
         self.id = id
         self.description = description
-        self._parameters = []
+        self._parameters: List[ProcessParameter] = []
         self._returns = None
 
     def param(self, name, description, schema, required=True) -> 'ProcessSpec':
         """Add a process parameter"""
-        self._parameters.append(self.Parameter(name, description, schema, required))
+        self._parameters.append(
+            ProcessParameter(name=name, description=description, schema=schema, required=required)
+        )
         return self
 
     def returns(self, description: str, schema: dict) -> 'ProcessSpec':
@@ -47,8 +47,8 @@ class ProcessSpec:
         self._returns = {"description": description, "schema": schema}
         return self
 
-    def to_dict(self) -> dict:
-        """Generate process spec as (JSON-able) dictionary."""
+    def to_dict_040(self) -> dict:
+        """Generate process spec as (JSON-able) dictionary (API 0.4.0 style)."""
         if len(self._parameters) == 0:
             warnings.warn("Process with no parameters")
         assert self._returns is not None
@@ -56,10 +56,25 @@ class ProcessSpec:
             "id": self.id,
             "description": self.description,
             "parameters": {
-                p.name: p.to_dict()
+                p.name: {"description": p.description, "schema": p.schema, "required": p.required}
                 for p in self._parameters
             },
             "parameter_order": [p.name for p in self._parameters],
+            "returns": self._returns
+        }
+
+    def to_dict_100(self) -> dict:
+        """Generate process spec as (JSON-able) dictionary (API 1.0.0 style)."""
+        if len(self._parameters) == 0:
+            warnings.warn("Process with no parameters")
+        assert self._returns is not None
+        return {
+            "id": self.id,
+            "description": self.description,
+            "parameters": [
+                {"name": p.name, "description": p.description, "schema": p.schema, "optional": not p.required}
+                for p in self._parameters
+            ],
             "returns": self._returns
         }
 
@@ -74,8 +89,8 @@ class ProcessRegistry:
     Basically a dictionary of process specification dictionaries
     """
 
-    def __init__(self):
-        self._processes_spec_root = SPECS_ROOT / 'openeo-processes/0.4'
+    def __init__(self, spec_root: Path = SPECS_ROOT / 'openeo-processes/1.0'):
+        self._processes_spec_root = spec_root
         # Dictionary process_name -> ProcessData
         self._processes: Dict[str, ProcessData] = {}
 
@@ -91,50 +106,49 @@ class ProcessRegistry:
         """List all processes with a spec JSON file."""
         return {p.stem: p for p in self._processes_spec_root.glob("*.json")}
 
-    def _add_process(self, name: str, function: Callable = None, spec: dict = None):
-        """Add ProcessData"""
+    def add_process(self, name: str, function: Callable = None, spec: dict = None):
+        """
+        Add a process to the registry, with callable function (optional) and specification dict (optional)
+        """
         assert name not in self._processes
+        if spec:
+            # Basic health check
+            assert all(k in spec for k in ['id', 'description', 'parameters', 'returns'])
+            assert name == spec['id']
         self._processes[name] = ProcessData(function=function, spec=spec)
 
     def add_spec(self, spec: dict):
         """Add process specification dictionary."""
-        # Basic health check
-        assert all(k in spec for k in ['id', 'description', 'parameters', 'returns'])
-        self._add_process(name=spec['id'], spec=spec)
+        self.add_process(name=spec['id'], spec=spec)
 
     def add_spec_by_name(self, name):
         """Add process by name"""
         self.add_spec(self.load_predefined_spec(name))
 
-    def add_function(self, f: Callable):
-        """To be used as function decorator: register the process corresponding with the function name."""
+    def add_function(self, f: Callable, name: str = None, spec: dict = None) -> Callable:
+        """
+        Register the process corresponding with given function.
+        Process name can be specified explicitly, otherwise the function name will be used.
+        Process spec can be specified explicitly, otherwise it will be derived from function name.
+        Can be used as function decorator.
+        """
         # TODO check if function arguments correspond with spec
-        self._add_process(
-            name=f.__name__,
+        self.add_process(
+            name=name or f.__name__,
             function=f,
-            spec=self.load_predefined_spec(f.__name__)
+            spec=spec or self.load_predefined_spec(name or f.__name__)
         )
         return f
 
-    def add_function_with_spec(self, spec: ProcessSpec):
-        """To be used as function decorator: register a custom process based on function name and given spec."""
-
-        def decorator(f: Callable):
-            assert f.__name__ == spec.id
-            self._add_process(name=f.__name__, function=f, spec=spec.to_dict())
-            return f
-
-        return decorator
-
     def add_deprecated(self, f: Callable):
-        """To be used as function decorator: just register the function, but don't register spec for (public) listing."""
+        """Just register the function, but don't register spec for (public) listing."""
 
         @functools.wraps(f)
         def wrapped(*args, **kwargs):
             warnings.warn("Calling deprecated process function {f}".format(f=f.__name__))
             return f(*args, **kwargs)
 
-        self._add_process(name=f.__name__, function=wrapped)
+        self.add_process(name=f.__name__, function=wrapped)
         return f
 
     def get_spec(self, name: str) -> dict:

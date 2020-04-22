@@ -15,7 +15,7 @@ from openeo.capabilities import ComparableVersion
 from openeo.error_summary import ErrorSummary
 from openeo.util import date_to_rfc3339, dict_no_none
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, get_backend_implementation
-from openeo_driver.ProcessGraphDeserializer import evaluate, process_registry
+from openeo_driver.ProcessGraphDeserializer import evaluate, get_process_registry
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException
 from openeo_driver.save_result import SaveResult
@@ -678,16 +678,15 @@ def collection_by_id(collection_id):
 def processes():
     # TODO: this `qname` feature is non-standard. Is this necessary for some reason?
     substring = request.args.get('qname')
-    return jsonify({
-        'processes': process_registry.get_specs(substring),
-        'links': []
-    })
+    processes = get_process_registry(requested_api_version()).get_specs(substring)
+    return jsonify({'processes': processes, 'links': []})
 
 
 @api_endpoint
-@openeo_bp.route('/processes/<process_id>' , methods=['GET'])
+@openeo_bp.route('/processes/<process_id>', methods=['GET'])
 def process(process_id):
-    return jsonify(process_registry.get_spec(name=process_id))
+    spec = get_process_registry(requested_api_version()).get_spec(name=process_id)
+    return jsonify(spec)
 
 
 app.register_blueprint(openeo_bp, url_prefix='/openeo')
