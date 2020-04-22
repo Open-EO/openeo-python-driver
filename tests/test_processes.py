@@ -1,6 +1,7 @@
 import pytest
 
-from openeo_driver.processes import ProcessSpec, ProcessRegistry, NoSuchProcessException
+from openeo_driver.errors import ProcessUnsupportedException
+from openeo_driver.processes import ProcessSpec, ProcessRegistry
 
 
 def test_process_spec_basic():
@@ -45,12 +46,12 @@ def test_process_spec_no_returns():
 
 def test_process_registry_add_by_name():
     reg = ProcessRegistry()
-    reg.add_by_name("max")
-    assert set(reg._specs.keys()) == {"max"}
+    reg.add_spec_by_name("max")
+    assert set(reg._processes.keys()) == {"max"}
     spec = reg.get_spec('max')
     assert spec['id'] == 'max'
     assert 'largest value' in spec['description']
-    assert all(k in spec for k in ['parameters', 'parameter_order', 'returns'])
+    assert all(k in spec for k in ['parameters', 'returns'])
 
 
 def test_process_registry_load_predefined_specs():
@@ -68,11 +69,11 @@ def test_process_registry_add_function():
     def max(*args):
         return max(*args)
 
-    assert set(reg._specs.keys()) == {"max"}
+    assert set(reg._processes.keys()) == {"max"}
     spec = reg.get_spec('max')
     assert spec['id'] == 'max'
     assert 'largest value' in spec['description']
-    assert all(k in spec for k in ['parameters', 'parameter_order', 'returns'])
+    assert all(k in spec for k in ['parameters', 'returns'])
 
     assert reg.get_function('max') is max
 
@@ -110,5 +111,24 @@ def test_process_registry_add_deprecated():
     new_foo = reg.get_function('foo')
     with pytest.warns(UserWarning, match="deprecated process"):
         assert new_foo() == 42
-    with pytest.raises(NoSuchProcessException):
+    with pytest.raises(ProcessUnsupportedException):
         reg.get_spec('foo')
+
+
+def test_process_registry_get_spec():
+    reg = ProcessRegistry()
+    reg.add_spec_by_name("min")
+    reg.add_spec_by_name("max")
+    with pytest.raises(ProcessUnsupportedException):
+        reg.get_spec('foo')
+
+
+def test_process_registry_get_specs():
+    reg = ProcessRegistry()
+    reg.add_spec_by_name("min")
+    reg.add_spec_by_name("max")
+    reg.add_spec_by_name("sin")
+    assert set(p['id'] for p in reg.get_specs()) == {"max", "min", "sin"}
+    assert set(p['id'] for p in reg.get_specs('')) == {"max", "min", "sin"}
+    assert set(p['id'] for p in reg.get_specs("m")) == {"max", "min"}
+    assert set(p['id'] for p in reg.get_specs("in")) == {"min", "sin"}

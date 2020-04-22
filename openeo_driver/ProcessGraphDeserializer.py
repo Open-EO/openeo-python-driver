@@ -28,7 +28,7 @@ for p in [
     'max', 'min', 'mean', 'variance', 'absolute', 'ln', 'ceil', 'floor', 'cos', 'sin', 'run_udf',
     'not', 'eq', 'lt', 'lte', 'gt', 'gte', 'or', 'and', 'divide', 'product', 'subtract', 'sum', 'median', 'sd', 'array_element'
 ]:
-    process_registry.add_by_name(p)
+    process_registry.add_spec_by_name(p)
 
 # Decorator shortcut to easily register functions as processes
 process = process_registry.add_function
@@ -580,16 +580,6 @@ def _get_udf(args):
     if version is not None and version != "3.5.1" and version != "latest" :
         raise NotImplementedError("Unsupported Python version: " + version + "this backend only support version 3.5.1.")
     return udf
-
-
-
-def getProcesses(substring: str = None):
-    # TODO: move this also to OpenEoBackendImplementation ?
-    return [spec for spec in process_registry._specs.values() if not substring or substring.lower() in spec['id']]
-
-
-def getProcess(process_id: str):
-    return process_registry._specs.get(process_id)
 
 
 def _as_geometry_collection(feature_collection: dict) -> dict:
