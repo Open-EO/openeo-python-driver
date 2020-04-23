@@ -421,11 +421,14 @@ def execute():
 @auth_handler.requires_bearer_auth
 def create_job(user: User):
     # TODO: wrap this job specification in a 1.0-style ProcessGrahpWithMetadata?
-    job_specification = {"process_graph": _extract_process_graph(request.get_json())}
+    post_data = request.get_json()
+    process = {"process_graph": _extract_process_graph(post_data)}
+    job_options = post_data.get("job_options")
     job_info = backend_implementation.batch_jobs.create_job(
         user_id=user.user_id,
-        job_specification=job_specification,
+        process=process,
         api_version=g.version,
+        job_options=job_options,
     )
     job_id = job_info.id
     response = make_response("", 201)
@@ -450,9 +453,12 @@ def list_jobs(user: User):
 def _jsonable_batch_job_metadata(metadata: BatchJobMetadata, full=True) -> dict:
     """API-version-aware conversion of service metadata to jsonable dict"""
     d = metadata.prepare_for_json()
-    if not full:
-        d.pop("process")
-        d.pop("progress")
+    # Fields to export
+    fields = ['id', 'title', 'description', 'status', 'created', 'updated', 'plan', 'costs', 'budget']
+    if full:
+        fields.extend(['process', 'progress'])
+    d = {k: v for (k, v) in d.items() if k in fields}
+
     if requested_api_version().below("1.0.0"):
         d["process_graph"] = d.pop("process", {}).get("process_graph")
         d["submitted"] = d.pop("created", None)

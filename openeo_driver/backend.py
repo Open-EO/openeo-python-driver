@@ -217,6 +217,7 @@ class BatchJobMetadata(NamedTuple):
     created: datetime
 
     # Optional fields (with default)
+    job_options: dict = None
     title: str = None
     description: str = None
     progress: float = None
@@ -239,7 +240,7 @@ class BatchJobs(MicroService):
     https://openeo.org/documentation/1.0/developers/api/reference.html#operation/stop-job
     """
 
-    def create_job(self, user_id: str, job_specification: dict, api_version: str) -> BatchJobMetadata:
+    def create_job(self, user_id: str, process: dict, api_version: str, job_options: dict = None) -> BatchJobMetadata:
         raise NotImplementedError
 
     def get_job_info(self, job_id: str, user_id: str) -> BatchJobMetadata:
@@ -281,7 +282,7 @@ class BatchJobs(MicroService):
         """
         raise NotImplementedError
 
-    def cancel_job(self, job_id:str, user_id:str):
+    def cancel_job(self, job_id: str, user_id: str):
         """
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/stop-job
         """

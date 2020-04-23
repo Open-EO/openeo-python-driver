@@ -4,20 +4,26 @@ import os
 from pathlib import Path
 from typing import List, Dict
 from unittest.mock import Mock
+import uuid
 
 from shapely.geometry import Polygon, MultiPolygon
 from shapely.geometry.collection import GeometryCollection
 
 from openeo import ImageCollection
-from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata, BatchJobs, BatchJobMetadata
-from openeo_driver.errors import JobNotFoundException
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
-from openeo_driver.testing import TEST_USER
+from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata, \
+    BatchJobs, BatchJobMetadata
+from openeo_driver.delayed_vector import DelayedVector
+from openeo_driver.errors import JobNotFoundException, JobNotFinishedException
 
-TEST_BATCH_JOB_ID = '07024ee9-7847-4b8a-b260-6c879a2b3cdc'
+DEFAULT_DATETIME = datetime(2020, 4, 23, 16, 20, 27)
 
 collections = {}
+
+
+def utcnow() -> datetime:
+    # To simplify testing, we break time.
+    return DEFAULT_DATETIME
 
 
 class DummyVisitor(ProcessGraphVisitor):
@@ -205,35 +211,44 @@ class DummyCatalog(CollectionCatalog):
 
 
 class DummyBatchJobs(BatchJobs):
+    _job_registry = {}
 
-    def create_job(self, user_id: str, job_specification: dict, api_version: str) -> BatchJobMetadata:
-        # TODO: actually "create" a new job instead of reusing an existing one?
-        return self.get_job_info(job_id=TEST_BATCH_JOB_ID, user_id=user_id)
+    def generate_job_id(self):
+        return str(uuid.uuid4())
+
+    def create_job(self, user_id: str, process: dict, api_version: str, job_options: dict = None) -> BatchJobMetadata:
+        job_id = self.generate_job_id()
+        job_info = BatchJobMetadata(
+            id=job_id, status="created", process=process, created=utcnow(), job_options=job_options
+        )
+        self._job_registry[(user_id, job_id)] = job_info
+        return job_info
 
     def get_job_info(self, job_id: str, user_id: str) -> BatchJobMetadata:
-        if (job_id, user_id) == (TEST_BATCH_JOB_ID, TEST_USER):
-            return BatchJobMetadata(
-                id=job_id,
-                status='running',
-                process={'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
-                created=datetime(2017, 1, 1, 9, 32, 12),
-            )
-        raise JobNotFoundException(job_id=job_id)
+        try:
+            return self._job_registry[(user_id, job_id)]
+        except KeyError:
+            raise JobNotFoundException(job_id=job_id)
 
     def get_user_jobs(self, user_id: str) -> List[BatchJobMetadata]:
-        if user_id == TEST_USER:
-            return [self.get_job_info(TEST_BATCH_JOB_ID, TEST_USER)]
-        else:
-            return []
+        return [v for (k, v) in self._job_registry.items() if k[0] == user_id]
+
+    @classmethod
+    def _update_status(cls, job_id: str, user_id: str, status: str):
+        try:
+            cls._job_registry[(user_id, job_id)] = cls._job_registry[(user_id, job_id)]._replace(status=status)
+        except KeyError:
+            raise JobNotFoundException(job_id=job_id)
 
     def start_job(self, job_id: str, user_id: str):
-        self.get_job_info(job_id=job_id, user_id=user_id)
+        self._update_status(job_id=job_id, user_id=user_id, status="running")
 
     def _output_root(self) -> Path:
         return Path("/data/jobs")
 
     def get_results(self, job_id: str, user_id: str) -> Dict[str, str]:
-        self.get_job_info(job_id=job_id, user_id=user_id)
+        if self.get_job_info(job_id=job_id, user_id=user_id).status != "finished":
+            raise JobNotFinishedException
         return {
             "output.tiff": str(self._output_root() / job_id / "out")
         }

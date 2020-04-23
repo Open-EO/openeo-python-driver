@@ -118,11 +118,11 @@ class ApiTester:
         """Do versioned GET request, given non-versioned path"""
         return ApiResponse(self.client.get(path=self.url(path), headers=headers))
 
-    def post(self, path: str, json: dict, headers: dict = None) -> ApiResponse:
+    def post(self, path: str, json: dict=None, headers: dict = None) -> ApiResponse:
         """Do versioned POST request, given non-versioned path"""
         return ApiResponse(self.client.post(
             path=self.url(path),
-            json=json,
+            json=json or {},
             content_type='application/json',
             headers=headers,
         ))
