@@ -28,11 +28,10 @@ where necessary or useful.
 import json
 import re
 import textwrap
-import uuid
-from pathlib import Path
 from typing import List, Set
+import uuid
 
-import openeo_driver
+from openeo_driver.specs import SPECS_ROOT
 
 
 class OpenEOApiException(Exception):
@@ -335,47 +334,6 @@ class FormatArgumentInvalidException(OpenEOApiException):
         super().__init__(message=self.message.format(argument=argument, reason=reason))
 
 
-class VariableDefaultValueTypeInvalidException(OpenEOApiException):
-    status_code = 400
-    code = 'VariableDefaultValueTypeInvalid'
-    message = "The default value for the process graph variable '{variable_id}' is not of type '{type}'."
-    _description = None
-    _tags = ['Job Management', 'Process Graph Management']
-
-    def __init__(self, variable_id: str, type: str):
-        super().__init__(message=self.message.format(variable_id=variable_id, type=type))
-
-
-class VariableTypeInvalidException(OpenEOApiException):
-    status_code = 400
-    code = 'VariableTypeInvalid'
-    message = "The data type for the process graph variable '{variable_id}' is invalid. Must be one of: string, boolean, number, array or object."
-    _description = None
-    _tags = ['Job Management', 'Process Graph Management']
-
-    def __init__(self, variable_id: str):
-        super().__init__(message=self.message.format(variable_id=variable_id))
-
-
-class VariableIdInvalidException(OpenEOApiException):
-    status_code = 400
-    code = 'VariableIdInvalid'
-    message = 'A specified variable ID is not valid.'
-    _description = None
-    _tags = ['Job Management', 'Process Graph Management']
-
-
-class VariableValueMissingException(OpenEOApiException):
-    status_code = 400
-    code = 'VariableValueMissing'
-    message = "No value specified for process graph variable '{variable_id}'."
-    _description = None
-    _tags = ['Job Management', 'Process Graph Management', 'Secondary Services Management']
-
-    def __init__(self, variable_id: str):
-        super().__init__(message=self.message.format(variable_id=variable_id))
-
-
 class PropertyNotEditableException(OpenEOApiException):
     status_code = 400
     code = 'PropertyNotEditable'
@@ -449,17 +407,6 @@ class ProcessGraphNotFoundException(OpenEOApiException):
         super().__init__(message=self.message.format(identifier=process_graph_id))
 
 
-class ProcessArgumentsMissingException(OpenEOApiException):
-    status_code = 400
-    code = 'ProcessArgumentsMissing'
-    message = "Process '{process}' requires at least {min_parameters} parameters."
-    _description = None
-    _tags = ['Processes']
-
-    def __init__(self, process: str, min_parameters: str):
-        super().__init__(message=self.message.format(process=process, min_parameters=min_parameters))
-
-
 class ProcessArgumentInvalidException(OpenEOApiException):
     status_code = 400
     code = 'ProcessArgumentInvalid'
@@ -521,6 +468,17 @@ class ProcessArgumentUnsupportedException(OpenEOApiException):
 
     def __init__(self, process: str, argument: str):
         super().__init__(message=self.message.format(process=process, argument=argument))
+
+
+class ProcessParameterMissingException(OpenEOApiException):
+    status_code = 400
+    code = 'ProcessParameterMissing'
+    message = "The process parameter '{parameter}' must be specified."
+    _description = None
+    _tags = ['Processes']
+
+    def __init__(self, parameter: str):
+        super().__init__(message=self.message.format(parameter=parameter))
 
 
 class ServiceArgumentUnsupportedException(OpenEOApiException):
@@ -587,7 +545,7 @@ class OpenEOApiErrorSpecHelper:
 
     def __init__(self, spec: dict = None):
         if spec is None:
-            with (Path(openeo_driver.__file__).parent / 'data/openeo-api/errors.json').open('r', encoding='utf-8') as f:
+            with (SPECS_ROOT / 'openeo-api/1.0/errors.json').open('r', encoding='utf-8') as f:
                 spec = json.load(f)
         self._spec = spec
 
@@ -621,7 +579,7 @@ class OpenEOApiErrorSpecHelper:
                 def __init__(self, {args}):
                     super().__init__(message=self.message.format({format_args}))
             """.format(
-                args=", ".join("{p}:str".format(p=p) for p in placeholders),
+                args=", ".join("{p}: str".format(p=p) for p in placeholders),
                 format_args=", ".join("{p}={p}".format(p=p) for p in placeholders)
             ))
             src += "\n" + textwrap.indent(init, prefix=" " * 4)

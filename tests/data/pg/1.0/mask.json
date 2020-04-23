@@ -11,7 +11,7 @@
       "id": "PROBAV_L3_S10_TOC_NDVI_333M_V2"
     }
   },
-  "aggregate_polygon": {
+  "aggregate_spatial": {
     "process_id": "aggregate_spatial",
     "arguments": {
       "data": {

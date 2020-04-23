@@ -16,9 +16,8 @@
     "process_id": "filter_bbox"
   },
   "reduce1": {
-    "result": false,
+    "process_id": "reduce_dimension",
     "arguments": {
-      "binary": false,
       "dimension": "bands",
       "reducer": {
         "process_graph": {
@@ -39,8 +38,7 @@
       "data": {
         "from_node": "filterbbox1"
       }
-    },
-    "process_id": "reduce"
+    }
   },
   "filtertemporal1": {
     "result": false,

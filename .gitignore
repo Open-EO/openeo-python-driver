@@ -105,3 +105,8 @@ ENV/
 .idea
 /.project
 /.pydevproject
+
+# Various
+openeo_driver/data
+tmp*
+temp*

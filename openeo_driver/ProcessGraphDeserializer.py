@@ -3,34 +3,84 @@
 import base64
 import logging
 import pickle
-from typing import Dict
+from typing import Dict, Callable
+import warnings
 
 import numpy as np
 from shapely.geometry import shape, mapping
 
 from openeo import ImageCollection
+from openeo.capabilities import ComparableVersion
 from openeo_driver.backend import get_backend_implementation
-from openeo_driver.errors import ProcessArgumentInvalidException, ProcessUnsupportedException, OpenEOApiException
+from openeo_driver.delayed_vector import DelayedVector
+from openeo_driver.errors import ProcessArgumentInvalidException, ProcessUnsupportedException, \
+    ProcessArgumentRequiredException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
+from openeo_driver.specs import SPECS_ROOT
 from openeo_driver.utils import smart_bool
-from openeo_driver.delayed_vector import DelayedVector
 
 _log = logging.getLogger(__name__)
 
-
-# Set up process registry
-process_registry = ProcessRegistry()
+# Set up process registries (version dependent)
+process_registry_040 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/0.4')
+process_registry_100 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/1.0')
 
 # Bootstrap with some mathematical/logical processes
-for p in [
-    'max', 'min', 'mean', 'variance', 'absolute', 'ln', 'ceil', 'floor', 'cos', 'sin', 'run_udf',
-    'not', 'eq', 'lt', 'lte', 'gt', 'gte', 'or', 'and', 'divide', 'product', 'subtract', 'sum', 'median', 'sd', 'array_element'
-]:
-    process_registry.add_by_name(p)
+process_registry_040.add_spec_by_name(
+    'array_contains', 'array_element',
+    'count', 'first', 'last', 'order', 'rearrange', 'sort',
+    'between', 'eq', 'gt', 'gte', 'if', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
+    'and', 'if', 'not', 'or', 'xor',
+    'absolute', 'clip', 'divide', 'extrema', 'int', 'max', 'mean',
+    'median', 'min', 'mod', 'multiply', 'power', 'product', 'quantiles', 'sd', 'sgn', 'sqrt',
+    'subtract', 'sum', 'variance', 'e', 'pi', 'exp', 'ln', 'log',
+    'ceil', 'floor', 'int', 'round',
+    'arccos', 'arcosh', 'arcsin', 'arctan', 'arctan2', 'arsinh', 'artanh', 'cos', 'cosh', 'sin', 'sinh', 'tan', 'tanh',
+    'count', 'first', 'last', 'max', 'mean', 'median', 'min', 'product', 'sd', 'sum', 'variance'
+)
+process_registry_100.add_spec_by_name(
+    'array_apply', 'array_contains', 'array_element', 'array_filter', 'array_find', 'array_labels',
+    'count', 'first', 'last', 'order', 'rearrange', 'sort',
+    'between', 'eq', 'gt', 'gte', 'if', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
+    'all', 'and', 'any', 'if', 'not', 'or', 'xor',
+    'absolute', 'add', 'clip', 'divide', 'extrema', 'int', 'max', 'mean',
+    'median', 'min', 'mod', 'multiply', 'power', 'product', 'quantiles', 'sd', 'sgn', 'sqrt',
+    'subtract', 'sum', 'variance', 'e', 'pi', 'exp', 'ln', 'log',
+    'ceil', 'floor', 'int', 'round',
+    'arccos', 'arcosh', 'arcsin', 'arctan', 'arctan2', 'arsinh', 'artanh', 'cos', 'cosh', 'sin', 'sinh', 'tan', 'tanh',
+    'all', 'any', 'count', 'first', 'last', 'max', 'mean', 'median', 'min', 'product', 'sd', 'sum', 'variance'
+)
 
-# Decorator shortcut to easily register functions as processes
-process = process_registry.add_function
+
+def process(f: Callable) -> Callable:
+    """Decorator for registering a process function in the process registries"""
+    process_registry_040.add_function(f)
+    process_registry_100.add_function(f)
+    return f
+
+
+# Decorator for registering deprecate/old process functions
+deprecated_process = process_registry_040.add_deprecated
+
+
+def non_standard_process(spec: ProcessSpec) -> Callable[[Callable], Callable]:
+    """Decorator for registering non-standard process functions"""
+
+    def decorator(f: Callable) -> Callable:
+        process_registry_040.add_function(f=f, spec=spec.to_dict_040())
+        process_registry_100.add_function(f=f, spec=spec.to_dict_100())
+        return f
+
+    return decorator
+
+
+def get_process_registry(api_version: ComparableVersion) -> ProcessRegistry:
+    if api_version.at_least("1.0.0"):
+        return process_registry_100
+    else:
+        return process_registry_040
+
 
 backend_implementation = get_backend_implementation()
 
@@ -42,6 +92,7 @@ def evaluate(processGraph: dict, viewingParameters=None) -> ImageCollection:
     :return:  an ImageCollection
     """
     if viewingParameters is None:
+        warnings.warn("Blindly assuming 0.4.0")
         viewingParameters = {
             'version': '0.4.0'
         }
@@ -75,17 +126,14 @@ def convert_node(processGraph: dict, viewingParameters=None):
     return processGraph
 
 
-class ProcessArgumentMissingException(OpenEOApiException):
-    # TODO use correct exception subclass from errors.py. see #32 #31
-    pass
-
-
 def extract_arg(args: dict, name: str):
     """Get process argument by name."""
     try:
         return args[name]
     except KeyError:
-        raise ProcessArgumentMissingException("Missing argument {n!r} in {args!r}".format(n=name, args=args))
+        # TODO: find out process id for proper error message?
+        # TODO: automate argument extraction directly from process spec instead of these exract_* functions?
+        raise ProcessArgumentRequiredException(process='n/a', argument=name)
 
 
 def extract_arg_list(args: dict, names: list):
@@ -93,7 +141,8 @@ def extract_arg_list(args: dict, names: list):
     for name in names:
         if name in args:
             return args[name]
-    raise ProcessArgumentMissingException("Missing argument (any of {n!r}) in {args!r}".format(n=names, args=args))
+    # TODO: find out process id for proper error message?
+    raise ProcessArgumentRequiredException(process='n/a', argument=str(names))
 
 
 def extract_deep(args: dict, *steps):
@@ -109,12 +158,13 @@ def extract_deep(args: dict, *steps):
                 value = value[key]
                 break
         else:
-            raise ProcessArgumentMissingException("Missing argument at {s!r} in {a!r}".format(s=steps, a=args))
+            # TODO: find out process id for proper error message?
+            raise ProcessArgumentRequiredException(process='n/a', argument=step)
     return value
 
 
 # TODO deprecated process
-@process_registry.add_deprecated
+@deprecated_process
 def get_collection(args: Dict, viewingParameters) -> ImageCollection:
     name = extract_arg(args,'name')
     return backend_implementation.catalog.load_collection(name, viewingParameters)
@@ -142,7 +192,7 @@ def load_collection(args: Dict, viewingParameters) -> ImageCollection:
     return backend_implementation.catalog.load_collection(name, viewingParameters)
 
 
-@process_registry.add_function_with_spec(
+@non_standard_process(
     ProcessSpec(id='load_disk_data', description="Loads arbitrary from disk.")
         .param(name='format', description="the file format, e.g. 'GTiff'", schema={"type": "string"}, required=True)
         .param(name='glob_pattern', description="a glob pattern that matches the files to load from disk", schema={"type": "string"}, required=True)
@@ -158,7 +208,7 @@ def load_disk_data(args: Dict, viewingParameters) -> object:
 
 
 # TODO deprecated process
-@process_registry.add_deprecated
+@deprecated_process
 def apply_pixel(args: Dict, viewingParameters) -> ImageCollection:
     """
     DEPRECATED
@@ -173,8 +223,8 @@ def apply_pixel(args: Dict, viewingParameters) -> ImageCollection:
 
 
 @process
-def apply_dimension(args: Dict, viewingParameters) -> ImageCollection:
-    return _evaluate_sub_process_graph(args, 'process', 'apply_dimension')
+def apply_dimension(args: Dict, ctx: dict) -> ImageCollection:
+    return _evaluate_sub_process_graph(args, 'process', parent_process='apply_dimension', version=ctx["version"])
 
 
 @process
@@ -199,14 +249,14 @@ def save_result(args: Dict, viewingParameters) -> SaveResult:
 
 
 # TODO deprecated process
-@process_registry.add_deprecated
+@deprecated_process
 def apply_tiles(args: Dict, viewingParameters) -> ImageCollection:
     function = extract_arg(args,'code')
     return extract_arg_list(args, ['data','imagery']).apply_tiles(function['source'])
 
 
 @process
-def apply(args:Dict, viewingParameters)->ImageCollection:
+def apply(args: dict, ctx: dict)->ImageCollection:
     """
     Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
 
@@ -214,12 +264,11 @@ def apply(args:Dict, viewingParameters)->ImageCollection:
     :param viewingParameters:
     :return:
     """
+    return _evaluate_sub_process_graph(args, 'process', parent_process='apply', version=ctx["version"])
 
-    return _evaluate_sub_process_graph(args, 'process', 'apply')
 
-
-@process
-def reduce(args: dict, viewingParameters) -> ImageCollection:
+@process_registry_040.add_function
+def reduce(args: dict, ctx: dict) -> ImageCollection:
     """
     https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#reduce
 
@@ -228,23 +277,41 @@ def reduce(args: dict, viewingParameters) -> ImageCollection:
     :return:
     """
     reduce_pg = extract_deep(args, "reducer", ["process_graph", "callback"])
-    dimension = extract_arg(args,'dimension')
-    binary = smart_bool(args.get('binary',False))
+    dimension = extract_arg(args, 'dimension')
+    binary = smart_bool(args.get('binary', False))
 
     data_cube = extract_arg_list(args, ['data', 'imagery'])
     # TODO band dimension name should not be hardcoded Open-EO/openeo-python-client#93
     if dimension == 'spectral_bands' or dimension == 'bands':
         if not binary and len(reduce_pg) == 1 and next(iter(reduce_pg.values())).get('process_id') == 'run_udf':
-            #it would be better to avoid having special cases everywhere to support udf's
-            return _evaluate_sub_process_graph(args, 'reducer', 'reduce')  # TODO #33: reduce -> reduce_dimension
+            # it would be better to avoid having special cases everywhere to support udf's
+            return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce', version=ctx["version"])
         visitor = backend_implementation.visit_process_graph(reduce_pg)
         return data_cube.reduce_bands(visitor)
     else:
-        return _evaluate_sub_process_graph(args, 'reducer', 'reduce')  # TODO #33: reduce -> reduce_dimension
+        return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce', version=ctx["version"])
+
+
+@process_registry_100.add_function
+def reduce_dimension(args: dict, ctx: dict) -> ImageCollection:
+    reduce_pg = extract_deep(args, "reducer", "process_graph")
+    dimension = extract_arg(args, 'dimension')
+    data_cube = extract_arg(args, 'data')
+    # TODO band dimension name should not be hardcoded Open-EO/openeo-python-client#93
+    if dimension == 'spectral_bands' or dimension == 'bands':
+        if len(reduce_pg) == 1 and next(iter(reduce_pg.values())).get('process_id') == 'run_udf':
+            # it would be better to avoid having special cases everywhere to support udf's
+            return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce_dimension', version=ctx["version"])
+        visitor = backend_implementation.visit_process_graph(reduce_pg)
+        return data_cube.reduce_bands(visitor)
+    else:
+        return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce_dimension', version=ctx["version"])
+
+
 
 
 @process
-def aggregate_temporal(args: Dict, viewingParameters) -> ImageCollection:
+def aggregate_temporal(args: dict, ctx: dict) -> ImageCollection:
     """
     https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#reduce
 
@@ -252,39 +319,36 @@ def aggregate_temporal(args: Dict, viewingParameters) -> ImageCollection:
     :param viewingParameters:
     :return:
     """
-    return _evaluate_sub_process_graph(args, 'reducer', 'aggregate_temporal')
+    return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_temporal', version=ctx["version"])
 
 
-def _evaluate_sub_process_graph(args, name: str, parent_process: str):
+def _evaluate_sub_process_graph(args: dict, name: str, parent_process: str, version: str):
     """
     Helper function to unwrap and evaluate a sub-process_graph
 
     :param args: arguments dictionary
-    :param name: argument name
+    :param name: argument name of sub-process_graph
     :return:
     """
     pg = extract_deep(args, name, ["process_graph", "callback"])
     # TODO: viewingParams are injected into args dict? looks strange
     args["parent_process"] = parent_process
-    # TODO: why not taking original version? #33
-    args["version"] = "0.4.0"
+    args["version"] = version
     return evaluate(pg, viewingParameters=args)
 
 
-@process
-def aggregate_polygon(args: Dict, viewingParameters) -> ImageCollection:
-    """
-    https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#reduce
+@process_registry_040.add_function
+def aggregate_polygon(args: dict, ctx: dict) -> ImageCollection:
+    return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_polygon', version=ctx["version"])
 
-    :param args:
-    :param viewingParameters:
-    :return:
-    """
-    return _evaluate_sub_process_graph(args, 'reducer', 'aggregate_polygon')  # TODO #33: aggregate_spatial
+
+@process_registry_100.add_function
+def aggregate_spatial(args: dict, ctx: dict) -> ImageCollection:
+    return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_spatial', version=ctx["version"])
 
 
 # TODO deprecated process
-@process_registry.add_deprecated
+@deprecated_process
 def reduce_by_time( args:Dict, viewingParameters)->ImageCollection:
     """
     Deprecated, use aggregate_temporal
@@ -297,25 +361,43 @@ def reduce_by_time( args:Dict, viewingParameters)->ImageCollection:
     decoded_function = pickle.loads(base64.standard_b64decode(function))
     return extract_arg(args, 'imagery').aggregate_time(temporal_window, decoded_function)
 
-@process
-def mask(args: Dict, viewingParameters) -> ImageCollection:
-    mask = extract_arg(args,'mask')
-    replacement = args.get( 'replacement', None)
+
+@process_registry_040.add_function
+def mask(args: dict, viewingParameters) -> ImageCollection:
+    mask = extract_arg(args, 'mask')
+    replacement = args.get('replacement', None)
     if isinstance(mask, ImageCollection):
         image_collection = extract_arg_list(args, ['data', 'imagery']).mask(rastermask=mask, replacement=replacement)
     else:
         polygon = mask.geometries[0] if isinstance(mask, DelayedVector) else shape(mask)
-
         if polygon.area == 0:
             reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
             raise ProcessArgumentInvalidException(argument='mask', process='mask', reason=reason)
-
         image_collection = extract_arg_list(args, ['data', 'imagery']).mask(polygon=polygon, replacement=replacement)
     return image_collection
 
 
+@process_registry_100.add_function
+def mask(args: dict, ctx: dict) -> ImageCollection:
+    mask = extract_arg(args, 'mask')
+    replacement = args.get('replacement', None)
+    image_collection = extract_arg(args, 'data').mask(rastermask=mask, replacement=replacement)
+    return image_collection
+
+
+@process_registry_100.add_function
+def mask_polygon(args: dict, ctx: dict) -> ImageCollection:
+    mask = extract_arg(args, 'mask')
+    replacement = args.get('replacement', None)
+    polygon = mask.geometries[0] if isinstance(mask, DelayedVector) else shape(mask)
+    if polygon.area == 0:
+        reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
+        raise ProcessArgumentInvalidException(argument='mask', process='mask', reason=reason)
+    image_collection = extract_arg(args, 'data').mask(polygon=polygon, replacement=replacement)
+    return image_collection
+
 # TODO deprecated process
-@process_registry.add_deprecated
+@deprecated_process
 def filter_daterange(args: Dict, viewingParameters) -> ImageCollection:
     #for now we take care of this filtering in 'viewingParameters'
     #from_date = extract_arg(args,'from')
@@ -346,7 +428,7 @@ def filter_bands(args: Dict, viewingParameters) -> ImageCollection:
 
 
 # TODO deprecated process?
-@process_registry.add_deprecated
+@deprecated_process
 def zonal_statistics(args: Dict, viewingParameters) -> Dict:
     image_collection = extract_arg_list(args, ['data','imagery'])
     geometry = extract_arg(args, 'regions')
@@ -412,7 +494,7 @@ def linear_scale_range(args:dict,viewingParameters:dict) -> ImageCollection:
     return image_collection.linear_scale_range(inputMin,inputMax,outputMin,outputMax)
 
 
-@process_registry.add_function_with_spec(
+@non_standard_process(
     ProcessSpec(id='histogram', description="A histogram groups data into bins and plots the number of members in each bin versus the bin number.")
     .param(name='data', description='An array of numbers', schema={
                 "type": "array",
@@ -472,7 +554,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             viewingParameters["top"] = extract_arg(extent, "north")
             viewingParameters["bottom"] = extract_arg(extent, "south")
             viewingParameters["srs"] = extent.get("crs") or "EPSG:4326"
-    elif 'zonal_statistics' == process_id or 'aggregate_polygon' == process_id:
+    elif process_id in ['zonal_statistics', 'aggregate_polygon', 'aggregate_spatial']:
         polygons = extract_arg_list(args, ['regions', 'polygons'])
 
         if viewingParameters.get("left") is None:
@@ -507,7 +589,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             return image_collection.apply_tiles(udf)
         else:
            return image_collection.apply(process_id,args)
-    elif (viewingParameters.get('parent_process', None) == 'reduce'):
+    elif viewingParameters.get('parent_process') in ["reduce", "reduce_dimension"]:
         image_collection = extract_arg_list(args, ['data', 'imagery'])
         dimension = extract_arg(viewingParameters, 'dimension')
         binary = viewingParameters.get('binary',False)
@@ -535,7 +617,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
 
             return image_collection.apply_dimension(process_id,dimension)
 
-    elif (viewingParameters.get('parent_process', None) == 'aggregate_polygon'):
+    elif viewingParameters.get('parent_process') in ['aggregate_polygon', 'aggregate_spatial']:
         image_collection = extract_arg_list(args, ['data', 'imagery'])
         binary = viewingParameters.get('binary',False)
         name = viewingParameters.get('name', 'result')
@@ -557,11 +639,14 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         dimension = viewingParameters.get('dimension', None)
         return image_collection.aggregate_temporal(intervals,labels,process_id,dimension)
     else:
-        process_function = process_registry.get_function(process_id)
+        if ComparableVersion("1.0.0").or_higher(viewingParameters["version"]):
+            process_function = process_registry_100.get_function(process_id)
+        else:
+            process_function = process_registry_040.get_function(process_id)
         return process_function(args, viewingParameters)
 
 
-@process_registry.add_function_with_spec(
+@non_standard_process(
     ProcessSpec("read_vector", description="Reads vector data from a file or a URL.")
         .param('filename', description="filename or http url of a vector file", schema={"type": "string"})
         .returns("TODO", schema={"type": "TODO"})
@@ -581,16 +666,6 @@ def _get_udf(args):
     if version is not None and version != "3.5.1" and version != "latest" :
         raise NotImplementedError("Unsupported Python version: " + version + "this backend only support version 3.5.1.")
     return udf
-
-
-
-def getProcesses(substring: str = None):
-    # TODO: move this also to OpenEoBackendImplementation ?
-    return [spec for spec in process_registry._specs.values() if not substring or substring.lower() in spec['id']]
-
-
-def getProcess(process_id: str):
-    return process_registry._specs.get(process_id)
 
 
 def _as_geometry_collection(feature_collection: dict) -> dict:

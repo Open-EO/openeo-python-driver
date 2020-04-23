@@ -31,7 +31,8 @@ def test_extract_placeholders():
 def test_unknown_error_codes():
     from_spec = set(OpenEOApiErrorSpecHelper().get_error_codes())
     defined = set(get_defined_exceptions().keys())
-    assert defined.difference(from_spec) == set()
+    defined_but_not_in_spec = defined.difference(from_spec)
+    assert defined_but_not_in_spec == set()
 
 
 def test_generate_exception_class():
@@ -46,7 +47,7 @@ def test_generate_exception_class():
     assert "    status_code = 418" in src_lines
     assert "    code = 'OutOfTea'" in src_lines
     assert "    message = 'The {color} tea pot is empty.'" in src_lines
-    assert "    def __init__(self, color:str):" in src_lines
+    assert "    def __init__(self, color: str):" in src_lines
     assert "        super().__init__(self.message.format(color=color))"
 
 

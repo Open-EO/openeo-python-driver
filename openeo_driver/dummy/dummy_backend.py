@@ -102,7 +102,7 @@ class DummyCatalog(CollectionCatalog):
         if collection_id in collections:
             return collections[collection_id]
 
-        # TODO simplify all this mocki/return_value stuff?
+        # TODO simplify all this mock/return_value stuff?
         image_collection = ImageCollection()
         image_collection.viewingParameters = viewing_parameters
 
