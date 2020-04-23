@@ -1,4 +1,4 @@
-## openEO Python Driver
+# openEO Python Driver
 
 [![Status](https://img.shields.io/badge/Status-proof--of--concept-yellow.svg)]() [![Build Status](https://travis-ci.org/Open-EO/openeo-python-driver.svg?branch=master)](https://travis-ci.org/Open-EO/openeo-python-driver)
 
@@ -8,10 +8,24 @@ Python version: 3.6 or higher
 This Python package provides a Flask based REST frontend for openEO backend drivers.
 It implements the general REST request handling of the openEO API and dispatches the real work to a pluggable openEO backend driver (such as the [openEO GeoPySpark driver](https://github.com/Open-EO/openeo-geopyspark-driver)).
 
+## Installation
 
-### Running locally
+- Clone this repo
+- Check out the git submodules
 
-Note: make sure that the git submodules are checked out and updated properly (e.g. run `git submodule update --init`).
+        git submodule update --init
+        
+- Set up a virtual environment and install `openeo_driver` and it's dependencies.
+    - basic install:
+    
+            pip install . --extra-index-url https://artifactory.vgt.vito.be/api/pypi/python-openeo/simple
+    
+    - If you plan to do development/testing, install it in editable mode
+      and include additional dependencies:
+        
+            pip install -e .[dev] --extra-index-url https://artifactory.vgt.vito.be/api/pypi/python-openeo/simple
+
+## Running locally
 
 For development, you can run the service using Flask:
 
