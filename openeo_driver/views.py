@@ -1,12 +1,14 @@
+from collections import namedtuple, defaultdict
+import datetime
 import functools
 import logging
 import os
 import re
-from collections import namedtuple, defaultdict
 from typing import Callable, Tuple, List
 
 from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, \
     current_app, redirect
+import pkg_resources
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -215,6 +217,8 @@ def index():
     service_id = app_config.get('OPENEO_SERVICE_ID', re.sub(r"\s+", "", title.lower() + api_version))
     # TODO only list endpoints that are actually supported by the backend.
     endpoints = EndpointRegistry.get_capabilities_endpoints(_openeo_endpoint_metadata, api_version=api_version)
+    deploy_metadata = app_config.get('OPENEO_BACKEND_DEPLOY_METADATA') \
+                      or build_backend_deploy_metadata(packages=["openeo", "openeo_driver"])
 
     capabilities = {
         "version": api_version,  # Deprecated pre-0.4.0 API version field
@@ -237,14 +241,18 @@ def index():
                     "paid": False
                 }
             ]
-        }
+        },
+        "_backend_deploy_metadata": deploy_metadata
     }
 
-    backend_deploy_metadata = app_config.get('OPENEO_BACKEND_DEPLOY_METADATA')
-    if backend_deploy_metadata:
-        capabilities['_backend_deploy_metadata'] = backend_deploy_metadata
-
     return jsonify(capabilities)
+
+
+def build_backend_deploy_metadata(packages: List[str]) -> dict:
+    return {
+        'date': date_to_rfc3339(datetime.datetime.utcnow()),
+        'versions': [str(pkg_resources.get_distribution(p)) for p in packages]
+    }
 
 
 @openeo_bp.route('/health')

@@ -89,7 +89,6 @@ if __name__ == '__main__':
     app.config['OPENEO_BACKEND_VERSION'] = "local-42"
     app.config['OPENEO_TITLE'] = 'Local Dummy'
     app.config['OPENEO_DESCRIPTION'] = 'Local openEO API using dummy backend'
-    app.config['OPENEO_BACKEND_DEPLOY_METADATA'] = {'date': str(datetime.utcnow())}
     application = StandaloneApplication(app, options)
 
     application.run()
