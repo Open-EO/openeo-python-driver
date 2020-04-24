@@ -12,6 +12,7 @@ pythonPipeline {
   package_name = 'openeo_driver'
   wipeout_workspace = true
   python_version = ["3.6"]
+  downstream_job = 'geo.OpenEO/openeo-geopyspark-integrationtests'
   wheel_repo = 'python-openeo'
   extras_require = 'dev'
 }
