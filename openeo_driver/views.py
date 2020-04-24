@@ -28,14 +28,18 @@ _log = logging.getLogger(__name__)
 
 ApiVersionInfo = namedtuple("ApiVersionInfo", ["version", "supported", "advertised", "production"])
 
-API_VERSIONS = [
-    ApiVersionInfo(version="0.3.0", supported=False, advertised=False, production=False),
-    ApiVersionInfo(version="0.3.1", supported=False, advertised=False, production=False),
-    ApiVersionInfo(version="0.4.0", supported=True, advertised=True, production=True),
-    ApiVersionInfo(version="0.4.1", supported=True, advertised=True, production=True),
-    ApiVersionInfo(version="0.4.2", supported=True, advertised=True, production=True),
-    ApiVersionInfo(version="1.0.0", supported=True, advertised=True, production=False),
-]
+# Available OpenEO API versions: map of URL version component to API version info
+API_VERSIONS = {
+    "0.3.0": ApiVersionInfo(version="0.3.0", supported=False, advertised=False, production=False),
+    "0.3.1": ApiVersionInfo(version="0.3.1", supported=False, advertised=False, production=False),
+    "0.3": ApiVersionInfo(version="0.3.1", supported=False, advertised=False, production=False),
+    "0.4.0": ApiVersionInfo(version="0.4.0", supported=True, advertised=True, production=True),
+    "0.4.1": ApiVersionInfo(version="0.4.1", supported=True, advertised=True, production=True),
+    "0.4.2": ApiVersionInfo(version="0.4.2", supported=True, advertised=True, production=True),
+    "0.4": ApiVersionInfo(version="0.4.2", supported=True, advertised=True, production=True),
+    "1.0.0": ApiVersionInfo(version="1.0.0", supported=True, advertised=True, production=False),
+    "1.0": ApiVersionInfo(version="1.0.0", supported=True, advertised=True, production=False),
+}
 DEFAULT_VERSION = '0.4.2'
 
 _log.info("API Versions: {v}".format(v=API_VERSIONS))
@@ -55,30 +59,33 @@ openeo_bp = Blueprint('openeo', __name__)
 
 backend_implementation = get_backend_implementation()
 
+
 @openeo_bp.url_defaults
 def _add_version(endpoint, values):
     """Blueprint.url_defaults handler to automatically add "version" argument in `url_for` calls."""
     if 'version' not in values and current_app.url_map.is_endpoint_expecting(endpoint, 'version'):
-        values['version'] = g.get('version', DEFAULT_VERSION)
+        values['version'] = g.get('request_version', DEFAULT_VERSION)
 
 
 @openeo_bp.url_value_preprocessor
 def _pull_version(endpoint, values):
     """Get API version from request and store in global context"""
-    g.version = values.pop('version', DEFAULT_VERSION)
-    if g.version not in set(v.version for v in API_VERSIONS if v.supported):
+    version = values.pop('version', DEFAULT_VERSION)
+    if not (version in API_VERSIONS and API_VERSIONS[version].supported):
         raise OpenEOApiException(
             status_code=501,
             code="UnsupportedApiVersion",
-            message="Unsupported version: {v!r}.  Supported versions: {s!r}".format(
-                v=g.version, s=[v.version for v in API_VERSIONS if v.advertised]
+            message="Unsupported version: {v!r}.  Available versions: {s!r}".format(
+                v=version, s=[k for k, v in API_VERSIONS.items() if v.advertised]
             )
         )
+    g.request_version = version
+    g.api_version = API_VERSIONS[version].version
 
 
 def requested_api_version() -> ComparableVersion:
     """Get the currently requested API version as a ComparableVersion object"""
-    return ComparableVersion(g.version)
+    return ComparableVersion(g.api_version)
 
 
 @openeo_bp.before_request
@@ -214,7 +221,7 @@ def index():
 
     api_version = requested_api_version().to_string()
     title = app_config.get('OPENEO_TITLE', 'OpenEO API')
-    service_id = app_config.get('OPENEO_SERVICE_ID', re.sub(r"\s+", "", title.lower() + api_version))
+    service_id = app_config.get('OPENEO_SERVICE_ID', re.sub(r"\s+", "", title.lower() + '-' + api_version))
     # TODO only list endpoints that are actually supported by the backend.
     endpoints = EndpointRegistry.get_capabilities_endpoints(_openeo_endpoint_metadata, api_version=api_version)
     deploy_metadata = app_config.get('OPENEO_BACKEND_DEPLOY_METADATA') \
@@ -228,8 +235,7 @@ def index():
         "id": service_id,
         "title": title,
         "description": app_config.get('OPENEO_DESCRIPTION', 'OpenEO API'),
-        # TODO: flag some versions as not available for production?
-        "production": smart_bool(app_config.get('OPENEO_IS_PRODUCTION', True)),
+        "production": API_VERSIONS[api_version].production,
         "endpoints": endpoints,
         "billing": {
             "currency": "EUR",
@@ -355,7 +361,7 @@ def point():
     y = float(request.args.get('y', ''))
     srs = request.args.get('srs', None)
     process_graph = _extract_process_graph(request.json)
-    image_collection = evaluate(process_graph, viewingParameters={'version': g.version})
+    image_collection = evaluate(process_graph, viewingParameters={'version': g.api_version})
     return jsonify(image_collection.timeseries(x, y, srs))
 
 
@@ -409,7 +415,7 @@ def execute():
     # TODO:  This is not an official endpoint, does this "/execute" still have to be exposed as route?
     post_data = request.get_json()
     process_graph = _extract_process_graph(post_data)
-    result = evaluate(process_graph, viewingParameters={'version': g.version})
+    result = evaluate(process_graph, viewingParameters={'version': g.api_version})
 
     # TODO unify all this output handling within SaveResult logic?
     if isinstance(result, ImageCollection):
@@ -435,7 +441,7 @@ def create_job(user: User):
     job_info = backend_implementation.batch_jobs.create_job(
         user_id=user.user_id,
         process=process,
-        api_version=g.version,
+        api_version=g.api_version,
         job_options=job_options,
     )
     job_id = job_info.id
@@ -601,7 +607,7 @@ def services_post():
     service_metadata = backend_implementation.secondary_services.create_service(
         process_graph=_extract_process_graph(post_data),
         service_type=post_data["type"],
-        api_version=g.version,
+        api_version=g.api_version,
         post_data=post_data,
     )
 
@@ -666,6 +672,7 @@ def service_delete(service_id):
     backend_implementation.secondary_services.remove_service(service_id)
     return response_204_no_content()
 
+
 @api_endpoint
 @openeo_bp.route('/subscription', methods=["GET"])
 def subscription():
@@ -709,17 +716,18 @@ app.register_blueprint(openeo_bp, url_prefix='/openeo/<version>')
 # Build endpoint metadata dictionary
 _openeo_endpoint_metadata = api_endpoint.get_path_metadata(openeo_bp)
 
+
 # Note: /.well-known/openeo should be available directly under domain, without version prefix.
 @app.route('/.well-known/openeo', methods=['GET'])
 def well_known_openeo():
     return jsonify({
         'versions': [
             {
-                "url": url_for('openeo.index', version=v.version, _external=True),
+                "url": url_for('openeo.index', version=k, _external=True),
                 "api_version": v.version,
                 "production": v.production,
             }
-            for v in API_VERSIONS
+            for k, v in API_VERSIONS.items()
             if v.advertised
         ]
     })

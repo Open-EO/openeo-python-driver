@@ -13,7 +13,7 @@ from openeo.capabilities import ComparableVersion
 from openeo_driver.backend import BatchJobMetadata
 from openeo_driver.dummy import dummy_backend
 import openeo_driver.testing
-from openeo_driver.testing import TEST_USER
+from openeo_driver.testing import TEST_USER, ApiResponse
 from openeo_driver.users import HttpAuthHandler
 from openeo_driver.views import app, EndpointRegistry
 from .data import TEST_DATA_ROOT
@@ -65,22 +65,40 @@ class TestGeneral:
     def test_well_known_openeo(self, client):
         resp = client.get('/.well-known/openeo')
         assert resp.status_code == 200
-        expected = {'api_version': '1.0.0', 'production': False, 'url': 'http://oeo.net/openeo/1.0.0/'}
-        assert expected in resp.json["versions"]
+        for expected in [
+            {'api_version': '0.4.0', 'production': True, 'url': 'http://oeo.net/openeo/0.4.0/'},
+            {'api_version': '0.4.2', 'production': True, 'url': 'http://oeo.net/openeo/0.4.2/'},
+            {'api_version': '0.4.2', 'production': True, 'url': 'http://oeo.net/openeo/0.4/'},
+            {'api_version': '1.0.0', 'production': False, 'url': 'http://oeo.net/openeo/1.0.0/'},
+        ]:
+            assert expected in resp.json["versions"]
 
-    def test_capabilities_invalid_api_version(self, client):
-        resp = client.get('/openeo/0.0.0/')
-        assert resp.status_code == 501
-        error = resp.json
-        assert error['code'] == 'UnsupportedApiVersion'
-        assert "Unsupported version: '0.0.0'" in error['message']
+    def test_capabilities_040(self, api040):
+        capabilities = api040.get('/').assert_status_code(200).json
+        assert capabilities["api_version"] == "0.4.0"
+        assert capabilities["version"] == "0.4.0"
+        assert capabilities["stac_version"] == "0.9.0"
+        assert capabilities["title"] == "OpenEO Test API"
+        assert capabilities["id"] == "openeotestapi-0.4.0"
+        assert capabilities["production"] is True
 
-    def test_capabilities(self, api100):
+    def test_capabilities_100(self, api100):
         capabilities = api100.get('/').assert_status_code(200).json
         assert capabilities["api_version"] == "1.0.0"
         assert capabilities["stac_version"] == "0.9.0"
         assert capabilities["title"] == "OpenEO Test API"
-        assert capabilities["id"] == "openeotestapi1.0.0"
+        assert capabilities["id"] == "openeotestapi-1.0.0"
+        assert capabilities["production"] is False
+
+    def test_capabilities_version_alias(self, client):
+        resp = ApiResponse(client.get('/openeo/0.4/')).assert_status_code(200).json
+        assert resp["api_version"] == "0.4.2"
+        assert resp["production"] == True
+
+    def test_capabilities_invalid_api_version(self, client):
+        resp = ApiResponse(client.get('/openeo/0.0.0/'))
+        resp.assert_error(501, 'UnsupportedApiVersion')
+        assert "Unsupported version: '0.0.0'" in resp.json['message']
 
     def test_capabilities_endpoints(self, api100):
         capabilities = api100.get("/").assert_status_code(200).json
