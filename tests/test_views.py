@@ -558,7 +558,7 @@ def test_build_backend_deploy_metadata():
     data = build_backend_deploy_metadata(packages=["openeo", "openeo_driver", "foobarblerghbwop"])
     assert data["date"].startswith(datetime.utcnow().strftime("%Y-%m-%dT%H"))
     # TODO make these asserts less version dependent?
-    assert data["versions"]["openeo"].startswith("openeo 0.1")
+    assert data["versions"]["openeo"].startswith("openeo 0.2")
     assert data["versions"]["openeo_driver"].startswith("openeo-driver 0.2")
     assert data["versions"]["foobarblerghbwop"] == "n/a"
 
