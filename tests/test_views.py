@@ -15,7 +15,7 @@ from openeo_driver.dummy import dummy_backend
 import openeo_driver.testing
 from openeo_driver.testing import TEST_USER, ApiResponse
 from openeo_driver.users import HttpAuthHandler
-from openeo_driver.views import app, EndpointRegistry
+from openeo_driver.views import app, EndpointRegistry, build_backend_deploy_metadata
 from .data import TEST_DATA_ROOT
 from .test_users import _build_basic_auth_header
 
@@ -552,6 +552,15 @@ class TestSecondaryServices(TestCase):
         res = self.client.get('/openeo/1.0.0/services/wmts-invalid')
         assert res.status_code == 404
         assert res.json['code'] == 'ServiceNotFound'
+
+
+def test_build_backend_deploy_metadata():
+    data = build_backend_deploy_metadata(packages=["openeo", "openeo_driver", "foobarblerghbwop"])
+    assert data["date"].startswith(datetime.utcnow().strftime("%Y-%m-%dT%H"))
+    # TODO make these asserts less version dependent?
+    assert data["versions"]["openeo"].startswith("openeo 0.1")
+    assert data["versions"]["openeo_driver"].startswith("openeo-driver 0.2")
+    assert data["versions"]["foobarblerghbwop"] == "n/a"
 
 
 def test_credentials_basic_no_headers(api):
