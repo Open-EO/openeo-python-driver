@@ -255,9 +255,15 @@ def index():
 
 
 def build_backend_deploy_metadata(packages: List[str]) -> dict:
+    version_info = {}
+    for package in packages:
+        try:
+            version_info[package] = str(pkg_resources.get_distribution(package))
+        except pkg_resources.DistributionNotFound:
+            version_info[package] = "n/a"
     return {
         'date': date_to_rfc3339(datetime.datetime.utcnow()),
-        'versions': [str(pkg_resources.get_distribution(p)) for p in packages]
+        'versions': version_info
     }
 
 
