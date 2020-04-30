@@ -599,6 +599,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
                 #EP-2760 a special case of reduce where only a single udf based callback is provided. The more generic case is not yet supported.
                 return image_collection.apply_tiles_spatiotemporal(udf)
             elif 'spectral_bands' == dimension or 'bands' == dimension:
+                # TODO band dimension name should not be hardcoded Open-EO/openeo-python-client#93
                 udf = _get_udf(args)
                 return image_collection.apply_tiles(udf)
 

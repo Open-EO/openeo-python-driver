@@ -18,6 +18,8 @@ from openeo_driver.errors import JobNotFoundException, JobNotFinishedException
 
 DEFAULT_DATETIME = datetime(2020, 4, 23, 16, 20, 27)
 
+
+# TODO: eliminate this global state with proper pytest fixture usage
 collections = {}
 
 
@@ -85,21 +87,50 @@ class DummySecondaryServices(SecondaryServices):
 
 
 class DummyCatalog(CollectionCatalog):
-    _COLLECTIONS = [{
-        'product_id': 'DUMMY_S2_FAPAR_CLOUDCOVER',
-        'name': 'DUMMY_S2_FAPAR_CLOUDCOVER',
-        'id': 'DUMMY_S2_FAPAR_CLOUDCOVER',
-        'description': 'fraction of the solar radiation absorbed by live leaves for the photosynthesis activity',
-        'license': 'free',
-        'extent': {
-            'spatial': [-180, -90, 180, 90],
-            'temporal': ["2019-01-02", "2019-02-03"],
+    _COLLECTIONS = [
+        {
+            'id': 'DUMMY_S2_FAPAR_CLOUDCOVER',
+            'product_id': 'DUMMY_S2_FAPAR_CLOUDCOVER',
+            'name': 'DUMMY_S2_FAPAR_CLOUDCOVER',
+            'description': 'fraction of the solar radiation absorbed by live leaves for the photosynthesis activity',
+            'license': 'free',
+            'extent': {
+                'spatial': [-180, -90, 180, 90],
+                'temporal': ["2019-01-02", "2019-02-03"],
+            },
+            'cube:dimensions': {
+                "x": {"type": "spatial"},
+                "y": {"type": "spatial"},
+                "t": {"type": "temporal"},
+            },
+            'summaries': {},
+            'links': [],
         },
-        'links': [],
-        'stac_version': '0.1.2',
-        'properties': {'cube:dimensions': {}},
-        'other_properties': {},
-    }]
+        {
+            'id': 'DUMMY_S2',
+            'license': 'free',
+            'extent': {
+                'spatial': [2.5, 49.5, 6.2, 51.5],
+                'temporal': ["2019-01-01", None],
+            },
+            'cube:dimensions': {
+                "x": {"type": "spatial"},
+                "y": {"type": "spatial"},
+                "t": {"type": "temporal"},
+                "bands": {"type": "bands", "values": ["B02", "B03", "B04", "B08"]},
+            },
+            'summaries': {
+                "eo:bands": [
+                    {"name": "B02", "common_name": "blue"},
+                    {"name": "B03", "common_name": "green"},
+                    {"name": "B04", "common_name": "red"},
+                    {"name": "B08", "common_name": "nir"},
+                ]
+            },
+            'links': [],
+            '_private': {'password': 'dragon'}
+        },
+    ]
 
     def __init__(self):
         super().__init__(all_metadata=self._COLLECTIONS)

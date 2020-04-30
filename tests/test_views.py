@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 from datetime import datetime
+import logging
 import os
 from pathlib import Path
 import tempfile
@@ -15,7 +16,7 @@ from openeo_driver.dummy import dummy_backend
 import openeo_driver.testing
 from openeo_driver.testing import TEST_USER, ApiResponse
 from openeo_driver.users import HttpAuthHandler
-from openeo_driver.views import app, EndpointRegistry, build_backend_deploy_metadata
+from openeo_driver.views import app, EndpointRegistry, build_backend_deploy_metadata, _normalize_collection_metadata
 from .data import TEST_DATA_ROOT
 from .test_users import _build_basic_auth_header
 
@@ -152,18 +153,6 @@ class TestGeneral:
             }
         }
 
-    def test_collections(self, api):
-        collections = api.get('/collections').assert_status_code(200).json
-        assert 'DUMMY_S2_FAPAR_CLOUDCOVER' in [c['id'] for c in collections['collections']]
-
-    def test_collections_detail(self, api):
-        collection = api.get('/collections/DUMMY_S2_FAPAR_CLOUDCOVER').assert_status_code(200).json
-        assert collection['id'] == 'DUMMY_S2_FAPAR_CLOUDCOVER'
-
-    def test_data_detail_error(self, api):
-        error = api.get('/collections/S2_FAPAR_CLOUDCOVER').assert_error(404, "CollectionNotFound").json
-        assert error["message"] == "Collection 'S2_FAPAR_CLOUDCOVER' does not exist."
-
     def test_processes(self, api):
         resp = api.get('/processes').assert_status_code(200).json
         processes = resp["processes"]
@@ -229,6 +218,162 @@ class TestGeneral:
         for pid in expected_only_100:
             assert pid not in pids040
             assert pid in pids100
+
+
+class TestCollections:
+
+    def test_normalize_collection_metadata_no_id(self, caplog):
+        with pytest.raises(KeyError):
+            _normalize_collection_metadata({"foo": "bar"}, api_version=ComparableVersion("1.0.0"))
+        errors = [r.getMessage() for r in caplog.records if r.levelno == logging.ERROR]
+        assert any("should have 'id' field" in m for m in errors)
+
+    def test_normalize_collection_metadata_minimal_040(self, caplog):
+        assert _normalize_collection_metadata({"id": "foobar"}, api_version=ComparableVersion("0.4.2")) == {
+            'id': 'foobar',
+            'stac_version': '0.6.2',
+            'description': 'foobar',
+            'extent': {'spatial': [0, 0, 0, 0], 'temporal': [None, None]},
+            'license': 'proprietary',
+            'links': [],
+        }
+        warnings = set(r.getMessage() for r in caplog.records if r.levelno == logging.WARN)
+        assert warnings == {"Collection 'foobar' metadata does not have field 'extent'."}
+
+    def test_normalize_collection_metadata_minimal_full_040(self, caplog):
+        assert _normalize_collection_metadata({"id": "foobar"}, api_version=ComparableVersion("0.4.2"), full=True) == {
+            'id': 'foobar',
+            'stac_version': '0.6.2',
+            'description': 'foobar',
+            'extent': {'spatial': [0, 0, 0, 0], 'temporal': [None, None]},
+            'license': 'proprietary',
+            'properties': {},
+            'other_properties': {},
+            'links': [],
+        }
+        warnings = set(r.getMessage() for r in caplog.records if r.levelno == logging.WARN)
+        assert warnings == {
+            "Collection 'foobar' metadata does not have field 'extent'.",
+            "Collection 'foobar' metadata does not have field 'other_properties'.",
+            "Collection 'foobar' metadata does not have field 'properties'.",
+        }
+
+    def test_normalize_collection_metadata_minimal_100(self, caplog):
+        assert _normalize_collection_metadata({"id": "foobar"}, api_version=ComparableVersion("1.0.0")) == {
+            'id': 'foobar',
+            'stac_version': '0.9.0',
+            'description': 'foobar',
+            'extent': {'spatial': [0, 0, 0, 0], 'temporal': [None, None]},
+            'license': 'proprietary',
+            'links': [],
+        }
+        warnings = set(r.getMessage() for r in caplog.records if r.levelno == logging.WARN)
+        assert warnings == {"Collection 'foobar' metadata does not have field 'extent'."}
+
+    def test_normalize_collection_metadata_minimal_full_100(self, caplog):
+        assert _normalize_collection_metadata({"id": "foobar"}, api_version=ComparableVersion("1.0.0"), full=True) == {
+            'id': 'foobar',
+            'stac_version': '0.9.0',
+            'description': 'foobar',
+            'extent': {'spatial': [0, 0, 0, 0], 'temporal': [None, None]},
+            'license': 'proprietary',
+            'cube:dimensions': {},
+            'summaries': {},
+            'links': [],
+        }
+        warnings = set(r.getMessage() for r in caplog.records if r.levelno == logging.WARN)
+        assert warnings == {
+            "Collection 'foobar' metadata does not have field 'cube:dimensions'.",
+            "Collection 'foobar' metadata does not have field 'extent'.",
+            "Collection 'foobar' metadata does not have field 'summaries'."
+        }
+
+    def test_normalize_collection_metadata_dimensions_and_bands_040(self, caplog):
+        metadata = {
+            "id": "foobar",
+            "cube:dimensions": {
+                "x": {"type": "spatial"},
+                "b": {"type": "bands", "values": ["B02", "B03"]}
+            },
+            "summaries": {
+                "eo:bands": [{"name": "B02"}, {"name": "B03"}]
+            }
+        }
+        res = _normalize_collection_metadata(metadata, api_version=ComparableVersion("0.4.0"), full=True)
+        assert res["properties"]["cube:dimensions"] == {
+            "x": {"type": "spatial"},
+            "b": {"type": "bands", "values": ["B02", "B03"]}
+        }
+        assert res["properties"]["eo:bands"] == [{"name": "B02"}, {"name": "B03"}]
+
+    def test_normalize_collection_metadata_dimensions_and_bands_100(self, caplog):
+        metadata = {
+            "id": "foobar",
+            "properties": {
+                "cube:dimensions": {
+                    "x": {"type": "spatial"},
+                    "b": {"type": "bands", "values": ["B02", "B03"]}
+                },
+                "eo:bands": [{"name": "B02"}, {"name": "B03"}]
+            }
+        }
+        res = _normalize_collection_metadata(metadata, api_version=ComparableVersion("1.0.0"), full=True)
+        assert res["cube:dimensions"] == {
+            "x": {"type": "spatial"},
+            "b": {"type": "bands", "values": ["B02", "B03"]}
+        }
+        assert res["summaries"]["eo:bands"] == [{"name": "B02"}, {"name": "B03"}]
+
+    def test_collections(self, api):
+        resp = api.get('/collections').assert_status_code(200).json
+        assert "links" in resp
+        assert "collections" in resp
+        assert 'DUMMY_S2_FAPAR_CLOUDCOVER' in [c['id'] for c in resp['collections']]
+        assert 'DUMMY_S2' in [c['id'] for c in resp['collections']]
+        for collection in resp['collections']:
+            assert 'id' in collection
+            assert 'stac_version' in collection
+            assert 'description' in collection
+            assert 'license' in collection
+            assert 'extent' in collection
+            assert 'links' in collection
+
+    def test_strip_private_fields(self, api):
+        index, = (i for i, c in enumerate(dummy_backend.DummyCatalog._COLLECTIONS) if c["id"] == "DUMMY_S2")
+        assert '_private' in dummy_backend.DummyCatalog._COLLECTIONS[index]
+        # All metadata
+        resp = api.get('/collections').assert_status_code(200).json
+        assert '_private' not in resp["collections"][index]
+        # Single collection metadata
+        resp = api.get('/collections/DUMMY_S2').assert_status_code(200).json
+        assert '_private' not in resp
+
+    def test_collections_detail_invalid_collection(self, api):
+        error = api.get('/collections/FOOBOO').assert_error(404, "CollectionNotFound").json
+        assert error["message"] == "Collection 'FOOBOO' does not exist."
+
+    def test_collections_detail(self, api):
+        collection = api.get('/collections/DUMMY_S2').assert_status_code(200).json
+        assert collection['id'] == 'DUMMY_S2'
+        assert collection['description'] == 'DUMMY_S2'
+        assert collection['license'] == 'free'
+        assert collection['extent'] == {'spatial': [2.5, 49.5, 6.2, 51.5], 'temporal': ['2019-01-01', None]}
+        cube_dimensions = {
+            "x": {"type": "spatial"}, "y": {"type": "spatial"}, "t": {"type": "temporal"},
+            "bands": {"type": "bands", "values": ["B02", "B03", "B04", "B08"]},
+        }
+        eo_bands = [
+            {"name": "B02", "common_name": "blue"}, {"name": "B03", "common_name": "green"},
+            {"name": "B04", "common_name": "red"}, {"name": "B08", "common_name": "nir"},
+        ]
+        if api.api_version_compare.at_least("1.0.0"):
+            assert collection['stac_version'] == '0.9.0'
+            assert collection['cube:dimensions'] == cube_dimensions
+            assert collection['summaries']['eo:bands'] == eo_bands
+        else:
+            assert collection['stac_version'] == '0.6.2'
+            assert collection['properties']['cube:dimensions'] == cube_dimensions
+            assert collection['properties']["eo:bands"] == eo_bands
 
 
 class TestBatchJobs:

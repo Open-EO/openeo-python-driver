@@ -1,4 +1,5 @@
 from collections import namedtuple, defaultdict
+import copy
 import datetime
 import functools
 import logging
@@ -15,14 +16,14 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from openeo import ImageCollection
 from openeo.capabilities import ComparableVersion
 from openeo.error_summary import ErrorSummary
-from openeo.util import date_to_rfc3339, dict_no_none
+from openeo.util import date_to_rfc3339, dict_no_none, deep_get
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, get_backend_implementation
-from openeo_driver.ProcessGraphDeserializer import evaluate, get_process_registry
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException
+from openeo_driver.ProcessGraphDeserializer import evaluate, get_process_registry
 from openeo_driver.save_result import SaveResult
 from openeo_driver.users import HttpAuthHandler, User
-from openeo_driver.utils import replace_nan_values, smart_bool
+from openeo_driver.utils import replace_nan_values
 
 _log = logging.getLogger(__name__)
 
@@ -685,11 +686,82 @@ def subscription():
     raise NotImplementedError
 
 
+def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersion, full=False) -> dict:
+    """
+    Make sure the given collection metadata roughly complies to desirec version of OpenEO spec.
+    """
+    # Make copy and remove all "private" fields
+    metadata = copy.deepcopy(metadata)
+    metadata = {k: v for (k, v) in metadata.items() if not k.startswith('_')}
+
+    # Metadata should at least contain an id.
+    if "id" not in metadata:
+        _log.error("Collection metadata should have 'id' field: {m!r}".format(m=metadata))
+        raise KeyError("id")
+    collection_id = metadata["id"]
+
+    # Version dependent metadata conversions
+    cube_dims_100 = deep_get(metadata, "cube:dimensions", default=None)
+    cube_dims_040 = deep_get(metadata, "properties", "cube:dimensions", default=None)
+    eo_bands_100 = deep_get(metadata, "summaries", "eo:bands", default=None)
+    eo_bands_040 = deep_get(metadata, "properties", "eo:bands", default=None)
+    if api_version.below("1.0.0"):
+        if full and not cube_dims_040 and cube_dims_100:
+            metadata.setdefault("properties", {})
+            metadata["properties"]["cube:dimensions"] = cube_dims_100
+        if full and not eo_bands_040 and eo_bands_100:
+            metadata.setdefault("properties", {})
+            metadata["properties"]["eo:bands"] = eo_bands_100
+    else:
+        if full and not cube_dims_100 and cube_dims_040:
+            _log.warning("Collection metadata 'cube:dimensions' in API 0.4 style instead of 1.0 style")
+            metadata["cube:dimensions"] = cube_dims_040
+        if full and not eo_bands_100 and eo_bands_040:
+            _log.warning("Collection metadata 'eo:bands' in API 0.4 style instead of 1.0 style")
+            metadata.setdefault("summaries", {})
+            metadata["summaries"]["eo:bands"] = eo_bands_040
+
+    # Make sure some required fields are set.
+    metadata.setdefault("stac_version", "0.9.0" if api_version.at_least("1.0.0") else "0.6.2")
+    metadata.setdefault("links", [])
+    metadata.setdefault("description", collection_id)
+    metadata.setdefault("license", "proprietary")
+    # Warn about missing fields where simple defaults are not feasible.
+    fallbacks = {
+        "extent": {"spatial": [0, 0, 0, 0], "temporal": [None, None]},
+    }
+    if full:
+        if api_version.at_least("1.0.0"):
+            fallbacks["cube:dimensions"] = {}
+            fallbacks["summaries"] = {}
+        else:
+            fallbacks["properties"] = {}
+            fallbacks["other_properties"] = {}
+
+    for key, value in fallbacks.items():
+        if key not in metadata:
+            _log.warning("Collection {c!r} metadata does not have field {k!r}.".format(c=collection_id, k=key))
+            metadata[key] = value
+
+    if not full:
+        basic_keys = [
+            "stac_version", "stac_extensions", "id", "title", "description", "keywords", "version",
+            "deprecated", "license", "providers", "extent", "links"
+        ]
+        metadata = {k: v for k, v in metadata.items() if k in basic_keys}
+
+    return metadata
+
+
 @api_endpoint
 @openeo_bp.route('/collections', methods=['GET'])
 def collections():
+    metadata = [
+        _normalize_collection_metadata(metadata=m, api_version=requested_api_version(), full=False)
+        for m in backend_implementation.catalog.get_all_metadata()
+    ]
     return jsonify({
-        'collections': backend_implementation.catalog.get_all_metadata(),
+        'collections': metadata,
         'links': []
     })
 
@@ -697,7 +769,9 @@ def collections():
 @api_endpoint
 @openeo_bp.route('/collections/<collection_id>', methods=['GET'])
 def collection_by_id(collection_id):
-    return jsonify(backend_implementation.catalog.get_collection_metadata(collection_id))
+    metadata = backend_implementation.catalog.get_collection_metadata(collection_id=collection_id)
+    metadata = _normalize_collection_metadata(metadata=metadata, api_version=requested_api_version(), full=True)
+    return jsonify(metadata)
 
 
 @api_endpoint
