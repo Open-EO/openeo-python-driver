@@ -3,7 +3,7 @@ from datetime import datetime
 import logging
 import os
 from pathlib import Path
-import tempfile
+import re
 from unittest import TestCase, mock
 
 import flask
@@ -702,9 +702,8 @@ class TestSecondaryServices(TestCase):
 def test_build_backend_deploy_metadata():
     data = build_backend_deploy_metadata(packages=["openeo", "openeo_driver", "foobarblerghbwop"])
     assert data["date"].startswith(datetime.utcnow().strftime("%Y-%m-%dT%H"))
-    # TODO make these asserts less version dependent?
-    assert data["versions"]["openeo"].startswith("openeo 0.2")
-    assert data["versions"]["openeo_driver"].startswith("openeo-driver 0.2")
+    assert re.match(r"openeo \d+\.\d+\.\d+", data["versions"]["openeo"])
+    assert re.match(r"openeo-driver \d+\.\d+\.\d+", data["versions"]["openeo_driver"])
     assert data["versions"]["foobarblerghbwop"] == "n/a"
 
 
