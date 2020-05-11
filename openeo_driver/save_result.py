@@ -76,6 +76,9 @@ class AggregatePolygonResult(JSONResult):
 
     def __init__(self, timeseries: dict, regions: GeometryCollection):
         super().__init__(data=timeseries)
+        if not isinstance(regions, GeometryCollection):
+            # TODO: raise exception instead of warning?
+            warnings.warn("AggregatePolygonResult: GeometryCollection expected but got {t}".format(t=type(regions)))
         self._regions = regions
 
     def get_data(self):
