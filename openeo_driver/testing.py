@@ -3,7 +3,9 @@ Reusable helpers and fixtures for testing
 """
 import json
 from pathlib import Path
+import re
 from typing import Union, Callable
+import typing.re
 
 from flask import Response
 from flask.testing import FlaskClient
@@ -26,12 +28,22 @@ def read_file(path: Union[Path, str], mode='r') -> str:
         return f.read()
 
 
-def load_json(path: Union[Path, str], preprocess: Callable = None) -> dict:
+def load_json(path: Union[Path, str], preprocess: Callable[[str], str] = None) -> dict:
     """Parse data from JSON file"""
     data = read_file(path)
     if preprocess:
         data = preprocess(data)
     return json.loads(data)
+
+
+def preprocess_check_and_replace(old: str, new: str) -> Callable[[str], str]:
+    """Create a preprocess function that replaces `old` with `new` (and fails when there is no `old`)."""
+
+    def preprocess(s: str) -> str:
+        assert old in s
+        return s.replace(old, new)
+
+    return preprocess
 
 
 class ApiException(Exception):
@@ -93,8 +105,21 @@ class ApiResponse:
             ))
         return self
 
-    def assert_error(self, status_code: int, error_code: str) -> 'ApiResponse':
-        return self.assert_status_code(status_code).assert_error_code(error_code)
+    def assert_substring(self, key, expected: Union[str, typing.re.Pattern]):
+        actual = self.json[key]
+        if isinstance(expected, str):
+            if expected in actual:
+                return self
+        elif expected.search(actual):
+            return self
+        raise ApiException("Expected {e!r} at {k!r}, but got {a!r}".format(e=expected, k=key, a=actual))
+
+    def assert_error(self, status_code: int, error_code: str,
+                     message: Union[str, typing.re.Pattern] = None) -> 'ApiResponse':
+        resp = self.assert_status_code(status_code).assert_error_code(error_code)
+        if message:
+            resp.assert_substring("message", message)
+        return resp
 
 
 class ApiTester:
@@ -118,7 +143,7 @@ class ApiTester:
         """Do versioned GET request, given non-versioned path"""
         return ApiResponse(self.client.get(path=self.url(path), headers=headers))
 
-    def post(self, path: str, json: dict=None, headers: dict = None) -> ApiResponse:
+    def post(self, path: str, json: dict = None, headers: dict = None) -> ApiResponse:
         """Do versioned POST request, given non-versioned path"""
         return ApiResponse(self.client.post(
             path=self.url(path),

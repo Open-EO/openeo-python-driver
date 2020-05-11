@@ -9,7 +9,7 @@ from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.errors import ProcessGraphMissingException
 import openeo_driver.testing
-from openeo_driver.testing import load_json
+from openeo_driver.testing import load_json, preprocess_check_and_replace
 from openeo_driver.views import app
 from .data import get_path, TEST_DATA_ROOT
 
@@ -44,11 +44,12 @@ class ApiTester(openeo_driver.testing.ApiTester):
     def collections(self) -> dict:
         return self.impl.collections
 
-    def check_result(self, process_graph: Union[dict, str], path="/result") -> openeo_driver.testing.ApiResponse:
+    def check_result(self, process_graph: Union[dict, str], path="/result",
+                     preprocess: Callable = None) -> openeo_driver.testing.ApiResponse:
         """Post a process_graph (as dict or by filename), get response and do basic checks."""
         if isinstance(process_graph, str):
             # Assume it is a file name
-            process_graph = self.load_json(process_graph)
+            process_graph = self.load_json(process_graph, preprocess=preprocess)
         data = self.get_process_graph_dict(process_graph)
         response = self.post(path=path, json=data)
         return response.assert_status_code(200).assert_content()
@@ -152,24 +153,111 @@ def test_execute_apply_run_udf(api):
     assert api.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles.call_count == 1
 
 
-def test_execute_reduce_temporal_run_udf(api):
+def test_reduce_temporal_run_udf(api):
     api.check_result("reduce_temporal_run_udf.json")
     assert api.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles_spatiotemporal.call_count == 1
 
 
-def test_execute_reduce_bands_run_udf(api):
+def test_reduce_temporal_run_udf_legacy_client(api):
+    api.check_result(
+        "reduce_temporal_run_udf.json",
+        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "temporal"')
+    )
+    assert api.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles_spatiotemporal.call_count == 1
+
+
+def test_reduce_temporal_run_udf_invalid_dimension(api):
+    pg = api.load_json(
+        "reduce_temporal_run_udf.json",
+        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "tempo"')
+    )
+    resp = api.post("/result", json=api.get_process_graph_dict(pg))
+    resp.assert_error(
+        400, "ProcessArgumentInvalid",
+        message="The argument 'dimension' in process '{p}' is invalid: got 'tempo', but should be one of ['x', 'y', 't']".format(
+            p="reduce_dimension" if api.api_version_compare.at_least("1.0.0") else "reduce"
+        )
+    )
+
+
+def test_reduce_bands_run_udf(api):
     api.check_result("reduce_bands_run_udf.json")
-    assert api.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles.call_count == 1
+    assert api.collections["S2_FOOBAR"].apply_tiles.call_count == 1
 
 
-def test_execute_apply_dimension_temporal_run_udf(api):
+def test_reduce_bands_run_udf_legacy_client(api):
+    api.check_result(
+        "reduce_bands_run_udf.json",
+        preprocess=preprocess_check_and_replace('"dimension": "bands"', '"dimension": "spectral_bands"')
+    )
+    assert api.collections["S2_FOOBAR"].apply_tiles.call_count == 1
+
+
+def test_reduce_bands_run_udf_invalid_dimension(api):
+    pg = api.load_json(
+        "reduce_bands_run_udf.json",
+        preprocess=preprocess_check_and_replace('"dimension": "bands"', '"dimension": "layers"')
+    )
+    resp = api.post("/result", json=api.get_process_graph_dict(pg))
+    resp.assert_error(
+        400, 'ProcessArgumentInvalid',
+        message="The argument 'dimension' in process '{p}' is invalid: got 'layers', but should be one of ['x', 'y', 't', 'bands']".format(
+            p="reduce_dimension" if api.api_version_compare.at_least("1.0.0") else "reduce"
+        )
+    )
+
+
+def test_apply_dimension_temporal_run_udf(api):
     api.check_result("apply_dimension_temporal_run_udf.json")
     assert api.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles_spatiotemporal.call_count == 1
     assert api.collections["S2_FAPAR_CLOUDCOVER"].apply_dimension.call_count == 1
 
 
-def test_execute_reduce_max(api):
-    api.check_result("reduce_max.json")
+def test_apply_dimension_temporal_run_udf_legacy_client(api):
+    api.check_result(
+        "apply_dimension_temporal_run_udf.json",
+        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "temporal"')
+    )
+    assert api.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles_spatiotemporal.call_count == 1
+    assert api.collections["S2_FAPAR_CLOUDCOVER"].apply_dimension.call_count == 1
+
+
+def test_apply_dimension_temporal_run_udf_invalid_temporal_dimension(api):
+    pg = api.load_json(
+        "apply_dimension_temporal_run_udf.json",
+        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "letemps"')
+    )
+    resp = api.post("/result", json=api.get_process_graph_dict(pg))
+    resp.assert_error(
+        400, 'ProcessArgumentInvalid',
+        message="The argument 'dimension' in process 'apply_dimension' is invalid: got 'letemps', but should be one of ['x', 'y', 't']"
+    )
+
+
+def test_reduce_max_t(api):
+    api.check_result("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "t"))
+
+
+def test_reduce_max_xy(api):
+    api.check_result("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "x"))
+    api.check_result("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "y"))
+
+
+def test_reduce_max_bands(api):
+    api.check_result("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "bands"))
+    # Legacy client style
+    api.check_result("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "spectral_bands"))
+
+
+def test_reduce_max_invalid_dimension(api):
+    pg = api.load_json("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "orbit"))
+    res = api.post("/result", json=api.get_process_graph_dict(pg))
+    res.assert_error(
+        400, 'ProcessArgumentInvalid',
+        message="The argument 'dimension' in process '{p}' is invalid: got 'orbit', but should be one of ['x', 'y', 't', 'bands']".format(
+            p="reduce_dimension" if api.api_version_compare.at_least("1.0.0") else "reduce"
+        )
+    )
 
 
 def test_execute_merge_cubes(api):
@@ -179,13 +267,39 @@ def test_execute_merge_cubes(api):
     assert args[1:] == ('or',)
 
 
-def test_execute_reduce_bands(api):
+def test_reduce_bands(api):
     api.check_result("reduce_bands.json")
-    reduce_bands = dummy_backend.collections["S2_FAPAR_CLOUDCOVER"].reduce_bands
+    reduce_bands = dummy_backend.collections["S2_FOOBAR"].reduce_bands
     reduce_bands.assert_called_once()
     visitor = reduce_bands.call_args_list[0][0][0]
     assert isinstance(visitor, dummy_backend.DummyVisitor)
     assert set(p[0] for p in visitor.processes) == {"sum", "subtract", "divide"}
+
+
+def test_reduce_bands_legacy_client(api):
+    api.check_result(
+        "reduce_bands.json",
+        preprocess=preprocess_check_and_replace('"dimension": "bands"', '"dimension": "spectral_bands"')
+    )
+    reduce_bands = dummy_backend.collections["S2_FOOBAR"].reduce_bands
+    reduce_bands.assert_called_once()
+    visitor = reduce_bands.call_args_list[0][0][0]
+    assert isinstance(visitor, dummy_backend.DummyVisitor)
+    assert set(p[0] for p in visitor.processes) == {"sum", "subtract", "divide"}
+
+
+def test_reduce_bands_invalid_dimension(api):
+    pg = api.load_json(
+        "reduce_bands.json",
+        preprocess=preprocess_check_and_replace('"dimension": "bands"', '"dimension": "layor"')
+    )
+    res = api.post("/result", json=api.get_process_graph_dict(pg))
+    res.assert_error(
+        400, "ProcessArgumentInvalid",
+        message="The argument 'dimension' in process '{p}' is invalid: got 'layor', but should be one of ['x', 'y', 't', 'bands']".format(
+            p="reduce_dimension" if api.api_version_compare.at_least("1.0.0") else "reduce"
+        )
+    )
 
 
 def test_execute_mask(api):
@@ -212,8 +326,27 @@ def test_execute_mask_polygon(api):
     assert isinstance(api.collections["S2_FAPAR_CLOUDCOVER"].mask.call_args[1]['polygon'], shapely.geometry.Polygon)
 
 
-def test_preview_aggregate_temporal_max(api):
+def test_aggregate_temporal_max(api):
     api.check_result("aggregate_temporal_max.json")
+
+
+def test_aggregate_temporal_max_legacy_client(api):
+    api.check_result(
+        "aggregate_temporal_max.json",
+        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "temporal"')
+    )
+
+
+def test_aggregate_temporal_max_invalid_temporal_dimension(api):
+    pg = api.load_json(
+        "aggregate_temporal_max.json",
+        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "detijd"')
+    )
+    resp = api.post(path="/result", json=api.get_process_graph_dict(pg))
+    resp.assert_error(
+        400, 'ProcessArgumentInvalid',
+        message="The argument 'dimension' in process 'aggregate_temporal' is invalid: got 'detijd', but should be one of ['x', 'y', 't']"
+    )
 
 
 def test_execute_zonal_statistics(api):
@@ -238,7 +371,7 @@ def test_create_wmts_040(api040):
     assert resp.headers['OpenEO-Identifier'] == 'c63d6c27-c4c2-4160-b7bd-9e32f582daec'
     assert resp.headers['Location'].endswith("/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec")
 
-    tiled_viewing_service = api040.collections["S2"].tiled_viewing_service
+    tiled_viewing_service = api040.collections["S2_FOOBAR"].tiled_viewing_service
     assert tiled_viewing_service.call_count == 1
     ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
     tiled_viewing_service.assert_called_with(
@@ -264,7 +397,7 @@ def test_create_wmts_100(api100):
     assert resp.headers['OpenEO-Identifier'] == 'c63d6c27-c4c2-4160-b7bd-9e32f582daec'
     assert resp.headers['Location'].endswith("/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec")
 
-    tiled_viewing_service = api100.collections["S2"].tiled_viewing_service
+    tiled_viewing_service = api100.collections["S2_FOOBAR"].tiled_viewing_service
     assert tiled_viewing_service.call_count == 1
     ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
     tiled_viewing_service.assert_called_with(

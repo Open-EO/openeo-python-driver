@@ -8,7 +8,7 @@
   "collection2": {
     "process_id": "load_collection",
     "arguments": {
-      "id": "OTHER_COLLECTION"
+      "id": "S2_FOOBAR"
     }
   },
   "mergecubes1": {

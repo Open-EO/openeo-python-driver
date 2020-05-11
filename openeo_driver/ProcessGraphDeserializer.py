@@ -11,6 +11,7 @@ from shapely.geometry import shape, mapping
 
 from openeo import ImageCollection
 from openeo.capabilities import ComparableVersion
+from openeo.metadata import MetadataException
 from openeo_driver.backend import get_backend_implementation
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import ProcessArgumentInvalidException, ProcessUnsupportedException, \
@@ -249,6 +250,7 @@ def save_result(args: Dict, viewingParameters) -> SaveResult:
 
 
 # TODO deprecated process
+# TODO "apply_tiles" is also confusing: remove it. https://github.com/Open-EO/openeo-python-client/issues/140
 @deprecated_process
 def apply_tiles(args: Dict, viewingParameters) -> ImageCollection:
     function = extract_arg(args,'code')
@@ -279,12 +281,12 @@ def reduce(args: dict, ctx: dict) -> ImageCollection:
     reduce_pg = extract_deep(args, "reducer", ["process_graph", "callback"])
     dimension = extract_arg(args, 'dimension')
     binary = smart_bool(args.get('binary', False))
-
     data_cube = extract_arg_list(args, ['data', 'imagery'])
-    # TODO band dimension name should not be hardcoded Open-EO/openeo-python-client#93
-    if dimension == 'spectral_bands' or dimension == 'bands':
+
+    # TODO: avoid special case handling for run_udf?
+    dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce")
+    if dimension == band_dim:
         if not binary and len(reduce_pg) == 1 and next(iter(reduce_pg.values())).get('process_id') == 'run_udf':
-            # it would be better to avoid having special cases everywhere to support udf's
             return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce', version=ctx["version"])
         visitor = backend_implementation.visit_process_graph(reduce_pg)
         return data_cube.reduce_bands(visitor)
@@ -297,17 +299,53 @@ def reduce_dimension(args: dict, ctx: dict) -> ImageCollection:
     reduce_pg = extract_deep(args, "reducer", "process_graph")
     dimension = extract_arg(args, 'dimension')
     data_cube = extract_arg(args, 'data')
-    # TODO band dimension name should not be hardcoded Open-EO/openeo-python-client#93
-    if dimension == 'spectral_bands' or dimension == 'bands':
+
+    # TODO: avoid special case handling for run_udf?
+    dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce_dimension")
+    if dimension == band_dim:
         if len(reduce_pg) == 1 and next(iter(reduce_pg.values())).get('process_id') == 'run_udf':
-            # it would be better to avoid having special cases everywhere to support udf's
-            return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce_dimension', version=ctx["version"])
+            return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce_dimension',
+                                               version=ctx["version"])
         visitor = backend_implementation.visit_process_graph(reduce_pg)
         return data_cube.reduce_bands(visitor)
     else:
         return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce_dimension', version=ctx["version"])
 
 
+def _check_dimension(cube: ImageCollection, dim: str, process: str):
+    """
+    Helper to check/validate the requested and available dimensions of a cube.
+
+    :return: tuple (requested dimension, name of band dimension, name of temporal dimension)
+    """
+    # Note: large part of this is support/adapting for old client
+    # (pre https://github.com/Open-EO/openeo-python-client/issues/93)
+    # TODO remove this legacy support when not necessary anymore
+    metadata = cube.metadata
+    try:
+        band_dim = metadata.band_dimension.name
+    except MetadataException:
+        band_dim = None
+    try:
+        temporal_dim = metadata.temporal_dimension.name
+    except MetadataException:
+        temporal_dim = None
+
+    if dim not in metadata.dimension_names():
+        if dim in ["spectral_bands", "bands"] and band_dim:
+            _log.warning("Probably old client requesting band dimension {d!r},"
+                         " but actual band dimension name is {n!r}".format(d=dim, n=band_dim))
+            dim = band_dim
+        elif dim == "temporal" and temporal_dim:
+            _log.warning("Probably old client requesting temporal dimension {d!r},"
+                         " but actual temporal dimension name is {n!r}".format(d=dim, n=temporal_dim))
+            dim = temporal_dim
+        else:
+            raise ProcessArgumentInvalidException(
+                argument="dimension", process=process,
+                reason="got {d!r}, but should be one of {n!r}".format(d=dim, n=metadata.dimension_names()))
+
+    return dim, band_dim, temporal_dim
 
 
 @process
@@ -581,44 +619,42 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
     args = {name: convert_node(expr, viewingParameters) for (name, expr) in args.items()}
 
     #when all arguments and dependencies are resolved, we can run the process
-    if(viewingParameters.get("parent_process",None) == "apply"):
+    parent_process = viewingParameters.get('parent_process')
+    if parent_process == "apply":
         image_collection = extract_arg_list(args, ['data', 'imagery'])
         if process_id == "run_udf":
             udf = _get_udf(args)
-
             return image_collection.apply_tiles(udf)
         else:
            return image_collection.apply(process_id,args)
-    elif viewingParameters.get('parent_process') in ["reduce", "reduce_dimension"]:
+    elif parent_process in ["reduce", "reduce_dimension"]:
         image_collection = extract_arg_list(args, ['data', 'imagery'])
         dimension = extract_arg(viewingParameters, 'dimension')
         binary = viewingParameters.get('binary',False)
+        dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         if 'run_udf' == process_id and not binary:
-            if 'temporal' == dimension:
+            if dimension == temporal_dim:
                 udf = _get_udf(args)
                 #EP-2760 a special case of reduce where only a single udf based callback is provided. The more generic case is not yet supported.
                 return image_collection.apply_tiles_spatiotemporal(udf)
-            elif 'spectral_bands' == dimension or 'bands' == dimension:
-                # TODO band dimension name should not be hardcoded Open-EO/openeo-python-client#93
+            elif dimension == band_dim:
                 udf = _get_udf(args)
                 return image_collection.apply_tiles(udf)
 
         return image_collection.reduce(process_id,dimension)
-    elif (viewingParameters.get('parent_process', None) == 'apply_dimension'):
+    elif parent_process == 'apply_dimension':
         image_collection = extract_arg(args, 'data')
-        dimension = viewingParameters.get('dimension',None) # By default, applies the the process on all pixel values (as apply does).
+        dimension = viewingParameters.get('dimension', None) # By default, applies the the process on all pixel values (as apply does).
+        dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         if process_id == "run_udf":
             udf = _get_udf(args)
-            if 'temporal' == dimension:
+            if dimension == temporal_dim:
                 return image_collection.apply_tiles_spatiotemporal(udf)
             else:
                 return image_collection.apply_tiles(udf)
-
         else:
-
             return image_collection.apply_dimension(process_id,dimension)
-
-    elif viewingParameters.get('parent_process') in ['aggregate_polygon', 'aggregate_spatial']:
+    elif parent_process in ['aggregate_polygon', 'aggregate_spatial']:
         image_collection = extract_arg_list(args, ['data', 'imagery'])
         binary = viewingParameters.get('binary',False)
         name = viewingParameters.get('name', 'result')
@@ -630,14 +666,15 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         if is_geojson:
             geometries = shape(polygons)
             return image_collection.zonal_statistics(geometries, func=process_id)
-
+        # TODO: rename to aggregate_polygon?
         return image_collection.zonal_statistics(polygons.path, func=process_id)
 
-    elif (viewingParameters.get('parent_process', None) == 'aggregate_temporal'):
+    elif parent_process == 'aggregate_temporal':
         image_collection = extract_arg_list(args, ['data', 'imagery'])
         intervals = extract_arg(viewingParameters, 'intervals')
         labels = extract_arg(viewingParameters, 'labels')
         dimension = viewingParameters.get('dimension', None)
+        dimension, _, _ = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         return image_collection.aggregate_temporal(intervals,labels,process_id,dimension)
     else:
         if ComparableVersion("1.0.0").or_higher(viewingParameters["version"]):

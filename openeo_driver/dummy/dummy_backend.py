@@ -11,6 +11,7 @@ from shapely.geometry.collection import GeometryCollection
 
 from openeo import ImageCollection
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+from openeo.metadata import CollectionMetadata
 from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata, \
     BatchJobs, BatchJobMetadata
 from openeo_driver.delayed_vector import DelayedVector
@@ -86,12 +87,17 @@ class DummySecondaryServices(SecondaryServices):
         return next(s for s in self._registry if s.id == service_id)
 
 
+class DummyImageCollection(ImageCollection):
+    # TODO move all Mock stuff here?
+    pass
+
+
 class DummyCatalog(CollectionCatalog):
     _COLLECTIONS = [
         {
-            'id': 'DUMMY_S2_FAPAR_CLOUDCOVER',
-            'product_id': 'DUMMY_S2_FAPAR_CLOUDCOVER',
-            'name': 'DUMMY_S2_FAPAR_CLOUDCOVER',
+            'id': 'S2_FAPAR_CLOUDCOVER',
+            'product_id': 'S2_FAPAR_CLOUDCOVER',
+            'name': 'S2_FAPAR_CLOUDCOVER',
             'description': 'fraction of the solar radiation absorbed by live leaves for the photosynthesis activity',
             'license': 'free',
             'extent': {
@@ -107,7 +113,7 @@ class DummyCatalog(CollectionCatalog):
             'links': [],
         },
         {
-            'id': 'DUMMY_S2',
+            'id': 'S2_FOOBAR',
             'license': 'free',
             'extent': {
                 'spatial': [2.5, 49.5, 6.2, 51.5],
@@ -130,6 +136,15 @@ class DummyCatalog(CollectionCatalog):
             'links': [],
             '_private': {'password': 'dragon'}
         },
+        {
+            'id': 'PROBAV_L3_S10_TOC_NDVI_333M_V2',
+            'cube:dimensions': {
+                "x": {"type": "spatial"},
+                "y": {"type": "spatial"},
+                "t": {"type": "temporal"},
+            },
+
+        }
     ]
 
     def __init__(self):
@@ -140,7 +155,10 @@ class DummyCatalog(CollectionCatalog):
             return collections[collection_id]
 
         # TODO simplify all this mock/return_value stuff?
-        image_collection = ImageCollection()
+        image_collection = DummyImageCollection(
+            metadata=CollectionMetadata(metadata=self.get_collection_metadata(collection_id))
+        )
+
         image_collection.viewingParameters = viewing_parameters
 
         image_collection.mask = Mock(name="mask")

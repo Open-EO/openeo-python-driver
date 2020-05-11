@@ -1,4 +1,12 @@
 {
+  "loadcollection1": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "S2_FOOBAR",
+      "spatial_extent": null,
+      "temporal_extent": null
+    }
+  },
   "filterbbox1": {
     "result": false,
     "arguments": {
@@ -63,13 +71,5 @@
       "format": "geotiff"
     },
     "process_id": "save_result"
-  },
-  "loadcollection1": {
-    "arguments": {
-      "id": "S2_FAPAR_CLOUDCOVER",
-      "spatial_extent": null,
-      "temporal_extent": null
-    },
-    "process_id": "load_collection"
   }
 }

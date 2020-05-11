@@ -328,8 +328,8 @@ class TestCollections:
         resp = api.get('/collections').assert_status_code(200).json
         assert "links" in resp
         assert "collections" in resp
-        assert 'DUMMY_S2_FAPAR_CLOUDCOVER' in [c['id'] for c in resp['collections']]
-        assert 'DUMMY_S2' in [c['id'] for c in resp['collections']]
+        assert 'S2_FAPAR_CLOUDCOVER' in [c['id'] for c in resp['collections']]
+        assert 'S2_FOOBAR' in [c['id'] for c in resp['collections']]
         for collection in resp['collections']:
             assert 'id' in collection
             assert 'stac_version' in collection
@@ -339,23 +339,23 @@ class TestCollections:
             assert 'links' in collection
 
     def test_strip_private_fields(self, api):
-        index, = (i for i, c in enumerate(dummy_backend.DummyCatalog._COLLECTIONS) if c["id"] == "DUMMY_S2")
-        assert '_private' in dummy_backend.DummyCatalog._COLLECTIONS[index]
+        assert '_private' in dummy_backend.DummyCatalog().get_collection_metadata("S2_FOOBAR")
         # All metadata
-        resp = api.get('/collections').assert_status_code(200).json
-        assert '_private' not in resp["collections"][index]
+        collections = api.get('/collections').assert_status_code(200).json["collections"]
+        metadata, = (c for c in collections if c["id"] == "S2_FOOBAR")
+        assert '_private' not in metadata
         # Single collection metadata
-        resp = api.get('/collections/DUMMY_S2').assert_status_code(200).json
-        assert '_private' not in resp
+        metadata = api.get('/collections/S2_FOOBAR').assert_status_code(200).json
+        assert '_private' not in metadata
 
     def test_collections_detail_invalid_collection(self, api):
         error = api.get('/collections/FOOBOO').assert_error(404, "CollectionNotFound").json
         assert error["message"] == "Collection 'FOOBOO' does not exist."
 
     def test_collections_detail(self, api):
-        collection = api.get('/collections/DUMMY_S2').assert_status_code(200).json
-        assert collection['id'] == 'DUMMY_S2'
-        assert collection['description'] == 'DUMMY_S2'
+        collection = api.get('/collections/S2_FOOBAR').assert_status_code(200).json
+        assert collection['id'] == 'S2_FOOBAR'
+        assert collection['description'] == 'S2_FOOBAR'
         assert collection['license'] == 'free'
         assert collection['extent'] == {'spatial': [2.5, 49.5, 6.2, 51.5], 'temporal': ['2019-01-01', None]}
         cube_dimensions = {

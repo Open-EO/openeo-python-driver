@@ -11,7 +11,7 @@
       "data": {
         "from_node": "collection"
       },
-      "dimension": "temporal",
+      "dimension": "t",
       "process": {
         "process_graph": {
           "cumsum": {

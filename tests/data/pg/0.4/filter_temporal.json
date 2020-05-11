@@ -2,7 +2,7 @@
   "collection": {
     "process_id": "load_collection",
     "arguments": {
-      "id": "S2"
+      "id": "S2_FOOBAR"
     }
   },
   "filter_temp": {

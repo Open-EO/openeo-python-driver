@@ -11,7 +11,7 @@
       "data": {
         "from_node": "collection"
       },
-      "dimension": "temporal",
+      "dimension": "t",
       "intervals": [],
       "labels": [],
       "reducer": {
