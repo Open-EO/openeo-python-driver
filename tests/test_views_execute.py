@@ -148,6 +148,22 @@ def test_execute_apply_unary(api):
     api.check_result("apply_unary.json")
 
 
+def test_execute_apply_unary_parent_scope(api100):
+    api100.check_result(
+        "apply_unary.json",
+        preprocess=preprocess_check_and_replace('"from_parameter": "x"', '"from_parameter": "data"')
+    )
+
+
+def test_execute_apply_unary_invalid_from_parameter(api100):
+    pg = api100.load_json(
+        "apply_unary.json",
+        preprocess=preprocess_check_and_replace('"from_parameter": "x"', '"from_parameter": "1nv8l16"')
+    )
+    resp = api100.post("/result", json=api100.get_process_graph_dict(pg))
+    resp.assert_error(400, "ProcessParameterMissing")
+
+
 def test_execute_apply_run_udf(api):
     api.check_result("apply_run_udf.json")
     assert api.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles.call_count == 1
@@ -508,3 +524,14 @@ def test_post_result_process_100(client):
 def test_missing_process_graph(api):
     response = api.post(path='/result', json={"foo": "bar"})
     response.assert_error(status_code=ProcessGraphMissingException.status_code, error_code='ProcessGraphMissing')
+
+
+def test_fuzzy_mask(api):
+    api.check_result("fuzzy_mask.json")
+
+
+def test_fuzzy_mask_parent_scope(api100):
+    api100.check_result(
+        "fuzzy_mask.json",
+        preprocess=preprocess_check_and_replace('"from_parameter": "x"', '"from_parameter": "data"')
+    )

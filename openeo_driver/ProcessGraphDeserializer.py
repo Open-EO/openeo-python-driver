@@ -15,7 +15,7 @@ from openeo.metadata import MetadataException
 from openeo_driver.backend import get_backend_implementation
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import ProcessArgumentInvalidException, ProcessUnsupportedException, \
-    ProcessArgumentRequiredException
+    ProcessArgumentRequiredException, ProcessParameterMissingException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
 from openeo_driver.specs import SPECS_ROOT
@@ -113,7 +113,10 @@ def convert_node(processGraph: dict, viewingParameters=None):
             # a "process_graph" object is a new process graph, don't evaluate it in the parent graph
             return processGraph
         elif 'from_parameter' in processGraph:
-            return viewingParameters[processGraph.get('from_parameter')]
+            try:
+                return viewingParameters[processGraph['from_parameter']]
+            except KeyError:
+                raise ProcessParameterMissingException(parameter=processGraph['from_parameter'])
         elif 'from_argument' in processGraph:
             # 0.4-style argument referencer (equivalent with 1.0-style "from_parameter")
             argument_reference = processGraph.get('from_argument')
@@ -553,6 +556,7 @@ def histogram(_args, _viewingParameters) -> None:
 
 
 def apply_process(process_id: str, args: Dict, viewingParameters):
+    parent_process = viewingParameters.get('parent_process')
 
     if 'filter_daterange' == process_id or 'filter_temporal' == process_id:
         """
@@ -614,14 +618,17 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
     elif 'filter_bands' == process_id:
         viewingParameters = viewingParameters or {}
         viewingParameters["bands"] = extract_arg(args, "bands")
+    elif 'apply' == parent_process:
+        if "data" in viewingParameters:
+            # The `apply` process passes it's `data` parameter as `x` parameter to subprocess
+            viewingParameters["x"] = viewingParameters["data"]
 
     #first we resolve child nodes and arguments
     args = {name: convert_node(expr, viewingParameters) for (name, expr) in args.items()}
 
     #when all arguments and dependencies are resolved, we can run the process
-    parent_process = viewingParameters.get('parent_process')
     if parent_process == "apply":
-        image_collection = extract_arg_list(args, ['data', 'imagery'])
+        image_collection = extract_arg_list(args, ['x', 'data', 'imagery'])
         if process_id == "run_udf":
             udf = _get_udf(args)
             return image_collection.apply_tiles(udf)
