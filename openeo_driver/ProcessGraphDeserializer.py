@@ -192,6 +192,8 @@ def load_collection(args: Dict, viewingParameters) -> ImageCollection:
         viewingParameters["srs"] = extent.get("crs") or "EPSG:4326"
     if "bands" in args and args['bands'] is not None:
         viewingParameters["bands"] = extract_arg(args, "bands")
+    if args.get('properties'):
+        viewingParameters['properties'] = extract_arg(args, 'properties')
 
     return backend_implementation.catalog.load_collection(name, viewingParameters)
 
