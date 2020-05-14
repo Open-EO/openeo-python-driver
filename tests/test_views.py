@@ -136,6 +136,12 @@ class TestGeneral:
         assert endpoints["/file_formats"] == ["GET"]
         assert "/output_formats" not in endpoints
 
+    @pytest.mark.parametrize("path", ["/", "/collections", "/processes"])
+    def test_cors_options(self, api, path):
+        resp = api.client.options(api.url(path))
+        assert resp.status_code == 204
+        assert len(resp.data) == 0
+
     def test_health(self, api):
         resp = api.get('/health').assert_status_code(200).json
         assert resp == {"health": "OK"}

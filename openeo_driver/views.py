@@ -46,7 +46,15 @@ DEFAULT_VERSION = '0.4.2'
 _log.info("API Versions: {v}".format(v=API_VERSIONS))
 _log.info("Default API Version: {v}".format(v=DEFAULT_VERSION))
 
-app = Flask(__name__)
+
+class OpenEoApiApp(Flask):
+    def make_default_options_response(self):
+        rv = super().make_default_options_response()
+        rv.status_code = 204
+        return rv
+
+
+app = OpenEoApiApp(__name__)
 
 # Make sure app handles reverse proxy aspects (e.g. HTTPS) correctly.
 app.wsgi_app = ProxyFix(app.wsgi_app)
