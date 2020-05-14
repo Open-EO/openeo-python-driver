@@ -708,7 +708,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
 @non_standard_process(
     ProcessSpec("read_vector", description="Reads vector data from a file or a URL.")
         .param('filename', description="filename or http url of a vector file", schema={"type": "string"})
-        .returns("TODO", schema={"type": "TODO"})
+        .returns("TODO", schema={"type": "object", "subtype": "vector-cube"})
 )
 def read_vector(args: Dict, viewingParameters) -> DelayedVector:
     path = extract_arg(args, 'filename')
