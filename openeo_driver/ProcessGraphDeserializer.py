@@ -315,6 +315,16 @@ def reduce_dimension(args: dict, ctx: dict) -> ImageCollection:
         return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce_dimension', version=ctx["version"])
 
 
+@process
+def add_dimension(args: dict, ctx: dict):
+    data_cube = extract_arg(args, 'data')
+    return data_cube.add_dimension(
+        name=extract_arg(args, 'name'),
+        label=extract_arg_list(args, ['label', 'value']),
+        type=extract_arg(args, 'type'),
+    )
+
+
 def _check_dimension(cube: ImageCollection, dim: str, process: str):
     """
     Helper to check/validate the requested and available dimensions of a cube.
@@ -633,7 +643,8 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             udf = _get_udf(args)
             return image_collection.apply_tiles(udf)
         else:
-           return image_collection.apply(process_id,args)
+            # TODO : add support for `apply` with non-trivial child process graphs #EP-3404
+           return image_collection.apply(process_id, args)
     elif parent_process in ["reduce", "reduce_dimension"]:
         image_collection = extract_arg_list(args, ['data', 'imagery'])
         dimension = extract_arg(viewingParameters, 'dimension')

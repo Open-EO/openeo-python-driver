@@ -243,6 +243,9 @@ class DummyCatalog(CollectionCatalog):
         image_collection.reduce_bands = Mock(name="reduce_bands")
         image_collection.reduce_bands.return_value = image_collection
 
+        image_collection.add_dimension = Mock(name="add_dimension")
+        image_collection.add_dimension.return_value = image_collection
+
         image_collection.aggregate_temporal = Mock(name="aggregate_temporal")
         image_collection.aggregate_temporal.return_value = image_collection
 

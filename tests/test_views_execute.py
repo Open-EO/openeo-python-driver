@@ -535,3 +535,7 @@ def test_fuzzy_mask_parent_scope(api100):
         "fuzzy_mask.json",
         preprocess=preprocess_check_and_replace('"from_parameter": "x"', '"from_parameter": "data"')
     )
+
+
+def test_fuzzy_mask_add_dim(api):
+    api.check_result("fuzzy_mask_add_dim.json")
