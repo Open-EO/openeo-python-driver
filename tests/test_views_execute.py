@@ -338,8 +338,9 @@ def test_execute_mask(api):
 
 def test_execute_mask_polygon(api):
     api.check_result("mask_polygon.json")
-    assert api.collections["S2_FAPAR_CLOUDCOVER"].mask.call_count == 1
-    assert isinstance(api.collections["S2_FAPAR_CLOUDCOVER"].mask.call_args[1]['polygon'], shapely.geometry.Polygon)
+    assert api.collections["S2_FAPAR_CLOUDCOVER"].mask_polygon.call_count == 1
+    args, kwargs = api.collections["S2_FAPAR_CLOUDCOVER"].mask_polygon.call_args
+    assert isinstance(kwargs['mask'], shapely.geometry.Polygon)
 
 
 def test_aggregate_temporal_max(api):

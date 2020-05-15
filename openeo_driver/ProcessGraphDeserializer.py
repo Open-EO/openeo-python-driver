@@ -417,14 +417,15 @@ def reduce_by_time( args:Dict, viewingParameters)->ImageCollection:
 def mask(args: dict, viewingParameters) -> ImageCollection:
     mask = extract_arg(args, 'mask')
     replacement = args.get('replacement', None)
+    cube = extract_arg_list(args, ['data', 'imagery'])
     if isinstance(mask, ImageCollection):
-        image_collection = extract_arg_list(args, ['data', 'imagery']).mask(rastermask=mask, replacement=replacement)
+        image_collection = cube.mask(mask=mask, replacement=replacement)
     else:
         polygon = mask.geometries[0] if isinstance(mask, DelayedVector) else shape(mask)
         if polygon.area == 0:
             reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
             raise ProcessArgumentInvalidException(argument='mask', process='mask', reason=reason)
-        image_collection = extract_arg_list(args, ['data', 'imagery']).mask(polygon=polygon, replacement=replacement)
+        image_collection = cube.mask_polygon(mask=polygon, replacement=replacement)
     return image_collection
 
 
@@ -432,7 +433,7 @@ def mask(args: dict, viewingParameters) -> ImageCollection:
 def mask(args: dict, ctx: dict) -> ImageCollection:
     mask = extract_arg(args, 'mask')
     replacement = args.get('replacement', None)
-    image_collection = extract_arg(args, 'data').mask(rastermask=mask, replacement=replacement)
+    image_collection = extract_arg(args, 'data').mask(mask=mask, replacement=replacement)
     return image_collection
 
 
@@ -440,12 +441,14 @@ def mask(args: dict, ctx: dict) -> ImageCollection:
 def mask_polygon(args: dict, ctx: dict) -> ImageCollection:
     mask = extract_arg(args, 'mask')
     replacement = args.get('replacement', None)
+    inside = args.get('inside', False)
     polygon = mask.geometries[0] if isinstance(mask, DelayedVector) else shape(mask)
     if polygon.area == 0:
         reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
         raise ProcessArgumentInvalidException(argument='mask', process='mask', reason=reason)
-    image_collection = extract_arg(args, 'data').mask(polygon=polygon, replacement=replacement)
+    image_collection = extract_arg(args, 'data').mask_polygon(mask=polygon, replacement=replacement, inside=inside)
     return image_collection
+
 
 # TODO deprecated process
 @deprecated_process
