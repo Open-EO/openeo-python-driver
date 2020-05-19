@@ -51,6 +51,9 @@ class OpenEoApiApp(Flask):
     def make_default_options_response(self):
         rv = super().make_default_options_response()
         rv.status_code = 204
+        rv.access_control_allow_methods = rv.allow
+        rv.access_control_allow_headers = ["Content-Type"]
+        rv.access_control_expose_headers = ["Location", "Openeo-Identifier", "Openeo-Costs"]
         return rv
 
 
