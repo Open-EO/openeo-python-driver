@@ -610,7 +610,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             viewingParameters["bottom"] = extract_arg(extent, "south")
             viewingParameters["srs"] = extent.get("crs") or "EPSG:4326"
     elif process_id in ['zonal_statistics', 'aggregate_polygon', 'aggregate_spatial']:
-        polygons = extract_arg_list(args, ['regions', 'polygons'])
+        polygons = extract_arg_list(args, ['regions', 'polygons', 'geometries'])
 
         if viewingParameters.get("left") is None:
             if "type" in polygons:  # it's GeoJSON
