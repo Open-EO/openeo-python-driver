@@ -269,7 +269,7 @@ class TestCollections:
             'id': 'foobar',
             'stac_version': '0.9.0',
             'description': 'foobar',
-            'extent': {'spatial': [0, 0, 0, 0], 'temporal': [None, None]},
+            'extent': {'spatial': {'bbox': [[0, 0, 0, 0]]}, 'temporal': {'interval': [[None, None]]}},
             'license': 'proprietary',
             'links': [],
         }
@@ -281,7 +281,7 @@ class TestCollections:
             'id': 'foobar',
             'stac_version': '0.9.0',
             'description': 'foobar',
-            'extent': {'spatial': [0, 0, 0, 0], 'temporal': [None, None]},
+            'extent': {'spatial': {'bbox': [[0, 0, 0, 0]]}, 'temporal': {'interval': [[None, None]]}},
             'license': 'proprietary',
             'cube:dimensions': {},
             'summaries': {},
@@ -363,10 +363,11 @@ class TestCollections:
         assert collection['id'] == 'S2_FOOBAR'
         assert collection['description'] == 'S2_FOOBAR'
         assert collection['license'] == 'free'
-        assert collection['extent'] == {'spatial': [2.5, 49.5, 6.2, 51.5], 'temporal': ['2019-01-01', None]}
         cube_dimensions = {
-            "x": {"type": "spatial"}, "y": {"type": "spatial"}, "t": {"type": "temporal"},
-            "bands": {"type": "bands", "values": ["B02", "B03", "B04", "B08"]},
+            "x": {"type": "spatial", "extent": [2.5, 6.2]},
+            "y": {"type": "spatial", "extent": [49.5, 51.5]},
+            "t": {"type": "temporal", "extent": ["2019-01-01", None]},
+            "bands": {"type": "bands", "values": ["B02", "B03", "B04", "B08"]}
         }
         eo_bands = [
             {"name": "B02", "common_name": "blue"}, {"name": "B03", "common_name": "green"},
@@ -376,10 +377,13 @@ class TestCollections:
             assert collection['stac_version'] == '0.9.0'
             assert collection['cube:dimensions'] == cube_dimensions
             assert collection['summaries']['eo:bands'] == eo_bands
+            assert collection['extent']['spatial'] == {'bbox': [[2.5, 49.5, 6.2, 51.5]]}
+            assert collection['extent']['temporal'] == {'interval': [['2019-01-01', None]]}
         else:
             assert collection['stac_version'] == '0.6.2'
             assert collection['properties']['cube:dimensions'] == cube_dimensions
             assert collection['properties']["eo:bands"] == eo_bands
+            assert collection['extent'] == {'spatial': [2.5, 49.5, 6.2, 51.5], 'temporal': ['2019-01-01', None]}
 
 
 class TestBatchJobs:
@@ -645,7 +649,7 @@ class TestSecondaryServices(TestCase):
         self.assertEqual(500, resp.status_code)
 
     def test_list_services_040(self):
-        metadata = self.client.get('/openeo/0.4.0/services').json
+        metadata = self.client.get('/openeo/0.4.0/services', headers=self._auth_header).json
         assert metadata == {
             "services": [{
                 'id': 'wmts-foo',
@@ -659,7 +663,7 @@ class TestSecondaryServices(TestCase):
         }
 
     def test_list_services_100(self):
-        metadata = self.client.get('/openeo/1.0.0/services').json
+        metadata = self.client.get('/openeo/1.0.0/services', headers=self._auth_header).json
         assert metadata == {
             "services": [{
                 'id': 'wmts-foo',
@@ -673,7 +677,7 @@ class TestSecondaryServices(TestCase):
         }
 
     def test_get_service_metadata_040(self):
-        metadata = self.client.get('/openeo/0.4.0/services/wmts-foo').json
+        metadata = self.client.get('/openeo/0.4.0/services/wmts-foo', headers=self._auth_header).json
         assert metadata == {
             "id": "wmts-foo",
             "process_graph": {"foo": {"process_id": "foo", "arguments": {}}},
@@ -687,7 +691,7 @@ class TestSecondaryServices(TestCase):
         }
 
     def test_get_service_metadata_100(self):
-        metadata = self.client.get('/openeo/1.0.0/services/wmts-foo').json
+        metadata = self.client.get('/openeo/1.0.0/services/wmts-foo', headers=self._auth_header).json
         assert metadata == {
             "id": "wmts-foo",
             "process": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
@@ -700,7 +704,7 @@ class TestSecondaryServices(TestCase):
         }
 
     def test_get_service_metadata_wrong_id(self):
-        res = self.client.get('/openeo/1.0.0/services/wmts-invalid')
+        res = self.client.get('/openeo/1.0.0/services/wmts-invalid', headers=self._auth_header)
         assert res.status_code == 404
         assert res.json['code'] == 'ServiceNotFound'
 
