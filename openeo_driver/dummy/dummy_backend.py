@@ -100,14 +100,22 @@ class DummyCatalog(CollectionCatalog):
             'name': 'S2_FAPAR_CLOUDCOVER',
             'description': 'fraction of the solar radiation absorbed by live leaves for the photosynthesis activity',
             'license': 'free',
-            'extent': {
-                'spatial': [-180, -90, 180, 90],
-                'temporal': ["2019-01-02", "2019-02-03"],
+            "extent": {
+                "spatial": {
+                    "bbox": [
+                        [-180, -90, 180, 90]
+                    ]
+                },
+                "temporal": {
+                    "interval": [
+                        ["2019-01-02", "2019-02-03"]
+                    ]
+                }
             },
             'cube:dimensions': {
-                "x": {"type": "spatial"},
-                "y": {"type": "spatial"},
-                "t": {"type": "temporal"},
+                "x": {"type": "spatial", "extent": [-180, 180]},
+                "y": {"type": "spatial", "extent": [-90, 90]},
+                "t": {"type": "temporal", "extent": ["2019-01-02", "2019-02-03"]},
             },
             'summaries': {},
             'links': [],
@@ -115,14 +123,22 @@ class DummyCatalog(CollectionCatalog):
         {
             'id': 'S2_FOOBAR',
             'license': 'free',
-            'extent': {
-                'spatial': [2.5, 49.5, 6.2, 51.5],
-                'temporal': ["2019-01-01", None],
+            "extent": {
+                "spatial": {
+                    "bbox": [
+                        [2.5, 49.5, 6.2, 51.5]
+                    ]
+                },
+                "temporal": {
+                    "interval": [
+                        ["2019-01-01", None]
+                    ]
+                }
             },
             'cube:dimensions': {
-                "x": {"type": "spatial"},
-                "y": {"type": "spatial"},
-                "t": {"type": "temporal"},
+                "x": {"type": "spatial", "extent": [2.5, 6.2]},
+                "y": {"type": "spatial", "extent": [49.5, 51.5]},
+                "t": {"type": "temporal", "extent": ["2019-01-01", None]},
                 "bands": {"type": "bands", "values": ["B02", "B03", "B04", "B08"]},
             },
             'summaries': {
@@ -139,9 +155,10 @@ class DummyCatalog(CollectionCatalog):
         {
             'id': 'PROBAV_L3_S10_TOC_NDVI_333M_V2',
             'cube:dimensions': {
-                "x": {"type": "spatial"},
-                "y": {"type": "spatial"},
-                "t": {"type": "temporal"},
+                "x": {"type": "spatial", "extent": [-180, 180]},
+                "y": {"type": "spatial", "extent": [-56, 83]},
+                "t": {"type": "temporal", "extent": ["2014-01-01", None]},
+                "bands": {"type": "bands", "values": ["ndvi"]}
             },
 
         }

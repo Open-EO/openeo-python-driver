@@ -718,6 +718,10 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
     cube_dims_040 = deep_get(metadata, "properties", "cube:dimensions", default=None)
     eo_bands_100 = deep_get(metadata, "summaries", "eo:bands", default=None)
     eo_bands_040 = deep_get(metadata, "properties", "eo:bands", default=None)
+    extent_spatial_100 = deep_get(metadata, "extent", "spatial", "bbox", default=None)
+    extent_spatial_040 = deep_get(metadata, "extent", "spatial", default=None)
+    extent_temporal_100 = deep_get(metadata, "extent", "temporal", "interval", default=None)
+    extent_temporal_040 = deep_get(metadata, "extent", "temporal", default=None)
     if api_version.below("1.0.0"):
         if full and not cube_dims_040 and cube_dims_100:
             metadata.setdefault("properties", {})
@@ -725,6 +729,10 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
         if full and not eo_bands_040 and eo_bands_100:
             metadata.setdefault("properties", {})
             metadata["properties"]["eo:bands"] = eo_bands_100
+        if extent_spatial_100:
+            metadata["extent"]["spatial"] = extent_spatial_100[0]
+        if extent_temporal_100:
+            metadata["extent"]["temporal"] = extent_temporal_100[0]
     else:
         if full and not cube_dims_100 and cube_dims_040:
             _log.warning("Collection metadata 'cube:dimensions' in API 0.4 style instead of 1.0 style")
@@ -733,6 +741,14 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
             _log.warning("Collection metadata 'eo:bands' in API 0.4 style instead of 1.0 style")
             metadata.setdefault("summaries", {})
             metadata["summaries"]["eo:bands"] = eo_bands_040
+        if not extent_spatial_100 and extent_spatial_040:
+            _log.warning("Collection metadata 'extent': 'spatial' in API 0.4 style instead of 1.0 style")
+            metadata["extent"]["spatial"] = {}
+            metadata["extent"]["spatial"]["bbox"] = [extent_spatial_040]
+        if not extent_temporal_100 and extent_temporal_040:
+            _log.warning("Collection metadata 'extent': 'temporal' in API 0.4 style instead of 1.0 style")
+            metadata["extent"]["temporal"] = {}
+            metadata["extent"]["temporal"]["interval"] = [extent_temporal_040]
 
     # Make sure some required fields are set.
     metadata.setdefault("stac_version", "0.9.0" if api_version.at_least("1.0.0") else "0.6.2")
@@ -741,6 +757,8 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
     metadata.setdefault("license", "proprietary")
     # Warn about missing fields where simple defaults are not feasible.
     fallbacks = {
+        "extent": {"spatial": {"bbox": [[0, 0, 0, 0]]}, "temporal": {"interval": [[None, None]]}},
+    } if api_version.at_least("1.0.0") else {
         "extent": {"spatial": [0, 0, 0, 0], "temporal": [None, None]},
     }
     if full:
