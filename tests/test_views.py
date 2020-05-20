@@ -708,6 +708,28 @@ class TestSecondaryServices(TestCase):
         assert res.status_code == 404
         assert res.json['code'] == 'ServiceNotFound'
 
+    def test_services_requires_authentication(self):
+        res = self.client.get('/openeo/1.0.0/services')
+        assert res.status_code == 401
+        assert res.json['code'] == 'AuthenticationRequired'
+
+    def test_get_service_requires_authentication(self):
+        res = self.client.get('/openeo/1.0.0/services/wmts-foo')
+        assert res.status_code == 401
+        assert res.json['code'] == 'AuthenticationRequired'
+
+    def test_patch_service_requires_authentication(self):
+        res = self.client.patch('/openeo/1.0.0/services/wmts-foo')
+        assert res.status_code == 401
+        assert res.json['code'] == 'AuthenticationRequired'
+
+    def test_delete_service_requires_authentication(self):
+        res = self.client.delete('/openeo/1.0.0/services/wmts-foo')
+        assert res.status_code == 401
+        assert res.json['code'] == 'AuthenticationRequired'
+
+
+
 
 def test_build_backend_deploy_metadata():
     data = build_backend_deploy_metadata(packages=["openeo", "openeo_driver", "foobarblerghbwop"])

@@ -653,8 +653,9 @@ def _jsonable_service_metadata(metadata: ServiceMetadata, full=True) -> dict:
 @api_endpoint
 @openeo_bp.route('/services', methods=['GET'])
 @auth_handler.requires_bearer_auth
-def services_get():
+def services_get(user: User):
     """List all running secondary web services for authenticated user"""
+    # TODO implement user level secondary service management EP-3411
     return jsonify({
         "services": [
             _jsonable_service_metadata(m, full=False)
@@ -667,7 +668,8 @@ def services_get():
 @api_endpoint
 @openeo_bp.route('/services/<service_id>', methods=['GET'])
 @auth_handler.requires_bearer_auth
-def get_service_info(service_id):
+def get_service_info(service_id, user: User):
+    # TODO implement user level secondary service management EP-3411
     try:
         metadata = backend_implementation.secondary_services.service_info(service_id)
     except Exception:
@@ -678,7 +680,8 @@ def get_service_info(service_id):
 @api_endpoint
 @openeo_bp.route('/services/<service_id>', methods=['PATCH'])
 @auth_handler.requires_bearer_auth
-def service_patch(service_id):
+def service_patch(service_id, user: User):
+    # TODO implement user level secondary service management EP-3411
     process_graph = _extract_process_graph(request.get_json())
     backend_implementation.secondary_services.update_service(service_id, process_graph=process_graph)
     return response_204_no_content()
@@ -687,7 +690,8 @@ def service_patch(service_id):
 @api_endpoint
 @openeo_bp.route('/services/<service_id>', methods=['DELETE'])
 @auth_handler.requires_bearer_auth
-def service_delete(service_id):
+def service_delete(service_id, user: User):
+    # TODO implement user level secondary service management EP-3411
     backend_implementation.secondary_services.remove_service(service_id)
     return response_204_no_content()
 
@@ -702,8 +706,7 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
     """
     Make sure the given collection metadata roughly complies to desirec version of OpenEO spec.
     """
-    # Make copy and remove all "private"
-
+    # Make copy and remove all "private" fields
     metadata = copy.deepcopy(metadata)
     metadata = {k: v for (k, v) in metadata.items() if not k.startswith('_')}
 
