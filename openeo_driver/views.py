@@ -7,8 +7,9 @@ import os
 import re
 from typing import Callable, Tuple, List
 
+import flask
 from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, \
-    current_app, redirect
+    current_app
 import pkg_resources
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -353,7 +354,7 @@ def credentials_basic():
 @openeo_bp.route("/credentials/oidc", methods=["GET"])
 @auth_handler.public
 def credentials_oidc():
-    return redirect(current_app.config["OPENID_CONNECT_CONFIG_URL"])
+    return flask.redirect(current_app.config["OPENID_CONNECT_CONFIG_URL"])
 
 
 @api_endpoint
@@ -704,7 +705,7 @@ def subscription():
 
 def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersion, full=False) -> dict:
     """
-    Make sure the given collection metadata roughly complies to desirec version of OpenEO spec.
+    Make sure the given collection metadata roughly complies to desired version of OpenEO spec.
     """
     # Make copy and remove all "private" fields
     metadata = copy.deepcopy(metadata)
@@ -845,3 +846,8 @@ def well_known_openeo():
             if v.advertised
         ]
     })
+
+
+@app.route("/", methods=["GET"])
+def index():
+    return flask.redirect(url_for('openeo.index', version=DEFAULT_VERSION, _external=True))
