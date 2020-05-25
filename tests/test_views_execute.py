@@ -1,16 +1,16 @@
 import os
 from typing import Callable, Union
 
-from flask.testing import FlaskClient
+import openeo_driver.testing
 import pytest
 import shapely.geometry
-
+from flask.testing import FlaskClient
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.errors import ProcessGraphMissingException
-import openeo_driver.testing
 from openeo_driver.testing import load_json, preprocess_check_and_replace
 from openeo_driver.views import app
+
 from .data import get_path, TEST_DATA_ROOT
 
 os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "openeo_driver.dummy.dummy_backend"
@@ -141,7 +141,7 @@ def test_load_collection_filter(api):
     assert api.collections['S2_FAPAR_CLOUDCOVER'].download.call_count == 1
     assert api.collections['S2_FAPAR_CLOUDCOVER'].viewingParameters == {
         'version': api.api_version, 'from': '2018-01-01', 'to': '2018-12-31',
-        'left': 5.027, 'right': 5.0438, 'top': 51.2213, 'bottom': 51.1974, 'srs': 'EPSG:4326'}
+        'left': 5.027, 'right': 5.0438, 'top': 51.2213, 'bottom': 51.1974, 'srs': 'EPSG:4326','pyramid_levels': 'highest'}
 
 
 def test_execute_apply_unary(api):
