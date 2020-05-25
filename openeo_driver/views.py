@@ -1,30 +1,29 @@
-from collections import namedtuple, defaultdict
 import copy
 import datetime
 import functools
 import logging
 import os
 import re
+from collections import namedtuple, defaultdict
 from typing import Callable, Tuple, List
 
 import flask
+import pkg_resources
 from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, \
     current_app
-import pkg_resources
-from werkzeug.exceptions import HTTPException, NotFound
-from werkzeug.middleware.proxy_fix import ProxyFix
-
 from openeo import ImageCollection
 from openeo.capabilities import ComparableVersion
 from openeo.error_summary import ErrorSummary
 from openeo.util import date_to_rfc3339, dict_no_none, deep_get
+from openeo_driver.ProcessGraphDeserializer import evaluate, get_process_registry
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, get_backend_implementation
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException
-from openeo_driver.ProcessGraphDeserializer import evaluate, get_process_registry
 from openeo_driver.save_result import SaveResult
 from openeo_driver.users import HttpAuthHandler, User
 from openeo_driver.utils import replace_nan_values
+from werkzeug.exceptions import HTTPException, NotFound
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 _log = logging.getLogger(__name__)
 
@@ -435,7 +434,7 @@ def execute():
     # TODO:  This is not an official endpoint, does this "/execute" still have to be exposed as route?
     post_data = request.get_json()
     process_graph = _extract_process_graph(post_data)
-    result = evaluate(process_graph, viewingParameters={'version': g.api_version})
+    result = evaluate(process_graph, viewingParameters={'version': g.api_version,'pyramid_levels':'highest'})
 
     # TODO unify all this output handling within SaveResult logic?
     if isinstance(result, ImageCollection):

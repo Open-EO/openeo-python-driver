@@ -9,10 +9,10 @@ to allow composability, isolation and better reuse.
 Also see https://github.com/Open-EO/openeo-python-driver/issues/8
 """
 
-from datetime import datetime
 import importlib
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import List, Union, NamedTuple, Dict
 
@@ -104,7 +104,7 @@ class SecondaryServices(MicroService):
                 message="Secondary service type {t!r} is not supported.".format(t=service_type),
             )
 
-        image_collection = evaluate(process_graph, viewingParameters={'version': api_version})
+        image_collection = evaluate(process_graph, viewingParameters={'version': api_version, 'pyramid_levels': 'all'})
         service_metadata = image_collection.tiled_viewing_service(
             service_type=service_type,
             process_graph=process_graph,
