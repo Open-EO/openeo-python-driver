@@ -707,10 +707,8 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         dimension, _, _ = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         return image_collection.aggregate_temporal(intervals,labels,process_id,dimension)
     else:
-        if ComparableVersion("1.0.0").or_higher(viewingParameters["version"]):
-            process_function = process_registry_100.get_function(process_id)
-        else:
-            process_function = process_registry_040.get_function(process_id)
+        process_registry = get_process_registry(ComparableVersion(viewingParameters["version"]))
+        process_function = process_registry.get_function(process_id)
         return process_function(args, viewingParameters)
 
 
