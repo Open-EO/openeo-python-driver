@@ -26,6 +26,9 @@ class DelayedVector:
         self.path = path
         self._downloaded_shapefile = None
 
+    def __str__(self):
+        return "DelayedVector({p})".format(p=self.path)
+
     @property
     def geometries(self) -> Iterable[BaseGeometry]:
         if self.path.startswith("http"):

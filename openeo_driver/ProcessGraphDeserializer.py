@@ -619,23 +619,24 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             viewingParameters["bottom"] = extract_arg(extent, "south")
             viewingParameters["srs"] = extent.get("crs") or "EPSG:4326"
     elif process_id in ['zonal_statistics', 'aggregate_polygon', 'aggregate_spatial']:
-        polygons = extract_arg_list(args, ['regions', 'polygons', 'geometries'])
+        shapes = extract_arg_list(args, ['regions', 'polygons', 'geometries'])
 
         if viewingParameters.get("left") is None:
-            if "type" in polygons:  # it's GeoJSON
-                geometries = _as_geometry_collection(polygons) if polygons['type'] == 'FeatureCollection' else polygons
-                bbox = shape(geometries).bounds
-            if "from_node" in polygons:  # it's a dereferenced from_node that contains a DelayedVector
-                geometries = convert_node(polygons["node"], viewingParameters)
-                bbox = geometries.bounds
+            if "type" in shapes:  # it's GeoJSON
+                polygons = _as_geometry_collection(shapes) if shapes['type'] == 'FeatureCollection' else shapes
+                bbox = shape(polygons).bounds
+            if "from_node" in shapes:  # it's a dereferenced from_node that contains a DelayedVector
+                polygons = convert_node(shapes["node"], viewingParameters)
+                bbox = polygons.bounds
 
+            viewingParameters["polygons"] = polygons
             viewingParameters["left"] = bbox[0]
             viewingParameters["right"] = bbox[2]
             viewingParameters["bottom"] = bbox[1]
             viewingParameters["top"] = bbox[3]
             viewingParameters["srs"] = "EPSG:4326"
 
-            args['polygons'] = geometries  # might as well cache the value instead of re-evaluating it further on
+            args['polygons'] = polygons  # might as well cache the value instead of re-evaluating it further on
 
     elif 'filter_bands' == process_id:
         viewingParameters = viewingParameters or {}
