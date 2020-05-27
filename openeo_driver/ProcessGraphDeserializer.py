@@ -76,6 +76,13 @@ def non_standard_process(spec: ProcessSpec) -> Callable[[Callable], Callable]:
     return decorator
 
 
+def custom_process(f):
+    """Decorator for custom processes (e.g. in custom_processes.py)."""
+    process_registry_040.add_hidden(f)
+    process_registry_100.add_hidden(f)
+    return f
+
+
 def get_process_registry(api_version: ComparableVersion) -> ProcessRegistry:
     if api_version.at_least("1.0.0"):
         return process_registry_100

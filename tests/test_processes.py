@@ -176,6 +176,35 @@ def test_process_registry_with_spec_100():
     }
 
 
+def test_process_registry_add_hidden():
+    reg = ProcessRegistry()
+
+    @reg.add_hidden
+    def foo(*args):
+        return 42
+
+    new_foo = reg.get_function('foo')
+    assert new_foo() == 42
+    with pytest.raises(ProcessUnsupportedException):
+        reg.get_spec('foo')
+
+
+def test_process_registry_add_hidden_with_name():
+    reg = ProcessRegistry()
+
+    def bar(*args):
+        return 42
+
+    reg.add_hidden(bar, name="boz")
+
+    new_bar = reg.get_function('boz')
+    assert new_bar() == 42
+    with pytest.raises(ProcessUnsupportedException):
+        reg.get_spec('bar')
+    with pytest.raises(ProcessUnsupportedException):
+        reg.get_spec('boz')
+
+
 def test_process_registry_add_deprecated():
     reg = ProcessRegistry()
 
