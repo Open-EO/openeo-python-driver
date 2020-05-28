@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 from datetime import datetime
+import functools
 import logging
 import os
 from pathlib import Path
@@ -66,13 +67,14 @@ class TestGeneral:
     def test_well_known_openeo(self, client):
         resp = client.get('/.well-known/openeo')
         assert resp.status_code == 200
-        for expected in [
-            {'api_version': '0.4.0', 'production': True, 'url': 'http://oeo.net/openeo/0.4.0/'},
-            {'api_version': '0.4.2', 'production': True, 'url': 'http://oeo.net/openeo/0.4.2/'},
-            {'api_version': '0.4.2', 'production': True, 'url': 'http://oeo.net/openeo/0.4/'},
-            {'api_version': '1.0.0', 'production': False, 'url': 'http://oeo.net/openeo/1.0.0/'},
-        ]:
-            assert expected in resp.json["versions"]
+        versions = resp.json["versions"]
+        # in .well-known/openeo there should only be one item per api_version (no aliases)
+        by_api_version = {d["api_version"]: d for d in versions}
+        assert len(versions) == len(by_api_version)
+        assert by_api_version == {
+            "0.4.2": {'api_version': '0.4.2', 'production': True, 'url': 'http://oeo.net/openeo/0.4/'},
+            "1.0.0": {'api_version': '1.0.0', 'production': False, 'url': 'http://oeo.net/openeo/1.0/'},
+        }
 
     def test_capabilities_040(self, api040):
         capabilities = api040.get('/').assert_status_code(200).json
@@ -99,7 +101,7 @@ class TestGeneral:
     def test_capabilities_invalid_api_version(self, client):
         resp = ApiResponse(client.get('/openeo/0.0.0/'))
         resp.assert_error(501, 'UnsupportedApiVersion')
-        assert "Unsupported version: '0.0.0'" in resp.json['message']
+        assert "Unsupported version component in URL: '0.0.0'" in resp.json['message']
 
     def test_capabilities_endpoints(self, api100):
         capabilities = api100.get("/").assert_status_code(200).json
@@ -727,8 +729,6 @@ class TestSecondaryServices(TestCase):
         res = self.client.delete('/openeo/1.0.0/services/wmts-foo')
         assert res.status_code == 401
         assert res.json['code'] == 'AuthenticationRequired'
-
-
 
 
 def test_build_backend_deploy_metadata():
