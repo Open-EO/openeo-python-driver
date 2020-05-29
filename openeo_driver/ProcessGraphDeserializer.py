@@ -624,12 +624,13 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         if viewingParameters.get("left") is None:
             if "type" in shapes:  # it's GeoJSON
                 polygons = _as_geometry_collection(shapes) if shapes['type'] == 'FeatureCollection' else shapes
-                bbox = shape(polygons).bounds
+                viewingParameters["polygons"] = shape(polygons)
+                bbox = viewingParameters["polygons"].bounds
             if "from_node" in shapes:  # it's a dereferenced from_node that contains a DelayedVector
                 polygons = convert_node(shapes["node"], viewingParameters)
+                viewingParameters["polygons"] = polygons.path
                 bbox = polygons.bounds
 
-            viewingParameters["polygons"] = polygons
             viewingParameters["left"] = bbox[0]
             viewingParameters["right"] = bbox[2]
             viewingParameters["bottom"] = bbox[1]
