@@ -75,6 +75,13 @@ def non_standard_process(spec: ProcessSpec) -> Callable[[Callable], Callable]:
     return decorator
 
 
+def custom_process(f):
+    """Decorator for custom processes (e.g. in custom_processes.py)."""
+    process_registry_040.add_hidden(f)
+    process_registry_100.add_hidden(f)
+    return f
+
+
 def get_process_registry(api_version: ComparableVersion) -> ProcessRegistry:
     if api_version.at_least("1.0.0"):
         return process_registry_100
@@ -191,6 +198,8 @@ def load_collection(args: Dict, viewingParameters) -> ImageCollection:
         viewingParameters["srs"] = extent.get("crs") or "EPSG:4326"
     if "bands" in args and args['bands'] is not None:
         viewingParameters["bands"] = extract_arg(args, "bands")
+    if args.get('properties'):
+        viewingParameters['properties'] = extract_arg(args, 'properties')
 
     return backend_implementation.catalog.load_collection(name, viewingParameters)
 
@@ -609,15 +618,17 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             viewingParameters["bottom"] = extract_arg(extent, "south")
             viewingParameters["srs"] = extent.get("crs") or "EPSG:4326"
     elif process_id in ['zonal_statistics', 'aggregate_polygon', 'aggregate_spatial']:
-        polygons = extract_arg_list(args, ['regions', 'polygons', 'geometries'])
+        shapes = extract_arg_list(args, ['regions', 'polygons', 'geometries'])
 
         if viewingParameters.get("left") is None:
-            if "type" in polygons:  # it's GeoJSON
-                geometries = _as_geometry_collection(polygons) if polygons['type'] == 'FeatureCollection' else polygons
-                bbox = shape(geometries).bounds
-            if "from_node" in polygons:  # it's a dereferenced from_node that contains a DelayedVector
-                geometries = convert_node(polygons["node"], viewingParameters)
-                bbox = geometries.bounds
+            if "type" in shapes:  # it's GeoJSON
+                polygons = _as_geometry_collection(shapes) if shapes['type'] == 'FeatureCollection' else shapes
+                viewingParameters["polygons"] = shape(polygons)
+                bbox = viewingParameters["polygons"].bounds
+            if "from_node" in shapes:  # it's a dereferenced from_node that contains a DelayedVector
+                polygons = convert_node(shapes["node"], viewingParameters)
+                viewingParameters["polygons"] = polygons.path
+                bbox = polygons.bounds
 
             viewingParameters["left"] = bbox[0]
             viewingParameters["right"] = bbox[2]
@@ -625,7 +636,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             viewingParameters["top"] = bbox[3]
             viewingParameters["srs"] = "EPSG:4326"
 
-            args['polygons'] = geometries  # might as well cache the value instead of re-evaluating it further on
+            args['polygons'] = polygons  # might as well cache the value instead of re-evaluating it further on
 
     elif 'filter_bands' == process_id:
         viewingParameters = viewingParameters or {}
@@ -702,10 +713,8 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         dimension, _, _ = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         return image_collection.aggregate_temporal(intervals,labels,process_id,dimension)
     else:
-        if ComparableVersion("1.0.0").or_higher(viewingParameters["version"]):
-            process_function = process_registry_100.get_function(process_id)
-        else:
-            process_function = process_registry_040.get_function(process_id)
+        process_registry = get_process_registry(ComparableVersion(viewingParameters["version"]))
+        process_function = process_registry.get_function(process_id)
         return process_function(args, viewingParameters)
 
 

@@ -27,19 +27,19 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 _log = logging.getLogger(__name__)
 
-ApiVersionInfo = namedtuple("ApiVersionInfo", ["version", "supported", "advertised", "production"])
+ApiVersionInfo = namedtuple("ApiVersionInfo", ["version", "supported", "wellknown", "production"])
 
 # Available OpenEO API versions: map of URL version component to API version info
 API_VERSIONS = {
-    "0.3.0": ApiVersionInfo(version="0.3.0", supported=False, advertised=False, production=False),
-    "0.3.1": ApiVersionInfo(version="0.3.1", supported=False, advertised=False, production=False),
-    "0.3": ApiVersionInfo(version="0.3.1", supported=False, advertised=False, production=False),
-    "0.4.0": ApiVersionInfo(version="0.4.0", supported=True, advertised=True, production=True),
-    "0.4.1": ApiVersionInfo(version="0.4.1", supported=True, advertised=True, production=True),
-    "0.4.2": ApiVersionInfo(version="0.4.2", supported=True, advertised=True, production=True),
-    "0.4": ApiVersionInfo(version="0.4.2", supported=True, advertised=True, production=True),
-    "1.0.0": ApiVersionInfo(version="1.0.0", supported=True, advertised=True, production=False),
-    "1.0": ApiVersionInfo(version="1.0.0", supported=True, advertised=True, production=False),
+    "0.3.0": ApiVersionInfo(version="0.3.0", supported=False, wellknown=False, production=False),
+    "0.3.1": ApiVersionInfo(version="0.3.1", supported=False, wellknown=False, production=False),
+    "0.3": ApiVersionInfo(version="0.3.1", supported=False, wellknown=False, production=False),
+    "0.4.0": ApiVersionInfo(version="0.4.0", supported=True, wellknown=False, production=True),
+    "0.4.1": ApiVersionInfo(version="0.4.1", supported=True, wellknown=False, production=True),
+    "0.4.2": ApiVersionInfo(version="0.4.2", supported=True, wellknown=False, production=True),
+    "0.4": ApiVersionInfo(version="0.4.2", supported=True, wellknown=True, production=True),
+    "1.0.0": ApiVersionInfo(version="1.0.0", supported=True, wellknown=False, production=False),
+    "1.0": ApiVersionInfo(version="1.0.0", supported=True, wellknown=True, production=False),
 }
 DEFAULT_VERSION = '0.4.2'
 
@@ -87,8 +87,8 @@ def _pull_version(endpoint, values):
         raise OpenEOApiException(
             status_code=501,
             code="UnsupportedApiVersion",
-            message="Unsupported version: {v!r}.  Available versions: {s!r}".format(
-                v=version, s=[k for k, v in API_VERSIONS.items() if v.advertised]
+            message="Unsupported version component in URL: {v!r}.  Available versions: {s!r}".format(
+                v=version, s=[k for k, v in API_VERSIONS.items() if v.supported]
             )
         )
     g.request_version = version
@@ -247,7 +247,7 @@ def index():
         "id": service_id,
         "title": title,
         "description": app_config.get('OPENEO_DESCRIPTION', 'OpenEO API'),
-        "production": API_VERSIONS[api_version].production,
+        "production": API_VERSIONS[g.request_version].production,
         "endpoints": endpoints,
         "billing": {
             "currency": "EUR",
@@ -842,7 +842,7 @@ def well_known_openeo():
                 "production": v.production,
             }
             for k, v in API_VERSIONS.items()
-            if v.advertised
+            if v.wellknown
         ]
     })
 

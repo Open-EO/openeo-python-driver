@@ -141,16 +141,20 @@ class ProcessRegistry:
         )
         return f
 
-    def add_deprecated(self, f: Callable):
+    def add_hidden(self, f: Callable, name: str = None):
         """Just register the function, but don't register spec for (public) listing."""
+        self.add_process(name=name or f.__name__, function=f, spec=None)
+        return f
+
+    def add_deprecated(self, f: Callable):
+        """Register a deprecated function (non-public, throwing warnings)."""
 
         @functools.wraps(f)
         def wrapped(*args, **kwargs):
             warnings.warn("Calling deprecated process function {f}".format(f=f.__name__))
             return f(*args, **kwargs)
 
-        self.add_process(name=f.__name__, function=wrapped)
-        return f
+        return self.add_hidden(wrapped, name=f.__name__)
 
     def get_spec(self, name: str) -> dict:
         """Get spec dict of given process name"""
