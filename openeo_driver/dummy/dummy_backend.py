@@ -10,7 +10,7 @@ from openeo import ImageCollection
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.metadata import CollectionMetadata
 from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata, \
-    BatchJobs, BatchJobMetadata
+    BatchJobs, BatchJobMetadata, OidcProvider
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import JobNotFoundException, JobNotFinishedException
 from shapely.geometry import Polygon, MultiPolygon
@@ -341,6 +341,12 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
             catalog=DummyCatalog(),
             batch_jobs=DummyBatchJobs(),
         )
+
+    def oidc_providers(self) -> List[OidcProvider]:
+        return [
+            OidcProvider(id="testprovider", issuer="https://oidc.oeo.net", scopes=["openid"], title="Test"),
+            OidcProvider(id="gogol", issuer="https://acc.gog.ol", scopes=["openid"], title="Gogol"),
+        ]
 
     def file_formats(self) -> dict:
         return {

@@ -1,6 +1,5 @@
 from contextlib import contextmanager
 from datetime import datetime
-import functools
 import logging
 import os
 from pathlib import Path
@@ -15,8 +14,7 @@ from openeo.capabilities import ComparableVersion
 from openeo_driver.backend import BatchJobMetadata
 from openeo_driver.dummy import dummy_backend
 import openeo_driver.testing
-from openeo_driver.testing import TEST_USER, ApiResponse
-from openeo_driver.users import HttpAuthHandler
+from openeo_driver.testing import TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER
 from openeo_driver.views import app, EndpointRegistry, build_backend_deploy_metadata, _normalize_collection_metadata
 from .data import TEST_DATA_ROOT
 from .test_users import _build_basic_auth_header
@@ -147,6 +145,17 @@ class TestGeneral:
     def test_health(self, api):
         resp = api.get('/health').assert_status_code(200).json
         assert resp == {"health": "OK"}
+
+    def test_credentials_oidc_040(self, api040):
+        resp = api040.get('/credentials/oidc').assert_status_code(303)
+        assert resp.headers["Location"] == "https://oidc.oeo.net/.well-known/openid-configuration"
+
+    def test_credentials_oidc_100(self, api100):
+        resp = api100.get('/credentials/oidc').assert_status_code(200).json
+        assert resp == {'providers': [
+            {'id': 'testprovider', 'issuer': 'https://oidc.oeo.net', 'scopes': ['openid'], 'title': 'Test'},
+            {'id': 'gogol', 'issuer': 'https://acc.gog.ol', 'scopes': ['openid'], 'title': 'Gogol'}
+        ]}
 
     def test_output_formats(self, api040):
         resp = api040.get('/output_formats').assert_status_code(200).json
@@ -389,9 +398,7 @@ class TestCollections:
 
 
 class TestBatchJobs:
-    AUTH_HEADER = {
-        "Authorization": "Bearer " + HttpAuthHandler().build_basic_access_token(user_id=TEST_USER)
-    }
+    AUTH_HEADER = TEST_USER_AUTH_HEADER
 
     @staticmethod
     @contextmanager
@@ -604,9 +611,7 @@ class TestSecondaryServices(TestCase):
         app.config['TESTING'] = True
         app.config['SERVER_NAME'] = 'oeo.net'
         self.client = app.test_client()
-        self._auth_header = {
-            "Authorization": "Bearer " + HttpAuthHandler().build_basic_access_token(user_id=TEST_USER)
-        }
+        self._auth_header = TEST_USER_AUTH_HEADER
         dummy_backend.collections = {}
 
     def test_service_types_v040(self):

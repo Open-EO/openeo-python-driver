@@ -7,12 +7,13 @@ import base64
 import functools
 import hashlib
 import logging
-from typing import Callable, Tuple
+from typing import Callable, Tuple, List
 
+from flask import request, Request
 import requests
-from flask import request, current_app, Request
 
 from openeo.rest.auth.auth import BearerAuth
+from openeo_driver.backend import OidcProvider
 from openeo_driver.errors import AuthenticationRequiredException, \
     AuthenticationSchemeInvalidException, TokenInvalidException, CredentialsInvalidException
 
@@ -29,7 +30,11 @@ class User:
 class HttpAuthHandler:
     """Handler for processing HTTP authentication in a Flask app context"""
 
-    _BASIC_ACCESS_TOKEN_PREFIX = 'basic.'
+    def __init__(self, oidc_providers: List[OidcProvider]):
+        self._oidc_discovery_urls = {
+            p.id: p.issuer + '/.well-known/openid-configuration'
+            for p in oidc_providers
+        }
 
     def public(self, f: Callable):
         """
@@ -82,13 +87,19 @@ class HttpAuthHandler:
 
     def get_user_from_bearer_token(self, request: Request) -> User:
         """Get User object from bearer token of request."""
-        token = self.get_auth_token(request, "Bearer")
-        if token.startswith(self._BASIC_ACCESS_TOKEN_PREFIX):
-            return self.resolve_basic_access_token(token)
-        elif len(token) > 16:
-            # Assume token is OpenID Connect access token
-            return self.resolve_oidc_access_token(token)
+        bearer = self.get_auth_token(request, "Bearer")
+        try:
+            bearer_type, provider_id, access_token = bearer.split('/')
+        except ValueError:
+            _log.warning("Invalid bearer token {b!r}".format(b=bearer))
+            raise TokenInvalidException
+        if bearer_type == 'basic':
+            return self.resolve_basic_access_token(access_token=access_token)
+        elif bearer_type == 'oidc':
+            oidc_discovery_url = self._oidc_discovery_urls[provider_id]
+            return self.resolve_oidc_access_token(oidc_discovery_url=oidc_discovery_url, access_token=access_token)
         else:
+            _log.warning("Invalid bearer token {b!r}".format(b=bearer))
             raise TokenInvalidException
 
     def parse_basic_auth_header(self, request: Request) -> Tuple[str, str]:
@@ -122,23 +133,22 @@ class HttpAuthHandler:
         access_token = self.build_basic_access_token(user_id)
         return access_token, user_id
 
-    def build_basic_access_token(self, user_id:str) -> str:
+    @staticmethod
+    def build_basic_access_token(user_id: str) -> str:
         # TODO: generate real access token and link to user in some key value store
-        return self._BASIC_ACCESS_TOKEN_PREFIX + base64.urlsafe_b64encode(user_id.encode('utf-8')).decode('ascii')
+        return base64.urlsafe_b64encode(user_id.encode('utf-8')).decode('ascii')
 
     def resolve_basic_access_token(self, access_token: str) -> User:
         try:
-            head, sep, tail = access_token.partition(self._BASIC_ACCESS_TOKEN_PREFIX)
-            assert head == '' and sep == self._BASIC_ACCESS_TOKEN_PREFIX and len(tail) > 0
             # Resolve token to user id
-            user_id = base64.urlsafe_b64decode(tail.encode('ascii')).decode('utf-8')
+            user_id = base64.urlsafe_b64decode(access_token.encode('ascii')).decode('utf-8')
         except Exception:
             raise TokenInvalidException
         return User(user_id=user_id, info={"authentication": "basic"})
 
-    def resolve_oidc_access_token(self, access_token: str) -> User:
+    def resolve_oidc_access_token(self, oidc_discovery_url: str, access_token: str) -> User:
         try:
-            resp = requests.get(current_app.config["OPENID_CONNECT_CONFIG_URL"])
+            resp = requests.get(oidc_discovery_url)
             resp.raise_for_status()
             userinfo_url = resp.json()["userinfo_endpoint"]
             resp = requests.get(userinfo_url, auth=BearerAuth(bearer=access_token))

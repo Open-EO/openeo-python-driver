@@ -16,7 +16,7 @@ from openeo_driver.users import HttpAuthHandler
 
 TEST_USER = "Mr.Test"
 TEST_USER_AUTH_HEADER = {
-    "Authorization": "Bearer " + HttpAuthHandler().build_basic_access_token(user_id=TEST_USER)
+    "Authorization": "Bearer basic//" + HttpAuthHandler.build_basic_access_token(user_id=TEST_USER)
 }
 
 TIFF_DUMMY_DATA = b'T1f7D6t6l0l' * 1000

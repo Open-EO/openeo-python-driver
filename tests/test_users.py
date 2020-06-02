@@ -4,15 +4,25 @@ import json
 import pytest
 from flask import Flask, jsonify, Response, request
 
+from openeo_driver.backend import OidcProvider
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.users import HttpAuthHandler, User
 
 
 @pytest.fixture()
-def app():
+def oidc_provider(requests_mock) -> OidcProvider:
+    oidc_issuer = "https://oeo.example.com"
+    oidc_discovery_url = oidc_issuer + "/.well-known/openid-configuration"
+    oidc_userinfo_url = oidc_issuer + "/userinfo"
+    requests_mock.get(oidc_discovery_url, json={"userinfo_endpoint": oidc_userinfo_url})
+    return OidcProvider(id="testoidc", issuer=oidc_issuer, scopes=['openid'], title='Test OIDC provider')
+
+
+@pytest.fixture()
+def app(oidc_provider):
     """Fixture for a flask app with some public and some auth requiring handlers"""
     app = Flask("__test__")
-    auth = HttpAuthHandler()
+    auth = HttpAuthHandler(oidc_providers=[oidc_provider])
 
     @app.route("/public/hello")
     @auth.public
@@ -138,7 +148,7 @@ def test_bearer_auth_empty(app, url):
 @pytest.mark.parametrize("url", ["/private/hello", "/personal/hello"])
 def test_bearer_auth_basic_invalid_token(app, url):
     with app.test_client() as client:
-        headers = {"Authorization": "Bearer basic.blehrff"}
+        headers = {"Authorization": "Bearer basic//blehrff"}
         response = client.get(url, headers=headers)
         assert_invalid_token_failure(response)
 
@@ -153,23 +163,19 @@ def test_bearer_auth_basic_token_success(app, url, expected_data):
         resp = client.get("/basic/auth", headers=headers)
         assert resp.status_code == 200
         access_token = resp.json["access_token"]
-        headers = {"Authorization": "Bearer " + access_token}
+        headers = {"Authorization": "Bearer basic//" + access_token}
         resp = client.get(url, headers=headers)
         assert resp.status_code == 200
         assert resp.data == expected_data
 
 
 @pytest.mark.parametrize("url", ["/private/hello", "/personal/hello"])
-def test_bearer_auth_oidc_invalid_token(app, url, requests_mock):
-    openid_connect_config_url = "https://oeo.example.com/.well-known/openid-configuration"
-    openid_userinfo_endpoint = "https://oeo.example.com/userinfo"
-    app.config['OPENID_CONNECT_CONFIG_URL'] = openid_connect_config_url
-    requests_mock.get(openid_connect_config_url, json={"userinfo_endpoint": openid_userinfo_endpoint})
-    requests_mock.get(openid_userinfo_endpoint, json={"error": "meh"}, status_code=401)
+def test_bearer_auth_oidc_invalid_token(app, url, requests_mock, oidc_provider):
+    requests_mock.get(oidc_provider.issuer + "/userinfo", json={"error": "meh"}, status_code=401)
 
     with app.test_client() as client:
         oidc_access_token = "kcneududhey8rmxje3uhoe9djdndjeu3rkrnmlxpds834r"
-        headers = {"Authorization": "Bearer " + oidc_access_token}
+        headers = {"Authorization": "Bearer oidc/{p}/{a}".format(p=oidc_provider.id, a=oidc_access_token)}
         resp = client.get(url, headers=headers)
         assert_invalid_token_failure(resp)
 
@@ -178,23 +184,19 @@ def test_bearer_auth_oidc_invalid_token(app, url, requests_mock):
     ("/private/hello", b"hello you"),
     ("/personal/hello", b"hello oidcuser"),
 ])
-def test_bearer_auth_oidc_success(app, url, expected_data, requests_mock):
+def test_bearer_auth_oidc_success(app, url, expected_data, requests_mock, oidc_provider):
     def userinfo(request, context):
         """Fake OIDC /userinfo endpoint handler"""
         _, _, token = request.headers["Authorization"].partition("Bearer ")
         user_id = token.split(".")[1]
         return json.dumps({"sub": user_id})
 
-    openid_connect_config_url = "https://oeo.example.com/.well-known/openid-configuration"
-    openid_userinfo_endpoint = "https://oeo.example.com/userinfo"
-    app.config['OPENID_CONNECT_CONFIG_URL'] = openid_connect_config_url
-    requests_mock.get(openid_connect_config_url, json={"userinfo_endpoint": openid_userinfo_endpoint})
-    requests_mock.get(openid_userinfo_endpoint, text=userinfo)
+    requests_mock.get(oidc_provider.issuer + "/userinfo", text=userinfo)
 
     with app.test_client() as client:
         # Note: user id is "hidden" in access token
         oidc_access_token = "kcneududhey8rmxje3uhs.oidcuser.o94h4oe9djdndjeu3rkrnmlxpds834r"
-        headers = {"Authorization": "Bearer " + oidc_access_token}
+        headers = {"Authorization": "Bearer oidc/{p}/{a}".format(p=oidc_provider.id, a=oidc_access_token)}
         resp = client.get(url, headers=headers)
         assert resp.status_code == 200
         assert resp.data == expected_data

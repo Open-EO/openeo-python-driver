@@ -62,15 +62,12 @@ app = OpenEoApiApp(__name__)
 # Make sure app handles reverse proxy aspects (e.g. HTTPS) correctly.
 app.wsgi_app = ProxyFix(app.wsgi_app)
 
-# TODO: get this OpenID config url from a real config
-app.config['OPENID_CONNECT_CONFIG_URL'] = "https://sso-dev.vgt.vito.be/auth/realms/terrascope/.well-known/openid-configuration"
-
-auth_handler = HttpAuthHandler()
 
 openeo_bp = Blueprint('openeo', __name__)
 
 backend_implementation = get_backend_implementation()
 
+auth_handler = HttpAuthHandler(oidc_providers=backend_implementation.oidc_providers())
 
 @openeo_bp.url_defaults
 def _add_version(endpoint, values):
@@ -353,7 +350,16 @@ def credentials_basic():
 @openeo_bp.route("/credentials/oidc", methods=["GET"])
 @auth_handler.public
 def credentials_oidc():
-    return flask.redirect(current_app.config["OPENID_CONNECT_CONFIG_URL"])
+    providers = backend_implementation.oidc_providers()
+    if requested_api_version().at_least("1.0.0"):
+        return jsonify({
+            "providers": [
+                {"id": p.id, "issuer": p.issuer, "scopes": p.scopes, "title": p.title}
+                for p in providers
+            ]
+        })
+    else:
+        return flask.redirect(providers[0].issuer + '/.well-known/openid-configuration', code=303)
 
 
 @api_endpoint

@@ -252,6 +252,15 @@ class BatchJobs(MicroService):
         raise NotImplementedError
 
 
+class OidcProvider(NamedTuple):
+    """OIDC provider metadata"""
+    id: str
+    issuer: str
+    scopes: List[str]
+    title: str
+    description: str = None
+
+
 class OpenEoBackendImplementation:
     """
     Simple container of all openEo "microservices"
@@ -269,6 +278,9 @@ class OpenEoBackendImplementation:
 
     def health_check(self) -> str:
         return "OK"
+
+    def oidc_providers(self) -> List[OidcProvider]:
+        return []
 
     def file_formats(self) -> dict:
         """
