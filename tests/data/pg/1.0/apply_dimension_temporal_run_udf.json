@@ -12,6 +12,7 @@
         "from_node": "collection"
       },
       "dimension": "t",
+      "target_dimension": "new_time_dimension",
       "process": {
         "process_graph": {
           "cumsum": {

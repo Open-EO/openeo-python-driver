@@ -3,12 +3,10 @@
 import base64
 import logging
 import pickle
-from typing import Dict, Callable
 import warnings
+from typing import Dict, Callable
 
 import numpy as np
-from shapely.geometry import shape, mapping
-
 from openeo import ImageCollection
 from openeo.capabilities import ComparableVersion
 from openeo.metadata import MetadataException
@@ -20,6 +18,7 @@ from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
 from openeo_driver.specs import SPECS_ROOT
 from openeo_driver.utils import smart_bool
+from shapely.geometry import shape, mapping
 
 _log = logging.getLogger(__name__)
 
@@ -666,15 +665,20 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
     elif parent_process == 'apply_dimension':
         image_collection = extract_arg(args, 'data')
         dimension = viewingParameters.get('dimension', None) # By default, applies the the process on all pixel values (as apply does).
+        target_dimension = viewingParameters.get('target_dimension', None)
         dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
+        transformed_collection = None
         if process_id == "run_udf":
             udf = _get_udf(args)
             if dimension == temporal_dim:
-                return image_collection.apply_tiles_spatiotemporal(udf)
+                transformed_collection =  image_collection.apply_tiles_spatiotemporal(udf)
             else:
-                return image_collection.apply_tiles(udf)
+                transformed_collection = image_collection.apply_tiles(udf)
         else:
-            return image_collection.apply_dimension(process_id,dimension)
+            transformed_collection = image_collection.apply_dimension(process_id,dimension)
+        if target_dimension is not None:
+            transformed_collection.rename_dimension(dimension,target_dimension)
+        return transformed_collection
     elif parent_process in ['aggregate_polygon', 'aggregate_spatial']:
         image_collection = extract_arg_list(args, ['data', 'imagery'])
         binary = viewingParameters.get('binary',False)

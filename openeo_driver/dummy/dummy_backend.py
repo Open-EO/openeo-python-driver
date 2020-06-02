@@ -1,13 +1,10 @@
-from datetime import datetime
 import numbers
 import os
+import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import List, Dict
 from unittest.mock import Mock
-import uuid
-
-from shapely.geometry import Polygon, MultiPolygon
-from shapely.geometry.collection import GeometryCollection
 
 from openeo import ImageCollection
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
@@ -16,6 +13,8 @@ from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation
     BatchJobs, BatchJobMetadata
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import JobNotFoundException, JobNotFinishedException
+from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry.collection import GeometryCollection
 
 DEFAULT_DATETIME = datetime(2020, 4, 23, 16, 20, 27)
 
@@ -262,6 +261,9 @@ class DummyCatalog(CollectionCatalog):
 
         image_collection.add_dimension = Mock(name="add_dimension")
         image_collection.add_dimension.return_value = image_collection
+
+        image_collection.rename_dimension = Mock(name="rename_dimension")
+        image_collection.rename_dimension.return_value = image_collection
 
         image_collection.aggregate_temporal = Mock(name="aggregate_temporal")
         image_collection.aggregate_temporal.return_value = image_collection

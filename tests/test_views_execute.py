@@ -227,6 +227,8 @@ def test_apply_dimension_temporal_run_udf(api):
     api.check_result("apply_dimension_temporal_run_udf.json")
     assert api.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles_spatiotemporal.call_count == 1
     assert api.collections["S2_FAPAR_CLOUDCOVER"].apply_dimension.call_count == 1
+    if api.api_version_compare.at_least("1.0.0"):
+        api.collections["S2_FAPAR_CLOUDCOVER"].rename_dimension.assert_called_with('t','new_time_dimension')
 
 
 def test_apply_dimension_temporal_run_udf_legacy_client(api):
