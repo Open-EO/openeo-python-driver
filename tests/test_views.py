@@ -17,7 +17,7 @@ import openeo_driver.testing
 from openeo_driver.testing import TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER
 from openeo_driver.views import app, EndpointRegistry, build_backend_deploy_metadata, _normalize_collection_metadata
 from .data import TEST_DATA_ROOT
-from .test_users import _build_basic_auth_header
+from .test_users import _build_basic_http_auth_header
 
 os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "openeo_driver.dummy.dummy_backend"
 app.config["OPENEO_TITLE"] = "OpenEO Test API"
@@ -749,12 +749,12 @@ def test_credentials_basic_no_headers(api):
 
 
 def test_credentials_basic_wrong_password(api):
-    headers = {"Authorization": _build_basic_auth_header(username="john", password="password123")}
+    headers = {"Authorization": _build_basic_http_auth_header(username="john", password="password123")}
     api.get("/credentials/basic", headers=headers).assert_error(403, 'CredentialsInvalid')
 
 
 def test_credentials_basic(api):
-    headers = {"Authorization": _build_basic_auth_header(username="john", password="john123")}
+    headers = {"Authorization": _build_basic_http_auth_header(username="john", password="john123")}
     response = api.get("/credentials/basic", headers=headers).assert_status_code(200).json
     expected = {"access_token"}
     if api.api_version_compare.below("1.0.0"):

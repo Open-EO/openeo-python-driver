@@ -103,20 +103,22 @@ def test_basic_auth_invalid_auth_type(app):
         assert_invalid_authentication_method_failure(response)
 
 
-def _build_basic_auth_header(username: str, password: str) -> str:
+def _build_basic_http_auth_header(username: str, password: str) -> str:
+    """Build HTTP header for Basic HTTP authentication"""
+    # Note: this is not the basic bearer token
     return "Basic " + base64.b64encode("{u}:{p}".format(u=username, p=password).encode("utf-8")).decode('ascii')
 
 
 def test_basic_auth_invalid_password(app):
     with app.test_client() as client:
-        headers = {"Authorization": _build_basic_auth_header("testuser", "wrongpassword")}
+        headers = {"Authorization": _build_basic_http_auth_header("testuser", "wrongpassword")}
         response = client.get("/basic/hello", headers=headers)
         assert_invalid_credentials_failure(response)
 
 
 def test_basic_auth_success(app):
     with app.test_client() as client:
-        headers = {"Authorization": _build_basic_auth_header("testuser", "testuser123")}
+        headers = {"Authorization": _build_basic_http_auth_header("testuser", "testuser123")}
         response = client.get("/basic/hello", headers=headers)
         assert response.status_code == 200
         assert response.data == b"hello basic"
@@ -167,7 +169,7 @@ def test_bearer_auth_basic_invalid_token_prefix(app, url):
 ])
 def test_bearer_auth_basic_token_success(app, url, expected_data):
     with app.test_client() as client:
-        headers = {"Authorization": _build_basic_auth_header("testuser", "testuser123")}
+        headers = {"Authorization": _build_basic_http_auth_header("testuser", "testuser123")}
         resp = client.get("/basic/auth", headers=headers)
         assert resp.status_code == 200
         access_token = resp.json["access_token"]
