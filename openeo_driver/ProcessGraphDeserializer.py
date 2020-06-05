@@ -312,15 +312,9 @@ def reduce_dimension(args: dict, ctx: dict) -> ImageCollection:
     data_cube = extract_arg(args, 'data')
 
     # TODO: avoid special case handling for run_udf?
+    #do check_dimension here for error handling
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce_dimension")
-    if dimension == band_dim:
-        if len(reduce_pg) == 1 and next(iter(reduce_pg.values())).get('process_id') == 'run_udf':
-            return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce_dimension',
-                                               version=ctx["version"])
-        visitor = backend_implementation.visit_process_graph(reduce_pg)
-        return data_cube.reduce_bands(visitor)
-    else:
-        return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce_dimension', version=ctx["version"])
+    return data_cube.reduce_dimension(dimension,reduce_pg)
 
 
 @process
@@ -658,21 +652,14 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         else:
             # TODO : add support for `apply` with non-trivial child process graphs #EP-3404
            return image_collection.apply(process_id, args)
-    elif parent_process in ["reduce", "reduce_dimension"]:
+    elif parent_process in ["reduce", "reduce_dimension", "reduce_dimension_binary"]:
+        #TODO EP-3285 throw an exception here, we should not arrive here after reduce refactor
         image_collection = extract_arg_list(args, ['data', 'imagery'])
         dimension = extract_arg(viewingParameters, 'dimension')
-        binary = viewingParameters.get('binary',False)
+        binary = viewingParameters.get('binary',False) or parent_process == "reduce_dimension_binary"
         dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
-        if 'run_udf' == process_id and not binary:
-            if dimension == temporal_dim:
-                udf = _get_udf(args)
-                #EP-2760 a special case of reduce where only a single udf based callback is provided. The more generic case is not yet supported.
-                return image_collection.apply_tiles_spatiotemporal(udf)
-            elif dimension == band_dim:
-                udf = _get_udf(args)
-                return image_collection.apply_tiles(udf)
+        return image_collection.reduce_dimension(dimension,process_id,binary)
 
-        return image_collection.reduce(process_id,dimension)
     elif parent_process == 'apply_dimension':
         image_collection = extract_arg(args, 'data')
         dimension = viewingParameters.get('dimension', None) # By default, applies the the process on all pixel values (as apply does).
