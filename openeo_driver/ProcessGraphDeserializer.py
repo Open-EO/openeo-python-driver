@@ -653,13 +653,21 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             # TODO : add support for `apply` with non-trivial child process graphs #EP-3404
            return image_collection.apply(process_id, args)
     elif parent_process in ["reduce", "reduce_dimension", "reduce_dimension_binary"]:
-        #TODO EP-3285 throw an exception here, we should not arrive here after reduce refactor
+        #TODO EP-3285 this code path is for version <1.0.0, soon to be deprecated
         image_collection = extract_arg_list(args, ['data', 'imagery'])
         dimension = extract_arg(viewingParameters, 'dimension')
         binary = viewingParameters.get('binary',False) or parent_process == "reduce_dimension_binary"
         dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
-        return image_collection.reduce_dimension(dimension,process_id,binary)
+        if 'run_udf' == process_id and not binary:
+            if dimension == temporal_dim:
+                udf = _get_udf(args)
+                #EP-2760 a special case of reduce where only a single udf based callback is provided. The more generic case is not yet supported.
+                return image_collection.apply_tiles_spatiotemporal(udf)
+            elif dimension == band_dim:
+                udf = _get_udf(args)
+                return image_collection.apply_tiles(udf)
 
+        return image_collection.reduce(process_id,dimension)
     elif parent_process == 'apply_dimension':
         image_collection = extract_arg(args, 'data')
         dimension = viewingParameters.get('dimension', None) # By default, applies the the process on all pixel values (as apply does).
