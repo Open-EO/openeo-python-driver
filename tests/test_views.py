@@ -561,11 +561,24 @@ class TestBatchJobs:
                 job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="finished")
             resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).json == {
-            "assets": {
-                "output.tiff": {
-                    "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/output.tiff"
+            'assets': {
+                'output.tiff': {
+                    'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/output.tiff'
                 }
-            }
+            },
+            'bbox': [-180, -90, 180, 90],
+            'geometry': {
+                'coordinates': [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
+                'type': 'Polygon'
+            },
+            'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
+            'links': [],
+            'properties': {
+                'created': '2017-01-01T09:32:12Z',
+                'date_time': None
+            },
+            'stac_version': '0.9.0',
+            'type': 'Feature'
         }
 
     def test_get_job_results_invalid_job(self, api):
