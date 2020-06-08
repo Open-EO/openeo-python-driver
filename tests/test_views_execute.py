@@ -171,7 +171,10 @@ def test_execute_apply_run_udf(api):
 
 def test_reduce_temporal_run_udf(api):
     api.check_result("reduce_temporal_run_udf.json")
-    assert api.collections["S2_FAPAR_CLOUDCOVER"].reduce_dimension.call_count == 1
+    if api.api_version_compare.at_least("1.0.0"):
+        assert api.collections["S2_FAPAR_CLOUDCOVER"].reduce_dimension.call_count == 1
+    else:
+        assert api.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles_spatiotemporal.call_count == 1
 
 
 def test_reduce_temporal_run_udf_legacy_client(api):
@@ -179,7 +182,10 @@ def test_reduce_temporal_run_udf_legacy_client(api):
         "reduce_temporal_run_udf.json",
         preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "temporal"')
     )
-    assert api.collections["S2_FAPAR_CLOUDCOVER"].reduce_dimension.call_count == 1
+    if api.api_version_compare.at_least("1.0.0"):
+        assert api.collections["S2_FAPAR_CLOUDCOVER"].reduce_dimension.call_count == 1
+    else:
+        assert api.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles_spatiotemporal.call_count == 1
 
 
 def test_reduce_temporal_run_udf_invalid_dimension(api):
@@ -198,7 +204,10 @@ def test_reduce_temporal_run_udf_invalid_dimension(api):
 
 def test_reduce_bands_run_udf(api):
     api.check_result("reduce_bands_run_udf.json")
-    assert api.collections["S2_FOOBAR"].reduce_dimension.call_count == 1
+    if api.api_version_compare.at_least("1.0.0"):
+        assert api.collections["S2_FOOBAR"].reduce_dimension.call_count == 1
+    else:
+        assert api.collections["S2_FOOBAR"].apply_tiles.call_count == 1
 
 
 def test_reduce_bands_run_udf_legacy_client(api):
@@ -206,7 +215,10 @@ def test_reduce_bands_run_udf_legacy_client(api):
         "reduce_bands_run_udf.json",
         preprocess=preprocess_check_and_replace('"dimension": "bands"', '"dimension": "spectral_bands"')
     )
-    assert api.collections["S2_FOOBAR"].reduce_dimension.call_count == 1
+    if api.api_version_compare.at_least("1.0.0"):
+        assert api.collections["S2_FOOBAR"].reduce_dimension.call_count == 1
+    else:
+        assert api.collections["S2_FOOBAR"].apply_tiles.call_count == 1
 
 
 def test_reduce_bands_run_udf_invalid_dimension(api):
