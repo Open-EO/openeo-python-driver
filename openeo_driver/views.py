@@ -542,19 +542,29 @@ def queue_job(job_id, user: User):
 @openeo_bp.route('/jobs/<job_id>/results', methods=['GET'])
 @auth_handler.requires_bearer_auth
 def list_job_results(job_id, user: User):
-    # TODO: error JobNotFinished when job is not finished yet
+    job_info = _jsonable_batch_job_metadata(backend_implementation.batch_jobs.get_job_info(job_id, user.user_id))
     results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
     filenames = results.keys()
     if requested_api_version().at_least("1.0.0"):
         result = {
-            # TODO: #EP-3281 API 1.0 required fields: "stac_version", "id", "type", "bbox", "geometry", "properties", "assets"
+            "stac_version": "0.9.0",
+            "id": job_info.get("id"),
+            "type": "Feature",
+            #TODO: add correct bbox and geometry when avalaible in metadata
+            "bbox": [-180, -90, 180, 90],
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]]
+            },
+            "properties": _properties_from_job_info(job_info),
             "assets": {
                 filename: {
                     "href": url_for('.download_job_result', job_id=job_id, filename=filename, _external=True)
                     # TODO #EP-3281 add "type" field with media type
                 }
                 for filename in filenames
-            }
+            },
+            "links": []
         }
     else:
         result = {
@@ -566,6 +576,20 @@ def list_job_results(job_id, user: User):
 
     # TODO "OpenEO-Costs" header?
     return jsonify(result)
+
+
+def _properties_from_job_info(job_info):
+    # TODO: add correct date when avalaible in metadata
+    properties = dict_no_none(**{
+        "start_date_time": None,
+        "end_date_time": None,
+        "title": job_info.get("title"),
+        "description": job_info.get("description"),
+        "created": job_info.get("created"),
+        "updated": job_info.get("updated")
+    })
+    properties["date_time"] = None
+    return properties
 
 
 @api_endpoint
