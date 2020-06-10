@@ -45,7 +45,7 @@ process_registry_100.add_spec_by_name(
     'between', 'eq', 'gt', 'gte', 'if', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
     'all', 'and', 'any', 'if', 'not', 'or', 'xor',
     'absolute', 'add', 'clip', 'divide', 'extrema', 'int', 'max', 'mean',
-    'median', 'min', 'mod', 'multiply', 'power', 'product', 'quantiles', 'sd', 'sgn', 'sqrt',
+    'median', 'min', 'mod', 'multiply', 'normalized_difference', 'power', 'product', 'quantiles', 'sd', 'sgn', 'sqrt',
     'subtract', 'sum', 'variance', 'e', 'pi', 'exp', 'ln', 'log',
     'ceil', 'floor', 'int', 'round',
     'arccos', 'arcosh', 'arcsin', 'arctan', 'arctan2', 'arsinh', 'artanh', 'cos', 'cosh', 'sin', 'sinh', 'tan', 'tanh',
@@ -89,7 +89,9 @@ def get_process_registry(api_version: ComparableVersion) -> ProcessRegistry:
         return process_registry_040
 
 
+
 backend_implementation = get_backend_implementation()
+
 
 def evaluate(processGraph: dict, viewingParameters=None) -> ImageCollection:
     """
@@ -105,8 +107,57 @@ def evaluate(processGraph: dict, viewingParameters=None) -> ImageCollection:
         }
     # TODO avoid local import
     from openeo.internal.process_graph_visitor import ProcessGraphVisitor
-    top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(processGraph)
-    return convert_node(processGraph[top_level_node], viewingParameters)
+    preprocessed_process_graph = _expand_macros(processGraph)
+    top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(preprocessed_process_graph)
+    return convert_node(preprocessed_process_graph[top_level_node], viewingParameters)
+
+
+def _expand_macros(process_graph: dict) -> dict:
+    """
+    Expands macro nodes in a process graph by replacing them with other nodes, making sure their node identifiers don't
+    clash with existing ones.
+
+    :param process_graph:
+    :return: a copy of the input process graph with the macros expanded
+    """
+
+    def expand_macros_recursively(tree: dict) -> dict:
+        def make_unique(node_identifier: str) -> str:
+            return node_identifier if node_identifier not in tree else make_unique(node_identifier + '_')
+
+        result = {}
+
+        for key, value in tree.items():
+            if isinstance(value, dict):
+                if 'process_id' in value and value['process_id'] == 'normalized_difference':
+                    normalized_difference_node = value
+
+                    subtract_key = make_unique(key + "_subtract")
+                    add_key = make_unique(key + "_add")
+
+                    # add "subtract" and "add" processes
+                    result[subtract_key] = {'process_id': 'subtract',
+                                            'arguments': normalized_difference_node['arguments']}
+                    result[add_key] = {'process_id': 'add',
+                                       'arguments': normalized_difference_node['arguments']}
+
+                    # replace "normalized_difference" with "divide" under the original key (it's being referenced)
+                    result[key] = {
+                        'process_id': 'divide',
+                        'arguments': {
+                            'x': {'from_node': subtract_key},
+                            'y': {'from_node': add_key}
+                        },
+                        'result': normalized_difference_node.get('result', False)
+                    }
+                else:
+                    result[key] = expand_macros_recursively(value)
+            else:
+                result[key] = value
+
+        return result
+
+    return expand_macros_recursively(process_graph)
 
 
 def convert_node(processGraph: dict, viewingParameters=None):
@@ -509,8 +560,17 @@ def apply_kernel(args: Dict, viewingParameters) -> ImageCollection:
 @process
 def ndvi(args: dict, viewingParameters: dict) -> ImageCollection:
     image_collection = extract_arg(args, 'data')
-    name = args.get("name", "ndvi")
-    return image_collection.ndvi(name=name)
+
+    version = ComparableVersion(viewingParameters["version"])
+
+    if version.at_least("1.0.0"):
+        red = args.get("red")
+        nir = args.get("nir")
+        target_band = args.get("target_band")
+        return image_collection.ndvi(nir=nir, red=red, target_band=target_band)
+    else:
+        name = args.get("name", "ndvi")
+        return image_collection.ndvi(name=name)
 
 @process
 def resample_spatial(args: dict, viewingParameters: dict) -> ImageCollection:

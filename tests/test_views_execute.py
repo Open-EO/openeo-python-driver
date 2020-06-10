@@ -413,7 +413,6 @@ def test_create_wmts_040(api040):
 
     tiled_viewing_service = api040.collections["S2_FOOBAR"].tiled_viewing_service
     assert tiled_viewing_service.call_count == 1
-    ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
     tiled_viewing_service.assert_called_with(
         service_type="WMTS",
         process_graph=process_graph,
@@ -439,7 +438,6 @@ def test_create_wmts_100(api100):
 
     tiled_viewing_service = api100.collections["S2_FOOBAR"].tiled_viewing_service
     assert tiled_viewing_service.call_count == 1
-    ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
     tiled_viewing_service.assert_called_with(
         service_type="WMTS",
         process_graph=process_graph,
