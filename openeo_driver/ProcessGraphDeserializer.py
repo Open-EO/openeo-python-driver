@@ -782,6 +782,16 @@ def read_vector(args: Dict, viewingParameters) -> DelayedVector:
     path = extract_arg(args, 'filename')
     return DelayedVector(path)
 
+@non_standard_process(
+    ProcessSpec("raster_to_vector", description="Converts this raster data cube into a vector data cube. The bounding polygon of homogenous areas of pixels is constructed.\n"
+                                                "Only the first band is considered the others are ignored.")
+        .param('data', description="A raster data cube.", schema={"type": "object", "subtype": "raster-cube"})
+        .returns("vector-cube", schema={"type": "object", "subtype": "vector-cube"})
+)
+def raster_to_vector(args: Dict, viewingParameters):
+    image_collection = extract_arg(args, 'data')
+    return image_collection.raster_to_vector()
+
 
 def _get_udf(args):
     udf = extract_arg(args, "udf")
