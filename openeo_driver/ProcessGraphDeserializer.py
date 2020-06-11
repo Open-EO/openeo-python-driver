@@ -131,15 +131,16 @@ def _expand_macros(process_graph: dict) -> dict:
             if isinstance(value, dict):
                 if 'process_id' in value and value['process_id'] == 'normalized_difference':
                     normalized_difference_node = value
+                    normalized_difference_arguments = normalized_difference_node['arguments']
 
                     subtract_key = make_unique(key + "_subtract")
                     add_key = make_unique(key + "_add")
 
-                    # add "subtract" and "add" processes
+                    # add "subtract" and "add"/"sum" processes
                     result[subtract_key] = {'process_id': 'subtract',
-                                            'arguments': normalized_difference_node['arguments']}
-                    result[add_key] = {'process_id': 'add',
-                                       'arguments': normalized_difference_node['arguments']}
+                                            'arguments': normalized_difference_arguments }
+                    result[add_key] = {'process_id': 'sum' if 'data' in normalized_difference_arguments else 'add',
+                                       'arguments': normalized_difference_arguments}
 
                     # replace "normalized_difference" with "divide" under the original key (it's being referenced)
                     result[key] = {
