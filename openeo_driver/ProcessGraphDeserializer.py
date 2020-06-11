@@ -616,7 +616,7 @@ def run_udf(args:dict,viewingParameters:dict):
     udf = _get_udf(args)
 
     collection = FeatureCollection(id='VectorCollection',data=data.as_geodataframe())
-    data = UdfData(feature_collection_list=[collection] )
+    data = UdfData(proj={"EPSG":4326},feature_collection_list=[collection] )
 
     result_data = run_user_code(udf, data)
     result_collections = result_data.get_feature_collection_list()
