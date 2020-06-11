@@ -17,6 +17,7 @@ from openeo.error_summary import ErrorSummary
 from openeo.util import date_to_rfc3339, dict_no_none, deep_get
 from openeo_driver.ProcessGraphDeserializer import evaluate, get_process_registry
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, get_backend_implementation
+from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException
 from openeo_driver.save_result import SaveResult
@@ -451,6 +452,10 @@ def execute():
         abort(500, "Process graph evaluation gave no result")
     elif isinstance(result, SaveResult):
         return result.create_flask_response()
+    elif isinstance(result, DelayedVector):
+        from shapely.geometry import mapping
+        geojsons = (mapping(geometry) for geometry in result.geometries)
+        return jsonify(list(geojsons))
     else:
         return jsonify(replace_nan_values(result))
 

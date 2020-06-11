@@ -457,6 +457,15 @@ def test_read_vector(api):
         "2015-08-22T00:00:00": [None]
     }
 
+def test_run_udf_on_vector(api100):
+    process_graph = api100.load_json(
+        "run_udf_on_vector.json",
+        preprocess=lambda s: s.replace("PLACEHOLDER", str(get_path("GeometryCollection.geojson")))
+    )
+    resp = api100.check_result(process_graph)
+    print(resp.json)
+    assert len(resp.json) == 2
+    assert resp.json[0]['type'] == 'Polygon'
 
 def test_load_collection_without_spatial_extent_incorporates_read_vector_extent(api):
     process_graph = api.load_json(

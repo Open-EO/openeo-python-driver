@@ -3,6 +3,7 @@
 import base64
 import logging
 import pickle
+import tempfile
 import warnings
 from typing import Dict, Callable
 
@@ -19,6 +20,10 @@ from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveRes
 from openeo_driver.specs import SPECS_ROOT
 from openeo_driver.utils import smart_bool
 from shapely.geometry import shape, mapping
+
+from openeo_udf.api.feature_collection import FeatureCollection
+from openeo_udf.api.run_code import run_user_code
+from openeo_udf.api.udf_data import UdfData
 
 _log = logging.getLogger(__name__)
 
@@ -598,6 +603,31 @@ def merge_cubes(args:dict, viewingParameters:dict) -> ImageCollection:
         resolver_process = next(iter(pg.values()))["process_id"]
     return cube1.merge(cube2, resolver_process)
 
+@process
+def run_udf(args:dict,viewingParameters:dict):
+    data = extract_arg(args,'data')
+    if not isinstance(data,DelayedVector):
+        raise ProcessArgumentInvalidException(
+                argument='data', process='run_udf',
+                reason='The run_udf process can only be used on vector cubes directly, or as part of a callback on a raster-cube! Tried to use: %s' % str(data) )
+
+    from openeo_udf.api.run_code import run_user_code
+
+    udf = _get_udf(args)
+
+    collection = FeatureCollection(id='VectorCollection',data=data.as_geodataframe())
+    data = UdfData(feature_collection_list=[collection] )
+
+    result_data = run_user_code(udf, data)
+    result_collections = result_data.get_feature_collection_list()
+    if(result_collections == None or len(result_collections)!=1):
+        raise ProcessArgumentInvalidException(
+                argument='udf', process='run_udf',
+                reason='The provided UDF should return exactly one feature collection when used in this context, but got: %s .'%str(result_data) )
+
+    with tempfile.NamedTemporaryFile(suffix=".json.tmp", delete=False) as temp_file:
+        result_collections[0].get_data().to_file(temp_file.name, driver='GeoJSON')
+        return DelayedVector(temp_file.name)
 
 @process
 def linear_scale_range(args:dict,viewingParameters:dict) -> ImageCollection:

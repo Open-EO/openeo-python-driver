@@ -48,6 +48,13 @@ class DelayedVector:
 
         return geometries
 
+    def as_geodataframe(self):
+        """
+        Loads the vector collection and returns a geopandas GeoDataFrame.
+        @return:
+        """
+        return gpd.GeoDataFrame(geometry=list(self.geometries))
+
     @property
     def bounds(self) -> (float, float, float, float):
         # FIXME: code duplication

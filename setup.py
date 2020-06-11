@@ -41,7 +41,8 @@ setup(
         'shapely',
         'geopandas==0.3.0',
         'xarray==0.12.3',
-        'netCDF4==1.5.1.2'
+        'netCDF4==1.5.1.2',
+        'openeo_udf>=0.0.9.post0',
     ],
     extras_require={
         "dev": tests_require,
