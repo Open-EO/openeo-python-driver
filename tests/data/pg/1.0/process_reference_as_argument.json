@@ -1,0 +1,40 @@
+{
+  "maskpolygon1": {
+      "arguments": {
+          "data": {
+            "from_node": "loadcollection1"
+          },
+          "mask": {
+            "from_node": "runudf1"
+          }
+      },
+      "process_id": "mask_polygon",
+      "result": "True"
+  },
+  "loadcollection1": {
+      "arguments": {
+          "id": "S2_FAPAR_CLOUDCOVER"
+      },
+      "process_id": "load_collection"
+  },
+  "runudf1": {
+      "arguments": {
+          "data": {
+            "features": [{
+              "geometry": {
+                 "type": "Polygon",
+                 "coordinates": [
+                   [ [100.0, 0.0], [101.0, 0.0], [101.0, 1.0],
+                     [100.0, 1.0], [100.0, 0.0] ]
+                   ]
+               },
+              "type": "Feature"
+            }],
+            "type": "FeatureCollection"
+          },
+          "runtime": "Python",
+          "udf": "def transform_point_into_bbox(data:UdfData): return data"
+      },
+      "process_id": "run_udf"
+  }
+}

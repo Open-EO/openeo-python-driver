@@ -467,6 +467,14 @@ def test_run_udf_on_vector(api100):
     assert len(resp.json) == 2
     assert resp.json[0]['type'] == 'Polygon'
 
+
+def test_process_reference_as_argument(api100):
+    process_graph = api100.load_json(
+        "process_reference_as_argument.json"
+    )
+    resp = api100.check_result(process_graph)
+    print(resp.json)
+
 def test_load_collection_without_spatial_extent_incorporates_read_vector_extent(api):
     process_graph = api.load_json(
         "read_vector_spatial_extent.json",

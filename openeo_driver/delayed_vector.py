@@ -1,3 +1,5 @@
+import tempfile
+
 import fiona
 import geopandas as gpd
 from shapely.geometry import shape
@@ -75,6 +77,12 @@ class DelayedVector:
                     bounds = DelayedVector._read_geojson_bounds(geojson)
 
         return bounds
+
+    @staticmethod
+    def from_json_dict(geojson:dict):
+        with tempfile.NamedTemporaryFile(suffix=".json.tmp", delete=False,mode='w') as temp_file:
+            json.dump(geojson,temp_file.file)
+            return DelayedVector(temp_file.name)
 
     @staticmethod
     def _is_shapefile(path: str) -> bool:

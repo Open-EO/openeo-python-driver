@@ -501,7 +501,7 @@ def mask_polygon(args: dict, ctx: dict) -> ImageCollection:
     mask = extract_arg(args, 'mask')
     replacement = args.get('replacement', None)
     inside = args.get('inside', False)
-    polygon = mask.geometries[0] if isinstance(mask, DelayedVector) else shape(mask)
+    polygon = list(mask.geometries)[0] if isinstance(mask, DelayedVector) else shape(mask)
     if polygon.area == 0:
         reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
         raise ProcessArgumentInvalidException(argument='mask', process='mask', reason=reason)
@@ -607,7 +607,10 @@ def merge_cubes(args:dict, viewingParameters:dict) -> ImageCollection:
 def run_udf(args:dict,viewingParameters:dict):
     data = extract_arg(args,'data')
     if not isinstance(data,DelayedVector):
-        raise ProcessArgumentInvalidException(
+        if isinstance(data, dict):
+            data = DelayedVector.from_json_dict(data)
+        else:
+            raise ProcessArgumentInvalidException(
                 argument='data', process='run_udf',
                 reason='The run_udf process can only be used on vector cubes directly, or as part of a callback on a raster-cube! Tried to use: %s' % str(data) )
 
