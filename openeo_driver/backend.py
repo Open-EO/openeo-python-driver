@@ -12,7 +12,7 @@ Also see https://github.com/Open-EO/openeo-python-driver/issues/8
 import importlib
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Union, NamedTuple, Dict
 
@@ -188,12 +188,27 @@ class BatchJobMetadata(NamedTuple):
     plan = None
     costs = None
     budget = None
+    started: datetime = None
+    finished: datetime = None
+    memory_time_megabyte: timedelta = None
+    cpu_time: timedelta = None
+
+    @property
+    def duration(self) -> timedelta:
+        """Returns the job duration if possible, else None."""
+        return self.finished - self.started if self.started and self.finished else None
 
     def prepare_for_json(self) -> dict:
         """Prepare metadata for JSON serialization"""
         d = self._asdict()
         d["created"] = date_to_rfc3339(self.created) if self.created else None
         d["updated"] = date_to_rfc3339(self.updated) if self.updated else None
+        d["duration_seconds"] = int(round(self.duration.total_seconds())) if self.duration else None
+        d["duration_human_readable"] = str(self.duration) if self.duration else None
+        d["memory_time_megabyte_seconds"] = int(round(self.memory_time_megabyte.total_seconds())) if self.memory_time_megabyte else None
+        d["memory_time_human_readable"] = "{s:.0f} MB-seconds".format(s=self.memory_time_megabyte.total_seconds()) if self.memory_time_megabyte else None
+        d["cpu_time_seconds"] = int(round(self.cpu_time.total_seconds())) if self.cpu_time else None
+        d["cpu_time_human_readable"] = "{s:.0f} cpu-seconds".format(s=self.cpu_time.total_seconds()) if self.cpu_time else None
         return d
 
 

@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import os
 from pathlib import Path
@@ -411,6 +411,16 @@ class TestBatchJobs:
                     status='running',
                     process={'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
                     created=datetime(2017, 1, 1, 9, 32, 12),
+                ),
+                (TEST_USER, '53c71345-09b4-46b4-b6b0-03fd6fe1f199'): BatchJobMetadata(
+                    id='53c71345-09b4-46b4-b6b0-03fd6fe1f199',
+                    status='finished',
+                    process={'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
+                    created=datetime(2020, 6, 11, 11, 51, 29),
+                    started=datetime(2020, 6, 11, 11, 55, 9),
+                    finished=datetime(2020, 6, 11, 11, 55, 15),
+                    memory_time_megabyte=timedelta(seconds=18704944),
+                    cpu_time=timedelta(seconds=1621)
                 )
             }
             yield
@@ -496,6 +506,21 @@ class TestBatchJobs:
             'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}},
         }
 
+    def test_get_job_info_metrics_100(self, api100):
+        resp = api100.get('/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199', headers=self.AUTH_HEADER)
+        assert resp.assert_status_code(200).json == {
+            'id': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
+            'status': 'finished',
+            'created': "2020-06-11T11:51:29Z",
+            'process': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
+            'duration_seconds': 6,
+            'duration_human_readable': "0:00:06",
+            'memory_time_megabyte_seconds': 18704944,
+            'memory_time_human_readable': "18704944 MB-seconds",
+            'cpu_time_seconds': 1621,
+            'cpu_time_human_readable': "1621 cpu-seconds"
+        }
+
     def test_get_job_info_100(self, api100):
         resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc', headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).json == {
@@ -518,6 +543,11 @@ class TestBatchJobs:
                     'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
                     'status': 'running',
                     'submitted': "2017-01-01T09:32:12Z",
+                },
+                {
+                    'id': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
+                    'status': 'finished',
+                    'submitted': "2020-06-11T11:51:29Z"
                 }
             ],
             "links": []
@@ -532,6 +562,11 @@ class TestBatchJobs:
                     'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
                     'status': 'running',
                     'created': "2017-01-01T09:32:12Z",
+                },
+                {
+                    'id': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
+                    'status': 'finished',
+                    'created': "2020-06-11T11:51:29Z"
                 }
             ],
             "links": []
