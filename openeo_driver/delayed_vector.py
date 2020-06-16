@@ -27,9 +27,30 @@ class DelayedVector:
         # TODO: support pathlib too?
         self.path = path
         self._downloaded_shapefile = None
+        self._crs = None
 
     def __str__(self):
         return "DelayedVector({p})".format(p=self.path)
+    
+    @property
+    def crs(self):
+        if self._crs is None:
+            if self.path.startswith("http"):
+                if DelayedVector._is_shapefile(self.path):
+                    local_shp_file = self._download_shapefile(self.path)
+                    self._crs = DelayedVector._read_shapefile_crs(local_shp_file)
+                else:  # it's GeoJSON
+                    geojson = requests.get(self.path).json()
+                    # FIXME: can be cached
+                    self._crs = DelayedVector._read_geojson_crs(geojson)
+            else:  # it's a file on disk
+                if self.path.endswith(".shp"):
+                    self._crs = DelayedVector._read_shapefile_crs(self.path)
+                else:  # it's GeoJSON
+                    with open(self.path, 'r') as f:
+                        geojson = json.load(f)
+                        self._crs = DelayedVector._read_geojson_crs(geojson)
+        return self._crs
 
     @property
     def geometries(self) -> Iterable[BaseGeometry]:
@@ -114,13 +135,16 @@ class DelayedVector:
 
             shx_file = shp_file.replace(".shp", ".shx")
             dbf_file = shp_file.replace(".shp", ".dbf")
+            prj_file = shp_file.replace(".shp", ".prj")
 
             shx_url = shp_url.replace(".shp", ".shx")
             dbf_url = shp_url.replace(".shp", ".dbf")
+            prj_url = shp_url.replace(".shp", ".prj")
 
             save_as(shp_url, shp_file)
             save_as(shx_url, shx_file)
             save_as(dbf_url, dbf_file)
+            save_as(prj_url, prj_file)
         except FileExistsError:
             pass
 
@@ -137,6 +161,16 @@ class DelayedVector:
     def _read_shapefile_bounds(shp_path: str) -> List[BaseGeometry]:
         with fiona.open(shp_path) as collection:
             return collection.bounds
+
+    @staticmethod
+    def _read_shapefile_crs(shp_path: str) -> str:
+        """
+
+        @param shp_path:
+        @return: CRS as a proj4 string
+        """
+        with fiona.open(shp_path) as collection:
+            return collection.crs
 
     @staticmethod
     def _as_geometry_collection(feature_collection: Dict) -> Dict:
@@ -171,3 +205,8 @@ class DelayedVector:
             bounds = geometry.bounds
 
         return tuple(bounds)
+
+    @staticmethod
+    def _read_geojson_crs(geojson: Dict) -> str:
+        #so actually geojson has no crs, it's always lat lon, need to check what gdal does...
+        return "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
