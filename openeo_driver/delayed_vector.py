@@ -163,11 +163,11 @@ class DelayedVector:
             return collection.bounds
 
     @staticmethod
-    def _read_shapefile_crs(shp_path: str) -> str:
+    def _read_shapefile_crs(shp_path: str) -> Dict:
         """
 
         @param shp_path:
-        @return: CRS as a proj4 string
+        @return: CRS as a proj4 dict
         """
         with fiona.open(shp_path) as collection:
             return collection.crs
@@ -207,6 +207,6 @@ class DelayedVector:
         return tuple(bounds)
 
     @staticmethod
-    def _read_geojson_crs(geojson: Dict) -> str:
+    def _read_geojson_crs(geojson: Dict) -> Dict:
         #so actually geojson has no crs, it's always lat lon, need to check what gdal does...
-        return "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
+        return {'init': 'epsg:4326'}
