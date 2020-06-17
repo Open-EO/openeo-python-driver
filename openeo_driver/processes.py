@@ -2,7 +2,7 @@ from collections import namedtuple
 import functools
 import json
 from pathlib import Path
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Tuple
 import warnings
 
 from openeo_driver.errors import ProcessUnsupportedException
@@ -179,3 +179,21 @@ class ProcessRegistry:
         if name not in self._processes or self._processes[name].function is None:
             raise ProcessUnsupportedException(process=name)
         return self._processes[name].function
+
+
+class UserDefinedProcessRegistry:
+    """Registry for user defined processes"""
+
+    def __init__(self):
+        # Starting simple with in-memory mapping of (username, process_id) -> process_spec
+        # TODO: use some persistent storage backend instead of in-memory dict
+        self._processes: Dict[Tuple[str, str], dict] = {}
+
+    def add_udp(self, user_id: str, process_id: str, spec: dict):
+        self._processes[user_id, process_id] = spec
+
+    def has_udp(self, user_id: str, process_id: str) -> bool:
+        return (user_id, process_id) in self._processes
+
+    def get_udp_spec(self, user_id: str, process_id: str) -> dict:
+        return self._processes[user_id, process_id]

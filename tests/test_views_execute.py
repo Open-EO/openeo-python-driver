@@ -8,6 +8,7 @@ from flask.testing import FlaskClient
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.errors import ProcessGraphMissingException
+from openeo_driver.ProcessGraphDeserializer import user_defined_process_registry
 from openeo_driver.testing import load_json, preprocess_check_and_replace
 from openeo_driver.views import app
 
@@ -578,3 +579,21 @@ def test_fuzzy_mask_parent_scope(api100):
 
 def test_fuzzy_mask_add_dim(api):
     api.check_result("fuzzy_mask_add_dim.json")
+
+
+def test_user_defined_process_bbox_mol_basic(api100):
+    bbox_mol_spec = api100.load_json("udp/bbox_mol.json")
+    user_defined_process_registry.add_udp(user_id="todo", process_id="bbox_mol", spec=bbox_mol_spec)
+    api100.check_result("udp_bbox_mol_basic.json")
+    expected_bbox = {
+        "left": 5.05,
+        "bottom": 51.20,
+        "right": 5.10,
+        "top": 51.23,
+        "srs": "EPSG:4326"
+    }
+    assert expected_bbox == {
+        k: api100.collections['S2_FOOBAR'].viewingParameters[k]
+        for k in expected_bbox.keys()
+    }
+

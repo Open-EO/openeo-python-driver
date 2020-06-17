@@ -13,9 +13,10 @@ from openeo.capabilities import ComparableVersion
 from openeo.metadata import MetadataException
 from openeo_driver.backend import get_backend_implementation
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.errors import ProcessUnsupportedException, ProcessParameterRequiredException, \
+from openeo_driver.errors import ProcessParameterRequiredException, \
     ProcessParameterInvalidException
-from openeo_driver.processes import ProcessRegistry, ProcessSpec
+from openeo_driver.errors import ProcessUnsupportedException
+from openeo_driver.processes import ProcessRegistry, ProcessSpec, UserDefinedProcessRegistry
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
 from openeo_driver.specs import SPECS_ROOT
 from openeo_driver.utils import smart_bool
@@ -28,6 +29,8 @@ _log = logging.getLogger(__name__)
 # Set up process registries (version dependent)
 process_registry_040 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/0.4')
 process_registry_100 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/1.0')
+
+user_defined_process_registry = UserDefinedProcessRegistry()
 
 # Bootstrap with some mathematical/logical processes
 process_registry_040.add_spec_by_name(
@@ -729,6 +732,9 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         dimension = viewingParameters.get('dimension', None)
         dimension, _, _ = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         return image_collection.aggregate_temporal(intervals, labels, process_id, dimension)
+    if user_defined_process_registry.has_udp(user_id="todo", process_id=process_id):
+        spec = user_defined_process_registry.get_udp_spec(user_id="todo", process_id=process_id)
+        return evaluate_udp(spec, args, viewingParameters)
     else:
         process_registry = get_process_registry(ComparableVersion(viewingParameters["version"]))
         process_function = process_registry.get_function(process_id)
@@ -774,3 +780,10 @@ def _as_geometry_collection(feature_collection: dict) -> dict:
         'type': 'GeometryCollection',
         'geometries': geometries
     }
+
+
+def evaluate_udp(spec: dict, args: dict, viewingParameters: dict):
+    pg = spec["process_graph"]
+    for param in spec["parameters"]:
+        viewingParameters[param["name"]] = args[param["name"]]
+    return evaluate(pg, viewingParameters=viewingParameters)

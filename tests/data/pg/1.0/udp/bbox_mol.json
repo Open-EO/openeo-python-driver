@@ -1,0 +1,40 @@
+{
+  "id": "bbox_mol",
+  "summary": "Filter spatially with bounding box around Mol",
+  "description": "Filter spatially with bounding box around Mol",
+  "parameters": [
+    {
+      "name": "data",
+      "description": "A data cube.",
+      "schema": {
+        "type": "object",
+        "subtype": "raster-cube"
+      }
+    }
+  ],
+  "returns": {
+    "description": "filtered datacube",
+    "schema": {
+      "type": "object",
+      "subtype": "raster-cube"
+    }
+  },
+  "process_graph": {
+    "bboxmol1": {
+      "process_id": "filter_bbox",
+      "arguments": {
+        "data": {
+          "from_parameter": "data"
+        },
+        "extent": {
+          "west": 5.05,
+          "south": 51.20,
+          "east": 5.10,
+          "north": 51.23,
+          "crs": "EPSG:4326"
+        }
+      },
+      "result": true
+    }
+  }
+}
