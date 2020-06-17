@@ -76,7 +76,7 @@ class DelayedVector:
         Loads the vector collection and returns a geopandas GeoDataFrame.
         @return:
         """
-        return gpd.GeoDataFrame(geometry=list(self.geometries))
+        return gpd.GeoDataFrame(geometry=list(self.geometries),crs=self.crs)
 
     @property
     def bounds(self) -> (float, float, float, float):
