@@ -18,7 +18,6 @@ from shapely.geometry.collection import GeometryCollection
 
 DEFAULT_DATETIME = datetime(2020, 4, 23, 16, 20, 27)
 
-
 # TODO: eliminate this global state with proper pytest fixture usage
 collections = {}
 
@@ -349,7 +348,11 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
         return [
             OidcProvider(id="testprovider", issuer="https://oidc.oeo.net", scopes=["openid"], title="Test"),
             OidcProvider(id="gogol", issuer="https://acc.gog.ol", scopes=["openid"], title="Gogol"),
-            # OidcProvider(id="local", issuer="http://localhost:9090/auth/realms/test", scopes=["openid"], title="Local Keycloak"),
+            # Allow testing with Keycloak setup running in docker on localhost.
+            OidcProvider(
+                id="local", title="Local Keycloak",
+                issuer="http://localhost:9090/auth/realms/master", scopes=["openid"],
+            ),
         ]
 
     def file_formats(self) -> dict:
