@@ -419,13 +419,6 @@ def result():
     return execute()
 
 
-@api_endpoint(version=ComparableVersion("0.3.1").or_lower)
-@openeo_bp.route('/preview', methods=['GET', 'POST'])
-def preview():
-    # TODO: is this an old endpoint/shortcut or a custom extension of the API?
-    return execute()
-
-
 @openeo_bp.route('/execute', methods=['POST'])
 def execute():
     # TODO:  This is not an official endpoint, does this "/execute" still have to be exposed as route?
