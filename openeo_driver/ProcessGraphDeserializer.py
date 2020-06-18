@@ -667,44 +667,24 @@ def histogram(_args, _viewingParameters) -> None:
 def apply_process(process_id: str, args: Dict, viewingParameters):
     parent_process = viewingParameters.get('parent_process')
 
-    if 'filter_daterange' == process_id or 'filter_temporal' == process_id:
-        """
-        filter_daterange <= pre 0.3.x
-        filter_temporal >= 0.4.x
-        """
-        # TODO `viewingParameters` is function argument, but written to/manipulated (used as some kind of state object)
-        #       which is not obvious and confusing when debugging
-        viewingParameters = viewingParameters or {}
+    viewingParameters = viewingParameters or {}
 
-        if 'extent' in args:
-            #version >= 0.4
-            extent = args['extent']
-            if len(extent) != 2:
-                raise AttributeError("extent property should be an array of length 2, but got: " + str(extent))
-            viewingParameters["from"] = extent[0]
-            viewingParameters["to"] = extent[1]
-        else:
-            viewingParameters["from"] = extract_arg(args,"from")
-            viewingParameters["to"] = extract_arg(args,"to")
+    if 'filter_temporal' == process_id:
+        extent = args['extent']
+        if len(extent) != 2:
+            raise ProcessArgumentInvalidException(
+                process=process_id, argument="extent", reason="should have length 2, but got {e!r}".format(e=extent)
+            )
+        viewingParameters["from"] = extent[0]
+        viewingParameters["to"] = extent[1]
     elif 'filter_bbox' == process_id:
-        viewingParameters = viewingParameters or {}
-        if "left" in args:
-            # <=0.3.x
-            viewingParameters["left"] = extract_arg(args,"left")
-            viewingParameters["right"] = extract_arg(args,"right")
-            viewingParameters["top"] = extract_arg(args,"top")
-            viewingParameters["bottom"] = extract_arg(args,"bottom")
-            viewingParameters["srs"] = extract_arg(args,"srs")
-        else:
-            extent = args
-            if "extent" in args:
-                extent = args["extent"]
-            # >=0.4.x
-            viewingParameters["left"] = extract_arg(extent, "west")
-            viewingParameters["right"] = extract_arg(extent, "east")
-            viewingParameters["top"] = extract_arg(extent, "north")
-            viewingParameters["bottom"] = extract_arg(extent, "south")
-            viewingParameters["srs"] = extent.get("crs") or "EPSG:4326"
+        # TODO: change everything to west, south, east, north, crs for uniformity (or even encapsulate in a bbox tuple?)
+        extent = args["extent"]
+        viewingParameters["left"] = extract_arg(extent, "west")
+        viewingParameters["right"] = extract_arg(extent, "east")
+        viewingParameters["top"] = extract_arg(extent, "north")
+        viewingParameters["bottom"] = extract_arg(extent, "south")
+        viewingParameters["srs"] = extent.get("crs", "EPSG:4326")
     elif process_id in ['zonal_statistics', 'aggregate_polygon', 'aggregate_spatial']:
         shapes = extract_arg_list(args, ['regions', 'polygons', 'geometries'])
 
@@ -727,7 +707,6 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             args['polygons'] = polygons  # might as well cache the value instead of re-evaluating it further on
 
     elif 'filter_bands' == process_id:
-        viewingParameters = viewingParameters or {}
         viewingParameters["bands"] = extract_arg(args, "bands")
     elif 'apply' == parent_process:
         if "data" in viewingParameters:
