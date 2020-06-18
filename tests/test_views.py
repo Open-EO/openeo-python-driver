@@ -498,7 +498,7 @@ class TestBatchJobs:
     def test_start_job_invalid(self, api):
         resp = api.post('/jobs/deadbeef-f00/results', headers=self.AUTH_HEADER)
         resp.assert_error(404, "JobNotFound")
-        assert resp.json["message"] == "The job 'deadbeef-f00' does not exist."
+        assert resp.json["message"] == "The batch job 'deadbeef-f00' does not exist."
 
     def test_get_job_info_040(self, api040):
         resp = api040.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc', headers=self.AUTH_HEADER)
@@ -535,7 +535,7 @@ class TestBatchJobs:
 
     def test_get_job_info_invalid(self, api):
         resp = api.get('/jobs/deadbeef-f00', headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
-        assert resp.json["message"] == "The job 'deadbeef-f00' does not exist."
+        assert resp.json["message"] == "The batch job 'deadbeef-f00' does not exist."
 
     def test_list_user_jobs_040(self, api040):
         with self._fresh_job_registry(next_job_id="job-318"):

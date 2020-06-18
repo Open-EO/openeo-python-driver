@@ -13,17 +13,15 @@ from openeo.capabilities import ComparableVersion
 from openeo.metadata import MetadataException
 from openeo_driver.backend import get_backend_implementation
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.errors import ProcessArgumentInvalidException, ProcessUnsupportedException, \
-    ProcessArgumentRequiredException, ProcessParameterMissingException
+from openeo_driver.errors import ProcessUnsupportedException, ProcessParameterRequiredException, \
+    ProcessParameterInvalidException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
 from openeo_driver.specs import SPECS_ROOT
 from openeo_driver.utils import smart_bool
-from shapely.geometry import shape, mapping
-
 from openeo_udf.api.feature_collection import FeatureCollection
-from openeo_udf.api.run_code import run_user_code
 from openeo_udf.api.udf_data import UdfData
+from shapely.geometry import shape, mapping
 
 _log = logging.getLogger(__name__)
 
@@ -179,7 +177,7 @@ def convert_node(processGraph: dict, viewingParameters=None):
             try:
                 return viewingParameters[processGraph['from_parameter']]
             except KeyError:
-                raise ProcessParameterMissingException(parameter=processGraph['from_parameter'])
+                raise ProcessParameterRequiredException(process="n/a", parameter=processGraph['from_parameter'])
         elif 'from_argument' in processGraph:
             # 0.4-style argument referencer (equivalent with 1.0-style "from_parameter")
             argument_reference = processGraph.get('from_argument')
@@ -200,7 +198,7 @@ def extract_arg(args: dict, name: str):
     except KeyError:
         # TODO: find out process id for proper error message?
         # TODO: automate argument extraction directly from process spec instead of these exract_* functions?
-        raise ProcessArgumentRequiredException(process='n/a', argument=name)
+        raise ProcessParameterRequiredException(process='n/a', parameter=name)
 
 
 def extract_arg_list(args: dict, names: list):
@@ -209,7 +207,7 @@ def extract_arg_list(args: dict, names: list):
         if name in args:
             return args[name]
     # TODO: find out process id for proper error message?
-    raise ProcessArgumentRequiredException(process='n/a', argument=str(names))
+    raise ProcessParameterRequiredException(process='n/a', parameter=str(names))
 
 
 def extract_deep(args: dict, *steps):
@@ -226,7 +224,7 @@ def extract_deep(args: dict, *steps):
                 break
         else:
             # TODO: find out process id for proper error message?
-            raise ProcessArgumentRequiredException(process='n/a', argument=step)
+            raise ProcessParameterInvalidException(process="n/a", parameter=steps[0], reason=step)
     return value
 
 
@@ -413,8 +411,8 @@ def _check_dimension(cube: ImageCollection, dim: str, process: str):
                          " but actual temporal dimension name is {n!r}".format(d=dim, n=temporal_dim))
             dim = temporal_dim
         else:
-            raise ProcessArgumentInvalidException(
-                argument="dimension", process=process,
+            raise ProcessParameterInvalidException(
+                parameter="dimension", process=process,
                 reason="got {d!r}, but should be one of {n!r}".format(d=dim, n=metadata.dimension_names()))
 
     return dim, band_dim, temporal_dim
@@ -483,7 +481,7 @@ def mask(args: dict, viewingParameters) -> ImageCollection:
         polygon = mask.geometries[0] if isinstance(mask, DelayedVector) else shape(mask)
         if polygon.area == 0:
             reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
-            raise ProcessArgumentInvalidException(argument='mask', process='mask', reason=reason)
+            raise ProcessParameterInvalidException(argument='mask', process='mask', reason=reason)
         image_collection = cube.mask_polygon(mask=polygon, replacement=replacement)
     return image_collection
 
@@ -504,7 +502,7 @@ def mask_polygon(args: dict, ctx: dict) -> ImageCollection:
     polygon = list(mask.geometries)[0] if isinstance(mask, DelayedVector) else shape(mask)
     if polygon.area == 0:
         reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
-        raise ProcessArgumentInvalidException(argument='mask', process='mask', reason=reason)
+        raise ProcessParameterInvalidException(argument='mask', process='mask', reason=reason)
     image_collection = extract_arg(args, 'data').mask_polygon(mask=polygon, replacement=replacement, inside=inside)
     return image_collection
 
@@ -597,7 +595,7 @@ def merge_cubes(args:dict, viewingParameters:dict) -> ImageCollection:
     if overlap_resolver:
         pg = extract_arg_list(overlap_resolver, ["process_graph", "callback"])
         if len(pg) != 1:
-            raise ProcessArgumentInvalidException(
+            raise ProcessParameterInvalidException(
                 argument='overlap_resolver', process='merge_cubes',
                 reason='This backend only supports overlap resolvers with exactly one process for now.')
         resolver_process = next(iter(pg.values()))["process_id"]
@@ -610,7 +608,7 @@ def run_udf(args:dict,viewingParameters:dict):
         if isinstance(data, dict):
             data = DelayedVector.from_json_dict(data)
         else:
-            raise ProcessArgumentInvalidException(
+            raise ProcessParameterInvalidException(
                 argument='data', process='run_udf',
                 reason='The run_udf process can only be used on vector cubes directly, or as part of a callback on a raster-cube! Tried to use: %s' % str(data) )
 
@@ -624,7 +622,7 @@ def run_udf(args:dict,viewingParameters:dict):
     result_data = run_user_code(udf, data)
     result_collections = result_data.get_feature_collection_list()
     if(result_collections == None or len(result_collections)!=1):
-        raise ProcessArgumentInvalidException(
+        raise ProcessParameterInvalidException(
                 argument='udf', process='run_udf',
                 reason='The provided UDF should return exactly one feature collection when used in this context, but got: %s .'%str(result_data) )
 
@@ -672,7 +670,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
     if 'filter_temporal' == process_id:
         extent = args['extent']
         if len(extent) != 2:
-            raise ProcessArgumentInvalidException(
+            raise ProcessParameterInvalidException(
                 process=process_id, argument="extent", reason="should have length 2, but got {e!r}".format(e=extent)
             )
         viewingParameters["from"] = extent[0]

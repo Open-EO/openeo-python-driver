@@ -161,7 +161,7 @@ def test_execute_apply_unary_invalid_from_parameter(api100):
         preprocess=preprocess_check_and_replace('"from_parameter": "x"', '"from_parameter": "1nv8l16"')
     )
     resp = api100.post("/result", json=api100.get_process_graph_dict(pg))
-    resp.assert_error(400, "ProcessParameterMissing")
+    resp.assert_error(400, "ProcessParameterRequired")
 
 
 def test_execute_apply_run_udf(api):
@@ -195,8 +195,8 @@ def test_reduce_temporal_run_udf_invalid_dimension(api):
     )
     resp = api.post("/result", json=api.get_process_graph_dict(pg))
     resp.assert_error(
-        400, "ProcessArgumentInvalid",
-        message="The argument 'dimension' in process '{p}' is invalid: got 'tempo', but should be one of ['x', 'y', 't']".format(
+        400, "ProcessParameterInvalid",
+        message="The value passed for parameter 'dimension' in process '{p}' is invalid: got 'tempo', but should be one of ['x', 'y', 't']".format(
             p="reduce_dimension" if api.api_version_compare.at_least("1.0.0") else "reduce"
         )
     )
@@ -228,8 +228,8 @@ def test_reduce_bands_run_udf_invalid_dimension(api):
     )
     resp = api.post("/result", json=api.get_process_graph_dict(pg))
     resp.assert_error(
-        400, 'ProcessArgumentInvalid',
-        message="The argument 'dimension' in process '{p}' is invalid: got 'layers', but should be one of ['x', 'y', 't', 'bands']".format(
+        400, 'ProcessParameterInvalid',
+        message="The value passed for parameter 'dimension' in process '{p}' is invalid: got 'layers', but should be one of ['x', 'y', 't', 'bands']".format(
             p="reduce_dimension" if api.api_version_compare.at_least("1.0.0") else "reduce"
         )
     )
@@ -259,8 +259,8 @@ def test_apply_dimension_temporal_run_udf_invalid_temporal_dimension(api):
     )
     resp = api.post("/result", json=api.get_process_graph_dict(pg))
     resp.assert_error(
-        400, 'ProcessArgumentInvalid',
-        message="The argument 'dimension' in process 'apply_dimension' is invalid: got 'letemps', but should be one of ['x', 'y', 't']"
+        400, 'ProcessParameterInvalid',
+        message="The value passed for parameter 'dimension' in process 'apply_dimension' is invalid: got 'letemps', but should be one of ['x', 'y', 't']"
     )
 
 
@@ -283,8 +283,8 @@ def test_reduce_max_invalid_dimension(api):
     pg = api.load_json("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "orbit"))
     res = api.post("/result", json=api.get_process_graph_dict(pg))
     res.assert_error(
-        400, 'ProcessArgumentInvalid',
-        message="The argument 'dimension' in process '{p}' is invalid: got 'orbit', but should be one of ['x', 'y', 't', 'bands']".format(
+        400, 'ProcessParameterInvalid',
+        message="The value passed for parameter 'dimension' in process '{p}' is invalid: got 'orbit', but should be one of ['x', 'y', 't', 'bands']".format(
             p="reduce_dimension" if api.api_version_compare.at_least("1.0.0") else "reduce"
         )
     )
@@ -334,8 +334,8 @@ def test_reduce_bands_invalid_dimension(api):
     )
     res = api.post("/result", json=api.get_process_graph_dict(pg))
     res.assert_error(
-        400, "ProcessArgumentInvalid",
-        message="The argument 'dimension' in process '{p}' is invalid: got 'layor', but should be one of ['x', 'y', 't', 'bands']".format(
+        400, "ProcessParameterInvalid",
+        message="The value passed for parameter 'dimension' in process '{p}' is invalid: got 'layor', but should be one of ['x', 'y', 't', 'bands']".format(
             p="reduce_dimension" if api.api_version_compare.at_least("1.0.0") else "reduce"
         )
     )
@@ -384,8 +384,8 @@ def test_aggregate_temporal_max_invalid_temporal_dimension(api):
     )
     resp = api.post(path="/result", json=api.get_process_graph_dict(pg))
     resp.assert_error(
-        400, 'ProcessArgumentInvalid',
-        message="The argument 'dimension' in process 'aggregate_temporal' is invalid: got 'detijd', but should be one of ['x', 'y', 't']"
+        400, 'ProcessParameterInvalid',
+        message="The value passed for parameter 'dimension' in process 'aggregate_temporal' is invalid: got 'detijd', but should be one of ['x', 'y', 't']"
     )
 
 

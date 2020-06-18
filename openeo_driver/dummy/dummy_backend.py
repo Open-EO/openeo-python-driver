@@ -301,7 +301,7 @@ class DummyBatchJobs(BatchJobs):
         try:
             return self._job_registry[(user_id, job_id)]
         except KeyError:
-            raise JobNotFoundException(job_id=job_id)
+            raise JobNotFoundException(job_id)
 
     def get_user_jobs(self, user_id: str) -> List[BatchJobMetadata]:
         return [v for (k, v) in self._job_registry.items() if k[0] == user_id]
@@ -311,7 +311,7 @@ class DummyBatchJobs(BatchJobs):
         try:
             cls._job_registry[(user_id, job_id)] = cls._job_registry[(user_id, job_id)]._replace(status=status)
         except KeyError:
-            raise JobNotFoundException(job_id=job_id)
+            raise JobNotFoundException(job_id)
 
     def start_job(self, job_id: str, user_id: str):
         self._update_status(job_id=job_id, user_id=user_id, status="running")

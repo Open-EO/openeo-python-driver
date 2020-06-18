@@ -59,12 +59,14 @@ def test_error_code(error_code):
     If there is an implementation (or multiple): check correctness (status code, ...)
     """
     spec_helper = OpenEOApiErrorSpecHelper()
-    error_spec = spec_helper.get(error_code)
+
     exceptions = get_defined_exceptions().get(error_code, [])
     if len(exceptions) == 0:
         print('Suggested implementation:')
         print(spec_helper.generate_exception_class(error_code))
         raise Exception("No implemented exception class for error code {e!r}".format(e=error_code))
+
+    error_spec = spec_helper.get(error_code)
     for exception_cls in exceptions:
         # Check that OpenEO error code is in exception class name. # TODO: is this really necessary?
         assert error_code.lower() in exception_cls.__name__.lower()
@@ -74,10 +76,7 @@ def test_error_code(error_code):
         placeholders_spec = spec_helper.extract_placeholders(error_spec["message"])
         placeholders_actual = spec_helper.extract_placeholders(exception_cls.message)
         assert placeholders_spec == placeholders_actual
-        if exception_cls.message != error_spec["message"]:
-            warnings.warn("Exception class {e}: message field {m!r} is different from spec {s!r}".format(
-                e=exception_cls.__name__, m=exception_cls.message, s=error_spec["message"]
-            ))
+        assert exception_cls.message == error_spec["message"]
         using_default_init = exception_cls.__init__ is OpenEOApiException.__init__
         if placeholders_actual and using_default_init:
             raise Exception("Exception class {c} has placeholder in message but no custom __init__".format(

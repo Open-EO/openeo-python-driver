@@ -100,9 +100,7 @@ class SecondaryServices(MicroService):
         from openeo_driver.ProcessGraphDeserializer import evaluate
         # TODO require auth/user handle?
         if service_type.lower() not in set(st.lower() for st in self.service_types()):
-            raise ServiceUnsupportedException(
-                message="Secondary service type {t!r} is not supported.".format(t=service_type),
-            )
+            raise ServiceUnsupportedException(service_type)
 
         image_collection = evaluate(process_graph, viewingParameters={'version': api_version, 'pyramid_levels': 'all'})
         service_metadata = image_collection.tiled_viewing_service(
@@ -149,7 +147,7 @@ class CollectionCatalog(MicroService):
         try:
             return self._catalog[collection_id]
         except KeyError:
-            raise CollectionNotFoundException(collection_id=collection_id)
+            raise CollectionNotFoundException(collection_id)
 
     def get_collection_metadata(self, collection_id: str) -> dict:
         """

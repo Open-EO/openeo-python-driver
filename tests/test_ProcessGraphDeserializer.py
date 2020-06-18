@@ -1,7 +1,6 @@
 import pytest
-
-from openeo_driver.errors import ProcessArgumentRequiredException
 from openeo_driver.ProcessGraphDeserializer import extract_deep
+from openeo_driver.errors import ProcessParameterInvalidException
 
 
 def test_extract_deep():
@@ -24,5 +23,5 @@ def test_extract_deep():
     assert extract_deep(args, "axes", "x", ["wut", "orientation", "dir"]) == "horizontal"
     assert extract_deep(args, "axes", "x", ["wut", "dir", "orientation"]) == "hor"
 
-    with pytest.raises(ProcessArgumentRequiredException):
+    with pytest.raises(ProcessParameterInvalidException):
         extract_deep(args, "data", "lol")
