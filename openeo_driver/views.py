@@ -32,9 +32,6 @@ ApiVersionInfo = namedtuple("ApiVersionInfo", ["version", "supported", "wellknow
 
 # Available OpenEO API versions: map of URL version component to API version info
 API_VERSIONS = {
-    "0.3.0": ApiVersionInfo(version="0.3.0", supported=False, wellknown=False, production=False),
-    "0.3.1": ApiVersionInfo(version="0.3.1", supported=False, wellknown=False, production=False),
-    "0.3": ApiVersionInfo(version="0.3.1", supported=False, wellknown=False, production=False),
     "0.4.0": ApiVersionInfo(version="0.4.0", supported=True, wellknown=False, production=True),
     "0.4.1": ApiVersionInfo(version="0.4.1", supported=True, wellknown=False, production=True),
     "0.4.2": ApiVersionInfo(version="0.4.2", supported=True, wellknown=False, production=True),
@@ -611,8 +608,6 @@ def cancel_job(job_id, user: User):
     backend_implementation.batch_jobs.cancel_job(job_id=job_id, user_id=user.user_id)
     return make_response("", 204)
 
-#SERVICES API https://open-eo.github.io/openeo-api/v/0.3.0/apireference/#tag/Web-Service-Management
-
 
 @api_endpoint
 @openeo_bp.route('/service_types', methods=['GET'])
@@ -637,7 +632,6 @@ def services_post():
     Create a secondary web service such as WMTS, TMS or WCS. The underlying data is processes on-demand, but a process graph may simply access results from a batch job. Computations should be performed in the sense that it is only evaluated for the requested spatial / temporal extent and resolution.
 
     Note: Costs incurred by shared secondary web services are usually paid by the owner, but this depends on the service type and whether it supports charging fees or not.
-    https://open-eo.github.io/openeo-api/v/0.3.0/apireference/#tag/Secondary-Services-Management/paths/~1services/post
 
     :return:
     """
