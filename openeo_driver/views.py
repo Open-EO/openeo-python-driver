@@ -285,16 +285,6 @@ def health():
     })
 
 
-@api_endpoint(version=ComparableVersion("0.3.1").or_lower)
-@openeo_bp.route('/capabilities')
-def capabilities():
-    return jsonify([
-      "/data",
-      "/execute",
-      "/processes"
-    ])
-
-
 @api_endpoint(version=ComparableVersion("1.0.0").accept_lower)
 @openeo_bp.route('/output_formats')
 def output_formats():
