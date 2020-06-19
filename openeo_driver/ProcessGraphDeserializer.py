@@ -228,13 +228,6 @@ def extract_deep(args: dict, *steps):
     return value
 
 
-# TODO deprecated process
-@deprecated_process
-def get_collection(args: Dict, viewingParameters) -> ImageCollection:
-    name = extract_arg(args,'name')
-    return backend_implementation.catalog.load_collection(name, viewingParameters)
-
-
 @process
 def load_collection(args: Dict, viewingParameters) -> ImageCollection:
     name = extract_arg(args,'id')
