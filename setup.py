@@ -18,7 +18,9 @@ version = __version__
 tests_require = [
     'pytest',
     'mock',
-    'requests-mock'
+    'requests-mock',
+    'pylint>=2.5.0',
+    'astroid>=2.4.0',
 ]
 
 setup(
