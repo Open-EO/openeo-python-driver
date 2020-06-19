@@ -60,7 +60,7 @@ class ServiceMetadata(NamedTuple):
 
     def prepare_for_json(self) -> dict:
         """Prepare metadata for JSON serialization"""
-        d = self._asdict()
+        d = self._asdict()  # pylint: disable=no-member
         d["created"] = date_to_rfc3339(self.created) if self.created else None
         return d
 
@@ -198,7 +198,7 @@ class BatchJobMetadata(NamedTuple):
 
     def prepare_for_json(self) -> dict:
         """Prepare metadata for JSON serialization"""
-        d = self._asdict()
+        d = self._asdict()  # pylint: disable=no-member
         d["created"] = date_to_rfc3339(self.created) if self.created else None
         d["updated"] = date_to_rfc3339(self.updated) if self.updated else None
         d["duration_seconds"] = int(round(self.duration.total_seconds())) if self.duration else None

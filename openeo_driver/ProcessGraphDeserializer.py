@@ -425,8 +425,8 @@ def aggregate_spatial(args: dict, ctx: dict) -> ImageCollection:
     return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_spatial', version=ctx["version"])
 
 
-@process_registry_040.add_function
-def mask(args: dict, viewingParameters) -> ImageCollection:
+@process_registry_040.add_function(name="mask")
+def mask_04(args: dict, viewingParameters) -> ImageCollection:
     mask = extract_arg(args, 'mask')
     replacement = args.get('replacement', None)
     cube = extract_arg(args, 'data')

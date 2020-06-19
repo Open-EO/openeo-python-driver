@@ -3,9 +3,7 @@ Reusable helpers and fixtures for testing
 """
 import json
 from pathlib import Path
-import re
-from typing import Union, Callable
-import typing.re
+from typing import Union, Callable, Pattern
 
 from flask import Response
 from flask.testing import FlaskClient
@@ -105,7 +103,7 @@ class ApiResponse:
             ))
         return self
 
-    def assert_substring(self, key, expected: Union[str, typing.re.Pattern]):
+    def assert_substring(self, key, expected: Union[str, Pattern]):
         actual = self.json[key]
         if isinstance(expected, str):
             if expected in actual:
@@ -115,7 +113,7 @@ class ApiResponse:
         raise ApiException("Expected {e!r} at {k!r}, but got {a!r}".format(e=expected, k=key, a=actual))
 
     def assert_error(self, status_code: int, error_code: str,
-                     message: Union[str, typing.re.Pattern] = None) -> 'ApiResponse':
+                     message: Union[str, Pattern] = None) -> 'ApiResponse':
         resp = self.assert_status_code(status_code).assert_error_code(error_code)
         if message:
             resp.assert_substring("message", message)

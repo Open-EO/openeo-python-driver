@@ -126,13 +126,17 @@ class ProcessRegistry:
         for name in set(names):
             self.add_spec(self.load_predefined_spec(name))
 
-    def add_function(self, f: Callable, name: str = None, spec: dict = None) -> Callable:
+    def add_function(self, f: Callable=None, name: str = None, spec: dict = None) -> Callable:
         """
         Register the process corresponding with given function.
         Process name can be specified explicitly, otherwise the function name will be used.
         Process spec can be specified explicitly, otherwise it will be derived from function name.
         Can be used as function decorator.
         """
+        if f is None:
+            # Called as parameterized decorator
+            return functools.partial(self.add_function, name=name, spec=spec)
+
         # TODO check if function arguments correspond with spec
         self.add_process(
             name=name or f.__name__,

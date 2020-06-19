@@ -117,6 +117,22 @@ def test_process_registry_add_function():
     assert reg.get_function('max') is max
 
 
+def test_process_registry_add_function_other_name():
+    reg = ProcessRegistry()
+
+    @reg.add_function(name="max")
+    def madmax(*args):
+        return max(*args)
+
+    assert set(reg._processes.keys()) == {"max"}
+    spec = reg.get_spec('max')
+    assert spec['id'] == 'max'
+    assert 'largest value' in spec['description']
+    assert all(k in spec for k in ['parameters', 'returns'])
+
+    assert reg.get_function('max') is madmax
+
+
 def test_process_registry_with_spec_040():
     reg = ProcessRegistry()
 

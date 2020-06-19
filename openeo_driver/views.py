@@ -160,6 +160,9 @@ def response_204_no_content():
     return make_response('', 204, {"Content-Type": "application/json"})
 
 
+EndpointMetadata = namedtuple("EndpointMetadata", ["hidden", "for_version"])
+
+
 class EndpointRegistry:
     """
     Registry of OpenEO API endpoints, to be used as decorator with flask view functions.
@@ -168,14 +171,13 @@ class EndpointRegistry:
     the OpenEO API endpoints listing in the "capabilities" endpoint.
     """
 
-    EndpointMetadata = namedtuple("EndpointMetadata", ["hidden", "for_version"])
 
     def __init__(self):
         self._endpoints = {}
 
     def add_endpoint(self, view_func: Callable, hidden=False, version: Callable = None):
         """Register endpoint metadata"""
-        self._endpoints[view_func.__name__] = self.EndpointMetadata(hidden=hidden, for_version=version)
+        self._endpoints[view_func.__name__] = EndpointMetadata(hidden=hidden, for_version=version)
         return view_func
 
     def __call__(self, view_func: Callable = None, *, hidden=False, version: Callable = None):
@@ -861,6 +863,3 @@ def well_known_openeo():
     })
 
 
-@app.route("/", methods=["GET"])
-def index():
-    return flask.redirect(url_for('openeo.index', version=DEFAULT_VERSION, _external=True))
