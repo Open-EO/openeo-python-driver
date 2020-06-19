@@ -286,7 +286,7 @@ def apply_pixel(args: Dict, viewingParameters) -> ImageCollection:
     function = extract_arg(args,'function')
     bands = extract_arg(args,'bands')
     decoded_function = pickle.loads(base64.standard_b64decode(function))
-    return extract_arg_list(args, ['data','imagery']).apply_pixel(bands, decoded_function)
+    return extract_arg(args, 'data').apply_pixel(bands, decoded_function)
 
 
 @process
@@ -320,7 +320,7 @@ def save_result(args: Dict, viewingParameters) -> SaveResult:
 @deprecated_process
 def apply_tiles(args: Dict, viewingParameters) -> ImageCollection:
     function = extract_arg(args,'code')
-    return extract_arg_list(args, ['data','imagery']).apply_tiles(function['source'])
+    return extract_arg(args, 'data').apply_tiles(function['source'])
 
 
 @process
@@ -347,7 +347,7 @@ def reduce(args: dict, ctx: dict) -> ImageCollection:
     reduce_pg = extract_deep(args, "reducer", ["process_graph", "callback"])
     dimension = extract_arg(args, 'dimension')
     binary = smart_bool(args.get('binary', False))
-    data_cube = extract_arg_list(args, ['data', 'imagery'])
+    data_cube = extract_arg(args, 'data')
 
     # TODO: avoid special case handling for run_udf?
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce")
@@ -455,26 +455,11 @@ def aggregate_spatial(args: dict, ctx: dict) -> ImageCollection:
     return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_spatial', version=ctx["version"])
 
 
-# TODO deprecated process
-@deprecated_process
-def reduce_by_time( args:Dict, viewingParameters)->ImageCollection:
-    """
-    Deprecated, use aggregate_temporal
-    :param args:
-    :param viewingParameters:
-    :return:
-    """
-    function = extract_arg(args,'function')
-    temporal_window = extract_arg(args,'temporal_window')
-    decoded_function = pickle.loads(base64.standard_b64decode(function))
-    return extract_arg(args, 'imagery').aggregate_time(temporal_window, decoded_function)
-
-
 @process_registry_040.add_function
 def mask(args: dict, viewingParameters) -> ImageCollection:
     mask = extract_arg(args, 'mask')
     replacement = args.get('replacement', None)
-    cube = extract_arg_list(args, ['data', 'imagery'])
+    cube = extract_arg(args, 'data')
     if isinstance(mask, ImageCollection):
         image_collection = cube.mask(mask=mask, replacement=replacement)
     else:
@@ -507,16 +492,6 @@ def mask_polygon(args: dict, ctx: dict) -> ImageCollection:
     return image_collection
 
 
-# TODO deprecated process
-@deprecated_process
-def filter_daterange(args: Dict, viewingParameters) -> ImageCollection:
-    #for now we take care of this filtering in 'viewingParameters'
-    #from_date = extract_arg(args,'from')
-    #to_date = extract_arg(args,'to')
-    image_collection = extract_arg(args, 'imagery')
-    return image_collection
-
-
 @process
 def filter_temporal(args: Dict, viewingParameters) -> ImageCollection:
     # Note: the temporal range is already extracted in `apply_process` and applied in `GeoPySparkLayerCatalog.load_collection` through the viewingParameters
@@ -527,21 +502,21 @@ def filter_temporal(args: Dict, viewingParameters) -> ImageCollection:
 @process
 def filter_bbox(args: Dict, viewingParameters) -> ImageCollection:
     # Note: the bbox is already extracted in `apply_process` and applied in `GeoPySparkLayerCatalog.load_collection` through the viewingParameters
-    image_collection = extract_arg_list(args, ['data','imagery'])
+    image_collection = extract_arg(args, 'data')
     return image_collection
 
 
 @process
 def filter_bands(args: Dict, viewingParameters) -> ImageCollection:
     # Note: the bands are already extracted in `apply_process` and applied in `GeoPySparkLayerCatalog.load_collection` through the viewingParameters
-    image_collection = extract_arg_list(args, ['data','imagery'])
+    image_collection = extract_arg(args, 'data')
     return image_collection
 
 
 # TODO deprecated process?
 @deprecated_process
 def zonal_statistics(args: Dict, viewingParameters) -> Dict:
-    image_collection = extract_arg_list(args, ['data','imagery'])
+    image_collection = extract_arg(args, 'data')
     geometry = extract_arg(args, 'regions')
     func = args.get('func', 'mean')
 
@@ -716,7 +691,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
 
     #when all arguments and dependencies are resolved, we can run the process
     if parent_process == "apply":
-        image_collection = extract_arg_list(args, ['x', 'data', 'imagery'])
+        image_collection = extract_arg_list(args, ['x', 'data'])
         if process_id == "run_udf":
             udf = _get_udf(args)
             return image_collection.apply_tiles(udf)
@@ -725,7 +700,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
            return image_collection.apply(process_id, args)
     elif parent_process in ["reduce", "reduce_dimension", "reduce_dimension_binary"]:
         #TODO EP-3285 this code path is for version <1.0.0, soon to be deprecated
-        image_collection = extract_arg_list(args, ['data', 'imagery'])
+        image_collection = extract_arg(args, 'data')
         dimension = extract_arg(viewingParameters, 'dimension')
         binary = viewingParameters.get('binary',False) or parent_process == "reduce_dimension_binary"
         dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
@@ -757,7 +732,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             transformed_collection.rename_dimension(dimension,target_dimension)
         return transformed_collection
     elif parent_process in ['aggregate_polygon', 'aggregate_spatial']:
-        image_collection = extract_arg_list(args, ['data', 'imagery'])
+        image_collection = extract_arg(args, 'data')
         binary = viewingParameters.get('binary',False)
         name = viewingParameters.get('name', 'result')
         polygons = extract_arg(viewingParameters, 'polygons')
@@ -772,7 +747,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         return image_collection.zonal_statistics(polygons.path, func=process_id)
 
     elif parent_process == 'aggregate_temporal':
-        image_collection = extract_arg_list(args, ['data', 'imagery'])
+        image_collection = extract_arg(args, 'data')
         intervals = extract_arg(viewingParameters, 'intervals')
         labels = extract_arg(viewingParameters, 'labels')
         dimension = viewingParameters.get('dimension', None)
