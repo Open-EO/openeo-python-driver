@@ -1,8 +1,8 @@
 # TODO: rename this module to something in snake case? It doesn't even implement a ProcessGraphDeserializer class.
 
-import base64
+# pylint: disable=unused-argument
+
 import logging
-import pickle
 import tempfile
 import warnings
 from typing import Dict, Callable
@@ -92,7 +92,6 @@ def get_process_registry(api_version: ComparableVersion) -> ProcessRegistry:
         return process_registry_040
 
 
-
 backend_implementation = get_backend_implementation()
 
 
@@ -141,7 +140,7 @@ def _expand_macros(process_graph: dict) -> dict:
 
                     # add "subtract" and "add"/"sum" processes
                     result[subtract_key] = {'process_id': 'subtract',
-                                            'arguments': normalized_difference_arguments }
+                                            'arguments': normalized_difference_arguments}
                     result[add_key] = {'process_id': 'sum' if 'data' in normalized_difference_arguments else 'add',
                                        'arguments': normalized_difference_arguments}
 
@@ -230,7 +229,7 @@ def extract_deep(args: dict, *steps):
 
 @process
 def load_collection(args: Dict, viewingParameters) -> ImageCollection:
-    name = extract_arg(args,'id')
+    name = extract_arg(args, 'id')
     if 'temporal_extent' in args and args['temporal_extent'] is not None:
         extent = args['temporal_extent']
         if len(extent) != 2:
@@ -274,8 +273,8 @@ def apply_dimension(args: Dict, ctx: dict) -> ImageCollection:
 
 @process
 def save_result(args: Dict, viewingParameters) -> SaveResult:
-    format = extract_arg(args,'format')
-    options = args.get('options',{})
+    format = extract_arg(args, 'format')
+    options = args.get('options', {})
     data = extract_arg(args, 'data')
 
     if isinstance(data, SaveResult):
@@ -294,7 +293,7 @@ def save_result(args: Dict, viewingParameters) -> SaveResult:
 
 
 @process
-def apply(args: dict, ctx: dict)->ImageCollection:
+def apply(args: dict, ctx: dict) -> ImageCollection:
     """
     Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
 
@@ -337,9 +336,9 @@ def reduce_dimension(args: dict, ctx: dict) -> ImageCollection:
     data_cube = extract_arg(args, 'data')
 
     # TODO: avoid special case handling for run_udf?
-    #do check_dimension here for error handling
+    # do check_dimension here for error handling
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce_dimension")
-    return data_cube.reduce_dimension(dimension,reduce_pg)
+    return data_cube.reduce_dimension(dimension, reduce_pg)
 
 
 @process
@@ -503,7 +502,7 @@ def apply_kernel(args: Dict, viewingParameters) -> ImageCollection:
     image_collection = extract_arg(args, 'data')
     kernel = np.asarray(extract_arg(args, 'kernel'))
     factor = args.get('factor', 1.0)
-    return image_collection.apply_kernel(kernel,factor)
+    return image_collection.apply_kernel(kernel, factor)
 
 
 @process
@@ -521,6 +520,7 @@ def ndvi(args: dict, viewingParameters: dict) -> ImageCollection:
         name = args.get("name", "ndvi")
         return image_collection.ndvi(name=name)
 
+
 @process
 def resample_spatial(args: dict, viewingParameters: dict) -> ImageCollection:
     image_collection = extract_arg(args, 'data')
@@ -528,14 +528,15 @@ def resample_spatial(args: dict, viewingParameters: dict) -> ImageCollection:
     projection = args.get('projection', None)
     method = args.get('method', 'near')
     align = args.get('align', 'lower-left')
-    return image_collection.resample_spatial(resolution=resolution,projection=projection,method=method,align=align)
+    return image_collection.resample_spatial(resolution=resolution, projection=projection, method=method, align=align)
+
 
 @process
-def merge_cubes(args:dict, viewingParameters:dict) -> ImageCollection:
-    cube1 = extract_arg(args,'cube1')
+def merge_cubes(args: dict, viewingParameters: dict) -> ImageCollection:
+    cube1 = extract_arg(args, 'cube1')
     cube2 = extract_arg(args, 'cube2')
     overlap_resolver = args.get('overlap_resolver')
-    #TODO raise check if cubes overlap and raise exception if resolver is missing
+    # TODO raise check if cubes overlap and raise exception if resolver is missing
     resolver_process = None
     if overlap_resolver:
         pg = extract_arg_list(overlap_resolver, ["process_graph", "callback"])
@@ -546,10 +547,11 @@ def merge_cubes(args:dict, viewingParameters:dict) -> ImageCollection:
         resolver_process = next(iter(pg.values()))["process_id"]
     return cube1.merge(cube2, resolver_process)
 
+
 @process
-def run_udf(args:dict,viewingParameters:dict):
-    data = extract_arg(args,'data')
-    if not isinstance(data,DelayedVector):
+def run_udf(args: dict, viewingParameters: dict):
+    data = extract_arg(args, 'data')
+    if not isinstance(data, DelayedVector):
         if isinstance(data, dict):
             data = DelayedVector.from_json_dict(data)
         else:
@@ -561,12 +563,12 @@ def run_udf(args:dict,viewingParameters:dict):
 
     udf = _get_udf(args)
 
-    collection = FeatureCollection(id='VectorCollection',data=data.as_geodataframe())
-    data = UdfData(proj={"EPSG":4326},feature_collection_list=[collection] )
+    collection = FeatureCollection(id='VectorCollection', data=data.as_geodataframe())
+    data = UdfData(proj={"EPSG": 4326}, feature_collection_list=[collection])
 
     result_data = run_user_code(udf, data)
     result_collections = result_data.get_feature_collection_list()
-    if(result_collections == None or len(result_collections)!=1):
+    if result_collections == None or len(result_collections) != 1:
         raise ProcessParameterInvalidException(
                 parameter='udf', process='run_udf',
                 reason='The provided UDF should return exactly one feature collection when used in this context, but got: %s .'%str(result_data) )
@@ -575,8 +577,9 @@ def run_udf(args:dict,viewingParameters:dict):
         result_collections[0].get_data().to_file(temp_file.name, driver='GeoJSON')
         return DelayedVector(temp_file.name)
 
+
 @process
-def linear_scale_range(args:dict,viewingParameters:dict) -> ImageCollection:
+def linear_scale_range(args: dict, viewingParameters: dict) -> ImageCollection:
     image_collection = extract_arg(args, 'x')
 
     inputMin = extract_arg(args, "inputMin")
@@ -584,7 +587,7 @@ def linear_scale_range(args:dict,viewingParameters:dict) -> ImageCollection:
     outputMax = args.get("outputMax", 1.0)
     outputMin = args.get("outputMin", 0.0)
 
-    return image_collection.linear_scale_range(inputMin,inputMax,outputMin,outputMax)
+    return image_collection.linear_scale_range(inputMin, inputMax, outputMin, outputMax)
 
 
 @non_standard_process(
@@ -656,10 +659,10 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             # The `apply` process passes it's `data` parameter as `x` parameter to subprocess
             viewingParameters["x"] = viewingParameters["data"]
 
-    #first we resolve child nodes and arguments
+    # first we resolve child nodes and arguments
     args = {name: convert_node(expr, viewingParameters) for (name, expr) in args.items()}
 
-    #when all arguments and dependencies are resolved, we can run the process
+    # when all arguments and dependencies are resolved, we can run the process
     if parent_process == "apply":
         image_collection = extract_arg_list(args, ['x', 'data'])
         if process_id == "run_udf":
@@ -668,9 +671,9 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             return image_collection.apply_tiles(udf)
         else:
             # TODO : add support for `apply` with non-trivial child process graphs #EP-3404
-           return image_collection.apply(process_id, args)
+            return image_collection.apply(process_id, args)
     elif parent_process in ["reduce", "reduce_dimension", "reduce_dimension_binary"]:
-        #TODO EP-3285 this code path is for version <1.0.0, soon to be deprecated
+        # TODO EP-3285 this code path is for version <1.0.0, soon to be deprecated
         image_collection = extract_arg(args, 'data')
         dimension = extract_arg(viewingParameters, 'dimension')
         binary = viewingParameters.get('binary',False) or parent_process == "reduce_dimension_binary"
@@ -678,14 +681,14 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         if 'run_udf' == process_id and not binary:
             if dimension == temporal_dim:
                 udf = _get_udf(args)
-                #EP-2760 a special case of reduce where only a single udf based callback is provided. The more generic case is not yet supported.
+                # EP-2760 a special case of reduce where only a single udf based callback is provided. The more generic case is not yet supported.
                 return image_collection.apply_tiles_spatiotemporal(udf)
             elif dimension == band_dim:
                 udf = _get_udf(args)
                 # TODO replace non-standard apply_tiles with standard "reduce_dimension" https://github.com/Open-EO/openeo-python-client/issues/140
                 return image_collection.apply_tiles(udf)
 
-        return image_collection.reduce(process_id,dimension)
+        return image_collection.reduce(process_id, dimension)
     elif parent_process == 'apply_dimension':
         image_collection = extract_arg(args, 'data')
         dimension = viewingParameters.get('dimension', None) # By default, applies the the process on all pixel values (as apply does).
@@ -695,18 +698,18 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         if process_id == "run_udf":
             udf = _get_udf(args)
             if dimension == temporal_dim:
-                transformed_collection =  image_collection.apply_tiles_spatiotemporal(udf)
+                transformed_collection = image_collection.apply_tiles_spatiotemporal(udf)
             else:
                 # TODO replace non-standard apply_tiles with standard "reduce_dimension" https://github.com/Open-EO/openeo-python-client/issues/140
                 transformed_collection = image_collection.apply_tiles(udf)
         else:
-            transformed_collection = image_collection.apply_dimension(process_id,dimension)
+            transformed_collection = image_collection.apply_dimension(process_id, dimension)
         if target_dimension is not None:
-            transformed_collection.rename_dimension(dimension,target_dimension)
+            transformed_collection.rename_dimension(dimension, target_dimension)
         return transformed_collection
     elif parent_process in ['aggregate_polygon', 'aggregate_spatial']:
         image_collection = extract_arg(args, 'data')
-        binary = viewingParameters.get('binary',False)
+        binary = viewingParameters.get('binary', False)
         name = viewingParameters.get('name', 'result')
         polygons = extract_arg(viewingParameters, 'polygons')
 
@@ -725,7 +728,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         labels = extract_arg(viewingParameters, 'labels')
         dimension = viewingParameters.get('dimension', None)
         dimension, _, _ = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
-        return image_collection.aggregate_temporal(intervals,labels,process_id,dimension)
+        return image_collection.aggregate_temporal(intervals, labels, process_id, dimension)
     else:
         process_registry = get_process_registry(ComparableVersion(viewingParameters["version"]))
         process_function = process_registry.get_function(process_id)
@@ -759,7 +762,7 @@ def _get_udf(args):
     if runtime != "Python":
         raise NotImplementedError("Unsupported runtime: " + runtime + " this backend only supports the Python runtime.")
     version = args.get("version", None)
-    if version is not None and version != "3.5.1" and version != "latest" :
+    if version is not None and version != "3.5.1" and version != "latest":
         raise NotImplementedError("Unsupported Python version: " + version + "this backend only support version 3.5.1.")
     return udf
 
@@ -771,5 +774,3 @@ def _as_geometry_collection(feature_collection: dict) -> dict:
         'type': 'GeometryCollection',
         'geometries': geometries
     }
-
-

@@ -132,9 +132,9 @@ class CollectionCatalog(MicroService):
         self._catalog = {layer["id"]: dict(layer) for layer in all_metadata}
 
     @classmethod
-    def from_json_file(cls, filename: Union[str, Path] = "layercatalog.json", *args, **kwargs):
+    def from_json_file(cls, filename: Union[str, Path] = "layercatalog.json"):
         """Factory to read catalog from a JSON file"""
-        return cls(read_json(filename), *args, **kwargs)
+        return cls(read_json(filename))
 
     def get_all_metadata(self) -> List[dict]:
         """
@@ -317,7 +317,7 @@ _backend_implementation = None
 
 
 def get_backend_implementation() -> OpenEoBackendImplementation:
-    global _backend_implementation
+    global _backend_implementation  # pylint: disable=global-statement
     if _backend_implementation is None:
         # TODO: #36 avoid non-standard importing through env var DRIVER_IMPLEMENTATION_PACKAGE
         _driver_implementation_package = os.getenv('DRIVER_IMPLEMENTATION_PACKAGE', "openeo_driver.dummy.dummy_backend")
