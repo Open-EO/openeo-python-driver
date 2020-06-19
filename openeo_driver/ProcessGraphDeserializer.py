@@ -267,21 +267,6 @@ def load_disk_data(args: Dict, viewingParameters) -> object:
     return backend_implementation.load_disk_data(format, glob_pattern, options, viewingParameters)
 
 
-# TODO deprecated process
-@deprecated_process
-def apply_pixel(args: Dict, viewingParameters) -> ImageCollection:
-    """
-    DEPRECATED
-    :param args:
-    :param viewingParameters:
-    :return:
-    """
-    function = extract_arg(args,'function')
-    bands = extract_arg(args,'bands')
-    decoded_function = pickle.loads(base64.standard_b64decode(function))
-    return extract_arg(args, 'data').apply_pixel(bands, decoded_function)
-
-
 @process
 def apply_dimension(args: Dict, ctx: dict) -> ImageCollection:
     return _evaluate_sub_process_graph(args, 'process', parent_process='apply_dimension', version=ctx["version"])
