@@ -293,14 +293,6 @@ def save_result(args: Dict, viewingParameters) -> SaveResult:
         return JSONResult(data, format, options)
 
 
-# TODO deprecated process
-# TODO "apply_tiles" is also confusing: remove it. https://github.com/Open-EO/openeo-python-client/issues/140
-@deprecated_process
-def apply_tiles(args: Dict, viewingParameters) -> ImageCollection:
-    function = extract_arg(args,'code')
-    return extract_arg(args, 'data').apply_tiles(function['source'])
-
-
 @process
 def apply(args: dict, ctx: dict)->ImageCollection:
     """
@@ -491,7 +483,7 @@ def filter_bands(args: Dict, viewingParameters) -> ImageCollection:
     return image_collection
 
 
-# TODO deprecated process?
+# TODO deprecated process? also see https://github.com/Open-EO/openeo-python-client/issues/144
 @deprecated_process
 def zonal_statistics(args: Dict, viewingParameters) -> Dict:
     image_collection = extract_arg(args, 'data')
@@ -672,6 +664,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         image_collection = extract_arg_list(args, ['x', 'data'])
         if process_id == "run_udf":
             udf = _get_udf(args)
+            # TODO replace non-standard apply_tiles with standard "reduce_dimension" https://github.com/Open-EO/openeo-python-client/issues/140
             return image_collection.apply_tiles(udf)
         else:
             # TODO : add support for `apply` with non-trivial child process graphs #EP-3404
@@ -689,6 +682,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
                 return image_collection.apply_tiles_spatiotemporal(udf)
             elif dimension == band_dim:
                 udf = _get_udf(args)
+                # TODO replace non-standard apply_tiles with standard "reduce_dimension" https://github.com/Open-EO/openeo-python-client/issues/140
                 return image_collection.apply_tiles(udf)
 
         return image_collection.reduce(process_id,dimension)
@@ -703,6 +697,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             if dimension == temporal_dim:
                 transformed_collection =  image_collection.apply_tiles_spatiotemporal(udf)
             else:
+                # TODO replace non-standard apply_tiles with standard "reduce_dimension" https://github.com/Open-EO/openeo-python-client/issues/140
                 transformed_collection = image_collection.apply_tiles(udf)
         else:
             transformed_collection = image_collection.apply_dimension(process_id,dimension)
