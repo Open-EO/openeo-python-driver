@@ -436,7 +436,7 @@ def mask(args: dict, viewingParameters) -> ImageCollection:
         polygon = mask.geometries[0] if isinstance(mask, DelayedVector) else shape(mask)
         if polygon.area == 0:
             reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
-            raise ProcessParameterInvalidException(argument='mask', process='mask', reason=reason)
+            raise ProcessParameterInvalidException(parameter='mask', process='mask', reason=reason)
         image_collection = cube.mask_polygon(mask=polygon, replacement=replacement)
     return image_collection
 
@@ -457,7 +457,7 @@ def mask_polygon(args: dict, ctx: dict) -> ImageCollection:
     polygon = list(mask.geometries)[0] if isinstance(mask, DelayedVector) else shape(mask)
     if polygon.area == 0:
         reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
-        raise ProcessParameterInvalidException(argument='mask', process='mask', reason=reason)
+        raise ProcessParameterInvalidException(parameter='mask', process='mask', reason=reason)
     image_collection = extract_arg(args, 'data').mask_polygon(mask=polygon, replacement=replacement, inside=inside)
     return image_collection
 
@@ -541,7 +541,7 @@ def merge_cubes(args:dict, viewingParameters:dict) -> ImageCollection:
         pg = extract_arg_list(overlap_resolver, ["process_graph", "callback"])
         if len(pg) != 1:
             raise ProcessParameterInvalidException(
-                argument='overlap_resolver', process='merge_cubes',
+                parameter='overlap_resolver', process='merge_cubes',
                 reason='This backend only supports overlap resolvers with exactly one process for now.')
         resolver_process = next(iter(pg.values()))["process_id"]
     return cube1.merge(cube2, resolver_process)
@@ -554,7 +554,7 @@ def run_udf(args:dict,viewingParameters:dict):
             data = DelayedVector.from_json_dict(data)
         else:
             raise ProcessParameterInvalidException(
-                argument='data', process='run_udf',
+                parameter='data', process='run_udf',
                 reason='The run_udf process can only be used on vector cubes directly, or as part of a callback on a raster-cube! Tried to use: %s' % str(data) )
 
     from openeo_udf.api.run_code import run_user_code
@@ -568,7 +568,7 @@ def run_udf(args:dict,viewingParameters:dict):
     result_collections = result_data.get_feature_collection_list()
     if(result_collections == None or len(result_collections)!=1):
         raise ProcessParameterInvalidException(
-                argument='udf', process='run_udf',
+                parameter='udf', process='run_udf',
                 reason='The provided UDF should return exactly one feature collection when used in this context, but got: %s .'%str(result_data) )
 
     with tempfile.NamedTemporaryFile(suffix=".json.tmp", delete=False) as temp_file:
@@ -616,7 +616,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         extent = args['extent']
         if len(extent) != 2:
             raise ProcessParameterInvalidException(
-                process=process_id, argument="extent", reason="should have length 2, but got {e!r}".format(e=extent)
+                process=process_id, parameter="extent", reason="should have length 2, but got {e!r}".format(e=extent)
             )
         viewingParameters["from"] = extent[0]
         viewingParameters["to"] = extent[1]
