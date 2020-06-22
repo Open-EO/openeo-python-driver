@@ -189,7 +189,9 @@ class UserDefinedProcessRegistry:
         # TODO: use some persistent storage backend instead of in-memory dict
         self._processes: Dict[Tuple[str, str], dict] = {}
 
-    def add_udp(self, user_id: str, process_id: str, spec: dict):
+    def add_udp(self, user_id: str, process_id: str, spec: dict, allow_overwrite=False):
+        if not allow_overwrite:
+            assert (user_id, process_id) not in self._processes
         self._processes[user_id, process_id] = spec
 
     def has_udp(self, user_id: str, process_id: str) -> bool:

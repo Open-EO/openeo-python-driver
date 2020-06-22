@@ -624,15 +624,15 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             raise ProcessParameterInvalidException(
                 process=process_id, parameter="extent", reason="should have length 2, but got {e!r}".format(e=extent)
             )
-        viewingParameters["from"] = extent[0]
-        viewingParameters["to"] = extent[1]
+        viewingParameters["from"] = convert_node(extent[0], viewingParameters)
+        viewingParameters["to"] = convert_node(extent[1], viewingParameters)
     elif 'filter_bbox' == process_id:
         # TODO: change everything to west, south, east, north, crs for uniformity (or even encapsulate in a bbox tuple?)
         extent = args["extent"]
-        viewingParameters["left"] = extract_arg(extent, "west")
-        viewingParameters["right"] = extract_arg(extent, "east")
-        viewingParameters["top"] = extract_arg(extent, "north")
-        viewingParameters["bottom"] = extract_arg(extent, "south")
+        viewingParameters["left"] = convert_node(extract_arg(extent, "west"), viewingParameters)
+        viewingParameters["right"] = convert_node(extract_arg(extent, "east"), viewingParameters)
+        viewingParameters["top"] = convert_node(extract_arg(extent, "north"), viewingParameters)
+        viewingParameters["bottom"] = convert_node(extract_arg(extent, "south"), viewingParameters)
         viewingParameters["srs"] = extent.get("crs", "EPSG:4326")
     elif process_id in ['zonal_statistics', 'aggregate_polygon', 'aggregate_spatial']:
         shapes = extract_arg_list(args, ['regions', 'polygons', 'geometries'])
@@ -734,7 +734,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         return image_collection.aggregate_temporal(intervals, labels, process_id, dimension)
     if user_defined_process_registry.has_udp(user_id="todo", process_id=process_id):
         spec = user_defined_process_registry.get_udp_spec(user_id="todo", process_id=process_id)
-        return evaluate_udp(spec, args, viewingParameters)
+        return evaluate_udp(process_id=process_id, spec=spec, args=args, viewingParameters=viewingParameters)
     else:
         process_registry = get_process_registry(ComparableVersion(viewingParameters["version"]))
         process_function = process_registry.get_function(process_id)
@@ -782,8 +782,15 @@ def _as_geometry_collection(feature_collection: dict) -> dict:
     }
 
 
-def evaluate_udp(spec: dict, args: dict, viewingParameters: dict):
+def evaluate_udp(process_id:str, spec: dict, args: dict, viewingParameters: dict):
     pg = spec["process_graph"]
     for param in spec["parameters"]:
-        viewingParameters[param["name"]] = args[param["name"]]
+        name = param["name"]
+        if name in args:
+            value = args[name]
+        elif "default" in param:
+            value = param["default"]
+        else:
+            raise ProcessParameterRequiredException(process=process_id, parameter=name)
+        viewingParameters[name] = value
     return evaluate(pg, viewingParameters=viewingParameters)

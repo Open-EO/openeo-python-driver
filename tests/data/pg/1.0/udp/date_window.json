@@ -1,0 +1,57 @@
+{
+  "id": "date_window",
+  "summary": "Temporal filtering with some default dates",
+  "description": "Temporal filtering with some default dates",
+  "parameters": [
+    {
+      "name": "data",
+      "description": "A data cube.",
+      "schema": {
+        "type": "object",
+        "subtype": "raster-cube"
+      }
+    },
+    {
+      "name": "start_date",
+      "description": "Start date",
+      "schema": {
+        "type": "string"
+      },
+      "default": "2019-01-01"
+    },
+    {
+      "name": "end_date",
+      "description": "End date",
+      "schema": {
+        "type": "string"
+      },
+      "default": null
+    }
+  ],
+  "returns": {
+    "description": "filtered datacube",
+    "schema": {
+      "type": "object",
+      "subtype": "raster-cube"
+    }
+  },
+  "process_graph": {
+    "filtertemporal1": {
+      "process_id": "filter_temporal",
+      "arguments": {
+        "data": {
+          "from_parameter": "data"
+        },
+        "extent": [
+          {
+            "from_parameter": "start_date"
+          },
+          {
+            "from_parameter": "end_date"
+          }
+        ]
+      },
+      "result": true
+    }
+  }
+}

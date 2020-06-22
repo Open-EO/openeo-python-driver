@@ -45,14 +45,20 @@ class ApiTester(openeo_driver.testing.ApiTester):
     def collections(self) -> dict:
         return self.impl.collections
 
-    def check_result(self, process_graph: Union[dict, str], path="/result",
-                     preprocess: Callable = None) -> openeo_driver.testing.ApiResponse:
-        """Post a process_graph (as dict or by filename), get response and do basic checks."""
+    def result(self, process_graph: Union[dict, str], path="/result",
+               preprocess: Callable = None) -> openeo_driver.testing.ApiResponse:
+        """Post a process_graph (as dict or by filename) and get response."""
         if isinstance(process_graph, str):
             # Assume it is a file name
             process_graph = self.load_json(process_graph, preprocess=preprocess)
         data = self.get_process_graph_dict(process_graph)
         response = self.post(path=path, json=data)
+        return response
+
+    def check_result(self, process_graph: Union[dict, str], path="/result",
+                     preprocess: Callable = None) -> openeo_driver.testing.ApiResponse:
+        """Post a process_graph (as dict or by filename), get response and do basic checks."""
+        response = self.result(process_graph=process_graph, path=path, preprocess=preprocess)
         return response.assert_status_code(200).assert_content()
 
 
@@ -142,7 +148,9 @@ def test_load_collection_filter(api):
     assert api.collections['S2_FAPAR_CLOUDCOVER'].download.call_count == 1
     assert api.collections['S2_FAPAR_CLOUDCOVER'].viewingParameters == {
         'version': api.api_version, 'from': '2018-01-01', 'to': '2018-12-31',
-        'left': 5.027, 'right': 5.0438, 'top': 51.2213, 'bottom': 51.1974, 'srs': 'EPSG:4326','pyramid_levels': 'highest'}
+        'left': 5.027, 'right': 5.0438, 'top': 51.2213, 'bottom': 51.1974, 'srs': 'EPSG:4326',
+        'pyramid_levels': 'highest'
+    }
 
 
 def test_execute_apply_unary(api):
@@ -241,7 +249,7 @@ def test_apply_dimension_temporal_run_udf(api):
     assert api.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles_spatiotemporal.call_count == 1
     assert api.collections["S2_FAPAR_CLOUDCOVER"].apply_dimension.call_count == 1
     if api.api_version_compare.at_least("1.0.0"):
-        api.collections["S2_FAPAR_CLOUDCOVER"].rename_dimension.assert_called_with('t','new_time_dimension')
+        api.collections["S2_FAPAR_CLOUDCOVER"].rename_dimension.assert_called_with('t', 'new_time_dimension')
 
 
 def test_apply_dimension_temporal_run_udf_legacy_client(api):
@@ -458,6 +466,7 @@ def test_read_vector(api):
         "2015-08-22T00:00:00": [None]
     }
 
+
 def test_run_udf_on_vector(api100):
     process_graph = api100.load_json(
         "run_udf_on_vector.json",
@@ -475,6 +484,7 @@ def test_process_reference_as_argument(api100):
     )
     resp = api100.check_result(process_graph)
     print(resp.json)
+
 
 def test_load_collection_without_spatial_extent_incorporates_read_vector_extent(api):
     process_graph = api.load_json(
@@ -592,8 +602,67 @@ def test_user_defined_process_bbox_mol_basic(api100):
         "top": 51.23,
         "srs": "EPSG:4326"
     }
-    assert expected_bbox == {
-        k: api100.collections['S2_FOOBAR'].viewingParameters[k]
-        for k in expected_bbox.keys()
+    params = api100.collections['S2_FOOBAR'].viewingParameters
+    assert expected_bbox == {k: params[k] for k in expected_bbox.keys()}
+
+
+@pytest.mark.parametrize(["udp_args", "expected_start_date", "expected_end_date"], [
+    ({}, "2019-01-01", None),
+    ({"start_date": "2019-12-12"}, "2019-12-12", None),
+    ({"end_date": "2019-12-12"}, "2019-01-01", "2019-12-12"),
+    ({"start_date": "2019-08-08", "end_date": "2019-12-12"}, "2019-08-08", "2019-12-12"),
+])
+def test_user_defined_process_date_window(
+        api100, udp_args, expected_start_date, expected_end_date
+):
+    user_defined_process_registry.add_udp(
+        user_id="todo", process_id="date_window",
+        spec=api100.load_json("udp/date_window.json"),
+        allow_overwrite=True
+    )
+
+    pg = {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FOOBAR"}
+        },
+        "bboxmol1": {
+            "process_id": "date_window",
+            "arguments": dict(
+                data={"from_node": "loadcollection1"},
+                **udp_args
+            ),
+            "result": True
+        }
     }
 
+    api100.check_result(pg)
+    expected = {
+        "from": expected_start_date,
+        "to": expected_end_date,
+    }
+    params = api100.collections['S2_FOOBAR'].viewingParameters
+    assert expected == {k: params[k] for k in expected.keys()}
+
+
+def test_user_defined_process_required_parameter(api100):
+    user_defined_process_registry.add_udp(
+        user_id="todo", process_id="date_window",
+        spec=api100.load_json("udp/date_window.json"),
+        allow_overwrite=True
+    )
+
+    pg = {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FOOBAR"}
+        },
+        "bboxmol1": {
+            "process_id": "date_window",
+            "arguments": {"start_date": "2019-08-08", "end_date": "2019-12-12"},
+            "result": True
+        }
+    }
+
+    response = api100.result(pg)
+    response.assert_error(400, "ProcessParameterRequired", message="parameter 'data' is required")
