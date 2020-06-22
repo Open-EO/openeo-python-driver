@@ -2,7 +2,8 @@
 Script to start a local server. This script can serve as the entry-point for doing spark-submit.
 """
 
-from openeo_driver.server import run, show_log_level
+from openeo_driver import server
+from openeo_driver.server import show_log_level
 import logging
 from logging.config import dictConfig
 
@@ -43,7 +44,7 @@ if __name__ == '__main__':
     show_log_level(logging.getLogger('openeo_driver'))
     show_log_level(app.logger)
 
-    run(
+    server.run(
         title="'Local Dummy",
         description="Local openEO API using dummy backend",
         deploy_metadata=None,
