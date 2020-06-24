@@ -337,14 +337,18 @@ class DummyBatchJobs(BatchJobs):
 
 
 class DummyUserDefinedProcesses(UserDefinedProcesses):
-    def __init__(self):
-        self._processes: Dict[Tuple[str, str], UserDefinedProcessMetadata] = {}
+    _processes: Dict[Tuple[str, str], UserDefinedProcessMetadata] = {
+        ('Mr.Test', 'udp1'): UserDefinedProcessMetadata(
+            id='udp1',
+            process_graph={'process1': {}}
+        )
+    }
 
     def get(self, user_id: str, process_id: str) -> Union[UserDefinedProcessMetadata, None]:
         return self._processes.get((user_id, process_id))
 
     def get_for_user(self, user_id: str) -> List[UserDefinedProcessMetadata]:
-        raise NotImplementedError
+        return [udp for key, udp in self._processes.items() if key[0] == user_id]
 
     def save(self, user_id: str, process_id: str, spec: dict) -> None:
         self._processes[user_id, process_id] = UserDefinedProcessMetadata.from_dict(spec)

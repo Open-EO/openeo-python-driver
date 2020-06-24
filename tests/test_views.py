@@ -881,3 +881,54 @@ def test_endpoint_registry_multiple_methods():
     paths, methods, metadatas = zip(*sorted(result))
     assert paths == ('/foo', '/foo')
     assert methods == ({"GET"}, {"POST"})
+
+
+class TestUserDefinedProcesses:
+    def test_add_udp(self, api100):
+        api100.put('/process_graphs/evi', headers=TEST_USER_AUTH_HEADER, json={
+            'id': 'evi',
+            'parameters': [
+                {'name': 'red'}
+            ],
+            'process_graph': {
+                'sub': {}
+            }
+        }).assert_status_code(200)
+
+        new_udp = dummy_backend.DummyUserDefinedProcesses._processes['Mr.Test', 'evi']
+        assert new_udp.id == 'evi'
+        assert new_udp.parameters == [{'name': 'red'}]
+        assert new_udp.process_graph == {'sub': {}}
+
+    def test_update_udp(self, api100):
+        api100.put('/process_graphs/udp1', headers=TEST_USER_AUTH_HEADER, json={
+            'id': 'udp1',
+            'parameters': [
+                {'name': 'blue'}
+            ],
+            'process_graph': {
+                'add': {}
+            }
+        }).assert_status_code(200)
+
+        modified_udp = dummy_backend.DummyUserDefinedProcesses._processes['Mr.Test', 'udp1']
+        assert modified_udp.id == 'udp1'
+        assert modified_udp.process_graph == {'add': {}}
+        assert modified_udp.parameters == [{'name': 'blue'}]
+
+    def test_list_udps(self, api100):
+        resp = api100.get('/process_graphs', headers=TEST_USER_AUTH_HEADER).assert_status_code(200)
+
+        udps = resp.json['processes']
+        udp1 = next(udp for udp in udps if udp['id'] == 'udp1')
+
+        assert 'process_graph' not in udp1
+
+    def test_get_udp(self, api100):
+        resp = api100.get('/process_graphs/udp1', headers=TEST_USER_AUTH_HEADER).assert_status_code(200)
+
+        udp = resp.json
+        assert udp['id'] == 'udp1'
+
+    def test_get_unknown_udp(self, api100):
+        api100.get('/process_graphs/unknown', headers=TEST_USER_AUTH_HEADER).assert_status_code(404)

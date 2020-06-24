@@ -16,10 +16,11 @@ from openeo.capabilities import ComparableVersion
 from openeo.error_summary import ErrorSummary
 from openeo.util import date_to_rfc3339, dict_no_none, deep_get
 from openeo_driver.ProcessGraphDeserializer import evaluate, get_process_registry
-from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, get_backend_implementation
+from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
+    get_backend_implementation
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
-    FilePathInvalidException
+    FilePathInvalidException, ProcessGraphNotFoundException
 from openeo_driver.save_result import SaveResult
 from openeo_driver.users import HttpAuthHandler, User
 from openeo_driver.utils import replace_nan_values
@@ -710,6 +711,49 @@ def service_delete(service_id, user: User):
     # TODO implement user level secondary service management EP-3411
     backend_implementation.secondary_services.remove_service(service_id)
     return response_204_no_content()
+
+
+@api_endpoint
+@openeo_bp.route('/process_graphs/<process_graph_id>', methods=['PUT'])
+@auth_handler.requires_bearer_auth
+def store_udp(process_graph_id: str, user: User):
+    backend_implementation.user_defined_processes.save(
+        user_id=user.user_id,
+        process_id=process_graph_id,
+        spec=request.get_json()
+    )
+
+    return make_response("", 200)
+
+
+@api_endpoint
+@openeo_bp.route('/process_graphs/<process_graph_id>', methods=['GET'])
+@auth_handler.requires_bearer_auth
+def get_udp(process_graph_id: str, user: User):
+    udp = backend_implementation.user_defined_processes.get(user_id=user.user_id, process_id=process_graph_id)
+    if udp:
+        return _jsonable_udp_metadata(udp)
+
+    raise ProcessGraphNotFoundException(process_graph_id)
+
+
+@api_endpoint
+@openeo_bp.route('/process_graphs', methods=['GET'])
+@auth_handler.requires_bearer_auth
+def list_udps(user: User):
+    user_udps = backend_implementation.user_defined_processes.get_for_user(user.user_id)
+
+    return {
+        'processes': [_jsonable_udp_metadata(udp, full=False) for udp in user_udps]
+    }
+
+
+def _jsonable_udp_metadata(metadata: UserDefinedProcessMetadata, full=True) -> dict:
+    """API-version-aware conversion of service metadata to jsonable dict"""
+    d = metadata.prepare_for_json()
+    if not full:
+        d.pop("process_graph")
+    return dict_no_none(**d)
 
 
 @api_endpoint

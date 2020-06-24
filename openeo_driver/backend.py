@@ -290,6 +290,9 @@ class UserDefinedProcessMetadata(NamedTuple):
             parameters=d.get('parameters')
         )
 
+    def prepare_for_json(self) -> dict:
+        return self._asdict()  # pylint: disable=no-member
+
 
 class UserDefinedProcesses(MicroService):
     """

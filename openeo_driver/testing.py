@@ -153,6 +153,15 @@ class ApiTester:
     def delete(self, path: str, headers: dict = None) -> ApiResponse:
         return ApiResponse(self.client.delete(path=self.url(path), headers=headers))
 
+    def put(self, path: str, json: dict = None, headers: dict = None) -> ApiResponse:
+        """Do versioned PUT request, given non-versioned path"""
+        return ApiResponse(self.client.put(
+            path=self.url(path),
+            json=json or {},
+            content_type='application/json',
+            headers=headers,
+        ))
+
     def data_path(self, filename: str) -> Path:
         """Get absolute pat to a test data file"""
         return self.data_root / filename
