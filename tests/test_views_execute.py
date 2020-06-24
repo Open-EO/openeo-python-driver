@@ -7,14 +7,16 @@ import shapely.geometry
 from flask.testing import FlaskClient
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo_driver.dummy import dummy_backend
+from openeo_driver.backend import get_backend_implementation
 from openeo_driver.errors import ProcessGraphMissingException
-from openeo_driver.ProcessGraphDeserializer import user_defined_process_registry
 from openeo_driver.testing import load_json, preprocess_check_and_replace
 from openeo_driver.views import app
 
 from .data import get_path, TEST_DATA_ROOT
 
 os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "openeo_driver.dummy.dummy_backend"
+
+user_defined_process_registry = get_backend_implementation().user_defined_processes
 
 
 @pytest.fixture(params=["0.4.0", "1.0.0"])
@@ -593,7 +595,7 @@ def test_fuzzy_mask_add_dim(api):
 
 def test_user_defined_process_bbox_mol_basic(api100):
     bbox_mol_spec = api100.load_json("udp/bbox_mol.json")
-    user_defined_process_registry.add_udp(user_id="todo", process_id="bbox_mol", spec=bbox_mol_spec)
+    user_defined_process_registry.save(user_id="todo", process_id="bbox_mol", spec=bbox_mol_spec)
     api100.check_result("udp_bbox_mol_basic.json")
     expected_bbox = {
         "left": 5.05,
@@ -615,11 +617,8 @@ def test_user_defined_process_bbox_mol_basic(api100):
 def test_user_defined_process_date_window(
         api100, udp_args, expected_start_date, expected_end_date
 ):
-    user_defined_process_registry.add_udp(
-        user_id="todo", process_id="date_window",
-        spec=api100.load_json("udp/date_window.json"),
-        allow_overwrite=True
-    )
+    user_defined_process_registry.save(user_id="todo", process_id="date_window",
+                                       spec=api100.load_json("udp/date_window.json"))
 
     pg = {
         "loadcollection1": {
@@ -646,11 +645,9 @@ def test_user_defined_process_date_window(
 
 
 def test_user_defined_process_required_parameter(api100):
-    user_defined_process_registry.add_udp(
-        user_id="todo", process_id="date_window",
-        spec=api100.load_json("udp/date_window.json"),
-        allow_overwrite=True
-    )
+    date_window_spec = api100.load_json("udp/date_window.json")
+    user_defined_process_registry.save(user_id="todo", process_id="date_window",
+                                       spec=api100.load_json("udp/date_window.json"))
 
     pg = {
         "loadcollection1": {

@@ -274,6 +274,48 @@ class OidcProvider(NamedTuple):
     description: str = None
 
 
+class UserDefinedProcessMetadata(NamedTuple):
+    """
+    Container for user-defined process metadata.
+    """
+    id: str
+    process_graph: dict
+    parameters: List[dict] = None
+
+    @classmethod
+    def from_dict(cls, d: dict) -> 'UserDefinedProcessMetadata':
+        return UserDefinedProcessMetadata(
+            id=d['id'],
+            process_graph=d['process_graph'],
+            parameters=d.get('parameters')
+        )
+
+
+class UserDefinedProcesses(MicroService):
+    """
+    Base contract/implementation for User-Defined Processes "microservice"
+    https://openeo.org/documentation/1.0/developers/api/reference.html#tag/User-Defined-Processes
+    """
+
+    def get(self, user_id: str, process_id: str) -> Union[UserDefinedProcessMetadata, None]:
+        """
+        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-custom-process
+        """
+        raise NotImplementedError
+
+    def get_for_user(self, user_id: str) -> List[UserDefinedProcessMetadata]:
+        """
+        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-custom-processes
+        """
+        raise NotImplementedError
+
+    def save(self, user_id: str, process_id: str, spec: dict) -> None:
+        """
+        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/store-custom-process
+        """
+        raise NotImplementedError
+
+
 class OpenEoBackendImplementation:
     """
     Simple container of all openEo "microservices"
@@ -284,10 +326,12 @@ class OpenEoBackendImplementation:
             secondary_services: SecondaryServices,
             catalog: CollectionCatalog,
             batch_jobs: BatchJobs,
+            user_defined_processes: UserDefinedProcesses
     ):
         self.secondary_services = secondary_services
         self.catalog = catalog
         self.batch_jobs = batch_jobs
+        self.user_defined_processes = user_defined_processes
 
     def health_check(self) -> str:
         return "OK"

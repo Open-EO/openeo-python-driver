@@ -3,14 +3,14 @@ import os
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Union, Tuple
 from unittest.mock import Mock
 
 from openeo import ImageCollection
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.metadata import CollectionMetadata
 from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata, \
-    BatchJobs, BatchJobMetadata, OidcProvider
+    BatchJobs, BatchJobMetadata, OidcProvider, UserDefinedProcesses, UserDefinedProcessMetadata
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import JobNotFoundException, JobNotFinishedException
 from shapely.geometry import Polygon, MultiPolygon
@@ -336,12 +336,27 @@ class DummyBatchJobs(BatchJobs):
         self.get_job_info(job_id=job_id, user_id=user_id)
 
 
+class DummyUserDefinedProcesses(UserDefinedProcesses):
+    def __init__(self):
+        self._processes: Dict[Tuple[str, str], UserDefinedProcessMetadata] = {}
+
+    def get(self, user_id: str, process_id: str) -> Union[UserDefinedProcessMetadata, None]:
+        return self._processes.get((user_id, process_id))
+
+    def get_for_user(self, user_id: str) -> List[UserDefinedProcessMetadata]:
+        raise NotImplementedError
+
+    def save(self, user_id: str, process_id: str, spec: dict) -> None:
+        self._processes[user_id, process_id] = UserDefinedProcessMetadata.from_dict(spec)
+
+
 class DummyBackendImplementation(OpenEoBackendImplementation):
     def __init__(self):
         super(DummyBackendImplementation, self).__init__(
             secondary_services=DummySecondaryServices(),
             catalog=DummyCatalog(),
             batch_jobs=DummyBatchJobs(),
+            user_defined_processes=DummyUserDefinedProcesses()
         )
 
     def oidc_providers(self) -> List[OidcProvider]:
