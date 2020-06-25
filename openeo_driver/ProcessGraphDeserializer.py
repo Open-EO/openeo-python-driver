@@ -191,14 +191,13 @@ def convert_node(processGraph: dict, viewingParameters=None):
     return processGraph
 
 
-def extract_arg(args: dict, name: str):
+def extract_arg(args: dict, name: str, process_id='n/a'):
     """Get process argument by name."""
     try:
         return args[name]
     except KeyError:
-        # TODO: find out process id for proper error message?
         # TODO: automate argument extraction directly from process spec instead of these exract_* functions?
-        raise ProcessParameterRequiredException(process='n/a', parameter=name)
+        raise ProcessParameterRequiredException(process=process_id, parameter=name)
 
 
 def extract_arg_list(args: dict, names: list):
@@ -617,7 +616,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
     viewingParameters = viewingParameters or {}
 
     if 'filter_temporal' == process_id:
-        extent = args['extent']
+        extent = extract_arg(args, "extent", process_id=process_id)
         if len(extent) != 2:
             raise ProcessParameterInvalidException(
                 process=process_id, parameter="extent", reason="should have length 2, but got {e!r}".format(e=extent)
@@ -626,11 +625,11 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         viewingParameters["to"] = convert_node(extent[1], viewingParameters)
     elif 'filter_bbox' == process_id:
         # TODO: change everything to west, south, east, north, crs for uniformity (or even encapsulate in a bbox tuple?)
-        extent = args["extent"]
-        viewingParameters["left"] = convert_node(extract_arg(extent, "west"), viewingParameters)
-        viewingParameters["right"] = convert_node(extract_arg(extent, "east"), viewingParameters)
-        viewingParameters["top"] = convert_node(extract_arg(extent, "north"), viewingParameters)
-        viewingParameters["bottom"] = convert_node(extract_arg(extent, "south"), viewingParameters)
+        extent = extract_arg(args, "extent", process_id=process_id)
+        viewingParameters["left"] = convert_node(extract_arg(extent, "west", process_id=process_id), viewingParameters)
+        viewingParameters["right"] = convert_node(extract_arg(extent, "east", process_id=process_id), viewingParameters)
+        viewingParameters["top"] = convert_node(extract_arg(extent, "north", process_id=process_id), viewingParameters)
+        viewingParameters["bottom"] = convert_node(extract_arg(extent, "south", process_id=process_id), viewingParameters)
         viewingParameters["srs"] = extent.get("crs", "EPSG:4326")
     elif process_id in ['zonal_statistics', 'aggregate_polygon', 'aggregate_spatial']:
         shapes = extract_arg_list(args, ['regions', 'polygons', 'geometries'])
@@ -654,7 +653,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             args['polygons'] = polygons  # might as well cache the value instead of re-evaluating it further on
 
     elif 'filter_bands' == process_id:
-        viewingParameters["bands"] = extract_arg(args, "bands")
+        viewingParameters["bands"] = extract_arg(args, "bands", process_id=process_id)
     elif 'apply' == parent_process:
         if "data" in viewingParameters:
             # The `apply` process passes it's `data` parameter as `x` parameter to subprocess
@@ -675,7 +674,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             return image_collection.apply(process_id, args)
     elif parent_process in ["reduce", "reduce_dimension", "reduce_dimension_binary"]:
         # TODO EP-3285 this code path is for version <1.0.0, soon to be deprecated
-        image_collection = extract_arg(args, 'data')
+        image_collection = extract_arg(args, 'data', process_id=process_id)
         dimension = extract_arg(viewingParameters, 'dimension')
         binary = viewingParameters.get('binary',False) or parent_process == "reduce_dimension_binary"
         dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
@@ -691,7 +690,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
 
         return image_collection.reduce(process_id, dimension)
     elif parent_process == 'apply_dimension':
-        image_collection = extract_arg(args, 'data')
+        image_collection = extract_arg(args, 'data', process_id=process_id)
         dimension = viewingParameters.get('dimension', None) # By default, applies the the process on all pixel values (as apply does).
         target_dimension = viewingParameters.get('target_dimension', None)
         dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
@@ -709,7 +708,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
             transformed_collection.rename_dimension(dimension, target_dimension)
         return transformed_collection
     elif parent_process in ['aggregate_polygon', 'aggregate_spatial']:
-        image_collection = extract_arg(args, 'data')
+        image_collection = extract_arg(args, 'data', process_id=process_id)
         binary = viewingParameters.get('binary', False)
         name = viewingParameters.get('name', 'result')
         polygons = extract_arg(viewingParameters, 'polygons')
@@ -724,7 +723,7 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         return image_collection.zonal_statistics(polygons.path, func=process_id)
 
     elif parent_process == 'aggregate_temporal':
-        image_collection = extract_arg(args, 'data')
+        image_collection = extract_arg(args, 'data', process_id=process_id)
         intervals = extract_arg(viewingParameters, 'intervals')
         labels = extract_arg(viewingParameters, 'labels')
         dimension = viewingParameters.get('dimension', None)

@@ -663,3 +663,33 @@ def test_user_defined_process_required_parameter(api100):
 
     response = api100.result(pg)
     response.assert_error(400, "ProcessParameterRequired", message="parameter 'data' is required")
+
+
+def test_execute_03_style_filter_bbox(api):
+    res = api.result({"filterbbox1": {
+        "process_id": "filter_bbox",
+        "arguments": {
+            "data": 123,
+            "west": 4.6511, "east": 4.6806, "north": 51.20859, "south": 51.18997, "crs": "epsg:4326"
+        },
+        "result": True
+    }})
+    res.assert_error(
+        status_code=400, error_code="ProcessParameterRequired",
+        message="Process 'filter_bbox' parameter 'extent' is required"
+    )
+
+
+def test_execute_03_style_filter_temporal(api):
+    res = api.result({"filtertemporal1": {
+        "process_id": "filter_temporal",
+        "arguments": {
+            "data": 123,
+            "from": "2019-10-28", "to": "2019-10-28"
+        },
+        "result": True
+    }})
+    res.assert_error(
+        status_code=400, error_code="ProcessParameterRequired",
+        message="Process 'filter_temporal' parameter 'extent' is required"
+    )
