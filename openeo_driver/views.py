@@ -540,7 +540,8 @@ def list_job_results(job_id, user: User):
             "stac_version": "0.9.0",
             "id": job_info.get("id"),
             "type": "Feature",
-            #TODO: add correct bbox and geometry when avalaible in metadata
+            # TODO: add correct bbox and geometry when avalaible in metadata
+            # TODO: also see https://github.com/Open-EO/openeo-api/pull/291 : bbox can be dropped, geometry can be null
             "bbox": [-180, -90, 180, 90],
             "geometry": {
                 "type": "Polygon",
