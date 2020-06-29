@@ -318,6 +318,12 @@ class UserDefinedProcesses(MicroService):
         """
         raise NotImplementedError
 
+    def delete(self, user_id: str, process_id: str) -> None:
+        """
+        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/delete-custom-process
+        """
+        raise NotImplementedError
+
 
 class OpenEoBackendImplementation:
     """

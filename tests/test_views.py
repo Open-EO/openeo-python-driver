@@ -932,3 +932,14 @@ class TestUserDefinedProcesses:
 
     def test_get_unknown_udp(self, api100):
         api100.get('/process_graphs/unknown', headers=TEST_USER_AUTH_HEADER).assert_status_code(404)
+
+    def test_delete_udp(self, api100):
+        assert ('Mr.Test', 'udp2') in dummy_backend.DummyUserDefinedProcesses._processes
+
+        api100.delete('/process_graphs/udp2', headers=TEST_USER_AUTH_HEADER).assert_status_code(204)
+
+        assert ('Mr.Test', 'udp1') in dummy_backend.DummyUserDefinedProcesses._processes
+        assert ('Mr.Test', 'udp2') not in dummy_backend.DummyUserDefinedProcesses._processes
+
+    def test_delete_unknown_udp(self, api100):
+        api100.delete('/process_graphs/unknown', headers=TEST_USER_AUTH_HEADER).assert_status_code(404)

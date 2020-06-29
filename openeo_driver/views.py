@@ -749,6 +749,14 @@ def list_udps(user: User):
     }
 
 
+@api_endpoint
+@openeo_bp.route('/process_graphs/<process_graph_id>', methods=['DELETE'])
+@auth_handler.requires_bearer_auth
+def delete_udp(process_graph_id: str, user: User):
+    backend_implementation.user_defined_processes.delete(user_id=user.user_id, process_id=process_graph_id)
+    return response_204_no_content()
+
+
 def _jsonable_udp_metadata(metadata: UserDefinedProcessMetadata, full=True) -> dict:
     """API-version-aware conversion of service metadata to jsonable dict"""
     d = metadata.prepare_for_json()

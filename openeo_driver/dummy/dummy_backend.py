@@ -12,7 +12,7 @@ from openeo.metadata import CollectionMetadata
 from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata, \
     BatchJobs, BatchJobMetadata, OidcProvider, UserDefinedProcesses, UserDefinedProcessMetadata
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.errors import JobNotFoundException, JobNotFinishedException
+from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, ProcessGraphNotFoundException
 from shapely.geometry import Polygon, MultiPolygon
 from shapely.geometry.collection import GeometryCollection
 
@@ -341,6 +341,10 @@ class DummyUserDefinedProcesses(UserDefinedProcesses):
         ('Mr.Test', 'udp1'): UserDefinedProcessMetadata(
             id='udp1',
             process_graph={'process1': {}}
+        ),
+        ('Mr.Test', 'udp2'): UserDefinedProcessMetadata(
+            id='udp2',
+            process_graph={'process1': {}}
         )
     }
 
@@ -352,6 +356,12 @@ class DummyUserDefinedProcesses(UserDefinedProcesses):
 
     def save(self, user_id: str, process_id: str, spec: dict) -> None:
         self._processes[user_id, process_id] = UserDefinedProcessMetadata.from_dict(spec)
+
+    def delete(self, user_id: str, process_id: str) -> None:
+        try:
+            self._processes.pop((user_id, process_id))
+        except KeyError:
+            raise ProcessGraphNotFoundException(process_id)
 
 
 class DummyBackendImplementation(OpenEoBackendImplementation):
