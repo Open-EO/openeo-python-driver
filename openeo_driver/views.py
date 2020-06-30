@@ -9,8 +9,10 @@ from typing import Callable, Tuple, List
 
 import flask
 import pkg_resources
-from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, \
-    current_app
+from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, current_app
+from werkzeug.exceptions import HTTPException, NotFound
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 from openeo import ImageCollection
 from openeo.capabilities import ComparableVersion
 from openeo.error_summary import ErrorSummary
@@ -24,8 +26,6 @@ from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingExceptio
 from openeo_driver.save_result import SaveResult
 from openeo_driver.users import HttpAuthHandler, User
 from openeo_driver.utils import replace_nan_values
-from werkzeug.exceptions import HTTPException, NotFound
-from werkzeug.middleware.proxy_fix import ProxyFix
 
 _log = logging.getLogger(__name__)
 
@@ -61,12 +61,12 @@ app = OpenEoApiApp(__name__)
 # Make sure app handles reverse proxy aspects (e.g. HTTPS) correctly.
 app.wsgi_app = ProxyFix(app.wsgi_app)
 
-
 openeo_bp = Blueprint('openeo', __name__)
 
 backend_implementation = get_backend_implementation()
 
 auth_handler = HttpAuthHandler(oidc_providers=backend_implementation.oidc_providers())
+
 
 @openeo_bp.url_defaults
 def _add_version(endpoint, values):
@@ -171,7 +171,6 @@ class EndpointRegistry:
     Allows setting some additional metadata and automatic generation of
     the OpenEO API endpoints listing in the "capabilities" endpoint.
     """
-
 
     def __init__(self):
         self._endpoints = {}
@@ -299,31 +298,26 @@ def file_formats():
 
 
 @api_endpoint
-@openeo_bp.route('/udf_runtimes' )
+@openeo_bp.route('/udf_runtimes')
 def udf_runtimes():
-    return jsonify({
-      "Python": {
-        "description": "Predefined Python runtime environment.",
-        "default": "latest",
-        "versions": {
-            "3.5.1":{
-                "libraries":{
-                    "numpy":{
-                        "version":"1.14.3"
-                    },
-                    "pandas": {
-                        "version": "0.22.0"
-                    },
-                    "tensorflow":{
-                        "version":"1.11.0"
+    # TODO: move this to OpenEoBackendImplementation?
+    runtimes = {
+        "Python": {
+            "description": "Predefined Python runtime environment.",
+            "default": "latest",
+            "versions": {
+                # TODO: get these versions from somewhere instead of hardcoding them?
+                "3.5.1": {
+                    "libraries": {
+                        "numpy": {"version": "1.14.3"},
+                        "pandas": {"version": "0.22.0"},
+                        "tensorflow": {"version": "1.11.0"},
                     }
                 }
-
             }
         }
-      }
-
-    })
+    }
+    return jsonify(runtimes)
 
 
 @api_endpoint
@@ -364,7 +358,7 @@ def me(user: User):
     })
 
 
-@openeo_bp.route('/timeseries' )
+@openeo_bp.route('/timeseries')
 def timeseries():
     # TODO: deprecated? do we still need this endpoint? #35
     return 'OpenEO GeoPyspark backend. ' + url_for('.point')
@@ -381,7 +375,7 @@ def point():
     return jsonify(image_collection.timeseries(x, y, srs))
 
 
-@openeo_bp.route('/download' , methods=['GET', 'POST'])
+@openeo_bp.route('/download', methods=['GET', 'POST'])
 def download():
     # TODO: deprecated?
     if request.method == 'POST':
@@ -390,9 +384,9 @@ def download():
         process_graph = request.get_json()
         image_collection = evaluate(process_graph)
         # TODO Unify with execute?
-        filename = image_collection.download(None,outputformat=outputformat)
+        filename = image_collection.download(None, outputformat=outputformat)
 
-        return send_from_directory(os.path.dirname(filename),os.path.basename(filename))
+        return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
     else:
         return 'Usage: Download image using POST.'
 
@@ -517,14 +511,14 @@ def get_job_info(job_id, user: User):
 
 
 @api_endpoint
-@openeo_bp.route('/jobs/<job_id>' , methods=['DELETE'])
+@openeo_bp.route('/jobs/<job_id>', methods=['DELETE'])
 @auth_handler.requires_bearer_auth
 def delete_job(job_id, user: User):
     raise NotImplementedError
 
 
 @api_endpoint
-@openeo_bp.route('/jobs/<job_id>' , methods=['PATCH'])
+@openeo_bp.route('/jobs/<job_id>', methods=['PATCH'])
 @auth_handler.requires_bearer_auth
 def modify_job(job_id, user: User):
     raise NotImplementedError
@@ -931,5 +925,3 @@ def well_known_openeo():
             if v.wellknown
         ]
     })
-
-
