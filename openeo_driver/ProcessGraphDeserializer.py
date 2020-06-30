@@ -530,6 +530,14 @@ def resample_spatial(args: dict, viewingParameters: dict) -> ImageCollection:
     align = args.get('align', 'lower-left')
     return image_collection.resample_spatial(resolution=resolution, projection=projection, method=method, align=align)
 
+@process
+def resample_cube_spatial(args: dict, viewingParameters: dict) -> ImageCollection:
+    image_collection = extract_arg(args, 'data')
+    target_image_collection = extract_arg(args, 'target')
+    method = args.get('method', 'near')
+    return image_collection.resample_cube_spatial(target=target_image_collection, method=method)
+
+
 
 @process
 def merge_cubes(args: dict, viewingParameters: dict) -> ImageCollection:

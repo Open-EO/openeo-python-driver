@@ -279,6 +279,9 @@ class DummyCatalog(CollectionCatalog):
         image_collection.merge = Mock(name="merge")
         image_collection.merge.return_value = image_collection
 
+        image_collection.resample_cube_spatial = Mock(name="resample_cube_spatial")
+        image_collection.resample_cube_spatial.return_value = image_collection
+
         collections[collection_id] = image_collection
         return image_collection
 

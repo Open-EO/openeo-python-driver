@@ -307,6 +307,14 @@ def test_execute_merge_cubes(api):
     args, kwargs = api.collections["S2_FAPAR_CLOUDCOVER"].merge.call_args
     assert args[1:] == ('or',)
 
+def test_execute_resample_and_merge_cubes(api100):
+    api100.check_result("resample_and_merge_cubes.json")
+    assert api100.collections["S2_FAPAR_CLOUDCOVER"].merge.call_count == 1
+    assert api100.collections["S2_FAPAR_CLOUDCOVER"].resample_cube_spatial.call_count == 1
+    args, kwargs = api100.collections["S2_FAPAR_CLOUDCOVER"].merge.call_args
+    assert args[1:] == ('or',)
+
+
 
 def test_reduce_bands(api):
     api.check_result("reduce_bands.json")
