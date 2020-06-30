@@ -424,7 +424,17 @@ def execute():
     # TODO:  This is not an official endpoint, does this "/execute" still have to be exposed as route?
     post_data = request.get_json()
     process_graph = _extract_process_graph(post_data)
-    result = evaluate(process_graph, viewingParameters={'version': g.api_version,'pyramid_levels':'highest'})
+    # TODO: EP-3510 this endpoint actually *requires* an authenticated user, are we ready to enforce this?
+    try:
+        user = auth_handler.get_user_from_bearer_token(request)
+    except Exception as e:
+        _log.warning("/execute by un-authenticated user. %(e)r", {"e": e})
+        user = None
+    result = evaluate(process_graph, viewingParameters={
+        'version': g.api_version,
+        'pyramid_levels': 'highest',
+        'user': user
+    })
 
     # TODO unify all this output handling within SaveResult logic?
     if isinstance(result, ImageCollection):

@@ -738,15 +738,21 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         dimension, _, _ = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         return image_collection.aggregate_temporal(intervals, labels, process_id, dimension)
 
-    # the DB-call can be cached if necessary, but how will a user be able to use a new pre-defined process of the same
-    #  name without renaming his UDP?
-    udp = backend_implementation.user_defined_processes.get(user_id="todo", process_id=process_id)
-    if udp:
-        return evaluate_udp(process_id=process_id, udp=udp, args=args, viewingParameters=viewingParameters)
-    else:
-        process_registry = get_process_registry(ComparableVersion(viewingParameters["version"]))
-        process_function = process_registry.get_function(process_id)
-        return process_function(args, viewingParameters)
+
+    user = viewingParameters.get("user")
+    if user:
+        # TODO: first check process registry with predefined processes because querying of user defined processes
+        #   is more expensive IO-wise?
+        # the DB-call can be cached if necessary, but how will a user be able to use a new pre-defined process of the same
+        # name without renaming his UDP?
+        udp = backend_implementation.user_defined_processes.get(user_id=user.user_id, process_id=process_id)
+        if udp:
+            return evaluate_udp(process_id=process_id, udp=udp, args=args, viewingParameters=viewingParameters)
+
+    # And finally: check registry of predefined processes
+    process_registry = get_process_registry(ComparableVersion(viewingParameters["version"]))
+    process_function = process_registry.get_function(process_id)
+    return process_function(args, viewingParameters)
 
 
 @non_standard_process(

@@ -1,17 +1,16 @@
 import os
 from typing import Callable, Union
 
-import openeo_driver.testing
 import pytest
 import shapely.geometry
 from flask.testing import FlaskClient
-from openeo.internal.process_graph_visitor import ProcessGraphVisitor
-from openeo_driver.dummy import dummy_backend
-from openeo_driver.backend import get_backend_implementation
-from openeo_driver.errors import ProcessGraphMissingException
-from openeo_driver.testing import load_json, preprocess_check_and_replace
-from openeo_driver.views import app
 
+import openeo_driver.testing
+from openeo_driver.backend import get_backend_implementation
+from openeo_driver.dummy import dummy_backend
+from openeo_driver.errors import ProcessGraphMissingException
+from openeo_driver.testing import load_json, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN
+from openeo_driver.views import app
 from .data import get_path, TEST_DATA_ROOT
 
 os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "openeo_driver.dummy.dummy_backend"
@@ -148,11 +147,12 @@ def test_load_collection_filter(api):
         }
     })
     assert api.collections['S2_FAPAR_CLOUDCOVER'].download.call_count == 1
-    assert api.collections['S2_FAPAR_CLOUDCOVER'].viewingParameters == {
-        'version': api.api_version, 'from': '2018-01-01', 'to': '2018-12-31',
+    expected = {
+        'from': '2018-01-01', 'to': '2018-12-31',
         'left': 5.027, 'right': 5.0438, 'top': 51.2213, 'bottom': 51.1974, 'srs': 'EPSG:4326',
-        'pyramid_levels': 'highest'
     }
+    viewing_parameters = api.collections['S2_FAPAR_CLOUDCOVER'].viewingParameters
+    assert expected == {k: v for k, v in viewing_parameters.items() if k in expected}
 
 
 def test_execute_apply_unary(api):
@@ -602,8 +602,9 @@ def test_fuzzy_mask_add_dim(api):
 
 
 def test_user_defined_process_bbox_mol_basic(api100):
+    api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     bbox_mol_spec = api100.load_json("udp/bbox_mol.json")
-    user_defined_process_registry.save(user_id="todo", process_id="bbox_mol", spec=bbox_mol_spec)
+    user_defined_process_registry.save(user_id=TEST_USER, process_id="bbox_mol", spec=bbox_mol_spec)
     api100.check_result("udp_bbox_mol_basic.json")
     expected_bbox = {
         "left": 5.05,
@@ -625,15 +626,16 @@ def test_user_defined_process_bbox_mol_basic(api100):
 def test_user_defined_process_date_window(
         api100, udp_args, expected_start_date, expected_end_date
 ):
-    user_defined_process_registry.save(user_id="todo", process_id="date_window",
-                                       spec=api100.load_json("udp/date_window.json"))
+    api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+    spec = api100.load_json("udp/date_window.json")
+    user_defined_process_registry.save(user_id=TEST_USER, process_id="date_window", spec=spec)
 
     pg = {
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": "S2_FOOBAR"}
         },
-        "bboxmol1": {
+        "datewindow": {
             "process_id": "date_window",
             "arguments": dict(
                 data={"from_node": "loadcollection1"},
@@ -653,9 +655,9 @@ def test_user_defined_process_date_window(
 
 
 def test_user_defined_process_required_parameter(api100):
-    date_window_spec = api100.load_json("udp/date_window.json")
-    user_defined_process_registry.save(user_id="todo", process_id="date_window",
-                                       spec=api100.load_json("udp/date_window.json"))
+    api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+    spec = api100.load_json("udp/date_window.json")
+    user_defined_process_registry.save(user_id=TEST_USER, process_id="date_window", spec=spec)
 
     pg = {
         "loadcollection1": {

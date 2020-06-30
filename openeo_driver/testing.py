@@ -13,8 +13,9 @@ from openeo.capabilities import ComparableVersion
 from openeo_driver.users import HttpAuthHandler
 
 TEST_USER = "Mr.Test"
+TEST_USER_BEARER_TOKEN = "basic//" + HttpAuthHandler.build_basic_access_token(user_id=TEST_USER)
 TEST_USER_AUTH_HEADER = {
-    "Authorization": "Bearer basic//" + HttpAuthHandler.build_basic_access_token(user_id=TEST_USER)
+    "Authorization": "Bearer " + TEST_USER_BEARER_TOKEN
 }
 
 TIFF_DUMMY_DATA = b'T1f7D6t6l0l' * 1000
@@ -132,14 +133,22 @@ class ApiTester:
         self.client = client
         if data_root:
             self.data_root = Path(data_root)
+        self.default_request_headers = {}
 
     def url(self, path):
         """Get versioned url from non-versioned path"""
         return "/openeo/{v}/{p}".format(v=self.api_version, p=path.lstrip("/"))
 
+    def _request_headers(self, headers: dict = None) -> dict:
+        return {**self.default_request_headers, **(headers or {})}
+
+    def set_auth_bearer_token(self, token: str = TEST_USER_BEARER_TOKEN):
+        """Authentication: set bearer token header for all requests."""
+        self.default_request_headers["Authorization"] = "Bearer " + token
+
     def get(self, path: str, headers: dict = None) -> ApiResponse:
         """Do versioned GET request, given non-versioned path"""
-        return ApiResponse(self.client.get(path=self.url(path), headers=headers))
+        return ApiResponse(self.client.get(path=self.url(path), headers=self._request_headers(headers)))
 
     def post(self, path: str, json: dict = None, headers: dict = None) -> ApiResponse:
         """Do versioned POST request, given non-versioned path"""
@@ -147,11 +156,11 @@ class ApiTester:
             path=self.url(path),
             json=json or {},
             content_type='application/json',
-            headers=headers,
+            headers=self._request_headers(headers),
         ))
 
     def delete(self, path: str, headers: dict = None) -> ApiResponse:
-        return ApiResponse(self.client.delete(path=self.url(path), headers=headers))
+        return ApiResponse(self.client.delete(path=self.url(path), headers=self._request_headers(headers)))
 
     def put(self, path: str, json: dict = None, headers: dict = None) -> ApiResponse:
         """Do versioned PUT request, given non-versioned path"""
@@ -159,7 +168,7 @@ class ApiTester:
             path=self.url(path),
             json=json or {},
             content_type='application/json',
-            headers=headers,
+            headers=self._request_headers(headers),
         ))
 
     def data_path(self, filename: str) -> Path:
