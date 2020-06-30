@@ -893,6 +893,13 @@ def process(process_id):
     return jsonify(spec)
 
 
+@openeo_bp.route('/.well-known/openeo')
+def versioned_well_known_openeo():
+    # Clients might request this for version discovery. Avoid polluting (error) logs by explicitly handling this.
+    error = OpenEOApiException(status_code=404, code="NotFound", message="Not a well-known openEO URI")
+    return make_response(jsonify(error.to_dict()), error.status_code)
+
+
 app.register_blueprint(openeo_bp, url_prefix='/openeo')
 app.register_blueprint(openeo_bp, url_prefix='/openeo/<version>')
 

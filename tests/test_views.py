@@ -74,6 +74,9 @@ class TestGeneral:
             "1.0.0": {'api_version': '1.0.0', 'production': False, 'url': 'http://oeo.net/openeo/1.0/'},
         }
 
+    def test_versioned_well_known_openeo(self, api):
+        api.get('/.well-known/openeo').assert_error(404, "NotFound")
+
     def test_capabilities_040(self, api040):
         capabilities = api040.get('/').assert_status_code(200).json
         assert capabilities["api_version"] == "0.4.0"
