@@ -281,13 +281,15 @@ class UserDefinedProcessMetadata(NamedTuple):
     id: str
     process_graph: dict
     parameters: List[dict] = None
+    public: bool = False
 
     @classmethod
     def from_dict(cls, d: dict) -> 'UserDefinedProcessMetadata':
         return UserDefinedProcessMetadata(
             id=d['id'],
             process_graph=d['process_graph'],
-            parameters=d.get('parameters')
+            parameters=d.get('parameters'),
+            public=d.get('public', False)
         )
 
     def prepare_for_json(self) -> dict:

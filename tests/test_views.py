@@ -892,13 +892,15 @@ class TestUserDefinedProcesses:
             ],
             'process_graph': {
                 'sub': {}
-            }
+            },
+            'public': True
         }).assert_status_code(200)
 
         new_udp = dummy_backend.DummyUserDefinedProcesses._processes['Mr.Test', 'evi']
         assert new_udp.id == 'evi'
         assert new_udp.parameters == [{'name': 'red'}]
         assert new_udp.process_graph == {'sub': {}}
+        assert new_udp.public
 
     def test_update_udp(self, api100):
         api100.put('/process_graphs/udp1', headers=TEST_USER_AUTH_HEADER, json={
@@ -908,13 +910,15 @@ class TestUserDefinedProcesses:
             ],
             'process_graph': {
                 'add': {}
-            }
+            },
+            'public': True
         }).assert_status_code(200)
 
         modified_udp = dummy_backend.DummyUserDefinedProcesses._processes['Mr.Test', 'udp1']
         assert modified_udp.id == 'udp1'
         assert modified_udp.process_graph == {'add': {}}
         assert modified_udp.parameters == [{'name': 'blue'}]
+        assert modified_udp.public
 
     def test_list_udps(self, api100):
         resp = api100.get('/process_graphs', headers=TEST_USER_AUTH_HEADER).assert_status_code(200)
@@ -923,12 +927,14 @@ class TestUserDefinedProcesses:
         udp1 = next(udp for udp in udps if udp['id'] == 'udp1')
 
         assert 'process_graph' not in udp1
+        assert udp1['public']
 
     def test_get_udp(self, api100):
         resp = api100.get('/process_graphs/udp1', headers=TEST_USER_AUTH_HEADER).assert_status_code(200)
 
         udp = resp.json
         assert udp['id'] == 'udp1'
+        assert udp['public']
 
     def test_get_unknown_udp(self, api100):
         api100.get('/process_graphs/unknown', headers=TEST_USER_AUTH_HEADER).assert_status_code(404)

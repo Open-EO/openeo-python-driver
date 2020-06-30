@@ -343,7 +343,8 @@ class DummyUserDefinedProcesses(UserDefinedProcesses):
     _processes: Dict[Tuple[str, str], UserDefinedProcessMetadata] = {
         ('Mr.Test', 'udp1'): UserDefinedProcessMetadata(
             id='udp1',
-            process_graph={'process1': {}}
+            process_graph={'process1': {}},
+            public=True
         ),
         ('Mr.Test', 'udp2'): UserDefinedProcessMetadata(
             id='udp2',
