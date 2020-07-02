@@ -798,13 +798,13 @@ def _as_geometry_collection(feature_collection: dict) -> dict:
 
 def evaluate_udp(process_id: str, udp: UserDefinedProcessMetadata, args: dict, viewingParameters: dict):
     pg = udp.process_graph
+    for name, value in args.items():
+        viewingParameters[name] = value
     for param in udp.parameters or []:
         name = param["name"]
-        if name in args:
-            value = args[name]
-        elif "default" in param:
-            value = param["default"]
-        else:
-            raise ProcessParameterRequiredException(process=process_id, parameter=name)
-        viewingParameters[name] = value
+        if name not in viewingParameters:
+            if "default" in param:
+                viewingParameters[name] = param["default"]
+            else:
+                raise ProcessParameterRequiredException(process=process_id, parameter=name)
     return evaluate(pg, viewingParameters=viewingParameters)
