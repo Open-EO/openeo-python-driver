@@ -237,9 +237,6 @@ class DummyCatalog(CollectionCatalog):
 
         image_collection.zonal_statistics = zonal_statistics
 
-        image_collection.apply_pixel = Mock(name="apply_pixel")
-        image_collection.apply_pixel.return_value = image_collection
-
         image_collection.apply_tiles_spatiotemporal = Mock(name="apply_tiles_spatiotemporal")
         image_collection.apply_tiles_spatiotemporal.return_value = image_collection
 
