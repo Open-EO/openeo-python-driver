@@ -5,7 +5,7 @@
       "format": "GTiff",
       "glob_pattern": "/data/MTDA/CGS_S2/CGS_S2_FAPAR/2019/04/24/*/*/10M/*_FAPAR_10M_V102.tif",
       "options": {
-        "date_regex": "_(\\d{4})(\\d{2})(\\d{2})T"
+        "date_regex": ".*_(\\d{4})(\\d{2})(\\d{2})T.*"
       }
     }
   },
