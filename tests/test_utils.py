@@ -1,6 +1,4 @@
-from datetime import datetime
-
-from openeo_driver.utils import smart_bool, parse_rfc3339
+from openeo_driver.utils import smart_bool
 
 
 def test_smart_bool():
@@ -8,7 +6,3 @@ def test_smart_bool():
         assert smart_bool(value) == True
     for value in [0, [], (), {}, False, "0", "off", "OFF", "no", "No", "NO", "False", "false", "FALSE"]:
         assert smart_bool(value) == False
-
-
-def test_parse_rfc3339():
-    assert parse_rfc3339("2017-02-01T19:32:12Z") == datetime(2017, 2, 1, 19, 32, 12)

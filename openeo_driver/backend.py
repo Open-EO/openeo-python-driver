@@ -19,8 +19,9 @@ from typing import List, Union, NamedTuple, Dict
 from openeo import ImageCollection
 from openeo.error_summary import ErrorSummary
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+from openeo.util import rfc3339
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException
-from openeo_driver.utils import read_json, date_to_rfc3339, parse_rfc3339
+from openeo_driver.utils import read_json
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ class ServiceMetadata(NamedTuple):
     def prepare_for_json(self) -> dict:
         """Prepare metadata for JSON serialization"""
         d = self._asdict()  # pylint: disable=no-member
-        d["created"] = date_to_rfc3339(self.created) if self.created else None
+        d["created"] = rfc3339.datetime(self.created) if self.created else None
         return d
 
     @classmethod
@@ -70,7 +71,7 @@ class ServiceMetadata(NamedTuple):
         created = d.get("created")
         if isinstance(created, str):
             d = d.copy()
-            d["created"] = parse_rfc3339(created)
+            d["created"] = rfc3339.parse_datetime(created)
         return cls(**d)
 
 
@@ -199,8 +200,8 @@ class BatchJobMetadata(NamedTuple):
     def prepare_for_json(self) -> dict:
         """Prepare metadata for JSON serialization"""
         d = self._asdict()  # pylint: disable=no-member
-        d["created"] = date_to_rfc3339(self.created) if self.created else None
-        d["updated"] = date_to_rfc3339(self.updated) if self.updated else None
+        d["created"] = rfc3339.datetime(self.created) if self.created else None
+        d["updated"] = rfc3339.datetime(self.updated) if self.updated else None
         d["duration_seconds"] = int(round(self.duration.total_seconds())) if self.duration else None
         d["duration_human_readable"] = str(self.duration) if self.duration else None
         d["memory_time_megabyte_seconds"] = int(round(self.memory_time_megabyte.total_seconds())) if self.memory_time_megabyte else None

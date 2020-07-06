@@ -1,13 +1,10 @@
 """
 Small general utilities and helper functions
 """
-from datetime import datetime
 import json
 from math import isnan
 from pathlib import Path
 from typing import Union
-
-from openeo.util import date_to_rfc3339
 
 
 def replace_nan_values(o):
@@ -46,13 +43,3 @@ def smart_bool(value):
         return False
     else:
         return bool(value)
-
-
-# TODO: use new Rfc3339 object?
-date_to_rfc3339 = date_to_rfc3339
-
-
-def parse_rfc3339(s) -> datetime:
-    """Parse RFC-3339 formatted string to a datetime object """
-    # TODO: move this to openeo client like date_to_rfc3339?
-    return datetime.strptime(s, '%Y-%m-%dT%H:%M:%SZ')

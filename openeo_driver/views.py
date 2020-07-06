@@ -798,7 +798,6 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
     extent_spatial_040 = deep_get(metadata, "extent", "spatial", default=None)
     extent_temporal_100 = deep_get(metadata, "extent", "temporal", "interval", default=None)
     extent_temporal_040 = deep_get(metadata, "extent", "temporal", default=None)
-    rfc3339_formatter = Rfc3339(propagate_none=True)
     rfc3339_dt = Rfc3339(propagate_none=True).datetime
     if api_version.below("1.0.0"):
         if full and not cube_dims_040 and cube_dims_100:
