@@ -347,6 +347,21 @@ class TestCollections:
         }
         assert res["summaries"]["eo:bands"] == [{"name": "B02"}, {"name": "B03"}]
 
+    def test_normalize_collection_metadata_datetime(self, caplog):
+        metadata = {
+            "id": "foobar",
+            "extent": {
+                "temporal": {
+                    "interval": [["2009-08-07", "2009-10-11"], ["2011-12-13 14:15:16", None]],
+                }
+            }
+        }
+        res = _normalize_collection_metadata(metadata, api_version=ComparableVersion("1.0.0"), full=True)
+        assert res["extent"]["temporal"]["interval"] == [
+            ['2009-08-07T00:00:00Z', '2009-10-11T00:00:00Z'],
+            ['2011-12-13T14:15:16Z', None],
+        ]
+
     def test_collections(self, api):
         resp = api.get('/collections').assert_status_code(200).json
         assert "links" in resp
@@ -395,12 +410,15 @@ class TestCollections:
             assert collection['cube:dimensions'] == cube_dimensions
             assert collection['summaries']['eo:bands'] == eo_bands
             assert collection['extent']['spatial'] == {'bbox': [[2.5, 49.5, 6.2, 51.5]]}
-            assert collection['extent']['temporal'] == {'interval': [['2019-01-01', None]]}
+            assert collection['extent']['temporal'] == {'interval': [['2019-01-01T00:00:00Z', None]]}
         else:
             assert collection['stac_version'] == '0.6.2'
             assert collection['properties']['cube:dimensions'] == cube_dimensions
             assert collection['properties']["eo:bands"] == eo_bands
-            assert collection['extent'] == {'spatial': [2.5, 49.5, 6.2, 51.5], 'temporal': ['2019-01-01', None]}
+            assert collection['extent'] == {
+                'spatial': [2.5, 49.5, 6.2, 51.5],
+                'temporal': ['2019-01-01T00:00:00Z', None]
+            }
 
 
 class TestBatchJobs:

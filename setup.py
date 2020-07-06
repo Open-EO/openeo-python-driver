@@ -38,7 +38,7 @@ setup(
         'flask',
         'werkzeug',
         'requests',
-        'openeo>=0.3.0a1.*',
+        'openeo>=0.4.3a1.*',
         'gunicorn==19.9.0',
         'shapely',
         'geopandas==0.6.2',

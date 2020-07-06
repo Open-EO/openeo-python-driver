@@ -48,6 +48,7 @@ def smart_bool(value):
         return bool(value)
 
 
+# TODO: use new Rfc3339 object?
 date_to_rfc3339 = date_to_rfc3339
 
 

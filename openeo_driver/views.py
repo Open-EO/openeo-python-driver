@@ -16,7 +16,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from openeo import ImageCollection
 from openeo.capabilities import ComparableVersion
 from openeo.error_summary import ErrorSummary
-from openeo.util import date_to_rfc3339, dict_no_none, deep_get
+from openeo.util import date_to_rfc3339, dict_no_none, deep_get, Rfc3339
 from openeo_driver.ProcessGraphDeserializer import evaluate, get_process_registry
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
     get_backend_implementation
@@ -798,6 +798,8 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
     extent_spatial_040 = deep_get(metadata, "extent", "spatial", default=None)
     extent_temporal_100 = deep_get(metadata, "extent", "temporal", "interval", default=None)
     extent_temporal_040 = deep_get(metadata, "extent", "temporal", default=None)
+    rfc3339_formatter = Rfc3339(propagate_none=True)
+    rfc3339_dt = Rfc3339(propagate_none=True).datetime
     if api_version.below("1.0.0"):
         if full and not cube_dims_040 and cube_dims_100:
             metadata.setdefault("properties", {})
@@ -807,8 +809,8 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
             metadata["properties"]["eo:bands"] = eo_bands_100
         if extent_spatial_100:
             metadata["extent"]["spatial"] = extent_spatial_100[0]
-        if extent_temporal_100:
-            metadata["extent"]["temporal"] = extent_temporal_100[0]
+        if extent_temporal_100 or extent_spatial_040:
+            metadata["extent"]["temporal"] = [rfc3339_dt(v) for v in (extent_temporal_100[0] or extent_temporal_040)]
     else:
         if full and not cube_dims_100 and cube_dims_040:
             _log.warning("Collection metadata 'cube:dimensions' in API 0.4 style instead of 1.0 style")
@@ -824,7 +826,9 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
         if not extent_temporal_100 and extent_temporal_040:
             _log.warning("Collection metadata 'extent': 'temporal' in API 0.4 style instead of 1.0 style")
             metadata["extent"]["temporal"] = {}
-            metadata["extent"]["temporal"]["interval"] = [extent_temporal_040]
+            metadata["extent"]["temporal"]["interval"] = [[rfc3339_dt(v) for v in extent_temporal_040]]
+        elif extent_temporal_100:
+            metadata["extent"]["temporal"]["interval"] = [[rfc3339_dt(v) for v in r] for r in extent_temporal_100]
 
     # Make sure some required fields are set.
     metadata.setdefault("stac_version", "0.9.0" if api_version.at_least("1.0.0") else "0.6.2")
