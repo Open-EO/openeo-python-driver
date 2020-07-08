@@ -274,6 +274,10 @@ def test_apply_dimension_temporal_run_udf_invalid_temporal_dimension(api):
         message="The value passed for parameter 'dimension' in process 'apply_dimension' is invalid: got 'letemps', but should be one of ['x', 'y', 't']"
     )
 
+def test_apply_neighborhood(api100):
+    api100.check_result(
+        "apply_neighborhood.json"
+    )
 
 def test_reduce_max_t(api):
     api.check_result("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "t"))
