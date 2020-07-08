@@ -243,6 +243,9 @@ class DummyCatalog(CollectionCatalog):
         image_collection.apply_dimension = Mock(name="apply_dimension")
         image_collection.apply_dimension.return_value = image_collection
 
+        image_collection.apply_neighborhood = Mock(name="apply_neighborhood")
+        image_collection.apply_neighborhood.return_value = image_collection
+
         image_collection.apply_tiles = Mock(name="apply_tiles")
         image_collection.apply_tiles.return_value = image_collection
 

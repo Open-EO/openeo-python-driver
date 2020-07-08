@@ -266,6 +266,18 @@ def load_disk_data(args: Dict, viewingParameters) -> object:
     return backend_implementation.load_disk_data(format, glob_pattern, options, viewingParameters)
 
 
+@non_standard_process(
+    ProcessSpec(id='apply_neighborhood', description="Applies a focal process to a data cube.").returns("datacube",schema={})
+)
+def apply_neighborhood(args: dict, ctx: dict) -> ImageCollection:
+    process = extract_deep(args, "process", "process_graph")
+    size = extract_arg(args, 'size')
+    overlap = extract_arg(args, 'overlap')
+    context = args.get( 'context',{})
+    data_cube = extract_arg(args, 'data')
+
+    return data_cube.apply_neighborhood(process,size,overlap)
+
 @process
 def apply_dimension(args: Dict, ctx: dict) -> ImageCollection:
     return _evaluate_sub_process_graph(args, 'process', parent_process='apply_dimension', version=ctx["version"])
@@ -339,6 +351,8 @@ def reduce_dimension(args: dict, ctx: dict) -> ImageCollection:
     # do check_dimension here for error handling
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce_dimension")
     return data_cube.reduce_dimension(dimension, reduce_pg)
+
+
 
 
 @process
