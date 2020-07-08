@@ -13,7 +13,7 @@
       "overlap": [
         {
           "name": "t",
-          "value": "P10d"
+          "value": "P10D"
         }
       ],
       "process": {
@@ -27,7 +27,7 @@
               "runtime": "Python"
             },
             "process_id": "run_udf",
-            "result": "True"
+            "result": true
           }
         }
       },
@@ -45,6 +45,6 @@
       ]
     },
     "process_id": "apply_neighborhood",
-    "result": "True"
+    "result": true
   }
 }
