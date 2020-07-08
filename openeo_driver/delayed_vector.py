@@ -209,4 +209,8 @@ class DelayedVector:
     @staticmethod
     def _read_geojson_crs(geojson: Dict) -> Dict:
         #so actually geojson has no crs, it's always lat lon, need to check what gdal does...
-        return {'init': 'epsg:4326'}
+        crs = geojson.get('crs',{}).get("properties",{}).get("name",None)
+        if crs==None:
+            return {'init': 'epsg:4326'}
+        else:
+            return {'init': crs}
