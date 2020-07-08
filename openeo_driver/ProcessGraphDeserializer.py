@@ -591,7 +591,7 @@ def run_udf(args: dict, viewingParameters: dict):
         data = UdfData(proj={"EPSG":data.crs.to_epsg()}, feature_collection_list=[collection])
     elif isinstance(data,JSONResult):
         st = StructuredData(description="Dictionary data", data=data.get_data(), type="dict")
-        data = UdfData(structured_data_list=[st])
+        data = UdfData(proj={},structured_data_list=[st])
 
 
     result_data = run_user_code(udf, data)
