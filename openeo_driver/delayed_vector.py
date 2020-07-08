@@ -2,6 +2,7 @@ import tempfile
 
 import fiona
 import geopandas as gpd
+import pyproj
 from shapely.geometry import shape
 from shapely.geometry.base import BaseGeometry
 from urllib.parse import urlparse
@@ -33,7 +34,7 @@ class DelayedVector:
         return "DelayedVector({p})".format(p=self.path)
     
     @property
-    def crs(self):
+    def crs(self) -> pyproj.CRS:
         if self._crs is None:
             if self.path.startswith("http"):
                 if DelayedVector._is_shapefile(self.path):
@@ -163,7 +164,7 @@ class DelayedVector:
             return collection.bounds
 
     @staticmethod
-    def _read_shapefile_crs(shp_path: str) -> Dict:
+    def _read_shapefile_crs(shp_path: str) -> pyproj.CRS:
         """
 
         @param shp_path:
@@ -207,10 +208,10 @@ class DelayedVector:
         return tuple(bounds)
 
     @staticmethod
-    def _read_geojson_crs(geojson: Dict) -> Dict:
+    def _read_geojson_crs(geojson: Dict) -> pyproj.CRS:
         #so actually geojson has no crs, it's always lat lon, need to check what gdal does...
         crs = geojson.get('crs',{}).get("properties",{}).get("name",None)
         if crs==None:
-            return {'init': 'epsg:4326'}
+            return pyproj.CRS({'init': 'epsg:4326'})
         else:
-            return {'init': crs}
+            return pyproj.CRS({'init': crs})
