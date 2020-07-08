@@ -1,0 +1,95 @@
+{
+  "loadco1": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "S2_FOOBAR",
+      "spatial_extent": {
+        "west": 5,
+        "east": 6,
+        "north": 52,
+        "south": 51
+      },
+      "temporal_extent": [
+        "2017-11-21",
+        "2017-11-21"
+      ]
+    }
+  },
+  "aggreg1": {
+    "process_id": "aggregate_spatial",
+    "arguments": {
+      "data": {
+        "from_node": "loadco1"
+      },
+      "polygons": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "properties": {},
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    5.0761587693484875,
+                    51.21222494794898
+                  ],
+                  [
+                    5.166854684377381,
+                    51.21222494794898
+                  ],
+                  [
+                    5.166854684377381,
+                    51.268936260927404
+                  ],
+                  [
+                    5.0761587693484875,
+                    51.268936260927404
+                  ],
+                  [
+                    5.0761587693484875,
+                    51.21222494794898
+                  ]
+                ]
+              ]
+            }
+          }
+        ]
+      },
+      "reducer": {
+        "process_graph": {
+          "mean1": {
+            "process_id": "mean",
+            "arguments": {
+              "data": {
+                "from_parameter": "data"
+              }
+            },
+            "result": true
+          }
+        }
+      }
+    }
+  },
+  "udf": {
+    "process_id": "run_udf",
+    "arguments": {
+      "data": {
+        "from_node": "aggreg1"
+      },
+      "udf": "def fct_buffer(udf_data):\n    print(udf_data.get_structured_data_list()[0])\n    return udf_data",
+      "runtime": "Python"
+    }
+  },
+  "save": {
+    "process_id": "save_result",
+    "arguments": {
+      "data": {
+        "from_node": "udf"
+      },
+      "format": "JSON"
+    },
+    "result": true
+  }
+}

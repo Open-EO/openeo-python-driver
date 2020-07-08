@@ -13,6 +13,7 @@ from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation
     BatchJobs, BatchJobMetadata, OidcProvider, UserDefinedProcesses, UserDefinedProcessMetadata
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, ProcessGraphNotFoundException
+from openeo_driver.save_result import AggregatePolygonResult
 from shapely.geometry import Polygon, MultiPolygon
 from shapely.geometry.collection import GeometryCollection
 
@@ -230,10 +231,10 @@ class DummyCatalog(CollectionCatalog):
             return return_value
 
         zonal_statistics = Mock(name='zonal_statistics')
-        zonal_statistics.side_effect = lambda regions, func: is_one_or_more_polygons({
+        zonal_statistics.side_effect = lambda regions, func: is_one_or_more_polygons(AggregatePolygonResult(timeseries={
             "2015-07-06T00:00:00": [2.9829132080078127],
             "2015-08-22T00:00:00": [float('nan')]
-        }, regions, func)
+        },regions=GeometryCollection()), regions, func)
 
         image_collection.zonal_statistics = zonal_statistics
 

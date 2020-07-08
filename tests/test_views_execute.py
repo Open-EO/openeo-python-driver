@@ -492,6 +492,16 @@ def test_run_udf_on_vector(api100):
     assert resp.json[0]['type'] == 'Polygon'
 
 
+def test_run_udf_on_json(api100):
+    process_graph = api100.load_json(
+        "run_udf_on_timeseries.json"
+    )
+    resp = api100.check_result(process_graph)
+    print(resp.json)
+    assert len(resp.json) == 2
+
+
+
 def test_process_reference_as_argument(api100):
     process_graph = api100.load_json(
         "process_reference_as_argument.json"

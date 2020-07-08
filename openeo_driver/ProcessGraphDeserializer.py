@@ -17,10 +17,11 @@ from openeo_driver.errors import ProcessParameterRequiredException, \
     ProcessParameterInvalidException
 from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
-from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult
+from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult
 from openeo_driver.specs import SPECS_ROOT
 from openeo_driver.utils import smart_bool
 from openeo_udf.api.feature_collection import FeatureCollection
+from openeo_udf.api.structured_data import StructuredData
 from openeo_udf.api.udf_data import UdfData
 from shapely.geometry import shape, mapping
 
@@ -573,31 +574,42 @@ def merge_cubes(args: dict, viewingParameters: dict) -> ImageCollection:
 @process
 def run_udf(args: dict, viewingParameters: dict):
     data = extract_arg(args, 'data')
-    if not isinstance(data, DelayedVector):
+    if not isinstance(data, DelayedVector) and not isinstance(data,AggregatePolygonResult):
         if isinstance(data, dict):
             data = DelayedVector.from_json_dict(data)
         else:
             raise ProcessParameterInvalidException(
                 parameter='data', process='run_udf',
-                reason='The run_udf process can only be used on vector cubes directly, or as part of a callback on a raster-cube! Tried to use: %s' % str(data) )
+                reason='The run_udf process can only be used on vector cubes or aggregated timeseries directly, or as part of a callback on a raster-cube! Tried to use: %s' % str(data) )
 
     from openeo_udf.api.run_code import run_user_code
 
     udf = _get_udf(args)
 
-    collection = FeatureCollection(id='VectorCollection', data=data.as_geodataframe())
-    data = UdfData(proj={"EPSG":data.crs.to_epsg()}, feature_collection_list=[collection])
+    if isinstance(data,DelayedVector):
+        collection = FeatureCollection(id='VectorCollection', data=data.as_geodataframe())
+        data = UdfData(proj={"EPSG":data.crs.to_epsg()}, feature_collection_list=[collection])
+    elif isinstance(data,JSONResult):
+        st = StructuredData(description="Dictionary data", data=data.get_data(), type="dict")
+        data = UdfData(structured_data_list=[st])
+
 
     result_data = run_user_code(udf, data)
-    result_collections = result_data.get_feature_collection_list()
-    if result_collections == None or len(result_collections) != 1:
-        raise ProcessParameterInvalidException(
-                parameter='udf', process='run_udf',
-                reason='The provided UDF should return exactly one feature collection when used in this context, but got: %s .'%str(result_data) )
 
-    with tempfile.NamedTemporaryFile(suffix=".json.tmp", delete=False) as temp_file:
-        result_collections[0].get_data().to_file(temp_file.name, driver='GeoJSON')
-        return DelayedVector(temp_file.name)
+    result_collections = result_data.get_feature_collection_list()
+    if result_collections != None and len(result_collections) > 0:
+        with tempfile.NamedTemporaryFile(suffix=".json.tmp", delete=False) as temp_file:
+            result_collections[0].get_data().to_file(temp_file.name, driver='GeoJSON')
+            return DelayedVector(temp_file.name)
+    structured_result = result_data.get_structured_data_list()
+    if structured_result != None and len(structured_result)>0:
+        return JSONResult(structured_result[0].data)
+
+    raise ProcessParameterInvalidException(
+            parameter='udf', process='run_udf',
+            reason='The provided UDF should return exactly either a feature collection or a structured result but got: %s .'%str(result_data) )
+
+
 
 
 @process
