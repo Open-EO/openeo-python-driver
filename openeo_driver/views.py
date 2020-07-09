@@ -755,9 +755,10 @@ def get_udp(process_graph_id: str, user: User):
 @auth_handler.requires_bearer_auth
 def list_udps(user: User):
     user_udps = backend_implementation.user_defined_processes.get_for_user(user.user_id)
-
     return {
-        'processes': [_jsonable_udp_metadata(udp, full=False) for udp in user_udps]
+        'processes': [_jsonable_udp_metadata(udp, full=False) for udp in user_udps],
+        # TODO: pagination links?
+        "links": [],
     }
 
 
