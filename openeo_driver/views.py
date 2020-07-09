@@ -277,6 +277,14 @@ def build_backend_deploy_metadata(packages: List[str]) -> dict:
     }
 
 
+@openeo_bp.route('/conformance')
+def conformance():
+    return jsonify({"conformsTo": [
+        # TODO: expand/manage conformance classes?
+        "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core"
+    ]})
+
+
 @openeo_bp.route('/health')
 def health():
     return jsonify({

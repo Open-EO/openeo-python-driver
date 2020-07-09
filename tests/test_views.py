@@ -139,6 +139,10 @@ class TestGeneral:
         assert endpoints["/file_formats"] == ["GET"]
         assert "/output_formats" not in endpoints
 
+    def test_conformance(self, api100):
+        res = api100.get('/conformance').assert_status_code(200).json
+        assert "conformsTo" in res
+
     @pytest.mark.parametrize("path", ["/", "/collections", "/processes"])
     def test_cors_options(self, api, path):
         resp = api.client.options(api.url(path))
