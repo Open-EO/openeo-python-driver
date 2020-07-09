@@ -393,7 +393,7 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
         return {
             "input": {
                 "GeoJSON": {
-                    "gis_data_type": ["vector"]
+                    "gis_data_types": ["vector"]
                 }
             },
             "output": {

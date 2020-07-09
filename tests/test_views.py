@@ -174,7 +174,7 @@ class TestGeneral:
     def test_file_formats(self, api100):
         resp = api100.get('/file_formats').assert_status_code(200).json
         assert resp == {
-            "input": {"GeoJSON": {"gis_data_type": ["vector"]}},
+            "input": {"GeoJSON": {"gis_data_types": ["vector"]}},
             "output": {
                 "GTiff": {"title": "GeoTiff", "gis_data_types": ["raster"]},
             }
