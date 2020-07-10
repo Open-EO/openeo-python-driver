@@ -39,7 +39,7 @@ setup(
         'werkzeug',
         'requests',
         'openeo>=0.4.3a1.*',
-        'gunicorn==19.9.0',
+        'gunicorn>=20.0.1',
         'shapely',
         'geopandas==0.7.0',
         'xarray==0.12.3',

@@ -1,6 +1,5 @@
 from flask_cors import CORS
 import gunicorn.app.base
-from gunicorn.six import iteritems
 import logging
 from typing import Union
 
@@ -62,10 +61,9 @@ class StandaloneApplication(gunicorn.app.base.BaseApplication):
         super(StandaloneApplication, self).__init__()
 
     def load_config(self):
-        config = dict([(key, value) for key, value in iteritems(self.options)
-                       if key in self.cfg.settings and value is not None])
+        config = dict((k, v) for k, v in self.options.items() if k in self.cfg.settings and v is not None)
         config['when_ready'] = self.when_ready
-        for key, value in iteritems(config):
+        for key, value in config.items():
             self.cfg.set(key.lower(), value)
 
     def load(self):
