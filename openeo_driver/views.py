@@ -22,7 +22,7 @@ from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefined
     get_backend_implementation
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
-    FilePathInvalidException, ProcessGraphNotFoundException
+    FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException
 from openeo_driver.save_result import SaveResult
 from openeo_driver.users import HttpAuthHandler, User
 from openeo_driver.utils import replace_nan_values
@@ -522,14 +522,14 @@ def get_job_info(job_id, user: User):
 @openeo_bp.route('/jobs/<job_id>', methods=['DELETE'])
 @auth_handler.requires_bearer_auth
 def delete_job(job_id, user: User):
-    raise NotImplementedError
+    raise FeatureUnsupportedException()
 
 
 @api_endpoint
 @openeo_bp.route('/jobs/<job_id>', methods=['PATCH'])
 @auth_handler.requires_bearer_auth
 def modify_job(job_id, user: User):
-    raise NotImplementedError
+    raise FeatureUnsupportedException()
 
 
 @api_endpoint
@@ -781,7 +781,7 @@ def _jsonable_udp_metadata(metadata: UserDefinedProcessMetadata, full=True) -> d
 @api_endpoint
 @openeo_bp.route('/subscription', methods=["GET"])
 def subscription():
-    raise NotImplementedError
+    raise FeatureUnsupportedException()
 
 
 def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersion, full=False) -> dict:
