@@ -626,6 +626,14 @@ def cancel_job(job_id, user: User):
 
 
 @api_endpoint
+@openeo_bp.route('/jobs/<job_id>/estimate', methods=['GET'])
+@auth_handler.requires_bearer_auth
+def job_estimate(job_id, user: User):
+    # TODO: implement cost estimation?
+    return jsonify({})
+
+
+@api_endpoint
 @openeo_bp.route('/service_types', methods=['GET'])
 def service_types():
     service_types = backend_implementation.secondary_services.service_types()
