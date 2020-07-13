@@ -148,6 +148,10 @@ class TestGeneral:
         resp = api.client.options(api.url(path))
         assert resp.status_code == 204
         assert len(resp.data) == 0
+        assert 'Authorization' in resp.access_control_allow_headers
+        assert 'content-type' in resp.access_control_allow_headers
+        assert resp.access_control_allow_credentials == True
+        assert 'application/json' == resp.content_type
 
     def test_health(self, api):
         resp = api.get('/health').assert_status_code(200).json
