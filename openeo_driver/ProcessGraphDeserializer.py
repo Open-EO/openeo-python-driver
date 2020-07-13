@@ -845,7 +845,8 @@ def evaluate_udp(process_id: str, udp: UserDefinedProcessMetadata, args: dict, v
         .returns("Original data", schema={})
 )
 def sleep(args: Dict, viewingParameters):
+    data = extract_arg(args, "data")
     seconds = extract_arg(args, "seconds")
+    _log.info("Sleeping {s} seconds".format(s=seconds))
     time.sleep(seconds)
-    data = extract_arg(args, 'data')
     return data
