@@ -927,6 +927,38 @@ def process(process_id):
     return jsonify(spec)
 
 
+@api_endpoint
+@openeo_bp.route('/files', methods=['GET'])
+@auth_handler.requires_bearer_auth
+def files_list_for_user(user: User):
+    # TODO EP-3538
+    raise FeatureUnsupportedException()
+
+
+@api_endpoint
+@openeo_bp.route('/files/<path>', methods=['GET'])
+@auth_handler.requires_bearer_auth
+def fildes_download(path, user: User):
+    # TODO EP-3538
+    raise FeatureUnsupportedException()
+
+
+@api_endpoint
+@openeo_bp.route('/files/<path>', methods=['PUT'])
+@auth_handler.requires_bearer_auth
+def files_upload(path, user: User):
+    # TODO EP-3538
+    raise FeatureUnsupportedException()
+
+
+@api_endpoint
+@openeo_bp.route('/files/<path>', methods=['DELETE'])
+@auth_handler.requires_bearer_auth
+def files_delete(path, user: User):
+    # TODO EP-3538
+    raise FeatureUnsupportedException()
+
+
 @openeo_bp.route('/.well-known/openeo')
 def versioned_well_known_openeo():
     # Clients might request this for version discovery. Avoid polluting (error) logs by explicitly handling this.
