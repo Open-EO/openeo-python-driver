@@ -64,7 +64,7 @@ class DummySecondaryServices(SecondaryServices):
     def service_types(self) -> dict:
         return {
             "WMTS": {
-                "configuration": {
+                "parameters": {
                     "version": {
                         "type": "string",
                         "description": "The WMTS version to use.",
@@ -74,8 +74,7 @@ class DummySecondaryServices(SecondaryServices):
                         ]
                     }
                 },
-                "process_parameters": [],
-                "links": [],
+                "attributes": {}
             }
         }
 
