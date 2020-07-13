@@ -176,13 +176,15 @@ class TestGeneral:
         assert resp == {"GTiff": {"title": "GeoTiff", "gis_data_types": ["raster"]}, }
 
     def test_file_formats(self, api100):
-        resp = api100.get('/file_formats').assert_status_code(200).json
+        response = api100.get('/file_formats')
+        resp = response.assert_status_code(200).json
         assert resp == {
             "input": {"GeoJSON": {"gis_data_types": ["vector"]}},
             "output": {
                 "GTiff": {"title": "GeoTiff", "gis_data_types": ["raster"]},
             }
         }
+        assert 'Access-Control-Allow-Credentials' in response.headers
 
     def test_processes(self, api):
         resp = api.get('/processes').assert_status_code(200).json

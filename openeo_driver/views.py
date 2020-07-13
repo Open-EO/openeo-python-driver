@@ -69,6 +69,11 @@ backend_implementation = get_backend_implementation()
 
 auth_handler = HttpAuthHandler(oidc_providers=backend_implementation.oidc_providers())
 
+@openeo_bp.after_request
+def add_header(response):
+    response.access_control_allow_credentials = True
+    return response
+
 
 @openeo_bp.url_defaults
 def _add_version(endpoint, values):
