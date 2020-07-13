@@ -524,6 +524,7 @@ def get_job_info(job_id, user: User):
 @openeo_bp.route('/jobs/<job_id>', methods=['DELETE'])
 @auth_handler.requires_bearer_auth
 def delete_job(job_id, user: User):
+    # TODO
     raise FeatureUnsupportedException()
 
 
@@ -531,6 +532,7 @@ def delete_job(job_id, user: User):
 @openeo_bp.route('/jobs/<job_id>', methods=['PATCH'])
 @auth_handler.requires_bearer_auth
 def modify_job(job_id, user: User):
+    # TODO
     raise FeatureUnsupportedException()
 
 
@@ -730,9 +732,16 @@ def service_delete(service_id, user: User):
 
 
 @api_endpoint
+@openeo_bp.route('/validation', methods=["POST"])
+def udp_validate():
+    # TODO
+    raise FeatureUnsupportedException()
+
+
+@api_endpoint
 @openeo_bp.route('/process_graphs/<process_graph_id>', methods=['PUT'])
 @auth_handler.requires_bearer_auth
-def store_udp(process_graph_id: str, user: User):
+def udp_store(process_graph_id: str, user: User):
     backend_implementation.user_defined_processes.save(
         user_id=user.user_id,
         process_id=process_graph_id,
@@ -745,7 +754,7 @@ def store_udp(process_graph_id: str, user: User):
 @api_endpoint
 @openeo_bp.route('/process_graphs/<process_graph_id>', methods=['GET'])
 @auth_handler.requires_bearer_auth
-def get_udp(process_graph_id: str, user: User):
+def udp_get(process_graph_id: str, user: User):
     udp = backend_implementation.user_defined_processes.get(user_id=user.user_id, process_id=process_graph_id)
     if udp:
         return _jsonable_udp_metadata(udp)
@@ -756,7 +765,7 @@ def get_udp(process_graph_id: str, user: User):
 @api_endpoint
 @openeo_bp.route('/process_graphs', methods=['GET'])
 @auth_handler.requires_bearer_auth
-def list_udps(user: User):
+def udp_list_for_user(user: User):
     user_udps = backend_implementation.user_defined_processes.get_for_user(user.user_id)
     return {
         'processes': [_jsonable_udp_metadata(udp, full=False) for udp in user_udps],
@@ -768,7 +777,7 @@ def list_udps(user: User):
 @api_endpoint
 @openeo_bp.route('/process_graphs/<process_graph_id>', methods=['DELETE'])
 @auth_handler.requires_bearer_auth
-def delete_udp(process_graph_id: str, user: User):
+def udp_delete(process_graph_id: str, user: User):
     backend_implementation.user_defined_processes.delete(user_id=user.user_id, process_id=process_graph_id)
     return response_204_no_content()
 
@@ -784,6 +793,7 @@ def _jsonable_udp_metadata(metadata: UserDefinedProcessMetadata, full=True) -> d
 @api_endpoint
 @openeo_bp.route('/subscription', methods=["GET"])
 def subscription():
+    # TODO
     raise FeatureUnsupportedException()
 
 
