@@ -6,6 +6,7 @@ import logging
 import tempfile
 import warnings
 from typing import Dict, Callable
+import time
 
 import numpy as np
 from openeo import ImageCollection
@@ -124,6 +125,7 @@ def _expand_macros(process_graph: dict) -> dict:
     :param process_graph:
     :return: a copy of the input process graph with the macros expanded
     """
+    # TODO: can this system be combined with user defined processes (both kind of replace a single "virtual" node with a replacement process graph)
 
     def expand_macros_recursively(tree: dict) -> dict:
         def make_unique(node_identifier: str) -> str:
@@ -834,3 +836,16 @@ def evaluate_udp(process_id: str, udp: UserDefinedProcessMetadata, args: dict, v
             else:
                 raise ProcessParameterRequiredException(process=process_id, parameter=name)
     return evaluate(pg, viewingParameters=viewingParameters)
+
+
+@non_standard_process(
+    ProcessSpec("sleep", description="Sleep for given amount of seconds (and just pass-through given data.")
+        .param('data', description="Data to pass through.", schema={}, required=False)
+        .param('seconds', description="Number of seconds to sleep.", schema={"type": "number"}, required=True)
+        .returns("Original data", schema={})
+)
+def sleep(args: Dict, viewingParameters):
+    seconds = extract_arg(args, "seconds")
+    time.sleep(seconds)
+    data = extract_arg(args, 'data')
+    return data

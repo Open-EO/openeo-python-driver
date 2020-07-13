@@ -1,5 +1,6 @@
 import os
 from typing import Callable, Union
+from unittest import mock
 
 import pytest
 import shapely.geometry
@@ -274,10 +275,12 @@ def test_apply_dimension_temporal_run_udf_invalid_temporal_dimension(api):
         message="The value passed for parameter 'dimension' in process 'apply_dimension' is invalid: got 'letemps', but should be one of ['x', 'y', 't']"
     )
 
+
 def test_apply_neighborhood(api100):
     api100.check_result(
         "apply_neighborhood.json"
     )
+
 
 def test_reduce_max_t(api):
     api.check_result("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "t"))
@@ -311,13 +314,13 @@ def test_execute_merge_cubes(api):
     args, kwargs = api.collections["S2_FAPAR_CLOUDCOVER"].merge.call_args
     assert args[1:] == ('or',)
 
+
 def test_execute_resample_and_merge_cubes(api100):
     api100.check_result("resample_and_merge_cubes.json")
     assert api100.collections["S2_FAPAR_CLOUDCOVER"].merge.call_count == 1
     assert api100.collections["S2_FAPAR_CLOUDCOVER"].resample_cube_spatial.call_count == 1
     args, kwargs = api100.collections["S2_FAPAR_CLOUDCOVER"].merge.call_args
     assert args[1:] == ('or',)
-
 
 
 def test_reduce_bands(api):
@@ -499,7 +502,6 @@ def test_run_udf_on_json(api100):
     resp = api100.check_result(process_graph)
     print(resp.json)
     assert len(resp.json) == 2
-
 
 
 def test_process_reference_as_argument(api100):
@@ -717,3 +719,19 @@ def test_execute_03_style_filter_temporal(api):
         status_code=400, error_code="ProcessParameterRequired",
         message="Process 'filter_temporal' parameter 'extent' is required"
     )
+
+
+def test_sleep(api):
+    with mock.patch("time.sleep") as sleep:
+        r = api.check_result({
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {"id": "S2_FOOBAR"}
+            },
+            "sleep1": {
+                "process_id": "sleep",
+                "arguments": {"data": {"from_node": "loadcollection1"}, "seconds": 5},
+                "result": True
+            }
+        })
+    sleep.assert_called_with(5)
