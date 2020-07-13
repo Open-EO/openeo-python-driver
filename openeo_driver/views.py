@@ -51,8 +51,10 @@ class OpenEoApiApp(Flask):
         rv = super().make_default_options_response()
         rv.status_code = 204
         rv.access_control_allow_methods = rv.allow
-        rv.access_control_allow_headers = ["Content-Type"]
+        rv.access_control_allow_headers = ["Content-Type","Authorization"]
         rv.access_control_expose_headers = ["Location", "Openeo-Identifier", "Openeo-Costs"]
+        rv.access_control_allow_credentials = "true"
+        rv.content_type = "application/json"
         return rv
 
 
