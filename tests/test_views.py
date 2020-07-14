@@ -696,14 +696,14 @@ class TestSecondaryServices(TestCase):
         self._auth_header = TEST_USER_AUTH_HEADER
         dummy_backend.collections = {}
 
-
     def test_service_types_v100(self):
         resp = self.client.get('/openeo/1.0.0/service_types')
         service_types = resp.json
         assert list(service_types.keys()) == ["WMTS"]
         wmts = service_types["WMTS"]
-        assert wmts["parameters"]["version"]["default"] == "1.0.0"
-        assert wmts["attributes"] == {}
+        assert wmts["configuration"]["version"]["default"] == "1.0.0"
+        assert wmts["process_parameters"] == []
+        assert wmts["links"] == []
 
     def test_create_unsupported_service_type_returns_BadRequest(self):
         resp = self.client.post('/openeo/services', content_type='application/json', json={
