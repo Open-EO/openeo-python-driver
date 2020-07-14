@@ -644,7 +644,7 @@ class TestBatchJobs:
             'links': [],
             'properties': {
                 'created': '2017-01-01T09:32:12Z',
-                'date_time': None
+                'datetime': None
             },
             'stac_version': '0.9.0',
             'type': 'Feature'

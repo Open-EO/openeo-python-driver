@@ -561,7 +561,7 @@ def list_job_results(job_id, user: User):
             "stac_version": "0.9.0",
             "id": job_info.get("id"),
             "type": "Feature",
-            # TODO: add correct bbox and geometry when avalaible in metadata
+            # TODO EP-3540: add correct bbox and geometry when available in metadata
             # TODO: also see https://github.com/Open-EO/openeo-api/pull/291 : bbox can be dropped, geometry can be null
             "bbox": [-180, -90, 180, 90],
             "geometry": {
@@ -591,16 +591,16 @@ def list_job_results(job_id, user: User):
 
 
 def _properties_from_job_info(job_info):
-    # TODO: add correct date when avalaible in metadata
+    # TODO EP-3540: add correct date when available in metadata
     properties = dict_no_none(**{
         "start_date_time": None,
         "end_date_time": None,
         "title": job_info.get("title"),
         "description": job_info.get("description"),
         "created": job_info.get("created"),
-        "updated": job_info.get("updated")
+        "updated": job_info.get("updated"),
     })
-    properties["date_time"] = None
+    properties["datetime"] = None
     return properties
 
 
