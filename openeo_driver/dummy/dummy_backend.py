@@ -87,6 +87,11 @@ class DummySecondaryServices(SecondaryServices):
     def service_info(self, service_id: str) -> ServiceMetadata:
         return next(s for s in self._registry if s.id == service_id)
 
+    def get_logs(self, service_id: str) -> List[dict]:
+        return [
+            {"id": 3, "level": "info", "message": "Loaded data.", "path": [{"node_id": "loadcollection1"}]}
+        ]
+
 
 class DummyImageCollection(ImageCollection):
     # TODO move all Mock stuff here?

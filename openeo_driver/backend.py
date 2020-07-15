@@ -20,7 +20,7 @@ from openeo import ImageCollection
 from openeo.error_summary import ErrorSummary
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.util import rfc3339
-from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException
+from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException, FeatureUnsupportedException
 from openeo_driver.utils import read_json
 
 logger = logging.getLogger(__name__)
@@ -82,20 +82,20 @@ class SecondaryServices(MicroService):
     """
 
     def service_types(self) -> dict:
-        """https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1service_types/get"""
+        """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-service-types"""
         return {}
 
     def list_services(self) -> List[ServiceMetadata]:
-        """https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1services/get"""
+        """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-services"""
         return []
 
     def service_info(self, service_id: str) -> ServiceMetadata:
-        """https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1services~1{service_id}/get"""
-        raise NotImplementedError()
+        """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-service"""
+        raise FeatureUnsupportedException()
 
     def create_service(self, process_graph: dict, service_type: str, api_version: str, post_data: dict) -> ServiceMetadata:
         """
-        https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1services/post
+        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/create-service
         :return: (location, openeo_identifier)
         """
         from openeo_driver.ProcessGraphDeserializer import evaluate
@@ -112,16 +112,19 @@ class SecondaryServices(MicroService):
         return service_metadata
 
     def update_service(self, service_id: str, process_graph: dict) -> None:
-        """https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1services~1{service_id}/patch"""
+        """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/update-service"""
         # TODO require auth/user handle?
-        raise NotImplementedError()
+        raise FeatureUnsupportedException()
 
     def remove_service(self, service_id: str) -> None:
-        """https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1services~1{service_id}/delete"""
+        """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/delete-service"""
         # TODO require auth/user handle?
-        raise NotImplementedError()
+        raise FeatureUnsupportedException()
 
-    # TODO https://open-eo.github.io/openeo-api/apireference/#tag/Secondary-Services-Management/paths/~1subscription/get
+    def get_logs(self, service_id: str) -> List[dict]:
+        """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/debug-service"""
+        # TODO require auth/user handle?
+        return []
 
 
 class CollectionCatalog(MicroService):

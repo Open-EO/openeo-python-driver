@@ -51,7 +51,7 @@ class OpenEoApiApp(Flask):
         rv = super().make_default_options_response()
         rv.status_code = 204
         rv.access_control_allow_methods = rv.allow
-        rv.access_control_allow_headers = ["Content-Type","Authorization"]
+        rv.access_control_allow_headers = ["Content-Type", "Authorization"]
         rv.access_control_expose_headers = ["Location", "Openeo-Identifier", "Openeo-Costs"]
         rv.access_control_allow_credentials = True
         rv.content_type = "application/json"
@@ -68,6 +68,7 @@ openeo_bp = Blueprint('openeo', __name__)
 backend_implementation = get_backend_implementation()
 
 auth_handler = HttpAuthHandler(oidc_providers=backend_implementation.oidc_providers())
+
 
 @openeo_bp.after_request
 def add_header(response):
@@ -734,6 +735,15 @@ def service_delete(service_id, user: User):
     # TODO implement user level secondary service management EP-3411
     backend_implementation.secondary_services.remove_service(service_id)
     return response_204_no_content()
+
+
+@api_endpoint
+@openeo_bp.route('/services/<service_id>/logs', methods=['GET'])
+@auth_handler.requires_bearer_auth
+def service_logs(service_id, user: User):
+    # TODO implement user level secondary service management EP-3411
+    logs = backend_implementation.secondary_services.get_logs(service_id)
+    return jsonify({"logs": logs, "links": []})
 
 
 @api_endpoint

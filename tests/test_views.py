@@ -808,6 +808,15 @@ class TestSecondaryServices(TestCase):
         assert res.status_code == 401
         assert res.json['code'] == 'AuthenticationRequired'
 
+    def test_service_logs_100(self):
+        logs = self.client.get('/openeo/1.0.0/services/wmts-foo/logs', headers=self._auth_header).json
+        assert logs == {
+            "logs": [
+                {"id": 3, "level": "info", "message": "Loaded data.", "path": [{"node_id": "loadcollection1"}]},
+            ],
+            "links": []
+        }
+
 
 def test_build_backend_deploy_metadata():
     data = build_backend_deploy_metadata(packages=["openeo", "openeo_driver", "foobarblerghbwop"])
