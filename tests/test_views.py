@@ -670,7 +670,7 @@ class TestBatchJobs:
         resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs', headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).json == {
             "logs": [
-                {"id": "1", "level": "info", "message": "hello world", "path": []}
+                {"id": "1", "level": "info", "message": "hello world"}
             ],
             "links": []
         }
@@ -812,7 +812,7 @@ class TestSecondaryServices(TestCase):
         logs = self.client.get('/openeo/1.0.0/services/wmts-foo/logs', headers=self._auth_header).json
         assert logs == {
             "logs": [
-                {"id": 3, "level": "info", "message": "Loaded data.", "path": [{"node_id": "loadcollection1"}]},
+                {"id": 3, "level": "info", "message": "Loaded data."},
             ],
             "links": []
         }

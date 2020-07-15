@@ -121,7 +121,7 @@ class SecondaryServices(MicroService):
         # TODO require auth/user handle?
         raise FeatureUnsupportedException()
 
-    def get_logs(self, service_id: str) -> List[dict]:
+    def get_log_entries(self, service_id: str, user_id: str, offset: str) -> List[dict]:
         """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/debug-service"""
         # TODO require auth/user handle?
         return []

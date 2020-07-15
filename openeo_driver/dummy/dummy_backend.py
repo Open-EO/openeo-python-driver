@@ -87,9 +87,9 @@ class DummySecondaryServices(SecondaryServices):
     def service_info(self, service_id: str) -> ServiceMetadata:
         return next(s for s in self._registry if s.id == service_id)
 
-    def get_logs(self, service_id: str) -> List[dict]:
+    def get_log_entries(self, service_id: str, user_id: str, offset: str) -> List[dict]:
         return [
-            {"id": 3, "level": "info", "message": "Loaded data.", "path": [{"node_id": "loadcollection1"}]}
+            {"id": 3, "level": "info", "message": "Loaded data."}
         ]
 
 
@@ -340,7 +340,7 @@ class DummyBatchJobs(BatchJobs):
     def get_log_entries(self, job_id: str, user_id: str, offset: str) -> List[dict]:
         self.get_job_info(job_id=job_id, user_id=user_id)
         return [
-            {"id": "1", "level": "info", "message": "hello world", "path": []}
+            {"id": "1", "level": "info", "message": "hello world"}
         ]
 
     def cancel_job(self, job_id: str, user_id: str):

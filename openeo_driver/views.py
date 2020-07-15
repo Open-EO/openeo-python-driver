@@ -742,7 +742,10 @@ def service_delete(service_id, user: User):
 @auth_handler.requires_bearer_auth
 def service_logs(service_id, user: User):
     # TODO implement user level secondary service management EP-3411
-    logs = backend_implementation.secondary_services.get_logs(service_id)
+    offset = request.args.get('offset', 0)
+    logs = backend_implementation.secondary_services.get_log_entries(
+        service_id=service_id, user_id=user.user_id, offset=offset
+    )
     return jsonify({"logs": logs, "links": []})
 
 
