@@ -526,7 +526,7 @@ def get_job_info(job_id, user: User):
     return jsonify(_jsonable_batch_job_metadata(job_info))
 
 
-@api_endpoint
+@api_endpoint(hidden=True)
 @openeo_bp.route('/jobs/<job_id>', methods=['DELETE'])
 @auth_handler.requires_bearer_auth
 def delete_job(job_id, user: User):
@@ -534,7 +534,7 @@ def delete_job(job_id, user: User):
     raise FeatureUnsupportedException()
 
 
-@api_endpoint
+@api_endpoint(hidden=True)
 @openeo_bp.route('/jobs/<job_id>', methods=['PATCH'])
 @auth_handler.requires_bearer_auth
 def modify_job(job_id, user: User):
@@ -749,7 +749,7 @@ def service_logs(service_id, user: User):
     return jsonify({"logs": logs, "links": []})
 
 
-@api_endpoint
+@api_endpoint(hidden=True)
 @openeo_bp.route('/validation', methods=["POST"])
 def udp_validate():
     # TODO
@@ -808,7 +808,7 @@ def _jsonable_udp_metadata(metadata: UserDefinedProcessMetadata, full=True) -> d
     return dict_no_none(**d)
 
 
-@api_endpoint
+@api_endpoint(hidden=True)
 @openeo_bp.route('/subscription', methods=["GET"])
 def subscription():
     # TODO
@@ -940,7 +940,7 @@ def process(process_id):
     return jsonify(spec)
 
 
-@api_endpoint
+@api_endpoint(hidden=True)
 @openeo_bp.route('/files', methods=['GET'])
 @auth_handler.requires_bearer_auth
 def files_list_for_user(user: User):
@@ -948,7 +948,7 @@ def files_list_for_user(user: User):
     raise FeatureUnsupportedException()
 
 
-@api_endpoint
+@api_endpoint(hidden=True)
 @openeo_bp.route('/files/<path>', methods=['GET'])
 @auth_handler.requires_bearer_auth
 def fildes_download(path, user: User):
@@ -956,7 +956,7 @@ def fildes_download(path, user: User):
     raise FeatureUnsupportedException()
 
 
-@api_endpoint
+@api_endpoint(hidden=True)
 @openeo_bp.route('/files/<path>', methods=['PUT'])
 @auth_handler.requires_bearer_auth
 def files_upload(path, user: User):
@@ -964,7 +964,7 @@ def files_upload(path, user: User):
     raise FeatureUnsupportedException()
 
 
-@api_endpoint
+@api_endpoint(hidden=True)
 @openeo_bp.route('/files/<path>', methods=['DELETE'])
 @auth_handler.requires_bearer_auth
 def files_delete(path, user: User):
