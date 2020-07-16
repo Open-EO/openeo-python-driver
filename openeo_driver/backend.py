@@ -20,7 +20,7 @@ from openeo import ImageCollection
 from openeo.error_summary import ErrorSummary
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.util import rfc3339
-from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException, FeatureUnsupportedException
+from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException
 from openeo_driver.utils import read_json
 
 logger = logging.getLogger(__name__)
@@ -91,7 +91,7 @@ class SecondaryServices(MicroService):
 
     def service_info(self, service_id: str) -> ServiceMetadata:
         """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-service"""
-        raise FeatureUnsupportedException()
+        raise NotImplementedError()
 
     def create_service(self, process_graph: dict, service_type: str, api_version: str, post_data: dict) -> ServiceMetadata:
         """
@@ -114,12 +114,12 @@ class SecondaryServices(MicroService):
     def update_service(self, service_id: str, process_graph: dict) -> None:
         """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/update-service"""
         # TODO require auth/user handle?
-        raise FeatureUnsupportedException()
+        raise NotImplementedError()
 
     def remove_service(self, service_id: str) -> None:
         """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/delete-service"""
         # TODO require auth/user handle?
-        raise FeatureUnsupportedException()
+        raise NotImplementedError()
 
     def get_log_entries(self, service_id: str, user_id: str, offset: str) -> List[dict]:
         """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/debug-service"""

@@ -718,7 +718,7 @@ def get_service_info(service_id, user: User):
     return jsonify(_jsonable_service_metadata(metadata, full=True))
 
 
-@api_endpoint
+@api_endpoint(hidden=True)
 @openeo_bp.route('/services/<service_id>', methods=['PATCH'])
 @auth_handler.requires_bearer_auth
 def service_patch(service_id, user: User):
