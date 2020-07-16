@@ -822,6 +822,8 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
     # Make copy and remove all "private" fields
     metadata = copy.deepcopy(metadata)
     metadata = {k: v for (k, v) in metadata.items() if not k.startswith('_')}
+    default_bbox = [0, 0, 0, 0]
+    default_temporal_interval = [None, None]
 
     # Metadata should at least contain an id.
     if "id" not in metadata:
@@ -868,6 +870,17 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
             metadata["extent"]["temporal"]["interval"] = [[rfc3339_dt(v) for v in extent_temporal_040]]
         elif extent_temporal_100:
             metadata["extent"]["temporal"]["interval"] = [[rfc3339_dt(v) for v in r] for r in extent_temporal_100]
+        if full:
+            bbox = deep_get(metadata, "extent", "spatial", "bbox", default=[default_bbox])[0]
+            interval = deep_get(metadata, "extent", "temporal", "interval", default=[default_temporal_interval])[0]
+            for _, dim in metadata.get("cube:dimensions", {}).items():
+                if "extent" not in dim:
+                    if dim.get("type") == "spatial" and dim.get("axis") == "x":
+                        dim["extent"] = bbox[0::2]
+                    elif dim.get("type") == "spatial" and dim.get("axis") == "y":
+                        dim["extent"] = bbox[1::2]
+                    elif dim.get("type") == "temporal":
+                        dim["extent"] = interval
 
     # Make sure some required fields are set.
     metadata.setdefault("stac_version", "0.9.0" if api_version.at_least("1.0.0") else "0.6.2")
@@ -876,9 +889,9 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
     metadata.setdefault("license", "proprietary")
     # Warn about missing fields where simple defaults are not feasible.
     fallbacks = {
-        "extent": {"spatial": {"bbox": [[0, 0, 0, 0]]}, "temporal": {"interval": [[None, None]]}},
+        "extent": {"spatial": {"bbox": [default_bbox]}, "temporal": {"interval": [default_temporal_interval]}},
     } if api_version.at_least("1.0.0") else {
-        "extent": {"spatial": [0, 0, 0, 0], "temporal": [None, None]},
+        "extent": {"spatial": default_bbox, "temporal": default_temporal_interval},
     }
     if full:
         if api_version.at_least("1.0.0"):

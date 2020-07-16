@@ -321,6 +321,36 @@ class TestCollections:
             "Collection 'foobar' metadata does not have field 'summaries'."
         }
 
+    def test_normalize_collection_metadata_cube_dimensions_extent_full_100(self, caplog):
+        metadata = {
+            "id": "foobar",
+            "extent": {
+                "spatial": {"bbox": [[-180, -56, 180, 83]]},
+                "temporal": {"interval": [["2015-07-06", None]]}
+            },
+            "cube:dimensions": {
+                "x": {"type": "spatial", "axis": "x"},
+                "y": {"type": "spatial", "axis": "y"},
+                "t": {"type": "temporal"},
+            },
+        }
+        assert _normalize_collection_metadata(metadata, api_version=ComparableVersion("1.0.0"), full=True) == {
+            'id': 'foobar',
+            'stac_version': '0.9.0',
+            'description': 'foobar',
+            'extent': {
+                'spatial': {'bbox': [[-180, -56, 180, 83]]},
+                'temporal': {'interval': [["2015-07-06T00:00:00Z", None]]}
+            },
+            'license': 'proprietary',
+            "cube:dimensions": {
+                "x": {"type": "spatial", "axis": "x", "extent": [-180, 180]},
+                "y": {"type": "spatial", "axis": "y", "extent": [-56, 83]},
+                "t": {"type": "temporal", "extent": ["2015-07-06T00:00:00Z", None]},
+            }, 'summaries': {},
+            'links': [],
+        }
+
     def test_normalize_collection_metadata_dimensions_and_bands_040(self, caplog):
         metadata = {
             "id": "foobar",
