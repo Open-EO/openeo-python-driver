@@ -49,11 +49,11 @@ class ServiceMetadata(NamedTuple):
     type: str
     enabled: bool
     attributes: dict
+    configuration: dict
 
     # Optional fields (with default)
     title: str = None
     description: str = None
-    configuration: dict = None
     created: datetime = None
     plan: str = None
     costs: float = None

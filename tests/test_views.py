@@ -768,6 +768,7 @@ class TestSecondaryServices(TestCase):
                 'url': 'https://oeo.net/wmts/foo',
                 'submitted': '2020-04-09T15:05:08Z',
                 'title': 'Test service',
+                'parameters': {'version': '0.5.8'},
             }],
             "links": []
         }
@@ -782,6 +783,7 @@ class TestSecondaryServices(TestCase):
                 'url': 'https://oeo.net/wmts/foo',
                 'title': 'Test service',
                 'created': '2020-04-09T15:05:08Z',
+                'configuration': {'version': '0.5.8'},
             }],
             "links": []
         }
@@ -794,7 +796,7 @@ class TestSecondaryServices(TestCase):
             "url": "https://oeo.net/wmts/foo",
             "type": "WMTS",
             "enabled": True,
-            "parameters": {},
+            "parameters": {"version": "0.5.8"},
             "attributes": {},
             "title": "Test service",
             'submitted': '2020-04-09T15:05:08Z',
@@ -808,6 +810,7 @@ class TestSecondaryServices(TestCase):
             "url": "https://oeo.net/wmts/foo",
             "type": "WMTS",
             "enabled": True,
+            "configuration": {"version": "0.5.8"},
             "attributes": {},
             "title": "Test service",
             'created': '2020-04-09T15:05:08Z',

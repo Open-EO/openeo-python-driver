@@ -55,6 +55,7 @@ class DummySecondaryServices(SecondaryServices):
             url='https://oeo.net/wmts/foo',
             type="WMTS",
             enabled=True,
+            configuration={"version": "0.5.8"},
             attributes={},
             title="Test service",
             created=datetime(2020, 4, 9, 15, 5, 8)
@@ -199,6 +200,7 @@ class DummyCatalog(CollectionCatalog):
             process={"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
             url="http://openeo.vgt.vito.be/openeo/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec/service/wmts",
             type="WMTS",
+            configuration={"version": "2.0.3"},
             enabled=True,
             attributes={},
         )
