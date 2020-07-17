@@ -402,13 +402,15 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
         return {
             "input": {
                 "GeoJSON": {
-                    "gis_data_types": ["vector"]
+                    "gis_data_types": ["vector"],
+                    "parameters": {},
                 }
             },
             "output": {
                 "GTiff": {
                     "title": "GeoTiff",
-                    "gis_data_types": ["raster"]
+                    "gis_data_types": ["raster"],
+                    "parameters": {},
                 },
             },
         }
