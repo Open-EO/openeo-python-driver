@@ -319,7 +319,9 @@ def udf_runtimes():
     # TODO: move this to OpenEoBackendImplementation?
     runtimes = {
         "Python": {
+            "title": "Python 3.5",
             "description": "Predefined Python runtime environment.",
+            "type": "language",
             "default": "latest",
             "versions": {
                 # TODO: get these versions from somewhere instead of hardcoding them?

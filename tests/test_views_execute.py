@@ -85,6 +85,8 @@ def api100(client) -> ApiTester:
 def test_udf_runtimes(api):
     runtimes = api.get('/udf_runtimes').assert_status_code(200).json
     assert "Python" in runtimes
+    assert "type" in runtimes["Python"]
+    assert "default" in runtimes["Python"]
 
 
 def test_execute_simple_download(api):
