@@ -17,7 +17,6 @@ from pathlib import Path
 from typing import List, Union, NamedTuple, Dict
 
 from openeo import ImageCollection
-from openeo.error_summary import ErrorSummary
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.util import rfc3339
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException
@@ -329,6 +328,21 @@ class UserDefinedProcesses(MicroService):
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/delete-custom-process
         """
         raise NotImplementedError
+
+
+class ErrorSummary:
+    # TODO: this is specific for openeo-geopyspark-driver: can we avoid defining it in openeo-python-driver?
+    def __init__(self, exception: Exception, is_client_error: bool, summary: str = None):
+        self.exception = exception
+        self.is_client_error = is_client_error
+        self.summary = summary or str(exception)
+
+    def __str__(self):
+        return str({
+            'exception': "%s: %s" % (type(self.exception).__name__, self.exception),
+            'is_client_error': self.is_client_error,
+            'summary': self.summary
+        })
 
 
 class OpenEoBackendImplementation:
