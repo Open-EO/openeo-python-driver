@@ -161,12 +161,12 @@ class FilePathInvalidException(OpenEOApiException):
 class FileTypeInvalidException(OpenEOApiException):
     status_code = 400
     code = 'FileTypeInvalid'
-    message = 'File format not allowed. Allowed file formats: {types}'
+    message = 'File format {type} not allowed. Allowed file formats: {types}'
     _description = 'File format or file extension is not allowed.'
     _tags = ['File Management']
 
-    def __init__(self, types: str):
-        super().__init__(message=self.message.format(types=types))
+    def __init__(self, type: str, types: str):
+        super().__init__(message=self.message.format(type=type, types=types))
 
 
 class FileOperationUnsupportedException(OpenEOApiException):
