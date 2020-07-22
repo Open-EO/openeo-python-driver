@@ -1,0 +1,68 @@
+{
+  "id": "ndvi",
+  "summary": "UDP version of NDVI",
+  "description": "UDP version of NDVI",
+  "parameters": [
+    {
+      "name": "data",
+      "description": "A data cube.",
+      "schema": {
+        "type": "object",
+        "subtype": "raster-cube"
+      }
+    }
+  ],
+  "returns": {
+    "description": "NDVI datacube",
+    "schema": {
+      "type": "object",
+      "subtype": "raster-cube"
+    }
+  },
+  "process_graph": {
+    "reducedimension1": {
+      "process_id": "reduce_dimension",
+      "arguments": {
+        "data": {
+          "from_parameter": "data"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "red": {
+              "process_id": "array_element",
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              }
+            },
+            "nir": {
+              "process_id": "array_element",
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              }
+            },
+            "ndvi": {
+              "process_id": "normalized_difference",
+              "arguments": {
+                "x": {
+                  "from_node": "nir"
+                },
+                "y": {
+                  "from_node": "red"
+                }
+              },
+              "result": true
+            }
+          }
+        }
+      },
+      "result": true
+    }
+  }
+}

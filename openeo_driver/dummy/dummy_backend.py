@@ -292,6 +292,9 @@ class DummyCatalog(CollectionCatalog):
         image_collection.resample_cube_spatial = Mock(name="resample_cube_spatial")
         image_collection.resample_cube_spatial.return_value = image_collection
 
+        image_collection.ndvi = Mock(name="ndvi")
+        image_collection.ndvi.return_value = image_collection
+
         collections[collection_id] = image_collection
         return image_collection
 

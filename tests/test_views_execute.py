@@ -47,8 +47,10 @@ class ApiTester(openeo_driver.testing.ApiTester):
     def collections(self) -> dict:
         return self.impl.collections
 
-    def result(self, process_graph: Union[dict, str], path="/result",
-               preprocess: Callable = None) -> openeo_driver.testing.ApiResponse:
+    def result(
+            self, process_graph: Union[dict, str], path="/result",
+            preprocess: Callable = None
+    ) -> openeo_driver.testing.ApiResponse:
         """Post a process_graph (as dict or by filename) and get response."""
         if isinstance(process_graph, str):
             # Assume it is a file name
@@ -57,8 +59,10 @@ class ApiTester(openeo_driver.testing.ApiTester):
         response = self.post(path=path, json=data)
         return response
 
-    def check_result(self, process_graph: Union[dict, str], path="/result",
-                     preprocess: Callable = None) -> openeo_driver.testing.ApiResponse:
+    def check_result(
+            self, process_graph: Union[dict, str], path="/result",
+            preprocess: Callable = None
+    ) -> openeo_driver.testing.ApiResponse:
         """Post a process_graph (as dict or by filename), get response and do basic checks."""
         response = self.result(process_graph=process_graph, path=path, preprocess=preprocess)
         return response.assert_status_code(200).assert_content()
@@ -619,11 +623,17 @@ def test_fuzzy_mask_add_dim(api):
     api.check_result("fuzzy_mask_add_dim.json")
 
 
-def test_user_defined_process_bbox_mol_basic(api100):
+@pytest.mark.parametrize("namespace", ["user", None, "_undefined"])
+def test_user_defined_process_bbox_mol_basic(api100, namespace):
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     bbox_mol_spec = api100.load_json("udp/bbox_mol.json")
     user_defined_process_registry.save(user_id=TEST_USER, process_id="bbox_mol", spec=bbox_mol_spec)
-    api100.check_result("udp_bbox_mol_basic.json")
+    pg = api100.load_json("udp_bbox_mol_basic.json")
+    if namespace != "_undefined":
+        pg["bboxmol1"]["namespace"] = namespace
+    elif "namespace" in pg["bboxmol1"]:
+        del pg["bboxmol1"]["namespace"]
+    api100.check_result(pg)
     expected_bbox = {
         "left": 5.05,
         "bottom": 51.20,
@@ -633,6 +643,16 @@ def test_user_defined_process_bbox_mol_basic(api100):
     }
     params = api100.collections['S2_FOOBAR'].viewingParameters
     assert expected_bbox == {k: params[k] for k in expected_bbox.keys()}
+
+
+@pytest.mark.parametrize("namespace", ["backend", "foobar"])
+def test_user_defined_process_bbox_mol_basic_other_namespace(api100, namespace):
+    api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+    bbox_mol_spec = api100.load_json("udp/bbox_mol.json")
+    user_defined_process_registry.save(user_id=TEST_USER, process_id="bbox_mol", spec=bbox_mol_spec)
+    pg = api100.load_json("udp_bbox_mol_basic.json")
+    pg["bboxmol1"]["namespace"] = namespace
+    api100.result(pg).assert_error(status_code=400, error_code="ProcessUnsupported")
 
 
 @pytest.mark.parametrize(["udp_args", "expected_start_date", "expected_end_date"], [
@@ -655,6 +675,7 @@ def test_user_defined_process_date_window(
         },
         "datewindow": {
             "process_id": "date_window",
+            "namespace": "user",
             "arguments": dict(
                 data={"from_node": "loadcollection1"},
                 **udp_args
@@ -684,6 +705,7 @@ def test_user_defined_process_required_parameter(api100):
         },
         "bboxmol1": {
             "process_id": "date_window",
+            "namespace": "user",
             "arguments": {"start_date": "2019-08-08", "end_date": "2019-12-12"},
             "result": True
         }
@@ -691,6 +713,26 @@ def test_user_defined_process_required_parameter(api100):
 
     response = api100.result(pg)
     response.assert_error(400, "ProcessParameterRequired", message="parameter 'data' is required")
+
+
+def test_user_defined_process_udp_vs_pdp_priority(api100):
+    api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+    # First without a defined "ndvi" UDP
+    api100.check_result("udp_ndvi.json")
+    assert dummy_backend.collections["S2_FOOBAR"].ndvi.call_count == 1
+    dummy_backend.collections["S2_FOOBAR"].ndvi.assert_called_with(nir=None, red=None, target_band=None)
+    assert dummy_backend.collections["S2_FOOBAR"].reduce_dimension.call_count == 0
+
+    # Overload ndvi with UDP.
+    user_defined_process_registry.save(user_id=TEST_USER, process_id="ndvi", spec=api100.load_json("udp/myndvi.json"))
+    api100.check_result("udp_ndvi.json")
+    assert dummy_backend.collections["S2_FOOBAR"].ndvi.call_count == 1
+    assert dummy_backend.collections["S2_FOOBAR"].reduce_dimension.call_count == 1
+    dummy_backend.collections["S2_FOOBAR"].reduce_dimension.assert_called_with("bands", mock.ANY)
+    args, kwargs = dummy_backend.collections["S2_FOOBAR"].reduce_dimension.call_args
+    assert args[0] == "bands"
+    assert "red" in args[1]
+    assert "nir" in args[1]
 
 
 def test_execute_03_style_filter_bbox(api):

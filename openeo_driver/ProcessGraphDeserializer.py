@@ -170,7 +170,10 @@ def _expand_macros(process_graph: dict) -> dict:
 def convert_node(processGraph: dict, viewingParameters=None):
     if isinstance(processGraph, dict):
         if 'process_id' in processGraph:
-            return apply_process(processGraph['process_id'], processGraph.get('arguments', {}), viewingParameters)
+            return apply_process(
+                process_id=processGraph['process_id'], args=processGraph.get('arguments', {}),
+                namespace=processGraph.get("namespace", None), viewingParameters=viewingParameters
+            )
         elif 'node' in processGraph:
             return convert_node(processGraph['node'], viewingParameters)
         elif 'callback' in processGraph or 'process_graph' in processGraph:
@@ -354,8 +357,6 @@ def reduce_dimension(args: dict, ctx: dict) -> ImageCollection:
     # do check_dimension here for error handling
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce_dimension")
     return data_cube.reduce_dimension(dimension, reduce_pg)
-
-
 
 
 @process
@@ -547,13 +548,13 @@ def resample_spatial(args: dict, viewingParameters: dict) -> ImageCollection:
     align = args.get('align', 'lower-left')
     return image_collection.resample_spatial(resolution=resolution, projection=projection, method=method, align=align)
 
+
 @process
 def resample_cube_spatial(args: dict, viewingParameters: dict) -> ImageCollection:
     image_collection = extract_arg(args, 'data')
     target_image_collection = extract_arg(args, 'target')
     method = args.get('method', 'near')
     return image_collection.resample_cube_spatial(target=target_image_collection, method=method)
-
 
 
 @process
@@ -646,7 +647,7 @@ def histogram(_args, _viewingParameters) -> None:
     raise ProcessUnsupportedException('histogram')
 
 
-def apply_process(process_id: str, args: Dict, viewingParameters):
+def apply_process(process_id: str, args: dict, namespace: str = None, viewingParameters: dict = None):
     parent_process = viewingParameters.get('parent_process')
 
     viewingParameters = viewingParameters or {}
@@ -766,21 +767,25 @@ def apply_process(process_id: str, args: Dict, viewingParameters):
         dimension, _, _ = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         return image_collection.aggregate_temporal(intervals, labels, process_id, dimension)
 
+    if namespace in ["user", None]:
+        user = viewingParameters.get("user")
+        if user:
+            # TODO: first check process registry with predefined processes because querying of user defined processes
+            #   is more expensive IO-wise?
+            # the DB-call can be cached if necessary, but how will a user be able to use a new pre-defined process of the same
+            # name without renaming his UDP?
+            udp = backend_implementation.user_defined_processes.get(user_id=user.user_id, process_id=process_id)
+            if udp:
+                return evaluate_udp(process_id=process_id, udp=udp, args=args, viewingParameters=viewingParameters)
 
-    user = viewingParameters.get("user")
-    if user:
-        # TODO: first check process registry with predefined processes because querying of user defined processes
-        #   is more expensive IO-wise?
-        # the DB-call can be cached if necessary, but how will a user be able to use a new pre-defined process of the same
-        # name without renaming his UDP?
-        udp = backend_implementation.user_defined_processes.get(user_id=user.user_id, process_id=process_id)
-        if udp:
-            return evaluate_udp(process_id=process_id, udp=udp, args=args, viewingParameters=viewingParameters)
+    if namespace in ["backend", None]:
+        # And finally: check registry of predefined processes
+        process_registry = get_process_registry(ComparableVersion(viewingParameters["version"]))
+        process_function = process_registry.get_function(process_id)
+        return process_function(args, viewingParameters)
 
-    # And finally: check registry of predefined processes
-    process_registry = get_process_registry(ComparableVersion(viewingParameters["version"]))
-    process_function = process_registry.get_function(process_id)
-    return process_function(args, viewingParameters)
+    # TODO: add namespace in error message? also see https://github.com/Open-EO/openeo-api/pull/328
+    raise ProcessUnsupportedException(process=process_id)
 
 
 @non_standard_process(
