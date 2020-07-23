@@ -5,10 +5,12 @@
 import logging
 import tempfile
 import warnings
-from typing import Dict, Callable
+from typing import Dict, Callable, List
 import time
 
 import numpy as np
+import requests
+
 from openeo import ImageCollection
 from openeo.capabilities import ComparableVersion
 from openeo.metadata import MetadataException
@@ -767,6 +769,12 @@ def apply_process(process_id: str, args: dict, namespace: str = None, viewingPar
         dimension, _, _ = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         return image_collection.aggregate_temporal(intervals, labels, process_id, dimension)
 
+    if namespace and any(namespace.startswith(p) for p in ["http://", "https://"]):
+        # TODO: security aspects: only allow for certain users, only allow whitelisted domains, ...?
+        return evaluate_process_from_url(
+            process_id=process_id, namespace=namespace, args=args, viewingParameters=viewingParameters
+        )
+
     if namespace in ["user", None]:
         user = viewingParameters.get("user")
         if user:
@@ -833,18 +841,43 @@ def _as_geometry_collection(feature_collection: dict) -> dict:
     }
 
 
-def evaluate_udp(process_id: str, udp: UserDefinedProcessMetadata, args: dict, viewingParameters: dict):
-    pg = udp.process_graph
+def _evaluate_process_graph_process(
+        process_id: str, process_graph: dict, parameters: List[dict], args: dict, viewingParameters: dict
+):
+    """Evaluate a process specified as a process graph (e.g. user-defined process)"""
     for name, value in args.items():
         viewingParameters[name] = value
-    for param in udp.parameters or []:
+    for param in parameters or []:
         name = param["name"]
         if name not in viewingParameters:
             if "default" in param:
                 viewingParameters[name] = param["default"]
             else:
                 raise ProcessParameterRequiredException(process=process_id, parameter=name)
-    return evaluate(pg, viewingParameters=viewingParameters)
+    return evaluate(process_graph, viewingParameters=viewingParameters)
+
+
+def evaluate_udp(process_id: str, udp: UserDefinedProcessMetadata, args: dict, viewingParameters: dict):
+    return _evaluate_process_graph_process(
+        process_id=process_id, process_graph=udp.process_graph, parameters=udp.parameters,
+        args=args, viewingParameters=viewingParameters
+    )
+
+
+def evaluate_process_from_url(process_id: str, namespace: str, args: dict, viewingParameters: dict):
+    if namespace.endswith('.json'):
+        # TODO: if namespace URL is json file: handle it as collection of processes instead of a single process spec?
+        url = namespace
+    else:
+        url = '{n}/{p}.json'.format(n=namespace.rstrip('/'), p=process_id)
+    res = requests.get(url)
+    if res.status_code != 200:
+        raise ProcessUnsupportedException(process=process_id)
+    spec = res.json()
+    return _evaluate_process_graph_process(
+        process_id=process_id, process_graph=spec["process_graph"], parameters=spec.get("parameters", []),
+        args=args, viewingParameters=viewingParameters
+    )
 
 
 @non_standard_process(

@@ -634,13 +634,7 @@ def test_user_defined_process_bbox_mol_basic(api100, namespace):
     elif "namespace" in pg["bboxmol1"]:
         del pg["bboxmol1"]["namespace"]
     api100.check_result(pg)
-    expected_bbox = {
-        "left": 5.05,
-        "bottom": 51.20,
-        "right": 5.10,
-        "top": 51.23,
-        "srs": "EPSG:4326"
-    }
+    expected_bbox = {"left": 5.05, "bottom": 51.20, "right": 5.10, "top": 51.23, "srs": "EPSG:4326"}
     params = api100.collections['S2_FOOBAR'].viewingParameters
     assert expected_bbox == {k: params[k] for k in expected_bbox.keys()}
 
@@ -779,3 +773,26 @@ def test_sleep(api):
             }
         })
     sleep.assert_called_with(5)
+
+
+@pytest.mark.parametrize(["url", "namespace"], [
+    ("https://oeo.net/user/123/procs/bbox_mol.json", "https://oeo.net/user/123/procs"),
+    ("https://oeo.net/user/123/procs/bbox_mol.json", "https://oeo.net/user/123/procs/"),
+    ("https://oeo.net/user/123/procs/bbox_mol.json", "https://oeo.net/user/123/procs/bbox_mol.json"),
+    ("https://oeo.net/user/123/procs/foo.json", "https://oeo.net/user/123/procs/foo.json"),
+    ("http://oeo.net/user/123/procs/bbox_mol.json", "http://oeo.net/user/123/procs"),
+])
+def test_evaluate_process_from_url(api100, requests_mock, url, namespace):
+    # Setup up "online" definition of `bbox_mol` process
+    bbox_mol_spec = api100.load_json("udp/bbox_mol.json")
+    url_mock = requests_mock.get(url, json=bbox_mol_spec)
+
+    # Evaluate process graph (with URL namespace)
+    pg = api100.load_json("udp_bbox_mol_basic.json")
+    pg["bboxmol1"]["namespace"] = namespace
+    api100.check_result(pg)
+
+    expected_bbox = {"left": 5.05, "bottom": 51.20, "right": 5.10, "top": 51.23, "srs": "EPSG:4326"}
+    params = api100.collections['S2_FOOBAR'].viewingParameters
+    assert expected_bbox == {k: params[k] for k in expected_bbox.keys()}
+    assert url_mock.called_once
