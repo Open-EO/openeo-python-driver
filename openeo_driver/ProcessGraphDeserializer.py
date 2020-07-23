@@ -776,12 +776,16 @@ def apply_process(process_id: str, args: dict, namespace: str = None, viewingPar
             # name without renaming his UDP?
             udp = backend_implementation.user_defined_processes.get(user_id=user.user_id, process_id=process_id)
             if udp:
+                if namespace is None:
+                    _log.info("Using process {p!r} from namespace 'user'.".format(p=process_id))
                 return evaluate_udp(process_id=process_id, udp=udp, args=args, viewingParameters=viewingParameters)
 
     if namespace in ["backend", None]:
         # And finally: check registry of predefined processes
         process_registry = get_process_registry(ComparableVersion(viewingParameters["version"]))
         process_function = process_registry.get_function(process_id)
+        if namespace is None:
+            _log.info("Using process {p!r} from namespace 'backend'.".format(p=process_id))
         return process_function(args, viewingParameters)
 
     # TODO: add namespace in error message? also see https://github.com/Open-EO/openeo-api/pull/328
