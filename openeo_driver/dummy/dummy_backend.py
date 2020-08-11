@@ -351,6 +351,9 @@ class DummyBatchJobs(BatchJobs):
     def cancel_job(self, job_id: str, user_id: str):
         self.get_job_info(job_id=job_id, user_id=user_id)
 
+    def delete_job(self, job_id: str, user_id: str):
+        self.cancel_job(job_id, user_id)
+
 
 class DummyUserDefinedProcesses(UserDefinedProcesses):
     _processes: Dict[Tuple[str, str], UserDefinedProcessMetadata] = {

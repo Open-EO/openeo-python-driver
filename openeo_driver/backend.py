@@ -267,6 +267,12 @@ class BatchJobs(MicroService):
         """
         raise NotImplementedError
 
+    def delete_job(self, job_id: str, user_id: str):
+        """
+        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/delete-job
+        """
+        raise NotImplementedError
+
 
 class OidcProvider(NamedTuple):
     """OIDC provider metadata"""

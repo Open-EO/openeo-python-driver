@@ -531,8 +531,8 @@ def get_job_info(job_id, user: User):
 @openeo_bp.route('/jobs/<job_id>', methods=['DELETE'])
 @auth_handler.requires_bearer_auth
 def delete_job(job_id, user: User):
-    # TODO
-    raise FeatureUnsupportedException()
+    backend_implementation.batch_jobs.delete_job(job_id=job_id, user_id=user.user_id)
+    return response_204_no_content()
 
 
 @api_endpoint(hidden=True)

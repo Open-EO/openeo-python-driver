@@ -715,6 +715,11 @@ class TestBatchJobs:
             resp = api.delete('/jobs/deadbeef-f00/results', headers=self.AUTH_HEADER)
         resp.assert_error(404, "JobNotFound")
 
+    def test_delete_job(self, api):
+        with self._fresh_job_registry(next_job_id="job-403"):
+            resp = api.delete('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc', headers=self.AUTH_HEADER)
+        assert resp.status_code == 204
+
 
 class TestSecondaryServices(TestCase):
     # TODO: port to pytest style fixtures instead of TestCase.setUp
