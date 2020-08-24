@@ -56,6 +56,7 @@ class ApiTester(openeo_driver.testing.ApiTester):
             # Assume it is a file name
             process_graph = self.load_json(process_graph, preprocess=preprocess)
         data = self.get_process_graph_dict(process_graph)
+        self.set_auth_bearer_token()
         response = self.post(path=path, json=data)
         return response
 
@@ -174,11 +175,8 @@ def test_execute_apply_unary_parent_scope(api100):
 
 
 def test_execute_apply_unary_invalid_from_parameter(api100):
-    pg = api100.load_json(
-        "apply_unary.json",
-        preprocess=preprocess_check_and_replace('"from_parameter": "x"', '"from_parameter": "1nv8l16"')
-    )
-    resp = api100.post("/result", json=api100.get_process_graph_dict(pg))
+    resp = api100.result("apply_unary.json",
+        preprocess=preprocess_check_and_replace('"from_parameter": "x"', '"from_parameter": "1nv8l16"'))
     resp.assert_error(400, "ProcessParameterRequired")
 
 
@@ -207,11 +205,8 @@ def test_reduce_temporal_run_udf_legacy_client(api):
 
 
 def test_reduce_temporal_run_udf_invalid_dimension(api):
-    pg = api.load_json(
-        "reduce_temporal_run_udf.json",
-        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "tempo"')
-    )
-    resp = api.post("/result", json=api.get_process_graph_dict(pg))
+    resp = api.result("reduce_temporal_run_udf.json",
+        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "tempo"'))
     resp.assert_error(
         400, "ProcessParameterInvalid",
         message="The value passed for parameter 'dimension' in process '{p}' is invalid: got 'tempo', but should be one of ['x', 'y', 't']".format(
@@ -240,11 +235,8 @@ def test_reduce_bands_run_udf_legacy_client(api):
 
 
 def test_reduce_bands_run_udf_invalid_dimension(api):
-    pg = api.load_json(
-        "reduce_bands_run_udf.json",
-        preprocess=preprocess_check_and_replace('"dimension": "bands"', '"dimension": "layers"')
-    )
-    resp = api.post("/result", json=api.get_process_graph_dict(pg))
+    resp = api.result("reduce_bands_run_udf.json",
+        preprocess=preprocess_check_and_replace('"dimension": "bands"', '"dimension": "layers"'))
     resp.assert_error(
         400, 'ProcessParameterInvalid',
         message="The value passed for parameter 'dimension' in process '{p}' is invalid: got 'layers', but should be one of ['x', 'y', 't', 'bands']".format(
@@ -271,11 +263,8 @@ def test_apply_dimension_temporal_run_udf_legacy_client(api):
 
 
 def test_apply_dimension_temporal_run_udf_invalid_temporal_dimension(api):
-    pg = api.load_json(
-        "apply_dimension_temporal_run_udf.json",
-        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "letemps"')
-    )
-    resp = api.post("/result", json=api.get_process_graph_dict(pg))
+    resp = api.result("apply_dimension_temporal_run_udf.json",
+        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "letemps"'))
     resp.assert_error(
         400, 'ProcessParameterInvalid',
         message="The value passed for parameter 'dimension' in process 'apply_dimension' is invalid: got 'letemps', but should be one of ['x', 'y', 't']"
@@ -304,8 +293,7 @@ def test_reduce_max_bands(api):
 
 
 def test_reduce_max_invalid_dimension(api):
-    pg = api.load_json("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "orbit"))
-    res = api.post("/result", json=api.get_process_graph_dict(pg))
+    res = api.result("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "orbit"))
     res.assert_error(
         400, 'ProcessParameterInvalid',
         message="The value passed for parameter 'dimension' in process '{p}' is invalid: got 'orbit', but should be one of ['x', 'y', 't', 'bands']".format(
@@ -360,11 +348,8 @@ def test_reduce_bands_legacy_client(api):
 
 
 def test_reduce_bands_invalid_dimension(api):
-    pg = api.load_json(
-        "reduce_bands.json",
-        preprocess=preprocess_check_and_replace('"dimension": "bands"', '"dimension": "layor"')
-    )
-    res = api.post("/result", json=api.get_process_graph_dict(pg))
+    res = api.result("reduce_bands.json",
+                     preprocess=preprocess_check_and_replace('"dimension": "bands"', '"dimension": "layor"'))
     res.assert_error(
         400, "ProcessParameterInvalid",
         message="The value passed for parameter 'dimension' in process '{p}' is invalid: got 'layor', but should be one of ['x', 'y', 't', 'bands']".format(
@@ -410,11 +395,8 @@ def test_aggregate_temporal_max_legacy_client(api):
 
 
 def test_aggregate_temporal_max_invalid_temporal_dimension(api):
-    pg = api.load_json(
-        "aggregate_temporal_max.json",
-        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "detijd"')
-    )
-    resp = api.post(path="/result", json=api.get_process_graph_dict(pg))
+    resp = api.result("aggregate_temporal_max.json",
+        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "detijd"'))
     resp.assert_error(
         400, 'ProcessParameterInvalid',
         message="The value passed for parameter 'dimension' in process 'aggregate_temporal' is invalid: got 'detijd', but should be one of ['x', 'y', 't']"
@@ -551,6 +533,7 @@ def test_read_vector_from_feature_collection(api):
 
 
 def test_no_nested_JSONResult(api):
+    api.set_auth_bearer_token()
     api.post(
         path="/result",
         json=api.load_json("no_nested_json_result.json"),
@@ -596,6 +579,7 @@ def test_aggregate_feature_collection(api):
 
 def test_post_result_process_100(client):
     api = ApiTester(api_version="1.0.0", client=client)
+    api.set_auth_bearer_token()
     response = api.post(
         path='/result',
         json={"process": {"process_graph": api.load_json("basic.json")}},
@@ -604,6 +588,7 @@ def test_post_result_process_100(client):
 
 
 def test_missing_process_graph(api):
+    api.set_auth_bearer_token()
     response = api.post(path='/result', json={"foo": "bar"})
     response.assert_error(status_code=ProcessGraphMissingException.status_code, error_code='ProcessGraphMissing')
 
