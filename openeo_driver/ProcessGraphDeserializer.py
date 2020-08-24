@@ -522,7 +522,13 @@ def apply_kernel(args: Dict, viewingParameters) -> ImageCollection:
     image_collection = extract_arg(args, 'data')
     kernel = np.asarray(extract_arg(args, 'kernel'))
     factor = args.get('factor', 1.0)
-    return image_collection.apply_kernel(kernel, factor)
+    border = args.get('border',0)
+    replace_invalid = args.get('replace_invalid',0)
+    if border != 0:
+        raise ProcessParameterInvalidException('border','apply_kernel','This backend does not support values other than 0 for the border parameter of apply_kernel. Please contact the developers if support is required.')
+    if replace_invalid != 0:
+        raise ProcessParameterInvalidException('replace_invalid','apply_kernel','This backend does not support values other than 0 for the replace_invalid parameter of apply_kernel. Please contact the developers if support is required.')
+    return image_collection.apply_kernel(kernel, factor, border,replace_invalid)
 
 
 @process
