@@ -426,6 +426,7 @@ def _extract_process_graph(post_data: dict) -> dict:
 
 @api_endpoint
 @openeo_bp.route('/result', methods=['POST'])
+@auth_handler.requires_bearer_auth
 def result():
     return execute()
 
