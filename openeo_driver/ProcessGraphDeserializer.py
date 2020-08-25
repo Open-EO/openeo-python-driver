@@ -274,7 +274,7 @@ def load_disk_data(args: Dict, viewingParameters) -> object:
     return backend_implementation.load_disk_data(format, glob_pattern, options, viewingParameters)
 
 
-@process
+@process_registry_100.add_function
 def apply_neighborhood(args: dict, ctx: dict) -> ImageCollection:
     process = extract_deep(args, "process", "process_graph")
     size = extract_arg(args, 'size')
