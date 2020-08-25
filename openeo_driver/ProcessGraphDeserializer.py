@@ -274,9 +274,7 @@ def load_disk_data(args: Dict, viewingParameters) -> object:
     return backend_implementation.load_disk_data(format, glob_pattern, options, viewingParameters)
 
 
-@non_standard_process(
-    ProcessSpec(id='apply_neighborhood', description="Applies a focal process to a data cube.").returns("datacube",schema={})
-)
+@process
 def apply_neighborhood(args: dict, ctx: dict) -> ImageCollection:
     process = extract_deep(args, "process", "process_graph")
     size = extract_arg(args, 'size')
