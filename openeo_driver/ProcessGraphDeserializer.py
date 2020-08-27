@@ -594,6 +594,7 @@ def run_udf(args: dict, viewingParameters: dict):
     from openeo_udf.api.run_code import run_user_code
 
     udf = _get_udf(args)
+    context = args.get('context',{})
 
     if isinstance(data,DelayedVector):
         collection = FeatureCollection(id='VectorCollection', data=data.as_geodataframe())
@@ -602,6 +603,7 @@ def run_udf(args: dict, viewingParameters: dict):
         st = StructuredData(description="Dictionary data", data=data.get_data(), type="dict")
         data = UdfData(proj={},structured_data_list=[st])
 
+    data.user_context=context
 
     result_data = run_user_code(udf, data)
 
