@@ -724,14 +724,14 @@ def apply_process(process_id: str, args: dict, namespace: str = None, viewingPar
         binary = viewingParameters.get('binary',False) or parent_process == "reduce_dimension_binary"
         dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         if 'run_udf' == process_id and not binary:
+            udf = _get_udf(args)
+            context = args.get("context", {})
             if dimension == temporal_dim:
-                udf = _get_udf(args)
                 # EP-2760 a special case of reduce where only a single udf based callback is provided. The more generic case is not yet supported.
-                return image_collection.apply_tiles_spatiotemporal(udf)
+                return image_collection.apply_tiles_spatiotemporal(udf,context)
             elif dimension == band_dim:
-                udf = _get_udf(args)
                 # TODO replace non-standard apply_tiles with standard "reduce_dimension" https://github.com/Open-EO/openeo-python-client/issues/140
-                return image_collection.apply_tiles(udf)
+                return image_collection.apply_tiles(udf,context)
 
         return image_collection.reduce(process_id, dimension)
     elif parent_process == 'apply_dimension':
@@ -742,11 +742,12 @@ def apply_process(process_id: str, args: dict, namespace: str = None, viewingPar
         transformed_collection = None
         if process_id == "run_udf":
             udf = _get_udf(args)
+            context = args.get("context",{})
             if dimension == temporal_dim:
-                transformed_collection = image_collection.apply_tiles_spatiotemporal(udf)
+                transformed_collection = image_collection.apply_tiles_spatiotemporal(udf,context)
             else:
                 # TODO replace non-standard apply_tiles with standard "reduce_dimension" https://github.com/Open-EO/openeo-python-client/issues/140
-                transformed_collection = image_collection.apply_tiles(udf)
+                transformed_collection = image_collection.apply_tiles(udf,context)
         else:
             transformed_collection = image_collection.apply_dimension(process_id, dimension)
         if target_dimension is not None:
