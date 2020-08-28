@@ -82,10 +82,10 @@ class DummySecondaryServices(SecondaryServices):
             }
         }
 
-    def list_services(self) -> List[ServiceMetadata]:
+    def list_services(self, user_id: str) -> List[ServiceMetadata]:
         return self._registry
 
-    def service_info(self, service_id: str) -> ServiceMetadata:
+    def service_info(self, user_id: str, service_id: str) -> ServiceMetadata:
         return next(s for s in self._registry if s.id == service_id)
 
     def get_log_entries(self, service_id: str, user_id: str, offset: str) -> List[dict]:

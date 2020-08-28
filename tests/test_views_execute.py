@@ -413,6 +413,7 @@ def test_execute_zonal_statistics(api):
 
 
 def test_create_wmts_040(api040):
+    api040.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     process_graph = api040.load_json("filter_temporal.json")
     post_data = {
         "type": 'WMTS',
@@ -428,6 +429,7 @@ def test_create_wmts_040(api040):
     tiled_viewing_service = api040.collections["S2_FOOBAR"].tiled_viewing_service
     assert tiled_viewing_service.call_count == 1
     tiled_viewing_service.assert_called_with(
+        user_id=TEST_USER,
         service_type="WMTS",
         process_graph=process_graph,
         post_data=post_data
@@ -435,6 +437,7 @@ def test_create_wmts_040(api040):
 
 
 def test_create_wmts_100(api100):
+    api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     process_graph = api100.load_json("filter_temporal.json")
     post_data = {
         "type": 'WMTS',
@@ -453,6 +456,7 @@ def test_create_wmts_100(api100):
     tiled_viewing_service = api100.collections["S2_FOOBAR"].tiled_viewing_service
     assert tiled_viewing_service.call_count == 1
     tiled_viewing_service.assert_called_with(
+        user_id=TEST_USER,
         service_type="WMTS",
         process_graph=process_graph,
         post_data=post_data

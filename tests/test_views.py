@@ -744,7 +744,7 @@ class TestSecondaryServices(TestCase):
         resp = self.client.post('/openeo/services', content_type='application/json', json={
             "process_graph": {'product_id': 'S2'},
             "type": '???',
-        })
+        }, headers=self._auth_header)
 
         self.assertEqual(400, resp.status_code)
 
@@ -759,7 +759,7 @@ class TestSecondaryServices(TestCase):
     def test_uncaught_exceptions_return_InternalServerError(self):
         resp = self.client.post('/openeo/services', content_type='application/json', json={
             "process_graph": {'product_id': 'S2'}
-        })
+        }, headers=self._auth_header)
 
         self.assertEqual(500, resp.status_code)
 

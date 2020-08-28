@@ -84,40 +84,39 @@ class SecondaryServices(MicroService):
         """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-service-types"""
         return {}
 
-    def list_services(self) -> List[ServiceMetadata]:
+    def list_services(self, user_id: str) -> List[ServiceMetadata]:
         """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-services"""
         return []
 
-    def service_info(self, service_id: str) -> ServiceMetadata:
+    def service_info(self, user_id: str, service_id: str) -> ServiceMetadata:
         """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-service"""
         raise NotImplementedError()
 
-    def create_service(self, process_graph: dict, service_type: str, api_version: str, post_data: dict) -> ServiceMetadata:
+    def create_service(self, user_id: str, process_graph: dict, service_type: str, api_version: str, post_data: dict) -> ServiceMetadata:
         """
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/create-service
         :return: (location, openeo_identifier)
         """
         from openeo_driver.ProcessGraphDeserializer import evaluate
-        # TODO require auth/user handle?
+
         if service_type.lower() not in set(st.lower() for st in self.service_types()):
             raise ServiceUnsupportedException(service_type)
 
         image_collection = evaluate(process_graph, viewingParameters={'version': api_version, 'pyramid_levels': 'all'})
         service_metadata = image_collection.tiled_viewing_service(
+            user_id=user_id,
             service_type=service_type,
             process_graph=process_graph,
             post_data=post_data
         )
         return service_metadata
 
-    def update_service(self, service_id: str, process_graph: dict) -> None:
+    def update_service(self, user_id: str, service_id: str, process_graph: dict) -> None:
         """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/update-service"""
-        # TODO require auth/user handle?
         raise NotImplementedError()
 
-    def remove_service(self, service_id: str) -> None:
+    def remove_service(self, user_id: str, service_id: str) -> None:
         """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/delete-service"""
-        # TODO require auth/user handle?
         raise NotImplementedError()
 
     def get_log_entries(self, service_id: str, user_id: str, offset: str) -> List[dict]:

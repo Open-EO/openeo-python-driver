@@ -500,7 +500,7 @@ def list_jobs(user: User):
 
 
 def _jsonable_batch_job_metadata(metadata: BatchJobMetadata, full=True) -> dict:
-    """API-version-aware conversion of service metadata to jsonable dict"""
+    """API-version-aware conversion of batch job metadata to jsonable dict"""
     d = metadata.prepare_for_json()
     # Fields to export
     fields = ['id', 'title', 'description', 'status', 'created', 'updated', 'plan', 'costs', 'budget']
@@ -656,7 +656,8 @@ def service_types():
 
 @api_endpoint
 @openeo_bp.route('/services', methods=['POST'])
-def services_post():
+@auth_handler.requires_bearer_auth
+def services_post(user: User):
     """
     Create a secondary web service such as WMTS, TMS or WCS. The underlying data is processes on-demand, but a process graph may simply access results from a batch job. Computations should be performed in the sense that it is only evaluated for the requested spatial / temporal extent and resolution.
 
@@ -664,9 +665,9 @@ def services_post():
 
     :return:
     """
-    # TODO require authenticated user
     post_data = request.get_json()
     service_metadata = backend_implementation.secondary_services.create_service(
+        user_id=user.user_id,
         process_graph=_extract_process_graph(post_data),
         service_type=post_data["type"],
         api_version=g.api_version,
@@ -698,11 +699,10 @@ def _jsonable_service_metadata(metadata: ServiceMetadata, full=True) -> dict:
 @auth_handler.requires_bearer_auth
 def services_get(user: User):
     """List all running secondary web services for authenticated user"""
-    # TODO implement user level secondary service management EP-3411
     return jsonify({
         "services": [
             _jsonable_service_metadata(m, full=False)
-            for m in backend_implementation.secondary_services.list_services()
+            for m in backend_implementation.secondary_services.list_services(user_id=user.user_id)
         ],
         "links": [],
     })
@@ -712,9 +712,8 @@ def services_get(user: User):
 @openeo_bp.route('/services/<service_id>', methods=['GET'])
 @auth_handler.requires_bearer_auth
 def get_service_info(service_id, user: User):
-    # TODO implement user level secondary service management EP-3411
     try:
-        metadata = backend_implementation.secondary_services.service_info(service_id)
+        metadata = backend_implementation.secondary_services.service_info(user_id=user.user_id, service_id=service_id)
     except Exception:
         raise ServiceNotFoundException(service_id)
     return jsonify(_jsonable_service_metadata(metadata, full=True))
@@ -724,9 +723,8 @@ def get_service_info(service_id, user: User):
 @openeo_bp.route('/services/<service_id>', methods=['PATCH'])
 @auth_handler.requires_bearer_auth
 def service_patch(service_id, user: User):
-    # TODO implement user level secondary service management EP-3411
     process_graph = _extract_process_graph(request.get_json())
-    backend_implementation.secondary_services.update_service(service_id, process_graph=process_graph)
+    backend_implementation.secondary_services.update_service(user_id=user.id, service_id=service_id, process_graph=process_graph)
     return response_204_no_content()
 
 
@@ -734,8 +732,7 @@ def service_patch(service_id, user: User):
 @openeo_bp.route('/services/<service_id>', methods=['DELETE'])
 @auth_handler.requires_bearer_auth
 def service_delete(service_id, user: User):
-    # TODO implement user level secondary service management EP-3411
-    backend_implementation.secondary_services.remove_service(service_id)
+    backend_implementation.secondary_services.remove_service(user_id=user.id, service_id=service_id)
     return response_204_no_content()
 
 
@@ -743,7 +740,6 @@ def service_delete(service_id, user: User):
 @openeo_bp.route('/services/<service_id>/logs', methods=['GET'])
 @auth_handler.requires_bearer_auth
 def service_logs(service_id, user: User):
-    # TODO implement user level secondary service management EP-3411
     offset = request.args.get('offset', 0)
     logs = backend_implementation.secondary_services.get_log_entries(
         service_id=service_id, user_id=user.user_id, offset=offset
@@ -803,7 +799,7 @@ def udp_delete(process_graph_id: str, user: User):
 
 
 def _jsonable_udp_metadata(metadata: UserDefinedProcessMetadata, full=True) -> dict:
-    """API-version-aware conversion of service metadata to jsonable dict"""
+    """API-version-aware conversion of UDP metadata to jsonable dict"""
     d = metadata.prepare_for_json()
     if not full:
         d.pop("process_graph")
