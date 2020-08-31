@@ -724,7 +724,8 @@ def get_service_info(service_id, user: User):
 @auth_handler.requires_bearer_auth
 def service_patch(service_id, user: User):
     process_graph = _extract_process_graph(request.get_json())
-    backend_implementation.secondary_services.update_service(user_id=user.id, service_id=service_id, process_graph=process_graph)
+    backend_implementation.secondary_services.update_service(user_id=user.user_id, service_id=service_id,
+                                                             process_graph=process_graph)
     return response_204_no_content()
 
 
@@ -732,7 +733,7 @@ def service_patch(service_id, user: User):
 @openeo_bp.route('/services/<service_id>', methods=['DELETE'])
 @auth_handler.requires_bearer_auth
 def service_delete(service_id, user: User):
-    backend_implementation.secondary_services.remove_service(user_id=user.id, service_id=service_id)
+    backend_implementation.secondary_services.remove_service(user_id=user.user_id, service_id=service_id)
     return response_204_no_content()
 
 
