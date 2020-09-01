@@ -152,6 +152,7 @@ class TestGeneral:
         assert 'content-type' in resp.access_control_allow_headers
         assert resp.access_control_allow_credentials == True
         assert 'application/json' == resp.content_type
+        assert {'Location', 'OpenEO-Identifier', 'OpenEO-Costs', 'Link'}.issubset(resp.access_control_expose_headers)
 
     def test_health(self, api):
         resp = api.get('/health').assert_status_code(200).json
