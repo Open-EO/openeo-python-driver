@@ -93,6 +93,7 @@ class SecondaryServices(MicroService):
         raise NotImplementedError()
 
     def create_service(self, user_id: str, process_graph: dict, service_type: str, api_version: str, post_data: dict) -> ServiceMetadata:
+        # TODO: remove this implementation altogether
         """
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/create-service
         :return: (location, openeo_identifier)
@@ -107,6 +108,7 @@ class SecondaryServices(MicroService):
             user_id=user_id,
             service_type=service_type,
             process_graph=process_graph,
+            api_version=api_version,
             post_data=post_data
         )
         return service_metadata

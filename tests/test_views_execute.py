@@ -432,6 +432,7 @@ def test_create_wmts_040(api040):
         user_id=TEST_USER,
         service_type="WMTS",
         process_graph=process_graph,
+        api_version='0.4.0',
         post_data=post_data
     )
 
@@ -459,6 +460,7 @@ def test_create_wmts_100(api100):
         user_id=TEST_USER,
         service_type="WMTS",
         process_graph=process_graph,
+        api_version='1.0.0',
         post_data=post_data
     )
 
