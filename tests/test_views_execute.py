@@ -163,8 +163,13 @@ def test_load_collection_filter(api):
     assert expected == {k: v for k, v in viewing_parameters.items() if k in expected}
 
 
-def test_execute_apply_unary(api):
-    api.check_result("apply_unary.json")
+def test_execute_apply_unary_040(api040):
+    api040.check_result("apply_unary.json")
+    assert api040.collections["S2_FAPAR_CLOUDCOVER"].apply.call_count == 2
+
+def test_execute_apply_unary(api100):
+    api100.check_result("apply_unary.json")
+    assert api100.collections["S2_FAPAR_CLOUDCOVER"].apply.call_count == 1
 
 
 def test_execute_apply_unary_parent_scope(api100):
@@ -173,16 +178,21 @@ def test_execute_apply_unary_parent_scope(api100):
         preprocess=preprocess_check_and_replace('"from_parameter": "x"', '"from_parameter": "data"')
     )
 
-
+#
+@pytest.mark.skip('parameter checking of callback graphs now happens somewhere else')
 def test_execute_apply_unary_invalid_from_parameter(api100):
     resp = api100.result("apply_unary.json",
         preprocess=preprocess_check_and_replace('"from_parameter": "x"', '"from_parameter": "1nv8l16"'))
     resp.assert_error(400, "ProcessParameterRequired")
 
 
-def test_execute_apply_run_udf(api):
-    api.check_result("apply_run_udf.json")
-    assert api.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles.call_count == 1
+def test_execute_apply_run_udf(api040):
+    api040.check_result("apply_run_udf.json")
+    assert api040.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles.call_count == 1
+
+def test_execute_apply_run_udf_100(api100):
+    api100.check_result("apply_run_udf.json")
+    assert api100.collections["S2_FAPAR_CLOUDCOVER"].apply.call_count == 1
 
 
 def test_reduce_temporal_run_udf(api):

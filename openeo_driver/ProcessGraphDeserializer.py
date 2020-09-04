@@ -319,7 +319,16 @@ def apply(args: dict, ctx: dict) -> ImageCollection:
     :param viewingParameters:
     :return:
     """
-    return _evaluate_sub_process_graph(args, 'process', parent_process='apply', version=ctx["version"])
+    version = ComparableVersion(ctx["version"])
+
+    if version.at_least("1.0.0"):
+        apply_pg = extract_deep(args, "process", "process_graph")
+        data_cube = extract_arg(args, 'data','apply')
+        context = args.get('context',{})
+
+        return data_cube.apply(apply_pg,context)
+    else:
+        return _evaluate_sub_process_graph(args, 'process', parent_process='apply', version=ctx["version"])
 
 
 @process_registry_040.add_function
@@ -709,6 +718,7 @@ def apply_process(process_id: str, args: dict, namespace: str = None, viewingPar
 
     # when all arguments and dependencies are resolved, we can run the process
     if parent_process == "apply":
+        # TODO EP-3404 this code path is for version <1.0.0, soon to be deprecated
         image_collection = extract_arg_list(args, ['x', 'data'])
         if process_id == "run_udf":
             udf = _get_udf(args)
