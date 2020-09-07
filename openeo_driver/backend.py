@@ -94,24 +94,18 @@ class SecondaryServices(MicroService):
 
     def create_service(self, user_id: str, process_graph: dict, service_type: str, api_version: str,
                        configuration: dict) -> str:
-        # TODO: remove this implementation altogether
         """
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/create-service
         :return: (location, openeo_identifier)
         """
-        from openeo_driver.ProcessGraphDeserializer import evaluate
-
         if service_type.lower() not in set(st.lower() for st in self.service_types()):
             raise ServiceUnsupportedException(service_type)
 
-        image_collection = evaluate(process_graph, viewingParameters={'version': api_version, 'pyramid_levels': 'all'})
+        return self._create_service(user_id, process_graph, service_type, api_version, configuration)
 
-        service_id = image_collection.tiled_viewing_service(
-            service_type=service_type,
-            configuration=configuration
-        )
-
-        return service_id
+    def _create_service(self, user_id: str, process_graph: dict, service_type: str, api_version: str,
+                       configuration: dict) -> str:
+        raise NotImplementedError()
 
     def update_service(self, user_id: str, service_id: str, process_graph: dict) -> None:
         """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/update-service"""

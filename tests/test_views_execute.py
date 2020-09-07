@@ -413,8 +413,6 @@ def test_execute_zonal_statistics(api):
 
 
 def test_create_wmts_040(api040):
-    pytest.skip("WIP")
-
     api040.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     process_graph = api040.load_json("filter_temporal.json")
     post_data = {
@@ -428,20 +426,8 @@ def test_create_wmts_040(api040):
     assert resp.headers['OpenEO-Identifier'] == 'c63d6c27-c4c2-4160-b7bd-9e32f582daec'
     assert resp.headers['Location'].endswith("/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec")
 
-    tiled_viewing_service = api040.collections["S2_FOOBAR"].tiled_viewing_service
-    assert tiled_viewing_service.call_count == 1
-    tiled_viewing_service.assert_called_with(
-        user_id=TEST_USER,
-        service_type="WMTS",
-        process_graph=process_graph,
-        api_version='0.4.0',
-        post_data=post_data
-    )
-
 
 def test_create_wmts_100(api100):
-    pytest.skip("WIP")
-
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     process_graph = api100.load_json("filter_temporal.json")
     post_data = {
@@ -457,16 +443,6 @@ def test_create_wmts_100(api100):
     resp = api100.post('/services', json=post_data).assert_status_code(201)
     assert resp.headers['OpenEO-Identifier'] == 'c63d6c27-c4c2-4160-b7bd-9e32f582daec'
     assert resp.headers['Location'].endswith("/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec")
-
-    tiled_viewing_service = api100.collections["S2_FOOBAR"].tiled_viewing_service
-    assert tiled_viewing_service.call_count == 1
-    tiled_viewing_service.assert_called_with(
-        user_id=TEST_USER,
-        service_type="WMTS",
-        process_graph=process_graph,
-        api_version='1.0.0',
-        post_data=post_data
-    )
 
 
 def test_read_vector(api):
