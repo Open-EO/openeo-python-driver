@@ -92,7 +92,8 @@ class SecondaryServices(MicroService):
         """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-service"""
         raise NotImplementedError()
 
-    def create_service(self, user_id: str, process_graph: dict, service_type: str, api_version: str, post_data: dict) -> ServiceMetadata:
+    def create_service(self, user_id: str, process_graph: dict, service_type: str, api_version: str,
+                       configuration: dict) -> str:
         # TODO: remove this implementation altogether
         """
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/create-service
@@ -104,14 +105,13 @@ class SecondaryServices(MicroService):
             raise ServiceUnsupportedException(service_type)
 
         image_collection = evaluate(process_graph, viewingParameters={'version': api_version, 'pyramid_levels': 'all'})
-        service_metadata = image_collection.tiled_viewing_service(
-            user_id=user_id,
+
+        service_id = image_collection.tiled_viewing_service(
             service_type=service_type,
-            process_graph=process_graph,
-            api_version=api_version,
-            post_data=post_data
+            configuration=configuration
         )
-        return service_metadata
+
+        return service_id
 
     def update_service(self, user_id: str, service_id: str, process_graph: dict) -> None:
         """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/update-service"""

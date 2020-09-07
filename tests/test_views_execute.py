@@ -413,6 +413,8 @@ def test_execute_zonal_statistics(api):
 
 
 def test_create_wmts_040(api040):
+    pytest.skip("WIP")
+
     api040.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     process_graph = api040.load_json("filter_temporal.json")
     post_data = {
@@ -438,6 +440,8 @@ def test_create_wmts_040(api040):
 
 
 def test_create_wmts_100(api100):
+    pytest.skip("WIP")
+
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     process_graph = api100.load_json("filter_temporal.json")
     post_data = {
