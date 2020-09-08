@@ -666,18 +666,18 @@ def services_post(user: User):
     :return:
     """
     post_data = request.get_json()
-    service_metadata = backend_implementation.secondary_services.create_service(
+    service_id = backend_implementation.secondary_services.create_service(
         user_id=user.user_id,
         process_graph=_extract_process_graph(post_data),
         service_type=post_data["type"],
         api_version=g.api_version,
-        post_data=post_data,
+        configuration=post_data.get("configuration", {})
     )
 
     return make_response('', 201, {
         'Content-Type': 'application/json',
-        'Location': url_for('.get_service_info', service_id=service_metadata.id),
-        'OpenEO-Identifier': service_metadata.id,
+        'Location': url_for('.get_service_info', service_id=service_id),
+        'OpenEO-Identifier': service_id
     })
 
 

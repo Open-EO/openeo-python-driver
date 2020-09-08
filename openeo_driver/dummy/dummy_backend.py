@@ -62,6 +62,11 @@ class DummySecondaryServices(SecondaryServices):
         )
     ]
 
+    def _create_service(self, user_id: str, process_graph: dict, service_type: str, api_version: str,
+                       configuration: dict) -> str:
+        service_id = 'c63d6c27-c4c2-4160-b7bd-9e32f582daec'
+        return service_id
+
     def service_types(self) -> dict:
         return {
             "WMTS": {
@@ -193,17 +198,6 @@ class DummyCatalog(CollectionCatalog):
 
         image_collection.bbox_filter = Mock(name="bbox_filter")
         image_collection.bbox_filter.return_value = image_collection
-
-        image_collection.tiled_viewing_service = Mock(name="tiled_viewing_service")
-        image_collection.tiled_viewing_service.return_value = ServiceMetadata(
-            id='c63d6c27-c4c2-4160-b7bd-9e32f582daec',
-            process={"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
-            url="http://openeo.vgt.vito.be/openeo/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec/service/wmts",
-            type="WMTS",
-            configuration={"version": "2.0.3"},
-            enabled=True,
-            attributes={},
-        )
 
         download = Mock(name='download')
         # TODO: download something more real to allow higher quality testing
