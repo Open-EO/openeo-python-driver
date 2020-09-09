@@ -734,6 +734,7 @@ class TestSecondaryServices(TestCase):
 
     def test_service_types_v100(self):
         resp = self.client.get('/openeo/1.0.0/service_types')
+        assert resp.status_code == 200, resp.data
         service_types = resp.json
         assert list(service_types.keys()) == ["WMTS"]
         wmts = service_types["WMTS"]
