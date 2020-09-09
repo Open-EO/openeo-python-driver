@@ -649,8 +649,8 @@ def job_estimate(job_id, user: User):
 @openeo_bp.route('/service_types', methods=['GET'])
 def service_types():
     service_types = backend_implementation.secondary_services.service_types()
-    expected_fields = {"configuration", "process_parameters", "links"}
-    assert all(set(st.keys()) == expected_fields for st in service_types.values())
+    expected_fields = {"configuration", "process_parameters"}
+    assert all(expected_fields.issubset(st.keys()) for st in service_types.values())
     return jsonify(service_types)
 
 

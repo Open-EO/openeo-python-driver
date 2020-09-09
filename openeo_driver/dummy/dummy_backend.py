@@ -70,6 +70,7 @@ class DummySecondaryServices(SecondaryServices):
     def service_types(self) -> dict:
         return {
             "WMTS": {
+                "title": "Web Map Tile Service",
                 "configuration": {
                     "version": {
                         "type": "string",
