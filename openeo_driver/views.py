@@ -445,7 +445,8 @@ def execute():
     result = evaluate(process_graph, viewingParameters={
         'version': g.api_version,
         'pyramid_levels': 'highest',
-        'user': user
+        'user': user,
+        'require_bounds': True
     })
 
     # TODO unify all this output handling within SaveResult logic?
