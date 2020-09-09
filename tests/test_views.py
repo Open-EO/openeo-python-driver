@@ -71,7 +71,7 @@ class TestGeneral:
         assert len(versions) == len(by_api_version)
         assert by_api_version == {
             "0.4.2": {'api_version': '0.4.2', 'production': True, 'url': 'http://oeo.net/openeo/0.4/'},
-            "1.0.0": {'api_version': '1.0.0', 'production': False, 'url': 'http://oeo.net/openeo/1.0/'},
+            "1.0.0": {'api_version': '1.0.0', 'production': True, 'url': 'http://oeo.net/openeo/1.0/'},
         }
 
     def test_versioned_well_known_openeo(self, api):
@@ -92,7 +92,7 @@ class TestGeneral:
         assert capabilities["stac_version"] == "0.9.0"
         assert capabilities["title"] == "OpenEO Test API"
         assert capabilities["id"] == "openeotestapi-1.0.0"
-        assert capabilities["production"] is False
+        assert capabilities["production"] is True
 
     def test_capabilities_version_alias(self, client):
         resp = ApiResponse(client.get('/openeo/0.4/')).assert_status_code(200).json
