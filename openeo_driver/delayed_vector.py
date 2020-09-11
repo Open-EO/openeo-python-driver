@@ -30,8 +30,11 @@ class DelayedVector:
         self._downloaded_shapefile = None
         self._crs = None
 
+    def __repr__(self):
+        return "%s(%r)" % (self.__class__.__name__, self.path)
+
     def __str__(self):
-        return "DelayedVector({p})".format(p=self.path)
+        return self.path
     
     @property
     def crs(self) -> pyproj.CRS:
