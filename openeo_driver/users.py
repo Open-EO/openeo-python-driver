@@ -26,6 +26,12 @@ class User:
         self.user_id = user_id
         self.info = info
 
+    def __repr__(self):
+        return "%s(%r, %r)" % (self.__class__.__name__, self.user_id, self.info)
+
+    def __str__(self):
+        return self.user_id
+
 
 class HttpAuthHandler:
     """Handler for processing HTTP authentication in a Flask app context"""

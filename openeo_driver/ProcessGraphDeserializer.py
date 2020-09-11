@@ -695,7 +695,7 @@ def apply_process(process_id: str, args: dict, namespace: str = None, viewingPar
                 bbox = viewingParameters["polygons"].bounds
             if "from_node" in shapes:  # it's a dereferenced from_node that contains a DelayedVector
                 polygons = convert_node(shapes["node"], viewingParameters)
-                viewingParameters["polygons"] = polygons.path
+                viewingParameters["polygons"] = polygons
                 bbox = polygons.bounds
 
             viewingParameters["left"] = bbox[0]
