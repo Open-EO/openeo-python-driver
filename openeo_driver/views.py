@@ -557,21 +557,14 @@ def queue_job(job_id, user: User):
 @openeo_bp.route('/jobs/<job_id>/results', methods=['GET'])
 @auth_handler.requires_bearer_auth
 def list_job_results(job_id, user: User):
-    job_info = _jsonable_batch_job_metadata(backend_implementation.batch_jobs.get_job_info(job_id, user.user_id))
+    job_info = backend_implementation.batch_jobs.get_job_info(job_id, user.user_id)
     results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
     filenames = results.keys()
     if requested_api_version().at_least("1.0.0"):
         result = {
             "stac_version": "0.9.0",
-            "id": job_info.get("id"),
+            "id": job_info.id,
             "type": "Feature",
-            # TODO EP-3540: add correct bbox and geometry when available in metadata
-            # TODO: also see https://github.com/Open-EO/openeo-api/pull/291 : bbox can be dropped, geometry can be null
-            "bbox": [-180, -90, 180, 90],
-            "geometry": {
-                "type": "Polygon",
-                "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]]
-            },
             "properties": _properties_from_job_info(job_info),
             "assets": {
                 filename: {
@@ -582,6 +575,11 @@ def list_job_results(job_id, user: User):
             },
             "links": []
         }
+
+        geometry = job_info.geometry
+        result["geometry"] = geometry
+        if geometry:
+            result["bbox"] = job_info.bbox
     else:
         result = {
             "links": [
@@ -594,17 +592,28 @@ def list_job_results(job_id, user: User):
     return jsonify(result)
 
 
-def _properties_from_job_info(job_info):
-    # TODO EP-3540: add correct date when available in metadata
+def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
+    to_datetime = Rfc3339(propagate_none=True).datetime
+
     properties = dict_no_none(**{
-        "start_date_time": None,
-        "end_date_time": None,
-        "title": job_info.get("title"),
-        "description": job_info.get("description"),
-        "created": job_info.get("created"),
-        "updated": job_info.get("updated"),
+        "title": job_info.title,
+        "description": job_info.description,
+        "created": to_datetime(job_info.created),
+        "updated": to_datetime(job_info.updated)
     })
     properties["datetime"] = None
+
+    start_datetime = to_datetime(job_info.start_datetime)
+    end_datetime = to_datetime(job_info.end_datetime)
+
+    if start_datetime == end_datetime:
+        properties["datetime"] = start_datetime
+    else:
+        if start_datetime:
+            properties["start_datetime"] = start_datetime
+        if end_datetime:
+            properties["end_datetime"] = end_datetime
+
     return properties
 
 

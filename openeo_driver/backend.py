@@ -188,6 +188,10 @@ class BatchJobMetadata(NamedTuple):
     finished: datetime = None
     memory_time_megabyte: timedelta = None
     cpu_time: timedelta = None
+    geometry: dict = None
+    bbox: List[float] = None
+    start_datetime: datetime = None
+    end_datetime: datetime = None
 
     @property
     def duration(self) -> timedelta:
