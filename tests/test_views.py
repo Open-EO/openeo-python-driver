@@ -485,7 +485,14 @@ class TestBatchJobs:
                     started=datetime(2020, 6, 11, 11, 55, 9),
                     finished=datetime(2020, 6, 11, 11, 55, 15),
                     memory_time_megabyte=timedelta(seconds=18704944),
-                    cpu_time=timedelta(seconds=1621)
+                    cpu_time=timedelta(seconds=1621),
+                    geometry={
+                        "type": "Polygon",
+                        "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]]
+                    },
+                    bbox=[-180, -90, 180, 90],
+                    start_datetime=datetime(1981, 4, 24, 3, 0, 0),
+                    end_datetime=datetime(1981, 4, 24, 3, 0, 0)
                 )
             }
             yield
@@ -660,26 +667,45 @@ class TestBatchJobs:
             dummy_backend.DummyBatchJobs._update_status(
                 job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="finished")
             resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
-        assert resp.assert_status_code(200).json == {
-            'assets': {
-                'output.tiff': {
-                    'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/output.tiff'
-                }
-            },
-            'bbox': [-180, -90, 180, 90],
-            'geometry': {
-                'coordinates': [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
-                'type': 'Polygon'
-            },
-            'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
-            'links': [],
-            'properties': {
-                'created': '2017-01-01T09:32:12Z',
-                'datetime': None
-            },
-            'stac_version': '0.9.0',
-            'type': 'Feature'
-        }
+            assert resp.assert_status_code(200).json == {
+                'assets': {
+                    'output.tiff': {
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/output.tiff'
+                    }
+                },
+                'geometry': None,
+                'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
+                'links': [],
+                'properties': {
+                    'created': '2017-01-01T09:32:12Z',
+                    'datetime': None
+                },
+                'stac_version': '0.9.0',
+                'type': 'Feature'
+            }
+
+            resp = api100.get('/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results', headers=self.AUTH_HEADER)
+
+            assert resp.assert_status_code(200).json == {
+                'assets': {
+                    'output.tiff': {
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/output.tiff'
+                    }
+                },
+                'geometry': {
+                    "type": "Polygon",
+                    "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]]
+                },
+                'bbox': [-180, -90, 180, 90],
+                'id': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
+                'links': [],
+                'properties': {
+                    'created': '2020-06-11T11:51:29Z',
+                    'datetime': '1981-04-24T03:00:00Z'
+                },
+                'stac_version': '0.9.0',
+                'type': 'Feature'
+            }
 
     def test_get_job_results_invalid_job(self, api):
         api.get('/jobs/deadbeef-f00/results', headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
