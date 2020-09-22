@@ -110,7 +110,8 @@ class ProcessRegistry:
         """
         Add a process to the registry, with callable function (optional) and specification dict (optional)
         """
-        assert name not in self._processes, name
+        if name in self._processes:
+            raise RuntimeError("process {p!r} is already defined".format(p=name))
         if spec:
             # Basic health check
             assert all(k in spec for k in ['id', 'description', 'parameters', 'returns'])

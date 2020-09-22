@@ -8,6 +8,7 @@ from collections import namedtuple, defaultdict
 from typing import Callable, Tuple, List
 
 import flask
+import numpy as np
 import pkg_resources
 from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, current_app
 from werkzeug.exceptions import HTTPException, NotFound
@@ -462,6 +463,11 @@ def execute():
         from shapely.geometry import mapping
         geojsons = (mapping(geometry) for geometry in result.geometries)
         return jsonify(list(geojsons))
+    elif isinstance(result, np.ndarray):
+        return jsonify(result.tolist())
+    elif isinstance(result, np.generic):
+        # Convert numpy datatype to native Python datatype first
+        return jsonify(result.item())
     else:
         return jsonify(replace_nan_values(result))
 

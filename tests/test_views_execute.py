@@ -2,6 +2,7 @@ import os
 from typing import Callable, Union
 from unittest import mock
 
+import numpy as np
 import pytest
 import shapely.geometry
 from flask.testing import FlaskClient
@@ -134,9 +135,9 @@ def test_execute_apply_kernel(api):
     kernel_list = [[0, 1, 0], [1, 1, 1], [0, 1, 0]]
     api.check_result("apply_kernel.json")
     assert api.collections["S2_FAPAR_CLOUDCOVER"].apply_kernel.call_count == 1
-    np_kernel = api.collections["S2_FAPAR_CLOUDCOVER"].apply_kernel.call_args[0][0]
+    np_kernel = api.collections["S2_FAPAR_CLOUDCOVER"].apply_kernel.call_args[1]["kernel"]
     assert np_kernel.tolist() == kernel_list
-    assert api.collections["S2_FAPAR_CLOUDCOVER"].apply_kernel.call_args[0][1] == 3
+    assert api.collections["S2_FAPAR_CLOUDCOVER"].apply_kernel.call_args[1]["factor"] == 3
 
 
 def test_load_collection_filter(api):
@@ -781,3 +782,57 @@ def test_evaluate_process_from_url(api100, requests_mock, url, namespace):
     params = api100.collections['S2_FOOBAR'].viewingParameters
     assert expected_bbox == {k: params[k] for k in expected_bbox.keys()}
     assert url_mock.called_once
+
+
+def test_execute_no_cube_1_plus_2(api100):
+    # Calculator as a service!
+    res = api100.result({
+        "add1": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}
+    })
+    assert res.assert_status_code(200).json == 3
+
+
+@pytest.mark.parametrize(["process_graph", "expected"], [
+    ({"add1": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}, 8),
+    ({"mul1": {"process_id": "multiply", "arguments": {"x": 3, "y": 5}, "result": True}}, 15),
+    ({"sum1": {"process_id": "sum", "arguments": {"data": [1, 2, 3, 4, 5]}, "result": True}}, 15),
+    ({"log1": {"process_id": "log", "arguments": {"x": 10000, "base": 10}, "result": True}}, 4.0),
+    ({"flr1": {"process_id": "floor", "arguments": {"x": 12.34}, "result": True}}, 12),
+    ({"cos1": {"process_id": "cos", "arguments": {"x": np.pi}, "result": True}}, -1),
+    ({"max1": {"process_id": "max", "arguments": {"data": [2, 8, 5, 3]}, "result": True}}, 8),
+    ({"med1": {"process_id": "median", "arguments": {"data": [2, 8, 5, 3, 11]}, "result": True}}, 5),
+    ({"var1": {"process_id": "variance", "arguments": {"data": [2, 8, 5, 3]}, "result": True}}, 7.0),
+    ({"cnt1": {"process_id": "count", "arguments": {"data": [2, 8, None, 3]}, "result": True}}, 3),
+    ({"arc1": {"process_id": "array_contains", "arguments": {"data": [2, 8, 5, 3], "value": 5}, "result": True}}, True),
+    ({"arf1": {"process_id": "array_find", "arguments": {"data": [2, 8, 5, 3], "value": 5}, "result": True}}, 2),
+    ({"srt1": {"process_id": "sort", "arguments": {"data": [2, 8, 5, 3]}, "result": True}}, [2, 3, 5, 8]),
+    # any/all implementation is bit weird at the moment https://github.com/Open-EO/openeo-processes-python/issues/16
+    # ({"any1": {"process_id": "any", "arguments": {"data": [False, True, False]}, "result": True}}, True),
+    # ({"all1": {"process_id": "all", "arguments": {"data": [False, True, False]}, "result": True}}, False),
+])
+def test_execute_no_cube_just_math(api100, process_graph, expected):
+    assert api100.result(process_graph).assert_status_code(200).json == expected
+
+
+def test_execute_no_cube_dynamic_args(api100):
+    pg = {
+        "loadcollection1": {'process_id': 'load_collection', 'arguments': {'id': 'S2_FOOBAR'}},
+        "add1": {"process_id": "add", "arguments": {"x": 2.5, "y": 5.25}},
+        "applykernel1": {
+            "process_id": "apply_kernel",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                # TODO: test using "from_node" as kernel component?
+                "kernel": [[1, 1, 1], [1, 2, 1], [1, 1, 1]],
+                "factor": {"from_node": "add1"},
+            },
+            "result": True
+        }
+    }
+    api100.check_result(pg)
+    apply_kernel_mock = api100.collections['S2_FOOBAR'].apply_kernel
+    args, kwargs = apply_kernel_mock.call_args
+    assert kwargs["factor"] == 7.75
+
+
+# TODO: test using dynamic arguments in bbox_filter (not possible yet: see EP-3509)

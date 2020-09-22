@@ -27,6 +27,7 @@ from openeo_udf.api.feature_collection import FeatureCollection
 from openeo_udf.api.structured_data import StructuredData
 from openeo_udf.api.udf_data import UdfData
 from shapely.geometry import shape, mapping
+import openeo_processes
 
 _log = logging.getLogger(__name__)
 
@@ -47,7 +48,33 @@ process_registry_040.add_spec_by_name(
     'arccos', 'arcosh', 'arcsin', 'arctan', 'arctan2', 'arsinh', 'artanh', 'cos', 'cosh', 'sin', 'sinh', 'tan', 'tanh',
     'count', 'first', 'last', 'max', 'mean', 'median', 'min', 'product', 'sd', 'sum', 'variance'
 )
-process_registry_100.add_spec_by_name(
+
+
+def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List[str]):
+    """
+    Add standard processes as implemented by the openeo-processes-python project.
+    """
+
+    def wrap(process):
+        """Adapter to connect the kwargs style of openeo-processes-python with args/viewingParameters"""
+
+        def wrapped(args: dict, viewingParameters: dict):
+            return process(**args)
+
+        return wrapped
+
+    for pid in set(process_ids):
+        if openeo_processes.has_process(pid):
+            proc = openeo_processes.get_process(pid)
+            wrapped = wrap(proc)
+            spec = process_registry.load_predefined_spec(pid)
+            process_registry.add_process(name=pid, function=wrapped, spec=spec)
+        else:
+            _log.warning("Adding process {p!r} without implementation".format(p=pid))
+            process_registry.add_spec_by_name(pid)
+
+
+_add_standard_processes(process_registry_100, [
     'array_apply', 'array_contains', 'array_element', 'array_filter', 'array_find', 'array_labels',
     'count', 'first', 'last', 'order', 'rearrange', 'sort',
     'between', 'eq', 'gt', 'gte', 'if', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
@@ -58,7 +85,7 @@ process_registry_100.add_spec_by_name(
     'ceil', 'floor', 'int', 'round',
     'arccos', 'arcosh', 'arcsin', 'arctan', 'arctan2', 'arsinh', 'artanh', 'cos', 'cosh', 'sin', 'sinh', 'tan', 'tanh',
     'all', 'any', 'count', 'first', 'last', 'max', 'mean', 'median', 'min', 'product', 'sd', 'sum', 'variance'
-)
+])
 
 
 def process(f: Callable) -> Callable:
@@ -545,7 +572,7 @@ def apply_kernel(args: Dict, viewingParameters) -> ImageCollection:
         raise ProcessParameterInvalidException('border','apply_kernel','This backend does not support values other than 0 for the border parameter of apply_kernel. Please contact the developers if support is required.')
     if replace_invalid != 0:
         raise ProcessParameterInvalidException('replace_invalid','apply_kernel','This backend does not support values other than 0 for the replace_invalid parameter of apply_kernel. Please contact the developers if support is required.')
-    return image_collection.apply_kernel(kernel, factor, border,replace_invalid)
+    return image_collection.apply_kernel(kernel=kernel, factor=factor, border=border, replace_invalid=replace_invalid)
 
 
 @process
