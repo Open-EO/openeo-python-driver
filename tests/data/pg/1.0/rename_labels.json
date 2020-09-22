@@ -1,0 +1,20 @@
+{
+  "collection": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "S2_FOOBAR"
+    }
+  },
+  "rename": {
+    "process_id": "rename_labels",
+    "arguments": {
+      "data": {
+        "from_node": "collection"
+      },
+      "dimension": "bands",
+      "target": ["VV","VH"],
+      "source": ["b1","b2"]
+    },
+    "result": true
+  }
+}
