@@ -909,3 +909,13 @@ def sleep(args: Dict, viewingParameters):
     _log.info("Sleeping {s} seconds".format(s=seconds))
     time.sleep(seconds)
     return data
+
+
+@non_standard_process(
+    ProcessSpec(id='apply_atmospheric_correction', description="iCor workflow test")
+        .param('data', description="input data cube to be corrected", schema={"type": "object", "subtype": "raster-cube"})
+        .returns(description="the corrected data as a data cube", schema={"type": "object", "subtype": "raster-cube"})
+)
+def apply_atmospheric_correction(args: Dict, viewingParameters) -> object:
+    image_collection = extract_arg(args, 'data')
+    return image_collection.apply_atmospheric_correction()
