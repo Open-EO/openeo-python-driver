@@ -604,6 +604,10 @@ def test_fuzzy_mask_add_dim(api):
     api.check_result("fuzzy_mask_add_dim.json")
 
 
+def test_rename_labels(api100):
+    api100.check_result("rename_labels.json")
+
+
 @pytest.mark.parametrize("namespace", ["user", None, "_undefined"])
 def test_user_defined_process_bbox_mol_basic(api100, namespace):
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)

@@ -378,6 +378,16 @@ def add_dimension(args: dict, ctx: dict):
     )
 
 
+@process_registry_100.add_function
+def rename_labels(args: dict, ctx: dict):
+    data_cube = extract_arg(args, 'data')
+    return data_cube.rename_labels(
+        dimension=extract_arg(args, 'dimension'),
+        target=extract_arg(args, 'target'),
+        source=args.get('source',[])
+    )
+
+
 def _check_dimension(cube: ImageCollection, dim: str, process: str):
     """
     Helper to check/validate the requested and available dimensions of a cube.

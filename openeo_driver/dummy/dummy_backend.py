@@ -272,6 +272,9 @@ class DummyCatalog(CollectionCatalog):
         image_collection.rename_dimension = Mock(name="rename_dimension")
         image_collection.rename_dimension.return_value = image_collection
 
+        image_collection.rename_labels = Mock(name="rename_labels")
+        image_collection.rename_labels.return_value = image_collection
+
         image_collection.aggregate_temporal = Mock(name="aggregate_temporal")
         image_collection.aggregate_temporal.return_value = image_collection
 
