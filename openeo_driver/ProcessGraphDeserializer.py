@@ -135,10 +135,12 @@ def evaluate(processGraph: dict, viewingParameters=None) -> ImageCollection:
     :return:  an ImageCollection
     """
     if viewingParameters is None:
+        viewingParameters = {}
+
+    if 'version' not in viewingParameters:
         warnings.warn("Blindly assuming 0.4.0")
-        viewingParameters = {
-            'version': '0.4.0'
-        }
+        viewingParameters['version'] = '0.4.0'
+
     # TODO avoid local import
     from openeo.internal.process_graph_visitor import ProcessGraphVisitor
     preprocessed_process_graph = _expand_macros(processGraph)
