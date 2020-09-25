@@ -4,6 +4,7 @@ import functools
 import logging
 import os
 import re
+import uuid
 from collections import namedtuple, defaultdict
 from typing import Callable, Tuple, List
 
@@ -443,11 +444,13 @@ def execute():
     except Exception as e:
         _log.warning("/execute by un-authenticated user. %(e)r", {"e": e})
         user = None
+
     result = evaluate(process_graph, viewingParameters={
         'version': g.api_version,
         'pyramid_levels': 'highest',
         'user': user,
-        'require_bounds': True
+        'require_bounds': True,
+        'correlation_id': str(uuid.uuid4())
     })
 
     # TODO unify all this output handling within SaveResult logic?
