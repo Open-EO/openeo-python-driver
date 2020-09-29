@@ -1046,3 +1046,17 @@ class TestUserDefinedProcesses:
 
     def test_delete_unknown_udp(self, api100):
         api100.delete('/process_graphs/unknown', headers=TEST_USER_AUTH_HEADER).assert_status_code(404)
+
+
+def test_debug_echo_get(api):
+    res = api.get("/_debug/echo?xev=lol", headers={"foo": "bar"}).assert_status_code(200).json
+    assert res["method"] == "GET"
+    assert res["args"] == {"xev": "lol"}
+    assert res["data"] == "b''"
+    assert res["headers"]["Foo"] == "bar"
+
+
+def test_debug_echo_post(api):
+    res = api.post("/_debug/echo", json={"foo": "bar"}).assert_status_code(200).json
+    assert res["method"] == "POST"
+    assert res["data"] == 'b\'{"foo": "bar"}\''

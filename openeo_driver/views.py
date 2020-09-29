@@ -1010,6 +1010,20 @@ def versioned_well_known_openeo():
     return make_response(jsonify(error.to_dict()), error.status_code)
 
 
+@openeo_bp.route('/_debug/echo', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'])
+def debug_echo():
+    return jsonify({
+        "url": request.url,
+        "path": request.path,
+        "method": request.method,
+        "headers": dict(request.headers.items()),
+        "args": request.args,
+        "data": repr(request.get_data()),
+        "remote_addr": request.remote_addr,
+        "environ": {k: request.environ.get(k) for k in ["HTTP_USER_AGENT", "SERVER_PROTOCOL", "wsgi.url_scheme"]}
+    })
+
+
 app.register_blueprint(openeo_bp, url_prefix='/openeo')
 app.register_blueprint(openeo_bp, url_prefix='/openeo/<version>')
 
@@ -1031,3 +1045,4 @@ def well_known_openeo():
             if v.wellknown
         ]
     })
+
