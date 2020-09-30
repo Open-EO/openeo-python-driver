@@ -112,23 +112,68 @@ def test_load_collection(api):
 
 def test_execute_filter_temporal(api):
     api.check_result({
-        'filter_temp': {
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2_FAPAR_CLOUDCOVER'}
+        },
+        'filtertemporal1': {
             'process_id': 'filter_temporal',
             'arguments': {
-                'data': {
-                    'from_node': 'collection'
-                },
+                'data': {'from_node': 'loadcollection1'},
                 'extent': ['2018-01-01', '2018-12-31']
             },
             'result': True
         },
-        'collection': {
-            'process_id': 'load_collection',
-            'arguments': {
-                'id': 'S2_FAPAR_CLOUDCOVER'
-            }
-        }
     })
+    viewing_parameters = dummy_backend.collections["S2_FAPAR_CLOUDCOVER"].viewingParameters
+    assert viewing_parameters["from"] == "2018-01-01"
+    assert viewing_parameters["to"] == "2018-12-31"
+
+
+def test_execute_filter_bbox(api):
+    api.check_result({
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2_FAPAR_CLOUDCOVER'}
+        },
+        'filterbbox1': {
+            'process_id': 'filter_bbox',
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'extent': {
+                    "west": 3, "east": 5,
+                    "south": 50, "north": 51,
+                    "crs": "EPSG:4326",
+                }
+            },
+            'result': True
+        },
+    })
+    viewing_parameters = dummy_backend.collections["S2_FAPAR_CLOUDCOVER"].viewingParameters
+    assert viewing_parameters["left"] == 3
+    assert viewing_parameters["right"] == 5
+    assert viewing_parameters["bottom"] == 50
+    assert viewing_parameters["top"] == 51
+    assert viewing_parameters["srs"] == "EPSG:4326"
+
+
+def test_execute_filter_bands(api):
+    api.check_result({
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2_FOOBAR'},
+        },
+        'filterbands1': {
+            'process_id': 'filter_bands',
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'bands': ["B02", "B03"],
+            },
+            'result': True
+        },
+    })
+    viewing_parameters = dummy_backend.collections["S2_FOOBAR"].viewingParameters
+    assert viewing_parameters["bands"] == ["B02", "B03"]
 
 
 def test_execute_apply_kernel(api):
@@ -168,6 +213,7 @@ def test_execute_apply_unary_040(api040):
     api040.check_result("apply_unary.json")
     assert api040.collections["S2_FAPAR_CLOUDCOVER"].apply.call_count == 2
 
+
 def test_execute_apply_unary(api100):
     api100.check_result("apply_unary.json")
     assert api100.collections["S2_FAPAR_CLOUDCOVER"].apply.call_count == 1
@@ -178,6 +224,7 @@ def test_execute_apply_unary_parent_scope(api100):
         "apply_unary.json",
         preprocess=preprocess_check_and_replace('"from_parameter": "x"', '"from_parameter": "data"')
     )
+
 
 #
 @pytest.mark.skip('parameter checking of callback graphs now happens somewhere else')
@@ -190,6 +237,7 @@ def test_execute_apply_unary_invalid_from_parameter(api100):
 def test_execute_apply_run_udf(api040):
     api040.check_result("apply_run_udf.json")
     assert api040.collections["S2_FAPAR_CLOUDCOVER"].apply_tiles.call_count == 1
+
 
 def test_execute_apply_run_udf_100(api100):
     api100.check_result("apply_run_udf.json")
@@ -370,9 +418,6 @@ def test_reduce_bands_invalid_dimension(api):
 
 
 def test_execute_mask(api):
-    if api.api_version.startswith("1.0"):
-        pytest.skip("TODO #33 #32 aggregate_spatial not supported yet")
-
     api.check_result("mask.json")
     assert api.collections["S2_FAPAR_CLOUDCOVER"].mask.call_count == 1
 

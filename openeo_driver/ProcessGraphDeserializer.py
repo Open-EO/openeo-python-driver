@@ -732,10 +732,11 @@ def apply_process(process_id: str, args: dict, namespace: str = None, viewingPar
                 polygons = _as_geometry_collection(shapes) if shapes['type'] == 'FeatureCollection' else shapes
                 viewingParameters["polygons"] = shape(polygons)
                 bbox = viewingParameters["polygons"].bounds
-            if "from_node" in shapes:  # it's a dereferenced from_node that contains a DelayedVector
+            elif "from_node" in shapes:  # it's a dereferenced from_node that contains a DelayedVector
                 polygons = convert_node(shapes["node"], viewingParameters)
                 viewingParameters["polygons"] = polygons
                 bbox = polygons.bounds
+            # TODO: else?
 
             viewingParameters["left"] = bbox[0]
             viewingParameters["right"] = bbox[2]
