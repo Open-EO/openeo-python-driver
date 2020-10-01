@@ -18,15 +18,32 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, ProcessGraphNotFoundException
 from openeo_driver.save_result import AggregatePolygonResult
 
+from openeo_driver.utils import EvalEnv
+
 DEFAULT_DATETIME = datetime(2020, 4, 23, 16, 20, 27)
 
 # TODO: eliminate this global state with proper pytest fixture usage
-collections = {}
+_collections = {}
+_load_collection_calls = {}
 
 
 def utcnow() -> datetime:
     # To simplify testing, we break time.
     return DEFAULT_DATETIME
+
+
+def get_collection(collection_id: str) -> 'DummyDataCube':
+    return _collections[collection_id]
+
+
+def last_load_collection_call(collection_id: str) -> EvalEnv:
+    return _load_collection_calls[collection_id][-1]
+
+
+def reset():
+    global _collections, _load_collection_calls
+    _collections = {}
+    _load_collection_calls = {}
 
 
 class DummyVisitor(ProcessGraphVisitor):
@@ -182,15 +199,17 @@ class DummyCatalog(CollectionCatalog):
         super().__init__(all_metadata=self._COLLECTIONS)
 
     def load_collection(self, collection_id: str, viewing_parameters: dict) -> DriverDataCube:
-        if collection_id in collections:
-            return collections[collection_id]
+        if collection_id in _collections:
+            return _collections[collection_id]
 
         # TODO simplify all this mock/return_value stuff?
         image_collection = DummyDataCube(
             metadata=CollectionMetadata(metadata=self.get_collection_metadata(collection_id))
         )
 
-        image_collection.viewingParameters = viewing_parameters.copy()
+        if collection_id not in _load_collection_calls:
+            _load_collection_calls[collection_id] = []
+        _load_collection_calls[collection_id].append(viewing_parameters.copy())
 
         image_collection.mask = Mock(name="mask")
         image_collection.mask.return_value = image_collection
@@ -207,12 +226,7 @@ class DummyCatalog(CollectionCatalog):
 
         image_collection.download = download
 
-        timeseries = Mock(name='timeseries')
-        timeseries.return_value = {
-            "viewingParameters": image_collection.viewingParameters
-        }
-
-        image_collection.timeseries = timeseries
+        image_collection.timeseries = Mock(name='timeseries', return_value={})
 
         def is_one_or_more_polygons(return_value, regions, func):
             assert func == 'mean' or func == 'avg'
@@ -294,7 +308,7 @@ class DummyCatalog(CollectionCatalog):
         image_collection.ndvi = Mock(name="ndvi")
         image_collection.ndvi.return_value = image_collection
 
-        collections[collection_id] = image_collection
+        _collections[collection_id] = image_collection
         return image_collection
 
 

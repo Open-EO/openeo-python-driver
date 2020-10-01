@@ -26,7 +26,7 @@ from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingExceptio
     FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException
 from openeo_driver.save_result import SaveResult
 from openeo_driver.users import HttpAuthHandler, User
-from openeo_driver.utils import replace_nan_values
+from openeo_driver.utils import replace_nan_values, EvalEnv
 
 _log = logging.getLogger(__name__)
 
@@ -390,7 +390,7 @@ def point():
     y = float(request.args.get('y', ''))
     srs = request.args.get('srs', None)
     process_graph = _extract_process_graph(request.json)
-    image_collection = evaluate(process_graph, viewingParameters={'version': g.api_version})
+    image_collection = evaluate(process_graph, env=EvalEnv({'version': g.api_version}))
     return jsonify(image_collection.timeseries(x, y, srs))
 
 
@@ -445,13 +445,13 @@ def execute():
         _log.warning("/execute by un-authenticated user. %(e)r", {"e": e})
         user = None
 
-    result = evaluate(process_graph, viewingParameters={
+    result = evaluate(process_graph, env=EvalEnv({
         'version': g.api_version,
         'pyramid_levels': 'highest',
         'user': user,
         'require_bounds': True,
         'correlation_id': str(uuid.uuid4())
-    })
+    }))
 
     # TODO unify all this output handling within SaveResult logic?
     if isinstance(result, DriverDataCube):
