@@ -189,7 +189,7 @@ class DummyCatalog(CollectionCatalog):
             metadata=CollectionMetadata(metadata=self.get_collection_metadata(collection_id))
         )
 
-        image_collection.viewingParameters = viewing_parameters
+        image_collection.viewingParameters = viewing_parameters.copy()
 
         image_collection.mask = Mock(name="mask")
         image_collection.mask.return_value = image_collection
