@@ -881,3 +881,37 @@ def test_execute_no_cube_dynamic_args(api100):
 
 
 # TODO: test using dynamic arguments in bbox_filter (not possible yet: see EP-3509)
+
+
+def test_execute_EP3509_process_order(api100):
+    pg = {
+        "loadcollection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "start": {"process_id": "constant", "arguments": {"x": "2020-02-02"}},
+        "end": {"process_id": "constant", "arguments": {"x": "2020-03-03"}},
+        "filtertemporal1": {"process_id": "filter_temporal", "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "extent": [{"from_node": "start"}, {"from_node": "end"}],
+        }},
+        "west": {"process_id": "add", "arguments": {"x": 3, "y": 2}},
+        "east": {"process_id": "add", "arguments": {"x": 3, "y": 3}},
+        "filterbbox1": {"process_id": "filter_bbox", "arguments": {
+            "data": {"from_node": "filtertemporal1"},
+            "extent": {"west": {"from_node": "west"}, "east": {"from_node": "east"}, "south": 50, "north": 51}
+        }},
+        "bands": {"process_id": "constant", "arguments": {"x": ["B02", "B03"]}},
+        "filterbands1": {"process_id": "filter_bands", "arguments": {
+            "data": {"from_node": "filterbbox1"},
+            "bands": {"from_node": "bands"}
+        }},
+        "applykernel": {"process_id": "apply_kernel", "arguments": {
+            "data": {"from_node": "filterbands1"}, "kernel": [1]
+        }, "result": True}
+    }
+    api100.check_result(pg)
+    viewing_parameters = dummy_backend.collections["S2_FOOBAR"].viewingParameters
+    expected = {
+        "left": 5, "right": 6, "bottom": 50, "top": 51, "srs": "EPSG:4326",
+        "from": "2020-02-02", "to": "2020-03-03",
+        "bands": ["B02", "B03"],
+    }
+    assert {k: viewing_parameters.get(k) for k in expected.keys()} == expected

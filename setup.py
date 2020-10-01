@@ -38,7 +38,7 @@ setup(
         'flask',
         'werkzeug',
         'requests',
-        'openeo>=0.4.3a1.*',
+        'openeo>=0.4.6a1.*',
         # TODO EP-3499 as there are no real versions or releases of openeo-processes-python at the moment
         #   (https://github.com/Open-EO/openeo-processes-python/issues/15),
         #   we depend on custom built release based on (not yet accepted)

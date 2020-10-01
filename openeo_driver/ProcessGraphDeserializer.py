@@ -669,8 +669,6 @@ def run_udf(args: dict, viewingParameters: dict):
             reason='The provided UDF should return exactly either a feature collection or a structured result but got: %s .'%str(result_data) )
 
 
-
-
 @process
 def linear_scale_range(args: dict, viewingParameters: dict) -> ImageCollection:
     image_collection = extract_arg(args, 'x')
@@ -681,6 +679,11 @@ def linear_scale_range(args: dict, viewingParameters: dict) -> ImageCollection:
     outputMin = args.get("outputMin", 0.0)
 
     return image_collection.linear_scale_range(inputMin, inputMax, outputMin, outputMax)
+
+
+@process_registry_100.add_function
+def constant(args: dict, viewingParameters:dict):
+    return args["x"]
 
 
 @non_standard_process(
@@ -747,7 +750,7 @@ def apply_process(process_id: str, args: dict, namespace: str = None, viewingPar
             args['polygons'] = polygons  # might as well cache the value instead of re-evaluating it further on
 
     elif 'filter_bands' == process_id:
-        viewingParameters["bands"] = extract_arg(args, "bands", process_id=process_id)
+        viewingParameters["bands"] = convert_node(extract_arg(args, "bands", process_id=process_id), viewingParameters)
     elif 'apply' == parent_process:
         if "data" in viewingParameters:
             # The `apply` process passes it's `data` parameter as `x` parameter to subprocess
