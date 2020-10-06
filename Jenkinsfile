@@ -15,4 +15,5 @@ pythonPipeline {
   downstream_job = 'geo.OpenEO/openeo-geopyspark-integrationtests'
   wheel_repo = 'python-openeo'
   extras_require = 'dev'
+  upload_dev_wheels = false
 }
