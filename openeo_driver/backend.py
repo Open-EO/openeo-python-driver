@@ -16,9 +16,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Union, NamedTuple, Dict
 
-from openeo import ImageCollection
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.util import rfc3339
+from openeo_driver.datacube import DriverDataCube
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException
 from openeo_driver.utils import read_json
 
@@ -154,7 +154,7 @@ class CollectionCatalog(MicroService):
         """
         return self._get(collection_id=collection_id)
 
-    def load_collection(self, collection_id: str, viewing_parameters: dict) -> ImageCollection:
+    def load_collection(self, collection_id: str, viewing_parameters: dict) -> DriverDataCube:
         raise NotImplementedError
 
 
@@ -379,7 +379,7 @@ class OpenEoBackendImplementation:
         """
         return {"input": {}, "output": {}}
 
-    def load_disk_data(self, format: str, glob_pattern: str, options: dict, viewing_parameters: dict) -> object:
+    def load_disk_data(self, format: str, glob_pattern: str, options: dict, viewing_parameters: dict) -> DriverDataCube:
         # TODO: move this to catalog "microservice"
         raise NotImplementedError
 

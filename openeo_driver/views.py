@@ -15,12 +15,12 @@ from flask import Flask, request, url_for, jsonify, send_from_directory, abort, 
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from openeo import ImageCollection
 from openeo.capabilities import ComparableVersion
 from openeo.util import date_to_rfc3339, dict_no_none, deep_get, Rfc3339
 from openeo_driver.ProcessGraphDeserializer import evaluate, get_process_registry
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
     get_backend_implementation, ErrorSummary
+from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException
@@ -454,7 +454,7 @@ def execute():
     })
 
     # TODO unify all this output handling within SaveResult logic?
-    if isinstance(result, ImageCollection):
+    if isinstance(result, DriverDataCube):
         format_options = post_data.get('output', {})
         filename = result.download(None, bbox="", time="", **format_options)
         return send_from_directory(os.path.dirname(filename), os.path.basename(filename))

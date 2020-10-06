@@ -11,10 +11,10 @@ import time
 import numpy as np
 import requests
 
-from openeo import ImageCollection
 from openeo.capabilities import ComparableVersion
 from openeo.metadata import MetadataException
 from openeo_driver.backend import get_backend_implementation, UserDefinedProcessMetadata
+from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import ProcessParameterRequiredException, \
     ProcessParameterInvalidException
@@ -127,12 +127,12 @@ def get_process_registry(api_version: ComparableVersion) -> ProcessRegistry:
 backend_implementation = get_backend_implementation()
 
 
-def evaluate(processGraph: dict, viewingParameters=None) -> ImageCollection:
+def evaluate(processGraph: dict, viewingParameters=None) -> DriverDataCube:
     """
-    Converts the json representation of a (part of a) process graph into the corresponding Python ImageCollection.
+    Converts the json representation of a (part of a) process graph into the corresponding Python data cube object.
     :param processGraph:
     :param viewingParameters:
-    :return:  an ImageCollection
+    :return:  an DriverDataCube
     """
     if viewingParameters is None:
         viewingParameters = {}
@@ -265,7 +265,7 @@ def extract_deep(args: dict, *steps):
 
 
 @process
-def load_collection(args: Dict, viewingParameters) -> ImageCollection:
+def load_collection(args: Dict, viewingParameters) -> DriverDataCube:
     name = extract_arg(args, 'id')
     if 'temporal_extent' in args and args['temporal_extent'] is not None:
         extent = args['temporal_extent']
@@ -295,7 +295,7 @@ def load_collection(args: Dict, viewingParameters) -> ImageCollection:
         .param(name='options', description="options specific to the file format", schema={"type": "object"})
         .returns(description="the data as a data cube", schema={})
 )
-def load_disk_data(args: Dict, viewingParameters) -> object:
+def load_disk_data(args: Dict, viewingParameters) -> DriverDataCube:
     format = extract_arg(args, 'format')
     glob_pattern = extract_arg(args, 'glob_pattern')
     options = args.get('options', {})
@@ -304,7 +304,7 @@ def load_disk_data(args: Dict, viewingParameters) -> object:
 
 
 @process_registry_100.add_function
-def apply_neighborhood(args: dict, ctx: dict) -> ImageCollection:
+def apply_neighborhood(args: dict, ctx: dict) -> DriverDataCube:
     process = extract_deep(args, "process", "process_graph")
     size = extract_arg(args, 'size')
     overlap = extract_arg(args, 'overlap')
@@ -314,7 +314,7 @@ def apply_neighborhood(args: dict, ctx: dict) -> ImageCollection:
     return data_cube.apply_neighborhood(process,size,overlap)
 
 @process
-def apply_dimension(args: Dict, ctx: dict) -> ImageCollection:
+def apply_dimension(args: Dict, ctx: dict) -> DriverDataCube:
     return _evaluate_sub_process_graph(args, 'process', parent_process='apply_dimension', version=ctx["version"])
 
 
@@ -327,7 +327,7 @@ def save_result(args: Dict, viewingParameters) -> SaveResult:
     if isinstance(data, SaveResult):
         data.set_format(format, data)
         return data
-    if isinstance(data, ImageCollection):
+    if isinstance(data, DriverDataCube):
         return ImageCollectionResult(data, format, {**viewingParameters, **options})
     elif isinstance(data, DelayedVector):
         geojsons = (mapping(geometry) for geometry in data.geometries)
@@ -340,7 +340,7 @@ def save_result(args: Dict, viewingParameters) -> SaveResult:
 
 
 @process
-def apply(args: dict, ctx: dict) -> ImageCollection:
+def apply(args: dict, ctx: dict) -> DriverDataCube:
     """
     Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
 
@@ -361,7 +361,7 @@ def apply(args: dict, ctx: dict) -> ImageCollection:
 
 
 @process_registry_040.add_function
-def reduce(args: dict, ctx: dict) -> ImageCollection:
+def reduce(args: dict, ctx: dict) -> DriverDataCube:
     """
     https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#reduce
 
@@ -386,7 +386,7 @@ def reduce(args: dict, ctx: dict) -> ImageCollection:
 
 
 @process_registry_100.add_function
-def reduce_dimension(args: dict, ctx: dict) -> ImageCollection:
+def reduce_dimension(args: dict, ctx: dict) -> DriverDataCube:
     reduce_pg = extract_deep(args, "reducer", "process_graph")
     dimension = extract_arg(args, 'dimension')
     data_cube = extract_arg(args, 'data')
@@ -398,7 +398,7 @@ def reduce_dimension(args: dict, ctx: dict) -> ImageCollection:
 
 
 @process
-def add_dimension(args: dict, ctx: dict):
+def add_dimension(args: dict, ctx: dict) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
     return data_cube.add_dimension(
         name=extract_arg(args, 'name'),
@@ -408,7 +408,7 @@ def add_dimension(args: dict, ctx: dict):
 
 
 @process_registry_100.add_function
-def rename_labels(args: dict, ctx: dict):
+def rename_labels(args: dict, ctx: dict) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
     return data_cube.rename_labels(
         dimension=extract_arg(args, 'dimension'),
@@ -417,7 +417,7 @@ def rename_labels(args: dict, ctx: dict):
     )
 
 
-def _check_dimension(cube: ImageCollection, dim: str, process: str):
+def _check_dimension(cube: DriverDataCube, dim: str, process: str):
     """
     Helper to check/validate the requested and available dimensions of a cube.
 
@@ -454,7 +454,7 @@ def _check_dimension(cube: ImageCollection, dim: str, process: str):
 
 
 @process
-def aggregate_temporal(args: dict, ctx: dict) -> ImageCollection:
+def aggregate_temporal(args: dict, ctx: dict) -> DriverDataCube:
     """
     https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#reduce
 
@@ -465,7 +465,7 @@ def aggregate_temporal(args: dict, ctx: dict) -> ImageCollection:
     return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_temporal', version=ctx["version"])
 
 
-def _evaluate_sub_process_graph(args: dict, name: str, parent_process: str, version: str):
+def _evaluate_sub_process_graph(args: dict, name: str, parent_process: str, version: str) -> DriverDataCube:
     """
     Helper function to unwrap and evaluate a sub-process_graph
 
@@ -481,21 +481,21 @@ def _evaluate_sub_process_graph(args: dict, name: str, parent_process: str, vers
 
 
 @process_registry_040.add_function
-def aggregate_polygon(args: dict, ctx: dict) -> ImageCollection:
+def aggregate_polygon(args: dict, ctx: dict) -> DriverDataCube:
     return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_polygon', version=ctx["version"])
 
 
 @process_registry_100.add_function
-def aggregate_spatial(args: dict, ctx: dict) -> ImageCollection:
+def aggregate_spatial(args: dict, ctx: dict) -> DriverDataCube:
     return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_spatial', version=ctx["version"])
 
 
 @process_registry_040.add_function(name="mask")
-def mask_04(args: dict, viewingParameters) -> ImageCollection:
+def mask_04(args: dict, viewingParameters) -> DriverDataCube:
     mask = extract_arg(args, 'mask')
     replacement = args.get('replacement', None)
     cube = extract_arg(args, 'data')
-    if isinstance(mask, ImageCollection):
+    if isinstance(mask, DriverDataCube):
         image_collection = cube.mask(mask=mask, replacement=replacement)
     else:
         polygon = mask.geometries[0] if isinstance(mask, DelayedVector) else shape(mask)
@@ -507,7 +507,7 @@ def mask_04(args: dict, viewingParameters) -> ImageCollection:
 
 
 @process_registry_100.add_function
-def mask(args: dict, ctx: dict) -> ImageCollection:
+def mask(args: dict, ctx: dict) -> DriverDataCube:
     mask = extract_arg(args, 'mask')
     replacement = args.get('replacement', None)
     image_collection = extract_arg(args, 'data').mask(mask=mask, replacement=replacement)
@@ -515,7 +515,7 @@ def mask(args: dict, ctx: dict) -> ImageCollection:
 
 
 @process_registry_100.add_function
-def mask_polygon(args: dict, ctx: dict) -> ImageCollection:
+def mask_polygon(args: dict, ctx: dict) -> DriverDataCube:
     mask = extract_arg(args, 'mask')
     replacement = args.get('replacement', None)
     inside = args.get('inside', False)
@@ -528,21 +528,21 @@ def mask_polygon(args: dict, ctx: dict) -> ImageCollection:
 
 
 @process
-def filter_temporal(args: Dict, viewingParameters) -> ImageCollection:
+def filter_temporal(args: Dict, viewingParameters) -> DriverDataCube:
     # Note: the temporal range is already extracted in `apply_process` and applied in `GeoPySparkLayerCatalog.load_collection` through the viewingParameters
     image_collection = extract_arg(args, 'data')
     return image_collection
 
 
 @process
-def filter_bbox(args: Dict, viewingParameters) -> ImageCollection:
+def filter_bbox(args: Dict, viewingParameters) -> DriverDataCube:
     # Note: the bbox is already extracted in `apply_process` and applied in `GeoPySparkLayerCatalog.load_collection` through the viewingParameters
     image_collection = extract_arg(args, 'data')
     return image_collection
 
 
 @process
-def filter_bands(args: Dict, viewingParameters) -> ImageCollection:
+def filter_bands(args: Dict, viewingParameters) -> DriverDataCube:
     # Note: the bands are already extracted in `apply_process` and applied in `GeoPySparkLayerCatalog.load_collection` through the viewingParameters
     image_collection = extract_arg(args, 'data')
     return image_collection
@@ -564,7 +564,7 @@ def zonal_statistics(args: Dict, viewingParameters) -> Dict:
 
 
 @process
-def apply_kernel(args: Dict, viewingParameters) -> ImageCollection:
+def apply_kernel(args: Dict, viewingParameters) -> DriverDataCube:
     image_collection = extract_arg(args, 'data')
     kernel = np.asarray(extract_arg(args, 'kernel'))
     factor = args.get('factor', 1.0)
@@ -578,7 +578,7 @@ def apply_kernel(args: Dict, viewingParameters) -> ImageCollection:
 
 
 @process
-def ndvi(args: dict, viewingParameters: dict) -> ImageCollection:
+def ndvi(args: dict, viewingParameters: dict) -> DriverDataCube:
     image_collection = extract_arg(args, 'data')
 
     version = ComparableVersion(viewingParameters["version"])
@@ -594,7 +594,7 @@ def ndvi(args: dict, viewingParameters: dict) -> ImageCollection:
 
 
 @process
-def resample_spatial(args: dict, viewingParameters: dict) -> ImageCollection:
+def resample_spatial(args: dict, viewingParameters: dict) -> DriverDataCube:
     image_collection = extract_arg(args, 'data')
     resolution = args.get('resolution', 0)
     projection = args.get('projection', None)
@@ -604,7 +604,7 @@ def resample_spatial(args: dict, viewingParameters: dict) -> ImageCollection:
 
 
 @process
-def resample_cube_spatial(args: dict, viewingParameters: dict) -> ImageCollection:
+def resample_cube_spatial(args: dict, viewingParameters: dict) -> DriverDataCube:
     image_collection = extract_arg(args, 'data')
     target_image_collection = extract_arg(args, 'target')
     method = args.get('method', 'near')
@@ -612,7 +612,7 @@ def resample_cube_spatial(args: dict, viewingParameters: dict) -> ImageCollectio
 
 
 @process
-def merge_cubes(args: dict, viewingParameters: dict) -> ImageCollection:
+def merge_cubes(args: dict, viewingParameters: dict) -> DriverDataCube:
     cube1 = extract_arg(args, 'cube1')
     cube2 = extract_arg(args, 'cube2')
     overlap_resolver = args.get('overlap_resolver')
@@ -670,7 +670,7 @@ def run_udf(args: dict, viewingParameters: dict):
 
 
 @process
-def linear_scale_range(args: dict, viewingParameters: dict) -> ImageCollection:
+def linear_scale_range(args: dict, viewingParameters: dict) -> DriverDataCube:
     image_collection = extract_arg(args, 'x')
 
     inputMin = extract_arg(args, "inputMin")
@@ -701,7 +701,7 @@ def constant(args: dict, viewingParameters:dict):
         "type": "object"
     })
 )
-def histogram(_args, _viewingParameters) -> None:
+def histogram(_args, _viewingParameters):
     # currently only available as a reducer passed to e.g. aggregate_polygon
     raise ProcessUnsupportedException('histogram')
 

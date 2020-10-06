@@ -6,16 +6,17 @@ from pathlib import Path
 from typing import List, Dict, Union, Tuple
 from unittest.mock import Mock
 
-from openeo import ImageCollection
+from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry.collection import GeometryCollection
+
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.metadata import CollectionMetadata
 from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata, \
     BatchJobs, BatchJobMetadata, OidcProvider, UserDefinedProcesses, UserDefinedProcessMetadata
+from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, ProcessGraphNotFoundException
 from openeo_driver.save_result import AggregatePolygonResult
-from shapely.geometry import Polygon, MultiPolygon
-from shapely.geometry.collection import GeometryCollection
 
 DEFAULT_DATETIME = datetime(2020, 4, 23, 16, 20, 27)
 
@@ -100,7 +101,7 @@ class DummySecondaryServices(SecondaryServices):
         ]
 
 
-class DummyImageCollection(ImageCollection):
+class DummyDataCube(DriverDataCube):
     # TODO move all Mock stuff here?
     pass
 
@@ -180,12 +181,12 @@ class DummyCatalog(CollectionCatalog):
     def __init__(self):
         super().__init__(all_metadata=self._COLLECTIONS)
 
-    def load_collection(self, collection_id: str, viewing_parameters: dict) -> ImageCollection:
+    def load_collection(self, collection_id: str, viewing_parameters: dict) -> DriverDataCube:
         if collection_id in collections:
             return collections[collection_id]
 
         # TODO simplify all this mock/return_value stuff?
-        image_collection = DummyImageCollection(
+        image_collection = DummyDataCube(
             metadata=CollectionMetadata(metadata=self.get_collection_metadata(collection_id))
         )
 
