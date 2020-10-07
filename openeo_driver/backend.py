@@ -381,6 +381,7 @@ class OpenEoBackendImplementation:
 
     def load_disk_data(self, format: str, glob_pattern: str, options: dict, viewing_parameters: dict) -> DriverDataCube:
         # TODO: move this to catalog "microservice"
+        # TODO: rename this to "load_uploaded_files" like in official openeo processes
         raise NotImplementedError
 
     def visit_process_graph(self, process_graph: dict) -> ProcessGraphVisitor:

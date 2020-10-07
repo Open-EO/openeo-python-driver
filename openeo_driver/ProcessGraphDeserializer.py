@@ -13,9 +13,11 @@ import requests
 
 from openeo.capabilities import ComparableVersion
 from openeo.metadata import MetadataException
+from openeo.util import dict_no_none
 from openeo_driver.backend import get_backend_implementation, UserDefinedProcessMetadata
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
+from openeo_driver.dry_run import DryRunDataCube
 from openeo_driver.errors import ProcessParameterRequiredException, \
     ProcessParameterInvalidException
 from openeo_driver.errors import ProcessUnsupportedException
@@ -264,28 +266,41 @@ def extract_deep(args: dict, *steps):
 
 
 @process
-def load_collection(args: Dict, env: EvalEnv) -> DriverDataCube:
-    name = extract_arg(args, 'id')
-    if 'temporal_extent' in args and args['temporal_extent'] is not None:
-        extent = args['temporal_extent']
-        if len(extent) != 2:
-            raise AttributeError("temporal_extent property should be an array of length 2, but got: " + str(extent))
-        env = env.push({"from": extent[0], "to": extent[1]})
-    if "spatial_extent" in args and args['spatial_extent'] is not None:
-        extent = args["spatial_extent"]
+def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
+    collection_id = extract_arg(args, 'id')
+    if args.get("temporal_extent"):
+        temporal_extent = _extract_temporal_extent(args, field="temporal_extent", process_id="load_collection")
+        env = env.push({"from": temporal_extent[0], "to": temporal_extent[1]})
+    else:
+        temporal_extent = None
+    if args.get("spatial_extent"):
+        # TODO: spatial_extent could also be a geojson object instead of bbox dict
+        spatial_extent = _extract_bbox_extent(args, field="spatial_extent", process_id="load_collection")
         env = env.push({
-            "left": extract_arg(extent, "west"),
-            "right": extract_arg(extent, "east"),
-            "top": extract_arg(extent, "north"),
-            "bottom": extract_arg(extent, "south"),
-            "srs": extent.get("crs") or "EPSG:4326",
+            "left": spatial_extent["west"], "bottom": spatial_extent["south"],
+            "right": spatial_extent["east"], "top": spatial_extent["north"],
+            "srs": spatial_extent["crs"],
         })
-    if "bands" in args and args['bands'] is not None:
-        env = env.push({"bands": extract_arg(args, "bands")})
+    else:
+        spatial_extent = None
+    if args.get("bands"):
+        bands = extract_arg(args, "bands", process_id="load_collection")
+        env = env.push({"bands": bands})
+    else:
+        bands = None
     if args.get('properties'):
-        env = env.push({"properties": extract_arg(args, 'properties')})
+        properties = extract_arg(args, 'properties', process_id="load_collection")
+        env = env.push({"properties": properties})
+    else:
+        properties = None
 
-    return backend_implementation.catalog.load_collection(name, env.as_dict())
+    if env.get("dry-run"):
+        arguments = dict_no_none(
+            temporal_extent=temporal_extent, spatial_extent=spatial_extent, bands=bands, properties=properties
+        )
+        return DryRunDataCube.load_collection(collection_id=collection_id, arguments=arguments)
+
+    return backend_implementation.catalog.load_collection(collection_id, env.as_dict())
 
 
 @non_standard_process(
@@ -296,6 +311,7 @@ def load_collection(args: Dict, env: EvalEnv) -> DriverDataCube:
         .returns(description="the data as a data cube", schema={})
 )
 def load_disk_data(args: Dict, env: EvalEnv) -> DriverDataCube:
+    # TODO: rename this to "load_uploaded_files" like in official openeo processes?
     format = extract_arg(args, 'format')
     glob_pattern = extract_arg(args, 'glob_pattern')
     options = args.get('options', {})
@@ -508,25 +524,45 @@ def mask_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     return image_collection
 
 
+def _extract_temporal_extent(args: dict, field="extent", process_id="filter_temporal") -> tuple:
+    extent = extract_arg(args, name=field, process_id=process_id)
+    if len(extent) != 2:
+        raise ProcessParameterInvalidException(
+            process=process_id, parameter=field, reason="should have length 2, but got {e!r}".format(e=extent)
+        )
+    # TODO: convert to datetime? or at least normalize?
+    return extent
+
+
 @process
-def filter_temporal(args: Dict, env: EvalEnv) -> DriverDataCube:
-    # Note: the temporal range is already extracted in `apply_process` and applied in `GeoPySparkLayerCatalog.load_collection` through the EvalEnv
-    image_collection = extract_arg(args, 'data')
-    return image_collection
+def filter_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
+    cube = extract_arg(args, 'data')
+    extent = _extract_temporal_extent(args, field="extent", process_id="filter_temporal")
+    return cube.filter_temporal(start=extent[0], end=extent[1])
+
+
+def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox") -> dict:
+    extent = extract_arg(args, name=field, process_id=process_id)
+    d = {
+        k: extract_arg(extent, name=k, process_id=process_id)
+        for k in ["west", "south", "east", "north"]
+    }
+    d["crs"] = extent.get("crs") or "EPSG:4326"
+    return d
 
 
 @process
 def filter_bbox(args: Dict, env: EvalEnv) -> DriverDataCube:
-    # Note: the bbox is already extracted in `apply_process` and applied in `GeoPySparkLayerCatalog.load_collection` through the EvalEnv
-    image_collection = extract_arg(args, 'data')
-    return image_collection
+    cube = extract_arg(args, 'data')
+    spatial_extent = _extract_bbox_extent(args, "extent", process_id="filter_bbox")
+    return cube.filter_bbox(**spatial_extent)
 
 
 @process
 def filter_bands(args: Dict, env: EvalEnv) -> DriverDataCube:
-    # Note: the bands are already extracted in `apply_process` and applied in `GeoPySparkLayerCatalog.load_collection` through the EvalEnv
-    image_collection = extract_arg(args, 'data')
-    return image_collection
+    cube = extract_arg(args, 'data')
+    bands = extract_arg(args, "bands", process_id="filter_bands")
+    return cube.filter_bands(bands=bands)
 
 
 # TODO deprecated process? also see https://github.com/Open-EO/openeo-python-client/issues/144
@@ -690,24 +726,18 @@ def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalE
     parent_process = env.get('parent_process')
 
     if 'filter_temporal' == process_id:
-        extent = extract_arg(args, "extent", process_id=process_id)
-        if len(extent) != 2:
-            raise ProcessParameterInvalidException(
-                process=process_id, parameter="extent", reason="should have length 2, but got {e!r}".format(e=extent)
-            )
+        extent = _extract_temporal_extent(args, field="extent", process_id=process_id)
         env = env.push({
             "from": convert_node(extent[0], env=env),
             "to": convert_node(extent[1], env=env)
         })
     elif 'filter_bbox' == process_id:
         # TODO: change everything to west, south, east, north, crs for uniformity (or even encapsulate in a bbox tuple?)
-        extent = extract_arg(args, "extent", process_id=process_id)
+        extent = _extract_bbox_extent(args, field="extent", process_id=process_id)
         env = env.push({
-            "left": convert_node(extract_arg(extent, "west", process_id=process_id), env=env),
-            "right": convert_node(extract_arg(extent, "east", process_id=process_id), env=env),
-            "top": convert_node(extract_arg(extent, "north", process_id=process_id), env=env),
-            "bottom": convert_node(extract_arg(extent, "south", process_id=process_id), env=env),
-            "srs": extent.get("crs", "EPSG:4326"),
+            "left": convert_node(extent["west"], env=env), "bottom": convert_node(extent["south"], env=env),
+            "right": convert_node(extent["east"], env=env), "top": convert_node(extent["north"], env=env),
+            "srs": extent["crs"],
         })
     elif process_id in ['zonal_statistics', 'aggregate_polygon', 'aggregate_spatial']:
         shapes = extract_arg_list(args, ['regions', 'polygons', 'geometries'])
