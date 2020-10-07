@@ -372,17 +372,17 @@ def test_reduce_max_invalid_dimension(api):
 def test_execute_merge_cubes(api):
     api.check_result("merge_cubes.json")
     dummy = api.get_collection("S2_FAPAR_CLOUDCOVER")
-    assert dummy.merge.call_count == 1
-    args, kwargs = dummy.merge.call_args
+    assert dummy.merge_cubes.call_count == 1
+    args, kwargs = dummy.merge_cubes.call_args
     assert args[1:] == ('or',)
 
 
 def test_execute_resample_and_merge_cubes(api100):
     api100.check_result("resample_and_merge_cubes.json")
     dummy = api100.get_collection("S2_FAPAR_CLOUDCOVER")
-    assert dummy.merge.call_count == 1
+    assert dummy.merge_cubes.call_count == 1
     assert dummy.resample_cube_spatial.call_count == 1
-    args, kwargs = dummy.merge.call_args
+    args, kwargs = dummy.merge_cubes.call_args
     assert args[1:] == ('or',)
 
 

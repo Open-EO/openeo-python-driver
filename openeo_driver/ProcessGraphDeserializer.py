@@ -505,10 +505,10 @@ def mask_04(args: dict, env: EvalEnv) -> DriverDataCube:
 
 @process_registry_100.add_function
 def mask(args: dict, env: EvalEnv) -> DriverDataCube:
+    cube = extract_arg(args, 'data')
     mask = extract_arg(args, 'mask')
     replacement = args.get('replacement', None)
-    image_collection = extract_arg(args, 'data').mask(mask=mask, replacement=replacement)
-    return image_collection
+    return cube.mask(mask=mask, replacement=replacement)
 
 
 @process_registry_100.add_function
@@ -640,7 +640,7 @@ def merge_cubes(args: dict, env: EvalEnv) -> DriverDataCube:
                 parameter='overlap_resolver', process='merge_cubes',
                 reason='This backend only supports overlap resolvers with exactly one process for now.')
         resolver_process = next(iter(pg.values()))["process_id"]
-    return cube1.merge(cube2, resolver_process)
+    return cube1.merge_cubes(cube2, resolver_process)
 
 
 @process
