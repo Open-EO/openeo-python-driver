@@ -2,6 +2,7 @@
 Reusable helpers and fixtures for testing
 """
 import json
+import re
 from pathlib import Path
 from typing import Union, Callable, Pattern
 
@@ -36,11 +37,26 @@ def load_json(path: Union[Path, str], preprocess: Callable[[str], str] = None) -
 
 
 def preprocess_check_and_replace(old: str, new: str) -> Callable[[str], str]:
-    """Create a preprocess function that replaces `old` with `new` (and fails when there is no `old`)."""
+    """
+    Create a preprocess function that replaces `old` with `new` (and fails when there is no `old`).
+    """
 
-    def preprocess(s: str) -> str:
-        assert old in s
-        return s.replace(old, new)
+    def preprocess(orig: str) -> str:
+        assert old in orig
+        return orig.replace(old, new)
+
+    return preprocess
+
+
+def preprocess_regex_check_and_replace(pattern: str, replacement: str) -> Callable[[str], str]:
+    """
+    Create a regex based replacement preprocess function.
+    """
+
+    def preprocess(orig: str) -> str:
+        new = re.sub(pattern, replacement, orig, flags=re.DOTALL)
+        assert orig != new
+        return new
 
     return preprocess
 
@@ -88,6 +104,7 @@ class ApiResponse:
         return self
 
     def assert_content(self) -> 'ApiResponse':
+        """Assert that the response body is not empty"""
         # TODO: also check content type? also check (prefix of) data?
         assert self.response.content_length > 0
         return self
@@ -176,6 +193,7 @@ class ApiTester:
         return self.data_root / filename
 
     def read_file(self, filename, mode='r') -> str:
+        """Get contents of test file, given by relative path."""
         return read_file(self.data_path(filename), mode=mode)
 
     def load_json(self, filename, preprocess: Callable = None) -> dict:

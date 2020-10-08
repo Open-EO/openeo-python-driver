@@ -12,7 +12,8 @@ from openeo_driver.backend import get_backend_implementation
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyDataCube
 from openeo_driver.errors import ProcessGraphMissingException
-from openeo_driver.testing import load_json, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN
+from openeo_driver.testing import load_json, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN, \
+    preprocess_regex_check_and_replace
 from openeo_driver.utils import EvalEnv
 from openeo_driver.views import app
 from .data import get_path, TEST_DATA_ROOT
@@ -488,7 +489,9 @@ def test_execute_zonal_statistics(api):
         "2015-07-06T00:00:00": [2.9829132080078127],
         "2015-08-22T00:00:00": [None]
     }
-    assert api.last_load_collection_call('S2_FAPAR_CLOUDCOVER')['srs'] == 'EPSG:4326'
+    expected = {"left": 7.02, "bottom": 51.29, "right": 7.65, "top": 51.75, "srs": 'EPSG:4326', }
+    env = api.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
+    assert {k: env[k] for k in expected} == expected
 
 
 def test_create_wmts_040(api040):
@@ -527,14 +530,28 @@ def test_create_wmts_100(api100):
 def test_read_vector(api):
     process_graph = api.load_json(
         "read_vector.json",
-        preprocess=lambda s: s.replace("PLACEHOLDER", str(get_path("GeometryCollection.geojson")))
+        preprocess=preprocess_check_and_replace("PLACEHOLDER", str(get_path("GeometryCollection.geojson")))
     )
     resp = api.check_result(process_graph)
     assert b'NaN' not in resp.data
-    assert resp.json == {
-        "2015-07-06T00:00:00": [2.9829132080078127],
-        "2015-08-22T00:00:00": [None]
-    }
+    assert resp.json == {"2015-07-06T00:00:00": [2.9829132080078127], "2015-08-22T00:00:00": [None]}
+    expected = {"left": 5, "bottom": 51, "right": 6, "top": 52, "srs": 'EPSG:4326'}
+    env = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
+    assert {k: env[k] for k in expected} == expected
+
+
+def test_read_vector_no_load_collection_spatial_extent(api):
+    preprocess1 = preprocess_check_and_replace("PLACEHOLDER", str(get_path("GeometryCollection.geojson")))
+    preprocess2 = preprocess_regex_check_and_replace(r'"spatial_extent"\s*:\s*\{.*?\},', replacement='')
+    process_graph = api.load_json(
+        "read_vector.json", preprocess=lambda s: preprocess2(preprocess1(s))
+    )
+    resp = api.check_result(process_graph)
+    assert b'NaN' not in resp.data
+    assert resp.json == {"2015-07-06T00:00:00": [2.9829132080078127], "2015-08-22T00:00:00": [None]}
+    expected = {"left": 5.05, "bottom": 51.21, "right": 5.15, "top": 51.3, "srs": 'EPSG:4326'}
+    env = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
+    assert {k: env[k] for k in expected} == expected
 
 
 def test_run_udf_on_vector(api100):
@@ -576,11 +593,7 @@ def test_load_collection_without_spatial_extent_incorporates_read_vector_extent(
         "2015-07-06T00:00:00": [2.9829132080078127],
         "2015-08-22T00:00:00": [None]
     }
-    expected = {
-        'left': pytest.approx(5.07616), 'right': pytest.approx(5.16685),
-        'bottom': pytest.approx(51.2122), 'top': pytest.approx(51.2689),
-        'srs': 'EPSG:4326',
-    }
+    expected = {"left": 5.05, "bottom": 51.21, "right": 5.15, "top": 51.3, "srs": 'EPSG:4326', }
     env = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
     assert {k: env[k] for k in expected} == expected
 
@@ -596,6 +609,10 @@ def test_read_vector_from_feature_collection(api):
         "2015-07-06T00:00:00": [2.9829132080078127],
         "2015-08-22T00:00:00": [None]
     }
+    expected = {"left": 5, "bottom": 51, "right": 6, "top": 52, "srs": 'EPSG:4326'}
+    env = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
+    assert {k: env[k] for k in expected} == expected
+
 
 
 def test_no_nested_JSONResult(api):
@@ -643,6 +660,17 @@ def test_mask_with_vector_file(api):
 
 def test_aggregate_feature_collection(api):
     api.check_result("aggregate_feature_collection.json")
+    expected = {"left": 5, "bottom": 51, "right": 6, "top": 52, "srs": 'EPSG:4326'}
+    env = api.last_load_collection_call('S2_FOOBAR')
+    assert {k: env[k] for k in expected} == expected
+
+
+def test_aggregate_feature_collection_no_load_collection_spatial_extent(api):
+    preprocess = preprocess_regex_check_and_replace(r'"spatial_extent"\s*:\s*\{.*?\},', replacement='')
+    api.check_result("aggregate_feature_collection.json", preprocess=preprocess)
+    expected = {"left": 5.076, "bottom": 51.21, "right": 5.166, "top": 51.26, "srs": 'EPSG:4326'}
+    env = api.last_load_collection_call('S2_FOOBAR')
+    assert {k: env[k] for k in expected} == expected
 
 
 def test_post_result_process_100(client):

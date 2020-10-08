@@ -9,4 +9,4 @@ def test_feature_collection_bounds():
 
 def test_geometry_collection_bounds():
     dv = DelayedVector(str(get_path("GeometryCollection.geojson")))
-    assert dv.bounds == (5.0761587693484875, 51.21222494794898, 5.166854684377381, 51.268936260927404)
+    assert dv.bounds == (5.05, 51.21, 5.15, 51.3)
