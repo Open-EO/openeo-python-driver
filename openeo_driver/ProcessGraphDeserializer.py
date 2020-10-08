@@ -5,7 +5,7 @@
 import logging
 import tempfile
 import warnings
-from typing import Dict, Callable, List, Tuple, Any
+from typing import Dict, Callable, List, Tuple, Any, Union
 import time
 
 import numpy as np
@@ -199,7 +199,7 @@ def _expand_macros(process_graph: dict) -> dict:
     return expand_macros_recursively(process_graph)
 
 
-def convert_node(processGraph: dict, env: EvalEnv = None):
+def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
     if isinstance(processGraph, dict):
         if 'process_id' in processGraph:
             return apply_process(
@@ -224,8 +224,10 @@ def convert_node(processGraph: dict, env: EvalEnv = None):
                 argument_reference = 'data'
             return env.get(argument_reference)
         else:
-            # simply return nodes that do not require special handling, this is the case for geojson polygons
-            return processGraph
+            # TODO: Don't apply `convert_node` for some special cases (e.g. geojson objects)?
+            return {k:convert_node(v, env=env) for k,v in processGraph.items()}
+    elif isinstance(processGraph, list):
+        return [convert_node(x, env=env) for x in processGraph]
     return processGraph
 
 
@@ -524,7 +526,7 @@ def mask_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     return image_collection
 
 
-def _extract_temporal_extent(args: dict, field="extent", process_id="filter_temporal") -> tuple:
+def _extract_temporal_extent(args: dict, field="extent", process_id="filter_temporal") -> list:
     extent = extract_arg(args, name=field, process_id=process_id)
     if len(extent) != 2:
         raise ProcessParameterInvalidException(
@@ -727,16 +729,15 @@ def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalE
 
     if 'filter_temporal' == process_id:
         extent = _extract_temporal_extent(args, field="extent", process_id=process_id)
-        env = env.push({
-            "from": convert_node(extent[0], env=env),
-            "to": convert_node(extent[1], env=env)
-        })
+        extent = convert_node(extent, env=env)
+        env = env.push({"from": extent[0], "to": extent[1]})
     elif 'filter_bbox' == process_id:
         # TODO: change everything to west, south, east, north, crs for uniformity (or even encapsulate in a bbox tuple?)
         extent = _extract_bbox_extent(args, field="extent", process_id=process_id)
+        extent = convert_node(extent, env=env)
         env = env.push({
-            "left": convert_node(extent["west"], env=env), "bottom": convert_node(extent["south"], env=env),
-            "right": convert_node(extent["east"], env=env), "top": convert_node(extent["north"], env=env),
+            "left": extent["west"], "bottom": extent["south"],
+            "right": extent["east"], "top": extent["north"],
             "srs": extent["crs"],
         })
     elif process_id in ['zonal_statistics', 'aggregate_polygon', 'aggregate_spatial']:

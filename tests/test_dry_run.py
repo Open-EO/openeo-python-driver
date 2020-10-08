@@ -3,7 +3,13 @@ from openeo_driver.dry_run import DryRunDataCube
 from openeo_driver.utils import EvalEnv
 
 
-def test_filter_temporal():
+def dry_run_evaluate(process_graph) -> DryRunDataCube:
+    env = EvalEnv({"dry-run": True, "version": "1.0.0"})
+    cube = evaluate(process_graph, env=env)
+    return cube
+
+
+def test_basic_filter_temporal():
     pg = {
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2"}},
         "ft": {
@@ -12,15 +18,50 @@ def test_filter_temporal():
             "result": True,
         },
     }
-
-    env = EvalEnv({"dry-run": True, "version": "1.0.0"})
-    cube: DryRunDataCube = evaluate(pg, env=env)
+    cube = dry_run_evaluate(pg)
     assert len(cube.journals) == 1
     assert cube.journals[0].get("load_collection") == [{"collection_id": "S2"}]
     assert cube.journals[0].get("filter_temporal") == [('2020-02-02', '2020-03-03')]
 
 
-def test_split_merge():
+def test_temporal_extent_dynamic():
+    pg = {
+        "load": {"process_id": "load_collection", "arguments": {"id": "S2"}},
+        "extent": {"process_id": "constant", "arguments": {"x": ["2020-01-01", "2020-02-02"]}},
+        "filtertemporal": {
+            "process_id": "filter_temporal",
+            "arguments": {"data": {"from_node": "load"}, "extent": {"from_node": "extent"}},
+            "result": True,
+        },
+    }
+    cube = dry_run_evaluate(pg)
+    assert len(cube.journals) == 1
+    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2"}]
+    assert cube.journals[0].get("filter_temporal") == [("2020-01-01", "2020-02-02")]
+
+
+def test_temporal_extent_dynamic_item():
+    pg = {
+        "load": {"process_id": "load_collection", "arguments": {"id": "S2"}},
+        "start": {"process_id": "constant", "arguments": {"x": "2020-01-01"}},
+        "filtertemporal": {
+            "process_id": "filter_temporal",
+            "arguments": {"data": {"from_node": "load"}, "extent": [{"from_node": "start"}, "2020-02-02"]},
+            "result": True,
+        },
+    }
+    cube = dry_run_evaluate(pg)
+    assert len(cube.journals) == 1
+    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2"}]
+    assert cube.journals[0].get("filter_temporal") == [("2020-01-01", "2020-02-02")]
+
+
+def test_graph_diamond():
+    """
+    Diamond graph:
+    load -> band red -> mask -> bbox
+        `-> band grass -^
+    """
     pg = {
         "load": {"process_id": "load_collection", "arguments": {"id": "S2"}},
         "band_red": {
@@ -29,7 +70,7 @@ def test_split_merge():
         },
         "band_grass": {
             "process_id": "filter_bands",
-            "arguments": {"data": {"from_node": "load"}, "bands": ["mask"]},
+            "arguments": {"data": {"from_node": "load"}, "bands": ["grass"]},
 
         },
         "mask": {
@@ -42,19 +83,18 @@ def test_split_merge():
             "result": True,
         }
     }
-
-    env = EvalEnv({"dry-run": True, "version": "1.0.0"})
-    cube: DryRunDataCube = evaluate(pg, env=env)
+    cube = dry_run_evaluate(pg)
     assert len(cube.journals) == 2
     assert cube.journals[0].get("load_collection") == [{"collection_id": "S2"}]
     assert cube.journals[0].get("filter_bands") == [["red"]]
     assert cube.journals[0].get("filter_bbox") == [{"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"}]
     assert cube.journals[1].get("load_collection") == [{"collection_id": "S2"}]
-    assert cube.journals[1].get("filter_bands") == [["mask"]]
+    assert cube.journals[1].get("filter_bands") == [["grass"]]
     assert cube.journals[1].get("filter_bbox") == [{"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"}]
 
 
-def test_load_collection_extents():
+def test_load_collection_and_filter_extents():
+    """temporal/bbox/band extents in load_collection *and* filter_ processes"""
     pg = {
         "load": {
             "process_id": "load_collection",
@@ -82,9 +122,7 @@ def test_load_collection_extents():
             "result": True,
         }
     }
-
-    env = EvalEnv({"dry-run": True, "version": "1.0.0"})
-    cube: DryRunDataCube = evaluate(pg, env=env)
+    cube = dry_run_evaluate(pg)
     assert len(cube.journals) == 1
     assert cube.journals[0].get("load_collection") == [{"collection_id": "S2"}]
     assert cube.journals[0].get("filter_temporal") == [('2020-01-01', '2020-10-10'), ('2020-02-02', '2020-03-03')]
@@ -93,3 +131,49 @@ def test_load_collection_extents():
         {"west": 1, "south": 51, "east": 3, "north": 53, 'crs': 'EPSG:4326'},
     ]
     assert cube.journals[0].get("filter_bands") == [["red", "green", "blue"], ["red"]]
+
+
+def test_load_collection_and_filter_extents_dynamic():
+    """"Dynamic temporal/bbox/band extents in load_collection *and* filter_ processes"""
+    pg = {
+        "west1": {"process_id": "add", "arguments": {"x": 2, "y": -1}},
+        "west2": {"process_id": "divide", "arguments": {"x": 4, "y": 2}},
+        "start01": {"process_id": "constant", "arguments": {"x": "2020-01-01"}},
+        "start02": {"process_id": "constant", "arguments": {"x": "2020-02-02"}},
+        "bandsbgr": {"process_id": "constant", "arguments": {"x": ["blue", "green", "red"]}},
+        "bandblue": {"process_id": "constant", "arguments": {"x": "blue"}},
+        "load": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "S2",
+                "spatial_extent": {"west": {"from_node": "west1"}, "south": 50, "east": 5, "north": 55},
+                "temporal_extent": [{"from_node": "start01"}, "2020-10-10"],
+                "bands": {"from_node": "bandsbgr"},
+            },
+        },
+        "filter_temporal": {
+            "process_id": "filter_temporal",
+            "arguments": {"data": {"from_node": "load"}, "extent": [{"from_node": "start02"}, "2020-03-03"]},
+        },
+        "filter_bbox": {
+            "process_id": "filter_bbox",
+            "arguments": {
+                "data": {"from_node": "filter_temporal"},
+                "extent": {"west": {"from_node": "west2"}, "south": 51, "east": 3, "north": 53}
+            },
+        },
+        "filter_bands": {
+            "process_id": "filter_bands",
+            "arguments": {"data": {"from_node": "filter_bbox"}, "bands": [{"from_node": "bandblue"}]},
+            "result": True,
+        }
+    }
+    cube = dry_run_evaluate(pg)
+    assert len(cube.journals) == 1
+    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2"}]
+    assert cube.journals[0].get("filter_temporal") == [('2020-01-01', '2020-10-10'), ('2020-02-02', '2020-03-03')]
+    assert cube.journals[0].get("filter_bbox") == [
+        {"west": 1, "south": 50, "east": 5, "north": 55, 'crs': 'EPSG:4326'},
+        {"west": 2.0, "south": 51, "east": 3, "north": 53, 'crs': 'EPSG:4326'},
+    ]
+    assert cube.journals[0].get("filter_bands") == [["blue", "green", "red"], ["blue"]]
