@@ -159,7 +159,7 @@ class DummyDataCube(DriverDataCube):
             assert_polygon_or_multipolygon(regions)
 
         return AggregatePolygonResult(timeseries={
-            "2015-07-06T00:00:00": [2.9829132080078127],
+            "2015-07-06T00:00:00": [2.345],
             "2015-08-22T00:00:00": [float('nan')]
         }, regions=GeometryCollection())
 

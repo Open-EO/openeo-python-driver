@@ -11,7 +11,7 @@ def dry_run_evaluate(process_graph) -> DryRunDataCube:
 
 def test_basic_filter_temporal():
     pg = {
-        "lc": {"process_id": "load_collection", "arguments": {"id": "S2"}},
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "ft": {
             "process_id": "filter_temporal",
             "arguments": {"data": {"from_node": "lc"}, "extent": ["2020-02-02", "2020-03-03"]},
@@ -20,13 +20,13 @@ def test_basic_filter_temporal():
     }
     cube = dry_run_evaluate(pg)
     assert len(cube.journals) == 1
-    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2"}]
+    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2_FOOBAR"}]
     assert cube.journals[0].get("filter_temporal") == [('2020-02-02', '2020-03-03')]
 
 
 def test_temporal_extent_dynamic():
     pg = {
-        "load": {"process_id": "load_collection", "arguments": {"id": "S2"}},
+        "load": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "extent": {"process_id": "constant", "arguments": {"x": ["2020-01-01", "2020-02-02"]}},
         "filtertemporal": {
             "process_id": "filter_temporal",
@@ -36,13 +36,13 @@ def test_temporal_extent_dynamic():
     }
     cube = dry_run_evaluate(pg)
     assert len(cube.journals) == 1
-    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2"}]
+    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2_FOOBAR"}]
     assert cube.journals[0].get("filter_temporal") == [("2020-01-01", "2020-02-02")]
 
 
 def test_temporal_extent_dynamic_item():
     pg = {
-        "load": {"process_id": "load_collection", "arguments": {"id": "S2"}},
+        "load": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "start": {"process_id": "constant", "arguments": {"x": "2020-01-01"}},
         "filtertemporal": {
             "process_id": "filter_temporal",
@@ -52,7 +52,7 @@ def test_temporal_extent_dynamic_item():
     }
     cube = dry_run_evaluate(pg)
     assert len(cube.journals) == 1
-    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2"}]
+    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2_FOOBAR"}]
     assert cube.journals[0].get("filter_temporal") == [("2020-01-01", "2020-02-02")]
 
 
@@ -63,7 +63,7 @@ def test_graph_diamond():
         `-> band grass -^
     """
     pg = {
-        "load": {"process_id": "load_collection", "arguments": {"id": "S2"}},
+        "load": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "band_red": {
             "process_id": "filter_bands",
             "arguments": {"data": {"from_node": "load"}, "bands": ["red"]},
@@ -85,10 +85,10 @@ def test_graph_diamond():
     }
     cube = dry_run_evaluate(pg)
     assert len(cube.journals) == 2
-    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2"}]
+    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2_FOOBAR"}]
     assert cube.journals[0].get("filter_bands") == [["red"]]
     assert cube.journals[0].get("filter_bbox") == [{"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"}]
-    assert cube.journals[1].get("load_collection") == [{"collection_id": "S2"}]
+    assert cube.journals[1].get("load_collection") == [{"collection_id": "S2_FOOBAR"}]
     assert cube.journals[1].get("filter_bands") == [["grass"]]
     assert cube.journals[1].get("filter_bbox") == [{"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"}]
 
@@ -99,7 +99,7 @@ def test_load_collection_and_filter_extents():
         "load": {
             "process_id": "load_collection",
             "arguments": {
-                "id": "S2",
+                "id": "S2_FOOBAR",
                 "spatial_extent": {"west": 0, "south": 50, "east": 5, "north": 55},
                 "temporal_extent": ["2020-01-01", "2020-10-10"],
                 "bands": ["red", "green", "blue"]
@@ -124,7 +124,7 @@ def test_load_collection_and_filter_extents():
     }
     cube = dry_run_evaluate(pg)
     assert len(cube.journals) == 1
-    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2"}]
+    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2_FOOBAR"}]
     assert cube.journals[0].get("filter_temporal") == [('2020-01-01', '2020-10-10'), ('2020-02-02', '2020-03-03')]
     assert cube.journals[0].get("filter_bbox") == [
         {"west": 0, "south": 50, "east": 5, "north": 55, 'crs': 'EPSG:4326'},
@@ -145,7 +145,7 @@ def test_load_collection_and_filter_extents_dynamic():
         "load": {
             "process_id": "load_collection",
             "arguments": {
-                "id": "S2",
+                "id": "S2_FOOBAR",
                 "spatial_extent": {"west": {"from_node": "west1"}, "south": 50, "east": 5, "north": 55},
                 "temporal_extent": [{"from_node": "start01"}, "2020-10-10"],
                 "bands": {"from_node": "bandsbgr"},
@@ -170,7 +170,7 @@ def test_load_collection_and_filter_extents_dynamic():
     }
     cube = dry_run_evaluate(pg)
     assert len(cube.journals) == 1
-    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2"}]
+    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2_FOOBAR"}]
     assert cube.journals[0].get("filter_temporal") == [('2020-01-01', '2020-10-10'), ('2020-02-02', '2020-03-03')]
     assert cube.journals[0].get("filter_bbox") == [
         {"west": 1, "south": 50, "east": 5, "north": 55, 'crs': 'EPSG:4326'},

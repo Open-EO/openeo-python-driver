@@ -486,7 +486,7 @@ def test_aggregate_temporal_max_no_dimension(api):
 def test_execute_zonal_statistics(api):
     resp = api.check_result("zonal_statistics.json")
     assert resp.json == {
-        "2015-07-06T00:00:00": [2.9829132080078127],
+        "2015-07-06T00:00:00": [2.345],
         "2015-08-22T00:00:00": [None]
     }
     expected = {"left": 7.02, "bottom": 51.29, "right": 7.65, "top": 51.75, "srs": 'EPSG:4326', }
@@ -534,7 +534,7 @@ def test_read_vector(api):
     )
     resp = api.check_result(process_graph)
     assert b'NaN' not in resp.data
-    assert resp.json == {"2015-07-06T00:00:00": [2.9829132080078127], "2015-08-22T00:00:00": [None]}
+    assert resp.json == {"2015-07-06T00:00:00": [2.345], "2015-08-22T00:00:00": [None]}
     expected = {"left": 5, "bottom": 51, "right": 6, "top": 52, "srs": 'EPSG:4326'}
     env = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
     assert {k: env[k] for k in expected} == expected
@@ -548,7 +548,7 @@ def test_read_vector_no_load_collection_spatial_extent(api):
     )
     resp = api.check_result(process_graph)
     assert b'NaN' not in resp.data
-    assert resp.json == {"2015-07-06T00:00:00": [2.9829132080078127], "2015-08-22T00:00:00": [None]}
+    assert resp.json == {"2015-07-06T00:00:00": [2.345], "2015-08-22T00:00:00": [None]}
     expected = {"left": 5.05, "bottom": 51.21, "right": 5.15, "top": 51.3, "srs": 'EPSG:4326'}
     env = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
     assert {k: env[k] for k in expected} == expected
@@ -570,8 +570,7 @@ def test_run_udf_on_json(api100):
         "run_udf_on_timeseries.json"
     )
     resp = api100.check_result(process_graph)
-    print(resp.json)
-    assert len(resp.json) == 2
+    assert resp.json == {'len': 2, 'keys': ['2015-07-06T00:00:00', '2015-08-22T00:00:00'], 'values': [[2.345], [None]]}
 
 
 def test_process_reference_as_argument(api100):
@@ -590,7 +589,7 @@ def test_load_collection_without_spatial_extent_incorporates_read_vector_extent(
     resp = api.check_result(process_graph)
     assert b'NaN' not in resp.data
     assert resp.json == {
-        "2015-07-06T00:00:00": [2.9829132080078127],
+        "2015-07-06T00:00:00": [2.345],
         "2015-08-22T00:00:00": [None]
     }
     expected = {"left": 5.05, "bottom": 51.21, "right": 5.15, "top": 51.3, "srs": 'EPSG:4326', }
@@ -606,7 +605,7 @@ def test_read_vector_from_feature_collection(api):
     resp = api.check_result(process_graph)
     assert b'NaN' not in resp.data
     assert resp.json == {
-        "2015-07-06T00:00:00": [2.9829132080078127],
+        "2015-07-06T00:00:00": [2.345],
         "2015-08-22T00:00:00": [None]
     }
     expected = {"left": 5, "bottom": 51, "right": 6, "top": 52, "srs": 'EPSG:4326'}

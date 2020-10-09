@@ -24,7 +24,7 @@ from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult
 from openeo_driver.specs import SPECS_ROOT
-from openeo_driver.utils import smart_bool, EvalEnv
+from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry
 from openeo_udf.api.feature_collection import FeatureCollection
 from openeo_udf.api.structured_data import StructuredData
 from openeo_udf.api.udf_data import UdfData
@@ -131,7 +131,7 @@ def get_process_registry(api_version: ComparableVersion) -> ProcessRegistry:
 backend_implementation = get_backend_implementation()
 
 
-def evaluate(process_graph: dict, env: EvalEnv = None) -> DriverDataCube:
+def evaluate(process_graph: dict, env: EvalEnv = None, do_dry_run=True) -> DriverDataCube:
     """
     Converts the json representation of a (part of a) process graph into the corresponding Python data cube.
     """
@@ -146,7 +146,13 @@ def evaluate(process_graph: dict, env: EvalEnv = None) -> DriverDataCube:
     from openeo.internal.process_graph_visitor import ProcessGraphVisitor
     preprocessed_process_graph = _expand_macros(process_graph)
     top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(preprocessed_process_graph)
-    return convert_node(preprocessed_process_graph[top_level_node], env=env)
+    result_node = preprocessed_process_graph[top_level_node]
+
+    if do_dry_run:
+        dry_run_result = convert_node(result_node, env=env.push({"dry-run": True}))
+        # TODO: extract load_collection constraints from dry_run_result
+
+    return convert_node(result_node, env=env)
 
 
 def _expand_macros(process_graph: dict) -> dict:
@@ -300,7 +306,8 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
         arguments = dict_no_none(
             temporal_extent=temporal_extent, spatial_extent=spatial_extent, bands=bands, properties=properties
         )
-        return DryRunDataCube.load_collection(collection_id=collection_id, arguments=arguments)
+        metadata = backend_implementation.catalog.get_collection_metadata(collection_id)
+        return DryRunDataCube.load_collection(collection_id=collection_id, arguments=arguments, metadata=metadata)
 
     return backend_implementation.catalog.load_collection(collection_id, env.as_dict())
 
@@ -332,7 +339,7 @@ def apply_neighborhood(args: dict, env: EvalEnv) -> DriverDataCube:
 
 @process
 def apply_dimension(args: Dict, env: EvalEnv) -> DriverDataCube:
-    return _evaluate_sub_process_graph(args, 'process', parent_process='apply_dimension', version=env["version"])
+    return _evaluate_sub_process_graph(args, 'process', parent_process='apply_dimension', env=env)
 
 
 @process
@@ -368,7 +375,7 @@ def apply(args: dict, env: EvalEnv) -> DriverDataCube:
 
         return data_cube.apply(apply_pg,context)
     else:
-        return _evaluate_sub_process_graph(args, 'process', parent_process='apply', version=env["version"])
+        return _evaluate_sub_process_graph(args, 'process', parent_process='apply', env=env)
 
 
 @process_registry_040.add_function
@@ -385,11 +392,11 @@ def reduce(args: dict, env: EvalEnv) -> DriverDataCube:
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce")
     if dimension == band_dim:
         if not binary and len(reduce_pg) == 1 and next(iter(reduce_pg.values())).get('process_id') == 'run_udf':
-            return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce', version=env["version"])
+            return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce', env=env)
         visitor = backend_implementation.visit_process_graph(reduce_pg)
         return data_cube.reduce_bands(visitor)
     else:
-        return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce', version=env["version"])
+        return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce', env=env)
 
 
 @process_registry_100.add_function
@@ -462,10 +469,10 @@ def _check_dimension(cube: DriverDataCube, dim: str, process: str):
 
 @process
 def aggregate_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
-    return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_temporal', version=env["version"])
+    return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_temporal', env=env)
 
 
-def _evaluate_sub_process_graph(args: dict, name: str, parent_process: str, version: str) -> DriverDataCube:
+def _evaluate_sub_process_graph(args: dict, name: str, parent_process: str, env: EvalEnv) -> DriverDataCube:
     """
     Helper function to unwrap and evaluate a sub-process_graph
 
@@ -475,18 +482,18 @@ def _evaluate_sub_process_graph(args: dict, name: str, parent_process: str, vers
     """
     pg = extract_deep(args, name, ["process_graph", "callback"])
     # TODO: args are injected into env? looks strange EP-3509
-    env = EvalEnv(dict(args, parent_process=parent_process, version=version))
-    return evaluate(pg, env=env)
+    env = env.push(args, parent_process=parent_process)
+    return evaluate(pg, env=env, do_dry_run=False)
 
 
 @process_registry_040.add_function
 def aggregate_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
-    return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_polygon', version=env["version"])
+    return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_polygon', env=env)
 
 
 @process_registry_100.add_function
 def aggregate_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
-    return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_spatial', version=env["version"])
+    return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_spatial', env=env)
 
 
 @process_registry_040.add_function(name="mask")
@@ -518,7 +525,7 @@ def mask_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     mask = extract_arg(args, 'mask')
     replacement = args.get('replacement', None)
     inside = args.get('inside', False)
-    polygon = list(mask.geometries)[0] if isinstance(mask, DelayedVector) else shape(mask)
+    polygon = list(mask.geometries)[0] if isinstance(mask, DelayedVector) else geojson_to_geometry(mask)
     if polygon.area == 0:
         reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
         raise ProcessParameterInvalidException(parameter='mask', process='mask', reason=reason)
@@ -647,7 +654,11 @@ def merge_cubes(args: dict, env: EvalEnv) -> DriverDataCube:
 
 @process
 def run_udf(args: dict, env: EvalEnv):
+    # TODO: note: this implements a non-standard usage of `run_udf`: processing "vector" cube (direct JSON or from aggregate_spatial, ...)
     data = extract_arg(args, 'data')
+    if env.get("dry-run"):
+        return data
+
     if not isinstance(data, DelayedVector) and not isinstance(data,AggregatePolygonResult):
         if isinstance(data, dict):
             data = DelayedVector.from_json_dict(data)
@@ -746,7 +757,7 @@ def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalE
         if env.get("left") is None:
             # TODO: can parsing/loading of polygons be cached for later use??
             if "type" in shapes:  # it's GeoJSON
-                polygons = _as_polygons(shapes)
+                polygons = geojson_to_geometry(shapes)
             elif "from_node" in shapes:  # it's a dereferenced from_node that contains a DelayedVector
                 polygons = convert_node(shapes["node"], env=env)
             else:
@@ -823,16 +834,13 @@ def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalE
         name = env.get('name', 'result')
         polygons = extract_arg_list(env, ['polygons', 'geometries'])
 
-        # can be either (inline) GeoJSON or something returned by read_vector
-        is_geojson = isinstance(polygons, Dict)
-
-        if is_geojson:
-            geometries = _as_polygons(polygons)
-            # TODO: rename to aggregate_polygon?
+        if isinstance(polygons, dict):
+            geometries = geojson_to_geometry(polygons)
             return image_collection.zonal_statistics(geometries, func=process_id)
-        else:
-            # Assume polyons is DelayedVector
+        elif isinstance(polygons, DelayedVector):
             return image_collection.zonal_statistics(polygons.path, func=process_id)
+        else:
+            raise ValueError(polygons)
 
     elif parent_process == 'aggregate_temporal':
         image_collection = extract_arg(args, 'data', process_id=process_id)
@@ -914,18 +922,6 @@ def _get_udf(args):
     return udf
 
 
-def _as_polygons(geometries: dict) -> shapely.geometry.GeometryCollection:
-    """Convert GeoJSON object to polygon collection"""
-    if geometries["type"] == "FeatureCollection":
-        geometries = {
-            'type': 'GeometryCollection',
-            'geometries': [feature['geometry'] for feature in geometries['features']]
-        }
-    if geometries["type"] not in ["Polygon", "MultiPolygon", "GeometryCollection"]:
-        raise ValueError("Invalid geometry type {t}".format(t=geometries["type"]))
-    return shapely.geometry.shape(geometries)
-
-
 def _evaluate_process_graph_process(
         process_id: str, process_graph: dict, parameters: List[dict], args: dict, env: EvalEnv
 ):
@@ -939,7 +935,7 @@ def _evaluate_process_graph_process(
             else:
                 raise ProcessParameterRequiredException(process=process_id, parameter=name)
     env = env.push(args)
-    return evaluate(process_graph, env=env)
+    return evaluate(process_graph, env=env, do_dry_run=False)
 
 
 def evaluate_udp(process_id: str, udp: UserDefinedProcessMetadata, args: dict, env: EvalEnv):

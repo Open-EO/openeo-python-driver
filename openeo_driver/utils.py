@@ -6,6 +6,8 @@ from math import isnan
 from pathlib import Path
 from typing import Union, Any
 
+import shapely.geometry
+
 
 class EvalEnv:
     """
@@ -88,3 +90,13 @@ def smart_bool(value):
         return False
     else:
         return bool(value)
+
+
+def geojson_to_geometry(geojson: dict) -> shapely.geometry.base.BaseGeometry:
+    """Convert GeoJSON object to shapely geometry object"""
+    if geojson["type"] == "FeatureCollection":
+        geojson = {
+            'type': 'GeometryCollection',
+            'geometries': [feature['geometry'] for feature in geojson['features']]
+        }
+    return shapely.geometry.shape(geojson)
