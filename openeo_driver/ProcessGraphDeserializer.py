@@ -17,7 +17,7 @@ from openeo.util import dict_no_none
 from openeo_driver.backend import get_backend_implementation, UserDefinedProcessMetadata
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.dry_run import DryRunDataCube
+from openeo_driver.dry_run import DryRunDataCube, DryRunDataTracer
 from openeo_driver.errors import ProcessParameterRequiredException, \
     ProcessParameterInvalidException
 from openeo_driver.errors import ProcessUnsupportedException
@@ -149,7 +149,8 @@ def evaluate(process_graph: dict, env: EvalEnv = None, do_dry_run=True) -> Drive
     result_node = preprocessed_process_graph[top_level_node]
 
     if do_dry_run:
-        dry_run_result = convert_node(result_node, env=env.push({"dry-run": True}))
+        dry_run_tracer = DryRunDataTracer()
+        convert_node(result_node, env=env.push({"dry-run": dry_run_tracer}))
         # TODO: extract load_collection constraints from dry_run_result
 
     return convert_node(result_node, env=env)
@@ -303,11 +304,12 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
         properties = None
 
     if env.get("dry-run"):
+        dry_run_tracer: DryRunDataTracer = env.get("dry-run")
         arguments = dict_no_none(
             temporal_extent=temporal_extent, spatial_extent=spatial_extent, bands=bands, properties=properties
         )
         metadata = backend_implementation.catalog.get_collection_metadata(collection_id)
-        return DryRunDataCube.load_collection(collection_id=collection_id, arguments=arguments, metadata=metadata)
+        return dry_run_tracer.load_collection(collection_id=collection_id, arguments=arguments, metadata=metadata)
 
     return backend_implementation.catalog.load_collection(collection_id, env.as_dict())
 

@@ -100,3 +100,20 @@ def geojson_to_geometry(geojson: dict) -> shapely.geometry.base.BaseGeometry:
             'geometries': [feature['geometry'] for feature in geojson['features']]
         }
     return shapely.geometry.shape(geojson)
+
+
+def to_hashable(obj):
+    """
+    Convert nested data structure (e.g. with dicts and lists)
+    to something immutable and hashable (tuples, ...)
+    """
+    if isinstance(obj, (int, float, str)):
+        return obj
+    elif isinstance(obj, (list, tuple)):
+        return tuple(to_hashable(x) for x in obj)
+    elif isinstance(obj, dict):
+        return tuple((k, to_hashable(v)) for (k, v) in sorted(obj.items()))
+    elif isinstance(obj, set):
+        return to_hashable(sorted(obj))
+    else:
+        raise ValueError(obj)

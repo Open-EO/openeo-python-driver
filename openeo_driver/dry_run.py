@@ -1,5 +1,4 @@
-import collections
-from typing import List, Union
+from typing import List, Union, Set, Dict, Iterable
 
 import shapely.geometry.base
 
@@ -7,73 +6,95 @@ from openeo.metadata import CollectionMetadata
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.save_result import AggregatePolygonResult
-from openeo_driver.utils import geojson_to_geometry
+from openeo_driver.utils import geojson_to_geometry, to_hashable
 
 
-class DataJournal:
-    """
-    Journal of certain operations applied on a spatio-temporal data cube,
-    e.g. to keep track of all filter_temporal/filter_bbox/resample operations.
+class _DataTraceBase:
+    """Base class for data traces."""
 
-    The journal is immutable in the sense that adding an entry creates a new journal with copied entries first.
-    """
+    def __hash__(self):
+        # Identity hash (e.g. memory address)
+        return id(self)
 
-    class Creation(tuple):
-        """Hashable identifier for how a data cube is created (load_collection, load_disk_data, ...)"""
-        pass
+    def get_source(self) -> 'DataSource':
+        raise NotImplementedError
 
-    Entry = collections.namedtuple("Entry", ["operation", "arguments"])
+    def get_arguments_by_operation(self, operation: str) -> Iterable[Union[dict, tuple]]:
+        return []
 
-    def __init__(self, creation: Creation, journal: List[Entry] = None):
-        # How the data cube was created initially (load_collection or something else?)
-        self._creation = creation
-        # Additional operations on the data cube
-        self._journal = journal or []
 
-    @property
-    def creation(self):
-        return self._creation
+class DataSource(_DataTraceBase):
+    """Data source: a data (cube) generating process like `load_collection`, `load_disk_data`, ..."""
+    __slots__ = ["_process", "_arguments"]
+
+    def __init__(self, process: str = "load_collection", arguments: Union[dict, tuple] = ()):
+        self._process = process
+        self._arguments = arguments
+
+    def get_source(self) -> 'DataSource':
+        return self
+
+    def get_source_id(self) -> tuple:
+        """Identifier for source (hashable tuple, to be used as dict key for example)."""
+        return to_hashable((self._process, self._arguments))
 
     def __repr__(self):
-        return '<{c!r}: {r!r} {j!r}>'.format(c=self.__class__, r=self._creation, j=self._journal)
-
-    def add(self, operation: str, arguments: Union[dict, tuple]) -> 'DataJournal':
-        """Copy journal with extra operation appended."""
-        return DataJournal(creation=self._creation, journal=list(self._journal) + [self.Entry(operation, arguments)])
-
-    def get(self, operation: str) -> List[Union[dict, tuple]]:
-        """Get list of arguments for entries of given operation"""
-        return [entry.arguments for entry in self._journal if entry.operation == operation]
-
-
-class DryRunDataCube(DriverDataCube):
-    """
-    Data cube (mock/spy) to be used for a process graph dry-run,
-    to detect data cube constraints (filter_bbox, filter_temporal, ...), resolution, tile layout,
-    estimate memory/cpu usage, ...
-    """
-
-    def __init__(self, data_journals: List[DataJournal], metadata: CollectionMetadata = None):
-        # TODO: can/should we work with real metadata?
-        super(DryRunDataCube, self).__init__(metadata=metadata)
-        self._journals = data_journals
-
-    @property
-    def journals(self) -> List[DataJournal]:
-        return self._journals
-
-    @staticmethod
-    def load_collection_id(collection_id: str) -> DataJournal.Creation:
-        """Hashable identifier for data cube creation with load_collection call"""
-        return DataJournal.Creation(("load_collection", collection_id))
-
-    @classmethod
-    def load_collection(cls, collection_id: str, arguments: dict, metadata: dict = None) -> 'DryRunDataCube':
-        """Create a DryRunDataCube from a `load_collection` process."""
-        cube = cls(
-            data_journals=[DataJournal(creation=cls.load_collection_id(collection_id=collection_id))],
-            metadata=metadata
+        return '<{c}#{i}({p!r}, {a!r})>'.format(
+            c=self.__class__.__name__, i=id(self), p=self._process, a=self._arguments
         )
+
+
+class DataTrace(_DataTraceBase):
+    """
+    Processed data: linked list of processes, ending at a data source node.
+
+    Note: this is not the same as a data cube, as a data cube can be combination of multiple data
+    traces (e.g. after mask or merge process).
+    """
+    __slots__ = ["parent", "_operation", "_arguments"]
+
+    def __init__(self, parent: _DataTraceBase, operation: str, arguments: Union[dict, tuple]):
+        self.parent = parent
+        self._operation = operation
+        self._arguments = arguments
+
+    def get_source(self) -> DataSource:
+        return self.parent if isinstance(self.parent, DataSource) else self.parent.get_source()
+
+    def get_arguments_by_operation(self, operation: str) -> Iterable[Union[dict, tuple]]:
+        # Return in parent->child order
+        yield from self.parent.get_arguments_by_operation(operation)
+        if self._operation == operation:
+            yield self._arguments
+
+    def __repr__(self):
+        return '<{c}#{i}(#{p}, {o}, {a})>'.format(
+            c=self.__class__.__name__, i=id(self), p=id(self.parent), o=self._operation, a=self._arguments
+        )
+
+
+class DryRunDataTracer:
+    """
+    Manager responsible for creating and keeping track of various DryRunDataCubes and data traces
+    """
+
+    def __init__(self):
+        self._traces: List[_DataTraceBase] = []
+
+    def append_trace(self, trace: _DataTraceBase) -> _DataTraceBase:
+        self._traces.append(trace)
+        return trace
+
+    def process_traces(self, traces: List[_DataTraceBase], operation: str, arguments: dict) -> List[_DataTraceBase]:
+        return [
+            self.append_trace(DataTrace(parent=t, operation=operation, arguments=arguments))
+            for t in traces
+        ]
+
+    def load_collection(self, collection_id: str, arguments: dict, metadata: dict = None) -> 'DryRunDataCube':
+        """Create a DryRunDataCube from a `load_collection` process."""
+        trace = self.append_trace(DataSource(process="load_collection", arguments=(collection_id,)))
+        cube = DryRunDataCube(traces=[trace], data_tracer=self, metadata=metadata)
         if "temporal_extent" in arguments:
             cube = cube.filter_temporal(*arguments["temporal_extent"])
         if "spatial_extent" in arguments:
@@ -83,20 +104,63 @@ class DryRunDataCube(DriverDataCube):
         # TODO: load_collection `properties` argument
         return cube
 
-    @staticmethod
-    def load_data_disk_id(glob_pattern: str, format: str, options: dict) -> DataJournal.Creation:
-        """Hashable identifier for data cube creation with load_disk_data call."""
-        return DataJournal.Creation(("load_disk_data", glob_pattern, format, tuple(sorted(options.items()))))
+    def load_disk_data(self, glob_pattern: str, format: str, options: dict) -> 'DryRunDataCube':
+        trace = self.append_trace(DataSource(process="load_disk_data", arguments=(glob_pattern, format, options)))
+        return DryRunDataCube(traces=[trace], data_tracer=self)
 
-    @classmethod
-    def load_disk_data(cls, glob_pattern: str, format: str, options: dict):
-        creation = cls.load_data_disk_id(glob_pattern=glob_pattern, format=format, options=options)
-        return cls(data_journals=[DataJournal(creation=creation)])
+    def get_trace_leaves(self) -> Set[_DataTraceBase]:
+        """Get all nodes in the tree of traces that are not parent of another trace"""
+        leaves = set(self._traces)
+        for trace in self._traces:
+            while isinstance(trace, DataTrace):
+                leaves.discard(trace.parent)
+                trace = trace.parent
+        return leaves
+
+    def get_source_constraints(self, merge=True) -> Dict[tuple, dict]:
+        source_constraints = {}
+        for leaf in self.get_trace_leaves():
+            constraints = {}
+            for op in ["temporal_extent", "spatial_extent", "bands"]:
+                args = list(leaf.get_arguments_by_operation(op))
+                if args:
+                    if merge:
+                        # Take first item (to reproduce original behavior)
+                        # TODO: take temporal/spatial/categorical intersection instead?
+                        constraints[op] = args[0]
+                    else:
+                        constraints[op] = args
+            source_id = leaf.get_source().get_source_id()
+            if merge:
+                if source_id in source_constraints:
+                    raise RuntimeError("TODO combine source constraints")
+                source_constraints[source_id] = constraints
+            else:
+                source_constraints[source_id] = source_constraints.get(source_id, []) + [constraints]
+        return source_constraints
+
+
+class DryRunDataCube(DriverDataCube):
+    """
+    Data cube (mock/spy) to be used for a process graph dry-run,
+    to detect data cube constraints (filter_bbox, filter_temporal, ...), resolution, tile layout,
+    estimate memory/cpu usage, ...
+    """
+
+    def __init__(
+            self,
+            traces: List[_DataTraceBase], data_tracer: DryRunDataTracer,
+            metadata: CollectionMetadata = None
+    ):
+        super(DryRunDataCube, self).__init__(metadata=metadata)
+        self._traces = traces or []
+        self._data_tracer = data_tracer
 
     def _process(self, operation, arguments) -> 'DryRunDataCube':
-        # New data cube with operation added to each journal
-        journals = [journal.add(operation, arguments) for journal in self._journals]
-        return DryRunDataCube(journals, metadata=self.metadata)
+        # New data cube with operation added to each trace
+        traces = self._data_tracer.process_traces(traces=self._traces, operation=operation, arguments=arguments)
+        # TODO: manipulate metadata properly?
+        return DryRunDataCube(traces=traces, data_tracer=self._data_tracer, metadata=self.metadata)
 
     def filter_temporal(self, start: str, end: str) -> 'DryRunDataCube':
         return self._process("temporal_extent", (start, end))
@@ -109,12 +173,11 @@ class DryRunDataCube(DriverDataCube):
 
     def mask(self, mask: 'DryRunDataCube', replacement=None) -> 'DryRunDataCube':
         # TODO: if mask cube has no temporal or bbox extent: copy from self?
-        # TODO: or add reference to the self journal to the mask journal and vice versa?
-        return DryRunDataCube(data_journals=self._journals + mask._journals)
+        # TODO: or add reference to the self trace to the mask trace and vice versa?
+        return DryRunDataCube(traces=self._traces + mask._traces, data_tracer=self._data_tracer)
 
     def merge_cubes(self, other: 'DryRunDataCube', overlap_resolver) -> 'DryRunDataCube':
-        # TODO:
-        return DryRunDataCube(data_journals=self._journals + other._journals)
+        return DryRunDataCube(traces=self._traces + other._traces, data_tracer=self._data_tracer)
 
     def aggregate_spatial(
             self, geometries: Union[str, dict, DelayedVector, shapely.geometry.base.BaseGeometry],
@@ -161,21 +224,3 @@ class DryRunDataCube(DriverDataCube):
     rename_labels = _nop
     rename_dimension = _nop
     ndvi = _nop
-
-
-def extract_load_collection_constraints(cube: DryRunDataCube) -> dict:
-    collections_constraints = {}
-    for journal in cube.journals:
-        creation_id = journal.creation
-        constraints = {}
-        for operation in ["temporal_extent", "spatial_extent", "bands"]:
-            ops = journal.get(operation)
-            if ops:
-                # Take first item (to reproduce original behavior)
-                # TODO: take temporal/spatial/categorical intersection instead
-                constraints[operation] = ops[0]
-        if creation_id not in collections_constraints:
-            collections_constraints[creation_id] = constraints
-        else:
-            raise RuntimeError("TODO: combine journal constraints?")
-    return collections_constraints

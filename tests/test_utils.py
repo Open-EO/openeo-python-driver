@@ -1,6 +1,6 @@
 import pytest
 
-from openeo_driver.utils import smart_bool, EvalEnv
+from openeo_driver.utils import smart_bool, EvalEnv, to_hashable
 
 
 def test_smart_bool():
@@ -88,3 +88,19 @@ def test_eval_stack_as_dict():
     assert s1.as_dict() == {"foo": "bar"}
     assert s2.as_dict() == {"foo": "meh", "xev": "lol"}
     assert s3.as_dict() == {"foo": "meh", "xev": "zup", 1: 2, 3: 4}
+
+
+@pytest.mark.parametrize(["obj", "result"], [
+    (123, 123),
+    (23.45, 23.45),
+    ("foo", "foo"),
+    ((1, 2, 3), (1, 2, 3)),
+    ([1, 2, 3], (1, 2, 3)),
+    ({3, 2, 2, 1}, (1, 2, 3)),
+    (
+            {"foo": ["b", "a"], "faa": ["bar", {"li": {"s", "p"}}]},
+            (("faa", ("bar", (("li", ("p", "s")),))), ("foo", ("b", "a")))
+    )
+])
+def test_to_hashable(obj, result):
+    assert to_hashable(obj) == result

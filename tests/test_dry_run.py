@@ -1,15 +1,21 @@
+import pytest
+
 from openeo_driver.ProcessGraphDeserializer import evaluate
-from openeo_driver.dry_run import DryRunDataCube
+from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.utils import EvalEnv
 
 
-def dry_run_evaluate(process_graph) -> DryRunDataCube:
-    env = EvalEnv({"dry-run": True, "version": "1.0.0"})
-    cube = evaluate(process_graph, env=env)
-    return cube
+@pytest.fixture
+def dry_run_tracer():
+    return DryRunDataTracer()
 
 
-def test_basic_filter_temporal():
+@pytest.fixture
+def env(dry_run_tracer):
+    return EvalEnv({"dry-run": dry_run_tracer, "version": "1.0.0"})
+
+
+def test_basic_filter_temporal(env, dry_run_tracer):
     pg = {
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "ft": {
@@ -18,13 +24,15 @@ def test_basic_filter_temporal():
             "result": True,
         },
     }
-    cube = dry_run_evaluate(pg)
-    assert len(cube.journals) == 1
-    assert cube.journals[0].creation == ('load_collection', 'S2_FOOBAR')
-    assert cube.journals[0].get("temporal_extent") == [('2020-02-02', '2020-03-03')]
+    cube = evaluate(pg, env=env)
+    source_constraints = dry_run_tracer.get_source_constraints()
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints.popitem()
+    assert src == ("load_collection", ("S2_FOOBAR",))
+    assert constraints == {"temporal_extent": ("2020-02-02", "2020-03-03")}
 
 
-def test_temporal_extent_dynamic():
+def test_temporal_extent_dynamic(env, dry_run_tracer):
     pg = {
         "load": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "extent": {"process_id": "constant", "arguments": {"x": ["2020-01-01", "2020-02-02"]}},
@@ -34,13 +42,15 @@ def test_temporal_extent_dynamic():
             "result": True,
         },
     }
-    cube = dry_run_evaluate(pg)
-    assert len(cube.journals) == 1
-    assert cube.journals[0].creation == ('load_collection', 'S2_FOOBAR')
-    assert cube.journals[0].get("temporal_extent") == [("2020-01-01", "2020-02-02")]
+    cube = evaluate(pg, env=env)
+    source_constraints = dry_run_tracer.get_source_constraints()
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints.popitem()
+    assert src == ("load_collection", ("S2_FOOBAR",))
+    assert constraints == {"temporal_extent": ("2020-01-01", "2020-02-02")}
 
 
-def test_temporal_extent_dynamic_item():
+def test_temporal_extent_dynamic_item(env, dry_run_tracer):
     pg = {
         "load": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "start": {"process_id": "constant", "arguments": {"x": "2020-01-01"}},
@@ -50,13 +60,15 @@ def test_temporal_extent_dynamic_item():
             "result": True,
         },
     }
-    cube = dry_run_evaluate(pg)
-    assert len(cube.journals) == 1
-    assert cube.journals[0].creation == ('load_collection', 'S2_FOOBAR')
-    assert cube.journals[0].get("temporal_extent") == [("2020-01-01", "2020-02-02")]
+    cube = evaluate(pg, env=env)
+    source_constraints = dry_run_tracer.get_source_constraints()
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints.popitem()
+    assert src == ("load_collection", ("S2_FOOBAR",))
+    assert constraints == {"temporal_extent": ("2020-01-01", "2020-02-02")}
 
 
-def test_graph_diamond():
+def test_graph_diamond(env, dry_run_tracer):
     """
     Diamond graph:
     load -> band red -> mask -> bbox
@@ -83,17 +95,24 @@ def test_graph_diamond():
             "result": True,
         }
     }
-    cube = dry_run_evaluate(pg)
-    assert len(cube.journals) == 2
-    assert cube.journals[0].creation == ('load_collection', 'S2_FOOBAR')
-    assert cube.journals[0].get("bands") == [["red"]]
-    assert cube.journals[0].get("spatial_extent") == [{"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"}]
-    assert cube.journals[1].creation == ('load_collection', 'S2_FOOBAR')
-    assert cube.journals[1].get("bands") == [["grass"]]
-    assert cube.journals[1].get("spatial_extent") == [{"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"}]
+    cube = evaluate(pg, env=env)
+    source_constraints = dry_run_tracer.get_source_constraints(merge=False)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints.popitem()
+    assert src == ("load_collection", ("S2_FOOBAR",))
+    assert sorted(constraints, key=str) == [
+        {
+            "bands": [["grass"]],
+            "spatial_extent": [{"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"}]
+        },
+        {
+            "bands": [["red"]],
+            "spatial_extent": [{"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"}]
+        },
+    ]
 
 
-def test_load_collection_and_filter_extents():
+def test_load_collection_and_filter_extents(env, dry_run_tracer):
     """temporal/bbox/band extents in load_collection *and* filter_ processes"""
     pg = {
         "load": {
@@ -122,18 +141,22 @@ def test_load_collection_and_filter_extents():
             "result": True,
         }
     }
-    cube = dry_run_evaluate(pg)
-    assert len(cube.journals) == 1
-    assert cube.journals[0].creation == ('load_collection', 'S2_FOOBAR')
-    assert cube.journals[0].get("temporal_extent") == [('2020-01-01', '2020-10-10'), ('2020-02-02', '2020-03-03')]
-    assert cube.journals[0].get("spatial_extent") == [
-        {"west": 0, "south": 50, "east": 5, "north": 55, 'crs': 'EPSG:4326'},
-        {"west": 1, "south": 51, "east": 3, "north": 53, 'crs': 'EPSG:4326'},
-    ]
-    assert cube.journals[0].get("bands") == [["red", "green", "blue"], ["red"]]
+    cube = evaluate(pg, env=env)
+    source_constraints = dry_run_tracer.get_source_constraints(merge=False)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints.popitem()
+    assert src == ("load_collection", ("S2_FOOBAR",))
+    assert constraints == [{
+        "temporal_extent": [("2020-01-01", "2020-10-10"), ("2020-02-02", "2020-03-03"), ],
+        "spatial_extent": [
+            {"west": 0, "south": 50, "east": 5, "north": 55, "crs": "EPSG:4326"},
+            {"west": 1, "south": 51, "east": 3, "north": 53, "crs": "EPSG:4326"}
+        ],
+        "bands": [["red", "green", "blue"], ["red"]],
+    }]
 
 
-def test_load_collection_and_filter_extents_dynamic():
+def test_load_collection_and_filter_extents_dynamic(env, dry_run_tracer):
     """"Dynamic temporal/bbox/band extents in load_collection *and* filter_ processes"""
     pg = {
         "west1": {"process_id": "add", "arguments": {"x": 2, "y": -1}},
@@ -168,12 +191,16 @@ def test_load_collection_and_filter_extents_dynamic():
             "result": True,
         }
     }
-    cube = dry_run_evaluate(pg)
-    assert len(cube.journals) == 1
-    assert cube.journals[0].creation == ('load_collection', 'S2_FOOBAR')
-    assert cube.journals[0].get("temporal_extent") == [('2020-01-01', '2020-10-10'), ('2020-02-02', '2020-03-03')]
-    assert cube.journals[0].get("spatial_extent") == [
-        {"west": 1, "south": 50, "east": 5, "north": 55, 'crs': 'EPSG:4326'},
-        {"west": 2.0, "south": 51, "east": 3, "north": 53, 'crs': 'EPSG:4326'},
-    ]
-    assert cube.journals[0].get("bands") == [["blue", "green", "red"], ["blue"]]
+    cube = evaluate(pg, env=env)
+    source_constraints = dry_run_tracer.get_source_constraints(merge=False)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints.popitem()
+    assert src == ("load_collection", ("S2_FOOBAR",))
+    assert constraints == [{
+        "temporal_extent": [("2020-01-01", "2020-10-10"), ("2020-02-02", "2020-03-03")],
+        "spatial_extent": [
+            {"west": 1, "south": 50, "east": 5, "north": 55, "crs": "EPSG:4326"},
+            {"west": 2.0, "south": 51, "east": 3, "north": 53, "crs": "EPSG:4326"}
+        ],
+        "bands": [["blue", "green", "red"], ["blue"]],
+    }]
