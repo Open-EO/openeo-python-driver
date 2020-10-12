@@ -20,8 +20,8 @@ def test_basic_filter_temporal():
     }
     cube = dry_run_evaluate(pg)
     assert len(cube.journals) == 1
-    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2_FOOBAR"}]
-    assert cube.journals[0].get("filter_temporal") == [('2020-02-02', '2020-03-03')]
+    assert cube.journals[0].creation == ('load_collection', 'S2_FOOBAR')
+    assert cube.journals[0].get("temporal_extent") == [('2020-02-02', '2020-03-03')]
 
 
 def test_temporal_extent_dynamic():
@@ -36,8 +36,8 @@ def test_temporal_extent_dynamic():
     }
     cube = dry_run_evaluate(pg)
     assert len(cube.journals) == 1
-    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2_FOOBAR"}]
-    assert cube.journals[0].get("filter_temporal") == [("2020-01-01", "2020-02-02")]
+    assert cube.journals[0].creation == ('load_collection', 'S2_FOOBAR')
+    assert cube.journals[0].get("temporal_extent") == [("2020-01-01", "2020-02-02")]
 
 
 def test_temporal_extent_dynamic_item():
@@ -52,8 +52,8 @@ def test_temporal_extent_dynamic_item():
     }
     cube = dry_run_evaluate(pg)
     assert len(cube.journals) == 1
-    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2_FOOBAR"}]
-    assert cube.journals[0].get("filter_temporal") == [("2020-01-01", "2020-02-02")]
+    assert cube.journals[0].creation == ('load_collection', 'S2_FOOBAR')
+    assert cube.journals[0].get("temporal_extent") == [("2020-01-01", "2020-02-02")]
 
 
 def test_graph_diamond():
@@ -85,12 +85,12 @@ def test_graph_diamond():
     }
     cube = dry_run_evaluate(pg)
     assert len(cube.journals) == 2
-    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2_FOOBAR"}]
-    assert cube.journals[0].get("filter_bands") == [["red"]]
-    assert cube.journals[0].get("filter_bbox") == [{"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"}]
-    assert cube.journals[1].get("load_collection") == [{"collection_id": "S2_FOOBAR"}]
-    assert cube.journals[1].get("filter_bands") == [["grass"]]
-    assert cube.journals[1].get("filter_bbox") == [{"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"}]
+    assert cube.journals[0].creation == ('load_collection', 'S2_FOOBAR')
+    assert cube.journals[0].get("bands") == [["red"]]
+    assert cube.journals[0].get("spatial_extent") == [{"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"}]
+    assert cube.journals[1].creation == ('load_collection', 'S2_FOOBAR')
+    assert cube.journals[1].get("bands") == [["grass"]]
+    assert cube.journals[1].get("spatial_extent") == [{"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"}]
 
 
 def test_load_collection_and_filter_extents():
@@ -124,13 +124,13 @@ def test_load_collection_and_filter_extents():
     }
     cube = dry_run_evaluate(pg)
     assert len(cube.journals) == 1
-    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2_FOOBAR"}]
-    assert cube.journals[0].get("filter_temporal") == [('2020-01-01', '2020-10-10'), ('2020-02-02', '2020-03-03')]
-    assert cube.journals[0].get("filter_bbox") == [
+    assert cube.journals[0].creation == ('load_collection', 'S2_FOOBAR')
+    assert cube.journals[0].get("temporal_extent") == [('2020-01-01', '2020-10-10'), ('2020-02-02', '2020-03-03')]
+    assert cube.journals[0].get("spatial_extent") == [
         {"west": 0, "south": 50, "east": 5, "north": 55, 'crs': 'EPSG:4326'},
         {"west": 1, "south": 51, "east": 3, "north": 53, 'crs': 'EPSG:4326'},
     ]
-    assert cube.journals[0].get("filter_bands") == [["red", "green", "blue"], ["red"]]
+    assert cube.journals[0].get("bands") == [["red", "green", "blue"], ["red"]]
 
 
 def test_load_collection_and_filter_extents_dynamic():
@@ -170,10 +170,10 @@ def test_load_collection_and_filter_extents_dynamic():
     }
     cube = dry_run_evaluate(pg)
     assert len(cube.journals) == 1
-    assert cube.journals[0].get("load_collection") == [{"collection_id": "S2_FOOBAR"}]
-    assert cube.journals[0].get("filter_temporal") == [('2020-01-01', '2020-10-10'), ('2020-02-02', '2020-03-03')]
-    assert cube.journals[0].get("filter_bbox") == [
+    assert cube.journals[0].creation == ('load_collection', 'S2_FOOBAR')
+    assert cube.journals[0].get("temporal_extent") == [('2020-01-01', '2020-10-10'), ('2020-02-02', '2020-03-03')]
+    assert cube.journals[0].get("spatial_extent") == [
         {"west": 1, "south": 50, "east": 5, "north": 55, 'crs': 'EPSG:4326'},
         {"west": 2.0, "south": 51, "east": 3, "north": 53, 'crs': 'EPSG:4326'},
     ]
-    assert cube.journals[0].get("filter_bands") == [["blue", "green", "red"], ["blue"]]
+    assert cube.journals[0].get("bands") == [["blue", "green", "red"], ["blue"]]

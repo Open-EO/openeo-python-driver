@@ -639,7 +639,7 @@ def test_timeseries_point_with_bbox(api):
     }
     api.check_result(process_graph, path="/timeseries/point?x=1&y=2")
     expected = {
-        "left": 3, "right": 6, "bottom": 50, "top": 51, "srs": "EPSG:4326", "version": api.api_version
+        "left": 3, "right": 6, "bottom": 50, "top": 51, "srs": "EPSG:4326"
     }
     env = api.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
     assert {k: env[k] for k in expected} == expected

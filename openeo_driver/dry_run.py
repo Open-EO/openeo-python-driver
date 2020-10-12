@@ -17,17 +17,29 @@ class DataJournal:
 
     The journal is immutable in the sense that adding an entry creates a new journal with copied entries first.
     """
+
+    class Creation(tuple):
+        """Hashable identifier for how a data cube is created (load_collection, load_disk_data, ...)"""
+        pass
+
     Entry = collections.namedtuple("Entry", ["operation", "arguments"])
 
-    def __init__(self, journal: List[Entry] = None):
+    def __init__(self, creation: Creation, journal: List[Entry] = None):
+        # How the data cube was created initially (load_collection or something else?)
+        self._creation = creation
+        # Additional operations on the data cube
         self._journal = journal or []
 
+    @property
+    def creation(self):
+        return self._creation
+
     def __repr__(self):
-        return '<{c!r}: {j!r}>'.format(c=self.__class__, j=self._journal)
+        return '<{c!r}: {r!r} {j!r}>'.format(c=self.__class__, r=self._creation, j=self._journal)
 
     def add(self, operation: str, arguments: Union[dict, tuple]) -> 'DataJournal':
         """Copy journal with extra operation appended."""
-        return DataJournal(journal=list(self._journal) + [self.Entry(operation, arguments)])
+        return DataJournal(creation=self._creation, journal=list(self._journal) + [self.Entry(operation, arguments)])
 
     def get(self, operation: str) -> List[Union[dict, tuple]]:
         """Get list of arguments for entries of given operation"""
@@ -50,11 +62,16 @@ class DryRunDataCube(DriverDataCube):
     def journals(self) -> List[DataJournal]:
         return self._journals
 
+    @staticmethod
+    def load_collection_id(collection_id: str) -> DataJournal.Creation:
+        """Hashable identifier for data cube creation with load_collection call"""
+        return DataJournal.Creation(("load_collection", collection_id))
+
     @classmethod
     def load_collection(cls, collection_id: str, arguments: dict, metadata: dict = None) -> 'DryRunDataCube':
         """Create a DryRunDataCube from a `load_collection` process."""
         cube = cls(
-            data_journals=[DataJournal().add("load_collection", {"collection_id": collection_id})],
+            data_journals=[DataJournal(creation=cls.load_collection_id(collection_id=collection_id))],
             metadata=metadata
         )
         if "temporal_extent" in arguments:
@@ -66,19 +83,29 @@ class DryRunDataCube(DriverDataCube):
         # TODO: load_collection `properties` argument
         return cube
 
+    @staticmethod
+    def load_data_disk_id(glob_pattern: str, format: str, options: dict) -> DataJournal.Creation:
+        """Hashable identifier for data cube creation with load_disk_data call."""
+        return DataJournal.Creation(("load_disk_data", glob_pattern, format, tuple(sorted(options.items()))))
+
+    @classmethod
+    def load_disk_data(cls, glob_pattern: str, format: str, options: dict):
+        creation = cls.load_data_disk_id(glob_pattern=glob_pattern, format=format, options=options)
+        return cls(data_journals=[DataJournal(creation=creation)])
+
     def _process(self, operation, arguments) -> 'DryRunDataCube':
         # New data cube with operation added to each journal
         journals = [journal.add(operation, arguments) for journal in self._journals]
         return DryRunDataCube(journals, metadata=self.metadata)
 
     def filter_temporal(self, start: str, end: str) -> 'DryRunDataCube':
-        return self._process("filter_temporal", (start, end))
+        return self._process("temporal_extent", (start, end))
 
     def filter_bbox(self, west, south, east, north, crs=None, base=None, height=None) -> 'DryRunDataCube':
-        return self._process("filter_bbox", {"west": west, "south": south, "east": east, "north": north, "crs": crs})
+        return self._process("spatial_extent", {"west": west, "south": south, "east": east, "north": north, "crs": crs})
 
     def filter_bands(self, bands) -> 'DryRunDataCube':
-        return self._process("filter_bands", bands)
+        return self._process("bands", bands)
 
     def mask(self, mask: 'DryRunDataCube', replacement=None) -> 'DryRunDataCube':
         # TODO: if mask cube has no temporal or bbox extent: copy from self?
@@ -114,7 +141,7 @@ class DryRunDataCube(DriverDataCube):
         # TODO: EP3561 record resampling operation
         return self
 
-    def _nop(self, *args, **kwargs):
+    def _nop(self, *args, **kwargs) -> 'DryRunDataCube':
         """No Operation: do nothing"""
         return self
 
@@ -134,3 +161,21 @@ class DryRunDataCube(DriverDataCube):
     rename_labels = _nop
     rename_dimension = _nop
     ndvi = _nop
+
+
+def extract_load_collection_constraints(cube: DryRunDataCube) -> dict:
+    collections_constraints = {}
+    for journal in cube.journals:
+        creation_id = journal.creation
+        constraints = {}
+        for operation in ["temporal_extent", "spatial_extent", "bands"]:
+            ops = journal.get(operation)
+            if ops:
+                # Take first item (to reproduce original behavior)
+                # TODO: take temporal/spatial/categorical intersection instead
+                constraints[operation] = ops[0]
+        if creation_id not in collections_constraints:
+            collections_constraints[creation_id] = constraints
+        else:
+            raise RuntimeError("TODO: combine journal constraints?")
+    return collections_constraints
