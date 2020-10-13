@@ -6,7 +6,8 @@ from openeo.metadata import CollectionMetadata
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.save_result import AggregatePolygonResult
-from openeo_driver.utils import geojson_to_geometry, to_hashable
+from openeo_driver.utils import geojson_to_geometry, to_hashable, bands_union, temporal_extent_union, \
+    spatial_extent_union
 
 
 class _DataTraceBase:
@@ -75,7 +76,7 @@ class DataTrace(_DataTraceBase):
 
 class DryRunDataTracer:
     """
-    Manager responsible for creating and keeping track of various DryRunDataCubes and data traces
+    Observer that keeps track of data traces in various DryRunDataCubes
     """
 
     def __init__(self):
@@ -109,7 +110,7 @@ class DryRunDataTracer:
         return DryRunDataCube(traces=[trace], data_tracer=self)
 
     def get_trace_leaves(self) -> Set[_DataTraceBase]:
-        """Get all nodes in the tree of traces that are not parent of another trace"""
+        """Get all nodes in the tree of traces that are not parent of another trace."""
         leaves = set(self._traces)
         for trace in self._traces:
             while isinstance(trace, DataTrace):
@@ -127,14 +128,29 @@ class DryRunDataTracer:
                     if merge:
                         # Take first item (to reproduce original behavior)
                         # TODO: take temporal/spatial/categorical intersection instead?
+                        #       see https://github.com/Open-EO/openeo-processes/issues/201
                         constraints[op] = args[0]
                     else:
                         constraints[op] = args
             source_id = leaf.get_source().get_source_id()
             if merge:
                 if source_id in source_constraints:
-                    raise RuntimeError("TODO combine source constraints")
-                source_constraints[source_id] = constraints
+                    # Merge: take union where necessary
+                    for field, value in constraints.items():
+                        orig = source_constraints[source_id].get(field)
+                        if orig:
+                            if field == "bands":
+                                source_constraints[source_id][field] = bands_union(orig, value)
+                            elif field == "temporal_extent":
+                                source_constraints[source_id][field] = temporal_extent_union(orig, value)
+                            elif field == "spatial_extent":
+                                source_constraints[source_id][field] = spatial_extent_union(orig, value)
+                            else:
+                                raise ValueError(field)
+                        else:
+                            source_constraints[source_id][field] = value
+                else:
+                    source_constraints[source_id] = constraints
             else:
                 source_constraints[source_id] = source_constraints.get(source_id, []) + [constraints]
         return source_constraints

@@ -2,9 +2,10 @@
 Small general utilities and helper functions
 """
 import json
+from functools import reduce
 from math import isnan
 from pathlib import Path
-from typing import Union, Any
+from typing import Union, Any, List, Tuple
 
 import shapely.geometry
 
@@ -117,3 +118,50 @@ def to_hashable(obj):
         return to_hashable(sorted(obj))
     else:
         raise ValueError(obj)
+
+
+def bands_union(*args: List[str]) -> List[str]:
+    """Take union of given lists/sets of bands"""
+    bands = []
+    for arg in args:
+        for a in arg:
+            if a not in bands:
+                bands.append(a)
+    return bands
+
+
+def temporal_extent_union(
+        *args: Tuple[Union[str, None], Union[str, None]], none_is_infinity=True
+) -> Tuple[Union[str, None], Union[str, None]]:
+    """Calculate temporal extent covering all given extents"""
+    # TODO: handle datetime values as well?
+    if len(args) == 0:
+        return None, None
+    starts, ends = zip(*args)
+
+    if none_is_infinity:
+        start = None if None in starts else min(starts)
+        end = None if None in ends else max(ends)
+    else:
+        start = min(s for s in starts if s is not None)
+        end = max(s for s in ends if s is not None)
+    return start, end
+
+
+def spatial_extent_union(*args: dict) -> dict:
+    """Calculate spatial bbox covering all given bboxes"""
+    # TODO: assuming CRS where west/south is lower and east/north is higher.
+    # TODO: smarter CRS handling/combining
+    assert len(args) >= 1
+    crss = set(a.get("crs", "EPSG:4326") for a in args)
+    if len(crss) > 1:
+        raise ValueError("Different CRS's: {c}".format(c=crss))
+    crs = crss.pop()
+    bbox = {
+        "west": min(a["west"] for a in args),
+        "south": min(a["south"] for a in args),
+        "east": max(a["east"] for a in args),
+        "north": max(a["north"] for a in args),
+        "crs": crs
+    }
+    return bbox

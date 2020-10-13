@@ -1,6 +1,7 @@
 import pytest
 
-from openeo_driver.utils import smart_bool, EvalEnv, to_hashable
+from openeo_driver.utils import smart_bool, EvalEnv, to_hashable, bands_union, temporal_extent_union, \
+    spatial_extent_union
 
 
 def test_smart_bool():
@@ -104,3 +105,54 @@ def test_eval_stack_as_dict():
 ])
 def test_to_hashable(obj, result):
     assert to_hashable(obj) == result
+
+
+def test_bands_union():
+    assert bands_union() == []
+    assert bands_union(["red", "blue"]) == ["red", "blue"]
+    assert bands_union(["red"], ["blue"]) == ["red", "blue"]
+    assert bands_union(["red"], [], ["blue"]) == ["red", "blue"]
+    assert bands_union(["r", "b"], ["g"], ["b", "r"]) == ["r", "b", "g"]
+
+
+def test_temporal_extent_union():
+    assert temporal_extent_union() == (None, None)
+    assert temporal_extent_union(("2020-01-01", "2020-12-31")) == ("2020-01-01", "2020-12-31")
+    assert temporal_extent_union(
+        ("2020-01-01", "2020-02-02"), ("2020-03-03", "2020-04-04")
+    ) == ("2020-01-01", "2020-04-04")
+    assert temporal_extent_union(
+        ("2020-01-01", "2020-03-03"), ("2020-02-02", "2020-04-04")
+    ) == ("2020-01-01", "2020-04-04")
+    assert temporal_extent_union(
+        ("2020-01-01", "2020-02-02"), ("2020-05-05", "2020-06-06"), ("2020-03-03", "2020-04-04"),
+    ) == ("2020-01-01", "2020-06-06")
+    assert temporal_extent_union(
+        (None, "2020-02-02"), ("2020-05-05", "2020-06-06"), ("2020-03-03", "2020-04-04"),
+    ) == (None, "2020-06-06")
+    assert temporal_extent_union(
+        ("2020-01-01", "2020-02-02"), ("2020-05-05", "2020-06-06"), (None, "2020-04-04"),
+        none_is_infinity=False
+    ) == ("2020-01-01", "2020-06-06")
+    assert temporal_extent_union(
+        ("2020-01-01", "2020-02-02"), ("2020-05-05", "2020-06-06"), ("2020-03-03", None),
+    ) == ("2020-01-01", None)
+    assert temporal_extent_union(
+        ("2020-01-01", "2020-02-02"), ("2020-05-05", "2020-06-06"), ("2020-03-03", None),
+        none_is_infinity=False
+    ) == ("2020-01-01", "2020-06-06")
+
+
+def test_spatial_extent_union():
+    assert spatial_extent_union(
+        {"west": 1, "south": 51, "east": 2, "north": 52}
+    ) == {"west": 1, "south": 51, "east": 2, "north": 52, "crs": "EPSG:4326"}
+    assert spatial_extent_union(
+        {"west": 1, "south": 51, "east": 2, "north": 52},
+        {"west": 3, "south": 53, "east": 4, "north": 54},
+    ) == {"west": 1, "south": 51, "east": 4, "north": 54, "crs": "EPSG:4326"}
+    assert spatial_extent_union(
+        {"west": 1, "south": 51, "east": 2, "north": 52},
+        {"west": -5, "south": 50, "east": 3, "north": 53},
+        {"west": 3, "south": 53, "east": 4, "north": 54},
+    ) == {"west": -5, "south": 50, "east": 4, "north": 54, "crs": "EPSG:4326"}
