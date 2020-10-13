@@ -1,7 +1,8 @@
 import pytest
 
-from openeo_driver.ProcessGraphDeserializer import evaluate
-from openeo_driver.dry_run import DryRunDataTracer
+from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER
+from openeo_driver.dry_run import DryRunDataTracer, DataSource
+from openeo_driver.testing import IgnoreOrder
 from openeo_driver.utils import EvalEnv
 
 
@@ -12,7 +13,26 @@ def dry_run_tracer():
 
 @pytest.fixture
 def env(dry_run_tracer):
-    return EvalEnv({"dry-run": dry_run_tracer, "version": "1.0.0"})
+    return EvalEnv({
+        ENV_DRY_RUN_TRACER: dry_run_tracer,
+        "version": "1.0.0"
+    })
+
+
+def test_source_load_collection():
+    s1 = DataSource.load_collection(collection_id="FOOBAR")
+    s2 = DataSource.load_collection(collection_id="FOOBAR")
+    s3 = DataSource.load_collection(collection_id="FOOBARV2")
+    assert s1.get_source_id() == s2.get_source_id()
+    assert s1.get_source_id() != s3.get_source_id()
+
+
+def test_source_load_disk_data():
+    s1 = DataSource.load_disk_data(glob_pattern="foo*.tiff", format="GTiff", options={})
+    s2 = DataSource.load_disk_data(glob_pattern="foo*.tiff", format="GTiff", options={})
+    s3 = DataSource.load_disk_data(glob_pattern="foo*.tiff", format="GTiff", options={"meh": "xev"})
+    assert s1.get_source_id() == s2.get_source_id()
+    assert s1.get_source_id() != s3.get_source_id()
 
 
 def test_basic_filter_temporal(env, dry_run_tracer):
@@ -124,7 +144,7 @@ def test_graph_diamond(env, dry_run_tracer):
     src, constraints = source_constraints.popitem()
     assert src == ("load_collection", ("S2_FOOBAR",))
     assert constraints == {
-        "bands": ["red", "grass"],
+        "bands": IgnoreOrder(["red", "grass"]),
         "spatial_extent": {"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"}
     }
 

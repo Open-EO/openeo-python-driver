@@ -44,6 +44,16 @@ class DataSource(_DataTraceBase):
             c=self.__class__.__name__, i=id(self), p=self._process, a=self._arguments
         )
 
+    @classmethod
+    def load_collection(cls, collection_id) -> 'DataSource':
+        """Factory for a `load_collection` DataSource."""
+        return cls(process="load_collection", arguments=(collection_id,))
+
+    @classmethod
+    def load_disk_data(cls, glob_pattern: str, format: str, options: dict) -> 'DataSource':
+        """Factory for a `load_disk_data` DataSource."""
+        return cls(process="load_disk_data", arguments=(glob_pattern, format, options))
+
 
 class DataTrace(_DataTraceBase):
     """
@@ -94,7 +104,8 @@ class DryRunDataTracer:
 
     def load_collection(self, collection_id: str, arguments: dict, metadata: dict = None) -> 'DryRunDataCube':
         """Create a DryRunDataCube from a `load_collection` process."""
-        trace = self.append_trace(DataSource(process="load_collection", arguments=(collection_id,)))
+        trace = DataSource.load_collection(collection_id=collection_id)
+        self.append_trace(trace)
         cube = DryRunDataCube(traces=[trace], data_tracer=self, metadata=metadata)
         if "temporal_extent" in arguments:
             cube = cube.filter_temporal(*arguments["temporal_extent"])
@@ -106,7 +117,8 @@ class DryRunDataTracer:
         return cube
 
     def load_disk_data(self, glob_pattern: str, format: str, options: dict) -> 'DryRunDataCube':
-        trace = self.append_trace(DataSource(process="load_disk_data", arguments=(glob_pattern, format, options)))
+        trace = DataSource.load_disk_data(glob_pattern=glob_pattern, format=format, options=options)
+        self.append_trace(trace)
         return DryRunDataCube(traces=[trace], data_tracer=self)
 
     def get_trace_leaves(self) -> Set[_DataTraceBase]:

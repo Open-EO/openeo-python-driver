@@ -210,3 +210,23 @@ class ApiTester:
         else:
             data = {'process_graph': process_graph}
         return data
+
+
+class IgnoreOrder:
+    """
+    pytest helper to test equality of lists/tuples ignoring item order
+
+    E.g., these asserts pass:
+    >>> assert [1, 2, 3, 3] == IgnoreOrder([3, 1, 2, 3])
+    >>> assert {"foo": [1, 2, 3]} == {"foo": IgnoreOrder([3, 2, 1])}
+    """
+
+    def __init__(self, items: Union[list, tuple], key=None):
+        self.items = items
+        self.key = key
+
+    def __eq__(self, other):
+        return type(other) == type(self.items) and sorted(other, key=self.key) == sorted(self.items, key=self.key)
+
+    def __repr__(self):
+        return '{c}({v!r})'.format(c=self.__class__.__name__, v=self.items)

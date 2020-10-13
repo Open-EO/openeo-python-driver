@@ -4,22 +4,22 @@
 
 import logging
 import tempfile
-import warnings
-from typing import Dict, Callable, List, Tuple, Any, Union
 import time
+import warnings
+from typing import Dict, Callable, List, Union
 
 import numpy as np
+import openeo_processes
 import requests
+from shapely.geometry import shape, mapping
 
 from openeo.capabilities import ComparableVersion
 from openeo.metadata import MetadataException
-from openeo.util import dict_no_none
+from openeo_driver import dry_run
 from openeo_driver.backend import get_backend_implementation, UserDefinedProcessMetadata
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.dry_run import DryRunDataCube, DryRunDataTracer
-from openeo_driver.errors import ProcessParameterRequiredException, \
-    ProcessParameterInvalidException
+from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException
 from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult
@@ -28,10 +28,6 @@ from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry
 from openeo_udf.api.feature_collection import FeatureCollection
 from openeo_udf.api.structured_data import StructuredData
 from openeo_udf.api.udf_data import UdfData
-from shapely.geometry import shape, mapping
-import shapely.geometry
-import openeo_processes
-
 
 _log = logging.getLogger(__name__)
 
@@ -130,6 +126,10 @@ def get_process_registry(api_version: ComparableVersion) -> ProcessRegistry:
 
 backend_implementation = get_backend_implementation()
 
+# Some (env) string constants to simplify code navigation
+ENV_SOURCE_CONSTRAINTS = "source_constraints"
+ENV_DRY_RUN_TRACER = "dry_run_tracer"
+
 
 def evaluate(process_graph: dict, env: EvalEnv = None, do_dry_run=True) -> DriverDataCube:
     """
@@ -149,9 +149,13 @@ def evaluate(process_graph: dict, env: EvalEnv = None, do_dry_run=True) -> Drive
     result_node = preprocessed_process_graph[top_level_node]
 
     if do_dry_run:
-        dry_run_tracer = DryRunDataTracer()
-        convert_node(result_node, env=env.push({"dry-run": dry_run_tracer}))
-        # TODO: extract load_collection constraints from dry_run_result
+        dry_run_tracer = dry_run.DryRunDataTracer()
+        _log.info("Doing dry run")
+        convert_node(result_node, env=env.push({ENV_DRY_RUN_TRACER: dry_run_tracer}))
+        # TODO: work with a dedicated DryRunEvalEnv?
+        source_constraints = dry_run_tracer.get_source_constraints()
+        _log.info("Dry run extracted these source constraints: {s}".format(s=source_constraints))
+        env = env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
 
     return convert_node(result_node, env=env)
 
@@ -274,60 +278,70 @@ def extract_deep(args: dict, *steps):
     return value
 
 
+def _extract_viewing_parameters(env: EvalEnv, source_id: tuple):
+    constraints = env[ENV_SOURCE_CONSTRAINTS][source_id]
+    viewing_parameters = {}
+    viewing_parameters["from"], viewing_parameters["to"] = constraints.get("temporal_extent", [None, None])
+    spatial_extent = constraints.get("spatial_extent", {})
+    # TODO: eliminate need for aliases (see openeo-geopyspark-driver)?
+    for aliases in [["west", "left"], ["south", "bottom"], ["east", "right"], ["north", "top"], ["crs", "srs"]]:
+        for param in aliases:
+            viewing_parameters[param] = spatial_extent.get(aliases[0])
+    viewing_parameters["bands"] = constraints.get("bands", None)
+    viewing_parameters["properties"] = constraints.get("properties", None)
+    for param in ["correlation_id", "require_bounds", "polygons", "pyramid_levels"]:
+        # TODO: are all these params still properly working (e.g. these cached polygons)?
+        if param in env:
+            viewing_parameters[param] = env[param]
+    return viewing_parameters
+
+
 @process
 def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
     collection_id = extract_arg(args, 'id')
-    if args.get("temporal_extent"):
-        temporal_extent = _extract_temporal_extent(args, field="temporal_extent", process_id="load_collection")
-        env = env.push({"from": temporal_extent[0], "to": temporal_extent[1]})
-    else:
-        temporal_extent = None
-    if args.get("spatial_extent"):
-        # TODO: spatial_extent could also be a geojson object instead of bbox dict
-        spatial_extent = _extract_bbox_extent(args, field="spatial_extent", process_id="load_collection")
-        env = env.push({
-            "left": spatial_extent["west"], "bottom": spatial_extent["south"],
-            "right": spatial_extent["east"], "top": spatial_extent["north"],
-            "srs": spatial_extent["crs"],
-        })
-    else:
-        spatial_extent = None
-    if args.get("bands"):
-        bands = extract_arg(args, "bands", process_id="load_collection")
-        env = env.push({"bands": bands})
-    else:
-        bands = None
-    if args.get('properties'):
-        properties = extract_arg(args, 'properties', process_id="load_collection")
-        env = env.push({"properties": properties})
-    else:
-        properties = None
 
-    if env.get("dry-run"):
-        dry_run_tracer: DryRunDataTracer = env.get("dry-run")
-        arguments = dict_no_none(
-            temporal_extent=temporal_extent, spatial_extent=spatial_extent, bands=bands, properties=properties
-        )
+    dry_run_tracer: dry_run.DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
+    if dry_run_tracer:
+        arguments = {}
+        if args.get("temporal_extent"):
+            arguments["temporal_extent"] = _extract_temporal_extent(args, field="temporal_extent", process_id="load_collection")
+        if args.get("spatial_extent"):
+            # TODO: spatial_extent could also be a geojson object instead of bbox dict
+            arguments["spatial_extent"] = _extract_bbox_extent(args, field="spatial_extent", process_id="load_collection")
+        if args.get("bands"):
+            arguments["bands"] = extract_arg(args, "bands", process_id="load_collection")
+        if args.get('properties'):
+            arguments["properties"] = extract_arg(args, 'properties', process_id="load_collection")
         metadata = backend_implementation.catalog.get_collection_metadata(collection_id)
         return dry_run_tracer.load_collection(collection_id=collection_id, arguments=arguments, metadata=metadata)
-
-    return backend_implementation.catalog.load_collection(collection_id, env.as_dict())
+    else:
+        source_id = dry_run.DataSource.load_collection(collection_id=collection_id).get_source_id()
+        viewing_parameters= _extract_viewing_parameters(env, source_id=source_id)
+        return backend_implementation.catalog.load_collection(collection_id, viewing_parameters=viewing_parameters)
 
 
 @non_standard_process(
     ProcessSpec(id='load_disk_data', description="Loads arbitrary from disk.")
         .param(name='format', description="the file format, e.g. 'GTiff'", schema={"type": "string"}, required=True)
-        .param(name='glob_pattern', description="a glob pattern that matches the files to load from disk", schema={"type": "string"}, required=True)
+        .param(name='glob_pattern', description="a glob pattern that matches the files to load from disk",
+               schema={"type": "string"}, required=True)
         .param(name='options', description="options specific to the file format", schema={"type": "object"})
         .returns(description="the data as a data cube", schema={})
 )
 def load_disk_data(args: Dict, env: EvalEnv) -> DriverDataCube:
     # TODO: rename this to "load_uploaded_files" like in official openeo processes?
-    format = extract_arg(args, 'format')
-    glob_pattern = extract_arg(args, 'glob_pattern')
-    options = args.get('options', {})
-
-    return backend_implementation.load_disk_data(format, glob_pattern, options, env.as_dict())
+    kwargs = dict(
+        glob_pattern=extract_arg(args, 'glob_pattern'),
+        format=extract_arg(args, 'format'),
+        options=args.get('options', {}),
+    )
+    dry_run_tracer: dry_run.DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
+    if dry_run_tracer:
+        return dry_run_tracer.load_disk_data(**kwargs)
+    else:
+        source_id = dry_run.DataSource.load_disk_data(**kwargs).get_source_id()
+        viewing_parameters = _extract_viewing_parameters(env, source_id=source_id)
+        return backend_implementation.load_disk_data(**kwargs, viewing_parameters=viewing_parameters)
 
 
 @process_registry_100.add_function
@@ -353,7 +367,7 @@ def save_result(args: Dict, env: EvalEnv) -> SaveResult:
     if isinstance(data, SaveResult):
         data.set_format(format, data)
         return data
-    if isinstance(data, DriverDataCube):
+    elif isinstance(data, DriverDataCube):
         return ImageCollectionResult(data, format, {**env.as_dict(), **options})
     elif isinstance(data, DelayedVector):
         geojsons = (mapping(geometry) for geometry in data.geometries)
@@ -527,6 +541,7 @@ def mask_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     mask = extract_arg(args, 'mask')
     replacement = args.get('replacement', None)
     inside = args.get('inside', False)
+    # TODO: avoid reading DelayedVector twice due to dry-run?
     polygon = list(mask.geometries)[0] if isinstance(mask, DelayedVector) else geojson_to_geometry(mask)
     if polygon.area == 0:
         reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
@@ -658,8 +673,6 @@ def merge_cubes(args: dict, env: EvalEnv) -> DriverDataCube:
 def run_udf(args: dict, env: EvalEnv):
     # TODO: note: this implements a non-standard usage of `run_udf`: processing "vector" cube (direct JSON or from aggregate_spatial, ...)
     data = extract_arg(args, 'data')
-    if env.get("dry-run"):
-        return data
 
     if not isinstance(data, DelayedVector) and not isinstance(data,AggregatePolygonResult):
         if isinstance(data, dict):
@@ -739,45 +752,6 @@ def histogram(args, env: EvalEnv):
 def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalEnv = None):
     env = env or EvalEnv()
     parent_process = env.get('parent_process')
-
-    if 'filter_temporal' == process_id:
-        extent = _extract_temporal_extent(args, field="extent", process_id=process_id)
-        extent = convert_node(extent, env=env)
-        env = env.push({"from": extent[0], "to": extent[1]})
-    elif 'filter_bbox' == process_id:
-        # TODO: change everything to west, south, east, north, crs for uniformity (or even encapsulate in a bbox tuple?)
-        extent = _extract_bbox_extent(args, field="extent", process_id=process_id)
-        extent = convert_node(extent, env=env)
-        env = env.push({
-            "left": extent["west"], "bottom": extent["south"],
-            "right": extent["east"], "top": extent["north"],
-            "srs": extent["crs"],
-        })
-    elif process_id in ['zonal_statistics', 'aggregate_polygon', 'aggregate_spatial']:
-        shapes = extract_arg_list(args, ['regions', 'polygons', 'geometries'])
-
-        if env.get("left") is None:
-            # TODO: can parsing/loading of polygons be cached for later use??
-            if "type" in shapes:  # it's GeoJSON
-                polygons = geojson_to_geometry(shapes)
-            elif "from_node" in shapes:  # it's a dereferenced from_node that contains a DelayedVector
-                polygons = convert_node(shapes["node"], env=env)
-            else:
-                raise ValueError(shapes)
-            bbox = polygons.bounds
-            env = env.push({
-                "left": bbox[0], "right": bbox[2],
-                "bottom": bbox[1], "top": bbox[3],
-                "srs": "EPSG:4326",
-            })
-
-    elif 'filter_bands' == process_id:
-        env = env.push({"bands": convert_node(extract_arg(args, "bands", process_id=process_id), env)})
-    elif 'apply' == parent_process:
-        if "data" in env:
-            # The `apply` process passes it's `data` parameter as `x` parameter to subprocess
-            # TODO: is this still necessary?
-            env = env.push({"x": env["data"]})
 
     # first we resolve child nodes and arguments
     args = {name: convert_node(expr, env=env) for (name, expr) in args.items()}
