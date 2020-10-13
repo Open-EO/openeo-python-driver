@@ -826,7 +826,16 @@ def apply_process(process_id: str, args: dict, namespace: str = None, viewingPar
         intervals = extract_arg(viewingParameters, 'intervals')
         labels = extract_arg(viewingParameters, 'labels')
         dimension = viewingParameters.get('dimension', None)
-        dimension, _, _ = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
+        if dimension is not None:
+            dimension, _, _ = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
+        else:
+            #default: there is a single temporal dimension
+            try:
+                dimension = image_collection.metadata.temporal_dimension.name
+            except MetadataException:
+                raise ProcessParameterInvalidException(
+                    parameter="dimension", process=process,
+                    reason="No dimension was set, and no temporal dimension could be found. Available dimensions: {n!r}".format( n= image_collection.metadata.dimension_names()))
         return image_collection.aggregate_temporal(intervals, labels, process_id, dimension)
 
     if namespace and any(namespace.startswith(p) for p in ["http://", "https://"]):

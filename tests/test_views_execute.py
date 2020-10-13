@@ -459,6 +459,12 @@ def test_aggregate_temporal_max_invalid_temporal_dimension(api):
     )
 
 
+def test_aggregate_temporal_max_no_dimension(api):
+    resp = api.check_result("aggregate_temporal_max.json",
+        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": null'))
+
+
+
 def test_execute_zonal_statistics(api):
     resp = api.check_result("zonal_statistics.json")
     assert resp.json == {
