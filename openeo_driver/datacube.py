@@ -7,6 +7,7 @@ from openeo.metadata import CollectionMetadata
 
 class DriverDataCube(ImageCollection):
     """Base class for "driver" side data cubes."""
+    # TODO cut the openeo.ImageCollection chord (https://github.com/Open-EO/openeo-python-client/issues/100)
 
     def __init__(self, metadata: CollectionMetadata = None):
         self.metadata = metadata if isinstance(metadata, CollectionMetadata) else CollectionMetadata(metadata or {})

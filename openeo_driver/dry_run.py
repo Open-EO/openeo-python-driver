@@ -20,8 +20,11 @@ class _DataTraceBase:
     def get_source(self) -> 'DataSource':
         raise NotImplementedError
 
-    def get_arguments_by_operation(self, operation: str) -> Iterable[Union[dict, tuple]]:
+    def get_arguments_by_operation(self, operation: str) -> List[Union[dict, tuple]]:
         return []
+
+    def describe(self) -> str:
+        return "_base"
 
 
 class DataSource(_DataTraceBase):
@@ -43,6 +46,9 @@ class DataSource(_DataTraceBase):
         return '<{c}#{i}({p!r}, {a!r})>'.format(
             c=self.__class__.__name__, i=id(self), p=self._process, a=self._arguments
         )
+
+    def describe(self) -> str:
+        return self._process
 
     @classmethod
     def load_collection(cls, collection_id) -> 'DataSource':
@@ -72,16 +78,20 @@ class DataTrace(_DataTraceBase):
     def get_source(self) -> DataSource:
         return self.parent if isinstance(self.parent, DataSource) else self.parent.get_source()
 
-    def get_arguments_by_operation(self, operation: str) -> Iterable[Union[dict, tuple]]:
+    def get_arguments_by_operation(self, operation: str) -> List[Union[dict, tuple]]:
         # Return in parent->child order
-        yield from self.parent.get_arguments_by_operation(operation)
+        res = self.parent.get_arguments_by_operation(operation)
         if self._operation == operation:
-            yield self._arguments
+            res.append(self._arguments)
+        return res
 
     def __repr__(self):
         return '<{c}#{i}(#{p}, {o}, {a})>'.format(
             c=self.__class__.__name__, i=id(self), p=id(self.parent), o=self._operation, a=self._arguments
         )
+
+    def describe(self) -> str:
+        return self.parent.describe() + "<-" + self._operation
 
 
 class DryRunDataTracer:
@@ -92,20 +102,22 @@ class DryRunDataTracer:
     def __init__(self):
         self._traces: List[_DataTraceBase] = []
 
-    def append_trace(self, trace: _DataTraceBase) -> _DataTraceBase:
+    def add_trace(self, trace: _DataTraceBase) -> _DataTraceBase:
+        """Keep track of given trace"""
         self._traces.append(trace)
         return trace
 
     def process_traces(self, traces: List[_DataTraceBase], operation: str, arguments: dict) -> List[_DataTraceBase]:
+        """Process given traces with an operation (and keep track of the results)."""
         return [
-            self.append_trace(DataTrace(parent=t, operation=operation, arguments=arguments))
+            self.add_trace(DataTrace(parent=t, operation=operation, arguments=arguments))
             for t in traces
         ]
 
     def load_collection(self, collection_id: str, arguments: dict, metadata: dict = None) -> 'DryRunDataCube':
         """Create a DryRunDataCube from a `load_collection` process."""
         trace = DataSource.load_collection(collection_id=collection_id)
-        self.append_trace(trace)
+        self.add_trace(trace)
         cube = DryRunDataCube(traces=[trace], data_tracer=self, metadata=metadata)
         if "temporal_extent" in arguments:
             cube = cube.filter_temporal(*arguments["temporal_extent"])
@@ -117,8 +129,9 @@ class DryRunDataTracer:
         return cube
 
     def load_disk_data(self, glob_pattern: str, format: str, options: dict) -> 'DryRunDataCube':
+        """Create a DryRunDataCube from a `load_disk_data` process."""
         trace = DataSource.load_disk_data(glob_pattern=glob_pattern, format=format, options=options)
-        self.append_trace(trace)
+        self.add_trace(trace)
         return DryRunDataCube(traces=[trace], data_tracer=self)
 
     def get_trace_leaves(self) -> Set[_DataTraceBase]:
@@ -135,7 +148,7 @@ class DryRunDataTracer:
         for leaf in self.get_trace_leaves():
             constraints = {}
             for op in ["temporal_extent", "spatial_extent", "bands"]:
-                args = list(leaf.get_arguments_by_operation(op))
+                args = leaf.get_arguments_by_operation(op)
                 if args:
                     if merge:
                         # Take first item (to reproduce original behavior)
