@@ -709,7 +709,6 @@ def test_rename_labels(api100):
 
 @pytest.mark.parametrize("namespace", ["user", None, "_undefined"])
 def test_user_defined_process_bbox_mol_basic(api100, namespace):
-    pytest.skip("#TODO EP-3450/EP-3509/EP-3517 EvalEnv handling is broken in UDPs")
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     bbox_mol_spec = api100.load_json("udp/bbox_mol.json")
     user_defined_process_registry.save(user_id=TEST_USER, process_id="bbox_mol", spec=bbox_mol_spec)
@@ -743,7 +742,6 @@ def test_user_defined_process_bbox_mol_basic_other_namespace(api100, namespace):
 def test_user_defined_process_date_window(
         api100, udp_args, expected_start_date, expected_end_date
 ):
-    pytest.skip("#TODO EP-3450/EP-3509/EP-3517 EvalEnv handling is broken in UDPs")
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     spec = api100.load_json("udp/date_window.json")
     user_defined_process_registry.save(user_id=TEST_USER, process_id="date_window", spec=spec)
@@ -871,7 +869,6 @@ def test_sleep(api):
     ("http://oeo.net/user/123/procs/bbox_mol.json", "http://oeo.net/user/123/procs"),
 ])
 def test_evaluate_process_from_url(api100, requests_mock, url, namespace):
-    pytest.skip("#TODO EP-3450/EP-3509/EP-3517 EvalEnv handling is broken in UDPs")
     # Setup up "online" definition of `bbox_mol` process
     bbox_mol_spec = api100.load_json("udp/bbox_mol.json")
     url_mock = requests_mock.get(url, json=bbox_mol_spec)
@@ -884,7 +881,7 @@ def test_evaluate_process_from_url(api100, requests_mock, url, namespace):
     expected_bbox = {"left": 5.05, "bottom": 51.20, "right": 5.10, "top": 51.23, "srs": "EPSG:4326"}
     env = api100.last_load_collection_call('S2_FOOBAR')
     assert expected_bbox == {k: env[k] for k in expected_bbox.keys()}
-    assert url_mock.called_once
+    assert url_mock.called
 
 
 def test_execute_no_cube_1_plus_2(api100):
