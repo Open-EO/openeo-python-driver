@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Callable, Union
 from unittest import mock
 
@@ -101,8 +102,8 @@ def test_udf_runtimes(api):
 
 
 def test_execute_simple_download(api):
-    api.check_result("basic.json")
-    assert api.get_collection("S2_FAPAR_CLOUDCOVER").download.call_count == 1
+    resp = api.check_result("basic.json")
+    assert re.match(r"GTiff:save_result\(.*DummyDataCube", resp.text, flags=re.IGNORECASE)
 
 
 def test_load_collection(api):
@@ -207,7 +208,6 @@ def test_load_collection_filter(api):
             'result': True
         }
     })
-    assert api.get_collection('S2_FAPAR_CLOUDCOVER').download.call_count == 1
     expected = {
         'from': '2018-01-01', 'to': '2018-12-31',
         'left': 5.027, 'right': 5.0438, 'top': 51.2213, 'bottom': 51.1974, 'srs': 'EPSG:4326',

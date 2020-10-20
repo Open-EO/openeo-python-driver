@@ -71,7 +71,7 @@
       "data": {
         "from_node": "reduce1"
       },
-      "format": "geotiff"
+      "format": "GTiff"
     },
     "process_id": "save_result"
   }

@@ -365,10 +365,10 @@ def save_result(args: Dict, env: EvalEnv) -> SaveResult:
     data = extract_arg(args, 'data')
 
     if isinstance(data, SaveResult):
-        data.set_format(format, data)
+        data.set_format(format, options)
         return data
     elif isinstance(data, DriverDataCube):
-        return ImageCollectionResult(data, format, {**env.as_dict(), **options})
+        return ImageCollectionResult(data, format=format, options=options)
     elif isinstance(data, DelayedVector):
         geojsons = (mapping(geometry) for geometry in data.geometries)
         return JSONResult(geojsons)

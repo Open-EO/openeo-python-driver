@@ -89,5 +89,5 @@ class DriverDataCube(ImageCollection):
     def ndvi(self, nir: str = "nir", red: str = "red", target_band: str = None) -> 'DriverDataCube':
         self._not_implemented()
 
-    def download(self, outputfile: str, **format_options) -> str:
+    def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
         self._not_implemented()

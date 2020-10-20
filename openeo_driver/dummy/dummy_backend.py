@@ -79,7 +79,7 @@ class DummySecondaryServices(SecondaryServices):
     ]
 
     def _create_service(self, user_id: str, process_graph: dict, service_type: str, api_version: str,
-                       configuration: dict) -> str:
+                        configuration: dict) -> str:
         service_id = 'c63d6c27-c4c2-4160-b7bd-9e32f582daec'
         return service_id
 
@@ -122,9 +122,6 @@ class DummyDataCube(DriverDataCube):
     def __init__(self, metadata: CollectionMetadata = None):
         super(DummyDataCube, self).__init__(metadata=metadata)
 
-        # Some custom method mocks
-        self.download = Mock(name="download", return_value=__file__)
-
         # TODO #47: remove this non-standard process?
         self.timeseries = Mock(name="timeseries", return_value={})
 
@@ -137,6 +134,11 @@ class DummyDataCube(DriverDataCube):
         for name, method in DriverDataCube.__dict__.items():
             if not name.startswith('_') and name not in already_defined and callable(method):
                 setattr(self, name, Mock(name=name, return_value=self))
+
+    def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
+        with open(filename, "w") as f:
+            f.write("{f}:save_result({s!r}".format(f=format, s=self))
+        return filename
 
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'AggregatePolygonResult':
         # TODO: get rid of non-standard "zonal_statistics" (standard process is "aggregate_spatial")
