@@ -6,11 +6,12 @@ import logging
 import tempfile
 import time
 import warnings
-from typing import Dict, Callable, List, Union
+from typing import Dict, Callable, List, Union, Tuple
 
 import numpy as np
 import openeo_processes
 import requests
+from openeo.util import dict_no_none
 from shapely.geometry import shape, mapping
 
 from openeo.capabilities import ComparableVersion
@@ -280,15 +281,12 @@ def extract_deep(args: dict, *steps):
 
 def _extract_viewing_parameters(env: EvalEnv, source_id: tuple):
     constraints = env[ENV_SOURCE_CONSTRAINTS][source_id]
-    viewing_parameters = {}
-    viewing_parameters["from"], viewing_parameters["to"] = constraints.get("temporal_extent", [None, None])
-    spatial_extent = constraints.get("spatial_extent", {})
-    # TODO: eliminate need for aliases (see openeo-geopyspark-driver)?
-    for aliases in [["west", "left"], ["south", "bottom"], ["east", "right"], ["north", "top"], ["crs", "srs"]]:
-        for param in aliases:
-            viewing_parameters[param] = spatial_extent.get(aliases[0])
-    viewing_parameters["bands"] = constraints.get("bands", None)
-    viewing_parameters["properties"] = constraints.get("properties", None)
+    viewing_parameters = {
+        "temporal_extent": constraints.get("temporal_extent", [None, None]),
+        "spatial_extent": constraints.get("spatial_extent", {}),
+        "bands": constraints.get("bands", None),
+        "properties": constraints.get("properties", {})
+    }
     for param in ["correlation_id", "require_bounds", "polygons", "pyramid_levels"]:
         # TODO: are all these params still properly working (e.g. these cached polygons)?
         if param in env:
@@ -300,23 +298,30 @@ def _extract_viewing_parameters(env: EvalEnv, source_id: tuple):
 def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
     collection_id = extract_arg(args, 'id')
 
+    # Sanitized arguments
+    arguments = {}
+    if args.get("temporal_extent"):
+        arguments["temporal_extent"] = _extract_temporal_extent(
+            args, field="temporal_extent", process_id="load_collection"
+        )
+    if args.get("spatial_extent"):
+        # TODO: spatial_extent could also be a geojson object instead of bbox dict
+        arguments["spatial_extent"] = _extract_bbox_extent(args, field="spatial_extent", process_id="load_collection")
+    if args.get("bands"):
+        arguments["bands"] = extract_arg(args, "bands", process_id="load_collection")
+    if args.get("properties"):
+        arguments["properties"] = extract_arg(args, 'properties', process_id="load_collection")
+
     dry_run_tracer: dry_run.DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
-        arguments = {}
-        if args.get("temporal_extent"):
-            arguments["temporal_extent"] = _extract_temporal_extent(args, field="temporal_extent", process_id="load_collection")
-        if args.get("spatial_extent"):
-            # TODO: spatial_extent could also be a geojson object instead of bbox dict
-            arguments["spatial_extent"] = _extract_bbox_extent(args, field="spatial_extent", process_id="load_collection")
-        if args.get("bands"):
-            arguments["bands"] = extract_arg(args, "bands", process_id="load_collection")
-        if args.get('properties'):
-            arguments["properties"] = extract_arg(args, 'properties', process_id="load_collection")
         metadata = backend_implementation.catalog.get_collection_metadata(collection_id)
         return dry_run_tracer.load_collection(collection_id=collection_id, arguments=arguments, metadata=metadata)
     else:
+        # Extract basic source constraints.
         source_id = dry_run.DataSource.load_collection(collection_id=collection_id).get_source_id()
-        viewing_parameters= _extract_viewing_parameters(env, source_id=source_id)
+        viewing_parameters = _extract_viewing_parameters(env, source_id=source_id)
+        # Override with explicit arguments
+        viewing_parameters.update(arguments)
         return backend_implementation.catalog.load_collection(collection_id, viewing_parameters=viewing_parameters)
 
 
@@ -550,14 +555,14 @@ def mask_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     return image_collection
 
 
-def _extract_temporal_extent(args: dict, field="extent", process_id="filter_temporal") -> list:
+def _extract_temporal_extent(args: dict, field="extent", process_id="filter_temporal") -> Tuple[str, str]:
     extent = extract_arg(args, name=field, process_id=process_id)
     if len(extent) != 2:
         raise ProcessParameterInvalidException(
             process=process_id, parameter=field, reason="should have length 2, but got {e!r}".format(e=extent)
         )
     # TODO: convert to datetime? or at least normalize?
-    return extent
+    return tuple(extent)
 
 
 @process

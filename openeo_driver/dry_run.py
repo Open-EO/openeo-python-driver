@@ -1,4 +1,4 @@
-from typing import List, Union, Set, Dict, Iterable
+from typing import List, Union, Set, Dict
 
 import shapely.geometry.base
 
@@ -125,7 +125,6 @@ class DryRunDataTracer:
             cube = cube.filter_bbox(**arguments["spatial_extent"])
         if "bands" in arguments:
             cube = cube.filter_bands(arguments["bands"])
-        # TODO: load_collection `properties` argument
         return cube
 
     def load_disk_data(self, glob_pattern: str, format: str, options: dict) -> 'DryRunDataCube':

@@ -131,9 +131,8 @@ def test_execute_filter_temporal(api):
             'result': True
         },
     })
-    env = api.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
-    assert env["from"] == "2018-01-01"
-    assert env["to"] == "2018-12-31"
+    params = api.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    assert params["temporal_extent"] == ("2018-01-01", "2018-12-31")
 
 
 def test_execute_filter_bbox(api):
@@ -155,13 +154,8 @@ def test_execute_filter_bbox(api):
             'result': True
         },
     })
-    env = api.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
-    expected = {
-        "left": 3, "right": 5,
-        "bottom": 50, "top": 51,
-        "srs": "EPSG:4326",
-    }
-    assert {k: env[k] for k in expected} == expected
+    params = api.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    assert params["spatial_extent"] == {"west": 3, "east": 5, "south": 50, "north": 51, "crs": "EPSG:4326", }
 
 
 def test_execute_filter_bands(api):
@@ -208,12 +202,11 @@ def test_load_collection_filter(api):
             'result': True
         }
     })
-    expected = {
-        'from': '2018-01-01', 'to': '2018-12-31',
-        'left': 5.027, 'right': 5.0438, 'top': 51.2213, 'bottom': 51.1974, 'srs': 'EPSG:4326',
+    params = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    assert params["temporal_extent"] == ('2018-01-01', '2018-12-31')
+    assert params["spatial_extent"] == {
+        'west': 5.027, 'east': 5.0438, 'north': 51.2213, 'south': 51.1974, 'crs': 'EPSG:4326',
     }
-    env = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
-    assert {k: env[k] for k in expected.keys()} == expected
 
 
 def test_execute_apply_unary_040(api040):
@@ -435,18 +428,18 @@ def test_execute_mask(api):
     assert api.get_collection("S2_FAPAR_CLOUDCOVER").mask.call_count == 1
 
     expected = {
-        "left": pytest.approx(7.022705078125007),
-        "bottom": pytest.approx(51.29289899553571),
-        "right": pytest.approx(7.659912109375007),
-        "top": pytest.approx(51.75432477678571),
-        "srs": 'EPSG:4326',
+        "west": pytest.approx(7.022705078125007),
+        "south": pytest.approx(51.29289899553571),
+        "east": pytest.approx(7.659912109375007),
+        "north": pytest.approx(51.75432477678571),
+        "crs": 'EPSG:4326',
     }
 
-    env = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
-    assert {k: env[k] for k in expected} == expected
+    params = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
+    assert params["spatial_extent"] == expected
 
-    env = api.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
-    assert {k: env[k] for k in expected} == expected
+    params = api.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
+    assert params["spatial_extent"] == expected
 
 
 def test_execute_mask_polygon(api):
@@ -482,16 +475,14 @@ def test_aggregate_temporal_max_no_dimension(api):
         preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": null'))
 
 
-
 def test_execute_zonal_statistics(api):
     resp = api.check_result("zonal_statistics.json")
     assert resp.json == {
         "2015-07-06T00:00:00": [2.345],
         "2015-08-22T00:00:00": [None]
     }
-    expected = {"left": 7.02, "bottom": 51.29, "right": 7.65, "top": 51.75, "srs": 'EPSG:4326', }
-    env = api.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
-    assert {k: env[k] for k in expected} == expected
+    params = api.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
+    assert params["spatial_extent"] == {"west": 7.02, "south": 51.29, "east": 7.65, "north": 51.75, "crs": 'EPSG:4326'}
 
 
 def test_create_wmts_040(api040):
@@ -535,9 +526,8 @@ def test_read_vector(api):
     resp = api.check_result(process_graph)
     assert b'NaN' not in resp.data
     assert resp.json == {"2015-07-06T00:00:00": [2.345], "2015-08-22T00:00:00": [None]}
-    expected = {"left": 5, "bottom": 51, "right": 6, "top": 52, "srs": 'EPSG:4326'}
-    env = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
-    assert {k: env[k] for k in expected} == expected
+    params = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
+    assert params["spatial_extent"] == {"west": 5, "south": 51, "east": 6, "north": 52, "crs": 'EPSG:4326'}
 
 
 def test_read_vector_no_load_collection_spatial_extent(api):
@@ -549,9 +539,8 @@ def test_read_vector_no_load_collection_spatial_extent(api):
     resp = api.check_result(process_graph)
     assert b'NaN' not in resp.data
     assert resp.json == {"2015-07-06T00:00:00": [2.345], "2015-08-22T00:00:00": [None]}
-    expected = {"left": 5.05, "bottom": 51.21, "right": 5.15, "top": 51.3, "srs": 'EPSG:4326'}
-    env = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
-    assert {k: env[k] for k in expected} == expected
+    params = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
+    assert params["spatial_extent"] == {"west": 5.05, "south": 51.21, "east": 5.15, "north": 51.3, "crs": 'EPSG:4326'}
 
 
 def test_run_udf_on_vector(api100):
@@ -592,9 +581,8 @@ def test_load_collection_without_spatial_extent_incorporates_read_vector_extent(
         "2015-07-06T00:00:00": [2.345],
         "2015-08-22T00:00:00": [None]
     }
-    expected = {"left": 5.05, "bottom": 51.21, "right": 5.15, "top": 51.3, "srs": 'EPSG:4326', }
-    env = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
-    assert {k: env[k] for k in expected} == expected
+    params = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
+    assert params["spatial_extent"] == {"west": 5.05, "south": 51.21, "east": 5.15, "north": 51.3, "crs": 'EPSG:4326'}
 
 
 def test_read_vector_from_feature_collection(api):
@@ -608,10 +596,8 @@ def test_read_vector_from_feature_collection(api):
         "2015-07-06T00:00:00": [2.345],
         "2015-08-22T00:00:00": [None]
     }
-    expected = {"left": 5, "bottom": 51, "right": 6, "top": 52, "srs": 'EPSG:4326'}
-    env = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
-    assert {k: env[k] for k in expected} == expected
-
+    params = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
+    assert params["spatial_extent"] == {"west": 5, "south": 51, "east": 6, "north": 52, "crs": 'EPSG:4326'}
 
 
 def test_no_nested_JSONResult(api):
@@ -638,11 +624,9 @@ def test_timeseries_point_with_bbox(api):
         }
     }
     api.check_result(process_graph, path="/timeseries/point?x=1&y=2")
-    expected = {
-        "left": 3, "right": 6, "bottom": 50, "top": 51, "srs": "EPSG:4326"
-    }
-    env = api.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
-    assert {k: env[k] for k in expected} == expected
+    params = api.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
+    assert params["spatial_extent"] == {"west": 3, "east": 6, "south": 50, "north": 51, "crs": "EPSG:4326"}
+
 
 
 def test_load_disk_data(api):
@@ -659,17 +643,17 @@ def test_mask_with_vector_file(api):
 
 def test_aggregate_feature_collection(api):
     api.check_result("aggregate_feature_collection.json")
-    expected = {"left": 5, "bottom": 51, "right": 6, "top": 52, "srs": 'EPSG:4326'}
-    env = api.last_load_collection_call('S2_FOOBAR')
-    assert {k: env[k] for k in expected} == expected
+    params = api.last_load_collection_call('S2_FOOBAR')
+    assert params["spatial_extent"] == {"west": 5, "south": 51, "east": 6, "north": 52, "crs": 'EPSG:4326'}
 
 
 def test_aggregate_feature_collection_no_load_collection_spatial_extent(api):
     preprocess = preprocess_regex_check_and_replace(r'"spatial_extent"\s*:\s*\{.*?\},', replacement='')
     api.check_result("aggregate_feature_collection.json", preprocess=preprocess)
-    expected = {"left": 5.076, "bottom": 51.21, "right": 5.166, "top": 51.26, "srs": 'EPSG:4326'}
-    env = api.last_load_collection_call('S2_FOOBAR')
-    assert {k: env[k] for k in expected} == expected
+    params = api.last_load_collection_call('S2_FOOBAR')
+    assert params["spatial_extent"] == {
+        "west": 5.076, "south": 51.21, "east": 5.166, "north": 51.26, "crs": 'EPSG:4326'
+    }
 
 
 def test_post_result_process_100(client):
@@ -718,9 +702,8 @@ def test_user_defined_process_bbox_mol_basic(api100, namespace):
     elif "namespace" in pg["bboxmol1"]:
         del pg["bboxmol1"]["namespace"]
     api100.check_result(pg)
-    expected_bbox = {"left": 5.05, "bottom": 51.20, "right": 5.10, "top": 51.23, "srs": "EPSG:4326"}
-    env = api100.last_load_collection_call('S2_FOOBAR')
-    assert expected_bbox == {k: env[k] for k in expected_bbox.keys()}
+    params = api100.last_load_collection_call('S2_FOOBAR')
+    assert params["spatial_extent"] == {"west": 5.05, "south": 51.2, "east": 5.1, "north": 51.23, "crs": 'EPSG:4326'}
 
 
 @pytest.mark.parametrize("namespace", ["backend", "foobar"])
@@ -763,12 +746,8 @@ def test_user_defined_process_date_window(
     }
 
     api100.check_result(pg)
-    expected = {
-        "from": expected_start_date,
-        "to": expected_end_date,
-    }
-    env = api100.last_load_collection_call('S2_FOOBAR')
-    assert expected == {k: env[k] for k in expected.keys()}
+    params = api100.last_load_collection_call('S2_FOOBAR')
+    assert params["temporal_extent"] == (expected_start_date, expected_end_date)
 
 
 def test_user_defined_process_required_parameter(api100):
@@ -878,9 +857,8 @@ def test_evaluate_process_from_url(api100, requests_mock, url, namespace):
     pg["bboxmol1"]["namespace"] = namespace
     api100.check_result(pg)
 
-    expected_bbox = {"left": 5.05, "bottom": 51.20, "right": 5.10, "top": 51.23, "srs": "EPSG:4326"}
-    env = api100.last_load_collection_call('S2_FOOBAR')
-    assert expected_bbox == {k: env[k] for k in expected_bbox.keys()}
+    params = api100.last_load_collection_call('S2_FOOBAR')
+    assert params["spatial_extent"] == {"west": 5.05, "south": 51.2, "east": 5.1, "north": 51.23, "crs": 'EPSG:4326'}
     assert url_mock.called
 
 
@@ -963,13 +941,10 @@ def test_execute_EP3509_process_order(api100):
         }, "result": True}
     }
     api100.check_result(pg)
-    env = api100.last_load_collection_call("S2_FOOBAR")
-    expected = {
-        "left": 5, "right": 6, "bottom": 50, "top": 51, "srs": "EPSG:4326",
-        "from": "2020-02-02", "to": "2020-03-03",
-        "bands": ["B02", "B03"],
-    }
-    assert {k: env.get(k) for k in expected.keys()} == expected
+    params = api100.last_load_collection_call("S2_FOOBAR")
+    assert params["temporal_extent"] == ("2020-02-02", "2020-03-03")
+    assert params["spatial_extent"] == {"west": 5, "east": 6, "south": 50, "north": 51, "crs": "EPSG:4326"}
+    assert params["bands"] == ["B02", "B03"]
 
 
 @pytest.mark.parametrize(["pg", "ndvi_expected", "mask_expected"], [
