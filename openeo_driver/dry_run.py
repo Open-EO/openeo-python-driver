@@ -10,7 +10,7 @@ from openeo_driver.utils import geojson_to_geometry, to_hashable, bands_union, t
     spatial_extent_union
 
 
-class _DataTraceBase:
+class DataTraceBase:
     """Base class for data traces."""
 
     def __hash__(self):
@@ -27,7 +27,7 @@ class _DataTraceBase:
         return "_base"
 
 
-class DataSource(_DataTraceBase):
+class DataSource(DataTraceBase):
     """Data source: a data (cube) generating process like `load_collection`, `load_disk_data`, ..."""
     __slots__ = ["_process", "_arguments"]
 
@@ -61,7 +61,7 @@ class DataSource(_DataTraceBase):
         return cls(process="load_disk_data", arguments=(glob_pattern, format, options))
 
 
-class DataTrace(_DataTraceBase):
+class DataTrace(DataTraceBase):
     """
     Processed data: linked list of processes, ending at a data source node.
 
@@ -70,7 +70,7 @@ class DataTrace(_DataTraceBase):
     """
     __slots__ = ["parent", "_operation", "_arguments"]
 
-    def __init__(self, parent: _DataTraceBase, operation: str, arguments: Union[dict, tuple]):
+    def __init__(self, parent: DataTraceBase, operation: str, arguments: Union[dict, tuple]):
         self.parent = parent
         self._operation = operation
         self._arguments = arguments
@@ -100,14 +100,14 @@ class DryRunDataTracer:
     """
 
     def __init__(self):
-        self._traces: List[_DataTraceBase] = []
+        self._traces: List[DataTraceBase] = []
 
-    def add_trace(self, trace: _DataTraceBase) -> _DataTraceBase:
+    def add_trace(self, trace: DataTraceBase) -> DataTraceBase:
         """Keep track of given trace"""
         self._traces.append(trace)
         return trace
 
-    def process_traces(self, traces: List[_DataTraceBase], operation: str, arguments: dict) -> List[_DataTraceBase]:
+    def process_traces(self, traces: List[DataTraceBase], operation: str, arguments: dict) -> List[DataTraceBase]:
         """Process given traces with an operation (and keep track of the results)."""
         return [
             self.add_trace(DataTrace(parent=t, operation=operation, arguments=arguments))
@@ -133,7 +133,7 @@ class DryRunDataTracer:
         self.add_trace(trace)
         return DryRunDataCube(traces=[trace], data_tracer=self)
 
-    def get_trace_leaves(self) -> Set[_DataTraceBase]:
+    def get_trace_leaves(self) -> Set[DataTraceBase]:
         """Get all nodes in the tree of traces that are not parent of another trace."""
         leaves = set(self._traces)
         for trace in self._traces:
@@ -189,7 +189,7 @@ class DryRunDataCube(DriverDataCube):
 
     def __init__(
             self,
-            traces: List[_DataTraceBase], data_tracer: DryRunDataTracer,
+            traces: List[DataTraceBase], data_tracer: DryRunDataTracer,
             metadata: CollectionMetadata = None
     ):
         super(DryRunDataCube, self).__init__(metadata=metadata)
