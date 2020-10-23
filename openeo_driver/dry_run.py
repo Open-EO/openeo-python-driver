@@ -1,3 +1,37 @@
+"""
+
+Dry-run evaluation of a process graph.
+
+When evaluating a process graph we first do a "dry run" evaluation
+of the process graph to detect various aspect of the input data
+and processing (like temporal extent, bbox, bands, projection).
+Knowing this in advance helps when doing the real evaluation
+more efficiently.
+
+The goal is to use as much of the real process graph processing mechanisms,
+but pushing around dummy data cubes.
+
+The architecture consists of these classes:
+- DataTrace: starts from a `load_collection` (or other source) process and records what happens to this
+    single data source (filter_temporal, filter_bbox, ...)
+- DryRunDataTracer: observer that keeps track of all data traces during a dry run
+- DryRunDataCube: dummy data cube that is passed around in processed
+
+Their relationship is as follows:
+- There is a single DryRunDataTracer for a dry-run, keeping track of all relevant operations on all sources
+- A DryRunDataCube links to one or more DataTraces, describing the operations that happened
+    on the sources that lead to the state of the DryRunDataCube. Often there is just one DataTrace
+    in a DryRunDataCube, but when the DryRunDataCube is result of mask or merge_cubes operations,
+    there will be multiple DataTraces.
+    A DryRunDataCube also has a reference to the DryRunDataTracer in play, so that it can be informed
+    when processes are applied to the DryRunDataCube.
+
+When the dry-run phase is done, the DryRunDataTracer knows about all relevant operations
+on each data source. It provides methods for example to extract source constraints (bbox/bands/date ranges)
+which are used to bootstrap the EvalEnv that is used for the real process graph processing phase.
+These source constraints can then be fetched from the EvalEnv at `load_collection` time.
+
+"""
 from typing import List, Union, Set, Dict
 
 import shapely.geometry.base
@@ -189,7 +223,8 @@ class DryRunDataCube(DriverDataCube):
 
     def __init__(
             self,
-            traces: List[DataTraceBase], data_tracer: DryRunDataTracer,
+            traces: List[DataTraceBase],
+            data_tracer: DryRunDataTracer,
             metadata: CollectionMetadata = None
     ):
         super(DryRunDataCube, self).__init__(metadata=metadata)
