@@ -24,9 +24,9 @@ from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException
-from openeo_driver.save_result import SaveResult
+from openeo_driver.save_result import SaveResult, get_temp_file
 from openeo_driver.users import HttpAuthHandler, User
-from openeo_driver.utils import replace_nan_values
+from openeo_driver.utils import replace_nan_values, EvalEnv
 
 _log = logging.getLogger(__name__)
 
@@ -390,7 +390,7 @@ def point():
     y = float(request.args.get('y', ''))
     srs = request.args.get('srs', None)
     process_graph = _extract_process_graph(request.json)
-    image_collection = evaluate(process_graph, viewingParameters={'version': g.api_version})
+    image_collection = evaluate(process_graph, env=EvalEnv({'version': g.api_version}))
     return jsonify(image_collection.timeseries(x, y, srs))
 
 
@@ -403,8 +403,8 @@ def download():
         process_graph = request.get_json()
         image_collection = evaluate(process_graph)
         # TODO Unify with execute?
-        filename = image_collection.download(None, outputformat=outputformat)
 
+        filename = image_collection.save_result(filename=get_temp_file(), format=outputformat, format_options={})
         return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
     else:
         return 'Usage: Download image using POST.'
@@ -445,18 +445,18 @@ def execute():
         _log.warning("/execute by un-authenticated user. %(e)r", {"e": e})
         user = None
 
-    result = evaluate(process_graph, viewingParameters={
+    result = evaluate(process_graph, env=EvalEnv({
         'version': g.api_version,
         'pyramid_levels': 'highest',
         'user': user,
         'require_bounds': True,
         'correlation_id': str(uuid.uuid4())
-    })
+    }))
 
     # TODO unify all this output handling within SaveResult logic?
     if isinstance(result, DriverDataCube):
         format_options = post_data.get('output', {})
-        filename = result.download(None, bbox="", time="", **format_options)
+        filename = result.save_result(filename=get_temp_file(), format="GTiff", format_options=format_options)
         return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
     elif result is None:
         abort(500, "Process graph evaluation gave no result")

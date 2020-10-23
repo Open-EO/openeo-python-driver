@@ -1,5 +1,4 @@
 import numbers
-import os
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -17,16 +16,32 @@ from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, ProcessGraphNotFoundException
 from openeo_driver.save_result import AggregatePolygonResult
+from openeo_driver.utils import EvalEnv
 
 DEFAULT_DATETIME = datetime(2020, 4, 23, 16, 20, 27)
 
 # TODO: eliminate this global state with proper pytest fixture usage
-collections = {}
+_collections = {}
+_load_collection_calls = {}
 
 
 def utcnow() -> datetime:
     # To simplify testing, we break time.
     return DEFAULT_DATETIME
+
+
+def get_collection(collection_id: str) -> 'DummyDataCube':
+    return _collections[collection_id]
+
+
+def last_load_collection_call(collection_id: str) -> EvalEnv:
+    return _load_collection_calls[collection_id][-1]
+
+
+def reset():
+    global _collections, _load_collection_calls
+    _collections = {}
+    _load_collection_calls = {}
 
 
 class DummyVisitor(ProcessGraphVisitor):
@@ -64,7 +79,7 @@ class DummySecondaryServices(SecondaryServices):
     ]
 
     def _create_service(self, user_id: str, process_graph: dict, service_type: str, api_version: str,
-                       configuration: dict) -> str:
+                        configuration: dict) -> str:
         service_id = 'c63d6c27-c4c2-4160-b7bd-9e32f582daec'
         return service_id
 
@@ -103,7 +118,52 @@ class DummySecondaryServices(SecondaryServices):
 
 class DummyDataCube(DriverDataCube):
     # TODO move all Mock stuff here?
-    pass
+
+    def __init__(self, metadata: CollectionMetadata = None):
+        super(DummyDataCube, self).__init__(metadata=metadata)
+
+        # TODO #47: remove this non-standard process?
+        self.timeseries = Mock(name="timeseries", return_value={})
+
+        # TODO can we get rid of these non-standard "apply_tiles" processes?
+        self.apply_tiles = Mock(name="apply_tiles", return_value=self)
+        self.apply_tiles_spatiotemporal = Mock(name="apply_tiles_spatiotemporal", return_value=self)
+
+        # Create mock methods for remaining data cube methods that are not yet defined
+        already_defined = set(DummyDataCube.__dict__.keys()).union(self.__dict__.keys())
+        for name, method in DriverDataCube.__dict__.items():
+            if not name.startswith('_') and name not in already_defined and callable(method):
+                setattr(self, name, Mock(name=name, return_value=self))
+
+    def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
+        with open(filename, "w") as f:
+            f.write("{f}:save_result({s!r}".format(f=format, s=self))
+        return filename
+
+    def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'AggregatePolygonResult':
+        # TODO: get rid of non-standard "zonal_statistics" (standard process is "aggregate_spatial")
+        assert func == 'mean' or func == 'avg'
+
+        def assert_polygon_or_multipolygon(geometry):
+            assert isinstance(geometry, Polygon) or isinstance(geometry, MultiPolygon)
+
+        if isinstance(regions, str):
+            geometries = [geometry for geometry in DelayedVector(regions).geometries]
+
+            assert len(geometries) > 0
+            for geometry in geometries:
+                assert_polygon_or_multipolygon(geometry)
+        elif isinstance(regions, GeometryCollection):
+            assert len(regions) > 0
+            for geometry in regions:
+                assert_polygon_or_multipolygon(geometry)
+        else:
+            assert_polygon_or_multipolygon(regions)
+
+        return AggregatePolygonResult(timeseries={
+            "2015-07-06T00:00:00": [2.345],
+            "2015-08-22T00:00:00": [float('nan')]
+        }, regions=GeometryCollection())
 
 
 class DummyCatalog(CollectionCatalog):
@@ -181,120 +241,19 @@ class DummyCatalog(CollectionCatalog):
     def __init__(self):
         super().__init__(all_metadata=self._COLLECTIONS)
 
-    def load_collection(self, collection_id: str, viewing_parameters: dict) -> DriverDataCube:
-        if collection_id in collections:
-            return collections[collection_id]
+    def load_collection(self, collection_id: str, viewing_parameters: dict) -> DummyDataCube:
+        if collection_id in _collections:
+            return _collections[collection_id]
 
-        # TODO simplify all this mock/return_value stuff?
         image_collection = DummyDataCube(
             metadata=CollectionMetadata(metadata=self.get_collection_metadata(collection_id))
         )
 
-        image_collection.viewingParameters = viewing_parameters.copy()
+        if collection_id not in _load_collection_calls:
+            _load_collection_calls[collection_id] = []
+        _load_collection_calls[collection_id].append(viewing_parameters.copy())
 
-        image_collection.mask = Mock(name="mask")
-        image_collection.mask.return_value = image_collection
-
-        image_collection.mask_polygon = Mock(name="mask_polygon")
-        image_collection.mask_polygon.return_value = image_collection
-
-        image_collection.bbox_filter = Mock(name="bbox_filter")
-        image_collection.bbox_filter.return_value = image_collection
-
-        download = Mock(name='download')
-        # TODO: download something more real to allow higher quality testing
-        download.return_value = os.path.realpath(__file__)
-
-        image_collection.download = download
-
-        timeseries = Mock(name='timeseries')
-        timeseries.return_value = {
-            "viewingParameters": image_collection.viewingParameters
-        }
-
-        image_collection.timeseries = timeseries
-
-        def is_one_or_more_polygons(return_value, regions, func):
-            assert func == 'mean' or func == 'avg'
-
-            def assert_polygon_or_multipolygon(geometry):
-                assert isinstance(geometry, Polygon) or isinstance(geometry, MultiPolygon)
-
-            if isinstance(regions, str):
-                geometries = [geometry for geometry in DelayedVector(regions).geometries]
-
-                assert len(geometries) > 0
-                for geometry in geometries:
-                    assert_polygon_or_multipolygon(geometry)
-            elif isinstance(regions, GeometryCollection):
-                assert len(regions) > 0
-                for geometry in regions:
-                    assert_polygon_or_multipolygon(geometry)
-            else:
-                assert_polygon_or_multipolygon(regions)
-
-            return return_value
-
-        zonal_statistics = Mock(name='zonal_statistics')
-        zonal_statistics.side_effect = lambda regions, func: is_one_or_more_polygons(AggregatePolygonResult(timeseries={
-            "2015-07-06T00:00:00": [2.9829132080078127],
-            "2015-08-22T00:00:00": [float('nan')]
-        },regions=GeometryCollection()), regions, func)
-
-        image_collection.zonal_statistics = zonal_statistics
-
-        image_collection.apply_tiles_spatiotemporal = Mock(name="apply_tiles_spatiotemporal")
-        image_collection.apply_tiles_spatiotemporal.return_value = image_collection
-
-        image_collection.apply_dimension = Mock(name="apply_dimension")
-        image_collection.apply_dimension.return_value = image_collection
-
-        image_collection.apply_neighborhood = Mock(name="apply_neighborhood")
-        image_collection.apply_neighborhood.return_value = image_collection
-
-        image_collection.apply_tiles = Mock(name="apply_tiles")
-        image_collection.apply_tiles.return_value = image_collection
-
-        image_collection.apply = Mock(name="apply")
-        image_collection.apply.return_value = image_collection
-
-        image_collection.reduce = Mock(name="reduce")
-        image_collection.reduce.return_value = image_collection
-
-        image_collection.reduce_dimension = Mock(name="reduce_dimension")
-        image_collection.reduce_dimension.return_value = image_collection
-
-        image_collection.reduce_bands = Mock(name="reduce_bands")
-        image_collection.reduce_bands.return_value = image_collection
-
-        image_collection.add_dimension = Mock(name="add_dimension")
-        image_collection.add_dimension.return_value = image_collection
-
-        image_collection.rename_dimension = Mock(name="rename_dimension")
-        image_collection.rename_dimension.return_value = image_collection
-
-        image_collection.rename_labels = Mock(name="rename_labels")
-        image_collection.rename_labels.return_value = image_collection
-
-        image_collection.aggregate_temporal = Mock(name="aggregate_temporal")
-        image_collection.aggregate_temporal.return_value = image_collection
-
-        image_collection.max_time = Mock(name="max_time")
-        image_collection.max_time.return_value = image_collection
-
-        image_collection.apply_kernel = Mock(name="apply_kernel")
-        image_collection.apply_kernel.return_value = image_collection
-
-        image_collection.merge = Mock(name="merge")
-        image_collection.merge.return_value = image_collection
-
-        image_collection.resample_cube_spatial = Mock(name="resample_cube_spatial")
-        image_collection.resample_cube_spatial.return_value = image_collection
-
-        image_collection.ndvi = Mock(name="ndvi")
-        image_collection.ndvi.return_value = image_collection
-
-        collections[collection_id] = image_collection
+        _collections[collection_id] = image_collection
         return image_collection
 
 
@@ -421,7 +380,7 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
         }
 
     def load_disk_data(self, format: str, glob_pattern: str, options: dict, viewing_parameters: dict) -> object:
-        return {}
+        return DummyDataCube()
 
     def visit_process_graph(self, process_graph: dict) -> ProcessGraphVisitor:
         return DummyVisitor().accept_process_graph(process_graph)

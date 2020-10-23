@@ -4,36 +4,37 @@
 
 import logging
 import tempfile
-import warnings
-from typing import Dict, Callable, List
 import time
+import warnings
+from typing import Dict, Callable, List, Union, Tuple
 
 import numpy as np
+import openeo_processes
 import requests
+from openeo.util import dict_no_none
+from shapely.geometry import shape, mapping
 
 from openeo.capabilities import ComparableVersion
 from openeo.metadata import MetadataException
+from openeo_driver import dry_run
 from openeo_driver.backend import get_backend_implementation, UserDefinedProcessMetadata
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.errors import ProcessParameterRequiredException, \
-    ProcessParameterInvalidException
+from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException
 from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult
 from openeo_driver.specs import SPECS_ROOT
-from openeo_driver.utils import smart_bool
+from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry
 from openeo_udf.api.feature_collection import FeatureCollection
 from openeo_udf.api.structured_data import StructuredData
 from openeo_udf.api.udf_data import UdfData
-from shapely.geometry import shape, mapping
-import openeo_processes
 
 _log = logging.getLogger(__name__)
 
 # Set up process registries (version dependent)
-process_registry_040 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/0.4')
-process_registry_100 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/1.0')
+process_registry_040 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/0.4', argument_names=["args", "env"])
+process_registry_100 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/1.0', argument_names=["args", "env"])
 
 # Bootstrap with some mathematical/logical processes
 process_registry_040.add_spec_by_name(
@@ -56,9 +57,9 @@ def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List
     """
 
     def wrap(process):
-        """Adapter to connect the kwargs style of openeo-processes-python with args/viewingParameters"""
+        """Adapter to connect the kwargs style of openeo-processes-python with args/EvalEnv"""
 
-        def wrapped(args: dict, viewingParameters: dict):
+        def wrapped(args: dict, env: EvalEnv):
             return process(**args)
 
         return wrapped
@@ -126,26 +127,38 @@ def get_process_registry(api_version: ComparableVersion) -> ProcessRegistry:
 
 backend_implementation = get_backend_implementation()
 
+# Some (env) string constants to simplify code navigation
+ENV_SOURCE_CONSTRAINTS = "source_constraints"
+ENV_DRY_RUN_TRACER = "dry_run_tracer"
 
-def evaluate(processGraph: dict, viewingParameters=None) -> DriverDataCube:
-    """
-    Converts the json representation of a (part of a) process graph into the corresponding Python data cube object.
-    :param processGraph:
-    :param viewingParameters:
-    :return:  an DriverDataCube
-    """
-    if viewingParameters is None:
-        viewingParameters = {}
 
-    if 'version' not in viewingParameters:
+def evaluate(process_graph: dict, env: EvalEnv = None, do_dry_run=True) -> DriverDataCube:
+    """
+    Converts the json representation of a (part of a) process graph into the corresponding Python data cube.
+    """
+    if env is None:
+        env = EvalEnv()
+
+    if 'version' not in env:
         warnings.warn("Blindly assuming 0.4.0")
-        viewingParameters['version'] = '0.4.0'
+        env = env.push({"version": "0.4.0"})
 
     # TODO avoid local import
     from openeo.internal.process_graph_visitor import ProcessGraphVisitor
-    preprocessed_process_graph = _expand_macros(processGraph)
+    preprocessed_process_graph = _expand_macros(process_graph)
     top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(preprocessed_process_graph)
-    return convert_node(preprocessed_process_graph[top_level_node], viewingParameters)
+    result_node = preprocessed_process_graph[top_level_node]
+
+    if do_dry_run:
+        dry_run_tracer = dry_run.DryRunDataTracer()
+        _log.info("Doing dry run")
+        convert_node(result_node, env=env.push({ENV_DRY_RUN_TRACER: dry_run_tracer}))
+        # TODO: work with a dedicated DryRunEvalEnv?
+        source_constraints = dry_run_tracer.get_source_constraints()
+        _log.info("Dry run extracted these source constraints: {s}".format(s=source_constraints))
+        env = env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
+
+    return convert_node(result_node, env=env)
 
 
 def _expand_macros(process_graph: dict) -> dict:
@@ -198,21 +211,21 @@ def _expand_macros(process_graph: dict) -> dict:
     return expand_macros_recursively(process_graph)
 
 
-def convert_node(processGraph: dict, viewingParameters=None):
+def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
     if isinstance(processGraph, dict):
         if 'process_id' in processGraph:
             return apply_process(
                 process_id=processGraph['process_id'], args=processGraph.get('arguments', {}),
-                namespace=processGraph.get("namespace", None), viewingParameters=viewingParameters
+                namespace=processGraph.get("namespace", None), env=env
             )
         elif 'node' in processGraph:
-            return convert_node(processGraph['node'], viewingParameters)
+            return convert_node(processGraph['node'], env=env)
         elif 'callback' in processGraph or 'process_graph' in processGraph:
             # a "process_graph" object is a new process graph, don't evaluate it in the parent graph
             return processGraph
         elif 'from_parameter' in processGraph:
             try:
-                return viewingParameters[processGraph['from_parameter']]
+                return env[processGraph['from_parameter']]
             except KeyError:
                 raise ProcessParameterRequiredException(process="n/a", parameter=processGraph['from_parameter'])
         elif 'from_argument' in processGraph:
@@ -221,10 +234,12 @@ def convert_node(processGraph: dict, viewingParameters=None):
             # backwards compatibility for clients that still use 'dimension_data', can be removed when clients are upgraded
             if argument_reference == 'dimension_data':
                 argument_reference = 'data'
-            return viewingParameters.get(argument_reference)
+            return env.get(argument_reference)
         else:
-            # simply return nodes that do not require special handling, this is the case for geojson polygons
-            return processGraph
+            # TODO: Don't apply `convert_node` for some special cases (e.g. geojson objects)?
+            return {k:convert_node(v, env=env) for k,v in processGraph.items()}
+    elif isinstance(processGraph, list):
+        return [convert_node(x, env=env) for x in processGraph]
     return processGraph
 
 
@@ -264,71 +279,101 @@ def extract_deep(args: dict, *steps):
     return value
 
 
-@process
-def load_collection(args: Dict, viewingParameters) -> DriverDataCube:
-    name = extract_arg(args, 'id')
-    if 'temporal_extent' in args and args['temporal_extent'] is not None:
-        extent = args['temporal_extent']
-        if len(extent) != 2:
-            raise AttributeError("temporal_extent property should be an array of length 2, but got: " + str(extent))
-        viewingParameters["from"] = extent[0]
-        viewingParameters["to"] = extent[1]
-    if "spatial_extent" in args and args['spatial_extent'] is not None:
-        extent = args["spatial_extent"]
-        viewingParameters["left"] = extract_arg(extent, "west")
-        viewingParameters["right"] = extract_arg(extent, "east")
-        viewingParameters["top"] = extract_arg(extent, "north")
-        viewingParameters["bottom"] = extract_arg(extent, "south")
-        viewingParameters["srs"] = extent.get("crs") or "EPSG:4326"
-    if "bands" in args and args['bands'] is not None:
-        viewingParameters["bands"] = extract_arg(args, "bands")
-    if args.get('properties'):
-        viewingParameters['properties'] = extract_arg(args, 'properties')
+def _extract_viewing_parameters(env: EvalEnv, source_id: tuple):
+    constraints = env[ENV_SOURCE_CONSTRAINTS][source_id]
+    viewing_parameters = {
+        "temporal_extent": constraints.get("temporal_extent", [None, None]),
+        "spatial_extent": constraints.get("spatial_extent", {}),
+        "bands": constraints.get("bands", None),
+        "properties": constraints.get("properties", {})
+    }
+    for param in ["correlation_id", "require_bounds", "polygons", "pyramid_levels"]:
+        # TODO: are all these params still properly working (e.g. these cached polygons)?
+        if param in env:
+            viewing_parameters[param] = env[param]
+    return viewing_parameters
 
-    return backend_implementation.catalog.load_collection(name, viewingParameters)
+
+@process
+def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
+    collection_id = extract_arg(args, 'id')
+
+    # Sanitized arguments
+    arguments = {}
+    if args.get("temporal_extent"):
+        arguments["temporal_extent"] = _extract_temporal_extent(
+            args, field="temporal_extent", process_id="load_collection"
+        )
+    if args.get("spatial_extent"):
+        # TODO: spatial_extent could also be a geojson object instead of bbox dict
+        arguments["spatial_extent"] = _extract_bbox_extent(args, field="spatial_extent", process_id="load_collection")
+    if args.get("bands"):
+        arguments["bands"] = extract_arg(args, "bands", process_id="load_collection")
+    if args.get("properties"):
+        arguments["properties"] = extract_arg(args, 'properties', process_id="load_collection")
+
+    dry_run_tracer: dry_run.DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
+    if dry_run_tracer:
+        metadata = backend_implementation.catalog.get_collection_metadata(collection_id)
+        return dry_run_tracer.load_collection(collection_id=collection_id, arguments=arguments, metadata=metadata)
+    else:
+        # Extract basic source constraints.
+        source_id = dry_run.DataSource.load_collection(collection_id=collection_id).get_source_id()
+        viewing_parameters = _extract_viewing_parameters(env, source_id=source_id)
+        # Override with explicit arguments
+        viewing_parameters.update(arguments)
+        return backend_implementation.catalog.load_collection(collection_id, viewing_parameters=viewing_parameters)
 
 
 @non_standard_process(
     ProcessSpec(id='load_disk_data', description="Loads arbitrary from disk.")
         .param(name='format', description="the file format, e.g. 'GTiff'", schema={"type": "string"}, required=True)
-        .param(name='glob_pattern', description="a glob pattern that matches the files to load from disk", schema={"type": "string"}, required=True)
+        .param(name='glob_pattern', description="a glob pattern that matches the files to load from disk",
+               schema={"type": "string"}, required=True)
         .param(name='options', description="options specific to the file format", schema={"type": "object"})
         .returns(description="the data as a data cube", schema={})
 )
-def load_disk_data(args: Dict, viewingParameters) -> DriverDataCube:
-    format = extract_arg(args, 'format')
-    glob_pattern = extract_arg(args, 'glob_pattern')
-    options = args.get('options', {})
-
-    return backend_implementation.load_disk_data(format, glob_pattern, options, viewingParameters)
+def load_disk_data(args: Dict, env: EvalEnv) -> DriverDataCube:
+    # TODO: rename this to "load_uploaded_files" like in official openeo processes?
+    kwargs = dict(
+        glob_pattern=extract_arg(args, 'glob_pattern'),
+        format=extract_arg(args, 'format'),
+        options=args.get('options', {}),
+    )
+    dry_run_tracer: dry_run.DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
+    if dry_run_tracer:
+        return dry_run_tracer.load_disk_data(**kwargs)
+    else:
+        source_id = dry_run.DataSource.load_disk_data(**kwargs).get_source_id()
+        viewing_parameters = _extract_viewing_parameters(env, source_id=source_id)
+        return backend_implementation.load_disk_data(**kwargs, viewing_parameters=viewing_parameters)
 
 
 @process_registry_100.add_function
-def apply_neighborhood(args: dict, ctx: dict) -> DriverDataCube:
+def apply_neighborhood(args: dict, env: EvalEnv) -> DriverDataCube:
     process = extract_deep(args, "process", "process_graph")
     size = extract_arg(args, 'size')
     overlap = extract_arg(args, 'overlap')
     context = args.get( 'context',{})
     data_cube = extract_arg(args, 'data')
-
     return data_cube.apply_neighborhood(process,size,overlap)
 
 @process
-def apply_dimension(args: Dict, ctx: dict) -> DriverDataCube:
-    return _evaluate_sub_process_graph(args, 'process', parent_process='apply_dimension', version=ctx["version"])
+def apply_dimension(args: Dict, env: EvalEnv) -> DriverDataCube:
+    return _evaluate_sub_process_graph(args, 'process', parent_process='apply_dimension', env=env)
 
 
 @process
-def save_result(args: Dict, viewingParameters) -> SaveResult:
+def save_result(args: Dict, env: EvalEnv) -> SaveResult:
     format = extract_arg(args, 'format')
     options = args.get('options', {})
     data = extract_arg(args, 'data')
 
     if isinstance(data, SaveResult):
-        data.set_format(format, data)
+        data.set_format(format, options)
         return data
-    if isinstance(data, DriverDataCube):
-        return ImageCollectionResult(data, format, {**viewingParameters, **options})
+    elif isinstance(data, DriverDataCube):
+        return ImageCollectionResult(data, format=format, options=options)
     elif isinstance(data, DelayedVector):
         geojsons = (mapping(geometry) for geometry in data.geometries)
         return JSONResult(geojsons)
@@ -340,34 +385,24 @@ def save_result(args: Dict, viewingParameters) -> SaveResult:
 
 
 @process
-def apply(args: dict, ctx: dict) -> DriverDataCube:
+def apply(args: dict, env: EvalEnv) -> DriverDataCube:
     """
     Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
-
-    :param args:
-    :param viewingParameters:
-    :return:
     """
-    version = ComparableVersion(ctx["version"])
-
-    if version.at_least("1.0.0"):
+    if ComparableVersion("1.0.0").or_higher(env["version"]):
         apply_pg = extract_deep(args, "process", "process_graph")
         data_cube = extract_arg(args, 'data','apply')
         context = args.get('context',{})
 
         return data_cube.apply(apply_pg,context)
     else:
-        return _evaluate_sub_process_graph(args, 'process', parent_process='apply', version=ctx["version"])
+        return _evaluate_sub_process_graph(args, 'process', parent_process='apply', env=env)
 
 
 @process_registry_040.add_function
-def reduce(args: dict, ctx: dict) -> DriverDataCube:
+def reduce(args: dict, env: EvalEnv) -> DriverDataCube:
     """
     https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#reduce
-
-    :param args:
-    :param viewingParameters:
-    :return:
     """
     reduce_pg = extract_deep(args, "reducer", ["process_graph", "callback"])
     dimension = extract_arg(args, 'dimension')
@@ -378,15 +413,15 @@ def reduce(args: dict, ctx: dict) -> DriverDataCube:
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce")
     if dimension == band_dim:
         if not binary and len(reduce_pg) == 1 and next(iter(reduce_pg.values())).get('process_id') == 'run_udf':
-            return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce', version=ctx["version"])
+            return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce', env=env)
         visitor = backend_implementation.visit_process_graph(reduce_pg)
         return data_cube.reduce_bands(visitor)
     else:
-        return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce', version=ctx["version"])
+        return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce', env=env)
 
 
 @process_registry_100.add_function
-def reduce_dimension(args: dict, ctx: dict) -> DriverDataCube:
+def reduce_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
     reduce_pg = extract_deep(args, "reducer", "process_graph")
     dimension = extract_arg(args, 'dimension')
     data_cube = extract_arg(args, 'data')
@@ -398,7 +433,7 @@ def reduce_dimension(args: dict, ctx: dict) -> DriverDataCube:
 
 
 @process
-def add_dimension(args: dict, ctx: dict) -> DriverDataCube:
+def add_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
     return data_cube.add_dimension(
         name=extract_arg(args, 'name'),
@@ -408,7 +443,7 @@ def add_dimension(args: dict, ctx: dict) -> DriverDataCube:
 
 
 @process_registry_100.add_function
-def rename_labels(args: dict, ctx: dict) -> DriverDataCube:
+def rename_labels(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
     return data_cube.rename_labels(
         dimension=extract_arg(args, 'dimension'),
@@ -454,18 +489,11 @@ def _check_dimension(cube: DriverDataCube, dim: str, process: str):
 
 
 @process
-def aggregate_temporal(args: dict, ctx: dict) -> DriverDataCube:
-    """
-    https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#reduce
-
-    :param args:
-    :param viewingParameters:
-    :return:
-    """
-    return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_temporal', version=ctx["version"])
+def aggregate_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
+    return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_temporal', env=env)
 
 
-def _evaluate_sub_process_graph(args: dict, name: str, parent_process: str, version: str) -> DriverDataCube:
+def _evaluate_sub_process_graph(args: dict, name: str, parent_process: str, env: EvalEnv) -> DriverDataCube:
     """
     Helper function to unwrap and evaluate a sub-process_graph
 
@@ -474,24 +502,23 @@ def _evaluate_sub_process_graph(args: dict, name: str, parent_process: str, vers
     :return:
     """
     pg = extract_deep(args, name, ["process_graph", "callback"])
-    # TODO: viewingParams are injected into args dict? looks strange
-    args["parent_process"] = parent_process
-    args["version"] = version
-    return evaluate(pg, viewingParameters=args)
+    # TODO: args are injected into env? looks strange EP-3509
+    env = env.push(args, parent_process=parent_process)
+    return evaluate(pg, env=env, do_dry_run=False)
 
 
 @process_registry_040.add_function
-def aggregate_polygon(args: dict, ctx: dict) -> DriverDataCube:
-    return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_polygon', version=ctx["version"])
+def aggregate_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
+    return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_polygon', env=env)
 
 
 @process_registry_100.add_function
-def aggregate_spatial(args: dict, ctx: dict) -> DriverDataCube:
-    return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_spatial', version=ctx["version"])
+def aggregate_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
+    return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_spatial', env=env)
 
 
 @process_registry_040.add_function(name="mask")
-def mask_04(args: dict, viewingParameters) -> DriverDataCube:
+def mask_04(args: dict, env: EvalEnv) -> DriverDataCube:
     mask = extract_arg(args, 'mask')
     replacement = args.get('replacement', None)
     cube = extract_arg(args, 'data')
@@ -507,19 +534,20 @@ def mask_04(args: dict, viewingParameters) -> DriverDataCube:
 
 
 @process_registry_100.add_function
-def mask(args: dict, ctx: dict) -> DriverDataCube:
+def mask(args: dict, env: EvalEnv) -> DriverDataCube:
+    cube = extract_arg(args, 'data')
     mask = extract_arg(args, 'mask')
     replacement = args.get('replacement', None)
-    image_collection = extract_arg(args, 'data').mask(mask=mask, replacement=replacement)
-    return image_collection
+    return cube.mask(mask=mask, replacement=replacement)
 
 
 @process_registry_100.add_function
-def mask_polygon(args: dict, ctx: dict) -> DriverDataCube:
+def mask_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     mask = extract_arg(args, 'mask')
     replacement = args.get('replacement', None)
     inside = args.get('inside', False)
-    polygon = list(mask.geometries)[0] if isinstance(mask, DelayedVector) else shape(mask)
+    # TODO: avoid reading DelayedVector twice due to dry-run?
+    polygon = list(mask.geometries)[0] if isinstance(mask, DelayedVector) else geojson_to_geometry(mask)
     if polygon.area == 0:
         reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
         raise ProcessParameterInvalidException(parameter='mask', process='mask', reason=reason)
@@ -527,30 +555,50 @@ def mask_polygon(args: dict, ctx: dict) -> DriverDataCube:
     return image_collection
 
 
-@process
-def filter_temporal(args: Dict, viewingParameters) -> DriverDataCube:
-    # Note: the temporal range is already extracted in `apply_process` and applied in `GeoPySparkLayerCatalog.load_collection` through the viewingParameters
-    image_collection = extract_arg(args, 'data')
-    return image_collection
+def _extract_temporal_extent(args: dict, field="extent", process_id="filter_temporal") -> Tuple[str, str]:
+    extent = extract_arg(args, name=field, process_id=process_id)
+    if len(extent) != 2:
+        raise ProcessParameterInvalidException(
+            process=process_id, parameter=field, reason="should have length 2, but got {e!r}".format(e=extent)
+        )
+    # TODO: convert to datetime? or at least normalize?
+    return tuple(extent)
 
 
 @process
-def filter_bbox(args: Dict, viewingParameters) -> DriverDataCube:
-    # Note: the bbox is already extracted in `apply_process` and applied in `GeoPySparkLayerCatalog.load_collection` through the viewingParameters
-    image_collection = extract_arg(args, 'data')
-    return image_collection
+def filter_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
+    cube = extract_arg(args, 'data')
+    extent = _extract_temporal_extent(args, field="extent", process_id="filter_temporal")
+    return cube.filter_temporal(start=extent[0], end=extent[1])
+
+
+def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox") -> dict:
+    extent = extract_arg(args, name=field, process_id=process_id)
+    d = {
+        k: extract_arg(extent, name=k, process_id=process_id)
+        for k in ["west", "south", "east", "north"]
+    }
+    d["crs"] = extent.get("crs") or "EPSG:4326"
+    return d
 
 
 @process
-def filter_bands(args: Dict, viewingParameters) -> DriverDataCube:
-    # Note: the bands are already extracted in `apply_process` and applied in `GeoPySparkLayerCatalog.load_collection` through the viewingParameters
-    image_collection = extract_arg(args, 'data')
-    return image_collection
+def filter_bbox(args: Dict, env: EvalEnv) -> DriverDataCube:
+    cube = extract_arg(args, 'data')
+    spatial_extent = _extract_bbox_extent(args, "extent", process_id="filter_bbox")
+    return cube.filter_bbox(**spatial_extent)
+
+
+@process
+def filter_bands(args: Dict, env: EvalEnv) -> DriverDataCube:
+    cube = extract_arg(args, 'data')
+    bands = extract_arg(args, "bands", process_id="filter_bands")
+    return cube.filter_bands(bands=bands)
 
 
 # TODO deprecated process? also see https://github.com/Open-EO/openeo-python-client/issues/144
 @deprecated_process
-def zonal_statistics(args: Dict, viewingParameters) -> Dict:
+def zonal_statistics(args: Dict, env: EvalEnv) -> Dict:
     image_collection = extract_arg(args, 'data')
     geometry = extract_arg(args, 'regions')
     func = args.get('func', 'mean')
@@ -564,7 +612,7 @@ def zonal_statistics(args: Dict, viewingParameters) -> Dict:
 
 
 @process
-def apply_kernel(args: Dict, viewingParameters) -> DriverDataCube:
+def apply_kernel(args: Dict, env: EvalEnv) -> DriverDataCube:
     image_collection = extract_arg(args, 'data')
     kernel = np.asarray(extract_arg(args, 'kernel'))
     factor = args.get('factor', 1.0)
@@ -578,12 +626,10 @@ def apply_kernel(args: Dict, viewingParameters) -> DriverDataCube:
 
 
 @process
-def ndvi(args: dict, viewingParameters: dict) -> DriverDataCube:
+def ndvi(args: dict, env: EvalEnv) -> DriverDataCube:
     image_collection = extract_arg(args, 'data')
 
-    version = ComparableVersion(viewingParameters["version"])
-
-    if version.at_least("1.0.0"):
+    if ComparableVersion("1.0.0").or_higher(env["version"]):
         red = args.get("red")
         nir = args.get("nir")
         target_band = args.get("target_band")
@@ -594,7 +640,7 @@ def ndvi(args: dict, viewingParameters: dict) -> DriverDataCube:
 
 
 @process
-def resample_spatial(args: dict, viewingParameters: dict) -> DriverDataCube:
+def resample_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
     image_collection = extract_arg(args, 'data')
     resolution = args.get('resolution', 0)
     projection = args.get('projection', None)
@@ -604,7 +650,7 @@ def resample_spatial(args: dict, viewingParameters: dict) -> DriverDataCube:
 
 
 @process
-def resample_cube_spatial(args: dict, viewingParameters: dict) -> DriverDataCube:
+def resample_cube_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
     image_collection = extract_arg(args, 'data')
     target_image_collection = extract_arg(args, 'target')
     method = args.get('method', 'near')
@@ -612,7 +658,7 @@ def resample_cube_spatial(args: dict, viewingParameters: dict) -> DriverDataCube
 
 
 @process
-def merge_cubes(args: dict, viewingParameters: dict) -> DriverDataCube:
+def merge_cubes(args: dict, env: EvalEnv) -> DriverDataCube:
     cube1 = extract_arg(args, 'cube1')
     cube2 = extract_arg(args, 'cube2')
     overlap_resolver = args.get('overlap_resolver')
@@ -625,12 +671,14 @@ def merge_cubes(args: dict, viewingParameters: dict) -> DriverDataCube:
                 parameter='overlap_resolver', process='merge_cubes',
                 reason='This backend only supports overlap resolvers with exactly one process for now.')
         resolver_process = next(iter(pg.values()))["process_id"]
-    return cube1.merge(cube2, resolver_process)
+    return cube1.merge_cubes(cube2, resolver_process)
 
 
 @process
-def run_udf(args: dict, viewingParameters: dict):
+def run_udf(args: dict, env: EvalEnv):
+    # TODO: note: this implements a non-standard usage of `run_udf`: processing "vector" cube (direct JSON or from aggregate_spatial, ...)
     data = extract_arg(args, 'data')
+
     if not isinstance(data, DelayedVector) and not isinstance(data,AggregatePolygonResult):
         if isinstance(data, dict):
             data = DelayedVector.from_json_dict(data)
@@ -670,7 +718,7 @@ def run_udf(args: dict, viewingParameters: dict):
 
 
 @process
-def linear_scale_range(args: dict, viewingParameters: dict) -> DriverDataCube:
+def linear_scale_range(args: dict, env: EvalEnv) -> DriverDataCube:
     image_collection = extract_arg(args, 'x')
 
     inputMin = extract_arg(args, "inputMin")
@@ -682,7 +730,7 @@ def linear_scale_range(args: dict, viewingParameters: dict) -> DriverDataCube:
 
 
 @process_registry_100.add_function
-def constant(args: dict, viewingParameters:dict):
+def constant(args: dict, env: EvalEnv):
     return args["x"]
 
 
@@ -701,63 +749,17 @@ def constant(args: dict, viewingParameters:dict):
         "type": "object"
     })
 )
-def histogram(_args, _viewingParameters):
+def histogram(args, env: EvalEnv):
     # currently only available as a reducer passed to e.g. aggregate_polygon
     raise ProcessUnsupportedException('histogram')
 
 
-def apply_process(process_id: str, args: dict, namespace: str = None, viewingParameters: dict = None):
-    parent_process = viewingParameters.get('parent_process')
-
-    viewingParameters = viewingParameters or {}
-
-    if 'filter_temporal' == process_id:
-        extent = extract_arg(args, "extent", process_id=process_id)
-        if len(extent) != 2:
-            raise ProcessParameterInvalidException(
-                process=process_id, parameter="extent", reason="should have length 2, but got {e!r}".format(e=extent)
-            )
-        viewingParameters["from"] = convert_node(extent[0], viewingParameters)
-        viewingParameters["to"] = convert_node(extent[1], viewingParameters)
-    elif 'filter_bbox' == process_id:
-        # TODO: change everything to west, south, east, north, crs for uniformity (or even encapsulate in a bbox tuple?)
-        extent = extract_arg(args, "extent", process_id=process_id)
-        viewingParameters["left"] = convert_node(extract_arg(extent, "west", process_id=process_id), viewingParameters)
-        viewingParameters["right"] = convert_node(extract_arg(extent, "east", process_id=process_id), viewingParameters)
-        viewingParameters["top"] = convert_node(extract_arg(extent, "north", process_id=process_id), viewingParameters)
-        viewingParameters["bottom"] = convert_node(extract_arg(extent, "south", process_id=process_id), viewingParameters)
-        viewingParameters["srs"] = extent.get("crs", "EPSG:4326")
-    elif process_id in ['zonal_statistics', 'aggregate_polygon', 'aggregate_spatial']:
-        shapes = extract_arg_list(args, ['regions', 'polygons', 'geometries'])
-
-        if viewingParameters.get("left") is None:
-            if "type" in shapes:  # it's GeoJSON
-                polygons = _as_geometry_collection(shapes) if shapes['type'] == 'FeatureCollection' else shapes
-                viewingParameters["polygons"] = shape(polygons)
-                bbox = viewingParameters["polygons"].bounds
-            elif "from_node" in shapes:  # it's a dereferenced from_node that contains a DelayedVector
-                polygons = convert_node(shapes["node"], viewingParameters)
-                viewingParameters["polygons"] = polygons
-                bbox = polygons.bounds
-            # TODO: else?
-
-            viewingParameters["left"] = bbox[0]
-            viewingParameters["right"] = bbox[2]
-            viewingParameters["bottom"] = bbox[1]
-            viewingParameters["top"] = bbox[3]
-            viewingParameters["srs"] = "EPSG:4326"
-
-            args['polygons'] = polygons  # might as well cache the value instead of re-evaluating it further on
-
-    elif 'filter_bands' == process_id:
-        viewingParameters["bands"] = convert_node(extract_arg(args, "bands", process_id=process_id), viewingParameters)
-    elif 'apply' == parent_process:
-        if "data" in viewingParameters:
-            # The `apply` process passes it's `data` parameter as `x` parameter to subprocess
-            viewingParameters["x"] = viewingParameters["data"]
+def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalEnv = None):
+    env = env or EvalEnv()
+    parent_process = env.get('parent_process')
 
     # first we resolve child nodes and arguments
-    args = {name: convert_node(expr, viewingParameters) for (name, expr) in args.items()}
+    args = {name: convert_node(expr, env=env) for (name, expr) in args.items()}
 
     # when all arguments and dependencies are resolved, we can run the process
     if parent_process == "apply":
@@ -773,8 +775,8 @@ def apply_process(process_id: str, args: dict, namespace: str = None, viewingPar
     elif parent_process in ["reduce", "reduce_dimension", "reduce_dimension_binary"]:
         # TODO EP-3285 this code path is for version <1.0.0, soon to be deprecated
         image_collection = extract_arg(args, 'data', process_id=process_id)
-        dimension = extract_arg(viewingParameters, 'dimension')
-        binary = viewingParameters.get('binary',False) or parent_process == "reduce_dimension_binary"
+        dimension = extract_arg(env, 'dimension')
+        binary = env.get('binary',False) or parent_process == "reduce_dimension_binary"
         dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         if 'run_udf' == process_id and not binary:
             udf = _get_udf(args)
@@ -789,8 +791,8 @@ def apply_process(process_id: str, args: dict, namespace: str = None, viewingPar
         return image_collection.reduce(process_id, dimension)
     elif parent_process == 'apply_dimension':
         image_collection = extract_arg(args, 'data', process_id=process_id)
-        dimension = viewingParameters.get('dimension', None) # By default, applies the the process on all pixel values (as apply does).
-        target_dimension = viewingParameters.get('target_dimension', None)
+        dimension = env.get('dimension', None) # By default, applies the the process on all pixel values (as apply does).
+        target_dimension = env.get('target_dimension', None)
         dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         transformed_collection = None
         if process_id == "run_udf":
@@ -808,24 +810,24 @@ def apply_process(process_id: str, args: dict, namespace: str = None, viewingPar
         return transformed_collection
     elif parent_process in ['aggregate_polygon', 'aggregate_spatial']:
         image_collection = extract_arg(args, 'data', process_id=process_id)
-        binary = viewingParameters.get('binary', False)
-        name = viewingParameters.get('name', 'result')
-        polygons = extract_arg(viewingParameters, 'polygons')
+        # TODO: binary and name are unused?
+        binary = env.get('binary', False)
+        name = env.get('name', 'result')
+        polygons = extract_arg_list(env, ['polygons', 'geometries'])
 
-        # can be either (inline) GeoJSON or something returned by read_vector
-        is_geojson = isinstance(polygons, Dict)
-
-        if is_geojson:
-            geometries = shape(polygons)
+        if isinstance(polygons, dict):
+            geometries = geojson_to_geometry(polygons)
             return image_collection.zonal_statistics(geometries, func=process_id)
-        # TODO: rename to aggregate_polygon?
-        return image_collection.zonal_statistics(polygons.path, func=process_id)
+        elif isinstance(polygons, DelayedVector):
+            return image_collection.zonal_statistics(polygons.path, func=process_id)
+        else:
+            raise ValueError(polygons)
 
     elif parent_process == 'aggregate_temporal':
         image_collection = extract_arg(args, 'data', process_id=process_id)
-        intervals = extract_arg(viewingParameters, 'intervals')
-        labels = extract_arg(viewingParameters, 'labels')
-        dimension = viewingParameters.get('dimension', None)
+        intervals = extract_arg(env, 'intervals')
+        labels = extract_arg(env, 'labels')
+        dimension = env.get('dimension', None)
         if dimension is not None:
             dimension, _, _ = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         else:
@@ -834,18 +836,18 @@ def apply_process(process_id: str, args: dict, namespace: str = None, viewingPar
                 dimension = image_collection.metadata.temporal_dimension.name
             except MetadataException:
                 raise ProcessParameterInvalidException(
-                    parameter="dimension", process=process,
+                    parameter="dimension", process=process_id,
                     reason="No dimension was set, and no temporal dimension could be found. Available dimensions: {n!r}".format( n= image_collection.metadata.dimension_names()))
         return image_collection.aggregate_temporal(intervals, labels, process_id, dimension)
 
     if namespace and any(namespace.startswith(p) for p in ["http://", "https://"]):
         # TODO: security aspects: only allow for certain users, only allow whitelisted domains, ...?
         return evaluate_process_from_url(
-            process_id=process_id, namespace=namespace, args=args, viewingParameters=viewingParameters
+            process_id=process_id, namespace=namespace, args=args, env=env
         )
 
     if namespace in ["user", None]:
-        user = viewingParameters.get("user")
+        user = env.get("user")
         if user:
             # TODO: first check process registry with predefined processes because querying of user defined processes
             #   is more expensive IO-wise?
@@ -855,15 +857,15 @@ def apply_process(process_id: str, args: dict, namespace: str = None, viewingPar
             if udp:
                 if namespace is None:
                     _log.info("Using process {p!r} from namespace 'user'.".format(p=process_id))
-                return evaluate_udp(process_id=process_id, udp=udp, args=args, viewingParameters=viewingParameters)
+                return evaluate_udp(process_id=process_id, udp=udp, args=args, env=env)
 
     if namespace in ["backend", None]:
         # And finally: check registry of predefined processes
-        process_registry = get_process_registry(ComparableVersion(viewingParameters["version"]))
+        process_registry = get_process_registry(ComparableVersion(env["version"]))
         process_function = process_registry.get_function(process_id)
         if namespace is None:
             _log.info("Using process {p!r} from namespace 'backend'.".format(p=process_id))
-        return process_function(args, viewingParameters)
+        return process_function(args=args, env=env)
 
     # TODO: add namespace in error message? also see https://github.com/Open-EO/openeo-api/pull/328
     raise ProcessUnsupportedException(process=process_id)
@@ -874,7 +876,7 @@ def apply_process(process_id: str, args: dict, namespace: str = None, viewingPar
         .param('filename', description="filename or http url of a vector file", schema={"type": "string"})
         .returns("TODO", schema={"type": "object", "subtype": "vector-cube"})
 )
-def read_vector(args: Dict, viewingParameters) -> DelayedVector:
+def read_vector(args: Dict, env: EvalEnv) -> DelayedVector:
     path = extract_arg(args, 'filename')
     return DelayedVector(path)
 
@@ -884,7 +886,7 @@ def read_vector(args: Dict, viewingParameters) -> DelayedVector:
         .param('data', description="A raster data cube.", schema={"type": "object", "subtype": "raster-cube"})
         .returns("vector-cube", schema={"type": "object", "subtype": "vector-cube"})
 )
-def raster_to_vector(args: Dict, viewingParameters):
+def raster_to_vector(args: Dict, env: EvalEnv):
     image_collection = extract_arg(args, 'data')
     return image_collection.raster_to_vector()
 
@@ -901,39 +903,30 @@ def _get_udf(args):
     return udf
 
 
-def _as_geometry_collection(feature_collection: dict) -> dict:
-    geometries = [feature['geometry'] for feature in feature_collection['features']]
-
-    return {
-        'type': 'GeometryCollection',
-        'geometries': geometries
-    }
-
-
 def _evaluate_process_graph_process(
-        process_id: str, process_graph: dict, parameters: List[dict], args: dict, viewingParameters: dict
+        process_id: str, process_graph: dict, parameters: List[dict], args: dict, env: EvalEnv
 ):
     """Evaluate a process specified as a process graph (e.g. user-defined process)"""
-    for name, value in args.items():
-        viewingParameters[name] = value
+    args = args.copy()
     for param in parameters or []:
         name = param["name"]
-        if name not in viewingParameters:
+        if name not in args:
             if "default" in param:
-                viewingParameters[name] = param["default"]
+                args[name] = param["default"]
             else:
                 raise ProcessParameterRequiredException(process=process_id, parameter=name)
-    return evaluate(process_graph, viewingParameters=viewingParameters)
+    env = env.push(args)
+    return evaluate(process_graph, env=env, do_dry_run=False)
 
 
-def evaluate_udp(process_id: str, udp: UserDefinedProcessMetadata, args: dict, viewingParameters: dict):
+def evaluate_udp(process_id: str, udp: UserDefinedProcessMetadata, args: dict, env: EvalEnv):
     return _evaluate_process_graph_process(
         process_id=process_id, process_graph=udp.process_graph, parameters=udp.parameters,
-        args=args, viewingParameters=viewingParameters
+        args=args, env=env
     )
 
 
-def evaluate_process_from_url(process_id: str, namespace: str, args: dict, viewingParameters: dict):
+def evaluate_process_from_url(process_id: str, namespace: str, args: dict, env: EvalEnv):
     if namespace.endswith('.json'):
         # TODO: if namespace URL is json file: handle it as collection of processes instead of a single process spec?
         url = namespace
@@ -945,7 +938,7 @@ def evaluate_process_from_url(process_id: str, namespace: str, args: dict, viewi
     spec = res.json()
     return _evaluate_process_graph_process(
         process_id=process_id, process_graph=spec["process_graph"], parameters=spec.get("parameters", []),
-        args=args, viewingParameters=viewingParameters
+        args=args, env=env
     )
 
 
@@ -955,7 +948,7 @@ def evaluate_process_from_url(process_id: str, namespace: str, args: dict, viewi
         .param('seconds', description="Number of seconds to sleep.", schema={"type": "number"}, required=True)
         .returns("Original data", schema={})
 )
-def sleep(args: Dict, viewingParameters):
+def sleep(args: Dict, env: EvalEnv):
     data = extract_arg(args, "data")
     seconds = extract_arg(args, "seconds")
     _log.info("Sleeping {s} seconds".format(s=seconds))
@@ -968,6 +961,6 @@ def sleep(args: Dict, viewingParameters):
         .param('data', description="input data cube to be corrected", schema={"type": "object", "subtype": "raster-cube"})
         .returns(description="the corrected data as a data cube", schema={"type": "object", "subtype": "raster-cube"})
 )
-def apply_atmospheric_correction(args: Dict, viewingParameters) -> object:
+def apply_atmospheric_correction(args: Dict, env: EvalEnv) -> object:
     image_collection = extract_arg(args, 'data')
     return image_collection.apply_atmospheric_correction()

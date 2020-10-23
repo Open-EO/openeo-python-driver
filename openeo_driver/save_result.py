@@ -9,7 +9,9 @@ from zipfile import ZipFile
 
 import numpy as np
 from flask import send_from_directory, jsonify
-from openeo_driver.utils import replace_nan_values
+
+from openeo_driver.datacube import DriverDataCube
+from openeo_driver.utils import replace_nan_values, EvalEnv
 from shapely.geometry import GeometryCollection, mapping
 
 
@@ -35,14 +37,24 @@ class SaveResult(ABC):
         pass
 
 
+def get_temp_file(suffix="", prefix="openeo-pydrvr-"):
+    # TODO: make sure temp files are cleaned up when read
+    _, filename = tempfile.mkstemp(suffix=suffix, prefix=prefix)
+    return filename
+
+
 class ImageCollectionResult(SaveResult):
 
-    def __init__(self, imagecollection, format: str, options: dict):
+    def __init__(self, cube: DriverDataCube, format: str, options: dict):
         super().__init__(format=format, options=options)
-        self.imagecollection = imagecollection
+        self.cube = cube
+
+    def save_result(self, filename: str) -> str:
+        return self.cube.save_result(filename=filename, format=self.format, format_options=self.options)
 
     def create_flask_response(self):
-        filename = self.imagecollection.download(None, bbox="", time="", format=self.format, **self.options)
+        filename = get_temp_file(suffix=".savecube")
+        filename = self.save_result(filename)
         return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
 
 
@@ -143,7 +155,7 @@ class AggregatePolygonResult(JSONResult):
         comp = dict(zlib=True, complevel=5)
         encoding = {var: comp for var in array.data_vars}
         if destination is None:
-            _, filename = tempfile.mkstemp(suffix='.oeo-gps-dl.nc')
+            filename = get_temp_file(suffix=".netcdf")
         else:
             filename = destination
         array.to_netcdf(filename,encoding=encoding)

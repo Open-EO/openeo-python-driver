@@ -1,3 +1,4 @@
+import inspect
 from collections import namedtuple
 import functools
 import json
@@ -82,6 +83,10 @@ class ProcessSpec:
 ProcessData = namedtuple("ProcessData", ["function", "spec"])
 
 
+class ProcessRegistryException(Exception):
+    pass
+
+
 class ProcessRegistry:
     """
     Registry for processes we support in the backend.
@@ -89,10 +94,12 @@ class ProcessRegistry:
     Basically a dictionary of process specification dictionaries
     """
 
-    def __init__(self, spec_root: Path = SPECS_ROOT / 'openeo-processes/1.0'):
+    def __init__(self, spec_root: Path = SPECS_ROOT / 'openeo-processes/1.0', argument_names: List[str] = None):
         self._processes_spec_root = spec_root
         # Dictionary process_name -> ProcessData
         self._processes: Dict[str, ProcessData] = {}
+        # Expected argument names that process function signature should start with
+        self._argument_names = argument_names
 
     def load_predefined_spec(self, name: str) -> dict:
         """Get predefined process specification (dict) based on process name."""
@@ -100,7 +107,7 @@ class ProcessRegistry:
             with (self._processes_spec_root / '{n}.json'.format(n=name)).open('r', encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
-            raise RuntimeError("Failed to load predefined spec of process {n!r}".format(n=name))
+            raise ProcessRegistryException("Failed to load predefined spec of process {n!r}".format(n=name))
 
     def list_predefined_specs(self) -> Dict[str, Path]:
         """List all processes with a spec JSON file."""
@@ -111,11 +118,19 @@ class ProcessRegistry:
         Add a process to the registry, with callable function (optional) and specification dict (optional)
         """
         if name in self._processes:
-            raise RuntimeError("process {p!r} is already defined".format(p=name))
+            raise ProcessRegistryException("process {p!r} is already defined".format(p=name))
         if spec:
             # Basic health check
             assert all(k in spec for k in ['id', 'description', 'parameters', 'returns'])
             assert name == spec['id']
+        if function and self._argument_names:
+            sig = inspect.signature(function)
+            arg_names = [n for n, p in sig.parameters.items() if p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD]
+            if arg_names[:len(self._argument_names)] != self._argument_names:
+                raise ProcessRegistryException("Process {p!r} has invalid argument names: {a}".format(
+                    p=name, a=arg_names
+                ))
+
         self._processes[name] = ProcessData(function=function, spec=spec)
 
     def add_spec(self, spec: dict):
@@ -127,7 +142,7 @@ class ProcessRegistry:
         for name in set(names):
             self.add_spec(self.load_predefined_spec(name))
 
-    def add_function(self, f: Callable=None, name: str = None, spec: dict = None) -> Callable:
+    def add_function(self, f: Callable = None, name: str = None, spec: dict = None) -> Callable:
         """
         Register the process corresponding with given function.
         Process name can be specified explicitly, otherwise the function name will be used.

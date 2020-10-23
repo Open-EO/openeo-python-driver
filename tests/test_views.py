@@ -756,7 +756,7 @@ class TestSecondaryServices(TestCase):
         app.config['SERVER_NAME'] = 'oeo.net'
         self.client = app.test_client()
         self._auth_header = TEST_USER_AUTH_HEADER
-        dummy_backend.collections = {}
+        dummy_backend.reset()
 
     def test_service_types_v100(self):
         resp = self.client.get('/openeo/1.0.0/service_types')
