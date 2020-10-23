@@ -15,5 +15,6 @@ pythonPipeline {
   downstream_job = 'geo.OpenEO/openeo-geopyspark-integrationtests'
   wheel_repo = 'python-openeo'
   extras_require = 'dev'
-  upload_dev_wheels = false
+// TODO: disable upload_dev_wheels again when EP-3509 is done
+//   upload_dev_wheels = false
 }
