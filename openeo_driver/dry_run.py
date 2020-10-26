@@ -177,6 +177,13 @@ class DryRunDataTracer:
         return leaves
 
     def get_source_constraints(self, merge=True) -> Dict[tuple, dict]:
+        """
+        Get the temporal/spatial constraints of all traced sources
+
+        :param merge:
+        :return: dictionary mapping source id (e.g. `("load_collection", "Sentinel2")
+            to dictionary with "temporal_extent", "spatial_extent", "bands" fields.
+        """
         source_constraints = {}
         for leaf in self.get_trace_leaves():
             constraints = {}

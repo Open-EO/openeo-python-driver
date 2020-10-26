@@ -149,7 +149,11 @@ def temporal_extent_union(
 
 
 def spatial_extent_union(*args: dict) -> dict:
-    """Calculate spatial bbox covering all given bboxes"""
+    """
+    Calculate spatial bbox covering all given bounding boxes
+
+    :return: bbox dict (fields "west", "south", "east", "north", "crs")
+    """
     # TODO: assuming CRS where west/south is lower and east/north is higher.
     # TODO: smarter CRS handling/combining
     assert len(args) >= 1

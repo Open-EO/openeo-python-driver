@@ -11,7 +11,6 @@ from typing import Dict, Callable, List, Union, Tuple
 import numpy as np
 import openeo_processes
 import requests
-from openeo.util import dict_no_none
 from shapely.geometry import shape, mapping
 
 from openeo.capabilities import ComparableVersion
@@ -20,6 +19,7 @@ from openeo_driver import dry_run
 from openeo_driver.backend import get_backend_implementation, UserDefinedProcessMetadata
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
+from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException
 from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
@@ -132,7 +132,11 @@ ENV_SOURCE_CONSTRAINTS = "source_constraints"
 ENV_DRY_RUN_TRACER = "dry_run_tracer"
 
 
-def evaluate(process_graph: dict, env: EvalEnv = None, do_dry_run=True) -> DriverDataCube:
+def evaluate(
+        process_graph: dict,
+        env: EvalEnv = None,
+        do_dry_run: Union[bool, DryRunDataTracer] = True
+) -> DriverDataCube:
     """
     Converts the json representation of a (part of a) process graph into the corresponding Python data cube.
     """
@@ -150,7 +154,7 @@ def evaluate(process_graph: dict, env: EvalEnv = None, do_dry_run=True) -> Drive
     result_node = preprocessed_process_graph[top_level_node]
 
     if do_dry_run:
-        dry_run_tracer = dry_run.DryRunDataTracer()
+        dry_run_tracer = do_dry_run if isinstance(do_dry_run, DryRunDataTracer) else DryRunDataTracer()
         _log.info("Doing dry run")
         convert_node(result_node, env=env.push({ENV_DRY_RUN_TRACER: dry_run_tracer}))
         # TODO: work with a dedicated DryRunEvalEnv?
@@ -312,7 +316,7 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
     if args.get("properties"):
         arguments["properties"] = extract_arg(args, 'properties', process_id="load_collection")
 
-    dry_run_tracer: dry_run.DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
+    dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
         metadata = backend_implementation.catalog.get_collection_metadata(collection_id)
         return dry_run_tracer.load_collection(collection_id=collection_id, arguments=arguments, metadata=metadata)
@@ -340,7 +344,7 @@ def load_disk_data(args: Dict, env: EvalEnv) -> DriverDataCube:
         format=extract_arg(args, 'format'),
         options=args.get('options', {}),
     )
-    dry_run_tracer: dry_run.DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
+    dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
         return dry_run_tracer.load_disk_data(**kwargs)
     else:
