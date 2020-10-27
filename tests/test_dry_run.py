@@ -1,9 +1,12 @@
 import pytest
+import shapely.geometry
 
 from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER
+from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer, DataSource, DataTrace
 from openeo_driver.testing import IgnoreOrder
 from openeo_driver.utils import EvalEnv
+from tests.data import get_path
 
 
 @pytest.fixture
@@ -340,3 +343,73 @@ def test_evaluate_load_collection_and_filter_extents_dynamic(dry_run_env, dry_ru
         "spatial_extent": {"west": 1, "south": 50, "east": 5, "north": 55, "crs": "EPSG:4326"},
         "bands": ["blue", "green", "red"],
     }
+
+
+def test_aggregate_spatial(dry_run_env, dry_run_tracer):
+    pg = {
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "agg": {
+            "process_id": "aggregate_spatial",
+            "arguments": {
+                "data": {"from_node": "lc"},
+                "geometries": {
+                    "type": "Polygon",
+                    "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]
+                },
+                "reducer": {
+                    "process_graph": {
+                        "mean": {
+                            "process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True
+                        }
+                    }
+                }
+            },
+            "result": True,
+        },
+    }
+    cube = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints.popitem()
+    assert src == ("load_collection", ("S2_FOOBAR",))
+    assert constraints == {"spatial_extent": {"west": 0, "south": 0, "east": 8, "north": 5, "crs": "EPSG:4326"}}
+    geometries = dry_run_tracer.get_geometries()
+    assert isinstance(geometries, shapely.geometry.Polygon)
+    assert shapely.geometry.mapping(geometries) == {
+        "type": "Polygon",
+        "coordinates": (((0.0, 0.0), (3.0, 5.0), (8.0, 2.0), (0.0, 0.0)),)
+    }
+
+
+def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
+    pg = {
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "vector": {"process_id": "read_vector", "arguments": {"filename": str(get_path("GeometryCollection.geojson"))}},
+        "agg": {
+            "process_id": "aggregate_spatial",
+            "arguments": {
+                "data": {"from_node": "lc"},
+                "geometries": {"from_node": "vector"},
+                "reducer": {
+                    "process_graph": {
+                        "mean": {
+                            "process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True
+                        }
+                    }
+                }
+            },
+            "result": True,
+        },
+    }
+    cube = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints.popitem()
+    assert src == ("load_collection", ("S2_FOOBAR",))
+    assert constraints == {
+        "spatial_extent": {"west": 5.05, "south": 51.21, "east": 5.15, "north": 51.3, "crs": "EPSG:4326"}
+    }
+    geometries = dry_run_tracer.get_geometries()
+    assert isinstance(geometries, DelayedVector)

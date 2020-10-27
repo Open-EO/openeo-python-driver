@@ -220,6 +220,22 @@ class DryRunDataTracer:
                 source_constraints[source_id] = source_constraints.get(source_id, []) + [constraints]
         return source_constraints
 
+    def get_geometries(self, operation="aggregate_spatial"):
+        """Get geometries (polygons or DelayedVector), as used by aggregate_spatial"""
+        geometries_by_id = {}
+        for leaf in self.get_trace_leaves():
+            for args in leaf.get_arguments_by_operation(operation):
+                if "geometries" in args:
+                    geometries = args["geometries"]
+                    geometries_by_id[id(geometries)] = geometries
+        if len(geometries_by_id) == 1:
+            return geometries_by_id.popitem()[1]
+        elif len(geometries_by_id) == 0:
+            raise Exception("No geometries found for {o!r}".format(o=operation))
+        else:
+            # TODO: merge/union? bounding box?
+            raise Exception("Multiple geometries found for {o!r}".format(o=operation))
+
 
 class DryRunDataCube(DriverDataCube):
     """
@@ -269,14 +285,16 @@ class DryRunDataCube(DriverDataCube):
             geometries = geojson_to_geometry(geometries)
             bbox = geometries.bounds
         elif isinstance(geometries, str):
-            bbox = DelayedVector(geometries).bounds
+            geometries = DelayedVector(geometries)
+            bbox = geometries.bounds
         elif isinstance(geometries, DelayedVector):
             bbox = geometries.bounds
         elif isinstance(geometries, shapely.geometry.base.BaseGeometry):
             bbox = geometries.bounds
         else:
             raise ValueError(geometries)
-        self.filter_bbox(west=bbox[0], south=bbox[1], east=bbox[2], north=bbox[3], crs="EPSG:4326")
+        cube = self.filter_bbox(west=bbox[0], south=bbox[1], east=bbox[2], north=bbox[3], crs="EPSG:4326")
+        cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
         return AggregatePolygonResult(timeseries={}, regions=geometries)
 
     def zonal_statistics(self, regions, func: str) -> AggregatePolygonResult:

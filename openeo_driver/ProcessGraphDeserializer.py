@@ -6,7 +6,7 @@ import logging
 import tempfile
 import time
 import warnings
-from typing import Dict, Callable, List, Union, Tuple
+from typing import Dict, Callable, List, Union, Tuple, Any
 
 import numpy as np
 import openeo_processes
@@ -136,7 +136,7 @@ def evaluate(
         process_graph: dict,
         env: EvalEnv = None,
         do_dry_run: Union[bool, DryRunDataTracer] = True
-) -> DriverDataCube:
+) -> Union[DriverDataCube, Any]:
     """
     Converts the json representation of a (part of a) process graph into the corresponding Python data cube.
     """
