@@ -10,6 +10,7 @@ from flask.testing import FlaskClient
 
 import openeo_driver.testing
 from openeo_driver.backend import get_backend_implementation
+from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyDataCube
 from openeo_driver.errors import ProcessGraphMissingException
@@ -428,15 +429,20 @@ def test_execute_mask(api):
     assert api.get_collection("S2_FAPAR_CLOUDCOVER").mask.call_count == 1
 
     expected = {
-        "west": pytest.approx(7.022705078125007),
-        "south": pytest.approx(51.29289899553571),
-        "east": pytest.approx(7.659912109375007),
-        "north": pytest.approx(51.75432477678571),
+        "west": 7.02,
+        "south": 51.2,
+        "east": 7.65,
+        "north": 51.7,
         "crs": 'EPSG:4326',
     }
+    expected_geometry = shapely.geometry.shape({
+        "type": "Polygon",
+        "coordinates": [[[7.02, 51.7], [7.65, 51.7], [7.65, 51.2], [7.04, 51.3], [7.02, 51.7]]]
+    })
 
     params = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
     assert params["spatial_extent"] == expected
+    assert params["aggregate_spatial_geometries"] == expected_geometry
 
     params = api.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
     assert params["spatial_extent"] == expected
@@ -475,14 +481,18 @@ def test_aggregate_temporal_max_no_dimension(api):
         preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": null'))
 
 
-def test_execute_zonal_statistics(api):
-    resp = api.check_result("zonal_statistics.json")
+def test_execute_aggregate_spatial(api):
+    resp = api.check_result("aggregate_spatial.json")
     assert resp.json == {
         "2015-07-06T00:00:00": [2.345],
         "2015-08-22T00:00:00": [None]
     }
     params = api.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
     assert params["spatial_extent"] == {"west": 7.02, "south": 51.29, "east": 7.65, "north": 51.75, "crs": 'EPSG:4326'}
+    assert params["aggregate_spatial_geometries"] == shapely.geometry.shape({
+        "type": "Polygon",
+        "coordinates": [[[7.02, 51.75], [7.65, 51.74], [7.65, 51.29], [7.04, 51.31], [7.02, 51.75]]]
+    })
 
 
 def test_create_wmts_040(api040):
@@ -519,19 +529,23 @@ def test_create_wmts_100(api100):
 
 
 def test_read_vector(api):
+    geometry_filename = str(get_path("GeometryCollection.geojson"))
     process_graph = api.load_json(
         "read_vector.json",
-        preprocess=preprocess_check_and_replace("PLACEHOLDER", str(get_path("GeometryCollection.geojson")))
+        preprocess=preprocess_check_and_replace("PLACEHOLDER", geometry_filename)
     )
     resp = api.check_result(process_graph)
     assert b'NaN' not in resp.data
     assert resp.json == {"2015-07-06T00:00:00": [2.345], "2015-08-22T00:00:00": [None]}
     params = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
     assert params["spatial_extent"] == {"west": 5, "south": 51, "east": 6, "north": 52, "crs": 'EPSG:4326'}
+    assert params["temporal_extent"] == ('2017-11-21', '2017-12-21')
+    assert params["aggregate_spatial_geometries"] == DelayedVector(geometry_filename)
 
 
 def test_read_vector_no_load_collection_spatial_extent(api):
-    preprocess1 = preprocess_check_and_replace("PLACEHOLDER", str(get_path("GeometryCollection.geojson")))
+    geometry_filename = str(get_path("GeometryCollection.geojson"))
+    preprocess1 = preprocess_check_and_replace("PLACEHOLDER", geometry_filename)
     preprocess2 = preprocess_regex_check_and_replace(r'"spatial_extent"\s*:\s*\{.*?\},', replacement='')
     process_graph = api.load_json(
         "read_vector.json", preprocess=lambda s: preprocess2(preprocess1(s))
@@ -541,6 +555,8 @@ def test_read_vector_no_load_collection_spatial_extent(api):
     assert resp.json == {"2015-07-06T00:00:00": [2.345], "2015-08-22T00:00:00": [None]}
     params = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
     assert params["spatial_extent"] == {"west": 5.05, "south": 51.21, "east": 5.15, "north": 51.3, "crs": 'EPSG:4326'}
+    assert params["temporal_extent"] == ('2017-11-21', '2017-12-21')
+    assert params["aggregate_spatial_geometries"] == DelayedVector(geometry_filename)
 
 
 def test_run_udf_on_vector(api100):

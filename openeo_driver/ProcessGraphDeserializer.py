@@ -289,10 +289,10 @@ def _extract_viewing_parameters(env: EvalEnv, source_id: tuple):
         "temporal_extent": constraints.get("temporal_extent", [None, None]),
         "spatial_extent": constraints.get("spatial_extent", {}),
         "bands": constraints.get("bands", None),
-        "properties": constraints.get("properties", {})
+        "properties": constraints.get("properties", {}),
+        "aggregate_spatial_geometries": constraints.get("aggregate_spatial", {}).get("geometries")
     }
-    for param in ["correlation_id", "require_bounds", "polygons", "pyramid_levels"]:
-        # TODO: are all these params still properly working (e.g. these cached polygons)?
+    for param in ["correlation_id", "require_bounds", "pyramid_levels"]:
         if param in env:
             viewing_parameters[param] = env[param]
     return viewing_parameters
@@ -814,9 +814,6 @@ def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalE
         return transformed_collection
     elif parent_process in ['aggregate_polygon', 'aggregate_spatial']:
         image_collection = extract_arg(args, 'data', process_id=process_id)
-        # TODO: binary and name are unused?
-        binary = env.get('binary', False)
-        name = env.get('name', 'result')
         polygons = extract_arg_list(env, ['polygons', 'geometries'])
 
         if isinstance(polygons, dict):

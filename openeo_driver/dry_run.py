@@ -32,6 +32,7 @@ which are used to bootstrap the EvalEnv that is used for the real process graph 
 These source constraints can then be fetched from the EvalEnv at `load_collection` time.
 
 """
+import logging
 from typing import List, Union, Set, Dict
 
 import shapely.geometry.base
@@ -43,6 +44,8 @@ from openeo_driver.save_result import AggregatePolygonResult
 from openeo_driver.utils import geojson_to_geometry, to_hashable, bands_union, temporal_extent_union, \
     spatial_extent_union
 
+
+_log = logging.getLogger(__name__)
 
 class DataTraceBase:
     """Base class for data traces."""
@@ -187,7 +190,7 @@ class DryRunDataTracer:
         source_constraints = {}
         for leaf in self.get_trace_leaves():
             constraints = {}
-            for op in ["temporal_extent", "spatial_extent", "bands"]:
+            for op in ["temporal_extent", "spatial_extent", "bands", "aggregate_spatial"]:
                 args = leaf.get_arguments_by_operation(op)
                 if args:
                     if merge:
@@ -210,6 +213,8 @@ class DryRunDataTracer:
                                 source_constraints[source_id][field] = temporal_extent_union(orig, value)
                             elif field == "spatial_extent":
                                 source_constraints[source_id][field] = spatial_extent_union(orig, value)
+                            elif field == "aggregate_spatial":
+                                _log.warning("Not merging multiple aggregate_spatial geometries.")
                             else:
                                 raise ValueError(field)
                         else:

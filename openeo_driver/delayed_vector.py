@@ -24,6 +24,7 @@ class DelayedVector:
         DelayedVector.geometries loads the vector file into memory so don't do that if it contains a lot of geometries
         (use path instead); DelayedVector.bounds should be safe to use.
     """
+
     def __init__(self, path: str):
         # TODO: support pathlib too?
         self.path = path
@@ -35,7 +36,10 @@ class DelayedVector:
 
     def __str__(self):
         return self.path
-    
+
+    def __eq__(self, other):
+        return isinstance(other, type(self)) and self.path == other.path
+
     @property
     def crs(self) -> pyproj.CRS:
         if self._crs is None:

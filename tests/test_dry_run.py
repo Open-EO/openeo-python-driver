@@ -346,16 +346,17 @@ def test_evaluate_load_collection_and_filter_extents_dynamic(dry_run_env, dry_ru
 
 
 def test_aggregate_spatial(dry_run_env, dry_run_tracer):
+    polygon = {
+        "type": "Polygon",
+        "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]
+    }
     pg = {
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "agg": {
             "process_id": "aggregate_spatial",
             "arguments": {
                 "data": {"from_node": "lc"},
-                "geometries": {
-                    "type": "Polygon",
-                    "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]
-                },
+                "geometries": polygon,
                 "reducer": {
                     "process_graph": {
                         "mean": {
@@ -373,7 +374,10 @@ def test_aggregate_spatial(dry_run_env, dry_run_tracer):
     assert len(source_constraints) == 1
     src, constraints = source_constraints.popitem()
     assert src == ("load_collection", ("S2_FOOBAR",))
-    assert constraints == {"spatial_extent": {"west": 0, "south": 0, "east": 8, "north": 5, "crs": "EPSG:4326"}}
+    assert constraints == {
+        "spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
+        "aggregate_spatial": {"geometries": shapely.geometry.shape(polygon)},
+    }
     geometries, = dry_run_tracer.get_geometries()
     assert isinstance(geometries, shapely.geometry.Polygon)
     assert shapely.geometry.mapping(geometries) == {
@@ -383,9 +387,10 @@ def test_aggregate_spatial(dry_run_env, dry_run_tracer):
 
 
 def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
+    geometry_path = str(get_path("GeometryCollection.geojson"))
     pg = {
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
-        "vector": {"process_id": "read_vector", "arguments": {"filename": str(get_path("GeometryCollection.geojson"))}},
+        "vector": {"process_id": "read_vector", "arguments": {"filename": geometry_path}},
         "agg": {
             "process_id": "aggregate_spatial",
             "arguments": {
@@ -409,7 +414,8 @@ def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
     src, constraints = source_constraints.popitem()
     assert src == ("load_collection", ("S2_FOOBAR",))
     assert constraints == {
-        "spatial_extent": {"west": 5.05, "south": 51.21, "east": 5.15, "north": 51.3, "crs": "EPSG:4326"}
+        "spatial_extent": {"west": 5.05, "south": 51.21, "east": 5.15, "north": 51.3, "crs": "EPSG:4326"},
+        "aggregate_spatial": {"geometries": DelayedVector(geometry_path)},
     }
     geometries, = dry_run_tracer.get_geometries()
     assert isinstance(geometries, DelayedVector)
