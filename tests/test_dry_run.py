@@ -374,7 +374,7 @@ def test_aggregate_spatial(dry_run_env, dry_run_tracer):
     src, constraints = source_constraints.popitem()
     assert src == ("load_collection", ("S2_FOOBAR",))
     assert constraints == {"spatial_extent": {"west": 0, "south": 0, "east": 8, "north": 5, "crs": "EPSG:4326"}}
-    geometries = dry_run_tracer.get_geometries()
+    geometries, = dry_run_tracer.get_geometries()
     assert isinstance(geometries, shapely.geometry.Polygon)
     assert shapely.geometry.mapping(geometries) == {
         "type": "Polygon",
@@ -411,5 +411,5 @@ def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
     assert constraints == {
         "spatial_extent": {"west": 5.05, "south": 51.21, "east": 5.15, "north": 51.3, "crs": "EPSG:4326"}
     }
-    geometries = dry_run_tracer.get_geometries()
+    geometries, = dry_run_tracer.get_geometries()
     assert isinstance(geometries, DelayedVector)

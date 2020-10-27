@@ -220,7 +220,9 @@ class DryRunDataTracer:
                 source_constraints[source_id] = source_constraints.get(source_id, []) + [constraints]
         return source_constraints
 
-    def get_geometries(self, operation="aggregate_spatial"):
+    def get_geometries(
+            self, operation="aggregate_spatial"
+    ) -> List[Union[shapely.geometry.base.BaseGeometry, DelayedVector]]:
         """Get geometries (polygons or DelayedVector), as used by aggregate_spatial"""
         geometries_by_id = {}
         for leaf in self.get_trace_leaves():
@@ -228,13 +230,8 @@ class DryRunDataTracer:
                 if "geometries" in args:
                     geometries = args["geometries"]
                     geometries_by_id[id(geometries)] = geometries
-        if len(geometries_by_id) == 1:
-            return geometries_by_id.popitem()[1]
-        elif len(geometries_by_id) == 0:
-            raise Exception("No geometries found for {o!r}".format(o=operation))
-        else:
-            # TODO: merge/union? bounding box?
-            raise Exception("Multiple geometries found for {o!r}".format(o=operation))
+        # TODO: we just pass all (0 or more) geometries we encountered. Do something smarter when there are multiple?
+        return list(geometries_by_id.values())
 
 
 class DryRunDataCube(DriverDataCube):
