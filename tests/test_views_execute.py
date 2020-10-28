@@ -206,8 +206,27 @@ def test_load_collection_filter(api):
     params = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
     assert params["temporal_extent"] == ('2018-01-01', '2018-12-31')
     assert params["spatial_extent"] == {
-        'west': 5.027, 'east': 5.0438, 'north': 51.2213, 'south': 51.1974, 'crs': 'EPSG:4326',
+        'west': 5.027, 'south': 51.1974, 'east': 5.0438, 'north': 51.2213, 'crs': 'EPSG:4326',
     }
+
+
+def test_load_collection_spatial_extent_geojson(api):
+    api.check_result({
+        'collection': {
+            'process_id': 'load_collection',
+            'arguments': {
+                'id': 'S2_FAPAR_CLOUDCOVER',
+                'spatial_extent': {
+                    "type": "Polygon",
+                    "coordinates": [[[7.0, 46.1], [7.3, 46.0], [7.6, 46.3], [7.2, 46.6], [7.0, 46.1]]]},
+                'temporal_extent': ['2018-01-01', '2018-12-31']
+            },
+            'result': True
+        }
+    })
+    params = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    assert params["temporal_extent"] == ('2018-01-01', '2018-12-31')
+    assert params["spatial_extent"] == {"west": 7.0, "south": 46.0, "east": 7.6, "north": 46.6, "crs": "EPSG:4326"}
 
 
 def test_execute_apply_unary_040(api040):

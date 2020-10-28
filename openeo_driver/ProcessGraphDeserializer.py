@@ -305,8 +305,10 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
             args, field="temporal_extent", process_id="load_collection"
         )
     if args.get("spatial_extent"):
-        # TODO: spatial_extent could also be a geojson object instead of bbox dict
-        arguments["spatial_extent"] = _extract_bbox_extent(args, field="spatial_extent", process_id="load_collection")
+        arguments["spatial_extent"] = _extract_bbox_extent(
+            args, field="spatial_extent", process_id="load_collection", handle_geojson=True
+        )
+        # TODO when spatial_extent is geojson: additional mask_polygon operation? https://github.com/Open-EO/openeo-python-driver/issues/49
     if args.get("bands"):
         arguments["bands"] = extract_arg(args, "bands", process_id="load_collection")
     if args.get("properties"):
@@ -572,13 +574,17 @@ def filter_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
     return cube.filter_temporal(start=extent[0], end=extent[1])
 
 
-def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox") -> dict:
+def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox", handle_geojson=False) -> dict:
     extent = extract_arg(args, name=field, process_id=process_id)
-    d = {
-        k: extract_arg(extent, name=k, process_id=process_id)
-        for k in ["west", "south", "east", "north"]
-    }
-    d["crs"] = extent.get("crs") or "EPSG:4326"
+    if handle_geojson and extent.get("type") in ["Polygon", "GeometryCollection", "Feature", "FeatureCollection"]:
+        w, s, e, n = shape(extent).bounds
+        d = {"west": w, "south": s, "east": e, "north": n, "crs": "EPSG:4326"}
+    else:
+        d = {
+            k: extract_arg(extent, name=k, process_id=process_id)
+            for k in ["west", "south", "east", "north"]
+        }
+        d["crs"] = extent.get("crs") or "EPSG:4326"
     return d
 
 
