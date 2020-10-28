@@ -39,13 +39,7 @@ setup(
         'werkzeug',
         'requests',
         'openeo>=0.4.6a1.*',
-        # TODO EP-3499 as there are no real versions or releases of openeo-processes-python at the moment
-        #   (https://github.com/Open-EO/openeo-processes-python/issues/15),
-        #   we depend on custom built release based on (not yet accepted)
-        #   pull request https://github.com/Open-EO/openeo-processes-python/pull/13
-        #   hosted in VITO's artifactory.
-        #   TODO This pinned dependency should be relaxed when the issues above are resolved.
-        'openeo_processes==0.0.1.post0.dev23+g7e0b25c',
+        'openeo_processes>=0.0.4',
         'gunicorn>=20.0.1',
         'numpy>=1.17.0',
         'shapely',
