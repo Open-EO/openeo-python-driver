@@ -11,7 +11,7 @@ from shapely.geometry.collection import GeometryCollection
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.metadata import CollectionMetadata
 from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata, \
-    BatchJobs, BatchJobMetadata, OidcProvider, UserDefinedProcesses, UserDefinedProcessMetadata
+    BatchJobs, BatchJobMetadata, OidcProvider, UserDefinedProcesses, UserDefinedProcessMetadata, LoadParameters
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, ProcessGraphNotFoundException
@@ -241,9 +241,10 @@ class DummyCatalog(CollectionCatalog):
     def __init__(self):
         super().__init__(all_metadata=self._COLLECTIONS)
 
-    def load_collection(self, collection_id: str, viewing_parameters: dict) -> DummyDataCube:
+    def load_collection(self, collection_id: str, viewing_parameters: LoadParameters) -> DummyDataCube:
         if collection_id in _collections:
             return _collections[collection_id]
+        load_params = viewing_parameters
 
         image_collection = DummyDataCube(
             metadata=CollectionMetadata(metadata=self.get_collection_metadata(collection_id))
@@ -251,7 +252,7 @@ class DummyCatalog(CollectionCatalog):
 
         if collection_id not in _load_collection_calls:
             _load_collection_calls[collection_id] = []
-        _load_collection_calls[collection_id].append(viewing_parameters.copy())
+        _load_collection_calls[collection_id].append(load_params.copy())
 
         _collections[collection_id] = image_collection
         return image_collection
@@ -379,7 +380,9 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
             },
         }
 
-    def load_disk_data(self, format: str, glob_pattern: str, options: dict, viewing_parameters: dict) -> object:
+    def load_disk_data(
+            self, format: str, glob_pattern: str, options: dict, viewing_parameters: LoadParameters
+    ) -> DummyDataCube:
         return DummyDataCube()
 
     def visit_process_graph(self, process_graph: dict) -> ProcessGraphVisitor:

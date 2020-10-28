@@ -1,7 +1,7 @@
 import pytest
 
 from openeo_driver.utils import smart_bool, EvalEnv, to_hashable, bands_union, temporal_extent_union, \
-    spatial_extent_union
+    spatial_extent_union, dict_item
 
 
 def test_smart_bool():
@@ -156,3 +156,52 @@ def test_spatial_extent_union():
         {"west": -5, "south": 50, "east": 3, "north": 53},
         {"west": 3, "south": 53, "east": 4, "north": 54},
     ) == {"west": -5, "south": 50, "east": 4, "north": 54, "crs": "EPSG:4326"}
+
+
+def test_dict_item():
+    class UserInfo(dict):
+        name = dict_item()
+        age = dict_item()
+
+    user = UserInfo(name="John")
+
+    assert user["name"] == "John"
+    assert user.name == "John"
+    user.name = "Alice"
+    assert user["name"] == "Alice"
+    assert user.name == "Alice"
+    user["name"] = "Bob"
+    assert user["name"] == "Bob"
+    assert user.name == "Bob"
+
+    with pytest.raises(KeyError):
+        age = user.age
+    user.age = 42
+    assert user["age"] == 42
+    assert user.age == 42
+
+    user["color"] = "green"
+
+    assert user == {"name": "Bob", "age": 42, "color": "green"}
+
+
+def test_dict_item_defaults():
+    class UserInfo(dict):
+        name = dict_item(default="John Doe")
+        age = dict_item()
+
+    user = UserInfo()
+    assert user.name == "John Doe"
+    with pytest.raises(KeyError):
+        _ = user["name"]
+    with pytest.raises(KeyError):
+        _ = user["age"]
+    with pytest.raises(KeyError):
+        _ = user.age
+
+    user.name = "Alice"
+    user.age = 32
+    assert user["name"] == "Alice"
+    assert user.name == "Alice"
+    assert user["age"] == 32
+    assert user.age == 32

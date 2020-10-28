@@ -16,7 +16,7 @@ from shapely.geometry import shape, mapping
 from openeo.capabilities import ComparableVersion
 from openeo.metadata import MetadataException
 from openeo_driver import dry_run
-from openeo_driver.backend import get_backend_implementation, UserDefinedProcessMetadata
+from openeo_driver.backend import get_backend_implementation, UserDefinedProcessMetadata, LoadParameters
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer
@@ -283,19 +283,19 @@ def extract_deep(args: dict, *steps):
     return value
 
 
-def _extract_viewing_parameters(env: EvalEnv, source_id: tuple):
+def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     constraints = env[ENV_SOURCE_CONSTRAINTS][source_id]
-    viewing_parameters = {
-        "temporal_extent": constraints.get("temporal_extent", [None, None]),
-        "spatial_extent": constraints.get("spatial_extent", {}),
-        "bands": constraints.get("bands", None),
-        "properties": constraints.get("properties", {}),
-        "aggregate_spatial_geometries": constraints.get("aggregate_spatial", {}).get("geometries")
-    }
+    params = LoadParameters()
+    params.temporal_extent = constraints.get("temporal_extent", [None, None])
+    params.spatial_extent = constraints.get("spatial_extent", {})
+    params.bands = constraints.get("bands", None)
+    params.properties = constraints.get("properties", {})
+    params.aggregate_spatial_geometries = constraints.get("aggregate_spatial", {}).get("geometries")
+    # TODO move these to env?
     for param in ["correlation_id", "require_bounds", "pyramid_levels"]:
         if param in env:
-            viewing_parameters[param] = env[param]
-    return viewing_parameters
+            params[param] = env[param]
+    return params
 
 
 @process
@@ -323,10 +323,10 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
     else:
         # Extract basic source constraints.
         source_id = dry_run.DataSource.load_collection(collection_id=collection_id).get_source_id()
-        viewing_parameters = _extract_viewing_parameters(env, source_id=source_id)
+        load_params = _extract_load_parameters(env, source_id=source_id)
         # Override with explicit arguments
-        viewing_parameters.update(arguments)
-        return backend_implementation.catalog.load_collection(collection_id, viewing_parameters=viewing_parameters)
+        load_params.update(arguments)
+        return backend_implementation.catalog.load_collection(collection_id, viewing_parameters=load_params)
 
 
 @non_standard_process(
@@ -349,8 +349,8 @@ def load_disk_data(args: Dict, env: EvalEnv) -> DriverDataCube:
         return dry_run_tracer.load_disk_data(**kwargs)
     else:
         source_id = dry_run.DataSource.load_disk_data(**kwargs).get_source_id()
-        viewing_parameters = _extract_viewing_parameters(env, source_id=source_id)
-        return backend_implementation.load_disk_data(**kwargs, viewing_parameters=viewing_parameters)
+        load_params = _extract_load_parameters(env, source_id=source_id)
+        return backend_implementation.load_disk_data(**kwargs, viewing_parameters=load_params)
 
 
 @process_registry_100.add_function
