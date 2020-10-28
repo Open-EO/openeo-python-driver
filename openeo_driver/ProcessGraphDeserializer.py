@@ -291,10 +291,6 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     params.bands = constraints.get("bands", None)
     params.properties = constraints.get("properties", {})
     params.aggregate_spatial_geometries = constraints.get("aggregate_spatial", {}).get("geometries")
-    # TODO move these to env?
-    for param in ["correlation_id", "require_bounds", "pyramid_levels"]:
-        if param in env:
-            params[param] = env[param]
     return params
 
 
@@ -326,7 +322,7 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
         load_params = _extract_load_parameters(env, source_id=source_id)
         # Override with explicit arguments
         load_params.update(arguments)
-        return backend_implementation.catalog.load_collection(collection_id, viewing_parameters=load_params)
+        return backend_implementation.catalog.load_collection(collection_id, load_params=load_params, env=env)
 
 
 @non_standard_process(
@@ -350,7 +346,7 @@ def load_disk_data(args: Dict, env: EvalEnv) -> DriverDataCube:
     else:
         source_id = dry_run.DataSource.load_disk_data(**kwargs).get_source_id()
         load_params = _extract_load_parameters(env, source_id=source_id)
-        return backend_implementation.load_disk_data(**kwargs, viewing_parameters=load_params)
+        return backend_implementation.load_disk_data(**kwargs, load_params=load_params, env=env)
 
 
 @process_registry_100.add_function

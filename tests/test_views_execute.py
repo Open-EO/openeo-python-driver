@@ -12,7 +12,7 @@ import openeo_driver.testing
 from openeo_driver.backend import get_backend_implementation
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dummy import dummy_backend
-from openeo_driver.dummy.dummy_backend import DummyDataCube
+from openeo_driver.dummy.dummy_backend import DummyDataCube, last_load_collection_call
 from openeo_driver.errors import ProcessGraphMissingException
 from openeo_driver.testing import load_json, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN, \
     preprocess_regex_check_and_replace
@@ -644,9 +644,10 @@ def test_timeseries_point_with_bbox(api):
     assert params["spatial_extent"] == {"west": 3, "east": 6, "south": 50, "north": 51, "crs": "EPSG:4326"}
 
 
-
 def test_load_disk_data(api):
     api.check_result("load_disk_data.json")
+    params = api.last_load_collection_call("/data/MTDA/CGS_S2/CGS_S2_FAPAR/2019/04/24/*/*/10M/*_FAPAR_10M_V102.tif")
+    assert params["spatial_extent"] == {"west": 3, "south": 50, "east": 6, "north": 51, "crs": "EPSG:4326"}
 
 
 def test_mask_with_vector_file(api):

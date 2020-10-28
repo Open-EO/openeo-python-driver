@@ -34,6 +34,12 @@ def get_collection(collection_id: str) -> 'DummyDataCube':
     return _collections[collection_id]
 
 
+def _register_load_collection_call(collection_id: str, load_params: dict):
+    if collection_id not in _load_collection_calls:
+        _load_collection_calls[collection_id] = []
+    _load_collection_calls[collection_id].append(load_params.copy())
+
+
 def last_load_collection_call(collection_id: str) -> EvalEnv:
     return _load_collection_calls[collection_id][-1]
 
@@ -241,18 +247,15 @@ class DummyCatalog(CollectionCatalog):
     def __init__(self):
         super().__init__(all_metadata=self._COLLECTIONS)
 
-    def load_collection(self, collection_id: str, viewing_parameters: LoadParameters) -> DummyDataCube:
+    def load_collection(self, collection_id: str, load_params: LoadParameters, env: EvalEnv) -> DummyDataCube:
         if collection_id in _collections:
             return _collections[collection_id]
-        load_params = viewing_parameters
 
         image_collection = DummyDataCube(
             metadata=CollectionMetadata(metadata=self.get_collection_metadata(collection_id))
         )
 
-        if collection_id not in _load_collection_calls:
-            _load_collection_calls[collection_id] = []
-        _load_collection_calls[collection_id].append(load_params.copy())
+        _register_load_collection_call(collection_id, load_params)
 
         _collections[collection_id] = image_collection
         return image_collection
@@ -381,8 +384,9 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
         }
 
     def load_disk_data(
-            self, format: str, glob_pattern: str, options: dict, viewing_parameters: LoadParameters
+            self, format: str, glob_pattern: str, options: dict, load_params: LoadParameters, env: EvalEnv
     ) -> DummyDataCube:
+        _register_load_collection_call(glob_pattern, load_params)
         return DummyDataCube()
 
     def visit_process_graph(self, process_graph: dict) -> ProcessGraphVisitor:
