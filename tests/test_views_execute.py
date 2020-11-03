@@ -400,6 +400,15 @@ def test_execute_resample_and_merge_cubes(api100):
     assert args[1:] == ('or',)
 
 
+def test_execute_merge_cubes_and_reduce(api100):
+    api100.check_result("merge_cubes_and_reduce.json")
+    dummy = api100.get_collection("S2_FAPAR_CLOUDCOVER")
+    assert dummy.reduce_dimension.call_count == 1
+    args, kwargs = dummy.reduce_dimension.call_args
+    assert args == ()
+    assert kwargs["dimension"] == "t"
+
+
 def test_reduce_bands(api):
     api.check_result("reduce_bands.json")
     dummy = api.get_collection("S2_FOOBAR")

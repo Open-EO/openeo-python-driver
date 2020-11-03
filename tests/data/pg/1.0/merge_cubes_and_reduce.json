@@ -1,0 +1,64 @@
+{
+  "collection1": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "S2_FAPAR_CLOUDCOVER"
+    }
+  },
+  "collection2": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "S2_FOOBAR"
+    }
+  },
+  "mergecubes1": {
+    "process_id": "merge_cubes",
+    "arguments": {
+      "cube1": {
+        "from_node": "collection1"
+      },
+      "cube2": {
+        "from_node": "collection2"
+      },
+      "overlap_resolver": {
+        "process_graph": {
+          "or1": {
+            "process_id": "or",
+            "arguments": {
+              "x": {
+                "from_parameter": "x"
+              },
+              "y": {
+                "from_parameter": "y"
+              }
+            },
+            "result": true
+          }
+        }
+      }
+    }
+  },
+  "reducedimension1": {
+    "process_id": "reduce_dimension",
+    "arguments": {
+      "data": {
+        "from_node": "mergecubes1"
+      },
+      "dimension": "t",
+      "reducer": {
+        "process_graph": {
+          "max": {
+            "process_id": "max",
+            "arguments": {
+              "data": {
+                "from_parameter": "data"
+              }
+            },
+            "result": true
+          }
+        }
+      }
+    },
+    "result": true
+  }
+}
