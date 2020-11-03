@@ -832,11 +832,10 @@ def test_user_defined_process_udp_vs_pdp_priority(api100):
     dummy = api100.get_collection("S2_FOOBAR")
     assert dummy.ndvi.call_count == 1
     assert dummy.reduce_dimension.call_count == 1
-    dummy.reduce_dimension.assert_called_with("bands", mock.ANY)
+    dummy.reduce_dimension.assert_called_with(reducer=mock.ANY, dimension="bands")
     args, kwargs = dummy.reduce_dimension.call_args
-    assert args[0] == "bands"
-    assert "red" in args[1]
-    assert "nir" in args[1]
+    assert "red" in kwargs["reducer"]
+    assert "nir" in kwargs["reducer"]
 
 
 def test_execute_03_style_filter_bbox(api):
