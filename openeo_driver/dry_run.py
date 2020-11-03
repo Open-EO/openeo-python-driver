@@ -168,6 +168,7 @@ class DryRunDataTracer:
         """Create a DryRunDataCube from a `load_disk_data` process."""
         trace = DataSource.load_disk_data(glob_pattern=glob_pattern, format=format, options=options)
         self.add_trace(trace)
+        # TODO: metadata?
         return DryRunDataCube(traces=[trace], data_tracer=self)
 
     def get_trace_leaves(self) -> Set[DataTraceBase]:
@@ -274,10 +275,17 @@ class DryRunDataCube(DriverDataCube):
     def mask(self, mask: 'DryRunDataCube', replacement=None) -> 'DryRunDataCube':
         # TODO: if mask cube has no temporal or bbox extent: copy from self?
         # TODO: or add reference to the self trace to the mask trace and vice versa?
-        return DryRunDataCube(traces=self._traces + mask._traces, data_tracer=self._data_tracer)
+        return DryRunDataCube(
+            traces=self._traces + mask._traces, data_tracer=self._data_tracer,
+            metadata=self.metadata
+        )
 
     def merge_cubes(self, other: 'DryRunDataCube', overlap_resolver) -> 'DryRunDataCube':
-        return DryRunDataCube(traces=self._traces + other._traces, data_tracer=self._data_tracer)
+        return DryRunDataCube(
+            traces=self._traces + other._traces, data_tracer=self._data_tracer,
+            # TODO: properly merge (other) metadata?
+            metadata=self.metadata
+        )
 
     def aggregate_spatial(
             self, geometries: Union[str, dict, DelayedVector, shapely.geometry.base.BaseGeometry],
