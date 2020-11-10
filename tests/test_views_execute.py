@@ -362,14 +362,19 @@ def test_reduce_max_t(api):
     api.check_result("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "t"))
 
 
-def test_reduce_max_xy(api):
+def test_reduce_max_x(api):
     api.check_result("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "x"))
+
+
+def test_reduce_max_y(api):
     api.check_result("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "y"))
 
 
 def test_reduce_max_bands(api):
     api.check_result("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "bands"))
-    # Legacy client style
+
+
+def test_reduce_max_bands_legacy_style(api):
     api.check_result("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "spectral_bands"))
 
 
@@ -1052,3 +1057,7 @@ def test_execute_EP3509_issue38_leaking_band_filter(api, pg, ndvi_expected, mask
 def test_reduce_add_reduce_dim(api100):
     """Test reduce_dimension -> add_dimension -> reduce_dimension"""
     api100.check_result("reduce_add_reduce_dimension.json")
+    dummy = api100.get_collection("S2_FOOBAR")
+    assert dummy.reduce_dimension.call_count == 2
+    assert dummy.add_dimension.call_count == 1
+

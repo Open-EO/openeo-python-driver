@@ -122,6 +122,16 @@ class DummySecondaryServices(SecondaryServices):
         ]
 
 
+def mock_side_effect(fun):
+    """
+    Decorator to flag a DummyDataCube method to be wrapped in Mock(side_effect=...)
+    so that it allows to mock-style inspection (call_count, assert_called_once, ...)
+    while still providing a real implementation.
+    """
+    fun._mock_side_effect = True
+    return fun
+
+
 class DummyDataCube(DriverDataCube):
 
     def __init__(self, metadata: CollectionMetadata = None):
@@ -140,11 +150,18 @@ class DummyDataCube(DriverDataCube):
             if not name.startswith('_') and name not in already_defined and callable(method):
                 setattr(self, name, Mock(name=name, return_value=self))
 
-    def reduce_dimension(self, reducer, dimension: str) -> 'DummyDataCube':
-        return DummyDataCube(metadata=self.metadata.reduce_dimension(dimension_name=dimension))
+        for name in [n for n, m in DummyDataCube.__dict__.items() if getattr(m, '_mock_side_effect', False)]:
+            setattr(self, name, Mock(side_effect=getattr(self, name)))
 
+    @mock_side_effect
+    def reduce_dimension(self, reducer, dimension: str) -> 'DummyDataCube':
+        self.metadata = self.metadata.reduce_dimension(dimension_name=dimension)
+        return self
+
+    @mock_side_effect
     def add_dimension(self, name: str, label, type: str = "other") -> 'DummyDataCube':
-        return DummyDataCube(metadata=self.metadata.add_dimension(name=name, label=label, type=type))
+        self.metadata = self.metadata.add_dimension(name=name, label=label, type=type)
+        return self
 
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
         with open(filename, "w") as f:
