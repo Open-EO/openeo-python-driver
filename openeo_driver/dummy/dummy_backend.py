@@ -123,7 +123,6 @@ class DummySecondaryServices(SecondaryServices):
 
 
 class DummyDataCube(DriverDataCube):
-    # TODO move all Mock stuff here?
 
     def __init__(self, metadata: CollectionMetadata = None):
         super(DummyDataCube, self).__init__(metadata=metadata)
@@ -140,6 +139,12 @@ class DummyDataCube(DriverDataCube):
         for name, method in DriverDataCube.__dict__.items():
             if not name.startswith('_') and name not in already_defined and callable(method):
                 setattr(self, name, Mock(name=name, return_value=self))
+
+    def reduce_dimension(self, reducer, dimension: str) -> 'DummyDataCube':
+        return DummyDataCube(metadata=self.metadata.reduce_dimension(dimension_name=dimension))
+
+    def add_dimension(self, name: str, label, type: str = "other") -> 'DummyDataCube':
+        return DummyDataCube(metadata=self.metadata.add_dimension(name=name, label=label, type=type))
 
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
         with open(filename, "w") as f:

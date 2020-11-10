@@ -1047,3 +1047,8 @@ def test_execute_EP3509_issue38_leaking_band_filter(api, pg, ndvi_expected, mask
     api.check_result(pg)
     assert api.last_load_collection_call("PROBAV_L3_S10_TOC_NDVI_333M_V2").get("bands") == ndvi_expected
     assert api.last_load_collection_call("S2_FOOBAR").get("bands") == mask_expected
+
+
+def test_reduce_add_reduce_dim(api100):
+    """Test reduce_dimension -> add_dimension -> reduce_dimension"""
+    api100.check_result("reduce_add_reduce_dimension.json")

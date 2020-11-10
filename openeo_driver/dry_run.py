@@ -47,6 +47,7 @@ from openeo_driver.utils import geojson_to_geometry, to_hashable, bands_union, t
 
 _log = logging.getLogger(__name__)
 
+
 class DataTraceBase:
     """Base class for data traces."""
 
@@ -263,6 +264,10 @@ class DryRunDataCube(DriverDataCube):
         # TODO: manipulate metadata properly?
         return DryRunDataCube(traces=traces, data_tracer=self._data_tracer, metadata=self.metadata)
 
+    def _process_metadata(self, metadata: CollectionMetadata) -> 'DryRunDataCube':
+        """Just process metadata (leave traces as is)"""
+        return DryRunDataCube(traces=self._traces, data_tracer=self._data_tracer, metadata=metadata)
+
     def filter_temporal(self, start: str, end: str) -> 'DryRunDataCube':
         return self._process("temporal_extent", (start, end))
 
@@ -314,6 +319,12 @@ class DryRunDataCube(DriverDataCube):
         # TODO: EP3561 record resampling operation
         return self
 
+    def reduce_dimension(self, reducer, dimension: str) -> 'DryRunDataCube':
+        return self._process_metadata(self.metadata.reduce_dimension(dimension_name=dimension))
+
+    def add_dimension(self, name: str, label, type: str = "other") -> 'DryRunDataCube':
+        return self._process_metadata(self.metadata.add_dimension(name=name, label=label, type=type))
+
     def _nop(self, *args, **kwargs) -> 'DryRunDataCube':
         """No Operation: do nothing"""
         return self
@@ -326,10 +337,8 @@ class DryRunDataCube(DriverDataCube):
     apply_tiles_spatiotemporal = _nop
     apply_dimension = _nop
     reduce = _nop
-    reduce_dimension = _nop
     reduce_bands = _nop
     mask_polygon = _nop
-    add_dimension = _nop
     aggregate_temporal = _nop
     rename_labels = _nop
     rename_dimension = _nop
