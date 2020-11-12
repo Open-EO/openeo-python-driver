@@ -683,7 +683,13 @@ def merge_cubes(args: dict, env: EvalEnv) -> DriverDataCube:
 @process
 def run_udf(args: dict, env: EvalEnv):
     # TODO: note: this implements a non-standard usage of `run_udf`: processing "vector" cube (direct JSON or from aggregate_spatial, ...)
+    dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     data = extract_arg(args, 'data')
+
+    # TODO: this is simple heuristic about skipping `run_udf` in dry-run mode. Does this have to be more advanced?
+    # TODO: would it be useful to let user hook into dry-run phase of run_udf (e.g. hint about result type/structure)?
+    if dry_run_tracer and isinstance(data, AggregatePolygonResult):
+        return JSONResult({})
 
     if not isinstance(data, DelayedVector) and not isinstance(data,AggregatePolygonResult):
         if isinstance(data, dict):
