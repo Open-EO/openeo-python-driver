@@ -965,5 +965,13 @@ def sleep(args: Dict, env: EvalEnv):
         .returns(description="the corrected data as a data cube", schema={"type": "object", "subtype": "raster-cube"})
 )
 def apply_atmospheric_correction(args: Dict, env: EvalEnv) -> object:
+    return atmospheric_correction(args,env)
+
+@non_standard_process(
+    ProcessSpec(id='atmospheric_correction', description="iCor workflow test")
+        .param('data', description="input data cube to be corrected", schema={"type": "object", "subtype": "raster-cube"})
+        .returns(description="the corrected data as a data cube", schema={"type": "object", "subtype": "raster-cube"})
+)
+def atmospheric_correction(args: Dict, env: EvalEnv) -> object:
     image_collection = extract_arg(args, 'data')
     return image_collection.apply_atmospheric_correction()

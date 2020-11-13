@@ -91,3 +91,6 @@ class DriverDataCube(ImageCollection):
 
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
         self._not_implemented()
+
+    def atmospheric_correction(self, method:str=None) -> 'DriverDataCube':
+        self._not_implemented()
