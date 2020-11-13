@@ -1061,3 +1061,17 @@ def test_reduce_add_reduce_dim(api100):
     assert dummy.reduce_dimension.call_count == 2
     assert dummy.add_dimension.call_count == 1
 
+
+@pytest.mark.parametrize(["format", "expected"], [
+    ("GTiff", "image/tiff; application=geotiff"),
+    ("NetCDF", "application/x-netcdf"),
+    ("PNG", "image/png"),
+    ("CovJSON", "application/json"),
+])
+def test_save_result_gtiff_mimetype(api, format, expected):
+    pg = {
+        "l": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "s": {"process_id": "save_result", "arguments": {"data": {"from_node": "l"}, "format": format}, "result": True}
+    }
+    res = api.check_result(pg)
+    assert res.headers["Content-type"] == expected

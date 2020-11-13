@@ -36,6 +36,18 @@ class SaveResult(ABC):
         """
         pass
 
+    def get_mimetype(self, default="application/octet-stream"):
+        return {
+            "gtiff": "image/tiff; application=geotiff",
+            "cog": "image/tiff; application=geotiff; profile=cloud-optimized",
+            "netcdf": "application/x-netcdf",
+            "png": "image/png",
+            "json": "application/json",
+            "geojson": "application/geo+json",
+            "covjson": "application/json",
+            # TODO: support more formats
+        }.get(self.format.lower(), default)
+
 
 def get_temp_file(suffix="", prefix="openeo-pydrvr-"):
     # TODO: make sure temp files are cleaned up when read
@@ -53,9 +65,10 @@ class ImageCollectionResult(SaveResult):
         return self.cube.save_result(filename=filename, format=self.format, format_options=self.options)
 
     def create_flask_response(self):
-        filename = get_temp_file(suffix=".savecube")
+        filename = get_temp_file(suffix=".save_result.{e}".format(e=self.format.lower()))
         filename = self.save_result(filename)
-        return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
+        mimetype = self.get_mimetype()
+        return send_from_directory(os.path.dirname(filename), os.path.basename(filename), mimetype=mimetype)
 
 
 class JSONResult(SaveResult):
