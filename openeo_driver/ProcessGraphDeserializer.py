@@ -980,4 +980,4 @@ def apply_atmospheric_correction(args: Dict, env: EvalEnv) -> object:
 )
 def atmospheric_correction(args: Dict, env: EvalEnv) -> object:
     image_collection = extract_arg(args, 'data')
-    return image_collection.apply_atmospheric_correction()
+    return image_collection.atmospheric_correction()
