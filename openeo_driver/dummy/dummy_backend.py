@@ -289,10 +289,14 @@ class DummyBatchJobs(BatchJobs):
     def generate_job_id(self):
         return str(uuid.uuid4())
 
-    def create_job(self, user_id: str, process: dict, api_version: str, job_options: dict = None) -> BatchJobMetadata:
+    def create_job(
+            self, user_id: str, process: dict, api_version: str,
+            metadata: dict, job_options: dict = None
+    ) -> BatchJobMetadata:
         job_id = self.generate_job_id()
         job_info = BatchJobMetadata(
-            id=job_id, status="created", process=process, created=utcnow(), job_options=job_options
+            id=job_id, status="created", process=process, created=utcnow(), job_options=job_options,
+            title=metadata.get("title"), description=metadata.get("description")
         )
         self._job_registry[(user_id, job_id)] = job_info
         return job_info

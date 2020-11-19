@@ -487,6 +487,7 @@ def create_job(user: User):
         user_id=user.user_id,
         process=process,
         api_version=g.api_version,
+        metadata=dict_no_none(title=post_data.get("title"), description=post_data.get("description")),
         job_options=job_options,
     )
     job_id = job_info.id

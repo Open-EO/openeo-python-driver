@@ -531,6 +531,7 @@ class TestBatchJobs:
                     'process_graph': {"foo": {"process_id": "foo", "arguments": {}}},
                     'summary': 'my foo job',
                 },
+                "title": "Foo job", "description": "Run the `foo` process!"
             }).assert_status_code(201)
         assert resp.headers['Location'] == 'http://oeo.net/openeo/1.0.0/jobs/job-245'
         assert resp.headers['OpenEO-Identifier'] == 'job-245'
@@ -540,6 +541,8 @@ class TestBatchJobs:
         assert job_info.status == "created"
         assert job_info.created == dummy_backend.DEFAULT_DATETIME
         assert job_info.job_options is None
+        assert job_info.title == "Foo job"
+        assert job_info.description == "Run the `foo` process!"
 
     def test_create_job_100_with_options(self, api100):
         with self._fresh_job_registry(next_job_id="job-256"):

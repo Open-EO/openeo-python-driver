@@ -200,7 +200,7 @@ class ApiTester:
         """Load test process graph from json file"""
         return load_json(path=self.data_path(filename), preprocess=preprocess)
 
-    def get_process_graph_dict(self, process_graph: dict) -> dict:
+    def get_process_graph_dict(self, process_graph: dict, title: str = None, description: str = None) -> dict:
         """
         Build dict containing process graph (e.g. to POST, or to expect in metadata),
         according to API version
@@ -209,6 +209,10 @@ class ApiTester:
             data = {"process": {'process_graph': process_graph}}
         else:
             data = {'process_graph': process_graph}
+        if title:
+            data["title"] = title
+        if description:
+            data["description"] = description
         return data
 
 

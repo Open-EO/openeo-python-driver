@@ -228,7 +228,10 @@ class BatchJobs(MicroService):
     https://openeo.org/documentation/1.0/developers/api/reference.html#operation/stop-job
     """
 
-    def create_job(self, user_id: str, process: dict, api_version: str, job_options: dict = None) -> BatchJobMetadata:
+    def create_job(
+            self, user_id: str, process: dict, api_version: str,
+            metadata: dict, job_options: dict = None
+    ) -> BatchJobMetadata:
         raise NotImplementedError
 
     def get_job_info(self, job_id: str, user_id: str) -> BatchJobMetadata:
