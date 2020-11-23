@@ -989,5 +989,6 @@ def atmospheric_correction(args: Dict, env: EvalEnv) -> object:
         .returns(description="the corrected data as a data cube", schema={"type": "object", "subtype": "raster-cube"})
 )
 def water_vapor(args: Dict, env: EvalEnv) -> object:
-    return water_vapor(args,env)
+    image_collection = extract_arg(args, 'data')
+    return image_collection.water_vapor()
 
