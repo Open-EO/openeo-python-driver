@@ -94,3 +94,9 @@ class DriverDataCube(ImageCollection):
 
     def atmospheric_correction(self, method:str=None) -> 'DriverDataCube':
         self._not_implemented()
+        
+    def water_vapor(self, method:str=None) -> 'DriverDataCube':
+        self._not_implemented()
+        
+        
+        
