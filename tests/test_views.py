@@ -154,7 +154,7 @@ class TestGeneral:
         assert resp.status_code == 204
         assert len(resp.data) == 0
         # General CORS headers
-        assert resp.access_control_allow_origin.to_header() == "*"
+        assert resp.access_control_allow_origin == "*"
         assert resp.access_control_allow_credentials is False
         assert {"Location", "OpenEO-Identifier", "OpenEO-Costs", "Link"}.issubset(resp.access_control_expose_headers)
 
@@ -168,7 +168,7 @@ class TestGeneral:
         response = api.get(path)
         resp = response.assert_status_code(200).response
         # General CORS headers
-        assert resp.access_control_allow_origin.to_header() == "*"
+        assert resp.access_control_allow_origin == "*"
         assert resp.access_control_allow_credentials is False
         assert {"Location", "OpenEO-Identifier", "OpenEO-Costs", "Link"}.issubset(resp.access_control_expose_headers)
 
@@ -181,7 +181,7 @@ class TestGeneral:
         )
         resp = response.assert_status_code(201).response
         # General CORS headers
-        assert resp.access_control_allow_origin.to_header() == "*"
+        assert resp.access_control_allow_origin == "*"
         assert resp.access_control_allow_credentials is False
         assert {"Location", "OpenEO-Identifier", "OpenEO-Costs", "Link"}.issubset(resp.access_control_expose_headers)
 
@@ -196,7 +196,7 @@ class TestGeneral:
         )
         resp = response.assert_status_code(200).response
         # General CORS headers
-        assert resp.access_control_allow_origin.to_header() == "*"
+        assert resp.access_control_allow_origin == "*"
         assert resp.access_control_allow_credentials is False
         assert {"Location", "OpenEO-Identifier", "OpenEO-Costs", "Link"}.issubset(resp.access_control_expose_headers)
 

@@ -36,7 +36,7 @@ setup(
     tests_require=tests_require,
     install_requires=[
         'flask',
-        'werkzeug',
+        'werkzeug>=1.0.1',
         'requests',
         'openeo>=0.4.6a1.*',
         'openeo_processes>=0.0.4',
