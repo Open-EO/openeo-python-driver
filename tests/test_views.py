@@ -143,16 +143,62 @@ class TestGeneral:
         res = api100.get('/conformance').assert_status_code(200).json
         assert "conformsTo" in res
 
-    @pytest.mark.parametrize("path", ["/", "/collections", "/processes"])
-    def test_cors_options(self, api, path):
+    @pytest.mark.parametrize("path", ["/", "/collections", "/processes", "/jobs", ])
+    def test_cors_headers_options(self, api, path):
+        # Mimic browser's OPTION request
+        api.client.environ_base["HTTP_ORIGIN"] = "https://editor.openeo.org"
+        api.client.environ_base["HTTP_ACCESS_CONTROL_REQUEST_METHOD"] = "GET"
+        api.client.environ_base["HTTP_ACCESS_CONTROL_REQUEST_HEADERS"] = "Authorization, Content-Type"
         resp = api.client.options(api.url(path))
+
         assert resp.status_code == 204
         assert len(resp.data) == 0
-        assert 'Authorization' in resp.access_control_allow_headers
-        assert 'content-type' in resp.access_control_allow_headers
-        assert resp.access_control_allow_credentials == True
-        assert 'application/json' == resp.content_type
-        assert {'Location', 'OpenEO-Identifier', 'OpenEO-Costs', 'Link'}.issubset(resp.access_control_expose_headers)
+        # General CORS headers
+        assert resp.access_control_allow_origin.to_header() == "*"
+        assert resp.access_control_allow_credentials is False
+        assert {"Location", "OpenEO-Identifier", "OpenEO-Costs", "Link"}.issubset(resp.access_control_expose_headers)
+
+        # OPTIONS specific CORS headers
+        assert {"Authorization", "Content-Type"}.issubset(resp.access_control_allow_headers)
+        assert {"GET", "POST", "PATCH"}.issubset(resp.access_control_allow_methods)
+        assert resp.content_type == "application/json"
+
+    @pytest.mark.parametrize("path", ["/", "/collections", "/processes"])
+    def test_cors_headers_get(self, api, path):
+        response = api.get(path)
+        resp = response.assert_status_code(200).response
+        # General CORS headers
+        assert resp.access_control_allow_origin.to_header() == "*"
+        assert resp.access_control_allow_credentials is False
+        assert {"Location", "OpenEO-Identifier", "OpenEO-Costs", "Link"}.issubset(resp.access_control_expose_headers)
+
+    def test_cors_headers_post(self, api):
+        pg = {"process_graph": {"add": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}}}
+        response = api.post(
+            "/jobs",
+            headers=TEST_USER_AUTH_HEADER,
+            json={"process": pg} if api.api_version_compare.at_least("1.0.0") else pg
+        )
+        resp = response.assert_status_code(201).response
+        # General CORS headers
+        assert resp.access_control_allow_origin.to_header() == "*"
+        assert resp.access_control_allow_credentials is False
+        assert {"Location", "OpenEO-Identifier", "OpenEO-Costs", "Link"}.issubset(resp.access_control_expose_headers)
+
+    def test_cors_headers_put(self, api100):
+        response = api100.put(
+            "/process_graphs/myndvi",
+            headers=TEST_USER_AUTH_HEADER,
+            json={
+                "id": "oneplustwo",
+                "process_graph": {"a": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}}
+            }
+        )
+        resp = response.assert_status_code(200).response
+        # General CORS headers
+        assert resp.access_control_allow_origin.to_header() == "*"
+        assert resp.access_control_allow_credentials is False
+        assert {"Location", "OpenEO-Identifier", "OpenEO-Costs", "Link"}.issubset(resp.access_control_expose_headers)
 
     def test_health(self, api):
         resp = api.get('/health').assert_status_code(200).json
@@ -185,7 +231,6 @@ class TestGeneral:
                 "GTiff": {"title": "GeoTiff", "gis_data_types": ["raster"], "parameters": {}},
             }
         }
-        assert 'Access-Control-Allow-Credentials' in response.headers
 
     def test_processes(self, api):
         resp = api.get('/processes').assert_status_code(200).json

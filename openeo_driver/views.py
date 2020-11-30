@@ -9,6 +9,7 @@ from collections import namedtuple, defaultdict
 from typing import Callable, Tuple, List
 
 import flask
+import flask_cors
 import numpy as np
 import pkg_resources
 from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, current_app
@@ -48,13 +49,24 @@ _log.info("Default API Version: {v}".format(v=DEFAULT_VERSION))
 
 
 class OpenEoApiApp(Flask):
+
+    def __init__(self, import_name):
+        super().__init__(import_name=import_name)
+
+        # Setup up general CORS headers (for all HTTP methods)
+        flask_cors.CORS(
+            self,
+            origins="*",
+            send_wildcard=True,
+            supports_credentials=False,
+            allow_headers=["Content-Type", "Authorization"],
+            expose_headers=["Location", "OpenEO-Identifier", "OpenEO-Costs", "Link"]
+        )
+
     def make_default_options_response(self):
+        # Customization of OPTIONS response
         rv = super().make_default_options_response()
         rv.status_code = 204
-        rv.access_control_allow_methods = rv.allow
-        rv.access_control_allow_headers = ["Content-Type", "Authorization"]
-        rv.access_control_expose_headers = ["Location", "OpenEO-Identifier", "OpenEO-Costs", "Link"]
-        rv.access_control_allow_credentials = True
         rv.content_type = "application/json"
         return rv
 
@@ -69,12 +81,6 @@ openeo_bp = Blueprint('openeo', __name__)
 backend_implementation = get_backend_implementation()
 
 auth_handler = HttpAuthHandler(oidc_providers=backend_implementation.oidc_providers())
-
-
-@openeo_bp.after_request
-def add_header(response):
-    response.access_control_allow_credentials = True
-    return response
 
 
 @openeo_bp.url_defaults

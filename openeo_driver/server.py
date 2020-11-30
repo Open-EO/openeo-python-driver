@@ -1,7 +1,7 @@
-from flask_cors import CORS
-import gunicorn.app.base
 import logging
 from typing import Union
+
+import gunicorn.app.base
 
 
 def show_log_level(logger: logging.Logger):
@@ -14,7 +14,6 @@ def run(title: str, description: str, deploy_metadata: Union[dict, None], backen
     """ Starts a web server exposing OpenEO-GeoPySpark, bound to a public IP. """
 
     from openeo_driver.views import app
-    CORS(app)
 
     app.logger.setLevel('DEBUG')
     app.config['OPENEO_BACKEND_VERSION'] = backend_version
