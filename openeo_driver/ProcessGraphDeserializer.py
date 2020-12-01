@@ -440,7 +440,7 @@ def add_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
     return data_cube.add_dimension(
         name=extract_arg(args, 'name'),
         label=extract_arg_list(args, ['label', 'value']),
-        type=extract_arg(args, 'type'),
+        type=args.get("type", "other"),
     )
 
 

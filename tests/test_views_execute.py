@@ -1062,6 +1062,19 @@ def test_reduce_add_reduce_dim(api100):
     assert dummy.add_dimension.call_count == 1
 
 
+@pytest.mark.parametrize(["arguments", "expected"], [
+    ({"data": {"from_node": "l"}, "name": "foo", "label": "bar"}, "other"),
+    ({"data": {"from_node": "l"}, "name": "foo", "label": "bar", "type": "bands"}, "bands"),
+])
+def test_add_dimension_type_argument(api100, arguments, expected):
+    api100.check_result({
+        "l": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "s": {"process_id": "add_dimension", "arguments": arguments, "result": True}
+    })
+    dummy = api100.get_collection("S2_FOOBAR")
+    dummy.add_dimension.assert_called_with(name="foo", label="bar", type=expected)
+
+
 @pytest.mark.parametrize(["format", "expected"], [
     ("GTiff", "image/tiff; application=geotiff"),
     ("NetCDF", "application/x-netcdf"),
