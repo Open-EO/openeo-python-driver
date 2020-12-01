@@ -663,12 +663,12 @@ def cancel_job(job_id, user: User):
     return make_response("", 204)
 
 
-@api_endpoint
+@api_endpoint(hidden=True)
 @openeo_bp.route('/jobs/<job_id>/estimate', methods=['GET'])
 @auth_handler.requires_bearer_auth
 def job_estimate(job_id, user: User):
     # TODO: implement cost estimation?
-    return jsonify({})
+    raise FeatureUnsupportedException()
 
 
 @api_endpoint
