@@ -46,7 +46,7 @@ setup(
         'geopandas==0.7.0',
         'xarray==0.12.3',
         'netCDF4==1.5.1.2',
-        'openeo_udf>=1.0.0rc2',
+        'openeo_udf>=1.0.0rc3',
         'flask-cors',
     ],
     extras_require={
