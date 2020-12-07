@@ -11,11 +11,12 @@ from flask.testing import FlaskClient
 import pytest
 
 from openeo.capabilities import ComparableVersion
-from openeo_driver.backend import BatchJobMetadata
+from openeo_driver.backend import BatchJobMetadata, UserDefinedProcessMetadata
 from openeo_driver.dummy import dummy_backend
 import openeo_driver.testing
 from openeo_driver.testing import TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER
-from openeo_driver.views import app, EndpointRegistry, build_backend_deploy_metadata, _normalize_collection_metadata
+from openeo_driver.views import app, EndpointRegistry, build_backend_deploy_metadata, _normalize_collection_metadata, \
+    backend_implementation
 from .data import TEST_DATA_ROOT
 from .test_users import _build_basic_http_auth_header
 
@@ -112,7 +113,6 @@ class TestGeneral:
         assert endpoints["/result"] == ["POST"]
         assert endpoints["/jobs"] == ["GET", "POST"]
         assert endpoints["/processes"] == ["GET"]
-        assert endpoints["/processes/{process_id}"] == ["GET"]
         assert endpoints["/udf_runtimes"] == ["GET"]
         assert endpoints["/file_formats"] == ["GET"]
         assert endpoints["/service_types"] == ["GET"]
@@ -232,8 +232,12 @@ class TestGeneral:
             }
         }
 
-    def test_processes(self, api):
-        resp = api.get('/processes').assert_status_code(200).json
+    @pytest.mark.parametrize("endpoint", [
+        "/processes",
+        "/processes/backend"
+    ])
+    def test_processes(self, api, endpoint):
+        resp = api.get(endpoint).assert_status_code(200).json
         processes = resp["processes"]
         process_ids = set(p['id'] for p in processes)
         assert {"load_collection", "min", "max", "sin", "merge_cubes", "mask"}.issubset(process_ids)
@@ -266,25 +270,6 @@ class TestGeneral:
             'description': 'A sequence of (bin, count) pairs',
             'schema': {'type': 'object'}
         }
-
-    def test_process_details(self, api):
-        spec = api.get('/processes/sin').assert_status_code(200).json
-        assert spec['id'] == 'sin'
-        assert "Computes the sine" in spec['description']
-        if api.api_version_compare.at_least("1.0.0"):
-            assert spec["parameters"] == [
-                {'name': 'x', 'description': 'An angle in radians.', 'schema': {'type': ['number', 'null']}}
-            ]
-        else:
-            assert spec["parameters"] == {
-                'x': {
-                    'description': 'An angle in radians.', 'required': True, 'schema': {'type': ['number', 'null']}
-                }
-            }
-        assert spec["returns"]["schema"] == {'type': ['number', 'null']}
-
-    def test_process_details_invalid(self, api):
-        api.get('/processes/blergh').assert_error(400, 'ProcessUnsupported')
 
     def test_processes_040_vs_100(self, api040, api100):
         pids040 = {p['id'] for p in api040.get("/processes").assert_status_code(200).json["processes"]}
@@ -1028,8 +1013,27 @@ def test_endpoint_registry_multiple_methods():
     assert methods == ({"GET"}, {"POST"})
 
 
+@pytest.fixture
+def udp_store() -> dummy_backend.DummyUserDefinedProcesses:
+    udps = backend_implementation.user_defined_processes
+    assert isinstance(udps, dummy_backend.DummyUserDefinedProcesses)
+    udps.reset({
+        ('Mr.Test', 'udp1'): UserDefinedProcessMetadata(
+            id='udp1',
+            process_graph={'process1': {}},
+            public=True,
+        ),
+        ('Mr.Test', 'udp2'): UserDefinedProcessMetadata(
+            id='udp2',
+            process_graph={'process1': {}},
+            public=False,
+        )
+    })
+    return udps
+
+
 class TestUserDefinedProcesses:
-    def test_add_udp(self, api100):
+    def test_add_udp(self, api100, udp_store):
         api100.put('/process_graphs/evi', headers=TEST_USER_AUTH_HEADER, json={
             'id': 'evi',
             'parameters': [
@@ -1041,13 +1045,13 @@ class TestUserDefinedProcesses:
             'public': True
         }).assert_status_code(200)
 
-        new_udp = dummy_backend.DummyUserDefinedProcesses._processes['Mr.Test', 'evi']
+        new_udp = udp_store._processes['Mr.Test', 'evi']
         assert new_udp.id == 'evi'
         assert new_udp.parameters == [{'name': 'red'}]
         assert new_udp.process_graph == {'sub': {}}
         assert new_udp.public
 
-    def test_update_udp(self, api100):
+    def test_update_udp(self, api100, udp_store):
         api100.put('/process_graphs/udp1', headers=TEST_USER_AUTH_HEADER, json={
             'id': 'udp1',
             'parameters': [
@@ -1059,13 +1063,13 @@ class TestUserDefinedProcesses:
             'public': True
         }).assert_status_code(200)
 
-        modified_udp = dummy_backend.DummyUserDefinedProcesses._processes['Mr.Test', 'udp1']
+        modified_udp = udp_store._processes['Mr.Test', 'udp1']
         assert modified_udp.id == 'udp1'
         assert modified_udp.process_graph == {'add': {}}
         assert modified_udp.parameters == [{'name': 'blue'}]
         assert modified_udp.public
 
-    def test_list_udps(self, api100):
+    def test_list_udps(self, api100, udp_store):
         resp = api100.get('/process_graphs', headers=TEST_USER_AUTH_HEADER).assert_status_code(200)
 
         udps = resp.json['processes']
@@ -1074,26 +1078,49 @@ class TestUserDefinedProcesses:
         assert 'process_graph' not in udp1
         assert udp1['public']
 
-    def test_get_udp(self, api100):
+    def test_get_udp(self, api100, udp_store):
         resp = api100.get('/process_graphs/udp1', headers=TEST_USER_AUTH_HEADER).assert_status_code(200)
 
         udp = resp.json
         assert udp['id'] == 'udp1'
         assert udp['public']
 
-    def test_get_unknown_udp(self, api100):
+    def test_get_unknown_udp(self, api100, udp_store):
         api100.get('/process_graphs/unknown', headers=TEST_USER_AUTH_HEADER).assert_status_code(404)
 
-    def test_delete_udp(self, api100):
-        assert ('Mr.Test', 'udp2') in dummy_backend.DummyUserDefinedProcesses._processes
+    def test_delete_udp(self, api100, udp_store):
+        assert ('Mr.Test', 'udp2') in udp_store._processes
 
         api100.delete('/process_graphs/udp2', headers=TEST_USER_AUTH_HEADER).assert_status_code(204)
 
-        assert ('Mr.Test', 'udp1') in dummy_backend.DummyUserDefinedProcesses._processes
-        assert ('Mr.Test', 'udp2') not in dummy_backend.DummyUserDefinedProcesses._processes
+        assert ('Mr.Test', 'udp1') in udp_store._processes
+        assert ('Mr.Test', 'udp2') not in udp_store._processes
 
-    def test_delete_unknown_udp(self, api100):
+    def test_delete_unknown_udp(self, api100, udp_store):
         api100.delete('/process_graphs/unknown', headers=TEST_USER_AUTH_HEADER).assert_status_code(404)
+
+    def test_public_udp(self, api100, udp_store):
+        api100.put('/process_graphs/evi', headers=TEST_USER_AUTH_HEADER, json={
+            'id': 'evi',
+            'parameters': [{'name': 'red'}],
+            'process_graph': {'sub': {}},
+            'public': True
+        }).assert_status_code(200)
+        api100.put('/process_graphs/secret', headers=TEST_USER_AUTH_HEADER, json={
+            'id': 'secret',
+            'parameters': [{'name': 'red'}],
+            'process_graph': {'sub': {}},
+            'public': False
+        }).assert_status_code(200)
+
+        r = api100.get("/processes/u:Mr.Test").assert_status_code(200)
+        assert r.json == {
+            "processes": [
+                {"id": "udp1", "public": True},
+                {"id": "evi", "parameters": [{"name": "red"}], "public": True}
+            ],
+            "links": [],
+        }
 
 
 def test_debug_echo_get(api):

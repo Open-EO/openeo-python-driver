@@ -972,10 +972,19 @@ def processes():
 
 
 @api_endpoint
-@openeo_bp.route('/processes/<process_id>', methods=['GET'])
-def process(process_id):
-    spec = get_process_registry(requested_api_version()).get_spec(name=process_id)
-    return jsonify(spec)
+@openeo_bp.route('/processes/<namespace>', methods=['GET'])
+def process(namespace):
+    # TODO: convention for namespaces (user, organisation, ....) see https://github.com/Open-EO/openeo-api/issues/310
+    if namespace == "backend":
+        processes = get_process_registry(requested_api_version()).get_specs()
+    elif namespace.startswith("u:"):
+        user_id = namespace.partition("u:")[-1]
+        user_udps = [p for p in backend_implementation.user_defined_processes.get_for_user(user_id) if p.public]
+        processes = [_jsonable_udp_metadata(udp, full=False) for udp in user_udps]
+    else:
+        raise OpenEOApiException("Could not handle namespace {n!r}".format(n=namespace))
+    # TODO: pagination links?
+    return jsonify({'processes': processes, 'links': []})
 
 
 @api_endpoint(hidden=True)

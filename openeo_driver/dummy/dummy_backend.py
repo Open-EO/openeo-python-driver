@@ -344,17 +344,12 @@ class DummyBatchJobs(BatchJobs):
 
 
 class DummyUserDefinedProcesses(UserDefinedProcesses):
-    _processes: Dict[Tuple[str, str], UserDefinedProcessMetadata] = {
-        ('Mr.Test', 'udp1'): UserDefinedProcessMetadata(
-            id='udp1',
-            process_graph={'process1': {}},
-            public=True
-        ),
-        ('Mr.Test', 'udp2'): UserDefinedProcessMetadata(
-            id='udp2',
-            process_graph={'process1': {}}
-        )
-    }
+    def __init__(self):
+        super().__init__()
+        self._processes: Dict[Tuple[str, str], UserDefinedProcessMetadata] = {}
+
+    def reset(self, db: Dict[Tuple[str, str], UserDefinedProcessMetadata]):
+        self._processes = db
 
     def get(self, user_id: str, process_id: str) -> Union[UserDefinedProcessMetadata, None]:
         return self._processes.get((user_id, process_id))
