@@ -198,7 +198,8 @@ def test_load_collection_filter(api):
                     'west': 5.027, 'east': 5.0438, 'north': 51.2213,
                     'south': 51.1974, 'crs': 'EPSG:4326'
                 },
-                'temporal_extent': ['2018-01-01', '2018-12-31']
+                'temporal_extent': ['2018-01-01', '2018-12-31'],
+                'featureflags': {'experimental':True}
             },
             'result': True
         }
@@ -208,6 +209,7 @@ def test_load_collection_filter(api):
     assert params["spatial_extent"] == {
         'west': 5.027, 'south': 51.1974, 'east': 5.0438, 'north': 51.2213, 'crs': 'EPSG:4326',
     }
+    assert params["featureflags"] == {'experimental':True}
 
 
 def test_load_collection_spatial_extent_geojson(api):

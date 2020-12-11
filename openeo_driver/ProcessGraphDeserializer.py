@@ -314,6 +314,9 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
     if args.get("properties"):
         arguments["properties"] = extract_arg(args, 'properties', process_id="load_collection")
 
+    if args.get("featureflags"):
+        arguments["featureflags"] = extract_arg(args, 'featureflags', process_id="load_collection")
+
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
         metadata = backend_implementation.catalog.get_collection_metadata(collection_id)
