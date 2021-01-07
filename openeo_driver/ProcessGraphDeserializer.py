@@ -24,7 +24,7 @@ from openeo_driver.errors import ProcessParameterRequiredException, ProcessParam
 from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult
-from openeo_driver.specs import SPECS_ROOT
+from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry
 from openeo_udf.api.feature_collection import FeatureCollection
 from openeo_udf.api.structured_data import StructuredData
@@ -291,6 +291,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     params.bands = constraints.get("bands", None)
     params.properties = constraints.get("properties", {})
     params.aggregate_spatial_geometries = constraints.get("aggregate_spatial", {}).get("geometries")
+    params.sar_backscatter = constraints.get("sar_backscatter", {})
     return params
 
 
@@ -995,3 +996,14 @@ def water_vapor(args: Dict, env: EvalEnv) -> object:
     image_collection = extract_arg(args, 'data')
     return image_collection.water_vapor()
 
+
+@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/sar_backscatter.json"))
+def sar_backscatter(args: Dict, env: EvalEnv):
+    cube: DriverDataCube = extract_arg(args, 'data')
+    return cube.sar_backscatter(
+        backscatter_coefficient=args.get("backscatter_coefficient", "gamma0"),
+        orthorectify=args.get("orthorectify", False),
+        elevation_model=args.get("elevation_model", None),
+        # Additional (non-standard) finetuning options
+        options=args.get("options", {})
+    )

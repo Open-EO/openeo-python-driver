@@ -81,7 +81,7 @@ def replace_nan_values(o):
 
 def read_json(filename: Union[str, Path]) -> Union[dict, list]:
     """Read a dict or list from a JSON file"""
-    with Path(filename).open(encoding='utf-8') as f:
+    with Path(filename).open("r", encoding="utf-8") as f:
         return json.load(f)
 
 

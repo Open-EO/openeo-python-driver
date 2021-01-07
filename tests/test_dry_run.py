@@ -419,3 +419,40 @@ def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
     }
     geometries, = dry_run_tracer.get_geometries()
     assert isinstance(geometries, DelayedVector)
+
+
+@pytest.mark.parametrize(["arguments", "expected"], [
+    (
+            {},
+            {
+                "backscatter_coefficient": "gamma0", "orthorectify": False, "elevation_model": None,
+                "options": {},
+            }
+    ),
+    (
+            {
+                "backscatter_coefficient": "sigma0", "orthorectify": True, "elevation_model": "dem",
+                "options": {"dem_zoom": 9},
+            },
+            {
+                "backscatter_coefficient": "sigma0", "orthorectify": True, "elevation_model": "dem",
+                "options": {"dem_zoom": 9},
+            }
+    ),
+])
+def test_evaluate_sar_backscatter(dry_run_env, dry_run_tracer, arguments, expected):
+    pg = {
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "sar": {
+            "process_id": "sar_backscatter",
+            "arguments": dict(data={"from_node": "lc"}, **arguments),
+            "result": True,
+        },
+    }
+    cube = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=False)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints.popitem()
+    assert src == ("load_collection", ("S2_FOOBAR",))
+    assert constraints == [{"sar_backscatter": [expected]}]

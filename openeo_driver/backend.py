@@ -129,6 +129,10 @@ class LoadParameters(dict):
     bands = dict_item(default=None)
     properties = dict_item(default={})
     aggregate_spatial_geometries = dict_item(default=None)
+    sar_backscatter = dict_item(default={})
+
+    def copy(self) -> "LoadParameters":
+        return LoadParameters(super().copy())
 
 
 class CollectionCatalog(MicroService):

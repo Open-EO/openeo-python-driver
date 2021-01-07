@@ -9,7 +9,7 @@ import shapely.geometry
 from flask.testing import FlaskClient
 
 import openeo_driver.testing
-from openeo_driver.backend import get_backend_implementation
+from openeo_driver.backend import get_backend_implementation, LoadParameters
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyDataCube, last_load_collection_call
@@ -52,7 +52,7 @@ class ApiTester(openeo_driver.testing.ApiTester):
     def get_collection(self, collection_id) -> DummyDataCube:
         return self.impl.get_collection(collection_id)
 
-    def last_load_collection_call(self, collection_id) -> EvalEnv:
+    def last_load_collection_call(self, collection_id) -> LoadParameters:
         return self.impl.last_load_collection_call(collection_id)
 
     def result(
@@ -174,8 +174,8 @@ def test_execute_filter_bands(api):
             'result': True
         },
     })
-    env = dummy_backend.last_load_collection_call("S2_FOOBAR")
-    assert env["bands"] == ["B02", "B03"]
+    load_params = dummy_backend.last_load_collection_call("S2_FOOBAR")
+    assert load_params["bands"] == ["B02", "B03"]
 
 
 def test_execute_apply_kernel(api):
@@ -1090,3 +1090,28 @@ def test_save_result_gtiff_mimetype(api, format, expected):
     }
     res = api.check_result(pg)
     assert res.headers["Content-type"] == expected
+
+
+def test_execute_load_collection_sar_backscatter(api100):
+    api100.check_result({
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}
+        },
+        "sar_backscatter": {
+            "process_id": "sar_backscatter",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "backscatter_coefficient": "sigma0",
+                "orthorectify": True,
+                "options": {"dem_zoom": 8}
+            },
+            "result": True
+        },
+    })
+    params = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    assert params.sar_backscatter == {
+        'backscatter_coefficient': 'sigma0',
+        'orthorectify': True, 'elevation_model': None,
+        'options': {'dem_zoom': 8},
+    }

@@ -3,11 +3,12 @@ from collections import namedtuple
 import functools
 import json
 from pathlib import Path
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, Dict, List, Tuple, Union
 import warnings
 
 from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.specs import SPECS_ROOT
+from openeo_driver.utils import read_json
 
 
 class ProcessParameter:
@@ -104,8 +105,7 @@ class ProcessRegistry:
     def load_predefined_spec(self, name: str) -> dict:
         """Get predefined process specification (dict) based on process name."""
         try:
-            with (self._processes_spec_root / '{n}.json'.format(n=name)).open('r', encoding="utf-8") as f:
-                return json.load(f)
+            return read_json(self._processes_spec_root / '{n}.json'.format(n=name))
         except Exception:
             raise ProcessRegistryException("Failed to load predefined spec of process {n!r}".format(n=name))
 

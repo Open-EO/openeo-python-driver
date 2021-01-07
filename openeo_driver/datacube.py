@@ -92,11 +92,14 @@ class DriverDataCube(ImageCollection):
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
         self._not_implemented()
 
-    def atmospheric_correction(self, method:str=None) -> 'DriverDataCube':
+    def atmospheric_correction(self, method: str = None) -> 'DriverDataCube':
         self._not_implemented()
-        
-    def water_vapor(self, method:str=None) -> 'DriverDataCube':
+
+    def water_vapor(self, method: str = None) -> 'DriverDataCube':
         self._not_implemented()
-        
-        
-        
+
+    def sar_backscatter(
+            self, backscatter_coefficient: str = "gamma0", orthorectify: bool = False, elevation_model=None,
+            options: dict = None
+    ) -> 'DriverDataCube':
+        self._not_implemented()
