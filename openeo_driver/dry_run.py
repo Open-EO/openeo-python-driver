@@ -312,6 +312,10 @@ class DryRunDataCube(DriverDataCube):
         cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
         return AggregatePolygonResult(timeseries={}, regions=geometries)
 
+    # TODO: this is a workaround until vectorcube is fully upgraded
+    def raster_to_vector(self):
+        return AggregatePolygonResult(timeseries={}, regions=None)
+
     def zonal_statistics(self, regions, func: str) -> AggregatePolygonResult:
         return self.aggregate_spatial(geometries=regions, reducer=func)
 
