@@ -19,6 +19,7 @@ from typing import List, Union, NamedTuple, Dict
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.util import rfc3339
 from openeo_driver.datacube import DriverDataCube
+from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException
 from openeo_driver.utils import read_json, dict_item, EvalEnv
 
@@ -129,7 +130,7 @@ class LoadParameters(dict):
     bands = dict_item(default=None)
     properties = dict_item(default={})
     aggregate_spatial_geometries = dict_item(default=None)
-    sar_backscatter = dict_item(default={})
+    sar_backscatter: SarBackscatterArgs = dict_item(default={})
 
     def copy(self) -> "LoadParameters":
         return LoadParameters(super().copy())

@@ -10,6 +10,7 @@ from flask.testing import FlaskClient
 
 import openeo_driver.testing
 from openeo_driver.backend import get_backend_implementation, LoadParameters
+from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyDataCube, last_load_collection_call
@@ -1110,8 +1111,8 @@ def test_execute_load_collection_sar_backscatter(api100):
         },
     })
     params = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
-    assert params.sar_backscatter == {
-        'backscatter_coefficient': 'sigma0',
-        'orthorectify': True, 'elevation_model': None,
-        'options': {'dem_zoom': 8},
-    }
+    assert params.sar_backscatter == SarBackscatterArgs(
+        backscatter_coefficient="sigma0",
+        orthorectify=True, elevation_model=None,
+        options={'dem_zoom': 8},
+    )

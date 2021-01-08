@@ -2,6 +2,7 @@ import pytest
 import shapely.geometry
 
 from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER
+from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer, DataSource, DataTrace
 from openeo_driver.testing import IgnoreOrder
@@ -424,20 +425,17 @@ def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
 @pytest.mark.parametrize(["arguments", "expected"], [
     (
             {},
-            {
-                "backscatter_coefficient": "gamma0", "orthorectify": False, "elevation_model": None,
-                "options": {},
-            }
+            SarBackscatterArgs(backscatter_coefficient="gamma0", orthorectify=False, elevation_model=None, options={})
     ),
     (
             {
                 "backscatter_coefficient": "sigma0", "orthorectify": True, "elevation_model": "dem",
                 "options": {"dem_zoom": 9},
             },
-            {
-                "backscatter_coefficient": "sigma0", "orthorectify": True, "elevation_model": "dem",
-                "options": {"dem_zoom": 9},
-            }
+            SarBackscatterArgs(
+                backscatter_coefficient="sigma0", orthorectify=True, elevation_model="dem",
+                options={"dem_zoom": 9}
+            )
     ),
 ])
 def test_evaluate_sar_backscatter(dry_run_env, dry_run_tracer, arguments, expected):

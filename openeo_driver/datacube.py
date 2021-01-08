@@ -3,6 +3,7 @@ from typing import List
 
 from openeo import ImageCollection
 from openeo.metadata import CollectionMetadata
+from openeo_driver.datastructs import SarBackscatterArgs
 
 
 class DriverDataCube(ImageCollection):
@@ -98,8 +99,5 @@ class DriverDataCube(ImageCollection):
     def water_vapor(self, method: str = None) -> 'DriverDataCube':
         self._not_implemented()
 
-    def sar_backscatter(
-            self, backscatter_coefficient: str = "gamma0", orthorectify: bool = False, elevation_model=None,
-            options: dict = None
-    ) -> 'DriverDataCube':
+    def sar_backscatter(self, args: SarBackscatterArgs) -> 'DriverDataCube':
         self._not_implemented()

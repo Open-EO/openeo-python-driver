@@ -39,6 +39,7 @@ import shapely.geometry.base
 
 from openeo.metadata import CollectionMetadata
 from openeo_driver.datacube import DriverDataCube
+from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.save_result import AggregatePolygonResult
 from openeo_driver.utils import geojson_to_geometry, to_hashable, bands_union, temporal_extent_union, \
@@ -329,16 +330,8 @@ class DryRunDataCube(DriverDataCube):
     def add_dimension(self, name: str, label, type: str = "other") -> 'DryRunDataCube':
         return self._process_metadata(self.metadata.add_dimension(name=name, label=label, type=type))
 
-    def sar_backscatter(
-            self, backscatter_coefficient: str = "gamma0", orthorectify: bool = False, elevation_model=None,
-            options: dict = None
-    ) -> 'DryRunDataCube':
-        return self._process("sar_backscatter", {
-            "backscatter_coefficient": backscatter_coefficient,
-            "orthorectify": orthorectify,
-            "elevation_model": elevation_model,
-            "options": options or {},
-        })
+    def sar_backscatter(self, args: SarBackscatterArgs) -> 'DryRunDataCube':
+        return self._process("sar_backscatter", args)
 
     def _nop(self, *args, **kwargs) -> 'DryRunDataCube':
         """No Operation: do nothing"""

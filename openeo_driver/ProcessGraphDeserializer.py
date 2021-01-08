@@ -18,6 +18,7 @@ from openeo.metadata import MetadataException
 from openeo_driver import dry_run
 from openeo_driver.backend import get_backend_implementation, UserDefinedProcessMetadata, LoadParameters
 from openeo_driver.datacube import DriverDataCube
+from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException
@@ -1000,10 +1001,9 @@ def water_vapor(args: Dict, env: EvalEnv) -> object:
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/sar_backscatter.json"))
 def sar_backscatter(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
-    return cube.sar_backscatter(
-        backscatter_coefficient=args.get("backscatter_coefficient", "gamma0"),
-        orthorectify=args.get("orthorectify", False),
-        elevation_model=args.get("elevation_model", None),
-        # Additional (non-standard) finetuning options
-        options=args.get("options", {})
-    )
+    kwargs = {
+        a: args[a]
+        for a in ["backscatter_coefficient", "orthorectify", "elevation_model", "options"]
+        if a in args
+    }
+    return cube.sar_backscatter(SarBackscatterArgs(**kwargs))
