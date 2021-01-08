@@ -1,6 +1,7 @@
 import pytest
 
 from openeo_driver.backend import CollectionCatalog, LoadParameters
+from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.errors import CollectionNotFoundException
 
 
@@ -24,6 +25,8 @@ def test_load_parameters():
     assert params.temporal_extent == ("2021-01-01", None)
     assert params.spatial_extent == {}
     assert params.bands is None
+    assert isinstance(params.sar_backscatter, SarBackscatterArgs)
+    assert params.sar_backscatter == SarBackscatterArgs()
 
     params_copy = params.copy()
     assert isinstance(params_copy, LoadParameters)
