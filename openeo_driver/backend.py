@@ -420,7 +420,8 @@ def get_backend_implementation() -> OpenEoBackendImplementation:
     if _backend_implementation is None:
         # TODO: #36 avoid non-standard importing through env var DRIVER_IMPLEMENTATION_PACKAGE
         _driver_implementation_package = os.getenv('DRIVER_IMPLEMENTATION_PACKAGE', "openeo_driver.dummy.dummy_backend")
-        logger.info('Using driver implementation package {d}'.format(d=_driver_implementation_package))
+        logger.info(f"Using driver implementation package {_driver_implementation_package!r}")
         module = importlib.import_module(_driver_implementation_package)
+        logger.info(f"Loaded {module!r}")
         _backend_implementation = module.get_openeo_backend_implementation()
     return _backend_implementation
