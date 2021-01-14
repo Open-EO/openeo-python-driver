@@ -273,7 +273,13 @@ def index():
             ]
         },
         "_backend_deploy_metadata": deploy_metadata,
-        "links": []
+        "links": [
+            {
+                "rel": "version-history",
+                "href": url_for("well_known_openeo", _external=True),
+                "type": "application/json",
+            },
+        ]
     }
 
     return jsonify(capabilities)
