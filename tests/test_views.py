@@ -94,8 +94,15 @@ class TestGeneral:
         assert capabilities["title"] == "OpenEO Test API"
         assert capabilities["id"] == "openeotestapi-1.0.0"
         assert capabilities["production"] is True
-        version_history_link = next(link for link in capabilities["links"] if link["rel"] == "version-history")
-        assert version_history_link["href"] == "http://oeo.net/.well-known/openeo"
+
+        def get_link(rel):
+            links = [link for link in capabilities["links"] if link["rel"] == rel]
+            assert len(links) == 1
+            return links[0]
+
+        assert get_link("version-history")["href"] == "http://oeo.net/.well-known/openeo"
+        assert get_link("data")["href"] == "http://oeo.net/openeo/1.0.0/collections"
+        assert get_link("conformance")["href"] == "http://oeo.net/openeo/1.0.0/conformance"
 
     def test_capabilities_version_alias(self, client):
         resp = ApiResponse(client.get('/openeo/0.4/')).assert_status_code(200).json

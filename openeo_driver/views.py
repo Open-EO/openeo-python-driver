@@ -279,6 +279,17 @@ def index():
                 "href": url_for("well_known_openeo", _external=True),
                 "type": "application/json",
             },
+            {
+                "rel": "data",
+                "href": url_for("openeo.collections", _external=True),
+                "type": "application/json",
+            },
+            {
+                "rel": "conformance",
+                "href": url_for("openeo.conformance", _external=True),
+                "type": "application/json",
+            },
+            # TODO #60: also add terms-of-service, privacy policy
         ]
     }
 
