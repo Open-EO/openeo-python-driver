@@ -38,7 +38,7 @@ setup(
         'flask',
         'werkzeug>=1.0.1',
         'requests',
-        'openeo>=0.4.6a1.*',
+        'openeo>=0.4.9a1.*',
         'openeo_processes>=0.0.4',
         'gunicorn>=20.0.1',
         'numpy>=1.17.0',

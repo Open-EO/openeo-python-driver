@@ -11,7 +11,7 @@ class DriverDataCube(ImageCollection):
     # TODO cut the openeo.ImageCollection chord (https://github.com/Open-EO/openeo-python-client/issues/100)
 
     def __init__(self, metadata: CollectionMetadata = None):
-        self.metadata = metadata if isinstance(metadata, CollectionMetadata) else CollectionMetadata(metadata or {})
+        self.metadata = CollectionMetadata.get_or_create(metadata)
 
     def _not_implemented(self):
         """Helper to raise a NotImplemented exception containing method name"""
