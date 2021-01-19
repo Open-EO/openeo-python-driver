@@ -287,7 +287,7 @@ def extract_deep(args: dict, *steps):
 def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     constraints = env[ENV_SOURCE_CONSTRAINTS][source_id]
     params = LoadParameters()
-    params.temporal_extent = constraints.get("temporal_extent", [None, None])
+    params.temporal_extent = constraints.get("temporal_extent", ["1970-01-01", "2070-01-01"])
     params.spatial_extent = constraints.get("spatial_extent", {})
     params.bands = constraints.get("bands", None)
     params.properties = constraints.get("properties", {})
