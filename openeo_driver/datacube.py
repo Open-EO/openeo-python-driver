@@ -3,7 +3,7 @@ from typing import List
 
 from openeo import ImageCollection
 from openeo.metadata import CollectionMetadata
-from openeo_driver.datastructs import SarBackscatterArgs
+from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 
 
 class DriverDataCube(ImageCollection):
@@ -100,4 +100,7 @@ class DriverDataCube(ImageCollection):
         self._not_implemented()
 
     def sar_backscatter(self, args: SarBackscatterArgs) -> 'DriverDataCube':
+        self._not_implemented()
+
+    def resolution_merge(self, args: ResolutionMergeArgs) -> 'DriverDataCube':
         self._not_implemented()

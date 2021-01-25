@@ -18,7 +18,7 @@ from openeo.metadata import MetadataException
 from openeo_driver import dry_run
 from openeo_driver.backend import get_backend_implementation, UserDefinedProcessMetadata, LoadParameters
 from openeo_driver.datacube import DriverDataCube
-from openeo_driver.datastructs import SarBackscatterArgs
+from openeo_driver.datastructs import SarBackscatterArgs,ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException
@@ -1007,3 +1007,14 @@ def sar_backscatter(args: Dict, env: EvalEnv):
         if a in args
     }
     return cube.sar_backscatter(SarBackscatterArgs(**kwargs))
+
+
+@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/resolution_merge.json"))
+def resolution_merge(args: Dict, env: EvalEnv):
+    cube: DriverDataCube = extract_arg(args, 'data')
+    kwargs = {
+        a: args[a]
+        for a in ["method", "high_resolution_bands", "low_resolution_bands", "options"]
+        if a in args
+    }
+    return cube.resolution_merge(ResolutionMergeArgs(**kwargs))

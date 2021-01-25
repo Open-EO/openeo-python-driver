@@ -68,6 +68,12 @@
             "rel": "about",
             "href": "https://bok.eo4geo.eu/IP2-1-3",
             "title": "Pansharpening explained by EO4GEO body of knowledge."
+        },
+        {
+            "rel": "about",
+            "href": "https://doi.org/10.1109/TGRS.2016.2537929",
+            "title": "Scientific publication: Improving the Spatial Resolution of Land Surface Phenology by Fusing Medium- and Coarse-Resolution Inputs"
         }
+
     ]
 }

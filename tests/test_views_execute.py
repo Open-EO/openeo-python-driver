@@ -10,7 +10,7 @@ from flask.testing import FlaskClient
 
 import openeo_driver.testing
 from openeo_driver.backend import get_backend_implementation, LoadParameters
-from openeo_driver.datastructs import SarBackscatterArgs
+from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyDataCube, last_load_collection_call
@@ -1115,4 +1115,32 @@ def test_execute_load_collection_sar_backscatter(api100):
         backscatter_coefficient="sigma0",
         orthorectify=True, elevation_model=None,
         options={'dem_zoom': 8},
+    )
+
+
+def test_execute_load_collection_resolution_merge(api100):
+    api100.check_result({
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FOOBAR"}
+        },
+        "resolution_merge": {
+            "process_id": "resolution_merge",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "method": "improphe",
+                "high_resolution_bands": ["B02","B03"],
+                "low_resolution_bands": ["B05", "B06"],
+                "options": {"kernel_size": 8}
+            },
+            "result": True
+        },
+    })
+    params = api100.last_load_collection_call("S2_FOOBAR")
+    resolution_merge_mock = api100.get_collection("S2_FOOBAR").resolution_merge
+    args, kwargs = resolution_merge_mock.call_args
+    assert args[0] == ResolutionMergeArgs(
+        method="improphe",
+        high_resolution_bands=["B02","B03"], low_resolution_bands=["B05", "B06"],
+        options={'kernel_size': 8},
     )
