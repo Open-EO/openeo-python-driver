@@ -973,6 +973,7 @@ def sleep(args: Dict, env: EvalEnv):
 @non_standard_process(
     ProcessSpec(id='apply_atmospheric_correction', description="iCor workflow test")
         .param('data', description="input data cube to be corrected", schema={"type": "object", "subtype": "raster-cube"})
+        .param(name='missionId', description="mission Id, i.e.: sentinel2", schema={"type": "string"}, required=True)
         .returns(description="the corrected data as a data cube", schema={"type": "object", "subtype": "raster-cube"})
 )
 def apply_atmospheric_correction(args: Dict, env: EvalEnv) -> object:
@@ -981,21 +982,25 @@ def apply_atmospheric_correction(args: Dict, env: EvalEnv) -> object:
 @non_standard_process(
     ProcessSpec(id='atmospheric_correction', description="iCor workflow test")
         .param('data', description="input data cube to be corrected", schema={"type": "object", "subtype": "raster-cube"})
+        .param(name='missionId', description="mission Id, i.e.: sentinel2", schema={"type": "string"}, required=True)
         .returns(description="the corrected data as a data cube", schema={"type": "object", "subtype": "raster-cube"})
 )
 def atmospheric_correction(args: Dict, env: EvalEnv) -> object:
     image_collection = extract_arg(args, 'data')
-    return image_collection.atmospheric_correction()
+    missionId = extract_arg(args, 'missionId')
+    return image_collection.atmospheric_correction(missionId)
 
 
 @non_standard_process(
     ProcessSpec(id='water_vapor', description="Abda-based water vapor calculator")
         .param('data', description="input data cube to be corrected", schema={"type": "object", "subtype": "raster-cube"})
+        .param(name='missionId', description="mission Id, i.e.: sentinel2", schema={"type": "string"}, required=True)
         .returns(description="the corrected data as a data cube", schema={"type": "object", "subtype": "raster-cube"})
 )
 def water_vapor(args: Dict, env: EvalEnv) -> object:
     image_collection = extract_arg(args, 'data')
-    return image_collection.water_vapor()
+    missionId = extract_arg(args, 'missionId')
+    return image_collection.water_vapor(missionId)
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/sar_backscatter.json"))
