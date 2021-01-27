@@ -7,6 +7,7 @@ from tempfile import mkstemp
 from typing import Union
 from zipfile import ZipFile
 
+import pandas as pd
 import numpy as np
 from flask import send_from_directory, jsonify
 
@@ -117,6 +118,10 @@ class AggregatePolygonResult(JSONResult):
             filename = self.to_netcdf()
             return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
 
+        if self.format.lower() == 'csv':
+            filename = self.to_csv()
+            return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
+
         return super().create_flask_response()
 
     def create_point_timeseries_xarray(self, feature_ids, timestamps,lats,lons,averages_by_feature):
@@ -172,6 +177,28 @@ class AggregatePolygonResult(JSONResult):
         else:
             filename = destination
         array.to_netcdf(filename,encoding=encoding)
+        return filename
+
+    def to_csv(self, destination=None):
+        nb_bands = max([len(item) for sublist in self.data.values() for item in sublist])
+
+        date_band_dict = {}
+
+        for date, polygon_results in self.data.items():
+            if nb_bands > 1:
+                for i in range(0, nb_bands):
+                    date_band = date + '__' + str(i + 1).zfill(2)
+                    date_band_dict[date_band] = list(map(lambda p: p[i] if p else None, polygon_results))
+            else:
+                date_band_dict[date] = list(map(lambda p: p[0], polygon_results))
+
+        if destination is None:
+            filename = get_temp_file(suffix=".csv")
+        else:
+            filename = destination
+
+        pd.DataFrame(date_band_dict).to_csv(filename, index=False)
+
         return filename
 
     def to_covjson(self) -> dict:
