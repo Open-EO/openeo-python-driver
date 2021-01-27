@@ -973,21 +973,22 @@ def sleep(args: Dict, env: EvalEnv):
 @non_standard_process(
     ProcessSpec(id='apply_atmospheric_correction', description="iCor workflow test")
         .param('data', description="input data cube to be corrected", schema={"type": "object", "subtype": "raster-cube"})
-        .param(name='missionId', description="mission Id, i.e.: sentinel2", schema={"type": "string"}, required=True)
+        .param(name='missionId', description="mission Id, currently defaults to sentinel2", schema={"type": "string"}, required=False)
         .returns(description="the corrected data as a data cube", schema={"type": "object", "subtype": "raster-cube"})
 )
 def apply_atmospheric_correction(args: Dict, env: EvalEnv) -> object:
     return atmospheric_correction(args,env)
 
+
 @non_standard_process(
     ProcessSpec(id='atmospheric_correction', description="iCor workflow test")
         .param('data', description="input data cube to be corrected", schema={"type": "object", "subtype": "raster-cube"})
-        .param(name='missionId', description="mission Id, i.e.: sentinel2", schema={"type": "string"}, required=True)
+        .param(name='missionId', description="mission Id, currently defaults to sentinel2", schema={"type": "string"}, required=False)
         .returns(description="the corrected data as a data cube", schema={"type": "object", "subtype": "raster-cube"})
 )
 def atmospheric_correction(args: Dict, env: EvalEnv) -> object:
     image_collection = extract_arg(args, 'data')
-    missionId = extract_arg(args, 'missionId')
+    missionId = args.get('missionId',None)
     return image_collection.atmospheric_correction(missionId)
 
 
