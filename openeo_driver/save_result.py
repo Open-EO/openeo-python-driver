@@ -46,6 +46,7 @@ class SaveResult(ABC):
             "json": "application/json",
             "geojson": "application/geo+json",
             "covjson": "application/json",
+            "csv": "text/csv",
             # TODO: support more formats
         }.get(self.format.lower(), default)
 
