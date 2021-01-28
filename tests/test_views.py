@@ -718,7 +718,18 @@ class TestBatchJobs:
                 },
                 'geometry': None,
                 'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
-                'links': [],
+                'links': [
+                    {
+                        "rel": "self",
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results",
+                        "type": "application/json"
+                    },
+                    {
+                        "rel": "card4l-document",
+                        "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
+                        "type": "application/pdf"
+                    }
+                ],
                 'properties': {
                     'created': '2017-01-01T09:32:12Z',
                     'datetime': None
@@ -741,7 +752,18 @@ class TestBatchJobs:
                 },
                 'bbox': [-180, -90, 180, 90],
                 'id': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
-                'links': [],
+                'links': [
+                    {
+                        "rel": "self",
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results",
+                        "type": "application/json"
+                    },
+                    {
+                        "rel": "card4l-document",
+                        "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
+                        "type": "application/pdf"
+                    }
+                ],
                 'properties': {
                     'created': '2020-06-11T11:51:29Z',
                     'datetime': '1981-04-24T03:00:00Z',

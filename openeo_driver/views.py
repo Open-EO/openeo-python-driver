@@ -606,7 +606,18 @@ def list_job_results(job_id, user: User):
                 }
                 for filename in filenames
             },
-            "links": []
+            "links": [
+                {
+                    "rel": "self",
+                    "href": url_for('.list_job_results', job_id=job_id, _external=True),
+                    "type": "application/json"
+                },
+                {
+                    "rel": "card4l-document",
+                    "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
+                    "type": "application/pdf",
+                }
+            ]
         }
 
         geometry = job_info.geometry
