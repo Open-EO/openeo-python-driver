@@ -207,6 +207,7 @@ class BatchJobMetadata(NamedTuple):
     bbox: List[float] = None
     start_datetime: datetime = None
     end_datetime: datetime = None
+    processing_facility: str = None
 
     @property
     def duration(self) -> timedelta:

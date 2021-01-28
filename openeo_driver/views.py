@@ -613,6 +613,9 @@ def list_job_results(job_id, user: User):
         result["geometry"] = geometry
         if geometry:
             result["bbox"] = job_info.bbox
+
+        if "processing:facility" in result["properties"]:
+            result["stac_extensions"] = ["processing"]
     else:
         result = {
             "links": [
@@ -632,7 +635,8 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
         "title": job_info.title,
         "description": job_info.description,
         "created": to_datetime(job_info.created),
-        "updated": to_datetime(job_info.updated)
+        "updated": to_datetime(job_info.updated),
+        "processing:facility": job_info.processing_facility
     })
     properties["datetime"] = None
 

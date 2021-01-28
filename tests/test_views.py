@@ -531,7 +531,8 @@ class TestBatchJobs:
                     },
                     bbox=[-180, -90, 180, 90],
                     start_datetime=datetime(1981, 4, 24, 3, 0, 0),
-                    end_datetime=datetime(1981, 4, 24, 3, 0, 0)
+                    end_datetime=datetime(1981, 4, 24, 3, 0, 0),
+                    processing_facility="VITO"
                 )
             }
             yield
@@ -743,10 +744,12 @@ class TestBatchJobs:
                 'links': [],
                 'properties': {
                     'created': '2020-06-11T11:51:29Z',
-                    'datetime': '1981-04-24T03:00:00Z'
+                    'datetime': '1981-04-24T03:00:00Z',
+                    'processing:facility': 'VITO'
                 },
                 'stac_version': '0.9.0',
-                'type': 'Feature'
+                'type': 'Feature',
+                'stac_extensions': ['processing']
             }
 
     def test_get_job_results_invalid_job(self, api):
