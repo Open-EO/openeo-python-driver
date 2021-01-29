@@ -10,8 +10,9 @@ from shapely.geometry.collection import GeometryCollection
 
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.metadata import CollectionMetadata
-from openeo_driver.backend import SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata, \
-    BatchJobs, BatchJobMetadata, OidcProvider, UserDefinedProcesses, UserDefinedProcessMetadata, LoadParameters
+from openeo_driver.backend import (SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata,
+                                   BatchJobs, BatchJobMetadata, OidcProvider, UserDefinedProcesses,
+                                   UserDefinedProcessMetadata, LoadParameters, AssetMetadata)
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, ProcessGraphNotFoundException
@@ -323,11 +324,14 @@ class DummyBatchJobs(BatchJobs):
     def _output_root(self) -> Path:
         return Path("/data/jobs")
 
-    def get_results(self, job_id: str, user_id: str) -> Dict[str, str]:
+    def get_results(self, job_id: str, user_id: str) -> Dict[str, AssetMetadata]:
         if self.get_job_info(job_id=job_id, user_id=user_id).status != "finished":
             raise JobNotFinishedException
         return {
-            "output.tiff": str(self._output_root() / job_id / "out")
+            "output.tiff": AssetMetadata(
+                output_dir=str(self._output_root() / job_id),
+                media_type="image/tiff; application=geotiff"
+            )
         }
 
     def get_log_entries(self, job_id: str, user_id: str, offset: str) -> List[dict]:

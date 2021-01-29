@@ -712,7 +712,8 @@ class TestBatchJobs:
             assert resp.assert_status_code(200).json == {
                 'assets': {
                     'output.tiff': {
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/output.tiff'
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/output.tiff',
+                        'type': 'image/tiff; application=geotiff'
                     }
                 },
                 'geometry': None,
@@ -742,7 +743,8 @@ class TestBatchJobs:
             assert resp.assert_status_code(200).json == {
                 'assets': {
                     'output.tiff': {
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/output.tiff'
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/output.tiff',
+                        'type': 'image/tiff; application=geotiff'
                     }
                 },
                 'geometry': {
@@ -780,7 +782,7 @@ class TestBatchJobs:
     def test_download_result(self, api, tmp_path):
         output_root = Path(tmp_path)
         with mock.patch.object(dummy_backend.DummyBatchJobs, '_output_root', return_value=output_root):
-            output = output_root / "07024ee9-7847-4b8a-b260-6c879a2b3cdc" / "out" / "output.tiff"
+            output = output_root / "07024ee9-7847-4b8a-b260-6c879a2b3cdc" / "output.tiff"
             output.parent.mkdir(parents=True)
             with output.open("wb") as f:
                 f.write(b"tiffdata")

@@ -592,7 +592,7 @@ def queue_job(job_id, user: User):
 def list_job_results(job_id, user: User):
     job_info = backend_implementation.batch_jobs.get_job_info(job_id, user.user_id)
     results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
-    filenames = results.keys()
+
     if requested_api_version().at_least("1.0.0"):
         result = {
             "stac_version": "0.9.0",
@@ -601,10 +601,10 @@ def list_job_results(job_id, user: User):
             "properties": _properties_from_job_info(job_info),
             "assets": {
                 filename: {
-                    "href": url_for('.download_job_result', job_id=job_id, filename=filename, _external=True)
-                    # TODO #EP-3281 add "type" field with media type
+                    "href": url_for('.download_job_result', job_id=job_id, filename=filename, _external=True),
+                    "type": asset_metadata.media_type
                 }
-                for filename in filenames
+                for filename, asset_metadata in results.items()
             },
             "links": [
                 {
@@ -628,7 +628,7 @@ def list_job_results(job_id, user: User):
         result = {
             "links": [
                 {"href": url_for('.download_job_result', job_id=job_id, filename=filename, _external=True)}
-                for filename in filenames
+                for filename in results.keys()
             ]
         }
 
@@ -666,9 +666,9 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
 @auth_handler.requires_bearer_auth
 def download_job_result(job_id, filename, user: User):
     results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
-    if filename not in results:
+    if filename not in results.keys():
         raise FilePathInvalidException(str(filename)+ ' not in '+str(list(results.keys())))
-    output_dir = results[filename]
+    output_dir = results[filename].output_dir
     return send_from_directory(output_dir, filename)
 
 

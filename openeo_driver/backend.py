@@ -227,6 +227,12 @@ class BatchJobMetadata(NamedTuple):
         return d
 
 
+class AssetMetadata(NamedTuple):
+    """Asset metadata"""
+    output_dir: str
+    media_type: str
+
+
 class BatchJobs(MicroService):
     """
     Base contract/implementation for Batch Jobs "microservice"
@@ -260,16 +266,15 @@ class BatchJobs(MicroService):
         """
         raise NotImplementedError
 
-    def get_results(self, job_id: str, user_id: str) -> Dict[str, str]:
+    def get_results(self, job_id: str, user_id: str) -> Dict[str, AssetMetadata]:
         """
-        Return result files as (filename, output_dir) mapping: `filename` is the part that
-        the user can see (in download url), `output_dir` is internal (root) dir where
+        Return result files as (filename, metadata) mapping: `filename` is the part that
+        the user can see (in download url), `metadata` contains internal (root) dir where
         output is stored.
 
         related:
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-results
         """
-        # TODO: #EP-3281 not only return asset path, but also media type, description, ...
         raise NotImplementedError
 
     def get_log_entries(self, job_id: str, user_id: str, offset: str) -> List[dict]:
