@@ -1103,9 +1103,9 @@ def test_execute_load_collection_sar_backscatter(api100):
             "process_id": "sar_backscatter",
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
-                "backscatter_coefficient": "sigma0",
+                "coefficient": "sigma0",
                 "orthorectify": True,
-                "options": {"dem_zoom": 8}
+                "options": {"tile_size": 1024}
             },
             "result": True
         },
@@ -1114,7 +1114,7 @@ def test_execute_load_collection_sar_backscatter(api100):
     assert params.sar_backscatter == SarBackscatterArgs(
         backscatter_coefficient="sigma0",
         orthorectify=True, elevation_model=None,
-        options={'dem_zoom': 8},
+        options={"tile_size": 1024},
     )
 
 

@@ -1,5 +1,5 @@
 import pytest
-from openeo_driver.ProcessGraphDeserializer import extract_deep
+from openeo_driver.ProcessGraphDeserializer import extract_deep, extract_args_subset
 from openeo_driver.errors import ProcessParameterInvalidException
 
 
@@ -25,3 +25,16 @@ def test_extract_deep():
 
     with pytest.raises(ProcessParameterInvalidException):
         extract_deep(args, "data", "lol")
+
+
+def test_extract_args_subset():
+    assert extract_args_subset({"foo": 3, "bar": 5}, ["foo"]) == {"foo": 3}
+    assert extract_args_subset({"foo": 3, "bar": 5}, ["bar"]) == {"bar": 5}
+    assert extract_args_subset({"foo": 3, "bar": 5}, ["meh"]) == {}
+    assert extract_args_subset({"foo": 3, "bar": 5}, ["foo", "bar"]) == {"foo": 3, "bar": 5}
+    assert extract_args_subset({"foo": 3, "bar": 5}, ["foo", "bar", "meh"]) == {"foo": 3, "bar": 5}
+
+
+def test_extract_args_subset_aliases():
+    assert extract_args_subset({"foo": 3, "bar": 5}, ["foo", "mask"], aliases={"bar": "mask"}) == {"foo": 3, "mask": 5}
+    assert extract_args_subset({"foo": 3, "bar": 5}, ["foo", "mask"], aliases={"bar": "foo"}) == {"foo": 3}

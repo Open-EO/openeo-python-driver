@@ -429,12 +429,22 @@ def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
     ),
     (
             {
-                "backscatter_coefficient": "sigma0", "orthorectify": True, "elevation_model": "dem",
-                "options": {"dem_zoom": 9},
+                "backscatter_coefficient": "sigma0", "orthorectify": True, "elevation_model": "SRTMGL1",
+                "options": {"tile_size": 1024},
             },
             SarBackscatterArgs(
-                backscatter_coefficient="sigma0", orthorectify=True, elevation_model="dem",
-                options={"dem_zoom": 9}
+                backscatter_coefficient="sigma0", orthorectify=True, elevation_model="SRTMGL1",
+                options={"tile_size": 1024}
+            )
+    ),
+    (
+            {
+                "coefficient": "sigma0", "orthorectify": True, "elevation_model": "SRTMGL1",
+                "options": {"tile_size": 1024},
+            },
+            SarBackscatterArgs(
+                backscatter_coefficient="sigma0", orthorectify=True, elevation_model="SRTMGL1",
+                options={"tile_size": 1024}
             )
     ),
 ])

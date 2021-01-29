@@ -18,7 +18,7 @@ from openeo.metadata import MetadataException
 from openeo_driver import dry_run
 from openeo_driver.backend import get_backend_implementation, UserDefinedProcessMetadata, LoadParameters
 from openeo_driver.datacube import DriverDataCube
-from openeo_driver.datastructs import SarBackscatterArgs,ResolutionMergeArgs
+from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException
@@ -282,6 +282,24 @@ def extract_deep(args: dict, *steps):
             # TODO: find out process id for proper error message?
             raise ProcessParameterInvalidException(process="n/a", parameter=steps[0], reason=step)
     return value
+
+
+def extract_args_subset(args: dict, keys: List[str], aliases: Dict[str, str] = None) -> dict:
+    """
+    Extract subset of given keys (where available) from given dictionary,
+    possibly handling legacy aliases
+
+    :param args: dictionary of arguments
+    :param keys: keys to extract
+    :param aliases: mapping of (legacy) alias to target key
+    :return:
+    """
+    kwargs = {k: args[k] for k in keys if k in args}
+    if aliases:
+        for alias, key in aliases.items():
+            if alias in args and key not in kwargs:
+                kwargs[key] = args[alias]
+    return kwargs
 
 
 def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
@@ -1028,20 +1046,15 @@ def water_vapor(args: Dict, env: EvalEnv) -> object:
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/sar_backscatter.json"))
 def sar_backscatter(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
-    kwargs = {
-        a: args[a]
-        for a in ["backscatter_coefficient", "orthorectify", "elevation_model", "options"]
-        if a in args
-    }
+    kwargs = extract_args_subset(
+        args, keys=["backscatter_coefficient", "orthorectify", "elevation_model", "options"],
+        aliases={"coefficient": "backscatter_coefficient"}
+    )
     return cube.sar_backscatter(SarBackscatterArgs(**kwargs))
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/resolution_merge.json"))
 def resolution_merge(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
-    kwargs = {
-        a: args[a]
-        for a in ["method", "high_resolution_bands", "low_resolution_bands", "options"]
-        if a in args
-    }
+    kwargs = extract_args_subset(args, keys=["method", "high_resolution_bands", "low_resolution_bands", "options"])
     return cube.resolution_merge(ResolutionMergeArgs(**kwargs))

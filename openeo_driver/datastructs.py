@@ -3,7 +3,7 @@ from typing import NamedTuple, Union, List
 
 class SarBackscatterArgs(NamedTuple):
     """Arguments for the `sar_backscatter` process."""
-    backscatter_coefficient: str = "gamma0"
+    backscatter_coefficient: str = "gamma0"  # Note: process argument name is just `coefficient`
     orthorectify: bool = False
     elevation_model: Union[str, None] = None
     # Additional (non-standard) fine-tuning options
