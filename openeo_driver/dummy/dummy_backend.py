@@ -332,7 +332,8 @@ class DummyBatchJobs(BatchJobs):
                 "output_dir": str(self._output_root() / job_id),
                 "media_type": "image/tiff; application=geotiff",
                 "bands": [Band(name="NDVI", common_name="NDVI", wavelength_um=1.23)],
-                "nodata": 123
+                "nodata": 123,
+                "instruments": "MSI"
             }
         }
 

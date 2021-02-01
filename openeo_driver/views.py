@@ -676,6 +676,9 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
         if end_datetime:
             properties["end_datetime"] = end_datetime
 
+    if job_info.instruments:
+        properties['instruments'] = job_info.instruments
+
     return properties
 
 
