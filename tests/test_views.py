@@ -717,7 +717,8 @@ class TestBatchJobs:
                         'eo:bands': [{
                             'name': "NDVI",
                             'center_wavelength': 1.23
-                        }]
+                        }],
+                        'card4l:nodata': 123
                     }
                 },
                 'geometry': None,
@@ -740,7 +741,7 @@ class TestBatchJobs:
                 },
                 'stac_version': '0.9.0',
                 'type': 'Feature',
-                'stac_extensions': ['eo']
+                'stac_extensions': ['card4l-eo', 'eo']
             }
 
             resp = api100.get('/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results', headers=self.AUTH_HEADER)
@@ -753,7 +754,8 @@ class TestBatchJobs:
                         'eo:bands': [{
                             'name': "NDVI",
                             'center_wavelength': 1.23
-                        }]
+                        }],
+                        'card4l:nodata': 123
                     }
                 },
                 'geometry': {
@@ -780,7 +782,7 @@ class TestBatchJobs:
                 },
                 'stac_version': '0.9.0',
                 'type': 'Feature',
-                'stac_extensions': ['eo']
+                'stac_extensions': ['card4l-eo', 'eo']
             }
 
     def test_get_job_results_invalid_job(self, api):
