@@ -593,6 +593,16 @@ def list_job_results(job_id, user: User):
     job_info = backend_implementation.batch_jobs.get_job_info(job_id, user.user_id)
     results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
 
+    def asset_object(filename: str, asset_metadata: dict) -> dict:
+        bands = asset_metadata.get("bands")
+
+        return dict_no_none(**{
+            "href": url_for('.download_job_result', job_id=job_id, filename=filename, _external=True),
+            "type": asset_metadata.get("media_type"),
+            "eo:bands": [{"name": band.name, "center_wavelength": band.wavelength_um}
+                         for band in bands] if bands else None
+        })
+
     if requested_api_version().at_least("1.0.0"):
         result = {
             "stac_version": "0.9.0",
@@ -600,11 +610,7 @@ def list_job_results(job_id, user: User):
             "type": "Feature",
             "properties": _properties_from_job_info(job_info),
             "assets": {
-                filename: {
-                    "href": url_for('.download_job_result', job_id=job_id, filename=filename, _external=True),
-                    "type": asset_metadata.media_type
-                }
-                for filename, asset_metadata in results.items()
+                filename: asset_object(filename, asset_metadata) for filename, asset_metadata in results.items()
             },
             "links": [
                 {
@@ -624,6 +630,9 @@ def list_job_results(job_id, user: User):
         result["geometry"] = geometry
         if geometry:
             result["bbox"] = job_info.bbox
+
+        if any("eo:bands" in asset_object for asset_object in result["assets"].values()):
+            result["stac_extensions"] = ["eo"]
     else:
         result = {
             "links": [
@@ -668,7 +677,7 @@ def download_job_result(job_id, filename, user: User):
     results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
     if filename not in results.keys():
         raise FilePathInvalidException(str(filename)+ ' not in '+str(list(results.keys())))
-    output_dir = results[filename].output_dir
+    output_dir = results[filename]["output_dir"]
     return send_from_directory(output_dir, filename)
 
 

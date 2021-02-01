@@ -713,7 +713,11 @@ class TestBatchJobs:
                 'assets': {
                     'output.tiff': {
                         'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/output.tiff',
-                        'type': 'image/tiff; application=geotiff'
+                        'type': 'image/tiff; application=geotiff',
+                        'eo:bands': [{
+                            'name': "NDVI",
+                            'center_wavelength': 1.23
+                        }]
                     }
                 },
                 'geometry': None,
@@ -735,7 +739,8 @@ class TestBatchJobs:
                     'datetime': None
                 },
                 'stac_version': '0.9.0',
-                'type': 'Feature'
+                'type': 'Feature',
+                'stac_extensions': ['eo']
             }
 
             resp = api100.get('/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results', headers=self.AUTH_HEADER)
@@ -744,7 +749,11 @@ class TestBatchJobs:
                 'assets': {
                     'output.tiff': {
                         'href': 'http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/output.tiff',
-                        'type': 'image/tiff; application=geotiff'
+                        'type': 'image/tiff; application=geotiff',
+                        'eo:bands': [{
+                            'name': "NDVI",
+                            'center_wavelength': 1.23
+                        }]
                     }
                 },
                 'geometry': {
@@ -770,7 +779,8 @@ class TestBatchJobs:
                     'datetime': '1981-04-24T03:00:00Z'
                 },
                 'stac_version': '0.9.0',
-                'type': 'Feature'
+                'type': 'Feature',
+                'stac_extensions': ['eo']
             }
 
     def test_get_job_results_invalid_job(self, api):

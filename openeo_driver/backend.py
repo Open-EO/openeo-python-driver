@@ -227,12 +227,6 @@ class BatchJobMetadata(NamedTuple):
         return d
 
 
-class AssetMetadata(NamedTuple):
-    """Asset metadata"""
-    output_dir: str
-    media_type: str
-
-
 class BatchJobs(MicroService):
     """
     Base contract/implementation for Batch Jobs "microservice"
@@ -266,7 +260,7 @@ class BatchJobs(MicroService):
         """
         raise NotImplementedError
 
-    def get_results(self, job_id: str, user_id: str) -> Dict[str, AssetMetadata]:
+    def get_results(self, job_id: str, user_id: str) -> Dict[str, dict]:
         """
         Return result files as (filename, metadata) mapping: `filename` is the part that
         the user can see (in download url), `metadata` contains internal (root) dir where
