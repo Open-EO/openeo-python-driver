@@ -640,6 +640,9 @@ def list_job_results(job_id, user: User):
         if any("eo:bands" in asset_object for asset_object in result["assets"].values()):
             stac_extensions.append("eo")
 
+        if "proj:epsg" in result["properties"]:
+            stac_extensions.append("projection")
+
         if stac_extensions:
             result["stac_extensions"] = stac_extensions
     else:
@@ -678,6 +681,9 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
 
     if job_info.instruments:
         properties['instruments'] = job_info.instruments
+
+    if job_info.epsg:
+        properties['proj:epsg'] = job_info.epsg
 
     return properties
 
