@@ -75,7 +75,7 @@ class ImageCollectionResult(SaveResult):
 
 class JSONResult(SaveResult):
 
-    def __init__(self, data: dict, format: str = "json", options: dict = None):
+    def __init__(self, data, format: str = "json", options: dict = None):
         super().__init__(format=format, options=options)
         self.data = data
 
