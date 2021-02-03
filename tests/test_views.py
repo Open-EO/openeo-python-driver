@@ -804,6 +804,7 @@ class TestBatchJobs:
                 f.write(b"tiffdata")
             resp = api.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/output.tiff", headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).data == b"tiffdata"
+        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
 
     def test_get_batch_job_logs(self, api):
         resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs', headers=self.AUTH_HEADER)

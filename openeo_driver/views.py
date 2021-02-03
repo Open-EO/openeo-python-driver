@@ -694,9 +694,9 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
 def download_job_result(job_id, filename, user: User):
     results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
     if filename not in results.keys():
-        raise FilePathInvalidException(str(filename)+ ' not in '+str(list(results.keys())))
+        raise FilePathInvalidException(str(filename) + ' not in ' + str(list(results.keys())))
     output_dir = results[filename]["output_dir"]
-    return send_from_directory(output_dir, filename)
+    return send_from_directory(output_dir, filename, mimetype=results[filename].get("media_type"))
 
 
 @api_endpoint
