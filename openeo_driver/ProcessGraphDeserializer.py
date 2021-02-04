@@ -972,8 +972,15 @@ def sleep(args: Dict, env: EvalEnv):
 
 @non_standard_process(
     ProcessSpec(id='apply_atmospheric_correction', description="iCor workflow test")
-        .param('data', description="input data cube to be corrected", schema={"type": "object", "subtype": "raster-cube"})
-        .param(name='missionId', description="mission Id, currently defaults to sentinel2", schema={"type": "string"}, required=False)
+        .param('data', description="input data cube to be corrected",                                            schema={"type": "object", "subtype": "raster-cube"})
+        .param(name='missionId', description="mission Id, currently defaults to sentinel2",                      schema={"type": "string"}, required=False)
+        .param(name='sza',       description="if set, overrides sun zenith angle values [deg]",                  schema={"type": "number"}, required=False)
+        .param(name='vza',       description="if set, overrides sensor zenith angle values [deg]",               schema={"type": "number"}, required=False)
+        .param(name='raa',       description="if set, overrides rel. zenith angle values [deg]",                 schema={"type": "number"}, required=False)
+        .param(name='gnd',       description="if set, overrides ground elevation [km]",                          schema={"type": "number"}, required=False)
+        .param(name='aot',       description="if set, overrides aerosol optical thickness [], usually 0.1..0.2", schema={"type": "number"}, required=False)
+        .param(name='cwv',       description="if set, overrides water vapor [], usually 0..7",                   schema={"type": "number"}, required=False)
+        .param(name='appendDebugBands', description="if set to 1, saves debug bands",                            schema={"type": "number"}, required=False)
         .returns(description="the corrected data as a data cube", schema={"type": "object", "subtype": "raster-cube"})
 )
 def apply_atmospheric_correction(args: Dict, env: EvalEnv) -> object:
@@ -983,13 +990,27 @@ def apply_atmospheric_correction(args: Dict, env: EvalEnv) -> object:
 @non_standard_process(
     ProcessSpec(id='atmospheric_correction', description="iCor workflow test")
         .param('data', description="input data cube to be corrected", schema={"type": "object", "subtype": "raster-cube"})
-        .param(name='missionId', description="mission Id, currently defaults to sentinel2", schema={"type": "string"}, required=False)
+        .param(name='missionId', description="mission Id, currently defaults to sentinel2",                      schema={"type": "string"}, required=False)
+        .param(name='sza',       description="if set, overrides sun zenith angle values [deg]",                  schema={"type": "number"}, required=False)
+        .param(name='vza',       description="if set, overrides sensor zenith angle values [deg]",               schema={"type": "number"}, required=False)
+        .param(name='raa',       description="if set, overrides rel. zenith angle values [deg]",                 schema={"type": "number"}, required=False)
+        .param(name='gnd',       description="if set, overrides ground elevation [km]",                          schema={"type": "number"}, required=False)
+        .param(name='aot',       description="if set, overrides aerosol optical thickness [], usually 0.1..0.2", schema={"type": "number"}, required=False)
+        .param(name='cwv',       description="if set, overrides water vapor [], usually 0..7",                   schema={"type": "number"}, required=False)
+        .param(name='appendDebugBands', description="if set to 1, saves debug bands",                            schema={"type": "number"}, required=False)
         .returns(description="the corrected data as a data cube", schema={"type": "object", "subtype": "raster-cube"})
 )
 def atmospheric_correction(args: Dict, env: EvalEnv) -> object:
     image_collection = extract_arg(args, 'data')
     missionId = args.get('missionId',None)
-    return image_collection.atmospheric_correction(missionId)
+    sza = args.get('sza',None)
+    vza = args.get('vza',None)
+    raa = args.get('raa',None)
+    gnd = args.get('gnd',None)
+    aot = args.get('aot',None)
+    cwv = args.get('cwv',None)
+    appendDebugBands = args.get('appendDebugBands',None)
+    return image_collection.atmospheric_correction(missionId, sza, vza, raa, gnd, aot, cwv, appendDebugBands)
 
 
 @non_standard_process(
