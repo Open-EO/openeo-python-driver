@@ -292,7 +292,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     params.bands = constraints.get("bands", None)
     params.properties = constraints.get("properties", {})
     params.aggregate_spatial_geometries = constraints.get("aggregate_spatial", {}).get("geometries")
-    params.sar_backscatter = constraints.get("sar_backscatter", {})
+    params.sar_backscatter = constraints.get("sar_backscatter", SarBackscatterArgs())
     return params
 
 
