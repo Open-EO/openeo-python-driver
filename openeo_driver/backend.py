@@ -130,7 +130,7 @@ class LoadParameters(dict):
     bands = dict_item(default=None)
     properties = dict_item(default={})
     aggregate_spatial_geometries = dict_item(default=None)
-    sar_backscatter: SarBackscatterArgs = dict_item(default=SarBackscatterArgs())
+    sar_backscatter: Union[SarBackscatterArgs, None] = dict_item(default=None)
 
     def copy(self) -> "LoadParameters":
         return LoadParameters(super().copy())

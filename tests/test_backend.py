@@ -25,8 +25,7 @@ def test_load_parameters():
     assert params.temporal_extent == ("2021-01-01", None)
     assert params.spatial_extent == {}
     assert params.bands is None
-    assert isinstance(params.sar_backscatter, SarBackscatterArgs)
-    assert params.sar_backscatter == SarBackscatterArgs()
+    assert params.sar_backscatter is None
 
     params_copy = params.copy()
     assert isinstance(params_copy, LoadParameters)

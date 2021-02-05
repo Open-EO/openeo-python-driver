@@ -1118,6 +1118,19 @@ def test_execute_load_collection_sar_backscatter(api100):
     )
 
 
+def test_execute_load_collection_sar_backscatter_compatibility(api100):
+    # assert that we can differentiate between collections that are sar_backscatter compatible and those that are not
+    api100.check_result({
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FAPAR_CLOUDCOVER"},
+            "result": True
+        }
+    })
+    params = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    assert params.sar_backscatter is None
+
+
 def test_execute_load_collection_resolution_merge(api100):
     api100.check_result({
         "loadcollection1": {
