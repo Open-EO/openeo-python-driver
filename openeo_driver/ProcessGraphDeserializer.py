@@ -183,19 +183,19 @@ def _expand_macros(process_graph: dict) -> dict:
         result = {}
 
         for key, value in tree.items():
-            if isinstance(value, dict):
-                if 'process_id' in value and value['process_id'] == 'normalized_difference':
-                    normalized_difference_node = value
-                    normalized_difference_arguments = normalized_difference_node['arguments']
+            if isinstance(value, dict) and 'process_id' in value:
+                original_node = value
+                original_arguments = original_node['arguments']
 
+                if value['process_id'] == 'normalized_difference':
                     subtract_key = make_unique(key + "_subtract")
                     add_key = make_unique(key + "_add")
 
                     # add "subtract" and "add"/"sum" processes
                     result[subtract_key] = {'process_id': 'subtract',
-                                            'arguments': normalized_difference_arguments}
-                    result[add_key] = {'process_id': 'sum' if 'data' in normalized_difference_arguments else 'add',
-                                       'arguments': normalized_difference_arguments}
+                                            'arguments': original_arguments}
+                    result[add_key] = {'process_id': 'sum' if 'data' in original_arguments else 'add',
+                                       'arguments': original_arguments}
 
                     # replace "normalized_difference" with "divide" under the original key (it's being referenced)
                     result[key] = {
@@ -204,7 +204,23 @@ def _expand_macros(process_graph: dict) -> dict:
                             'x': {'from_node': subtract_key},
                             'y': {'from_node': add_key}
                         },
-                        'result': normalized_difference_node.get('result', False)
+                        'result': original_node.get('result', False)
+                    }
+                elif value['process_id'] == 'ard_normalized_radar_backscatter':
+                    result[key] = {
+                        'process_id': 'sar_backscatter',
+                        'arguments': {
+                            'data': original_arguments['data'],
+                            'orthorectify': True,
+                            'rtc': True,
+                            'elevation_model': original_arguments['elevation_model'],
+                            'mask': True,
+                            'contributing_area': True,
+                            'local_incidence_angle': True,
+                            'ellipsoid_incidence_angle': original_arguments['ellipsoid_incidence_angle'],
+                            'noise_removal': original_arguments['noise_removal']
+                        },
+                        "result": original_node.get('result', False)
                     }
                 else:
                     result[key] = expand_macros_recursively(value)
