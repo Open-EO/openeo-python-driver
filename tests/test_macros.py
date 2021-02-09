@@ -85,4 +85,75 @@ def test_ard_normalized_radar_backscatter():
 
 
 def test_nested_process_graph():
-    pass
+    process_graph = {
+        "count1": {
+            "process_id": "count",
+            "arguments": {
+                "data": [1, 2, 3, 4],
+                "condition": {
+                    "process_graph": {
+                        "gt1": {
+                            "process_id": "gt",
+                            "arguments": {
+                                "x": {"from_parameter": "x"},
+                                "y": {"from_node": "normalizeddifference1"}
+                            },
+                            "result": True
+                        },
+                        "normalizeddifference1": {
+                            "process_id": "normalized_difference",
+                            "arguments": {
+                                "x": 5,
+                                "y": 10
+                            }
+                        }
+                    }
+                }
+            },
+            "result": True
+        }
+    }
+
+    assert expand_macros(process_graph) == {
+        "count1": {
+            "process_id": "count",
+            "arguments": {
+                "data": [1, 2, 3, 4],
+                "condition": {
+                    "process_graph": {
+                        "gt1": {
+                            "process_id": "gt",
+                            "arguments": {
+                                "x": {"from_parameter": "x"},
+                                "y": {"from_node": "normalizeddifference1"}
+                            },
+                            "result": True
+                        },
+                        "normalizeddifference1": {
+                            "process_id": "divide",
+                            "arguments": {
+                                "x": {"from_node": "normalizeddifference1_subtract"},
+                                "y": {"from_node": "normalizeddifference1_add"},
+                            },
+                            "result": False
+                        },
+                        "normalizeddifference1_subtract": {
+                            "process_id": "subtract",
+                            "arguments": {
+                                "x": 5,
+                                "y": 10
+                            }
+                        },
+                        "normalizeddifference1_add": {
+                            "process_id": "add",
+                            "arguments": {
+                                "x": 5,
+                                "y": 10
+                            }
+                        }
+                    }
+                }
+            },
+            "result": True
+        }
+    }
