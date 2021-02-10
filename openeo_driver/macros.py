@@ -1,7 +1,10 @@
 def expand_macros(process_graph: dict) -> dict:
     """
-    Expands macro nodes in a process graph by replacing them with other nodes, making sure their node identifiers don't
-    clash with existing ones.
+    Expands macro nodes in a process graph by replacing them with other nodes. The implementation is aimed towards
+    supporting processes that can be written in terms of other processes and therefore it currently only considers dicts
+    in the tree.
+
+    Make sure that newly introduced node identifiers don't clash with existing ones (make_unique).
 
     :param process_graph:
     :return: a copy of the input process graph with the macros expanded
