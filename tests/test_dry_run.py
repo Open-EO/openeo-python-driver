@@ -425,28 +425,22 @@ def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
 @pytest.mark.parametrize(["arguments", "expected"], [
     (
             {},
-            SarBackscatterArgs(backscatter_coefficient="gamma0", orthorectify=False, elevation_model=None, options={})
+            SarBackscatterArgs(orthorectify=True, elevation_model=None, rtc=True, mask=False, contributing_area=False,
+                               local_incidence_angle=False, ellipsoid_incidence_angle=False, noise_removal=True,
+                               options={})
     ),
     (
             {
-                "backscatter_coefficient": "sigma0", "orthorectify": True, "elevation_model": "SRTMGL1",
-                "options": {"tile_size": 1024},
+                "orthorectify": False, "elevation_model": "SRTMGL1", "rtc": False, "mask": True,
+                "contributing_area": True, "local_incidence_angle": True, "ellipsoid_incidence_angle": True,
+                "noise_removal": False, "options": {"tile_size": 1024}
             },
             SarBackscatterArgs(
-                backscatter_coefficient="sigma0", orthorectify=True, elevation_model="SRTMGL1",
+                orthorectify=False, elevation_model="SRTMGL1", rtc=False, mask=True, contributing_area=True,
+                local_incidence_angle=True, ellipsoid_incidence_angle=True, noise_removal=False,
                 options={"tile_size": 1024}
             )
-    ),
-    (
-            {
-                "coefficient": "sigma0", "orthorectify": True, "elevation_model": "SRTMGL1",
-                "options": {"tile_size": 1024},
-            },
-            SarBackscatterArgs(
-                backscatter_coefficient="sigma0", orthorectify=True, elevation_model="SRTMGL1",
-                options={"tile_size": 1024}
-            )
-    ),
+    )
 ])
 def test_evaluate_sar_backscatter(dry_run_env, dry_run_tracer, arguments, expected):
     pg = {
