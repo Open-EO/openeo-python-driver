@@ -14,10 +14,6 @@ class SarBackscatterArgs(NamedTuple):
     # Additional (non-standard) fine-tuning options
     options: dict = {}
 
-    @property
-    def backscatter_coefficient(self) -> str:
-        raise NotImplementedError("derive gamma0/sigma0 from combination of other properties")
-
 
 class ResolutionMergeArgs(NamedTuple):
     """Arguments for the `resolution_merge` process."""
