@@ -49,12 +49,12 @@ def expand_macros(process_graph: dict) -> dict:
                                 'data': original_arguments['data'],
                                 'orthorectify': True,
                                 'rtc': True,
-                                'elevation_model': original_arguments['elevation_model'],
+                                'elevation_model': original_arguments.get('elevation_model'),
                                 'mask': True,
                                 'contributing_area': True,
                                 'local_incidence_angle': True,
-                                'ellipsoid_incidence_angle': original_arguments['ellipsoid_incidence_angle'],
-                                'noise_removal': original_arguments['noise_removal']
+                                'ellipsoid_incidence_angle': original_arguments.get('ellipsoid_incidence_angle', False),
+                                'noise_removal': original_arguments.get('noise_removal', True)
                             },
                             "result": original_node.get('result', False)
                         }
