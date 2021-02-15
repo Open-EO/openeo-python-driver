@@ -33,7 +33,8 @@ These source constraints can then be fetched from the EvalEnv at `load_collectio
 
 """
 import logging
-from typing import List, Union, Set, Dict
+from enum import Enum
+from typing import List, Union, Set, Dict, Tuple
 
 import shapely.geometry.base
 
@@ -193,7 +194,7 @@ class DryRunDataTracer:
         source_constraints = {}
         for leaf in self.get_trace_leaves():
             constraints = {}
-            for op in ["temporal_extent", "spatial_extent", "bands", "aggregate_spatial", "sar_backscatter"]:
+            for op in ["temporal_extent", "spatial_extent", "bands", "aggregate_spatial", "sar_backscatter","process_type"]:
                 args = leaf.get_arguments_by_operation(op)
                 if args:
                     if merge:
@@ -210,7 +211,7 @@ class DryRunDataTracer:
                     for field, value in constraints.items():
                         orig = source_constraints[source_id].get(field)
                         if orig:
-                            if field == "bands":
+                            if field in {"bands","process_type"}:
                                 source_constraints[source_id][field] = bands_union(orig, value)
                             elif field == "temporal_extent":
                                 source_constraints[source_id][field] = temporal_extent_union(orig, value)
@@ -240,6 +241,14 @@ class DryRunDataTracer:
                     geometries_by_id[id(geometries)] = geometries
         # TODO: we just pass all (0 or more) geometries we encountered. Do something smarter when there are multiple?
         return list(geometries_by_id.values())
+
+class ProcessType(Enum):
+    LOCAL = 1 #band math
+    FOCAL_TIME = 2  #aggregate_temporal
+    FOCAL_SPACE_TIME = 3 #apply_neighborhood
+    GLOBAL_TIME = 4 # reduce_dimension
+    UNKNOWN = 5
+    FOCAL_SPACE = 6 #resampling, apply_kernel
 
 
 class DryRunDataCube(DriverDataCube):
@@ -335,10 +344,14 @@ class DryRunDataCube(DriverDataCube):
         return self.aggregate_spatial(geometries=regions, reducer=func)
 
     def resample_cube_spatial(self, target: 'DryRunDataCube', method: str = 'near') -> 'DryRunDataCube':
-        # TODO: EP3561 record resampling operation
-        return self
+        self._process("process_type",arguments={"type":ProcessType.FOCAL_SPACE})
+        return self._process("resample_cube_spatial", arguments={"target":target,"method":method})
 
     def reduce_dimension(self, reducer, dimension: str) -> 'DryRunDataCube':
+        if(self.metadata.has_temporal_dimension() and self.metadata.temporal_dimension.name == dimension):
+            #TODO: reduce is not necessarily global in call cases
+            self._process("process_type", arguments={"type": ProcessType.GLOBAL_TIME})
+
         return self._process_metadata(self.metadata.reduce_dimension(dimension_name=dimension))
 
     def add_dimension(self, name: str, label, type: str = "other") -> 'DryRunDataCube':
@@ -350,17 +363,50 @@ class DryRunDataCube(DriverDataCube):
     def resolution_merge(self, args: ResolutionMergeArgs) -> 'DryRunDataCube':
         return self._process("resolution_merge", args)
 
+    def resample_spatial(self, resolution: Union[float, Tuple[float, float]], projection: Union[int, str] = None,
+                         method: str = 'near', align: str = 'upper-left'):
+        return self._process("resample_spatial", arguments={"resolution":resolution,"projection":projection,"method":method,"align":align})
+
+    def apply_kernel(self, kernel: list, factor=1, border=0, replace_invalid=0) -> 'DriverDataCube':
+        return self._process("apply_kernel",arguments={"kernel":kernel})
+
+    def apply_dimension(self, process, dimension: str, target_dimension: str=None) -> 'DriverDataCube':
+        if (self.metadata.has_temporal_dimension() and self.metadata.temporal_dimension.name == dimension):
+            # TODO: reduce is not necessarily global in call cases
+            self._process("process_type", arguments={"type": ProcessType.GLOBAL_TIME})
+
+        if(target_dimension is not None):
+            cube = self._process_metadata(self.metadata.rename_dimension(source=dimension,target=target_dimension))
+        else:
+            cube = self
+        return cube._process("apply_dimension", arguments={"dimension": dimension})
+
+    def apply_tiles_spatiotemporal(self, process, context={}) -> 'DriverDataCube':
+        if (self.metadata.has_temporal_dimension()):
+            return self._process("process_type", arguments={"type": ProcessType.GLOBAL_TIME})
+        else:
+            return self
+
+    def apply_neighborhood(self, process, size: List[dict], overlap: List[dict]) -> 'DriverDataCube':
+        temporal_size = temporal_overlap = None
+        size_dict = {e['dimension']: e for e in size}
+        overlap_dict = {e['dimension']: e for e in overlap}
+        if self.metadata.has_temporal_dimension():
+            temporal_size = size_dict.get(self.metadata.temporal_dimension.name, None)
+            temporal_overlap = overlap_dict.get(self.metadata.temporal_dimension.name, None)
+            if temporal_size is None or temporal_size.get('value',None) is None:
+                return self._process("process_type", arguments={"type": ProcessType.GLOBAL_TIME})
+        return self
+
     def _nop(self, *args, **kwargs) -> 'DryRunDataCube':
         """No Operation: do nothing"""
         return self
 
     # TODO: some methods need metadata manipulation?
-    apply_kernel = _nop
-    apply_neighborhood = _nop
+
     apply = _nop
     apply_tiles = _nop
-    apply_tiles_spatiotemporal = _nop
-    apply_dimension = _nop
+
     reduce = _nop
     reduce_bands = _nop
     aggregate_temporal = _nop

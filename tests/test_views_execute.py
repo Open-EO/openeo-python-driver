@@ -18,6 +18,7 @@ from openeo_driver.errors import ProcessGraphMissingException
 from openeo_driver.testing import load_json, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN, \
     preprocess_regex_check_and_replace
 from openeo_driver.utils import EvalEnv
+from openeo_driver.dry_run import ProcessType
 from openeo_driver.views import app
 from .data import get_path, TEST_DATA_ROOT
 
@@ -270,6 +271,8 @@ def test_execute_apply_run_udf_100(api100):
 def test_reduce_temporal_run_udf(api):
     api.check_result("reduce_temporal_run_udf.json")
     if api.api_version_compare.at_least("1.0.0"):
+        loadCall = api.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+        assert loadCall.process_types == set([ProcessType.GLOBAL_TIME])
         assert api.get_collection("S2_FAPAR_CLOUDCOVER").reduce_dimension.call_count == 1
     else:
         assert api.get_collection("S2_FAPAR_CLOUDCOVER").apply_tiles_spatiotemporal.call_count == 1

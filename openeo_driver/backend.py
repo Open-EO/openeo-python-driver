@@ -132,6 +132,7 @@ class LoadParameters(dict):
     properties = dict_item(default={})
     aggregate_spatial_geometries = dict_item(default=None)
     sar_backscatter: Union[SarBackscatterArgs, None] = dict_item(default=None)
+    process_types = dict_item(default=set())
 
     def copy(self) -> "LoadParameters":
         return LoadParameters(super().copy())

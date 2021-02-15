@@ -256,6 +256,7 @@ def extract_args_subset(args: dict, keys: List[str], aliases: Dict[str, str] = N
 def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     source_constraints = env[ENV_SOURCE_CONSTRAINTS]
     global_extent = None
+    process_types = set()
     for constraint in source_constraints.values():
         if("spatial_extent" in constraint):
             extent = constraint["spatial_extent"]
@@ -263,6 +264,8 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
                 global_extent = extent
             else:
                 global_extent = spatial_extent_union(global_extent,extent)
+        if("process_type" in constraint):
+            process_types.add(constraint["process_type"]["type"])
 
     constraints = source_constraints[source_id]
     params = LoadParameters()
@@ -273,6 +276,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     params.properties = constraints.get("properties", {})
     params.aggregate_spatial_geometries = constraints.get("aggregate_spatial", {}).get("geometries")
     params.sar_backscatter = constraints.get("sar_backscatter", None)
+    params.process_types = process_types
     return params
 
 
