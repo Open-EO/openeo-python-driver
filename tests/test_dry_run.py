@@ -387,6 +387,35 @@ def test_aggregate_spatial(dry_run_env, dry_run_tracer):
     }
 
 
+def test_mask_polygon(dry_run_env, dry_run_tracer):
+    polygon = {
+        "type": "Polygon",
+        "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]
+    }
+    pg = {
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "agg": {
+            "process_id": "mask_polygon",
+            "arguments": {
+                "data": {"from_node": "lc"},
+                "mask": polygon,
+                "inside": False
+            },
+            "result": True,
+        },
+    }
+    cube = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints.popitem()
+    assert src == ("load_collection", ("S2_FOOBAR",))
+    assert constraints == {
+        "spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"}
+    }
+
+
+
 def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
     geometry_path = str(get_path("GeometryCollection.geojson"))
     pg = {

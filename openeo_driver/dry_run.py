@@ -278,6 +278,9 @@ class DryRunDataCube(DriverDataCube):
     def filter_bands(self, bands) -> 'DryRunDataCube':
         return self._process("bands", bands)
 
+    def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
+        return self._process("save_result",{"format":format, "options":format_options})
+
     def mask(self, mask: 'DryRunDataCube', replacement=None) -> 'DryRunDataCube':
         # TODO: if mask cube has no temporal or bbox extent: copy from self?
         # TODO: or add reference to the self trace to the mask trace and vice versa?
@@ -293,10 +296,22 @@ class DryRunDataCube(DriverDataCube):
             metadata=self.metadata
         )
 
+    def mask_polygon(self, mask, replacement=None, inside: bool = False) -> 'DriverDataCube':
+        if not inside and replacement==None:
+            cube, geometries = self.spatial_filter_cube(mask)
+            return cube._process(operation="mask_polygon", arguments={"mask": geometries})
+        else:
+            self._nop()
+
     def aggregate_spatial(
             self, geometries: Union[str, dict, DelayedVector, shapely.geometry.base.BaseGeometry],
             reducer, target_dimension: str = "result"
     ) -> AggregatePolygonResult:
+        cube, geometries = self.spatial_filter_cube(geometries)
+        cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
+        return AggregatePolygonResult(timeseries={}, regions=geometries)
+
+    def spatial_filter_cube(self, geometries):
         if isinstance(geometries, dict):
             geometries = geojson_to_geometry(geometries)
             bbox = geometries.bounds
@@ -310,8 +325,7 @@ class DryRunDataCube(DriverDataCube):
         else:
             raise ValueError(geometries)
         cube = self.filter_bbox(west=bbox[0], south=bbox[1], east=bbox[2], north=bbox[3], crs="EPSG:4326")
-        cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
-        return AggregatePolygonResult(timeseries={}, regions=geometries)
+        return cube, geometries
 
     # TODO: this is a workaround until vectorcube is fully upgraded
     def raster_to_vector(self):
@@ -349,7 +363,6 @@ class DryRunDataCube(DriverDataCube):
     apply_dimension = _nop
     reduce = _nop
     reduce_bands = _nop
-    mask_polygon = _nop
     aggregate_temporal = _nop
     rename_labels = _nop
     rename_dimension = _nop
