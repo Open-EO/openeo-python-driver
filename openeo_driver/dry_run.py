@@ -211,7 +211,9 @@ class DryRunDataTracer:
                     for field, value in constraints.items():
                         orig = source_constraints[source_id].get(field)
                         if orig:
-                            if field in {"bands","process_type"}:
+                            if field == "bands":
+                                source_constraints[source_id][field] = bands_union(orig, value)
+                            elif field in {"process_type"}:
                                 source_constraints[source_id][field] = bands_union(orig, value)
                             elif field == "temporal_extent":
                                 source_constraints[source_id][field] = temporal_extent_union(orig, value)
@@ -344,13 +346,13 @@ class DryRunDataCube(DriverDataCube):
         return self.aggregate_spatial(geometries=regions, reducer=func)
 
     def resample_cube_spatial(self, target: 'DryRunDataCube', method: str = 'near') -> 'DryRunDataCube':
-        self._process("process_type",arguments={"type":ProcessType.FOCAL_SPACE})
+        self._process("process_type",[ProcessType.FOCAL_SPACE])
         return self._process("resample_cube_spatial", arguments={"target":target,"method":method})
 
     def reduce_dimension(self, reducer, dimension: str) -> 'DryRunDataCube':
         if(self.metadata.has_temporal_dimension() and self.metadata.temporal_dimension.name == dimension):
             #TODO: reduce is not necessarily global in call cases
-            self._process("process_type", arguments={"type": ProcessType.GLOBAL_TIME})
+            self._process("process_type", [ProcessType.GLOBAL_TIME])
 
         return self._process_metadata(self.metadata.reduce_dimension(dimension_name=dimension))
 
@@ -373,7 +375,7 @@ class DryRunDataCube(DriverDataCube):
     def apply_dimension(self, process, dimension: str, target_dimension: str=None) -> 'DriverDataCube':
         if (self.metadata.has_temporal_dimension() and self.metadata.temporal_dimension.name == dimension):
             # TODO: reduce is not necessarily global in call cases
-            self._process("process_type", arguments={"type": ProcessType.GLOBAL_TIME})
+            self._process("process_type", [ProcessType.GLOBAL_TIME])
 
         if(target_dimension is not None):
             cube = self._process_metadata(self.metadata.rename_dimension(source=dimension,target=target_dimension))
@@ -383,7 +385,7 @@ class DryRunDataCube(DriverDataCube):
 
     def apply_tiles_spatiotemporal(self, process, context={}) -> 'DriverDataCube':
         if (self.metadata.has_temporal_dimension()):
-            return self._process("process_type", arguments={"type": ProcessType.GLOBAL_TIME})
+            return self._process("process_type", [ProcessType.GLOBAL_TIME])
         else:
             return self
 
@@ -395,7 +397,7 @@ class DryRunDataCube(DriverDataCube):
             temporal_size = size_dict.get(self.metadata.temporal_dimension.name, None)
             temporal_overlap = overlap_dict.get(self.metadata.temporal_dimension.name, None)
             if temporal_size is None or temporal_size.get('value',None) is None:
-                return self._process("process_type", arguments={"type": ProcessType.GLOBAL_TIME})
+                return self._process("process_type", [ProcessType.GLOBAL_TIME])
         return self
 
     def _nop(self, *args, **kwargs) -> 'DryRunDataCube':

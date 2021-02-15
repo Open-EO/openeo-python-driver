@@ -265,7 +265,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
             else:
                 global_extent = spatial_extent_union(global_extent,extent)
         if("process_type" in constraint):
-            process_types.add(constraint["process_type"]["type"])
+            process_types |= set(constraint["process_type"])
 
     constraints = source_constraints[source_id]
     params = LoadParameters()

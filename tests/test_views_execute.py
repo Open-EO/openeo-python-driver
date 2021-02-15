@@ -337,6 +337,7 @@ def test_apply_dimension_temporal_run_udf(api):
     assert dummy.apply_dimension.call_count == 1
     if api.api_version_compare.at_least("1.0.0"):
         dummy.rename_dimension.assert_called_with('t', 'new_time_dimension')
+        assert api.last_load_collection_call("S2_FAPAR_CLOUDCOVER").process_types == set([ProcessType.GLOBAL_TIME])
 
 
 def test_apply_dimension_temporal_run_udf_legacy_client(api):
