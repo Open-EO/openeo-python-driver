@@ -363,6 +363,7 @@ def test_apply_neighborhood(api100):
     api100.check_result(
         "apply_neighborhood.json"
     )
+    assert api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER").process_types == set([ProcessType.GLOBAL_TIME])
 
 
 def test_reduce_max_t(api):

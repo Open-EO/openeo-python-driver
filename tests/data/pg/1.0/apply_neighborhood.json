@@ -5,14 +5,14 @@
       "id": "S2_FAPAR_CLOUDCOVER"
     }
   },
-  "apply_dimension": {
+  "apply_neighborhood": {
     "arguments": {
       "data": {
         "from_node": "collection"
       },
       "overlap": [
         {
-          "name": "t",
+          "dimension": "t",
           "value": "P10D"
         }
       ],
@@ -33,12 +33,12 @@
       },
       "size": [
         {
-          "name": "x",
+          "dimension": "x",
           "unit": "px",
           "value": 128
         },
         {
-          "name": "y",
+          "dimension": "y",
           "unit": "px",
           "value": 128
         }
