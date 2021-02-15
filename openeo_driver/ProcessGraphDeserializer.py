@@ -27,7 +27,7 @@ from openeo_driver.macros import expand_macros
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult
 from openeo_driver.specs import SPECS_ROOT, read_spec
-from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry
+from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union
 from openeo_udf.api.feature_collection import FeatureCollection
 from openeo_udf.api.structured_data import StructuredData
 from openeo_udf.api.udf_data import UdfData
@@ -254,10 +254,21 @@ def extract_args_subset(args: dict, keys: List[str], aliases: Dict[str, str] = N
 
 
 def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
-    constraints = env[ENV_SOURCE_CONSTRAINTS][source_id]
+    source_constraints = env[ENV_SOURCE_CONSTRAINTS]
+    global_extent = None
+    for constraint in source_constraints.values():
+        if("spatial_extent" in constraint):
+            extent = constraint["spatial_extent"]
+            if(global_extent==None):
+                global_extent = extent
+            else:
+                global_extent = spatial_extent_union(global_extent,extent)
+
+    constraints = source_constraints[source_id]
     params = LoadParameters()
     params.temporal_extent = constraints.get("temporal_extent", ["1970-01-01", "2070-01-01"])
     params.spatial_extent = constraints.get("spatial_extent", {})
+    params.global_extent = global_extent
     params.bands = constraints.get("bands", None)
     params.properties = constraints.get("properties", {})
     params.aggregate_spatial_geometries = constraints.get("aggregate_spatial", {}).get("geometries")

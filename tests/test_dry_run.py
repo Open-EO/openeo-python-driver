@@ -1,7 +1,7 @@
 import pytest
 import shapely.geometry
 
-from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER
+from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER,_extract_load_parameters,ENV_SOURCE_CONSTRAINTS
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer, DataSource, DataTrace
@@ -284,6 +284,60 @@ def test_evaluate_load_collection_and_filter_extents(dry_run_env, dry_run_tracer
         "bands": ["red", "green", "blue"],
     }
 
+
+def test_evaluate_merge_collections(dry_run_env, dry_run_tracer):
+    """temporal/bbox/band extents in load_collection *and* filter_ processes"""
+    pg = {
+        "load": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "S2_FOOBAR",
+                "spatial_extent": {"west": 0, "south": 50, "east": 5, "north": 55},
+                "temporal_extent": ["2020-01-01", "2020-10-10"],
+                "bands": ["red", "green", "blue"]
+            },
+        },
+        "load_s1": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "S2_FAPAR_CLOUDCOVER",
+                "spatial_extent": {"west": -1, "south": 50, "east": 5, "north": 55},
+                "temporal_extent": ["2020-01-01", "2020-10-10"],
+                "bands": ["VV"]
+            },
+        },
+        "merge":{
+            "process_id":"merge_cubes",
+            "arguments":{
+                "cube1": {"from_node": "load"},
+                "cube2": {"from_node": "load_s1"}
+            },
+            "result": True
+
+        }
+    }
+    cube = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 2
+    dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
+    loadparams = _extract_load_parameters(dry_run_env, ("load_collection", ("S2_FOOBAR",)))
+    assert {"west": -1, "south": 50, "east": 5, "north": 55, "crs": "EPSG:4326"} == loadparams.global_extent
+
+    constraints = source_constraints.get(("load_collection", ("S2_FOOBAR",)))
+
+    assert constraints == {
+        "temporal_extent": ("2020-01-01", "2020-10-10"),
+        "spatial_extent": {"west": 0, "south": 50, "east": 5, "north": 55, "crs": "EPSG:4326"},
+        "bands": ["red", "green", "blue"],
+    }
+    constraints = source_constraints.get( ("load_collection", ("S2_FAPAR_CLOUDCOVER",)))
+
+    assert constraints == {
+        "temporal_extent": ("2020-01-01", "2020-10-10"),
+        "spatial_extent": {"west": -1, "south": 50, "east": 5, "north": 55, "crs": "EPSG:4326"},
+        "bands": ["VV"],
+    }
 
 def test_evaluate_load_collection_and_filter_extents_dynamic(dry_run_env, dry_run_tracer):
     """"Dynamic temporal/bbox/band extents in load_collection *and* filter_ processes"""

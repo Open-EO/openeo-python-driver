@@ -127,6 +127,7 @@ class LoadParameters(dict):
     # Some attributes pointing to dict items for more explicit tracing where parameters are set and read.
     temporal_extent = dict_item(default=(None, None))
     spatial_extent = dict_item(default={})
+    global_extent = dict_item(default={})
     bands = dict_item(default=None)
     properties = dict_item(default={})
     aggregate_spatial_geometries = dict_item(default=None)
