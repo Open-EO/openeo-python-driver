@@ -23,6 +23,7 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException
 from openeo_driver.errors import ProcessUnsupportedException
+from openeo_driver.macros import expand_macros
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult
 from openeo_driver.specs import SPECS_ROOT, read_spec
@@ -150,7 +151,7 @@ def evaluate(
 
     # TODO avoid local import
     from openeo.internal.process_graph_visitor import ProcessGraphVisitor
-    preprocessed_process_graph = _expand_macros(process_graph)
+    preprocessed_process_graph = expand_macros(process_graph)
     top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(preprocessed_process_graph)
     result_node = preprocessed_process_graph[top_level_node]
 
@@ -164,56 +165,6 @@ def evaluate(
         env = env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
 
     return convert_node(result_node, env=env)
-
-
-def _expand_macros(process_graph: dict) -> dict:
-    """
-    Expands macro nodes in a process graph by replacing them with other nodes, making sure their node identifiers don't
-    clash with existing ones.
-
-    :param process_graph:
-    :return: a copy of the input process graph with the macros expanded
-    """
-    # TODO: can this system be combined with user defined processes (both kind of replace a single "virtual" node with a replacement process graph)
-
-    def expand_macros_recursively(tree: dict) -> dict:
-        def make_unique(node_identifier: str) -> str:
-            return node_identifier if node_identifier not in tree else make_unique(node_identifier + '_')
-
-        result = {}
-
-        for key, value in tree.items():
-            if isinstance(value, dict):
-                if 'process_id' in value and value['process_id'] == 'normalized_difference':
-                    normalized_difference_node = value
-                    normalized_difference_arguments = normalized_difference_node['arguments']
-
-                    subtract_key = make_unique(key + "_subtract")
-                    add_key = make_unique(key + "_add")
-
-                    # add "subtract" and "add"/"sum" processes
-                    result[subtract_key] = {'process_id': 'subtract',
-                                            'arguments': normalized_difference_arguments}
-                    result[add_key] = {'process_id': 'sum' if 'data' in normalized_difference_arguments else 'add',
-                                       'arguments': normalized_difference_arguments}
-
-                    # replace "normalized_difference" with "divide" under the original key (it's being referenced)
-                    result[key] = {
-                        'process_id': 'divide',
-                        'arguments': {
-                            'x': {'from_node': subtract_key},
-                            'y': {'from_node': add_key}
-                        },
-                        'result': normalized_difference_node.get('result', False)
-                    }
-                else:
-                    result[key] = expand_macros_recursively(value)
-            else:
-                result[key] = value
-
-        return result
-
-    return expand_macros_recursively(process_graph)
 
 
 def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
@@ -1047,8 +998,8 @@ def water_vapor(args: Dict, env: EvalEnv) -> object:
 def sar_backscatter(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
     kwargs = extract_args_subset(
-        args, keys=["backscatter_coefficient", "orthorectify", "elevation_model", "options"],
-        aliases={"coefficient": "backscatter_coefficient"}
+        args, keys=["orthorectify", "elevation_model", "rtc", "mask", "contributing_area", "local_incidence_angle",
+                    "ellipsoid_incidence_angle", "noise_removal", "options"]
     )
     return cube.sar_backscatter(SarBackscatterArgs(**kwargs))
 
