@@ -25,7 +25,7 @@ from openeo_driver.errors import ProcessParameterRequiredException, ProcessParam
 from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.macros import expand_macros
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
-from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult
+from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult, nothing
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union
 from openeo_udf.api.feature_collection import FeatureCollection
@@ -1012,3 +1012,13 @@ def resolution_merge(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
     kwargs = extract_args_subset(args, keys=["method", "high_resolution_bands", "low_resolution_bands", "options"])
     return cube.resolution_merge(ResolutionMergeArgs(**kwargs))
+
+
+@non_standard_process(
+    ProcessSpec("discard_result", description="Discards given data. Used for side-effecting purposes.")
+        .param('data', description="Data to discard.", schema={}, required=False)
+        .returns("Nothing", schema={})
+)
+def discard_result(args: Dict, env: EvalEnv):
+    # TODO: keep a reference to the discarded result?
+    return nothing

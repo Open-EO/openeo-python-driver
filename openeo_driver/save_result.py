@@ -9,7 +9,7 @@ from zipfile import ZipFile
 
 import pandas as pd
 import numpy as np
-from flask import send_from_directory, jsonify
+from flask import send_from_directory, jsonify, make_response
 
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.utils import replace_nan_values, EvalEnv
@@ -326,3 +326,14 @@ class MultipleFilesResult(SaveResult):
         resp.headers.set('Content-Disposition', 'attachment', filename=temp_file.name)
 
         return resp
+
+
+class NoResult(SaveResult):
+    def __init__(self):
+        super().__init__()
+
+    def create_flask_response(self):
+        return make_response('', 204)
+
+
+nothing = NoResult()
