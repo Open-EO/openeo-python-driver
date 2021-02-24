@@ -16,4 +16,5 @@ pythonPipeline {
   wheel_repo = 'python-openeo'
   extras_require = 'dev'
   upload_dev_wheels = false
+  node_label = 'rscloud'
 }
