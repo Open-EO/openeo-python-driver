@@ -1139,6 +1139,24 @@ def test_execute_load_collection_sar_backscatter_compatibility(api100):
     assert params.sar_backscatter is None
 
 
+def test_execute_load_collection_custom_cloud_mask(api100):
+    # assert that we can differentiate between collections that are sar_backscatter compatible and those that are not
+    api100.check_result({
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FAPAR_CLOUDCOVER"},
+            "result": False
+        },
+        "mask": {
+            "process_id": "mask_scl_dilation",
+            "arguments": {"data": {"from_node": "loadcollection1"}},
+            "result": True
+        }
+    })
+    params = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    assert params.custom_mask == {"method":"mask_scl_dilation"}
+
+
 def test_execute_load_collection_resolution_merge(api100):
     api100.check_result({
         "loadcollection1": {
