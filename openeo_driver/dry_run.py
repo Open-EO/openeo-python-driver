@@ -194,7 +194,7 @@ class DryRunDataTracer:
         source_constraints = {}
         for leaf in self.get_trace_leaves():
             constraints = {}
-            for op in ["temporal_extent", "spatial_extent", "bands", "aggregate_spatial", "sar_backscatter","process_type"]:
+            for op in ["temporal_extent", "spatial_extent", "bands", "aggregate_spatial", "sar_backscatter","process_type","custom_cloud_mask"]:
                 args = leaf.get_arguments_by_operation(op)
                 if args:
                     if merge:
@@ -399,6 +399,9 @@ class DryRunDataCube(DriverDataCube):
             if temporal_size is None or temporal_size.get('value',None) is None:
                 return self._process("process_type", [ProcessType.GLOBAL_TIME])
         return self
+
+    def mask_scl_dilation(self) -> 'DriverDataCube':
+        return self._process("custom_cloud_mask",arguments={"method":"mask_scl_dilation"})
 
     def _nop(self, *args, **kwargs) -> 'DryRunDataCube':
         """No Operation: do nothing"""

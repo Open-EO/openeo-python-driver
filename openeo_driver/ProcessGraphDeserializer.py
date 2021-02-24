@@ -277,6 +277,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     params.aggregate_spatial_geometries = constraints.get("aggregate_spatial", {}).get("geometries")
     params.sar_backscatter = constraints.get("sar_backscatter", None)
     params.process_types = process_types
+    params.custom_mask = constraints.get("custom_cloud_mask",None)
     return params
 
 
@@ -1022,3 +1023,12 @@ def resolution_merge(args: Dict, env: EvalEnv):
 def discard_result(args: Dict, env: EvalEnv):
     # TODO: keep a reference to the discarded result?
     return nothing
+
+@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/mask_scl_dilation.json"))
+def mask_scl_dilation(args: Dict, env: EvalEnv):
+    cube: DriverDataCube = extract_arg(args, 'data')
+    if( "mask_scl_dilation" in dir(cube)):
+        return cube.mask_scl_dilation()
+    else:
+        return cube
+
