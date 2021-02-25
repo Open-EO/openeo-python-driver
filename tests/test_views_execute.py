@@ -1098,6 +1098,53 @@ def test_save_result_gtiff_mimetype(api, format, expected):
     assert res.headers["Content-type"] == expected
 
 
+def test_execute_load_collection_sar_backscatter_defaults(api100):
+    api100.check_result({
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}
+        },
+        "sar_backscatter": {
+            "process_id": "sar_backscatter",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+            },
+            "result": True
+        },
+    })
+    params = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    assert params.sar_backscatter == SarBackscatterArgs(
+        orthorectify=True, elevation_model=None, rtc=True, mask=False, contributing_area=False,
+        local_incidence_angle=False, ellipsoid_incidence_angle=False, noise_removal=True, options={}
+    )
+
+
+def test_execute_load_collection_sar_backscatter_nones(api100):
+    api100.check_result({
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}
+        },
+        "sar_backscatter": {
+            "process_id": "sar_backscatter",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "orthorectify": None,
+                "rtc": None,
+                "mask": None,
+                "noise_removal": None,
+                "options": None,
+            },
+            "result": True
+        },
+    })
+    params = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    assert params.sar_backscatter == SarBackscatterArgs(
+        orthorectify=True, elevation_model=None, rtc=True, mask=False, contributing_area=False,
+        local_incidence_angle=False, ellipsoid_incidence_angle=False, noise_removal=True, options={}
+    )
+
+
 def test_execute_load_collection_sar_backscatter(api100):
     api100.check_result({
         "loadcollection1": {

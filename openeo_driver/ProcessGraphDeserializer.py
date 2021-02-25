@@ -15,6 +15,7 @@ from shapely.geometry import shape, mapping
 
 from openeo.capabilities import ComparableVersion
 from openeo.metadata import MetadataException
+from openeo.util import dict_no_none
 from openeo_driver import dry_run
 from openeo_driver.backend import get_backend_implementation, UserDefinedProcessMetadata, LoadParameters
 from openeo_driver.datacube import DriverDataCube
@@ -1005,6 +1006,7 @@ def sar_backscatter(args: Dict, env: EvalEnv):
         args, keys=["orthorectify", "elevation_model", "rtc", "mask", "contributing_area", "local_incidence_angle",
                     "ellipsoid_incidence_angle", "noise_removal", "options"]
     )
+    kwargs = dict_no_none(kwargs)
     return cube.sar_backscatter(SarBackscatterArgs(**kwargs))
 
 
