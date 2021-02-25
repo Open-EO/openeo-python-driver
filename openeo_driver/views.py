@@ -964,6 +964,7 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
 
     # Make sure some required fields are set.
     metadata.setdefault("stac_version", "0.9.0" if api_version.at_least("1.0.0") else "0.6.2")
+    metadata.setdefault("stac_extensions",["datacube"])
     metadata.setdefault("links", [])
     metadata.setdefault("description", collection_id)
     metadata.setdefault("license", "proprietary")
