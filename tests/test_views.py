@@ -481,8 +481,14 @@ class TestCollections:
         assert collection['description'] == 'S2_FOOBAR'
         assert collection['license'] == 'free'
         cube_dimensions = {
-            "x": {"type": "spatial", "extent": [2.5, 6.2]},
-            "y": {"type": "spatial", "extent": [49.5, 51.5]},
+            'x': {'extent': [2.5, 6.2],
+                  'reference_system': 'AUTO:42001',
+                  'step': 10,
+                  'type': 'spatial'},
+            'y': {'extent': [49.5, 51.5],
+                  'reference_system': 'AUTO:42001',
+                  'step': 10,
+                  'type': 'spatial'},
             "t": {"type": "temporal", "extent": ["2019-01-01", None]},
             "bands": {"type": "bands", "values": ["B02", "B03", "B04", "B08"]}
         }
