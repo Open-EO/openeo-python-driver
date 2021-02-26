@@ -1,5 +1,6 @@
 import os
 import re
+import uuid
 from typing import Callable, Union
 from unittest import mock
 
@@ -9,6 +10,7 @@ import shapely.geometry
 from flask.testing import FlaskClient
 
 import openeo_driver.testing
+from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
 from openeo_driver.backend import get_backend_implementation, LoadParameters
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
@@ -1248,3 +1250,42 @@ def test_execute_load_collection_resolution_merge(api100):
         high_resolution_bands=["B02","B03"], low_resolution_bands=["B05", "B06"],
         options={'kernel_size': 8},
     )
+
+
+def _generate_unique_test_process_id():
+    # Because the process registries are global variables we can not mock easily
+    # we'll add new test processes with a (random) unique name.
+    return "_test_process_{u}".format(u=uuid.uuid4())
+
+
+def test_execute_custom_process_by_graph(api100):
+    process_id = _generate_unique_test_process_id()
+
+    # Register a custom process with process graph
+    custom_process_from_process_graph(process_spec={
+        "id": process_id,
+        "process_graph": {
+            "add": {
+                "process_id": "add",
+                "arguments": {"x": {"from_parameter": "data"}, "y": 3},
+            },
+            "multiply": {
+                "process_id": "multiply",
+                "arguments": {"x": {"from_node": "add"}, "y": 5},
+                "result": True
+            }
+        },
+        "parameters": [
+            {"name": "data"}
+        ]
+    })
+
+    # Apply process
+    res = api100.check_result({
+        "do_math": {
+            "process_id": process_id,
+            "arguments": {"data": 2},
+            "result": True
+        },
+    }).json
+    assert res == 25

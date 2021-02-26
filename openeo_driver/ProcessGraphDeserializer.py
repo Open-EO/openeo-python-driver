@@ -92,7 +92,12 @@ _add_standard_processes(process_registry_100, [
 ])
 
 
-def process(f: Callable) -> Callable:
+# Type hint alias for a "process function":
+# a Python function that implements some openEO process (as used in `apply_process`)
+ProcessFunction = Callable[[dict, EvalEnv], Any]
+
+
+def process(f: ProcessFunction) -> ProcessFunction:
     """Decorator for registering a process function in the process registries"""
     process_registry_040.add_function(f)
     process_registry_100.add_function(f)
@@ -103,10 +108,10 @@ def process(f: Callable) -> Callable:
 deprecated_process = process_registry_040.add_deprecated
 
 
-def non_standard_process(spec: ProcessSpec) -> Callable[[Callable], Callable]:
+def non_standard_process(spec: ProcessSpec) -> Callable[[ProcessFunction], ProcessFunction]:
     """Decorator for registering non-standard process functions"""
 
-    def decorator(f: Callable) -> Callable:
+    def decorator(f: ProcessFunction) -> ProcessFunction:
         process_registry_040.add_function(f=f, spec=spec.to_dict_040())
         process_registry_100.add_function(f=f, spec=spec.to_dict_100())
         return f
@@ -114,11 +119,42 @@ def non_standard_process(spec: ProcessSpec) -> Callable[[Callable], Callable]:
     return decorator
 
 
-def custom_process(f):
+def custom_process(f: ProcessFunction):
     """Decorator for custom processes (e.g. in custom_processes.py)."""
     process_registry_040.add_hidden(f)
     process_registry_100.add_hidden(f)
     return f
+
+
+def custom_process_from_process_graph(process_spec: dict):
+    """
+    Register a custom process from a process spec containing a "process_graph" definition
+
+    :param process_spec: process spec dict, containing keys like "id", "process_graph", "parameter"
+    """
+    process_id = process_spec["id"]
+    process_function = _process_function_from_process_graph(process_spec)
+    process_registry_100.add_function(process_function, name=process_id, spec=process_spec)
+
+
+def _process_function_from_process_graph(process_spec: dict) -> ProcessFunction:
+    """
+    Build a process function (to be used in `apply_process`) from a given process spec with process graph
+
+    :param process_spec: process spec dict, containing keys like "id", "process_graph", "parameter"
+    :return: process function
+    """
+    process_id = process_spec["id"]
+    process_graph = process_spec["process_graph"]
+    parameters = process_spec["parameters"]
+
+    def process_function(args: dict, env: EvalEnv):
+        return _evaluate_process_graph_process(
+            process_id=process_id, process_graph=process_graph, parameters=parameters,
+            args=args, env=env
+        )
+
+    return process_function
 
 
 def get_process_registry(api_version: ComparableVersion) -> ProcessRegistry:

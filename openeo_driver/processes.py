@@ -105,7 +105,10 @@ class ProcessRegistry:
     def load_predefined_spec(self, name: str) -> dict:
         """Get predefined process specification (dict) based on process name."""
         try:
-            return read_json(self._processes_spec_root / '{n}.json'.format(n=name))
+            spec = read_json(self._processes_spec_root / '{n}.json'.format(n=name))
+            # Health check: required fields for predefined processes
+            assert all(k in spec for k in ['id', 'description', 'parameters', 'returns'])
+            return spec
         except Exception:
             raise ProcessRegistryException("Failed to load predefined spec of process {n!r}".format(n=name))
 
@@ -120,8 +123,6 @@ class ProcessRegistry:
         if name in self._processes:
             raise ProcessRegistryException("process {p!r} is already defined".format(p=name))
         if spec:
-            # Basic health check
-            assert all(k in spec for k in ['id', 'description', 'parameters', 'returns'])
             assert name == spec['id']
         if function and self._argument_names:
             sig = inspect.signature(function)
