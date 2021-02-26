@@ -898,7 +898,7 @@ def test_sleep(api):
 
 
 def test_discard_result(api):
-    res = api.result({
+    res = api.check_result({
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": "S2_FOOBAR"}
@@ -910,8 +910,7 @@ def test_discard_result(api):
         }
     })
 
-    content = res.assert_status_code(200).data
-    assert len(content) == 0
+    assert res.json is None
 
 @pytest.mark.parametrize(["url", "namespace"], [
     ("https://oeo.net/user/123/procs/bbox_mol.json", "https://oeo.net/user/123/procs"),

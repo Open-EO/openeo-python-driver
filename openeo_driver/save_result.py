@@ -328,12 +328,12 @@ class MultipleFilesResult(SaveResult):
         return resp
 
 
-class _UnitResult(SaveResult):
+class _NullResult(SaveResult):
     def __init__(self):
         super().__init__()
 
     def create_flask_response(self):
-        return make_response('', 200)
+        return jsonify(None)
 
 
-unit = _UnitResult()
+null = _NullResult()
