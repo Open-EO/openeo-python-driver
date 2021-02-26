@@ -26,7 +26,7 @@ from openeo_driver.errors import ProcessParameterRequiredException, ProcessParam
 from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.macros import expand_macros
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
-from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult, nothing
+from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult, unit
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union
 from openeo_udf.api.feature_collection import FeatureCollection
@@ -1024,7 +1024,7 @@ def resolution_merge(args: Dict, env: EvalEnv):
 )
 def discard_result(args: Dict, env: EvalEnv):
     # TODO: keep a reference to the discarded result?
-    return nothing
+    return unit
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/mask_scl_dilation.json"))
 def mask_scl_dilation(args: Dict, env: EvalEnv):

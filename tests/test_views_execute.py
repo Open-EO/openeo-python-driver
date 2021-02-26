@@ -897,6 +897,22 @@ def test_sleep(api):
     sleep.assert_called_with(5)
 
 
+def test_discard_result(api):
+    res = api.result({
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FOOBAR"}
+        },
+        "discardresult1": {
+            "process_id": "discard_result",
+            "arguments": {"data": {"from_node": "loadcollection1"}},
+            "result": True
+        }
+    })
+
+    content = res.assert_status_code(200).data
+    assert len(content) == 0
+
 @pytest.mark.parametrize(["url", "namespace"], [
     ("https://oeo.net/user/123/procs/bbox_mol.json", "https://oeo.net/user/123/procs"),
     ("https://oeo.net/user/123/procs/bbox_mol.json", "https://oeo.net/user/123/procs/"),
