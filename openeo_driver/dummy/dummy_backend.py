@@ -216,8 +216,8 @@ class DummyCatalog(CollectionCatalog):
                 }
             },
             'cube:dimensions': {
-                "x": {"type": "spatial", "extent": [-180, 180]},
-                "y": {"type": "spatial", "extent": [-90, 90]},
+                "x": {"type": "spatial", "extent": [-180, 180], "step":10, "reference_system": "AUTO:42001"},
+                "y": {"type": "spatial", "extent": [-90, 90], "step":10, "reference_system": "AUTO:42001"},
                 "t": {"type": "temporal", "extent": ["2019-01-02", "2019-02-03"]},
             },
             'summaries': {},
@@ -239,8 +239,8 @@ class DummyCatalog(CollectionCatalog):
                 }
             },
             'cube:dimensions': {
-                "x": {"type": "spatial", "extent": [2.5, 6.2]},
-                "y": {"type": "spatial", "extent": [49.5, 51.5]},
+                "x": {"type": "spatial", "extent": [2.5, 6.2], "step":10, "reference_system": "AUTO:42001"},
+                "y": {"type": "spatial", "extent": [49.5, 51.5], "step":10, "reference_system": "AUTO:42001"},
                 "t": {"type": "temporal", "extent": ["2019-01-01", None]},
                 "bands": {"type": "bands", "values": ["B02", "B03", "B04", "B08"]},
             },
@@ -258,8 +258,8 @@ class DummyCatalog(CollectionCatalog):
         {
             'id': 'PROBAV_L3_S10_TOC_NDVI_333M_V2',
             'cube:dimensions': {
-                "x": {"type": "spatial", "extent": [-180, 180]},
-                "y": {"type": "spatial", "extent": [-56, 83]},
+                "x": {"type": "spatial", "extent": [-180, 180],"step": 0.002976190476190, "reference_system": 4326},
+                "y": {"type": "spatial", "extent": [-56, 83],"step": 0.002976190476190, "reference_system": 4326},
                 "t": {"type": "temporal", "extent": ["2014-01-01", None]},
                 "bands": {"type": "bands", "values": ["ndvi"]}
             },

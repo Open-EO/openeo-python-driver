@@ -407,6 +407,9 @@ def test_execute_merge_cubes(api):
 def test_execute_resample_and_merge_cubes(api100):
     api100.check_result("resample_and_merge_cubes.json")
     dummy = api100.get_collection("S2_FAPAR_CLOUDCOVER")
+    last_load_collection_call = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    assert last_load_collection_call.target_crs == "AUTO:42001"
+    assert last_load_collection_call.target_resolution == [10,10]
     assert dummy.merge_cubes.call_count == 1
     assert dummy.resample_cube_spatial.call_count == 1
     args, kwargs = dummy.merge_cubes.call_args

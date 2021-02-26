@@ -134,6 +134,8 @@ class LoadParameters(dict):
     sar_backscatter: Union[SarBackscatterArgs, None] = dict_item(default=None)
     process_types = dict_item(default=set())
     custom_mask = dict_item(default=None)
+    target_crs = dict_item(default=None)
+    target_resolution = dict_item(default=None)
 
     def copy(self) -> "LoadParameters":
         return LoadParameters(super().copy())
