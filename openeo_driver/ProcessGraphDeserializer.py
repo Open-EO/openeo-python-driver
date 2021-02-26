@@ -1056,7 +1056,7 @@ def water_vapor(args: Dict, env: EvalEnv) -> object:
 def sar_backscatter(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
     kwargs = extract_args_subset(
-        args, keys=["orthorectify", "elevation_model", "rtc", "mask", "contributing_area", "local_incidence_angle",
+        args, keys=["coefficient", "elevation_model", "mask", "contributing_area", "local_incidence_angle",
                     "ellipsoid_incidence_angle", "noise_removal", "options"]
     )
     kwargs = dict_no_none(kwargs)

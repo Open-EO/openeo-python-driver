@@ -1147,7 +1147,7 @@ def test_execute_load_collection_sar_backscatter_defaults(api100):
     })
     params = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
     assert params.sar_backscatter == SarBackscatterArgs(
-        orthorectify=True, elevation_model=None, rtc=True, mask=False, contributing_area=False,
+        coefficient="gamma0-terrain", elevation_model=None, mask=False, contributing_area=False,
         local_incidence_angle=False, ellipsoid_incidence_angle=False, noise_removal=True, options={}
     )
 
@@ -1162,8 +1162,6 @@ def test_execute_load_collection_sar_backscatter_nones(api100):
             "process_id": "sar_backscatter",
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
-                "orthorectify": None,
-                "rtc": None,
                 "mask": None,
                 "noise_removal": None,
                 "options": None,
@@ -1173,7 +1171,7 @@ def test_execute_load_collection_sar_backscatter_nones(api100):
     })
     params = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
     assert params.sar_backscatter == SarBackscatterArgs(
-        orthorectify=True, elevation_model=None, rtc=True, mask=False, contributing_area=False,
+        coefficient="gamma0-terrain", elevation_model=None, mask=False, contributing_area=False,
         local_incidence_angle=False, ellipsoid_incidence_angle=False, noise_removal=True, options={}
     )
 
@@ -1188,8 +1186,7 @@ def test_execute_load_collection_sar_backscatter(api100):
             "process_id": "sar_backscatter",
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
-                "orthorectify": True,
-                "rtc": False,
+                "coefficient": "gamma0-ellipsoid",
                 "mask": True,
                 "contributing_area": True,
                 "ellipsoid_incidence_angle": True,
@@ -1201,7 +1198,7 @@ def test_execute_load_collection_sar_backscatter(api100):
     })
     params = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
     assert params.sar_backscatter == SarBackscatterArgs(
-        orthorectify=True, elevation_model=None, rtc=False, mask=True, contributing_area=True,
+        coefficient='gamma0-ellipsoid', elevation_model=None, mask=True, contributing_area=True,
         local_incidence_angle=False, ellipsoid_incidence_angle=True, noise_removal=False, options={"tile_size": 1024}
     )
 
@@ -1345,7 +1342,7 @@ def test_ard_normalized_radar_backscatter(api100):
     assert dummy.sar_backscatter.call_count == 1
     args, kwargs = dummy.sar_backscatter.call_args
     assert args == (SarBackscatterArgs(
-        orthorectify=True, elevation_model="MAPZEN", rtc=True, mask=True, contributing_area=True,
+        coefficient="gamma0-terrain", elevation_model="MAPZEN", mask=True, contributing_area=True,
         local_incidence_angle=True, ellipsoid_incidence_angle=True, noise_removal=True, options={}),)
     assert kwargs == {}
 
@@ -1367,6 +1364,6 @@ def test_ard_normalized_radar_backscatter_without_optional_arguments(api100):
     assert dummy.sar_backscatter.call_count == 1
     args, kwargs = dummy.sar_backscatter.call_args
     assert args == (SarBackscatterArgs(
-        orthorectify=True, elevation_model=None, rtc=True, mask=True, contributing_area=True,
+        coefficient="gamma0-terrain", elevation_model=None, mask=True, contributing_area=True,
         local_incidence_angle=True, ellipsoid_incidence_angle=False, noise_removal=True, options={}),)
     assert kwargs == {}
