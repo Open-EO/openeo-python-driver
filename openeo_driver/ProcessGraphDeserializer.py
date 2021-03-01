@@ -6,6 +6,7 @@ import logging
 import tempfile
 import time
 import warnings
+from pathlib import Path
 from typing import Dict, Callable, List, Union, Tuple, Any
 
 import numpy as np
@@ -15,7 +16,7 @@ from shapely.geometry import shape, mapping
 
 from openeo.capabilities import ComparableVersion
 from openeo.metadata import MetadataException
-from openeo.util import dict_no_none
+from openeo.util import dict_no_none, load_json
 from openeo_driver import dry_run
 from openeo_driver.backend import get_backend_implementation, UserDefinedProcessMetadata, LoadParameters
 from openeo_driver.datacube import DriverDataCube
@@ -126,13 +127,16 @@ def custom_process(f: ProcessFunction):
     return f
 
 
-def custom_process_from_process_graph(process_spec: dict, process_registry=process_registry_100):
+def custom_process_from_process_graph(process_spec: Union[dict, Path], process_registry=process_registry_100):
     """
     Register a custom process from a process spec containing a "process_graph" definition
 
-    :param process_spec: process spec dict, containing keys like "id", "process_graph", "parameter"
+    :param process_spec: process spec dict or path to a JSON file,
+        containing keys like "id", "process_graph", "parameter"
     :param process_registry: process registry to register to
     """
+    if isinstance(process_spec, Path):
+        process_spec = load_json(process_spec)
     process_id = process_spec["id"]
     process_function = _process_function_from_process_graph(process_spec)
     process_registry.add_function(process_function, name=process_id, spec=process_spec)

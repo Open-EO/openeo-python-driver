@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import uuid
@@ -1258,27 +1259,35 @@ def _generate_unique_test_process_id():
     return "_test_process_{u}".format(u=uuid.uuid4())
 
 
-def test_execute_custom_process_by_graph(api100):
+def test_execute_custom_process_by_process_graph(api100):
     process_id = _generate_unique_test_process_id()
 
     # Register a custom process with process graph
-    custom_process_from_process_graph(process_spec={
-        "id": process_id,
-        "process_graph": {
-            "add": {
-                "process_id": "add",
-                "arguments": {"x": {"from_parameter": "data"}, "y": 3},
-            },
-            "multiply": {
-                "process_id": "multiply",
-                "arguments": {"x": {"from_node": "add"}, "y": 5},
-                "result": True
-            }
+    process_spec = api100.load_json("add_and_multiply.json")
+    process_spec["id"] = process_id
+    custom_process_from_process_graph(process_spec=process_spec)
+    # Apply process
+    res = api100.check_result({
+        "do_math": {
+            "process_id": process_id,
+            "arguments": {"data": 2},
+            "result": True
         },
-        "parameters": [
-            {"name": "data"}
-        ]
-    })
+    }).json
+    assert res == 25
+
+
+def test_execute_custom_process_by_process_graph_json(api100, tmp_path):
+    process_id = _generate_unique_test_process_id()
+
+    process_spec = api100.load_json("add_and_multiply.json")
+    process_spec["id"] = process_id
+    path = tmp_path / f"{process_id}.json"
+    with path.open("w") as f:
+        json.dump(process_spec, f)
+
+    # Register a custom process with process graph
+    custom_process_from_process_graph(path)
 
     # Apply process
     res = api100.check_result({
