@@ -1309,3 +1309,52 @@ def test_normalized_difference(api100):
         },
     }).json
     assert res == -0.25
+
+
+def test_ard_normalized_radar_backscatter(api100):
+    api100.check_result({
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FOOBAR"}
+        },
+        "ardnormalizedradarbackscatter1": {
+            "process_id": "ard_normalized_radar_backscatter",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "elevation_model": "MAPZEN",
+                "ellipsoid_incidence_angle": True,
+                "noise_removal": True
+            },
+            "result": True
+        }
+    })
+
+    dummy = api100.get_collection("S2_FOOBAR")
+    assert dummy.sar_backscatter.call_count == 1
+    args, kwargs = dummy.sar_backscatter.call_args
+    assert args == (SarBackscatterArgs(
+        orthorectify=True, elevation_model="MAPZEN", rtc=True, mask=True, contributing_area=True,
+        local_incidence_angle=True, ellipsoid_incidence_angle=True, noise_removal=True, options={}),)
+    assert kwargs == {}
+
+
+def test_ard_normalized_radar_backscatter_without_optional_arguments(api100):
+    api100.check_result({
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FOOBAR"}
+        },
+        "ardnormalizedradarbackscatter1": {
+            "process_id": "ard_normalized_radar_backscatter",
+            "arguments": {"data": {"from_node": "loadcollection1"}},
+            "result": True
+        }
+    })
+
+    dummy = api100.get_collection("S2_FOOBAR")
+    assert dummy.sar_backscatter.call_count == 1
+    args, kwargs = dummy.sar_backscatter.call_args
+    assert args == (SarBackscatterArgs(
+        orthorectify=True, elevation_model=None, rtc=True, mask=True, contributing_area=True,
+        local_incidence_angle=True, ellipsoid_incidence_angle=False, noise_removal=True, options={}),)
+    assert kwargs == {}

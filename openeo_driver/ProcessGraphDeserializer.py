@@ -1090,5 +1090,8 @@ def mask_scl_dilation(args: Dict, env: EvalEnv):
         return cube
 
 
+custom_process_from_process_graph(read_spec("openeo-processes/1.0/proposals/ard_normalized_radar_backscatter.json"))
+
+
 # Finally: register some fallback implementation if possible
 _register_fallback_implementations_by_process_graph(process_registry_100)

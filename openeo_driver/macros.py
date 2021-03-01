@@ -9,7 +9,8 @@ def expand_macros(process_graph: dict) -> dict:
     :param process_graph:
     :return: a copy of the input process graph with the macros expanded
     """
-    # TODO: can this system be combined with user defined processes (both kind of replace a single "virtual" node with a replacement process graph)
+    # TODO: remove this deprecated approach: through `custom_process_from_process_graph` and related
+    #       we can now inject process graph based implementations directly instead of manually writing macros.
 
     def expand_macros_recursively(tree: dict) -> dict:
         def make_unique(node_identifier: str) -> str:
@@ -23,24 +24,7 @@ def expand_macros(process_graph: dict) -> dict:
                     original_node = value
                     original_arguments = original_node['arguments']
 
-                    if value['process_id'] == 'ard_normalized_radar_backscatter':
-                        result[key] = {
-                            'process_id': 'sar_backscatter',
-                            'arguments': {
-                                'data': original_arguments['data'],
-                                'orthorectify': True,
-                                'rtc': True,
-                                'elevation_model': original_arguments.get('elevation_model'),
-                                'mask': True,
-                                'contributing_area': True,
-                                'local_incidence_angle': True,
-                                'ellipsoid_incidence_angle': original_arguments.get('ellipsoid_incidence_angle', False),
-                                'noise_removal': original_arguments.get('noise_removal', True)
-                            },
-                            "result": original_node.get('result', False)
-                        }
-                    else:
-                        result[key] = expand_macros_recursively(value)
+                    result[key] = expand_macros_recursively(value)
                 else:
                     result[key] = expand_macros_recursively(value)
             else:
