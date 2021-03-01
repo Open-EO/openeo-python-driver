@@ -23,26 +23,7 @@ def expand_macros(process_graph: dict) -> dict:
                     original_node = value
                     original_arguments = original_node['arguments']
 
-                    if value['process_id'] == 'normalized_difference':
-                        subtract_key = make_unique(key + "_subtract")
-                        add_key = make_unique(key + "_add")
-
-                        # add "subtract" and "add"/"sum" processes
-                        result[subtract_key] = {'process_id': 'subtract',
-                                                'arguments': original_arguments}
-                        result[add_key] = {'process_id': 'sum' if 'data' in original_arguments else 'add',
-                                           'arguments': original_arguments}
-
-                        # replace "normalized_difference" with "divide" under the original key (it's being referenced)
-                        result[key] = {
-                            'process_id': 'divide',
-                            'arguments': {
-                                'x': {'from_node': subtract_key},
-                                'y': {'from_node': add_key}
-                            },
-                            "result": original_node.get('result', False)
-                        }
-                    elif value['process_id'] == 'ard_normalized_radar_backscatter':
+                    if value['process_id'] == 'ard_normalized_radar_backscatter':
                         result[key] = {
                             'process_id': 'sar_backscatter',
                             'arguments': {

@@ -1289,3 +1289,14 @@ def test_execute_custom_process_by_graph(api100):
         },
     }).json
     assert res == 25
+
+
+def test_normalized_difference(api100):
+    res = api100.check_result({
+        "do_math": {
+            "process_id": "normalized_difference",
+            "arguments": {"x": 3, "y": 5},
+            "result": True
+        },
+    }).json
+    assert res == -0.25

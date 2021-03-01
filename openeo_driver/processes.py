@@ -1,10 +1,9 @@
-import inspect
-from collections import namedtuple
 import functools
-import json
-from pathlib import Path
-from typing import Callable, Dict, List, Tuple, Union
+import inspect
 import warnings
+from collections import namedtuple
+from pathlib import Path
+from typing import Callable, Dict, List
 
 from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.specs import SPECS_ROOT
@@ -176,6 +175,9 @@ class ProcessRegistry:
             return f(*args, **kwargs)
 
         return self.add_hidden(wrapped, name=f.__name__)
+
+    def __contains__(self, name: str) -> bool:
+        return name in self._processes
 
     def get_spec(self, name: str) -> dict:
         """Get spec dict of given process name"""

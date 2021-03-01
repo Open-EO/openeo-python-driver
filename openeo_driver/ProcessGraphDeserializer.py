@@ -59,7 +59,7 @@ def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List
     Add standard processes as implemented by the openeo-processes-python project.
     """
 
-    def wrap(process):
+    def wrap(process: Callable):
         """Adapter to connect the kwargs style of openeo-processes-python with args/EvalEnv"""
 
         def wrapped(args: dict, env: EvalEnv):
@@ -84,7 +84,7 @@ _add_standard_processes(process_registry_100, [
     'between', 'eq', 'gt', 'gte', 'if', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
     'all', 'and', 'any', 'if', 'not', 'or', 'xor',
     'absolute', 'add', 'clip', 'divide', 'extrema', 'int', 'max', 'mean',
-    'median', 'min', 'mod', 'multiply', 'normalized_difference', 'power', 'product', 'quantiles', 'sd', 'sgn', 'sqrt',
+    'median', 'min', 'mod', 'multiply', 'power', 'product', 'quantiles', 'sd', 'sgn', 'sqrt',
     'subtract', 'sum', 'variance', 'e', 'pi', 'exp', 'ln', 'log',
     'ceil', 'floor', 'int', 'round',
     'arccos', 'arcosh', 'arcsin', 'arctan', 'arctan2', 'arsinh', 'artanh', 'cos', 'cosh', 'sin', 'sinh', 'tan', 'tanh',
@@ -126,15 +126,16 @@ def custom_process(f: ProcessFunction):
     return f
 
 
-def custom_process_from_process_graph(process_spec: dict):
+def custom_process_from_process_graph(process_spec: dict, process_registry=process_registry_100):
     """
     Register a custom process from a process spec containing a "process_graph" definition
 
     :param process_spec: process spec dict, containing keys like "id", "process_graph", "parameter"
+    :param process_registry: process registry to register to
     """
     process_id = process_spec["id"]
     process_function = _process_function_from_process_graph(process_spec)
-    process_registry_100.add_function(process_function, name=process_id, spec=process_spec)
+    process_registry.add_function(process_function, name=process_id, spec=process_spec)
 
 
 def _process_function_from_process_graph(process_spec: dict) -> ProcessFunction:
@@ -155,6 +156,18 @@ def _process_function_from_process_graph(process_spec: dict) -> ProcessFunction:
         )
 
     return process_function
+
+
+def _register_fallback_implementations_by_process_graph(process_registry: ProcessRegistry = process_registry_100):
+    """
+    Register process functions for (yet undefined) processes that have
+    a process graph based fallback implementation in their spec
+    """
+    for name in process_registry.list_predefined_specs():
+        spec = process_registry.load_predefined_spec(name)
+        if "process_graph" in spec and name not in process_registry:
+            _log.info(f"Registering fallback implementation of {name!r} by process graph ({process_registry})")
+            custom_process_from_process_graph(process_spec=spec, process_registry=process_registry)
 
 
 def get_process_registry(api_version: ComparableVersion) -> ProcessRegistry:
@@ -1072,3 +1085,6 @@ def mask_scl_dilation(args: Dict, env: EvalEnv):
     else:
         return cube
 
+
+# Finally: register some fallback implementation if possible
+_register_fallback_implementations_by_process_graph(process_registry_100)

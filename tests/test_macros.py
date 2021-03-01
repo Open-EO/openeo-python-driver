@@ -1,44 +1,6 @@
 from openeo_driver.macros import expand_macros
 
 
-def test_normalized_difference():
-    process_graph = {
-        "normalizeddifference1": {
-            "process_id": "normalized_difference",
-            "arguments": {
-                "x": 5,
-                "y": 10
-            },
-            "result": True
-        }
-    }
-
-    assert expand_macros(process_graph) == {
-        "normalizeddifference1": {
-            "process_id": "divide",
-            "arguments": {
-                "x": {"from_node": "normalizeddifference1_subtract"},
-                "y": {"from_node": "normalizeddifference1_add"},
-            },
-            "result": True
-        },
-        "normalizeddifference1_subtract": {
-            "process_id": "subtract",
-            "arguments": {
-                "x": 5,
-                "y": 10
-            }
-        },
-        "normalizeddifference1_add": {
-            "process_id": "add",
-            "arguments": {
-                "x": 5,
-                "y": 10
-            }
-        }
-    }
-
-
 def test_ard_normalized_radar_backscatter():
     process_graph = {
         "loadcollection1": {
@@ -120,81 +82,6 @@ def test_ard_normalized_radar_backscatter_without_optional_arguments():
                 "local_incidence_angle": True,
                 "ellipsoid_incidence_angle": False,
                 "noise_removal": True
-            },
-            "result": True
-        }
-    }
-
-
-def test_nested_process_graph():
-    process_graph = {
-        "count1": {
-            "process_id": "count",
-            "arguments": {
-                "data": [1, 2, 3, 4],
-                "condition": {
-                    "process_graph": {
-                        "gt1": {
-                            "process_id": "gt",
-                            "arguments": {
-                                "x": {"from_parameter": "x"},
-                                "y": {"from_node": "normalizeddifference1"}
-                            },
-                            "result": True
-                        },
-                        "normalizeddifference1": {
-                            "process_id": "normalized_difference",
-                            "arguments": {
-                                "x": 5,
-                                "y": 10
-                            }
-                        }
-                    }
-                }
-            },
-            "result": True
-        }
-    }
-
-    assert expand_macros(process_graph) == {
-        "count1": {
-            "process_id": "count",
-            "arguments": {
-                "data": [1, 2, 3, 4],
-                "condition": {
-                    "process_graph": {
-                        "gt1": {
-                            "process_id": "gt",
-                            "arguments": {
-                                "x": {"from_parameter": "x"},
-                                "y": {"from_node": "normalizeddifference1"}
-                            },
-                            "result": True
-                        },
-                        "normalizeddifference1": {
-                            "process_id": "divide",
-                            "arguments": {
-                                "x": {"from_node": "normalizeddifference1_subtract"},
-                                "y": {"from_node": "normalizeddifference1_add"},
-                            },
-                            "result": False
-                        },
-                        "normalizeddifference1_subtract": {
-                            "process_id": "subtract",
-                            "arguments": {
-                                "x": 5,
-                                "y": 10
-                            }
-                        },
-                        "normalizeddifference1_add": {
-                            "process_id": "add",
-                            "arguments": {
-                                "x": 5,
-                                "y": 10
-                            }
-                        }
-                    }
-                }
             },
             "result": True
         }
