@@ -15,13 +15,12 @@ from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_g
 from openeo_driver.backend import get_backend_implementation, LoadParameters
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
+from openeo_driver.dry_run import ProcessType
 from openeo_driver.dummy import dummy_backend
-from openeo_driver.dummy.dummy_backend import DummyDataCube, last_load_collection_call
+from openeo_driver.dummy.dummy_backend import DummyDataCube
 from openeo_driver.errors import ProcessGraphMissingException
 from openeo_driver.testing import load_json, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN, \
     preprocess_regex_check_and_replace
-from openeo_driver.utils import EvalEnv
-from openeo_driver.dry_run import ProcessType
 from openeo_driver.views import app
 from .data import get_path, TEST_DATA_ROOT
 
@@ -204,7 +203,7 @@ def test_load_collection_filter(api):
                     'south': 51.1974, 'crs': 'EPSG:4326'
                 },
                 'temporal_extent': ['2018-01-01', '2018-12-31'],
-                'featureflags': {'experimental':True}
+                'featureflags': {'experimental': True}
             },
             'result': True
         }
@@ -214,7 +213,7 @@ def test_load_collection_filter(api):
     assert params["spatial_extent"] == {
         'west': 5.027, 'south': 51.1974, 'east': 5.0438, 'north': 51.2213, 'crs': 'EPSG:4326',
     }
-    assert params["featureflags"] == {'experimental':True}
+    assert params["featureflags"] == {'experimental': True}
 
 
 def test_load_collection_spatial_extent_geojson(api):
@@ -256,8 +255,10 @@ def test_execute_apply_unary_parent_scope(api100):
 #
 @pytest.mark.skip('parameter checking of callback graphs now happens somewhere else')
 def test_execute_apply_unary_invalid_from_parameter(api100):
-    resp = api100.result("apply_unary.json",
-        preprocess=preprocess_check_and_replace('"from_parameter": "x"', '"from_parameter": "1nv8l16"'))
+    resp = api100.result(
+        "apply_unary.json",
+        preprocess=preprocess_check_and_replace('"from_parameter": "x"', '"from_parameter": "1nv8l16"')
+    )
     resp.assert_error(400, "ProcessParameterRequired")
 
 
@@ -293,8 +294,10 @@ def test_reduce_temporal_run_udf_legacy_client(api):
 
 
 def test_reduce_temporal_run_udf_invalid_dimension(api):
-    resp = api.result("reduce_temporal_run_udf.json",
-        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "tempo"'))
+    resp = api.result(
+        "reduce_temporal_run_udf.json",
+        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "tempo"')
+    )
     resp.assert_error(
         400, "ProcessParameterInvalid",
         message="The value passed for parameter 'dimension' in process '{p}' is invalid: got 'tempo', but should be one of ['x', 'y', 't']".format(
@@ -323,8 +326,10 @@ def test_reduce_bands_run_udf_legacy_client(api):
 
 
 def test_reduce_bands_run_udf_invalid_dimension(api):
-    resp = api.result("reduce_bands_run_udf.json",
-        preprocess=preprocess_check_and_replace('"dimension": "bands"', '"dimension": "layers"'))
+    resp = api.result(
+        "reduce_bands_run_udf.json",
+        preprocess=preprocess_check_and_replace('"dimension": "bands"', '"dimension": "layers"')
+    )
     resp.assert_error(
         400, 'ProcessParameterInvalid',
         message="The value passed for parameter 'dimension' in process '{p}' is invalid: got 'layers', but should be one of ['x', 'y', 't', 'bands']".format(
@@ -354,8 +359,10 @@ def test_apply_dimension_temporal_run_udf_legacy_client(api):
 
 
 def test_apply_dimension_temporal_run_udf_invalid_temporal_dimension(api):
-    resp = api.result("apply_dimension_temporal_run_udf.json",
-        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "letemps"'))
+    resp = api.result(
+        "apply_dimension_temporal_run_udf.json",
+        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "letemps"')
+    )
     resp.assert_error(
         400, 'ProcessParameterInvalid',
         message="The value passed for parameter 'dimension' in process 'apply_dimension' is invalid: got 'letemps', but should be one of ['x', 'y', 't']"
@@ -412,7 +419,7 @@ def test_execute_resample_and_merge_cubes(api100):
     dummy = api100.get_collection("S2_FAPAR_CLOUDCOVER")
     last_load_collection_call = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
     assert last_load_collection_call.target_crs == "AUTO:42001"
-    assert last_load_collection_call.target_resolution == [10,10]
+    assert last_load_collection_call.target_resolution == [10, 10]
     assert dummy.merge_cubes.call_count == 1
     assert dummy.resample_cube_spatial.call_count == 1
     args, kwargs = dummy.merge_cubes.call_args
@@ -515,8 +522,10 @@ def test_aggregate_temporal_max_legacy_client(api):
 
 
 def test_aggregate_temporal_max_invalid_temporal_dimension(api):
-    resp = api.result("aggregate_temporal_max.json",
-        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "detijd"'))
+    resp = api.result(
+        "aggregate_temporal_max.json",
+        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "detijd"')
+    )
     resp.assert_error(
         400, 'ProcessParameterInvalid',
         message="The value passed for parameter 'dimension' in process 'aggregate_temporal' is invalid: got 'detijd', but should be one of ['x', 'y', 't']"
@@ -524,8 +533,10 @@ def test_aggregate_temporal_max_invalid_temporal_dimension(api):
 
 
 def test_aggregate_temporal_max_no_dimension(api):
-    resp = api.check_result("aggregate_temporal_max.json",
-        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": null'))
+    api.check_result(
+        "aggregate_temporal_max.json",
+        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": null')
+    )
 
 
 def test_execute_aggregate_spatial(api):
@@ -918,6 +929,7 @@ def test_discard_result(api):
 
     assert res.json is None
 
+
 @pytest.mark.parametrize(["url", "namespace"], [
     ("https://oeo.net/user/123/procs/bbox_mol.json", "https://oeo.net/user/123/procs"),
     ("https://oeo.net/user/123/procs/bbox_mol.json", "https://oeo.net/user/123/procs/"),
@@ -1222,7 +1234,7 @@ def test_execute_load_collection_custom_cloud_mask(api100):
         }
     })
     params = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
-    assert params.custom_mask == {"method":"mask_scl_dilation"}
+    assert params.custom_mask == {"method": "mask_scl_dilation"}
 
 
 def test_execute_load_collection_resolution_merge(api100):
@@ -1236,7 +1248,7 @@ def test_execute_load_collection_resolution_merge(api100):
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
                 "method": "improphe",
-                "high_resolution_bands": ["B02","B03"],
+                "high_resolution_bands": ["B02", "B03"],
                 "low_resolution_bands": ["B05", "B06"],
                 "options": {"kernel_size": 8}
             },
@@ -1248,7 +1260,7 @@ def test_execute_load_collection_resolution_merge(api100):
     args, kwargs = resolution_merge_mock.call_args
     assert args[0] == ResolutionMergeArgs(
         method="improphe",
-        high_resolution_bands=["B02","B03"], low_resolution_bands=["B05", "B06"],
+        high_resolution_bands=["B02", "B03"], low_resolution_bands=["B05", "B06"],
         options={'kernel_size': 8},
     )
 

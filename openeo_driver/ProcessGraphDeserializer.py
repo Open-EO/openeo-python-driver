@@ -998,7 +998,7 @@ def evaluate_process_from_url(process_id: str, namespace: str, args: dict, env: 
 
 
 @non_standard_process(
-    ProcessSpec("sleep", description="Sleep for given amount of seconds (and just pass-through given data.")
+    ProcessSpec("sleep", description="Sleep for given amount of seconds (and just pass-through given data).")
         .param('data', description="Data to pass through.", schema={}, required=False)
         .param('seconds', description="Number of seconds to sleep.", schema={"type": "number"}, required=True)
         .returns("Original data", schema={})
@@ -1080,6 +1080,7 @@ def resolution_merge(args: Dict, env: EvalEnv):
 def discard_result(args: Dict, env: EvalEnv):
     # TODO: keep a reference to the discarded result?
     return null
+
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/mask_scl_dilation.json"))
 def mask_scl_dilation(args: Dict, env: EvalEnv):
