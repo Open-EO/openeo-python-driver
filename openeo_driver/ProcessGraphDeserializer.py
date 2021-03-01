@@ -25,7 +25,6 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException
 from openeo_driver.errors import ProcessUnsupportedException
-from openeo_driver.macros import expand_macros
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult, null
 from openeo_driver.specs import SPECS_ROOT, read_spec
@@ -205,9 +204,8 @@ def evaluate(
 
     # TODO avoid local import
     from openeo.internal.process_graph_visitor import ProcessGraphVisitor
-    preprocessed_process_graph = expand_macros(process_graph)
-    top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(preprocessed_process_graph)
-    result_node = preprocessed_process_graph[top_level_node]
+    top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
+    result_node = process_graph[top_level_node]
 
     if do_dry_run:
         dry_run_tracer = do_dry_run if isinstance(do_dry_run, DryRunDataTracer) else DryRunDataTracer()
