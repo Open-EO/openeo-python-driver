@@ -93,6 +93,13 @@ def test_process_registry_add_by_name():
     assert all(k in spec for k in ['parameters', 'returns'])
 
 
+def test_process_registry_contains():
+    reg = ProcessRegistry()
+    assert "max" not in reg
+    reg.add_spec_by_name("max")
+    assert "max" in reg
+
+
 def test_process_registry_load_predefined_specs():
     """Test if all spec json files load properly"""
     reg = ProcessRegistry()

@@ -3,9 +3,8 @@ from typing import NamedTuple, Union, List
 
 class SarBackscatterArgs(NamedTuple):
     """Arguments for the `sar_backscatter` process."""
-    orthorectify: bool = True
+    coefficient: Union[str, None] = "gamma0-terrain"
     elevation_model: Union[str, None] = None
-    rtc: bool = True
     mask: bool = False
     contributing_area: bool = False
     local_incidence_angle: bool = False

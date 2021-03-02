@@ -6,6 +6,7 @@ import logging
 import tempfile
 import time
 import warnings
+from pathlib import Path
 from typing import Dict, Callable, List, Union, Tuple, Any
 
 import numpy as np
@@ -15,7 +16,7 @@ from shapely.geometry import shape, mapping
 
 from openeo.capabilities import ComparableVersion
 from openeo.metadata import MetadataException
-from openeo.util import dict_no_none
+from openeo.util import dict_no_none, load_json
 from openeo_driver import dry_run
 from openeo_driver.backend import get_backend_implementation, UserDefinedProcessMetadata, LoadParameters
 from openeo_driver.datacube import DriverDataCube
@@ -24,7 +25,6 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException
 from openeo_driver.errors import ProcessUnsupportedException
-from openeo_driver.macros import expand_macros
 from openeo_driver.processes import ProcessRegistry, ProcessSpec
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult, null
 from openeo_driver.specs import SPECS_ROOT, read_spec
@@ -59,7 +59,7 @@ def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List
     Add standard processes as implemented by the openeo-processes-python project.
     """
 
-    def wrap(process):
+    def wrap(process: Callable):
         """Adapter to connect the kwargs style of openeo-processes-python with args/EvalEnv"""
 
         def wrapped(args: dict, env: EvalEnv):
@@ -84,7 +84,7 @@ _add_standard_processes(process_registry_100, [
     'between', 'eq', 'gt', 'gte', 'if', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
     'all', 'and', 'any', 'if', 'not', 'or', 'xor',
     'absolute', 'add', 'clip', 'divide', 'extrema', 'int', 'max', 'mean',
-    'median', 'min', 'mod', 'multiply', 'normalized_difference', 'power', 'product', 'quantiles', 'sd', 'sgn', 'sqrt',
+    'median', 'min', 'mod', 'multiply', 'power', 'product', 'quantiles', 'sd', 'sgn', 'sqrt',
     'subtract', 'sum', 'variance', 'e', 'pi', 'exp', 'ln', 'log',
     'ceil', 'floor', 'int', 'round',
     'arccos', 'arcosh', 'arcsin', 'arctan', 'arctan2', 'arsinh', 'artanh', 'cos', 'cosh', 'sin', 'sinh', 'tan', 'tanh',
@@ -92,7 +92,12 @@ _add_standard_processes(process_registry_100, [
 ])
 
 
-def process(f: Callable) -> Callable:
+# Type hint alias for a "process function":
+# a Python function that implements some openEO process (as used in `apply_process`)
+ProcessFunction = Callable[[dict, EvalEnv], Any]
+
+
+def process(f: ProcessFunction) -> ProcessFunction:
     """Decorator for registering a process function in the process registries"""
     process_registry_040.add_function(f)
     process_registry_100.add_function(f)
@@ -103,10 +108,10 @@ def process(f: Callable) -> Callable:
 deprecated_process = process_registry_040.add_deprecated
 
 
-def non_standard_process(spec: ProcessSpec) -> Callable[[Callable], Callable]:
+def non_standard_process(spec: ProcessSpec) -> Callable[[ProcessFunction], ProcessFunction]:
     """Decorator for registering non-standard process functions"""
 
-    def decorator(f: Callable) -> Callable:
+    def decorator(f: ProcessFunction) -> ProcessFunction:
         process_registry_040.add_function(f=f, spec=spec.to_dict_040())
         process_registry_100.add_function(f=f, spec=spec.to_dict_100())
         return f
@@ -114,11 +119,58 @@ def non_standard_process(spec: ProcessSpec) -> Callable[[Callable], Callable]:
     return decorator
 
 
-def custom_process(f):
+def custom_process(f: ProcessFunction):
     """Decorator for custom processes (e.g. in custom_processes.py)."""
     process_registry_040.add_hidden(f)
     process_registry_100.add_hidden(f)
     return f
+
+
+def custom_process_from_process_graph(process_spec: Union[dict, Path], process_registry=process_registry_100):
+    """
+    Register a custom process from a process spec containing a "process_graph" definition
+
+    :param process_spec: process spec dict or path to a JSON file,
+        containing keys like "id", "process_graph", "parameter"
+    :param process_registry: process registry to register to
+    """
+    if isinstance(process_spec, Path):
+        process_spec = load_json(process_spec)
+    process_id = process_spec["id"]
+    process_function = _process_function_from_process_graph(process_spec)
+    process_registry.add_function(process_function, name=process_id, spec=process_spec)
+
+
+def _process_function_from_process_graph(process_spec: dict) -> ProcessFunction:
+    """
+    Build a process function (to be used in `apply_process`) from a given process spec with process graph
+
+    :param process_spec: process spec dict, containing keys like "id", "process_graph", "parameter"
+    :return: process function
+    """
+    process_id = process_spec["id"]
+    process_graph = process_spec["process_graph"]
+    parameters = process_spec["parameters"]
+
+    def process_function(args: dict, env: EvalEnv):
+        return _evaluate_process_graph_process(
+            process_id=process_id, process_graph=process_graph, parameters=parameters,
+            args=args, env=env
+        )
+
+    return process_function
+
+
+def _register_fallback_implementations_by_process_graph(process_registry: ProcessRegistry = process_registry_100):
+    """
+    Register process functions for (yet undefined) processes that have
+    a process graph based fallback implementation in their spec
+    """
+    for name in process_registry.list_predefined_specs():
+        spec = process_registry.load_predefined_spec(name)
+        if "process_graph" in spec and name not in process_registry:
+            _log.info(f"Registering fallback implementation of {name!r} by process graph ({process_registry})")
+            custom_process_from_process_graph(process_spec=spec, process_registry=process_registry)
 
 
 def get_process_registry(api_version: ComparableVersion) -> ProcessRegistry:
@@ -152,9 +204,8 @@ def evaluate(
 
     # TODO avoid local import
     from openeo.internal.process_graph_visitor import ProcessGraphVisitor
-    preprocessed_process_graph = expand_macros(process_graph)
-    top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(preprocessed_process_graph)
-    result_node = preprocessed_process_graph[top_level_node]
+    top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
+    result_node = process_graph[top_level_node]
 
     if do_dry_run:
         dry_run_tracer = do_dry_run if isinstance(do_dry_run, DryRunDataTracer) else DryRunDataTracer()
@@ -945,7 +996,7 @@ def evaluate_process_from_url(process_id: str, namespace: str, args: dict, env: 
 
 
 @non_standard_process(
-    ProcessSpec("sleep", description="Sleep for given amount of seconds (and just pass-through given data.")
+    ProcessSpec("sleep", description="Sleep for given amount of seconds (and just pass-through given data).")
         .param('data', description="Data to pass through.", schema={}, required=False)
         .param('seconds', description="Number of seconds to sleep.", schema={"type": "number"}, required=True)
         .returns("Original data", schema={})
@@ -1005,10 +1056,9 @@ def water_vapor(args: Dict, env: EvalEnv) -> object:
 def sar_backscatter(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
     kwargs = extract_args_subset(
-        args, keys=["orthorectify", "elevation_model", "rtc", "mask", "contributing_area", "local_incidence_angle",
+        args, keys=["coefficient", "elevation_model", "mask", "contributing_area", "local_incidence_angle",
                     "ellipsoid_incidence_angle", "noise_removal", "options"]
     )
-    kwargs = dict_no_none(kwargs)
     return cube.sar_backscatter(SarBackscatterArgs(**kwargs))
 
 
@@ -1028,6 +1078,7 @@ def discard_result(args: Dict, env: EvalEnv):
     # TODO: keep a reference to the discarded result?
     return null
 
+
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/mask_scl_dilation.json"))
 def mask_scl_dilation(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
@@ -1036,3 +1087,9 @@ def mask_scl_dilation(args: Dict, env: EvalEnv):
     else:
         return cube
 
+
+custom_process_from_process_graph(read_spec("openeo-processes/1.0/proposals/ard_normalized_radar_backscatter.json"))
+
+
+# Finally: register some fallback implementation if possible
+_register_fallback_implementations_by_process_graph(process_registry_100)

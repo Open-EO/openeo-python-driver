@@ -508,18 +508,18 @@ def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
 @pytest.mark.parametrize(["arguments", "expected"], [
     (
             {},
-            SarBackscatterArgs(orthorectify=True, elevation_model=None, rtc=True, mask=False, contributing_area=False,
+            SarBackscatterArgs(coefficient="gamma0-terrain", elevation_model=None, mask=False, contributing_area=False,
                                local_incidence_angle=False, ellipsoid_incidence_angle=False, noise_removal=True,
                                options={})
     ),
     (
             {
-                "orthorectify": False, "elevation_model": "SRTMGL1", "rtc": False, "mask": True,
+                "coefficient": "gamma0-ellipsoid", "elevation_model": "SRTMGL1", "mask": True,
                 "contributing_area": True, "local_incidence_angle": True, "ellipsoid_incidence_angle": True,
                 "noise_removal": False, "options": {"tile_size": 1024}
             },
             SarBackscatterArgs(
-                orthorectify=False, elevation_model="SRTMGL1", rtc=False, mask=True, contributing_area=True,
+                coefficient="gamma0-ellipsoid", elevation_model="SRTMGL1", mask=True, contributing_area=True,
                 local_incidence_angle=True, ellipsoid_incidence_angle=True, noise_removal=False,
                 options={"tile_size": 1024}
             )
