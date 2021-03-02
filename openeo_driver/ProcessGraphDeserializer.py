@@ -962,7 +962,7 @@ def sleep(args: Dict, env: EvalEnv):
         .param(name='missionId', description="non-standard mission Id, currently defaults to sentinel2",                      schema={"type": "string"}, required=False)
         .param(name='sza',       description="non-standard if set, overrides sun zenith angle values [deg]",                  schema={"type": "number"}, required=False)
         .param(name='vza',       description="non-standard if set, overrides sensor zenith angle values [deg]",               schema={"type": "number"}, required=False)
-        .param(name='raa',       description="non-standard if set, overrides rel. zenith angle values [deg]",                 schema={"type": "number"}, required=False)
+        .param(name='raa',       description="non-standard if set, overrides rel. azimuth angle values [deg]",                schema={"type": "number"}, required=False)
         .param(name='gnd',       description="non-standard if set, overrides ground elevation [km]",                          schema={"type": "number"}, required=False)
         .param(name='aot',       description="non-standard if set, overrides aerosol optical thickness [], usually 0.1..0.2", schema={"type": "number"}, required=False)
         .param(name='cwv',       description="non-standard if set, overrides water vapor [], usually 0..7",                   schema={"type": "number"}, required=False)
