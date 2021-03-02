@@ -20,6 +20,7 @@ def run(title: str, description: str, deploy_metadata: Union[dict, None], backen
     app.config['OPENEO_TITLE'] = title
     app.config['OPENEO_DESCRIPTION'] = description
     app.config['OPENEO_BACKEND_DEPLOY_METADATA'] = deploy_metadata
+    app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024  # bytes
 
     app.logger.info('App info logging enabled!')
     app.logger.debug('App debug logging enabled!')
