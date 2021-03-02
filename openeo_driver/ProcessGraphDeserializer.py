@@ -1059,7 +1059,6 @@ def sar_backscatter(args: Dict, env: EvalEnv):
         args, keys=["coefficient", "elevation_model", "mask", "contributing_area", "local_incidence_angle",
                     "ellipsoid_incidence_angle", "noise_removal", "options"]
     )
-    kwargs = dict_no_none(kwargs)
     return cube.sar_backscatter(SarBackscatterArgs(**kwargs))
 
 

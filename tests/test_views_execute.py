@@ -1152,7 +1152,7 @@ def test_execute_load_collection_sar_backscatter_defaults(api100):
     )
 
 
-def test_execute_load_collection_sar_backscatter_nones(api100):
+def test_execute_load_collection_sar_backscatter_none_values(api100):
     api100.check_result({
         "loadcollection1": {
             "process_id": "load_collection",
@@ -1162,16 +1162,15 @@ def test_execute_load_collection_sar_backscatter_nones(api100):
             "process_id": "sar_backscatter",
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
-                "mask": None,
-                "noise_removal": None,
-                "options": None,
+                "coefficient": None,
+                "elevation_model": None,
             },
             "result": True
         },
     })
     params = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
     assert params.sar_backscatter == SarBackscatterArgs(
-        coefficient="gamma0-terrain", elevation_model=None, mask=False, contributing_area=False,
+        coefficient=None, elevation_model=None, mask=False, contributing_area=False,
         local_incidence_angle=False, ellipsoid_incidence_angle=False, noise_removal=True, options={}
     )
 
