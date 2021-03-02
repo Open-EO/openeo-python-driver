@@ -134,6 +134,8 @@ def custom_process_from_process_graph(process_spec: Union[dict, Path], process_r
         containing keys like "id", "process_graph", "parameter"
     :param process_registry: process registry to register to
     """
+    # TODO: option to register under certain namespace
+    # TODO: option to hide process graph for (public) listing
     if isinstance(process_spec, Path):
         process_spec = load_json(process_spec)
     process_id = process_spec["id"]
