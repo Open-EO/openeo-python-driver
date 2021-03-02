@@ -63,6 +63,9 @@ class DataTraceBase:
     def get_arguments_by_operation(self, operation: str) -> List[Union[dict, tuple]]:
         return []
 
+    def get_operation_closest_to_source(self, operation:str) -> 'DataTraceBase':
+        raise NotImplementedError
+
     def describe(self) -> str:
         return "_base"
 
@@ -81,6 +84,9 @@ class DataSource(DataTraceBase):
     def get_source_id(self) -> tuple:
         """Identifier for source (hashable tuple, to be used as dict key for example)."""
         return to_hashable((self._process, self._arguments))
+
+    def get_operation_closest_to_source(self, operation:str):
+        return self if operation == self._process else None
 
     def __repr__(self):
         return '<{c}#{i}({p!r}, {a!r})>'.format(
@@ -124,6 +130,15 @@ class DataTrace(DataTraceBase):
         if self._operation == operation:
             res.append(self._arguments)
         return res
+
+    def get_operation_closest_to_source(self, operation:str):
+        parent_op = self.parent.get_operation_closest_to_source(operation)
+        if(parent_op != None):
+            return parent_op
+        elif(self._operation == operation):
+            return self
+        else:
+            return None
 
     def __repr__(self):
         return '<{c}#{i}(#{p}, {o}, {a})>'.format(
@@ -194,7 +209,26 @@ class DryRunDataTracer:
         source_constraints = {}
         for leaf in self.get_trace_leaves():
             constraints = {}
-            for op in ["temporal_extent", "spatial_extent", "bands", "aggregate_spatial", "sar_backscatter","process_type"]:
+            resampling_op = leaf.get_operation_closest_to_source("resample_cube_spatial")
+            if resampling_op:
+                resample_valid = True
+                #the resampling parameters can be taken into account during load_collection,
+                #under the condition that no operations occur in between that may be affected
+                for op in ["apply_kernel", "reduce_dimension", "apply", "apply_dimension", "resample_spatial","apply_neighborhood", "reduce_dimension_binary"]:
+                    args = resampling_op.get_arguments_by_operation(op)
+                    if(args):
+                        resample_valid = False
+                        break
+                if resample_valid:
+                    args = resampling_op.get_arguments_by_operation("resample_cube_spatial")
+                    if args:
+                        target = args[0]["target"]
+                        metadata: CollectionMetadata = target.metadata
+                        spatial_dim = metadata.spatial_dimensions[0]
+                        resolutions = [dim.step for dim in metadata.spatial_dimensions if dim.step is not None]
+                        constraints["resample"] = {"target_crs": spatial_dim.crs, "resolution": resolutions}
+
+            for op in ["temporal_extent", "spatial_extent", "bands", "aggregate_spatial", "sar_backscatter","process_type","custom_cloud_mask"]:
                 args = leaf.get_arguments_by_operation(op)
                 if args:
                     if merge:
@@ -219,7 +253,7 @@ class DryRunDataTracer:
                                 source_constraints[source_id][field] = temporal_extent_union(orig, value)
                             elif field == "spatial_extent":
                                 source_constraints[source_id][field] = spatial_extent_union(orig, value)
-                            elif field in {"aggregate_spatial", "sar_backscatter"}:
+                            elif field in {"aggregate_spatial", "sar_backscatter", "resample"}:
                                 _log.warning(f"Not merging multiple {field} constraints.")
                             else:
                                 raise ValueError(field)
@@ -295,9 +329,10 @@ class DryRunDataCube(DriverDataCube):
     def mask(self, mask: 'DryRunDataCube', replacement=None) -> 'DryRunDataCube':
         # TODO: if mask cube has no temporal or bbox extent: copy from self?
         # TODO: or add reference to the self trace to the mask trace and vice versa?
+        cube = self._process("mask",{"mask":mask})
         return DryRunDataCube(
-            traces=self._traces + mask._traces, data_tracer=self._data_tracer,
-            metadata=self.metadata
+            traces=cube._traces + mask._traces, data_tracer=cube._data_tracer,
+            metadata=cube.metadata
         )
 
     def merge_cubes(self, other: 'DryRunDataCube', overlap_resolver) -> 'DryRunDataCube':
@@ -346,15 +381,16 @@ class DryRunDataCube(DriverDataCube):
         return self.aggregate_spatial(geometries=regions, reducer=func)
 
     def resample_cube_spatial(self, target: 'DryRunDataCube', method: str = 'near') -> 'DryRunDataCube':
-        self._process("process_type",[ProcessType.FOCAL_SPACE])
-        return self._process("resample_cube_spatial", arguments={"target":target,"method":method})
+        dc = self._process("process_type",[ProcessType.FOCAL_SPACE])
+        return dc._process("resample_cube_spatial", arguments={"target":target,"method":method})
 
     def reduce_dimension(self, reducer, dimension: str) -> 'DryRunDataCube':
+        dc = self
         if(self.metadata.has_temporal_dimension() and self.metadata.temporal_dimension.name == dimension):
             #TODO: reduce is not necessarily global in call cases
-            self._process("process_type", [ProcessType.GLOBAL_TIME])
+            dc = self._process("process_type", [ProcessType.GLOBAL_TIME])
 
-        return self._process_metadata(self.metadata.reduce_dimension(dimension_name=dimension))
+        return dc._process_metadata(self.metadata.reduce_dimension(dimension_name=dimension))
 
     def add_dimension(self, name: str, label, type: str = "other") -> 'DryRunDataCube':
         return self._process_metadata(self.metadata.add_dimension(name=name, label=label, type=type))
@@ -373,12 +409,13 @@ class DryRunDataCube(DriverDataCube):
         return self._process("apply_kernel",arguments={"kernel":kernel})
 
     def apply_dimension(self, process, dimension: str, target_dimension: str=None) -> 'DriverDataCube':
+        cube = self
         if (self.metadata.has_temporal_dimension() and self.metadata.temporal_dimension.name == dimension):
             # TODO: reduce is not necessarily global in call cases
-            self._process("process_type", [ProcessType.GLOBAL_TIME])
+            cube = self._process("process_type", [ProcessType.GLOBAL_TIME])
 
         if(target_dimension is not None):
-            cube = self._process_metadata(self.metadata.rename_dimension(source=dimension,target=target_dimension))
+            cube = cube._process_metadata(self.metadata.rename_dimension(source=dimension,target=target_dimension))
         else:
             cube = self
         return cube._process("apply_dimension", arguments={"dimension": dimension})
@@ -399,6 +436,9 @@ class DryRunDataCube(DriverDataCube):
             if temporal_size is None or temporal_size.get('value',None) is None:
                 return self._process("process_type", [ProcessType.GLOBAL_TIME])
         return self
+
+    def mask_scl_dilation(self) -> 'DriverDataCube':
+        return self._process("custom_cloud_mask",arguments={"method":"mask_scl_dilation"})
 
     def _nop(self, *args, **kwargs) -> 'DryRunDataCube':
         """No Operation: do nothing"""

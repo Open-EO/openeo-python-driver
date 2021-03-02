@@ -305,6 +305,7 @@ class TestCollections:
         assert _normalize_collection_metadata({"id": "foobar"}, api_version=ComparableVersion("0.4.2")) == {
             'id': 'foobar',
             'stac_version': '0.6.2',
+            'stac_extensions': ['datacube'],
             'description': 'foobar',
             'extent': {'spatial': [0, 0, 0, 0], 'temporal': [None, None]},
             'license': 'proprietary',
@@ -317,6 +318,7 @@ class TestCollections:
         assert _normalize_collection_metadata({"id": "foobar"}, api_version=ComparableVersion("0.4.2"), full=True) == {
             'id': 'foobar',
             'stac_version': '0.6.2',
+            'stac_extensions': ['datacube'],
             'description': 'foobar',
             'extent': {'spatial': [0, 0, 0, 0], 'temporal': [None, None]},
             'license': 'proprietary',
@@ -335,6 +337,7 @@ class TestCollections:
         assert _normalize_collection_metadata({"id": "foobar"}, api_version=ComparableVersion("1.0.0")) == {
             'id': 'foobar',
             'stac_version': '0.9.0',
+            'stac_extensions': ['datacube'],
             'description': 'foobar',
             'extent': {'spatial': {'bbox': [[0, 0, 0, 0]]}, 'temporal': {'interval': [[None, None]]}},
             'license': 'proprietary',
@@ -347,6 +350,7 @@ class TestCollections:
         assert _normalize_collection_metadata({"id": "foobar"}, api_version=ComparableVersion("1.0.0"), full=True) == {
             'id': 'foobar',
             'stac_version': '0.9.0',
+            'stac_extensions': ['datacube'],
             'description': 'foobar',
             'extent': {'spatial': {'bbox': [[0, 0, 0, 0]]}, 'temporal': {'interval': [[None, None]]}},
             'license': 'proprietary',
@@ -377,6 +381,7 @@ class TestCollections:
         assert _normalize_collection_metadata(metadata, api_version=ComparableVersion("1.0.0"), full=True) == {
             'id': 'foobar',
             'stac_version': '0.9.0',
+            'stac_extensions': ['datacube'],
             'description': 'foobar',
             'extent': {
                 'spatial': {'bbox': [[-180, -56, 180, 83]]},
@@ -476,8 +481,14 @@ class TestCollections:
         assert collection['description'] == 'S2_FOOBAR'
         assert collection['license'] == 'free'
         cube_dimensions = {
-            "x": {"type": "spatial", "extent": [2.5, 6.2]},
-            "y": {"type": "spatial", "extent": [49.5, 51.5]},
+            'x': {'extent': [2.5, 6.2],
+                  'reference_system': 'AUTO:42001',
+                  'step': 10,
+                  'type': 'spatial'},
+            'y': {'extent': [49.5, 51.5],
+                  'reference_system': 'AUTO:42001',
+                  'step': 10,
+                  'type': 'spatial'},
             "t": {"type": "temporal", "extent": ["2019-01-01", None]},
             "bands": {"type": "bands", "values": ["B02", "B03", "B04", "B08"]}
         }
