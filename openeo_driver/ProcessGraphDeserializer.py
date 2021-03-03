@@ -170,7 +170,7 @@ def _register_fallback_implementations_by_process_graph(process_registry: Proces
     """
     for name in process_registry.list_predefined_specs():
         spec = process_registry.load_predefined_spec(name)
-        if "process_graph" in spec and name not in process_registry:
+        if "process_graph" in spec and not process_registry.contains(name):
             _log.info(f"Registering fallback implementation of {name!r} by process graph ({process_registry})")
             custom_process_from_process_graph(process_spec=spec, process_registry=process_registry)
 
