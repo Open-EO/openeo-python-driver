@@ -1054,7 +1054,7 @@ def water_vapor(args: Dict, env: EvalEnv) -> object:
     return image_collection.water_vapor(missionId)
 
 
-@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/sar_backscatter.json"))
+@process_registry_100.add_function(spec=read_spec("openeo-processes/1.0/proposals/sar_backscatter.json"))
 def sar_backscatter(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
     kwargs = extract_args_subset(
