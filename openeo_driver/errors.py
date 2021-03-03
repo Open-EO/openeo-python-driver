@@ -412,12 +412,12 @@ class ProcessParameterInvalidException(OpenEOApiException):
 class ProcessUnsupportedException(OpenEOApiException):
     status_code = 400
     code = 'ProcessUnsupported'
-    message = "Process with identifier '{process}' is not available."
+    message = "Process with identifier '{process}' is not available in namespace '{namespace}'."
     _description = 'A process (pre-defined or user-defined) with the specified identifier is not available. To be used when validating or executing process graphs.'
     _tags = ['Data Processing']
 
-    def __init__(self, process: str):
-        super().__init__(message=self.message.format(process=process))
+    def __init__(self, process: str, namespace: str = "backend"):
+        super().__init__(message=self.message.format(process=process, namespace=namespace))
 
 
 class PredefinedProcessExistsException(OpenEOApiException):
@@ -588,4 +588,4 @@ if __name__ == '__main__':
         for code in unimplemented:
             print(spec_helper.generate_exception_class(code) + "\n")
     else:
-        print("###No unimplemented openEO error codes.")
+        print("### No unimplemented openEO error codes.")
