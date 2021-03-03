@@ -633,18 +633,15 @@ def list_job_results(job_id, user: User):
         if geometry:
             result["bbox"] = job_info.bbox
 
-        stac_extensions = []
+        result["stac_extensions"] = ["processing"]
         if any("card4l:nodata" in asset_object for asset_object in result["assets"].values()):
-            stac_extensions.append("card4l-eo")
+            result["stac_extensions"].append("card4l-eo")
 
         if any("eo:bands" in asset_object for asset_object in result["assets"].values()):
-            stac_extensions.append("eo")
+            result["stac_extensions"].append("eo")
 
         if "proj:epsg" in result["properties"]:
-            stac_extensions.append("projection")
-
-        if stac_extensions:
-            result["stac_extensions"] = stac_extensions
+            result["stac_extensions"].append("projection")
     else:
         result = {
             "links": [
@@ -684,6 +681,8 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
 
     if job_info.epsg:
         properties['proj:epsg'] = job_info.epsg
+
+    properties['processing:lineage'] = job_info.process
 
     return properties
 

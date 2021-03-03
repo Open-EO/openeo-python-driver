@@ -765,11 +765,12 @@ class TestBatchJobs:
                 ],
                 'properties': {
                     'created': '2017-01-01T09:32:12Z',
-                    'datetime': None
+                    'datetime': None,
+                    'processing:lineage': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}}
                 },
                 'stac_version': '0.9.0',
                 'type': 'Feature',
-                'stac_extensions': ['card4l-eo', 'eo']
+                'stac_extensions': ['processing', 'card4l-eo', 'eo']
             }
 
             resp = api100.get('/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results', headers=self.AUTH_HEADER)
@@ -808,11 +809,12 @@ class TestBatchJobs:
                     'created': '2020-06-11T11:51:29Z',
                     'datetime': '1981-04-24T03:00:00Z',
                     'instruments': ['MSI'],
-                    'proj:epsg': 4326
+                    'proj:epsg': 4326,
+                    'processing:lineage': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}}
                 },
                 'stac_version': '0.9.0',
                 'type': 'Feature',
-                'stac_extensions': ['card4l-eo', 'eo', 'projection']
+                'stac_extensions': ['processing', 'card4l-eo', 'eo', 'projection']
             }
 
     def test_get_job_results_invalid_job(self, api):
