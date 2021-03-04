@@ -38,7 +38,7 @@ setup(
         'flask',
         'werkzeug>=1.0.1',
         'requests',
-        'openeo>=0.4.10a2.*',
+        'openeo>=0.5.0a1.*',
         'openeo_processes>=0.0.4',
         'gunicorn>=20.0.1',
         'numpy>=1.17.0,<1.19.0',#tensorflow 2.3 requires numpy <1.19
