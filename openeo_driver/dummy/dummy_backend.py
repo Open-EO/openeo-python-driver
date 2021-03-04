@@ -57,8 +57,8 @@ class DummyVisitor(ProcessGraphVisitor):
         super(DummyVisitor, self).__init__()
         self.processes = []
 
-    def enterProcess(self, process_id: str, arguments: dict):
-        self.processes.append((process_id, arguments))
+    def enterProcess(self, process_id: str, arguments: dict, namespace: Union[str, None]):
+        self.processes.append((process_id, arguments, namespace))
 
     def constantArgument(self, argument_id: str, value):
         if isinstance(value, numbers.Real):
