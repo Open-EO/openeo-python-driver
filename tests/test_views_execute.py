@@ -1322,6 +1322,25 @@ def test_execute_custom_process_by_process_graph_json(api100, tmp_path):
     assert res == 25
 
 
+def test_execute_custom_process_by_process_graph_namespaced(api100):
+    process_id = generate_unique_test_process_id()
+
+    # Register a custom process with process graph
+    process_spec = api100.load_json("add_and_multiply.json")
+    process_spec["id"] = process_id
+    custom_process_from_process_graph(process_spec=process_spec, namespace="madmath")
+    # Apply process
+    res = api100.check_result({
+        "do_math": {
+            "process_id": process_id,
+            "namespace": "madmath",
+            "arguments": {"data": 3},
+            "result": True
+        },
+    }).json
+    assert res == 30
+
+
 def test_normalized_difference(api100):
     res = api100.check_result({
         "do_math": {

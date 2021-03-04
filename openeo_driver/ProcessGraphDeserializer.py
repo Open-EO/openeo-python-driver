@@ -917,16 +917,13 @@ def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalE
                     _log.info("Using process {p!r} from namespace 'user'.".format(p=process_id))
                 return evaluate_udp(process_id=process_id, udp=udp, args=args, env=env)
 
-    if namespace in ["backend", None]:
-        # And finally: check registry of predefined processes
-        process_registry = get_process_registry(ComparableVersion(env["version"]))
-        process_function = process_registry.get_function(process_id)
-        if namespace is None:
-            _log.info("Using process {p!r} from namespace 'backend'.".format(p=process_id))
-        return process_function(args=args, env=env)
-
-    # TODO: add namespace in error message? also see https://github.com/Open-EO/openeo-api/pull/328
-    raise ProcessUnsupportedException(process=process_id)
+    # And finally: check registry of predefined (namespaced) processes
+    if namespace is None:
+        namespace = "backend"
+        _log.info("Using process {p!r} from namespace 'backend'.".format(p=process_id))
+    process_registry = get_process_registry(ComparableVersion(env["version"]))
+    process_function = process_registry.get_function(process_id, namespace=namespace)
+    return process_function(args=args, env=env)
 
 
 @non_standard_process(
