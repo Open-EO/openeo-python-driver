@@ -25,7 +25,7 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException
 from openeo_driver.errors import ProcessUnsupportedException
-from openeo_driver.processes import ProcessRegistry, ProcessSpec
+from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult, null
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union
@@ -126,7 +126,11 @@ def custom_process(f: ProcessFunction):
     return f
 
 
-def custom_process_from_process_graph(process_spec: Union[dict, Path], process_registry=process_registry_100):
+def custom_process_from_process_graph(
+        process_spec: Union[dict, Path],
+        process_registry: ProcessRegistry = process_registry_100,
+        namespace: str = DEFAULT_NAMESPACE
+):
     """
     Register a custom process from a process spec containing a "process_graph" definition
 
@@ -134,13 +138,12 @@ def custom_process_from_process_graph(process_spec: Union[dict, Path], process_r
         containing keys like "id", "process_graph", "parameter"
     :param process_registry: process registry to register to
     """
-    # TODO: option to register under certain namespace
     # TODO: option to hide process graph for (public) listing
     if isinstance(process_spec, Path):
         process_spec = load_json(process_spec)
     process_id = process_spec["id"]
     process_function = _process_function_from_process_graph(process_spec)
-    process_registry.add_function(process_function, name=process_id, spec=process_spec)
+    process_registry.add_function(process_function, name=process_id, spec=process_spec, namespace=namespace)
 
 
 def _process_function_from_process_graph(process_spec: dict) -> ProcessFunction:

@@ -307,6 +307,22 @@ class TestGeneral:
         assert process_id in processes_by_id
         assert processes_by_id[process_id] == process_spec
 
+    def test_processes_from_namespace(self, api100):
+        process_id = generate_unique_test_process_id()
+
+        # Register a custom process with process graph
+        process_spec = api100.load_json("pg/1.0/add_and_multiply.json")
+        process_spec["id"] = process_id
+        custom_process_from_process_graph(process_spec=process_spec, namespace="foobar")
+
+        processes = api100.get("/processes/foobar").assert_status_code(200).json["processes"]
+        processes_by_id = {p["id"]: p for p in processes}
+        assert process_id in processes_by_id
+        assert processes_by_id[process_id] == process_spec
+
+        processes = api100.get("/processes").assert_status_code(200).json["processes"]
+        assert "increment" not in set(p['id'] for p in processes)
+
 
 class TestCollections:
 
