@@ -134,6 +134,8 @@ def custom_process_from_process_graph(process_spec: Union[dict, Path], process_r
         containing keys like "id", "process_graph", "parameter"
     :param process_registry: process registry to register to
     """
+    # TODO: option to register under certain namespace
+    # TODO: option to hide process graph for (public) listing
     if isinstance(process_spec, Path):
         process_spec = load_json(process_spec)
     process_id = process_spec["id"]
@@ -168,7 +170,7 @@ def _register_fallback_implementations_by_process_graph(process_registry: Proces
     """
     for name in process_registry.list_predefined_specs():
         spec = process_registry.load_predefined_spec(name)
-        if "process_graph" in spec and name not in process_registry:
+        if "process_graph" in spec and not process_registry.contains(name):
             _log.info(f"Registering fallback implementation of {name!r} by process graph ({process_registry})")
             custom_process_from_process_graph(process_spec=spec, process_registry=process_registry)
 
@@ -1052,7 +1054,7 @@ def water_vapor(args: Dict, env: EvalEnv) -> object:
     return image_collection.water_vapor(missionId)
 
 
-@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/sar_backscatter.json"))
+@process_registry_100.add_function(spec=read_spec("openeo-processes/1.0/proposals/sar_backscatter.json"))
 def sar_backscatter(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
     kwargs = extract_args_subset(

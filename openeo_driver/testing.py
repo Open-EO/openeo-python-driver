@@ -3,6 +3,7 @@ Reusable helpers and fixtures for testing
 """
 import json
 import re
+import uuid
 from pathlib import Path
 from typing import Union, Callable, Pattern
 
@@ -234,3 +235,9 @@ class IgnoreOrder:
 
     def __repr__(self):
         return '{c}({v!r})'.format(c=self.__class__.__name__, v=self.items)
+
+
+def generate_unique_test_process_id():
+    # Because the process registries are global variables we can not mock easily
+    # we'll add new test processes with a (random) unique name.
+    return "_test_process_{u}".format(u=uuid.uuid4())

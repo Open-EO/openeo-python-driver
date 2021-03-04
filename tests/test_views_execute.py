@@ -1,7 +1,6 @@
 import json
 import os
 import re
-import uuid
 from typing import Callable, Union
 from unittest import mock
 
@@ -20,7 +19,7 @@ from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyDataCube
 from openeo_driver.errors import ProcessGraphMissingException
 from openeo_driver.testing import load_json, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN, \
-    preprocess_regex_check_and_replace
+    preprocess_regex_check_and_replace, generate_unique_test_process_id
 from openeo_driver.views import app
 from .data import get_path, TEST_DATA_ROOT
 
@@ -1261,14 +1260,8 @@ def test_execute_load_collection_resolution_merge(api100):
     )
 
 
-def _generate_unique_test_process_id():
-    # Because the process registries are global variables we can not mock easily
-    # we'll add new test processes with a (random) unique name.
-    return "_test_process_{u}".format(u=uuid.uuid4())
-
-
 def test_execute_custom_process_by_process_graph(api100):
-    process_id = _generate_unique_test_process_id()
+    process_id = generate_unique_test_process_id()
 
     # Register a custom process with process graph
     process_spec = api100.load_json("add_and_multiply.json")
@@ -1286,7 +1279,7 @@ def test_execute_custom_process_by_process_graph(api100):
 
 
 def test_execute_custom_process_by_process_graph_json(api100, tmp_path):
-    process_id = _generate_unique_test_process_id()
+    process_id = generate_unique_test_process_id()
 
     process_spec = api100.load_json("add_and_multiply.json")
     process_spec["id"] = process_id

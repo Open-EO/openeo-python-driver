@@ -86,8 +86,21 @@ def test_process_spec_no_returns():
 def test_process_registry_add_by_name():
     reg = ProcessRegistry()
     reg.add_spec_by_name("max")
-    assert set(reg._processes.keys()) == {"max"}
+    assert reg.contains("max")
     spec = reg.get_spec('max')
+    assert spec['id'] == 'max'
+    assert 'largest value' in spec['description']
+    assert all(k in spec for k in ['parameters', 'returns'])
+
+
+def test_process_registry_add_by_name_and_namespace():
+    reg = ProcessRegistry()
+    reg.add_spec_by_name("max", namespace="foo")
+    assert not reg.contains("max")
+    assert reg.contains("max", namespace="foo")
+    with pytest.raises(ProcessUnsupportedException):
+        reg.get_spec('max')
+    spec = reg.get_spec('max', namespace="foo")
     assert spec['id'] == 'max'
     assert 'largest value' in spec['description']
     assert all(k in spec for k in ['parameters', 'returns'])
@@ -95,9 +108,9 @@ def test_process_registry_add_by_name():
 
 def test_process_registry_contains():
     reg = ProcessRegistry()
-    assert "max" not in reg
+    assert not reg.contains("max")
     reg.add_spec_by_name("max")
-    assert "max" in reg
+    assert reg.contains("max")
 
 
 def test_process_registry_load_predefined_specs():
@@ -115,7 +128,7 @@ def test_process_registry_add_function():
     def max(*args):
         return max(*args)
 
-    assert set(reg._processes.keys()) == {"max"}
+    assert reg.contains("max")
     spec = reg.get_spec('max')
     assert spec['id'] == 'max'
     assert 'largest value' in spec['description']
@@ -131,13 +144,30 @@ def test_process_registry_add_function_other_name():
     def madmax(*args):
         return max(*args)
 
-    assert set(reg._processes.keys()) == {"max"}
+    assert reg.contains("max")
     spec = reg.get_spec('max')
     assert spec['id'] == 'max'
     assert 'largest value' in spec['description']
     assert all(k in spec for k in ['parameters', 'returns'])
 
     assert reg.get_function('max') is madmax
+
+
+def test_process_registry_add_function_namespace():
+    reg = ProcessRegistry()
+
+    @reg.add_function(name="max", namespace="foo")
+    def madmax(*args):
+        return max(*args)
+
+    assert not reg.contains("max")
+    assert reg.contains("max", namespace="foo")
+    spec = reg.get_spec('max', namespace="foo")
+    assert spec['id'] == 'max'
+    assert 'largest value' in spec['description']
+    assert all(k in spec for k in ['parameters', 'returns'])
+
+    assert reg.get_function('max', namespace="foo") is madmax
 
 
 def test_process_registry_add_function_argument_names():
@@ -152,7 +182,7 @@ def test_process_registry_add_function_argument_names():
         def min(args):
             return min(*args)
 
-    assert set(reg._processes.keys()) == {"max"}
+    assert reg.contains("max")
     spec = reg.get_spec('max')
     assert spec['id'] == 'max'
     assert 'largest value' in spec['description']
@@ -248,6 +278,22 @@ def test_process_registry_add_hidden_with_name():
         reg.get_spec('boz')
 
 
+def test_process_registry_add_hidden_with_namespace():
+    reg = ProcessRegistry()
+
+    def bar(*args):
+        return 42
+
+    reg.add_hidden(bar, name="boz", namespace="secret")
+
+    new_bar = reg.get_function('boz', namespace="secret")
+    assert new_bar() == 42
+    with pytest.raises(ProcessUnsupportedException):
+        reg.get_spec('bar', namespace="secret")
+    with pytest.raises(ProcessUnsupportedException):
+        reg.get_spec('boz', namespace="secret")
+
+
 def test_process_registry_add_deprecated():
     reg = ProcessRegistry()
 
@@ -260,6 +306,22 @@ def test_process_registry_add_deprecated():
         assert new_foo() == 42
     with pytest.raises(ProcessUnsupportedException):
         reg.get_spec('foo')
+
+
+def test_process_registry_add_deprecated_namespace():
+    reg = ProcessRegistry()
+
+    @reg.add_deprecated(namespace="old")
+    def foo(*args):
+        return 42
+
+    with pytest.raises(ProcessUnsupportedException):
+        reg.get_function('foo')
+    new_foo = reg.get_function('foo', namespace="old")
+    with pytest.warns(UserWarning, match="deprecated process"):
+        assert new_foo() == 42
+    with pytest.raises(ProcessUnsupportedException):
+        reg.get_spec('foo', namespace="old")
 
 
 def test_process_registry_get_spec():
@@ -279,3 +341,17 @@ def test_process_registry_get_specs():
     assert set(p['id'] for p in reg.get_specs('')) == {"max", "min", "sin"}
     assert set(p['id'] for p in reg.get_specs("m")) == {"max", "min"}
     assert set(p['id'] for p in reg.get_specs("in")) == {"min", "sin"}
+
+
+def test_process_registry_get_specs_namepsaces():
+    reg = ProcessRegistry()
+    reg.add_spec_by_name("min", namespace="stats")
+    reg.add_spec_by_name("max", namespace="stats")
+    reg.add_spec_by_name("sin", namespace="math")
+    assert set(p['id'] for p in reg.get_specs()) == set()
+    assert set(p['id'] for p in reg.get_specs(namespace="stats")) == {"max", "min"}
+    assert set(p['id'] for p in reg.get_specs(namespace="math")) == {"sin"}
+    assert set(p['id'] for p in reg.get_specs("", namespace="stats")) == {"max", "min"}
+    assert set(p['id'] for p in reg.get_specs("m", namespace="math")) == set()
+    assert set(p['id'] for p in reg.get_specs("in", namespace="stats")) == {"min"}
+    assert set(p['id'] for p in reg.get_specs("in", namespace="math")) == {"sin"}
