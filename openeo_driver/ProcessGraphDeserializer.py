@@ -152,7 +152,7 @@ def _process_function_from_process_graph(process_spec: dict) -> ProcessFunction:
     """
     process_id = process_spec["id"]
     process_graph = process_spec["process_graph"]
-    parameters = process_spec["parameters"]
+    parameters = process_spec.get("parameters")
 
     def process_function(args: dict, env: EvalEnv):
         return _evaluate_process_graph_process(

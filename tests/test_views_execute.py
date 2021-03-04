@@ -1260,6 +1260,27 @@ def test_execute_load_collection_resolution_merge(api100):
     )
 
 
+def test_execute_custom_process_by_process_graph_minimal(api100):
+    process_id = generate_unique_test_process_id()
+    # Register a custom process with minimal process graph
+    process_spec = {
+        "id": process_id,
+        "process_graph": {
+            "increment": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 1}, "result": True}
+        }
+    }
+    custom_process_from_process_graph(process_spec=process_spec)
+    # Apply process
+    res = api100.check_result({
+        "do_math": {
+            "process_id": process_id,
+            "arguments": {"x": 2},
+            "result": True
+        },
+    }).json
+    assert res == 3
+
+
 def test_execute_custom_process_by_process_graph(api100):
     process_id = generate_unique_test_process_id()
 
