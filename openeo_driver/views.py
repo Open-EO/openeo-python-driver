@@ -28,7 +28,7 @@ from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingExceptio
 from openeo_driver.processes import DEFAULT_NAMESPACE
 from openeo_driver.save_result import SaveResult, get_temp_file
 from openeo_driver.users import HttpAuthHandler, User
-from openeo_driver.utils import replace_nan_values, EvalEnv
+from openeo_driver.utils import replace_nan_values, EvalEnv, smart_bool
 
 _log = logging.getLogger(__name__)
 
@@ -1034,12 +1034,19 @@ def processes_from_namespace(namespace):
     #       convention for namespaces (user, organisation, ....)
     #       See https://github.com/Open-EO/openeo-api/issues/310
     # TODO: unify with `/processes`
+    full = smart_bool(request.args.get("full", False))
     if namespace.startswith("u:"):
         user_id = namespace.partition("u:")[-1]
         user_udps = [p for p in backend_implementation.user_defined_processes.get_for_user(user_id) if p.public]
-        processes = [_jsonable_udp_metadata(udp, full=False) for udp in user_udps]
+        processes = [_jsonable_udp_metadata(udp, full=full) for udp in user_udps]
     elif ":" not in namespace:
         processes = get_process_registry(requested_api_version()).get_specs(namespace=namespace)
+        if not full:
+            # Strip some fields
+            processes = [
+                {k: v for k, v in p.items() if k not in ["process_graph"]}
+                for p in processes
+            ]
     else:
         raise OpenEOApiException("Could not handle namespace {n!r}".format(n=namespace))
     # TODO: pagination links?

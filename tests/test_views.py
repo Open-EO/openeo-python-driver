@@ -314,8 +314,15 @@ class TestGeneral:
         process_spec = api100.load_json("pg/1.0/add_and_multiply.json")
         process_spec["id"] = process_id
         custom_process_from_process_graph(process_spec=process_spec, namespace="foobar")
+        process_spec_short = process_spec.copy()
+        process_spec_short.pop("process_graph")
 
         processes = api100.get("/processes/foobar").assert_status_code(200).json["processes"]
+        processes_by_id = {p["id"]: p for p in processes}
+        assert process_id in processes_by_id
+        assert processes_by_id[process_id] == process_spec_short
+
+        processes = api100.get("/processes/foobar?full=yes").assert_status_code(200).json["processes"]
         processes_by_id = {p["id"]: p for p in processes}
         assert process_id in processes_by_id
         assert processes_by_id[process_id] == process_spec
