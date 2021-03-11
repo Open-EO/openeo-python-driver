@@ -1364,7 +1364,8 @@ def test_ard_normalized_radar_backscatter(api100):
                 "data": {"from_node": "loadcollection1"},
                 "elevation_model": "MAPZEN",
                 "ellipsoid_incidence_angle": True,
-                "noise_removal": True
+                "noise_removal": True,
+                "contributing_area": True
             },
             "result": True
         }
@@ -1396,6 +1397,6 @@ def test_ard_normalized_radar_backscatter_without_optional_arguments(api100):
     assert dummy.sar_backscatter.call_count == 1
     args, kwargs = dummy.sar_backscatter.call_args
     assert args == (SarBackscatterArgs(
-        coefficient="gamma0-terrain", elevation_model=None, mask=True, contributing_area=True,
+        coefficient="gamma0-terrain", elevation_model=None, mask=True, contributing_area=False,
         local_incidence_angle=True, ellipsoid_incidence_angle=False, noise_removal=True, options={}),)
     assert kwargs == {}
