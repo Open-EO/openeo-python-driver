@@ -49,6 +49,12 @@ from openeo_driver.utils import geojson_to_geometry, to_hashable, bands_union, t
 
 _log = logging.getLogger(__name__)
 
+source_constraint_blockers = {
+    'bands': ['sar_backscatter', 'atmospheric_correction', 'mask_scl_dilation', 'resolution_merge', 'custom_cloud_mask' ],
+    'spatial_extent': [],
+    'temporal_extent': [],
+    'resample':["apply_kernel", "reduce_dimension", "apply", "apply_dimension", "resample_spatial","apply_neighborhood", "reduce_dimension_binary"]
+}
 
 class DataTraceBase:
     """Base class for data traces."""
@@ -131,11 +137,11 @@ class DataTrace(DataTraceBase):
             res.append(self._arguments)
         return res
 
-    def get_operation_closest_to_source(self, operation:str):
+    def get_operation_closest_to_source(self, operation:Union[str,List[str]]):
         parent_op = self.parent.get_operation_closest_to_source(operation)
         if(parent_op != None):
             return parent_op
-        elif(self._operation == operation):
+        elif(self._operation in operation):
             return self
         else:
             return None
@@ -229,6 +235,13 @@ class DryRunDataTracer:
                         constraints["resample"] = {"target_crs": spatial_dim.crs, "resolution": resolutions}
 
             for op in ["temporal_extent", "spatial_extent", "bands", "aggregate_spatial", "sar_backscatter","process_type","custom_cloud_mask"]:
+                #1 some processes can not be skipped when pushing filters down, so find the subgraph that no longer contains these blockers
+                if op in source_constraint_blockers:
+                    subgraph_without_blocking_processes =  leaf.get_operation_closest_to_source(source_constraint_blockers[op])
+                    if(subgraph_without_blocking_processes is not None):
+                        leaf = subgraph_without_blocking_processes
+
+                #2 merge filtering arguments
                 args = leaf.get_arguments_by_operation(op)
                 if args:
                     if merge:

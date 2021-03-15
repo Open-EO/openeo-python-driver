@@ -1225,11 +1225,20 @@ def test_execute_load_collection_custom_cloud_mask(api100):
         "mask": {
             "process_id": "mask_scl_dilation",
             "arguments": {"data": {"from_node": "loadcollection1"}},
-            "result": True
-        }
+            "result": False
+        },
+        'filterbands1': {
+            'process_id': 'filter_bands',
+            'arguments': {
+                'data': {'from_node': 'mask'},
+                'bands': ["SCL"],
+            },
+            'result': True
+        },
     })
     params = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
     assert params.custom_mask == {"method": "mask_scl_dilation"}
+    assert params.bands == None
 
 
 def test_execute_load_collection_resolution_merge(api100):
