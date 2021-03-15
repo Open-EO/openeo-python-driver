@@ -789,7 +789,7 @@ class TestBatchJobs:
                 'properties': {
                     'created': '2017-01-01T09:32:12Z',
                     'datetime': None,
-                    'processing:lineage': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}}
+                    'card4l:processing_chain': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}}
                 },
                 'stac_version': '0.9.0',
                 'type': 'Feature',
@@ -833,7 +833,7 @@ class TestBatchJobs:
                     'datetime': '1981-04-24T03:00:00Z',
                     'instruments': ['MSI'],
                     'proj:epsg': 4326,
-                    'processing:lineage': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}}
+                    'card4l:processing_chain': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}}
                 },
                 'stac_version': '0.9.0',
                 'type': 'Feature',

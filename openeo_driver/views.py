@@ -601,7 +601,7 @@ def list_job_results(job_id, user: User):
         return dict_no_none(**{
             "href": url_for('.download_job_result', job_id=job_id, filename=filename, _external=True),
             "type": asset_metadata.get("media_type"),
-            "eo:bands": [{"name": band.name, "center_wavelength": band.wavelength_um}
+            "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
                          for band in bands] if bands else None,
             "card4l:nodata": nodata
         })
@@ -683,7 +683,7 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
     if job_info.epsg:
         properties['proj:epsg'] = job_info.epsg
 
-    properties['processing:lineage'] = job_info.process
+    properties['card4l:processing_chain'] = job_info.process
 
     return properties
 
