@@ -769,7 +769,7 @@ class TestBatchJobs:
                             'name': "NDVI",
                             'center_wavelength': 1.23
                         }],
-                        'card4l:nodata': 123
+                        'file:nodata':[123]
                     }
                 },
                 'geometry': None,
@@ -807,7 +807,7 @@ class TestBatchJobs:
                             'name': "NDVI",
                             'center_wavelength': 1.23
                         }],
-                        'card4l:nodata': 123
+                        'file:nodata': [123]
                     }
                 },
                 'geometry': {

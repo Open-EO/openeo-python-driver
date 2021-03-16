@@ -603,7 +603,7 @@ def list_job_results(job_id, user: User):
             "type": asset_metadata.get("media_type"),
             "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
                          for band in bands] if bands else None,
-            "card4l:nodata": nodata
+            "file:nodata": [nodata]
         })
 
     if requested_api_version().at_least("1.0.0"):
@@ -634,9 +634,7 @@ def list_job_results(job_id, user: User):
         if geometry:
             result["bbox"] = job_info.bbox
 
-        result["stac_extensions"] = ["processing"]
-        if any("card4l:nodata" in asset_object for asset_object in result["assets"].values()):
-            result["stac_extensions"].append("card4l-eo")
+        result["stac_extensions"] = ["processing","card4l-eo"]
 
         if any("eo:bands" in asset_object for asset_object in result["assets"].values()):
             result["stac_extensions"].append("eo")
