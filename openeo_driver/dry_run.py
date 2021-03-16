@@ -186,6 +186,8 @@ class DryRunDataTracer:
             cube = cube.filter_bbox(**arguments["spatial_extent"])
         if "bands" in arguments:
             cube = cube.filter_bands(arguments["bands"])
+        if "properties" in arguments:
+            cube = cube.filter_properties(arguments["properties"])
         return cube
 
     def load_disk_data(self, glob_pattern: str, format: str, options: dict) -> 'DryRunDataCube':
@@ -234,7 +236,8 @@ class DryRunDataTracer:
                         resolutions = [dim.step for dim in metadata.spatial_dimensions if dim.step is not None]
                         constraints["resample"] = {"target_crs": spatial_dim.crs, "resolution": resolutions}
 
-            for op in ["temporal_extent", "spatial_extent", "bands", "aggregate_spatial", "sar_backscatter","process_type","custom_cloud_mask"]:
+            for op in ["temporal_extent", "spatial_extent", "bands", "aggregate_spatial", "sar_backscatter",
+                       "process_type", "custom_cloud_mask", "properties"]:
                 #1 some processes can not be skipped when pushing filters down, so find the subgraph that no longer contains these blockers
                 if op in source_constraint_blockers:
                     subgraph_without_blocking_processes =  leaf.get_operation_closest_to_source(source_constraint_blockers[op])
@@ -335,6 +338,9 @@ class DryRunDataCube(DriverDataCube):
 
     def filter_bands(self, bands) -> 'DryRunDataCube':
         return self._process("bands", bands)
+
+    def filter_properties(self, properties) -> 'DryRunDataCube':
+        return self._process("properties", properties)
 
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
         return self._process("save_result",{"format":format, "options":format_options})
