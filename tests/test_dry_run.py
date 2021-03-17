@@ -541,3 +541,35 @@ def test_evaluate_sar_backscatter(dry_run_env, dry_run_tracer, arguments, expect
     src, constraints = source_constraints.popitem()
     assert src == ("load_collection", ("S2_FOOBAR",))
     assert constraints == [{"sar_backscatter": [expected]}]
+
+
+def test_load_collection_properties(dry_run_env, dry_run_tracer):
+    properties = {
+        "orbitDirection": {
+            "process_graph": {
+                "od": {
+                    "process_id": "eq",
+                    "arguments": {
+                        "x": {
+                            "from_parameter": "value"
+                        },
+                        "y": "DESCENDING"
+                    },
+                    "result": True
+                }
+            }
+        }
+    }
+
+    pg = {
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "properties": properties},
+               "result": True}
+    }
+    cube = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints.popitem()
+    assert src == ("load_collection", ("S2_FOOBAR",))
+    assert constraints == {"properties": properties}
