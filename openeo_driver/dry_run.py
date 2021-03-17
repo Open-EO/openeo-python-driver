@@ -206,6 +206,13 @@ class DryRunDataTracer:
                 trace = trace.parent
         return leaves
 
+    def get_metadata_links(self):
+        result = {}
+        for leaf in self.get_trace_leaves():
+            source_id = leaf.get_source().get_source_id()
+            result[source_id]=leaf.get_arguments_by_operation("log_metadata_link")
+        return result
+
     def get_source_constraints(self, merge=True) -> Dict[tuple, dict]:
         """
         Get the temporal/spatial constraints of all traced sources
@@ -455,6 +462,13 @@ class DryRunDataCube(DriverDataCube):
             if temporal_size is None or temporal_size.get('value',None) is None:
                 return self._process("process_type", [ProcessType.GLOBAL_TIME])
         return self
+
+    def atmospheric_correction(self, method: str = None, *args) -> 'DriverDataCube':
+        method_link = "https://remotesensing.vito.be/case/icor"
+        if(method=="SMAC"):
+            method_link = "https://doi.org/10.1080/01431169408954055"
+
+        return self._process("log_metadata_link",arguments={"rel":"atmospheric-scattering", "href":method_link})
 
     def mask_scl_dilation(self) -> 'DriverDataCube':
         return self._process("custom_cloud_mask",arguments={"method":"mask_scl_dilation"})

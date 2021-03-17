@@ -573,3 +573,33 @@ def test_load_collection_properties(dry_run_env, dry_run_tracer):
     src, constraints = source_constraints.popitem()
     assert src == ("load_collection", ("S2_FOOBAR",))
     assert constraints == {"properties": properties}
+
+
+@pytest.mark.parametrize(["arguments", "expected"], [
+    (
+            {},
+            {"rel":"atmospheric-scattering", "href":"https://remotesensing.vito.be/case/icor"}
+    ),
+    (
+            {
+                "method": "SMAC"
+            },
+            {"rel":"atmospheric-scattering", "href":"https://doi.org/10.1080/01431169408954055"}
+    )
+])
+def test_evaluate_atmospheric_correction(dry_run_env, dry_run_tracer, arguments, expected):
+    pg = {
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "sar": {
+            "process_id": "atmospheric_correction",
+            "arguments": dict(data={"from_node": "lc"}, **arguments),
+            "result": True,
+        },
+    }
+    cube = evaluate(pg, env=dry_run_env)
+
+    metadata_links = dry_run_tracer.get_metadata_links()
+    assert len(metadata_links) == 1
+    src, links = metadata_links.popitem()
+    assert src == ("load_collection", ("S2_FOOBAR",))
+    assert links == [expected]
