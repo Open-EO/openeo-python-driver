@@ -488,5 +488,4 @@ class DryRunDataCube(DriverDataCube):
     rename_labels = _nop
     rename_dimension = _nop
     ndvi = _nop
-    atmospheric_correction = _nop
     water_vapor = _nop
