@@ -599,11 +599,13 @@ def list_job_results(job_id, user: User):
         nodata = asset_metadata.get("nodata")
 
         return dict_no_none(**{
+            "title": asset_metadata.get("title",filename), #there has to be title
             "href": url_for('.download_job_result', job_id=job_id, filename=filename, _external=True),
             "type": asset_metadata.get("media_type"),
             "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
                          for band in bands] if bands else None,
-            "file:nodata": [nodata]
+            "file:nodata": [nodata],
+            "roles": asset_metadata.get("roles",["data"])
         })
 
     if requested_api_version().at_least("1.0.0"):
@@ -634,7 +636,7 @@ def list_job_results(job_id, user: User):
         if geometry:
             result["bbox"] = job_info.bbox
 
-        result["stac_extensions"] = ["processing","card4l-eo"]
+        result["stac_extensions"] = ["processing","card4l-eo","https://stac-extensions.github.io/file/v1.0.0/schema.json"]
 
         if any("eo:bands" in asset_object for asset_object in result["assets"].values()):
             result["stac_extensions"].append("eo")
@@ -660,7 +662,11 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
         "title": job_info.title,
         "description": job_info.description,
         "created": to_datetime(job_info.created),
-        "updated": to_datetime(job_info.updated)
+        "updated": to_datetime(job_info.updated),
+        "card4l:specification": "SR",
+        "card4l:specification_version": "5.0",
+        "processing:facility": 'VITO - SPARK',
+        "processing:software": 'openeo-geotrellis-' +  current_app.config.get('OPENEO_BACKEND_VERSION', '0.0.1')
     })
     properties["datetime"] = None
 

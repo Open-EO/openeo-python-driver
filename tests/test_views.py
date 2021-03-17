@@ -763,6 +763,8 @@ class TestBatchJobs:
             assert resp.assert_status_code(200).json == {
                 'assets': {
                     'output.tiff': {
+                        'roles': ['data'],
+                        'title': 'output.tiff',
                         'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/output.tiff',
                         'type': 'image/tiff; application=geotiff',
                         'eo:bands': [{
@@ -789,11 +791,18 @@ class TestBatchJobs:
                 'properties': {
                     'created': '2017-01-01T09:32:12Z',
                     'datetime': None,
-                    'card4l:processing_chain': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}}
+                    'card4l:processing_chain': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
+                    'card4l:specification': 'SR',
+                    'card4l:specification_version': '5.0',
+                    'processing:facility': 'VITO - SPARK',
+                    'processing:software': 'openeo-geotrellis-0.0.1'
                 },
-                'stac_version': '0.9.0',
-                'type': 'Feature',
-                'stac_extensions': ['processing', 'card4l-eo', 'eo']
+                'stac_extensions': ['processing',
+                                    'card4l-eo',
+                                    'https://stac-extensions.github.io/file/v1.0.0/schema.json',
+                                    'eo'],
+                 'stac_version': '0.9.0',
+                 'type': 'Feature'
             }
 
             resp = api100.get('/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results', headers=self.AUTH_HEADER)
@@ -801,6 +810,8 @@ class TestBatchJobs:
             assert resp.assert_status_code(200).json == {
                 'assets': {
                     'output.tiff': {
+                        'roles': ['data'],
+                        'title': 'output.tiff',
                         'href': 'http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/output.tiff',
                         'type': 'image/tiff; application=geotiff',
                         'eo:bands': [{
@@ -833,11 +844,18 @@ class TestBatchJobs:
                     'datetime': '1981-04-24T03:00:00Z',
                     'instruments': ['MSI'],
                     'proj:epsg': 4326,
-                    'card4l:processing_chain': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}}
-                },
+                    'card4l:processing_chain': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
+                    'card4l:specification': 'SR',
+                    'card4l:specification_version': '5.0',
+                    'processing:facility': 'VITO - SPARK',
+                    'processing:software': 'openeo-geotrellis-0.0.1'},
+                'stac_extensions': ['processing',
+                                    'card4l-eo',
+                                    'https://stac-extensions.github.io/file/v1.0.0/schema.json',
+                                    'eo',
+                                    'projection'],
                 'stac_version': '0.9.0',
-                'type': 'Feature',
-                'stac_extensions': ['processing', 'card4l-eo', 'eo', 'projection']
+                'type': 'Feature'
             }
 
     def test_get_job_results_invalid_job(self, api):
