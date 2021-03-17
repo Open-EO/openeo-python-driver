@@ -214,6 +214,7 @@ class BatchJobMetadata(NamedTuple):
     end_datetime: datetime = None
     instruments: List[str] = None
     epsg: int = None
+    links: List[Dict] = []
 
     @property
     def duration(self) -> timedelta:

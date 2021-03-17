@@ -609,6 +609,17 @@ def list_job_results(job_id, user: User):
         })
 
     if requested_api_version().at_least("1.0.0"):
+        links = job_info.links
+        links.append({
+                    "rel": "self",
+                    "href": url_for('.list_job_results', job_id=job_id, _external=True),
+                    "type": "application/json"
+                })
+        links.append({
+                    "rel": "card4l-document",
+                    "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
+                    "type": "application/pdf"
+                })
         result = {
             "stac_version": "0.9.0",
             "id": job_info.id,
@@ -617,18 +628,7 @@ def list_job_results(job_id, user: User):
             "assets": {
                 filename: asset_object(filename, asset_metadata) for filename, asset_metadata in results.items()
             },
-            "links": [
-                {
-                    "rel": "self",
-                    "href": url_for('.list_job_results', job_id=job_id, _external=True),
-                    "type": "application/json"
-                },
-                {
-                    "rel": "card4l-document",
-                    "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
-                    "type": "application/pdf",
-                }
-            ]
+            "links": links
         }
 
         geometry = job_info.geometry
