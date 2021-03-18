@@ -1,0 +1,58 @@
+{
+  "id": "udf_udp",
+  "summary": "UDP using a UDF",
+  "description": "UDP version of NDVI",
+  "parameters": [
+    {
+      "name": "data",
+      "description": "A data cube.",
+      "schema": {
+        "type": "object",
+        "subtype": "raster-cube"
+      }
+    },
+    {
+      "name": "udfparam",
+      "description": "A parameter for the UDF.",
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "returns": {
+    "description": "UDF datacube",
+    "schema": {
+      "type": "object",
+      "subtype": "raster-cube"
+    }
+  },
+  "process_graph": {
+    "reducedimension1": {
+      "process_id": "reduce_dimension",
+      "arguments": {
+        "data": {
+          "from_parameter": "data"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "udf": {
+              "process_id": "run_udf",
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "context": {
+                    "param": {"from_parameter": "udfparam"}
+                }
+              },
+              "result": true
+            }
+
+          }
+        }
+      },
+      "result": true
+    }
+  }
+}

@@ -846,6 +846,39 @@ def test_user_defined_process_required_parameter(api100):
     response.assert_error(400, "ProcessParameterRequired", message="parameter 'data' is required")
 
 
+def test_user_defined_process_udf(api100):
+    api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+    spec = api100.load_json("udp/udf.json")
+    user_defined_process_registry.save(user_id=TEST_USER, process_id="udf_udp", spec=spec)
+
+    pg = {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FOOBAR"}
+        },
+        "bboxmol1": {
+            "process_id": "udf_udp",
+            "namespace": "user",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "udfparam": "test"
+            },
+            "result": True
+        }
+    }
+
+    response = api100.result(pg)
+    dummy = api100.get_collection("S2_FOOBAR")
+    assert dummy.reduce_dimension.call_count == 1
+    dummy.reduce_dimension.assert_called_with(reducer=mock.ANY, dimension="bands")
+    args, kwargs = dummy.reduce_dimension.call_args
+    assert "udf" in kwargs["reducer"]
+    context = kwargs["reducer"]["udf"]["arguments"]["context"]
+    #TODO I would expect parameters to be substituted here
+    #assert context["param"] == "test"
+
+
+
 def test_user_defined_process_udp_vs_pdp_priority(api100):
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     # First without a defined "ndvi" UDP
