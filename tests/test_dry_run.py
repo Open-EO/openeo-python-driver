@@ -578,13 +578,19 @@ def test_load_collection_properties(dry_run_env, dry_run_tracer):
 @pytest.mark.parametrize(["arguments", "expected"], [
     (
             {},
-            {"rel":"atmospheric-scattering", "href":"https://remotesensing.vito.be/case/icor"}
+            [{"rel":"atmospheric-scattering", "href":"https://remotesensing.vito.be/case/icor"},
+            {'href': 'https://atmosphere.copernicus.eu/catalogue#/product/urn:x-wmo:md:int.ecmwf::copernicus:cams:prod:fc:total-aod:pid094',
+                'rel': 'related'},
+             {'href': 'https://doi.org/10.7289/V52R3PMS', 'rel': 'elevation-model'}]
     ),
     (
             {
                 "method": "SMAC"
             },
-            {"rel":"atmospheric-scattering", "href":"https://doi.org/10.1080/01431169408954055"}
+            [{"rel":"atmospheric-scattering", "href":"https://doi.org/10.1080/01431169408954055"},
+            {'href': 'https://atmosphere.copernicus.eu/catalogue#/product/urn:x-wmo:md:int.ecmwf::copernicus:cams:prod:fc:total-aod:pid094',
+              'rel': 'related'},
+             {'href': 'https://doi.org/10.7289/V52R3PMS', 'rel': 'elevation-model'}]
     )
 ])
 def test_evaluate_atmospheric_correction(dry_run_env, dry_run_tracer, arguments, expected):
@@ -602,4 +608,4 @@ def test_evaluate_atmospheric_correction(dry_run_env, dry_run_tracer, arguments,
     assert len(metadata_links) == 1
     src, links = metadata_links.popitem()
     assert src == ("load_collection", ("S2_FOOBAR",))
-    assert links == [expected]
+    assert links == expected

@@ -468,7 +468,14 @@ class DryRunDataCube(DriverDataCube):
         if(method=="SMAC"):
             method_link = "https://doi.org/10.1080/01431169408954055"
 
-        return self._process("log_metadata_link",arguments={"rel":"atmospheric-scattering", "href":method_link})
+        aot_link = "https://atmosphere.copernicus.eu/catalogue#/product/urn:x-wmo:md:int.ecmwf::copernicus:cams:prod:fc:total-aod:pid094"
+        #by default GLOBE DEM is used
+        dem_doi = "https://doi.org/10.7289/V52R3PMS"
+
+        return self\
+            ._process("log_metadata_link", arguments={"rel": "atmospheric-scattering", "href":method_link})\
+            ._process("log_metadata_link", arguments={"rel": "related", "href":aot_link}) \
+            ._process("log_metadata_link", arguments={"rel": "elevation-model", "href": dem_doi})
 
     def mask_scl_dilation(self) -> 'DriverDataCube':
         return self._process("custom_cloud_mask",arguments={"method":"mask_scl_dilation"})
