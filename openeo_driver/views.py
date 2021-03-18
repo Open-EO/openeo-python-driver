@@ -381,10 +381,7 @@ def credentials_oidc():
     providers = backend_implementation.oidc_providers()
     if requested_api_version().at_least("1.0.0"):
         return jsonify({
-            "providers": [
-                {"id": p.id, "issuer": p.issuer, "scopes": p.scopes, "title": p.title}
-                for p in providers
-            ]
+            "providers": [p.prepare_for_json() for p in providers]
         })
     else:
         return flask.redirect(providers[0].issuer + '/.well-known/openid-configuration', code=303)

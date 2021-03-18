@@ -223,7 +223,10 @@ class TestGeneral:
         resp = api100.get('/credentials/oidc').assert_status_code(200).json
         assert resp == {'providers': [
             {'id': 'testprovider', 'issuer': 'https://oidc.oeo.net', 'scopes': ['openid'], 'title': 'Test'},
-            {'id': 'gogol', 'issuer': 'https://acc.gog.ol', 'scopes': ['openid'], 'title': 'Gogol'},
+            {
+                'id': 'eoidc', 'issuer': 'https://eo.id', 'scopes': ['openid'], 'title': 'e-OIDC',
+                'default_client': {'id': 'badcafef00d'}
+            },
             {
                 'id': 'local', 'issuer': 'http://localhost:9090/auth/realms/master', 'scopes': ['openid'],
                 'title': 'Local Keycloak'}
