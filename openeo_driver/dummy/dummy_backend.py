@@ -386,7 +386,10 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
     def oidc_providers(self) -> List[OidcProvider]:
         return [
             OidcProvider(id="testprovider", issuer="https://oidc.oeo.net", scopes=["openid"], title="Test"),
-            OidcProvider(id="gogol", issuer="https://acc.gog.ol", scopes=["openid"], title="Gogol"),
+            OidcProvider(
+                id="eoidc", issuer="https://eo.id", scopes=["openid"], title="e-OIDC",
+                default_client={"id": "badcafef00d"}
+            ),
             # Allow testing with Keycloak setup running in docker on localhost.
             OidcProvider(
                 id="local", title="Local Keycloak",

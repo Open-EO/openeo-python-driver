@@ -305,6 +305,15 @@ class OidcProvider(NamedTuple):
     scopes: List[str]
     title: str
     description: str = None
+    # Experimental "default client". See https://github.com/Open-EO/openeo-api/pull/366
+    default_client: dict = None
+
+    def prepare_for_json(self)->dict:
+        d = self._asdict()
+        for omit_when_none in ["description", "default_client"]:
+            if d[omit_when_none] is None:
+                d.pop(omit_when_none)
+        return d
 
 
 class UserDefinedProcessMetadata(NamedTuple):
