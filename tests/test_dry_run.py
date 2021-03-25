@@ -581,7 +581,8 @@ def test_load_collection_properties(dry_run_env, dry_run_tracer):
             [{"rel":"atmospheric-scattering", "href":"https://remotesensing.vito.be/case/icor"},
             {'href': 'https://atmosphere.copernicus.eu/catalogue#/product/urn:x-wmo:md:int.ecmwf::copernicus:cams:prod:fc:total-aod:pid094',
                 'rel': 'related'},
-             {'href': 'https://doi.org/10.7289/V52R3PMS', 'rel': 'elevation-model'}]
+             {'href': 'https://doi.org/10.7289/V52R3PMS', 'rel': 'elevation-model'},
+             {'href': 'https://doi.org/10.1109/LGRS.2016.2635942', 'rel': 'water-vapor'}]
     ),
     (
             {
@@ -590,7 +591,8 @@ def test_load_collection_properties(dry_run_env, dry_run_tracer):
             [{"rel":"atmospheric-scattering", "href":"https://doi.org/10.1080/01431169408954055"},
             {'href': 'https://atmosphere.copernicus.eu/catalogue#/product/urn:x-wmo:md:int.ecmwf::copernicus:cams:prod:fc:total-aod:pid094',
               'rel': 'related'},
-             {'href': 'https://doi.org/10.7289/V52R3PMS', 'rel': 'elevation-model'}]
+             {'href': 'https://doi.org/10.7289/V52R3PMS', 'rel': 'elevation-model'},
+             {'href': 'https://doi.org/10.1109/LGRS.2016.2635942', 'rel': 'water-vapor'}]
     )
 ])
 def test_evaluate_atmospheric_correction(dry_run_env, dry_run_tracer, arguments, expected):
