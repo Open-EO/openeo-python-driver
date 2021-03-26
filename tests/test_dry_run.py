@@ -544,26 +544,33 @@ def test_evaluate_sar_backscatter(dry_run_env, dry_run_tracer, arguments, expect
 
 
 def test_load_collection_properties(dry_run_env, dry_run_tracer):
-    properties = {
-        "orbitDirection": {
-            "process_graph": {
-                "od": {
-                    "process_id": "eq",
-                    "arguments": {
-                        "x": {
-                            "from_parameter": "value"
+    def get_props(direction="DESCENDING"):
+        return {
+            "orbitDirection": {
+                "process_graph": {
+                    "od": {
+                        "process_id": "eq",
+                        "arguments": {
+                            "x": {
+                                "from_parameter": "value"
+                            },
+                            "y": direction
                         },
-                        "y": "DESCENDING"
-                    },
-                    "result": True
+                        "result": True
+                    }
                 }
             }
         }
-    }
 
+    properties = get_props()
+    asc_props = get_props("ASCENDING")
     pg = {
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "properties": properties},
-               "result": True}
+               "result": False},
+        "lc2": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "properties": asc_props},
+               "result": False},
+        "merge": {"process_id": "merge_cubes", "arguments": {"cube1": {"from_node":"lc"},"cube2": {"from_node":"lc2"}},
+                "result": True}
     }
     cube = evaluate(pg, env=dry_run_env)
 
@@ -572,7 +579,14 @@ def test_load_collection_properties(dry_run_env, dry_run_tracer):
     assert len(source_constraints) == 1
     src, constraints = source_constraints.popitem()
     assert src == ("load_collection", ("S2_FOOBAR",))
-    assert constraints == {"properties": properties}
+
+    #merge order is not deterministic
+    constraints["properties"]["orbitDirection"]["process_graph"]["od"]["arguments"]["y"] = "ASCENDING"
+    assert constraints["properties"] ==  asc_props
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=False)
+    src, constraints = source_constraints.popitem()
+    assert len(constraints) == 2
 
 
 @pytest.mark.parametrize(["arguments", "expected"], [

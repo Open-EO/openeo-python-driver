@@ -276,7 +276,7 @@ class DryRunDataTracer:
                                 source_constraints[source_id][field] = temporal_extent_union(orig, value)
                             elif field == "spatial_extent":
                                 source_constraints[source_id][field] = spatial_extent_union(orig, value)
-                            elif field in {"aggregate_spatial", "sar_backscatter", "resample", "custom_cloud_mask"}:
+                            elif field in {"aggregate_spatial", "sar_backscatter", "resample", "custom_cloud_mask", "properties"}:
                                 _log.warning(f"Not merging multiple {field} constraints.")
                             else:
                                 raise ValueError("Dry run does not know how to merge: " + field)
