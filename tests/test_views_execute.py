@@ -58,6 +58,9 @@ class ApiTester(openeo_driver.testing.ApiTester):
     def last_load_collection_call(self, collection_id) -> LoadParameters:
         return self.impl.last_load_collection_call(collection_id)
 
+    def all_load_collection_calls(self, collection_id) -> LoadParameters:
+        return self.impl.all_load_collection_calls(collection_id)
+
     def result(
             self, process_graph: Union[dict, str], path="/result",
             preprocess: Callable = None
@@ -1245,6 +1248,45 @@ def test_execute_load_collection_sar_backscatter_compatibility(api100):
     })
     params = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
     assert params.sar_backscatter is None
+
+
+def test_execute_load_collection_custom_properties(api100):
+    def get_props(direction="DESCENDING"):
+        return {
+            "orbitDirection": {
+                "process_graph": {
+                    "od": {
+                        "process_id": "eq",
+                        "arguments": {
+                            "x": {
+                                "from_parameter": "value"
+                            },
+                            "y": direction
+                        },
+                        "result": True
+                    }
+                }
+            }
+        }
+
+    properties = get_props()
+    asc_props = get_props("ASCENDING")
+    pg = {
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER", "properties": properties},
+               "result": False},
+        "lc2": {"process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER", "properties": asc_props},
+               "result": False},
+        "merge": {"process_id": "merge_cubes", "arguments": {"cube1": {"from_node":"lc"},"cube2": {"from_node":"lc2"}},
+                "result": True}
+    }
+
+
+    api100.check_result(pg)
+    params = api100.all_load_collection_calls("S2_FAPAR_CLOUDCOVER")
+    print(params)
+    assert len(params) == 2
+    assert params[0].properties == properties
+    assert params[1].properties == asc_props
 
 
 def test_execute_load_collection_custom_cloud_mask(api100):

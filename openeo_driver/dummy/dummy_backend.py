@@ -40,6 +40,8 @@ def _register_load_collection_call(collection_id: str, load_params: LoadParamete
         _load_collection_calls[collection_id] = []
     _load_collection_calls[collection_id].append(load_params.copy())
 
+def all_load_collection_calls(collection_id: str) -> List[LoadParameters]:
+    return _load_collection_calls[collection_id]
 
 def last_load_collection_call(collection_id: str) -> LoadParameters:
     return _load_collection_calls[collection_id][-1]
@@ -271,14 +273,13 @@ class DummyCatalog(CollectionCatalog):
         super().__init__(all_metadata=self._COLLECTIONS)
 
     def load_collection(self, collection_id: str, load_params: LoadParameters, env: EvalEnv) -> DummyDataCube:
+        _register_load_collection_call(collection_id, load_params)
         if collection_id in _collections:
             return _collections[collection_id]
 
         image_collection = DummyDataCube(
             metadata=CollectionMetadata(metadata=self.get_collection_metadata(collection_id))
         )
-
-        _register_load_collection_call(collection_id, load_params)
 
         _collections[collection_id] = image_collection
         return image_collection
