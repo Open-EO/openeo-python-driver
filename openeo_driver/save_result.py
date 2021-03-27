@@ -4,7 +4,7 @@ import warnings
 from abc import ABC
 from pathlib import Path
 from tempfile import mkstemp
-from typing import Union
+from typing import Union,Dict
 from zipfile import ZipFile
 
 import pandas as pd
@@ -65,6 +65,19 @@ class ImageCollectionResult(SaveResult):
 
     def save_result(self, filename: str) -> str:
         return self.cube.save_result(filename=filename, format=self.format, format_options=self.options)
+
+    def write_assets(self, directory:str) -> Dict:
+        """
+        Save generated assets into a directory, return asset metadata.
+        TODO: can an asset also be a full STAC item? In principle, one openEO job can either generate a full STAC collection, or one STAC item with multiple assets...
+
+        :return: STAC assets dictionary: https://github.com/radiantearth/stac-spec/blob/master/item-spec/item-spec.md#assets
+        """
+        if "write_assets" in self.cube:
+            return self.cube.write_assets(filename=directory, format=self.format, format_options=self.options)
+        else:
+            filename = self.cube.save_result(filename=directory, format=self.format, format_options=self.options)
+            return {filename:{"href":filename}}
 
     def create_flask_response(self):
         filename = get_temp_file(suffix=".save_result.{e}".format(e=self.format.lower()))
