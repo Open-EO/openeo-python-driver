@@ -334,7 +334,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     params.aggregate_spatial_geometries = constraints.get("aggregate_spatial", {}).get("geometries")
     params.sar_backscatter = constraints.get("sar_backscatter", None)
     params.process_types = process_types
-    params.custom_mask = constraints.get("custom_cloud_mask",None)
+    params.custom_mask = constraints.get("custom_cloud_mask", {})
     params.target_crs = constraints.get("resample", {}).get("target_crs",None)
     params.target_resolution = constraints.get("resample", {}).get("resolution", None)
     return params

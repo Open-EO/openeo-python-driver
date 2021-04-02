@@ -73,7 +73,7 @@ class ImageCollectionResult(SaveResult):
 
         :return: STAC assets dictionary: https://github.com/radiantearth/stac-spec/blob/master/item-spec/item-spec.md#assets
         """
-        if "write_assets" in self.cube:
+        if "write_assets" in dir(self.cube):
             return self.cube.write_assets(filename=directory, format=self.format, format_options=self.options)
         else:
             filename = self.cube.save_result(filename=directory, format=self.format, format_options=self.options)
