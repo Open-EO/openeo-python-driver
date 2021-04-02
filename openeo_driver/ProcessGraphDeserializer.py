@@ -1041,19 +1041,6 @@ def atmospheric_correction(args: Dict, env: EvalEnv) -> object:
     return image_collection.atmospheric_correction(method,elevation_model, missionId, sza, vza, raa, gnd, aot, cwv, appendDebugBands)
 
 
-
-@non_standard_process(
-    ProcessSpec(id='water_vapor', description="Abda-based water vapor calculator")
-        .param('data', description="input data cube to be corrected", schema={"type": "object", "subtype": "raster-cube"})
-        .param(name='missionId', description="mission Id, i.e.: sentinel2", schema={"type": "string"}, required=True)
-        .returns(description="the corrected data as a data cube", schema={"type": "object", "subtype": "raster-cube"})
-)
-def water_vapor(args: Dict, env: EvalEnv) -> object:
-    image_collection = extract_arg(args, 'data')
-    missionId = extract_arg(args, 'missionId')
-    return image_collection.water_vapor(missionId)
-
-
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.0/proposals/sar_backscatter.json"))
 def sar_backscatter(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
