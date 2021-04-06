@@ -39,6 +39,7 @@ from typing import List, Union, Set, Dict, Tuple
 import shapely.geometry.base
 
 from openeo.metadata import CollectionMetadata
+from openeo_driver import filter_properties
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
@@ -103,9 +104,12 @@ class DataSource(DataTraceBase):
         return self._process
 
     @classmethod
-    def load_collection(cls, collection_id) -> 'DataSource':
+    def load_collection(cls, collection_id, properties={}) -> 'DataSource':
         """Factory for a `load_collection` DataSource."""
-        return cls(process="load_collection", arguments=(collection_id,))
+        exact_property_matches = {property_name: filter_properties.extract_literal_match(condition)
+                                  for property_name, condition in properties.items()}
+
+        return cls(process="load_collection", arguments=(collection_id, exact_property_matches))
 
     @classmethod
     def load_disk_data(cls, glob_pattern: str, format: str, options: dict) -> 'DataSource':
@@ -177,8 +181,12 @@ class DryRunDataTracer:
 
     def load_collection(self, collection_id: str, arguments: dict, metadata: dict = None) -> 'DryRunDataCube':
         """Create a DryRunDataCube from a `load_collection` process."""
-        trace = DataSource.load_collection(collection_id=collection_id)
+        properties = {**CollectionMetadata(metadata).get("_vito", "properties", default={}),
+                      **arguments.get("properties", {})}
+
+        trace = DataSource.load_collection(collection_id=collection_id, properties=properties)
         self.add_trace(trace)
+
         cube = DryRunDataCube(traces=[trace], data_tracer=self, metadata=metadata)
         if "temporal_extent" in arguments:
             cube = cube.filter_temporal(*arguments["temporal_extent"])
@@ -186,8 +194,10 @@ class DryRunDataTracer:
             cube = cube.filter_bbox(**arguments["spatial_extent"])
         if "bands" in arguments:
             cube = cube.filter_bands(arguments["bands"])
-        if "properties" in arguments:
-            cube = cube.filter_properties(arguments["properties"])
+
+        if properties:
+            cube = cube.filter_properties(properties)
+
         return cube
 
     def load_disk_data(self, glob_pattern: str, format: str, options: dict) -> 'DryRunDataCube':

@@ -369,7 +369,7 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
         return dry_run_tracer.load_collection(collection_id=collection_id, arguments=arguments, metadata=metadata)
     else:
         # Extract basic source constraints.
-        source_id = dry_run.DataSource.load_collection(collection_id=collection_id).get_source_id()
+        source_id = dry_run.DataSource.load_collection(collection_id=collection_id, properties=arguments.get("properties", {})).get_source_id()
         load_params = _extract_load_parameters(env, source_id=source_id)
         # Override with explicit arguments
         load_params.update(arguments)
