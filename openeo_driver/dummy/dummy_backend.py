@@ -266,6 +266,46 @@ class DummyCatalog(CollectionCatalog):
                 "bands": {"type": "bands", "values": ["ndvi"]}
             },
 
+        },
+        {
+            "id": "TERRASCOPE_S2_FAPAR_V2",
+            "extent": {
+                "spatial": {"bbox": [[-180, -56, 180, 83]]},
+                "temporal": {"interval": [["2015-07-06", None]]}
+            },
+            "cube:dimensions": {
+                "x": {"type": "spatial", "axis": "x"},
+                "y": {"type": "spatial", "axis": "y"},
+                "t": {"type": "temporal"},
+                "bands": {
+                    "type": "bands",
+                    "values": ["FAPAR_10M", "SCENECLASSIFICATION_20M"]
+                }
+            },
+            "summaries": {
+                "eo:bands": [
+                    {"name": "FAPAR_10M"},
+                    {"name": "SCENECLASSIFICATION_20M"}
+                ]
+            },
+            "_vito": {
+                "properties": {
+                    "resolution": {
+                        "process_graph": {
+                            "res": {
+                                "process_id": "eq",
+                                "arguments": {
+                                    "x": {
+                                        "from_parameter": "value"
+                                    },
+                                    "y": "10"
+                                },
+                                "result": True
+                            }
+                        }
+                    }
+                }
+            }
         }
     ]
 

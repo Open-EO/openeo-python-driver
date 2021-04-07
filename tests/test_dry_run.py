@@ -618,3 +618,11 @@ def test_evaluate_atmospheric_correction(dry_run_env, dry_run_tracer, arguments,
     src, links = metadata_links.popitem()
     assert src == ("load_collection", ("S2_FOOBAR", ()))
     assert links == expected
+
+
+def test_evaluate_predefined_property():
+    pg = {
+        "lc": {"process_id": "load_collection", "arguments": {"id": "TERRASCOPE_S2_FAPAR_V2"}, "result": True},
+    }
+
+    evaluate(pg, do_dry_run=True)
