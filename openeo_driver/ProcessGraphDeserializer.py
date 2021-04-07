@@ -15,7 +15,7 @@ import requests
 from shapely.geometry import shape, mapping
 
 from openeo.capabilities import ComparableVersion
-from openeo.metadata import MetadataException
+from openeo.metadata import CollectionMetadata, MetadataException
 from openeo.util import dict_no_none, load_json
 from openeo_driver import dry_run
 from openeo_driver.backend import get_backend_implementation, UserDefinedProcessMetadata, LoadParameters
@@ -363,13 +363,18 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
     if args.get("featureflags"):
         arguments["featureflags"] = extract_arg(args, 'featureflags', process_id="load_collection")
 
+    metadata = backend_implementation.catalog.get_collection_metadata(collection_id)
+
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
-        metadata = backend_implementation.catalog.get_collection_metadata(collection_id)
         return dry_run_tracer.load_collection(collection_id=collection_id, arguments=arguments, metadata=metadata)
     else:
         # Extract basic source constraints.
-        source_id = dry_run.DataSource.load_collection(collection_id=collection_id, properties=arguments.get("properties", {})).get_source_id()
+        properties = {**CollectionMetadata(metadata).get("_vito", "properties", default={}),
+                      **arguments.get("properties", {})}
+
+        source_id = dry_run.DataSource.load_collection(collection_id=collection_id,
+                                                       properties=properties).get_source_id()
         load_params = _extract_load_parameters(env, source_id=source_id)
         # Override with explicit arguments
         load_params.update(arguments)
