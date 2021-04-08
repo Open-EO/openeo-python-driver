@@ -225,7 +225,10 @@ class TestGeneral:
             {'id': 'testprovider', 'issuer': 'https://oidc.oeo.net', 'scopes': ['openid'], 'title': 'Test'},
             {
                 'id': 'eoidc', 'issuer': 'https://eo.id', 'scopes': ['openid'], 'title': 'e-OIDC',
-                'default_client': {'id': 'badcafef00d'}
+                'default_client': {'id': 'badcafef00d'},
+                'default_clients': [{
+                    'id': 'badcafef00d',
+                    'grant_types': ['urn:ietf:params:oauth:grant-type:device_code+pkce', 'refresh_token']}],
             },
             {
                 'id': 'local', 'issuer': 'http://localhost:9090/auth/realms/master', 'scopes': ['openid'],
