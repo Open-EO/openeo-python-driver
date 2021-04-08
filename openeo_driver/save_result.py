@@ -127,6 +127,33 @@ class AggregatePolygonResult(JSONResult):
         # By default, keep original (proprietary) result format
         return self.data
 
+    def write_assets(self, directory:str) -> Dict:
+        """
+        Save generated assets into a directory, return asset metadata.
+        TODO: can an asset also be a full STAC item? In principle, one openEO job can either generate a full STAC collection, or one STAC item with multiple assets...
+
+        :return: STAC assets dictionary: https://github.com/radiantearth/stac-spec/blob/master/item-spec/item-spec.md#assets
+        """
+        filename = str(Path(directory)/"timeseries.json")
+        asset = {
+            "roles": ["data"],
+            "type": "application/json"
+        }
+        if self.format.lower() in ('netcdf'):
+            filename = str(Path(directory) / "timeseries.nc")
+            self.to_netcdf(filename)
+            asset["type"] = "application/x-netcdf"
+        elif self.format.lower() == 'csv':
+            filename = str(Path(directory) / "timeseries.csv")
+            self.to_csv(filename)
+            asset["type"] = "text/csv"
+        else:
+            import json
+            with open(filename, 'w') as f:
+                json.dump(self.prepare_for_json(), f)
+        asset["href"] = filename
+        return {str(Path(filename).name): asset}
+
     def create_flask_response(self):
         if self.format.lower() in ('netcdf'):
             filename = self.to_netcdf()
