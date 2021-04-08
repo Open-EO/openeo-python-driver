@@ -1,4 +1,5 @@
 import os
+import pathlib
 import tempfile
 import warnings
 from abc import ABC
@@ -134,6 +135,7 @@ class AggregatePolygonResult(JSONResult):
 
         :return: STAC assets dictionary: https://github.com/radiantearth/stac-spec/blob/master/item-spec/item-spec.md#assets
         """
+        directory = pathlib.Path(directory).parent
         filename = str(Path(directory)/"timeseries.json")
         asset = {
             "roles": ["data"],
