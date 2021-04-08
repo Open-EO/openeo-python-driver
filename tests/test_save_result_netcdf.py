@@ -5,6 +5,8 @@ from numpy.testing import assert_array_equal
 from openeo_driver.save_result import AggregatePolygonResult
 from shapely.geometry import GeometryCollection, Polygon
 
+from openeo.metadata import CollectionMetadata
+
 
 def test_aggregate_polygon_result_basic(tmp_path):
     timeseries = {
@@ -16,10 +18,22 @@ def test_aggregate_polygon_result_basic(tmp_path):
         Polygon([(6, 1), (1, 7), (9, 9)])
     ])
 
-    result = AggregatePolygonResult(timeseries, regions=regions)
+    metadata = CollectionMetadata({
+        "cube:dimensions": {
+            "x": {"type": "spatial"},
+            "b": {"type": "bands", "values": ["red", "green","blue"]}
+        }
+    })
+
+    result = AggregatePolygonResult(timeseries, regions=regions, metadata=metadata)
     result.set_format("netcdf")
 
-    filename = result.to_netcdf(tmp_path / 'timeseries_xarray.nc')
+    assets = result.write_assets(tmp_path)
+    theAsset = assets.popitem()[1]
+    filename = theAsset['href']
+
+    assert 'application/x-netcdf' == theAsset['type']
+    assert ["red", "green", "blue"] == [b['name'] for b in theAsset['bands']]
 
     timeseries_ds = xr.open_dataset(filename)
     print(timeseries_ds)
