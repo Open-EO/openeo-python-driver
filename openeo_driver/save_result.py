@@ -16,6 +16,8 @@ from openeo_driver.datacube import DriverDataCube
 from openeo_driver.utils import replace_nan_values, EvalEnv
 from shapely.geometry import GeometryCollection, mapping
 
+from openeo.metadata import CollectionMetadata
+
 
 class SaveResult(ABC):
     """
@@ -115,12 +117,13 @@ class AggregatePolygonResult(JSONResult):
 
     """
 
-    def __init__(self, timeseries: dict, regions: GeometryCollection):
+    def __init__(self, timeseries: dict, regions: GeometryCollection, metadata:CollectionMetadata=None):
         super().__init__(data=timeseries)
         if not isinstance(regions, GeometryCollection):
             # TODO: raise exception instead of warning?
             warnings.warn("AggregatePolygonResult: GeometryCollection expected but got {t}".format(t=type(regions)))
         self._regions = regions
+        self._metadata = metadata
 
     def get_data(self):
         if self.format in ('covjson', 'coveragejson'):
@@ -154,6 +157,10 @@ class AggregatePolygonResult(JSONResult):
             with open(filename, 'w') as f:
                 json.dump(self.prepare_for_json(), f)
         asset["href"] = filename
+        if self._metadata is not None and self._metadata.has_band_dimension():
+            bands = [b._asdict() for b in self._metadata.bands]
+            asset["bands"] = bands
+
         return {str(Path(filename).name): asset}
 
     def create_flask_response(self):
