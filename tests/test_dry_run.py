@@ -505,6 +505,63 @@ def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
     assert isinstance(geometries, DelayedVector)
 
 
+def test_aggregate_spatial_read_vector_feature_collection(dry_run_env, dry_run_tracer):
+    pg = {
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "vector": {"process_id": "read_vector", "arguments": {"filename": {
+            "type": "FeatureCollection",
+            "name": "fields",
+            "crs": {
+                "type": "name",
+                "properties": {
+                    "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+                }
+            },
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]
+                    },
+                    "properties": {
+                        "CODE_OBJ": "0000000000000001"
+                    }
+                }
+            ]
+        }}},
+        "agg": {
+            "process_id": "aggregate_spatial",
+            "arguments": {
+                "data": {"from_node": "lc"},
+                "geometries": {"from_node": "vector"},
+                "reducer": {
+                    "process_graph": {
+                        "mean": {
+                            "process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True
+                        }
+                    }
+                }
+            },
+            "result": True,
+        },
+    }
+    cube = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints.popitem()
+    assert src == ("load_collection", ("S2_FOOBAR",))
+    expected_geometry_collection = shapely.geometry.GeometryCollection(
+            [shapely.geometry.shape({"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]})])
+    assert constraints == {
+        "spatial_extent": {'west': 0.0, 'south': 0.0, 'east': 8.0, 'north': 5.0, 'crs': 'EPSG:4326'},
+        "aggregate_spatial": {"geometries": expected_geometry_collection}
+    }
+    geometries, = dry_run_tracer.get_geometries()
+    assert isinstance(geometries, shapely.geometry.GeometryCollection)
+
+
 @pytest.mark.parametrize(["arguments", "expected"], [
     (
             {},

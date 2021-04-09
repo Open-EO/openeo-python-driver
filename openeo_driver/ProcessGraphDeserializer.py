@@ -938,7 +938,10 @@ def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalE
 )
 def read_vector(args: Dict, env: EvalEnv) -> DelayedVector:
     path = extract_arg(args, 'filename')
-    return DelayedVector(path)
+    if isinstance(path, dict):
+        return path
+    else:
+        return DelayedVector(path)
 
 @non_standard_process(
     ProcessSpec("raster_to_vector", description="Converts this raster data cube into a vector data cube. The bounding polygon of homogenous areas of pixels is constructed.\n"
