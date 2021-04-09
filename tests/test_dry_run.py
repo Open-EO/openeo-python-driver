@@ -551,7 +551,7 @@ def test_aggregate_spatial_read_vector_feature_collection(dry_run_env, dry_run_t
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints.popitem()
-    assert src == ("load_collection", ("S2_FOOBAR",))
+    assert src == ("load_collection", ("S2_FOOBAR", ()))
     expected_geometry_collection = shapely.geometry.GeometryCollection(
             [shapely.geometry.shape({"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]})])
     assert constraints == {
