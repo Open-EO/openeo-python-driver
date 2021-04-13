@@ -215,6 +215,17 @@ class FileNotFoundException(OpenEOApiException):
         super().__init__(message=self.message.format(file=filename))
 
 
+class FileExpiredException(OpenEOApiException):
+    status_code = 410
+    code = 'FileExpired'
+    message = "File '{file}' has expired."
+    _description = 'The requested file does not exist anymore.'
+    _tags = ['File Management']
+
+    def __init__(self, filename: str):
+        super().__init__(message=self.message.format(file=filename))
+
+
 class FileContentInvalidException(OpenEOApiException):
     status_code = 400
     code = 'FileContentInvalid'

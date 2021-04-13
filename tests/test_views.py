@@ -864,6 +864,138 @@ class TestBatchJobs:
                 'type': 'Feature'
             }
 
+    @mock.patch.dict(os.environ, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'})
+    def test_get_job_results_signed_040(self, api040):
+        with self._fresh_job_registry(next_job_id='job-370'):
+            dummy_backend.DummyBatchJobs._update_status(
+                job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
+            resp = api040.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
+        assert resp.assert_status_code(200).json == {
+            'links': [
+                {
+                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff'
+                }
+            ]
+        }
+
+    @mock.patch.dict(os.environ, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'})
+    def test_get_job_results_signed_100(self, api100):
+        with self._fresh_job_registry(next_job_id='job-372'):
+            dummy_backend.DummyBatchJobs._update_status(
+                job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
+            resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
+            assert resp.assert_status_code(200).json == {
+                'assets': {
+                    'output.tiff': {
+                        'roles': ['data'],
+                        'title': 'output.tiff',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff',
+                        'type': 'image/tiff; application=geotiff',
+                        'eo:bands': [{
+                            'name': 'NDVI',
+                            'center_wavelength': 1.23
+                        }],
+                        'file:nodata': [123]
+                    }
+                },
+                'geometry': None,
+                'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
+                'links': [
+                    {
+                        'rel': 'self',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results',
+                        'type': 'application/json'
+                    },
+                    {
+                        'rel': 'card4l-document',
+                        'href': 'http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf',
+                        'type': 'application/pdf'
+                    }
+                ],
+                'properties': {
+                    'created': '2017-01-01T09:32:12Z',
+                    'datetime': None,
+                    'card4l:processing_chain': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
+                    'card4l:specification': 'SR',
+                    'card4l:specification_version': '5.0',
+                    'processing:facility': 'VITO - SPARK',
+                    'processing:software': 'openeo-geotrellis-0.0.1'
+                },
+                'stac_extensions': ['processing',
+                                    'card4l-eo',
+                                    'https://stac-extensions.github.io/file/v1.0.0/schema.json',
+                                    'eo'],
+                'stac_version': '0.9.0',
+                'type': 'Feature'
+            }
+
+    @mock.patch('time.time', mock.MagicMock(return_value=1234))
+    @mock.patch.dict(os.environ, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'})
+    def test_get_job_results_signed_with_expiration_040(self, api040):
+        with self._fresh_job_registry(next_job_id='job-371'):
+            dummy_backend.DummyBatchJobs._update_status(
+                job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
+            resp = api040.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
+        assert resp.assert_status_code(200).json == {
+            'links': [
+                {
+                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234'
+                }
+            ]
+        }
+
+    @mock.patch('time.time', mock.MagicMock(return_value=1234))
+    @mock.patch.dict(os.environ, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'})
+    def test_get_job_results_signed_with_expiration_100(self, api100):
+        with self._fresh_job_registry(next_job_id='job-373'):
+            dummy_backend.DummyBatchJobs._update_status(
+                job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
+            resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
+            assert resp.assert_status_code(200).json == {
+                'assets': {
+                    'output.tiff': {
+                        'roles': ['data'],
+                        'title': 'output.tiff',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
+                        'type': 'image/tiff; application=geotiff',
+                        'eo:bands': [{
+                            'name': 'NDVI',
+                            'center_wavelength': 1.23
+                        }],
+                        'file:nodata': [123]
+                    }
+                },
+                'geometry': None,
+                'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
+                'links': [
+                    {
+                        'rel': 'self',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results',
+                        'type': 'application/json'
+                    },
+                    {
+                        'rel': 'card4l-document',
+                        'href': 'http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf',
+                        'type': 'application/pdf'
+                    }
+                ],
+                'properties': {
+                    'created': '2017-01-01T09:32:12Z',
+                    'datetime': None,
+                    'card4l:processing_chain': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
+                    'card4l:specification': 'SR',
+                    'card4l:specification_version': '5.0',
+                    'processing:facility': 'VITO - SPARK',
+                    'processing:software': 'openeo-geotrellis-0.0.1'
+                },
+                'stac_extensions': ['processing',
+                                    'card4l-eo',
+                                    'https://stac-extensions.github.io/file/v1.0.0/schema.json',
+                                    'eo'],
+                'stac_version': '0.9.0',
+                'type': 'Feature'
+            }
+
     def test_get_job_results_invalid_job(self, api):
         api.get('/jobs/deadbeef-f00/results', headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
 
@@ -880,6 +1012,42 @@ class TestBatchJobs:
             resp = api.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/output.tiff", headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).data == b"tiffdata"
         assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
+
+    @mock.patch.dict(os.environ, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'})
+    def test_download_result_signed(self, api, tmp_path):
+        output_root = Path(tmp_path)
+        with mock.patch.object(dummy_backend.DummyBatchJobs, '_output_root', return_value=output_root):
+            output = output_root / '07024ee9-7847-4b8a-b260-6c879a2b3cdc' / 'output.tiff'
+            output.parent.mkdir(parents=True)
+            with output.open('wb') as f:
+                f.write(b'tiffdata')
+            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff')
+        assert resp.assert_status_code(200).data == b'tiffdata'
+        assert resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
+
+    @mock.patch.dict(os.environ, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'})
+    def test_download_result_signed_invalid(self, api):
+        resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/test123/output.tiff')
+        assert resp.assert_error(403, 'CredentialsInvalid')
+
+    @mock.patch('time.time', mock.MagicMock(return_value=1234))
+    @mock.patch.dict(os.environ, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'})
+    def test_download_result_signed_with_expiration(self, api, tmp_path):
+        output_root = Path(tmp_path)
+        with mock.patch.object(dummy_backend.DummyBatchJobs, '_output_root', return_value=output_root):
+            output = output_root / '07024ee9-7847-4b8a-b260-6c879a2b3cdc' / 'output.tiff'
+            output.parent.mkdir(parents=True)
+            with output.open('wb') as f:
+                f.write(b'tiffdata')
+            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
+        assert resp.assert_status_code(200).data == b'tiffdata'
+        assert resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
+
+    @mock.patch('time.time', mock.MagicMock(return_value=3456))
+    @mock.patch.dict(os.environ, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'})
+    def test_download_result_signed_with_expiration_invalid(self, api, tmp_path):
+        resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
+        assert resp.assert_error(410, 'FileExpired')
 
     def test_get_batch_job_logs(self, api):
         resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs', headers=self.AUTH_HEADER)
