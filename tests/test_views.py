@@ -864,7 +864,7 @@ class TestBatchJobs:
                 'type': 'Feature'
             }
 
-    @mock.patch.dict(os.environ, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'})
+    @mock.patch.dict(app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'})
     def test_get_job_results_signed_040(self, api040):
         with self._fresh_job_registry(next_job_id='job-370'):
             dummy_backend.DummyBatchJobs._update_status(
@@ -878,7 +878,7 @@ class TestBatchJobs:
             ]
         }
 
-    @mock.patch.dict(os.environ, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'})
+    @mock.patch.dict(app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'})
     def test_get_job_results_signed_100(self, api100):
         with self._fresh_job_registry(next_job_id='job-372'):
             dummy_backend.DummyBatchJobs._update_status(
@@ -930,7 +930,7 @@ class TestBatchJobs:
             }
 
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
-    @mock.patch.dict(os.environ, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'})
+    @mock.patch.dict(app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'})
     def test_get_job_results_signed_with_expiration_040(self, api040):
         with self._fresh_job_registry(next_job_id='job-371'):
             dummy_backend.DummyBatchJobs._update_status(
@@ -945,7 +945,7 @@ class TestBatchJobs:
         }
 
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
-    @mock.patch.dict(os.environ, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'})
+    @mock.patch.dict(app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'})
     def test_get_job_results_signed_with_expiration_100(self, api100):
         with self._fresh_job_registry(next_job_id='job-373'):
             dummy_backend.DummyBatchJobs._update_status(
@@ -1013,7 +1013,7 @@ class TestBatchJobs:
         assert resp.assert_status_code(200).data == b"tiffdata"
         assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
 
-    @mock.patch.dict(os.environ, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'})
+    @mock.patch.dict(app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'})
     def test_download_result_signed(self, api, tmp_path):
         output_root = Path(tmp_path)
         with mock.patch.object(dummy_backend.DummyBatchJobs, '_output_root', return_value=output_root):
@@ -1025,13 +1025,13 @@ class TestBatchJobs:
         assert resp.assert_status_code(200).data == b'tiffdata'
         assert resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
 
-    @mock.patch.dict(os.environ, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'})
+    @mock.patch.dict(app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'})
     def test_download_result_signed_invalid(self, api):
         resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/test123/output.tiff')
         assert resp.assert_error(403, 'CredentialsInvalid')
 
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
-    @mock.patch.dict(os.environ, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'})
+    @mock.patch.dict(app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'})
     def test_download_result_signed_with_expiration(self, api, tmp_path):
         output_root = Path(tmp_path)
         with mock.patch.object(dummy_backend.DummyBatchJobs, '_output_root', return_value=output_root):
@@ -1044,7 +1044,7 @@ class TestBatchJobs:
         assert resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
 
     @mock.patch('time.time', mock.MagicMock(return_value=3456))
-    @mock.patch.dict(os.environ, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'})
+    @mock.patch.dict(app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'})
     def test_download_result_signed_with_expiration_invalid(self, api, tmp_path):
         resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
         assert resp.assert_error(410, 'FileExpired')

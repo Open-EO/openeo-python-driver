@@ -602,14 +602,12 @@ def list_job_results(job_id, user: User):
     def secure_token(filename, expires) -> str:
         return _compute_secure_token(job_id, user.user_id, filename, expires)
 
-    def expiration_timestamp() -> Union[str, None]:
-        if 'SIGNED_URL_EXPIRATION' in os.environ:
-            return str(time.time() + int(os.environ['SIGNED_URL_EXPIRATION']))
-        else:
-            return None
+    def expiration_timestamp() -> Union[int, None]:
+        expiration = current_app.config.get('SIGNED_URL_EXPIRATION')
+        return time.time() + int(expiration) if expiration else None
 
     def download_url(filename) -> str:
-        if os.getenv("SIGNED_URL", "FALSE").upper() == "TRUE":
+        if smart_bool(current_app.config.get('SIGNED_URL')):
             expires = expiration_timestamp()
             return url_for('.download_job_result_signed', job_id=job_id, user_base64=base64_user_id(),
                            secure_key=secure_token(filename, expires), filename=filename,
@@ -735,7 +733,12 @@ def download_job_result_signed(job_id, user_base64, secure_key, filename):
     if secure_key != _compute_secure_token(job_id, user_id, filename, expires):
         raise CredentialsInvalidException()
     if expires and int(expires) < time.time():
-        raise FileExpiredException(str(filename))
+        #TODO: use dedicated exception (https://github.com/Open-EO/openeo-api/issues/379)
+        raise OpenEOApiException(
+            status_code=410,
+            code="FileExpired",
+            message="File '{file}' has expired".format(file=filename)
+        )
     results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user_id)
     if filename not in results.keys():
         raise FilePathInvalidException(str(filename) + ' not in ' + str(list(results.keys())))
@@ -744,7 +747,7 @@ def download_job_result_signed(job_id, user_base64, secure_key, filename):
 
 
 def _compute_secure_token(job_id, user_id, filename, expiration_timestamp):
-    token_key = job_id + user_id + filename + str(expiration_timestamp) + os.environ['SIGNED_URL_SECRET']
+    token_key = job_id + user_id + filename + str(expiration_timestamp) + current_app.config.get('SIGNED_URL_SECRET')
     return md5(token_key.encode()).hexdigest()
 
 
