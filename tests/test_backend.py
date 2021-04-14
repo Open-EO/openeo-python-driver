@@ -1,7 +1,6 @@
 import pytest
 
-from openeo_driver.backend import CollectionCatalog, LoadParameters
-from openeo_driver.datastructs import SarBackscatterArgs
+from openeo_driver.backend import CollectionCatalog, LoadParameters, UserDefinedProcessMetadata
 from openeo_driver.errors import CollectionNotFoundException
 
 
@@ -34,3 +33,27 @@ def test_load_parameters():
     params.bands = ["red", "green"]
     assert params.bands == ["red", "green"]
     assert params_copy.bands is None
+
+
+def test_user_defined_process_metadata():
+    udp = UserDefinedProcessMetadata(id="enhance", process_graph={"foo": {"process_id": "foo"}})
+    assert udp.prepare_for_json() == {
+        "id": "enhance",
+        "process_graph": {"foo": {"process_id": "foo"}},
+        "parameters": None,
+        "public": False
+    }
+
+
+def test_user_defined_process_metadata_from_dict():
+    udp = UserDefinedProcessMetadata.from_dict({"id": "enhance", "process_graph": {"foo": {"process_id": "foo"}}})
+    assert udp.id == "enhance"
+    assert udp.process_graph == {"foo": {"process_id": "foo"}}
+    assert udp.parameters is None
+
+
+def test_user_defined_process_metadata_from_dict_no_id():
+    udp = UserDefinedProcessMetadata.from_dict({"process_graph": {"foo": {"process_id": "foo"}}})
+    assert udp.id is None
+    assert udp.process_graph == {"foo": {"process_id": "foo"}}
+    assert udp.parameters is None
