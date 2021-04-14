@@ -736,8 +736,8 @@ def download_job_result_signed(job_id, user_base64, secure_key, filename):
         #TODO: use dedicated exception (https://github.com/Open-EO/openeo-api/issues/379)
         raise OpenEOApiException(
             status_code=410,
-            code="FileExpired",
-            message="File '{file}' has expired".format(file=filename)
+            code="LinkExpired",
+            message="Link to file '{file}' has expired".format(file=filename)
         )
     results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user_id)
     if filename not in results.keys():
