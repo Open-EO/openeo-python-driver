@@ -1,7 +1,7 @@
 # TODO: rename this module to something in snake case? It doesn't even implement a ProcessGraphDeserializer class.
 
 # pylint: disable=unused-argument
-
+import json
 import logging
 import tempfile
 import time
@@ -210,17 +210,19 @@ def evaluate(
     # TODO avoid local import
     from openeo.internal.process_graph_visitor import ProcessGraphVisitor
     top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
+    print(f"unflattened process graph: {json.dumps(process_graph)}")
     result_node = process_graph[top_level_node]
 
     if do_dry_run:
         dry_run_tracer = do_dry_run if isinstance(do_dry_run, DryRunDataTracer) else DryRunDataTracer()
-        _log.info("Doing dry run")
+        print("Doing dry run")
         convert_node(result_node, env=env.push({ENV_DRY_RUN_TRACER: dry_run_tracer}))
         # TODO: work with a dedicated DryRunEvalEnv?
         source_constraints = dry_run_tracer.get_source_constraints()
         _log.info("Dry run extracted these source constraints: {s}".format(s=source_constraints))
         env = env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
 
+    print("Doing wet run")
     return convert_node(result_node, env=env)
 
 
@@ -324,7 +326,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
         if("process_type" in constraint):
             process_types |= set(constraint["process_type"])
 
-    constraints = source_constraints[source_id]
+    constraints = source_constraints[()]["0"].pop(0)
     params = LoadParameters()
     params.temporal_extent = constraints.get("temporal_extent", ["1970-01-01", "2070-01-01"])
     params.spatial_extent = constraints.get("spatial_extent", {})
@@ -343,6 +345,8 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
 @process
 def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
     collection_id = extract_arg(args, 'id')
+
+    print(f"load_collection got EvalEnv at {id(env)}: {env.as_dict()}")
 
     # Sanitized arguments
     arguments = {}
@@ -826,6 +830,8 @@ def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalE
 
     # first we resolve child nodes and arguments
     args = {name: convert_node(expr, env=env) for (name, expr) in args.items()}
+
+    print(f"applying process {process_id} to args {args}")
 
     # when all arguments and dependencies are resolved, we can run the process
     if parent_process == "apply":

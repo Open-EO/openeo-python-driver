@@ -207,12 +207,14 @@ class DryRunDataTracer:
         # TODO: metadata?
         return DryRunDataCube(traces=[trace], data_tracer=self)
 
-    def get_trace_leaves(self) -> Set[DataTraceBase]:
+    def get_trace_leaves(self) -> List[DataTraceBase]:
+        from collections import OrderedDict
         """Get all nodes in the tree of traces that are not parent of another trace."""
-        leaves = set(self._traces)
+        leaves = list(OrderedDict.fromkeys(self._traces))
         for trace in self._traces:
             while isinstance(trace, DataTrace):
-                leaves.discard(trace.parent)
+                if trace.parent in leaves:
+                    leaves.remove(trace.parent)
                 trace = trace.parent
         return leaves
 
@@ -231,7 +233,7 @@ class DryRunDataTracer:
         :return: dictionary mapping source id (e.g. `("load_collection", "Sentinel2")
             to dictionary with "temporal_extent", "spatial_extent", "bands" fields.
         """
-        source_constraints = {}
+        source_constraints = {(): {"0": []}}
         for leaf in self.get_trace_leaves():
             constraints = {}
             resampling_op = leaf.get_operation_closest_to_source("resample_cube_spatial")
@@ -271,31 +273,8 @@ class DryRunDataTracer:
                         constraints[op] = args[0]
                     else:
                         constraints[op] = args
-            source_id = leaf.get_source().get_source_id()
-            if merge:
-                if source_id in source_constraints:
-                    # Merge: take union where necessary
-                    for field, value in constraints.items():
-                        orig = source_constraints[source_id].get(field)
-                        if orig:
-                            if field == "bands":
-                                source_constraints[source_id][field] = bands_union(orig, value)
-                            elif field in {"process_type"}:
-                                source_constraints[source_id][field] = bands_union(orig, value)
-                            elif field == "temporal_extent":
-                                source_constraints[source_id][field] = temporal_extent_union(orig, value)
-                            elif field == "spatial_extent":
-                                source_constraints[source_id][field] = spatial_extent_union(orig, value)
-                            elif field in {"aggregate_spatial", "sar_backscatter", "resample", "custom_cloud_mask", "properties"}:
-                                _log.warning(f"Not merging multiple {field} constraints.")
-                            else:
-                                raise ValueError("Dry run does not know how to merge: " + field)
-                        else:
-                            source_constraints[source_id][field] = value
-                else:
-                    source_constraints[source_id] = constraints
-            else:
-                source_constraints[source_id] = source_constraints.get(source_id, []) + [constraints]
+
+            source_constraints[()]["0"].append(constraints)
         return source_constraints
 
     def get_geometries(
