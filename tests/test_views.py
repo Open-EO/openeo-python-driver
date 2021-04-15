@@ -1047,7 +1047,7 @@ class TestBatchJobs:
     @mock.patch.dict(app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'})
     def test_download_result_signed_with_expiration_invalid(self, api, tmp_path):
         resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
-        assert resp.assert_error(410, 'LinkExpired')
+        assert resp.assert_error(410, 'ResultLinkExpired')
 
     def test_get_batch_job_logs(self, api):
         resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs', headers=self.AUTH_HEADER)

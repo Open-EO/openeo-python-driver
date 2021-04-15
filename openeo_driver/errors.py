@@ -458,6 +458,14 @@ class ProcessParameterUnsupportedException(OpenEOApiException):
         super().__init__(message=self.message.format(process=process, parameter=parameter))
 
 
+class ResultLinkExpiredException(OpenEOApiException):
+    status_code = 410
+    code = 'ResultLinkExpired'
+    message = 'The link to the batch job result has expired. Please request the results again.'
+    _description = 'The signed URLs for batch job results have expired. Please send a request to `GET /jobs/{job_id}/results` to refresh the links.'
+    _tags: ['Batch Jobs']
+
+
 class ServiceConfigUnsupportedException(OpenEOApiException):
     status_code = 400
     code = 'ServiceConfigUnsupported'

@@ -28,7 +28,8 @@ from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefined
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
-    FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, CredentialsInvalidException
+    FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, CredentialsInvalidException, \
+    ResultLinkExpiredException
 from openeo_driver.processes import DEFAULT_NAMESPACE
 from openeo_driver.save_result import SaveResult, get_temp_file
 from openeo_driver.users import HttpAuthHandler, User
@@ -732,12 +733,7 @@ def download_job_result_signed(job_id, user_base64, secure_key, filename):
     if secure_key != _compute_secure_token(job_id, user_id, filename, expires):
         raise CredentialsInvalidException()
     if expires and int(expires) < time.time():
-        #TODO: use dedicated exception (https://github.com/Open-EO/openeo-api/issues/379)
-        raise OpenEOApiException(
-            status_code=410,
-            code="LinkExpired",
-            message="Link to file '{file}' has expired".format(file=filename)
-        )
+        raise ResultLinkExpiredException()
     results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user_id)
     if filename not in results.keys():
         raise FilePathInvalidException(str(filename) + ' not in ' + str(list(results.keys())))
