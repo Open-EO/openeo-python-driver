@@ -230,8 +230,9 @@ class DryRunDataTracer:
         Get the temporal/spatial constraints of all traced sources
 
         :param merge:
-        :return: dictionary mapping source id (e.g. `("load_collection", "Sentinel2")
-            to dictionary with "temporal_extent", "spatial_extent", "bands" fields.
+        :return: a list of constraints for sources in the same order that they appear in the process graph; the values
+        consist of a source id (e.g. `("load_collection", "Sentinel2") and a dictionary with "temporal_extent",
+        "spatial_extent", "bands" fields.
         """
         source_constraints = []
         for leaf in self.get_trace_leaves():
