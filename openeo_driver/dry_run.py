@@ -60,6 +60,9 @@ source_constraint_blockers = {
 class DataTraceBase:
     """Base class for data traces."""
 
+    def __init__(self):
+        self.children = []
+
     def __hash__(self):
         # Identity hash (e.g. memory address)
         return id(self)
@@ -76,12 +79,16 @@ class DataTraceBase:
     def describe(self) -> str:
         return "_base"
 
+    def add_child(self, child: 'DataTrace'):
+        self.children.append(child)
+
 
 class DataSource(DataTraceBase):
     """Data source: a data (cube) generating process like `load_collection`, `load_disk_data`, ..."""
     __slots__ = ["_process", "_arguments"]
 
     def __init__(self, process: str = "load_collection", arguments: Union[dict, tuple] = ()):
+        super().__init__()
         self._process = process
         self._arguments = arguments
 
@@ -127,7 +134,9 @@ class DataTrace(DataTraceBase):
     __slots__ = ["parent", "_operation", "_arguments"]
 
     def __init__(self, parent: DataTraceBase, operation: str, arguments: Union[dict, tuple]):
+        super().__init__()
         self.parent = parent
+        parent.add_child(self)
         self._operation = operation
         self._arguments = arguments
 
@@ -208,14 +217,17 @@ class DryRunDataTracer:
         return DryRunDataCube(traces=[trace], data_tracer=self)
 
     def get_trace_leaves(self) -> List[DataTraceBase]:
-        from collections import OrderedDict
         """Get all nodes in the tree of traces that are not parent of another trace."""
-        leaves = list(OrderedDict.fromkeys(self._traces))
+        leaves = []
+
+        def get_leaves(tree: DataTraceBase) -> List[DataTraceBase]:
+            return [tree] if len(tree.children) == 0 else [leaf for child in tree.children for leaf in get_leaves(child)]
+
         for trace in self._traces:
-            while isinstance(trace, DataTrace):
-                if trace.parent in leaves:
-                    leaves.remove(trace.parent)
-                trace = trace.parent
+            for leaf in get_leaves(trace):
+                if leaf not in leaves:
+                    leaves.append(leaf)
+
         return leaves
 
     def get_metadata_links(self):
