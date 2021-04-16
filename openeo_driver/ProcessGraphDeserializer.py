@@ -238,7 +238,8 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
             return processGraph
         elif 'from_parameter' in processGraph:
             try:
-                return env[processGraph['from_parameter']]
+                parameters = env.collect_parameters()
+                return parameters[processGraph['from_parameter']]
             except KeyError:
                 raise ProcessParameterRequiredException(process="n/a", parameter=processGraph['from_parameter'])
         elif 'from_argument' in processGraph:
@@ -247,7 +248,8 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
             # backwards compatibility for clients that still use 'dimension_data', can be removed when clients are upgraded
             if argument_reference == 'dimension_data':
                 argument_reference = 'data'
-            return env.get(argument_reference)
+            parameters = env.collect_parameters()
+            return parameters.get(argument_reference)
         else:
             # TODO: Don't apply `convert_node` for some special cases (e.g. geojson objects)?
             return {k:convert_node(v, env=env) for k,v in processGraph.items()}
@@ -558,8 +560,7 @@ def _evaluate_sub_process_graph(args: dict, name: str, parent_process: str, env:
     :return:
     """
     pg = extract_deep(args, name, ["process_graph", "callback"])
-    # TODO: args are injected into env? looks strange EP-3509
-    env = env.push(args, parent_process=parent_process)
+    env = env.push(parameters=args, parent_process=parent_process)
     return evaluate(pg, env=env, do_dry_run=False)
 
 
@@ -823,6 +824,7 @@ def histogram(args, env: EvalEnv):
 def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalEnv = None):
     env = env or EvalEnv()
     parent_process = env.get('parent_process')
+    parameters = env.collect_parameters()
 
     # first we resolve child nodes and arguments
     args = {name: convert_node(expr, env=env) for (name, expr) in args.items()}
@@ -841,8 +843,8 @@ def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalE
     elif parent_process in ["reduce", "reduce_dimension", "reduce_dimension_binary"]:
         # TODO EP-3285 this code path is for version <1.0.0, soon to be deprecated
         image_collection = extract_arg(args, 'data', process_id=process_id)
-        dimension = extract_arg(env, 'dimension')
-        binary = env.get('binary',False) or parent_process == "reduce_dimension_binary"
+        dimension = extract_arg(parameters, 'dimension')
+        binary = parameters.get('binary', False) or parent_process == "reduce_dimension_binary"
         dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         if 'run_udf' == process_id and not binary:
             udf = _get_udf(args)
@@ -857,8 +859,8 @@ def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalE
         return image_collection.reduce(process_id, dimension)
     elif parent_process == 'apply_dimension':
         image_collection = extract_arg(args, 'data', process_id=process_id)
-        dimension = env.get('dimension', None) # By default, applies the the process on all pixel values (as apply does).
-        target_dimension = env.get('target_dimension', None)
+        dimension = parameters.get('dimension', None) # By default, applies the the process on all pixel values (as apply does).
+        target_dimension = parameters.get('target_dimension', None)
         dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         transformed_collection = None
         if process_id == "run_udf":
@@ -876,7 +878,7 @@ def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalE
         return transformed_collection
     elif parent_process in ['aggregate_polygon', 'aggregate_spatial']:
         image_collection = extract_arg(args, 'data', process_id=process_id)
-        polygons = extract_arg_list(env, ['polygons', 'geometries'])
+        polygons = extract_arg_list(parameters, ['polygons', 'geometries'])
 
         if isinstance(polygons, dict):
             geometries = geojson_to_geometry(polygons)
@@ -888,9 +890,9 @@ def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalE
 
     elif parent_process == 'aggregate_temporal':
         image_collection = extract_arg(args, 'data', process_id=process_id)
-        intervals = extract_arg(env, 'intervals')
-        labels = extract_arg(env, 'labels')
-        dimension = env.get('dimension', None)
+        intervals = extract_arg(parameters, 'intervals')
+        labels = extract_arg(parameters, 'labels')
+        dimension = parameters.get('dimension', None)
         if dimension is not None:
             dimension, _, _ = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         else:
@@ -975,7 +977,7 @@ def _evaluate_process_graph_process(
                 args[name] = param["default"]
             else:
                 raise ProcessParameterRequiredException(process=process_id, parameter=name)
-    env = env.push(args)
+    env = env.push(parameters=args)
     return evaluate(process_graph, env=env, do_dry_run=False)
 
 

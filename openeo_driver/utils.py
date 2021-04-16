@@ -20,6 +20,10 @@ class EvalEnv:
     This layering of immutable key-value mappings allows
     "overwriting" keys when walking "up" from the result node of a process graph
     and restoring original values when walking "down" again.
+
+    A common key is "parameters" under which the arguments of the
+    current process should be pushed to build layered scopes
+    of process arguments accessible through "from_parameter" references.
     """
 
     def __init__(self, values: dict = None, parent: 'EvalEnv' = None):
@@ -44,9 +48,23 @@ class EvalEnv:
             return default
 
     def push(self, values: dict = None, **kwargs) -> 'EvalEnv':
-        """Create new EvalStack by pushing new values (as dict argument or through kwargs"""
+        """Create new EvalStack by pushing new values (as dict argument or through kwargs)"""
         merged = {**(values or {}), **kwargs}
         return EvalEnv(values=merged, parent=self)
+
+    def collect(self, key: str) -> dict:
+        """
+        Walk the parent chain, collect the values (which must be dicts) for given key and combine to a single dict
+        """
+        d = self.get(key, default={})
+        assert isinstance(d, dict)
+        if self._parent:
+            d = {**self._parent.collect(key=key), **d}
+        return d
+
+    def collect_parameters(self) -> dict:
+        """Collect single dict of all parameters"""
+        return self.collect("parameters")
 
     def as_dict(self) -> dict:
         if self._parent:

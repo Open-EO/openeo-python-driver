@@ -91,6 +91,19 @@ def test_eval_stack_as_dict():
     assert s3.as_dict() == {"foo": "meh", "xev": "zup", 1: 2, 3: 4}
 
 
+def test_eval_stack_parameters():
+    s0 = EvalEnv()
+    s1 = s0.push(parameters={"color": "red", "size": 1})
+    s2 = s1.push({"parameters": {"size": 3}})
+    s3 = s2.push(user="alice")
+    s4 = s3.push(parameters={"color": "green", "height": 88})
+    assert s0.collect_parameters() == {}
+    assert s1.collect_parameters() == {"color": "red", "size": 1}
+    assert s2.collect_parameters() == {"color": "red", "size": 3}
+    assert s3.collect_parameters() == {"color": "red", "size": 3}
+    assert s4.collect_parameters() == {"color": "green", "size": 3, "height": 88}
+
+
 @pytest.mark.parametrize(["obj", "result"], [
     (123, 123),
     (23.45, 23.45),
