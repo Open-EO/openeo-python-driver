@@ -48,6 +48,7 @@ setup(
         'netCDF4~=1.5.4',
         'openeo_udf>=1.0.0rc3',
         'flask-cors',
+        'pyproj',
     ],
     extras_require={
         "dev": tests_require,
