@@ -463,7 +463,7 @@ class ResultLinkExpiredException(OpenEOApiException):
     code = 'ResultLinkExpired'
     message = 'The link to the batch job result has expired. Please request the results again.'
     _description = 'The signed URLs for batch job results have expired. Please send a request to `GET /jobs/{job_id}/results` to refresh the links.'
-    _tags: ['Batch Jobs']
+    _tags = ['Batch Jobs']
 
 
 class ServiceConfigUnsupportedException(OpenEOApiException):
