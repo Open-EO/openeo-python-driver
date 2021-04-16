@@ -225,7 +225,7 @@ class DryRunDataTracer:
             result[source_id]=leaf.get_arguments_by_operation("log_metadata_link")
         return result
 
-    def get_source_constraints(self, merge=True) -> Dict[tuple, dict]:
+    def get_source_constraints(self, merge=True) -> List[Tuple[tuple, dict]]:
         """
         Get the temporal/spatial constraints of all traced sources
 
@@ -233,7 +233,7 @@ class DryRunDataTracer:
         :return: dictionary mapping source id (e.g. `("load_collection", "Sentinel2")
             to dictionary with "temporal_extent", "spatial_extent", "bands" fields.
         """
-        source_constraints = {(): {"0": []}}
+        source_constraints = []
         for leaf in self.get_trace_leaves():
             constraints = {}
             resampling_op = leaf.get_operation_closest_to_source("resample_cube_spatial")
@@ -274,7 +274,8 @@ class DryRunDataTracer:
                     else:
                         constraints[op] = args
 
-            source_constraints[()]["0"].append(constraints)
+            source_id = leaf.get_source().get_source_id()
+            source_constraints.append((source_id, constraints))
         return source_constraints
 
     def get_geometries(
