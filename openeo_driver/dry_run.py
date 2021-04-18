@@ -221,7 +221,8 @@ class DryRunDataTracer:
         leaves = []
 
         def get_leaves(tree: DataTraceBase) -> List[DataTraceBase]:
-            return [tree] if len(tree.children) == 0 else [leaf for child in tree.children for leaf in get_leaves(child)]
+            return ([tree] if len(tree.children) == 0
+                    else [leaf for child in tree.children for leaf in get_leaves(child)])
 
         for trace in self._traces:
             for leaf in get_leaves(trace):

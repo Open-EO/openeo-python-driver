@@ -127,6 +127,14 @@ def test_evaluate_basic_filter_temporal(dry_run_env, dry_run_tracer):
     }
     cube = evaluate(pg, env=dry_run_env)
 
+    """
+    source_constraints = dry_run_tracer.get_source_constraints(merge=False)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints.popitem()
+    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert constraints == [{"temporal_extent": [("2020-02-02", "2020-03-03")]}]
+    """
+
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
@@ -199,6 +207,14 @@ def test_evaluate_graph_diamond(dry_run_env, dry_run_tracer):
     }
     cube = evaluate(pg, env=dry_run_env)
 
+    """
+    source_constraints = dry_run_tracer.get_source_constraints(merge=False)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints.popitem()
+    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert sorted(constraints, key=str) == [
+    """
+
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 2
     assert source_constraints == [(
@@ -245,6 +261,21 @@ def test_evaluate_load_collection_and_filter_extents(dry_run_env, dry_run_tracer
         }
     }
     cube = evaluate(pg, env=dry_run_env)
+
+    """
+    source_constraints = dry_run_tracer.get_source_constraints(merge=False)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints.popitem()
+    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert constraints == [{
+        "temporal_extent": [("2020-01-01", "2020-10-10"), ("2020-02-02", "2020-03-03"), ],
+        "spatial_extent": [
+            {"west": 0, "south": 50, "east": 5, "north": 55, "crs": "EPSG:4326"},
+            {"west": 1, "south": 51, "east": 3, "north": 53, "crs": "EPSG:4326"}
+        ],
+        "bands": [["red", "green", "blue"], ["red"]],
+    }]
+    """
 
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
@@ -351,6 +382,21 @@ def test_evaluate_load_collection_and_filter_extents_dynamic(dry_run_env, dry_ru
         }
     }
     cube = evaluate(pg, env=dry_run_env)
+
+    """
+    source_constraints = dry_run_tracer.get_source_constraints(merge=False)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints.popitem()
+    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert constraints == [{
+        "temporal_extent": [("2020-01-01", "2020-10-10"), ("2020-02-02", "2020-03-03")],
+        "spatial_extent": [
+            {"west": 1, "south": 50, "east": 5, "north": 55, "crs": "EPSG:4326"},
+            {"west": 2.0, "south": 51, "east": 3, "north": 53, "crs": "EPSG:4326"}
+        ],
+        "bands": [["blue", "green", "red"], ["blue"]],
+    }]
+    """
 
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
