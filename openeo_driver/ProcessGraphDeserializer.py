@@ -1,7 +1,6 @@
 # TODO: rename this module to something in snake case? It doesn't even implement a ProcessGraphDeserializer class.
 
 # pylint: disable=unused-argument
-
 import logging
 import tempfile
 import time
@@ -316,7 +315,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     source_constraints = env[ENV_SOURCE_CONSTRAINTS]
     global_extent = None
     process_types = set()
-    for constraint in source_constraints.values():
+    for _, constraint in source_constraints:
         if("spatial_extent" in constraint):
             extent = constraint["spatial_extent"]
             if(global_extent==None):
@@ -326,7 +325,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
         if("process_type" in constraint):
             process_types |= set(constraint["process_type"])
 
-    constraints = source_constraints[source_id]
+    _, constraints = source_constraints.pop(0)
     params = LoadParameters()
     params.temporal_extent = constraints.get("temporal_extent", ["1970-01-01", "2070-01-01"])
     params.spatial_extent = constraints.get("spatial_extent", {})
@@ -826,8 +825,8 @@ def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalE
     parent_process = env.get('parent_process')
     parameters = env.collect_parameters()
 
-    # first we resolve child nodes and arguments
-    args = {name: convert_node(expr, env=env) for (name, expr) in args.items()}
+    # first we resolve child nodes and arguments in an arbitrary but deterministic order
+    args = {name: convert_node(expr, env=env) for (name, expr) in sorted(args.items())}
 
     # when all arguments and dependencies are resolved, we can run the process
     if parent_process == "apply":

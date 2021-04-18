@@ -60,6 +60,9 @@ source_constraint_blockers = {
 class DataTraceBase:
     """Base class for data traces."""
 
+    def __init__(self):
+        self.children = []
+
     def __hash__(self):
         # Identity hash (e.g. memory address)
         return id(self)
@@ -76,12 +79,16 @@ class DataTraceBase:
     def describe(self) -> str:
         return "_base"
 
+    def add_child(self, child: 'DataTrace'):
+        self.children.append(child)
+
 
 class DataSource(DataTraceBase):
     """Data source: a data (cube) generating process like `load_collection`, `load_disk_data`, ..."""
     __slots__ = ["_process", "_arguments"]
 
     def __init__(self, process: str = "load_collection", arguments: Union[dict, tuple] = ()):
+        super().__init__()
         self._process = process
         self._arguments = arguments
 
@@ -127,7 +134,9 @@ class DataTrace(DataTraceBase):
     __slots__ = ["parent", "_operation", "_arguments"]
 
     def __init__(self, parent: DataTraceBase, operation: str, arguments: Union[dict, tuple]):
+        super().__init__()
         self.parent = parent
+        parent.add_child(self)
         self._operation = operation
         self._arguments = arguments
 
@@ -207,13 +216,19 @@ class DryRunDataTracer:
         # TODO: metadata?
         return DryRunDataCube(traces=[trace], data_tracer=self)
 
-    def get_trace_leaves(self) -> Set[DataTraceBase]:
+    def get_trace_leaves(self) -> List[DataTraceBase]:
         """Get all nodes in the tree of traces that are not parent of another trace."""
-        leaves = set(self._traces)
+        leaves = []
+
+        def get_leaves(tree: DataTraceBase) -> List[DataTraceBase]:
+            return ([tree] if len(tree.children) == 0
+                    else [leaf for child in tree.children for leaf in get_leaves(child)])
+
         for trace in self._traces:
-            while isinstance(trace, DataTrace):
-                leaves.discard(trace.parent)
-                trace = trace.parent
+            for leaf in get_leaves(trace):
+                if leaf not in leaves:
+                    leaves.append(leaf)
+
         return leaves
 
     def get_metadata_links(self):
@@ -223,15 +238,16 @@ class DryRunDataTracer:
             result[source_id]=leaf.get_arguments_by_operation("log_metadata_link")
         return result
 
-    def get_source_constraints(self, merge=True) -> Dict[tuple, dict]:
+    def get_source_constraints(self, merge=True) -> List[Tuple[tuple, dict]]:
         """
         Get the temporal/spatial constraints of all traced sources
 
         :param merge:
-        :return: dictionary mapping source id (e.g. `("load_collection", "Sentinel2")
-            to dictionary with "temporal_extent", "spatial_extent", "bands" fields.
+        :return: a list of constraints for sources in the same order that they appear in the process graph; the values
+        consist of a source id (e.g. `("load_collection", "Sentinel2") and a dictionary with "temporal_extent",
+        "spatial_extent", "bands" fields.
         """
-        source_constraints = {}
+        source_constraints = []
         for leaf in self.get_trace_leaves():
             constraints = {}
             resampling_op = leaf.get_operation_closest_to_source("resample_cube_spatial")
@@ -271,31 +287,9 @@ class DryRunDataTracer:
                         constraints[op] = args[0]
                     else:
                         constraints[op] = args
+
             source_id = leaf.get_source().get_source_id()
-            if merge:
-                if source_id in source_constraints:
-                    # Merge: take union where necessary
-                    for field, value in constraints.items():
-                        orig = source_constraints[source_id].get(field)
-                        if orig:
-                            if field == "bands":
-                                source_constraints[source_id][field] = bands_union(orig, value)
-                            elif field in {"process_type"}:
-                                source_constraints[source_id][field] = bands_union(orig, value)
-                            elif field == "temporal_extent":
-                                source_constraints[source_id][field] = temporal_extent_union(orig, value)
-                            elif field == "spatial_extent":
-                                source_constraints[source_id][field] = spatial_extent_union(orig, value)
-                            elif field in {"aggregate_spatial", "sar_backscatter", "resample", "custom_cloud_mask", "properties"}:
-                                _log.warning(f"Not merging multiple {field} constraints.")
-                            else:
-                                raise ValueError("Dry run does not know how to merge: " + field)
-                        else:
-                            source_constraints[source_id][field] = value
-                else:
-                    source_constraints[source_id] = constraints
-            else:
-                source_constraints[source_id] = source_constraints.get(source_id, []) + [constraints]
+            source_constraints.append((source_id, constraints))
         return source_constraints
 
     def get_geometries(
