@@ -635,3 +635,60 @@ def test_evaluate_predefined_property():
     }
 
     evaluate(pg, do_dry_run=True)
+
+
+def test_sources_are_subject_to_correct_constraints(dry_run_env, dry_run_tracer):
+    pg = {
+        'loadcollection1': {'process_id': 'load_collection',
+                            'arguments': {'bands': ['VV', 'VH'], 'id': 'S2_FOOBAR',
+                                          'spatial_extent': {'west': 11.465226, 'east': 11.465435, 'south': 46.343118,
+                                                             'north': 46.343281, 'crs': 'EPSG:4326'},
+                                          'temporal_extent': ['2018-01-01', '2018-01-01']}},
+        'sarbackscatter1': {'process_id': 'sar_backscatter',
+                            'arguments': {'coefficient': 'sigma0-ellipsoid', 'contributing_area': False,
+                                          'data': {'from_node': 'loadcollection1'}, 'elevation_model': None,
+                                          'ellipsoid_incidence_angle': False, 'local_incidence_angle': False,
+                                          'mask': False, 'noise_removal': True}},
+        'renamelabels1': {'process_id': 'rename_labels',
+                          'arguments': {'data': {'from_node': 'sarbackscatter1'}, 'dimension': 'bands',
+                                        'source': ['VV', 'VH'], 'target': ['VV_sigma0', 'VH_sigma0']}},
+        'sarbackscatter2': {'process_id': 'sar_backscatter',
+                            'arguments': {'coefficient': 'gamma0-terrain', 'contributing_area': False,
+                                          'data': {'from_node': 'loadcollection1'}, 'elevation_model': None,
+                                          'ellipsoid_incidence_angle': False, 'local_incidence_angle': False,
+                                          'mask': False, 'noise_removal': True}},
+        'renamelabels2': {'process_id': 'rename_labels',
+                          'arguments': {'data': {'from_node': 'sarbackscatter2'}, 'dimension': 'bands',
+                                        'source': ['VV', 'VH'], 'target': ['VV_gamma0', 'VH_gamma0']}},
+        'mergecubes1': {'process_id': 'merge_cubes', 'arguments': {'cube1': {'from_node': 'renamelabels1'},
+                                                                   'cube2': {'from_node': 'renamelabels2'}},
+                        'result': True}
+    }
+    cube = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 2
+
+    src, constraints = source_constraints[0]
+    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert constraints == {
+        "temporal_extent": ('2018-01-01', '2018-01-01'),
+        "spatial_extent": {'west': 11.465226, 'east': 11.465435, 'south': 46.343118, 'north': 46.343281,
+                           'crs': 'EPSG:4326'},
+        'bands': ['VV', 'VH'],
+        'sar_backscatter': SarBackscatterArgs(coefficient='sigma0-ellipsoid', elevation_model=None, mask=False,
+                                              contributing_area=False, local_incidence_angle=False,
+                                              ellipsoid_incidence_angle=False, noise_removal=True, options={})
+    }
+
+    src, constraints = source_constraints[1]
+    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert constraints == {
+        "temporal_extent": ('2018-01-01', '2018-01-01'),
+        "spatial_extent": {'west': 11.465226, 'east': 11.465435, 'south': 46.343118, 'north': 46.343281,
+                           'crs': 'EPSG:4326'},
+        'bands': ['VV', 'VH'],
+        'sar_backscatter': SarBackscatterArgs(coefficient='gamma0-terrain', elevation_model=None, mask=False,
+                                              contributing_area=False, local_incidence_angle=False,
+                                              ellipsoid_incidence_angle=False, noise_removal=True, options={})
+    }
