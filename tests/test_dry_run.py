@@ -1,7 +1,8 @@
 import pytest
 import shapely.geometry
 
-from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER,_extract_load_parameters,ENV_SOURCE_CONSTRAINTS
+from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER, _extract_load_parameters, \
+    ENV_SOURCE_CONSTRAINTS
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer, DataSource, DataTrace
@@ -47,12 +48,22 @@ def test_data_source_hashable():
 
 def test_data_trace():
     source = DataSource.load_collection("S2")
-    trace = DataTrace(parent=source, operation="filter_bbox", arguments={"bbox": "Belgium"})
-    trace = DataTrace(parent=trace, operation="filter_bbox", arguments={"bbox": "Mol"})
-    trace = DataTrace(parent=trace, operation="ndvi", arguments={"red": "B04"})
+    t1 = trace = DataTrace(parent=source, operation="filter_bbox", arguments={"bbox": "Belgium"})
+    t2 = trace = DataTrace(parent=trace, operation="filter_bbox", arguments={"bbox": "Mol"})
+    t3 = trace = DataTrace(parent=trace, operation="ndvi", arguments={"red": "B04"})
     assert trace.get_source() is source
     assert trace.get_arguments_by_operation("filter_bbox") == [{"bbox": "Belgium"}, {"bbox": "Mol"}]
     assert list(trace.get_arguments_by_operation("ndvi")) == [{"red": "B04"}]
+
+    assert trace.get_operation_closest_to_source("load_collection") is source
+    assert trace.get_operation_closest_to_source("filter_bbox") is t1
+    assert trace.get_operation_closest_to_source("ndvi") is t3
+    assert trace.get_operation_closest_to_source(["load_collection"]) is source
+    assert trace.get_operation_closest_to_source(["filter_bbox", "ndvi"]) is t1
+    assert trace.get_operation_closest_to_source(["load_collection", "filter_bbox", "ndvi"]) is source
+    assert trace.get_operation_closest_to_source("foobar") is None
+    assert trace.get_operation_closest_to_source(["foobar"]) is None
+    assert trace.get_operation_closest_to_source(["foobar", "filter_bbox"]) is t1
 
 
 def test_dry_run_data_tracer():

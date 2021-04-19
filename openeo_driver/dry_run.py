@@ -73,7 +73,7 @@ class DataTraceBase:
     def get_arguments_by_operation(self, operation: str) -> List[Union[dict, tuple]]:
         return []
 
-    def get_operation_closest_to_source(self, operation:str) -> 'DataTraceBase':
+    def get_operation_closest_to_source(self, operations: Union[str, List[str]]) -> Union["DataTraceBase", None]:
         raise NotImplementedError
 
     def describe(self) -> str:
@@ -99,8 +99,11 @@ class DataSource(DataTraceBase):
         """Identifier for source (hashable tuple, to be used as dict key for example)."""
         return to_hashable((self._process, self._arguments))
 
-    def get_operation_closest_to_source(self, operation:str):
-        return self if operation == self._process else None
+    def get_operation_closest_to_source(self, operations: Union[str, List[str]]) -> Union["DataTraceBase", None]:
+        if not isinstance(operations, list):
+            operations = [operations]
+        if self._process in operations:
+            return self
 
     def __repr__(self):
         return '<{c}#{i}({p!r}, {a!r})>'.format(
@@ -150,14 +153,15 @@ class DataTrace(DataTraceBase):
             res.append(self._arguments)
         return res
 
-    def get_operation_closest_to_source(self, operation:Union[str,List[str]]):
-        parent_op = self.parent.get_operation_closest_to_source(operation)
-        if(parent_op != None):
+    def get_operation_closest_to_source(self, operations: Union[str, List[str]]) -> Union["DataTraceBase", None]:
+        if not isinstance(operations, list):
+            operations = [operations]
+        # First look up in parent (because we want the one closest to source)
+        parent_op = self.parent.get_operation_closest_to_source(operations)
+        if parent_op:
             return parent_op
-        elif(self._operation in operation):
+        elif self._operation in operations:
             return self
-        else:
-            return None
 
     def __repr__(self):
         return '<{c}#{i}(#{p}, {o}, {a})>'.format(
