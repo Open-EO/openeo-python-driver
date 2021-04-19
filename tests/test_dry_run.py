@@ -5,7 +5,7 @@ from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER,
     ENV_SOURCE_CONSTRAINTS
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.dry_run import DryRunDataTracer, DataSource, DataTrace
+from openeo_driver.dry_run import DryRunDataTracer, DataSource, DataTrace, ProcessType
 from openeo_driver.testing import IgnoreOrder
 from openeo_driver.utils import EvalEnv
 from tests.data import get_path
@@ -703,3 +703,130 @@ def test_sources_are_subject_to_correct_constraints(dry_run_env, dry_run_tracer)
                                               contributing_area=False, local_incidence_angle=False,
                                               ellipsoid_incidence_angle=False, noise_removal=True, options={})
     }
+
+
+def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
+    """based on use case of https://jira.vito.be/browse/EP-3747"""
+    pg = {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FOOBAR", "bands": ["B04", "B08"]}
+        },
+        "reducedimension1": {
+            "process_id": "reduce_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "bands",
+                "reducer": {
+                    "process_graph": {
+                        "arrayelement1": {
+                            "process_id": "array_element",
+                            "arguments": {"data": {"from_parameter": "data"}, "index": 1}
+                        },
+                        "arrayelement2": {
+                            "process_id": "array_element",
+                            "arguments": {"data": {"from_parameter": "data"}, "index": 0}
+                        },
+                        "subtract1": {
+                            "process_id": "subtract",
+                            "arguments": {"x": {"from_node": "arrayelement1"}, "y": {"from_node": "arrayelement2"}}
+                        },
+                        "add1": {
+                            "process_id": "add",
+                            "arguments": {"x": {"from_node": "arrayelement1"}, "y": {"from_node": "arrayelement2"}}
+                        },
+                        "divide1": {
+                            "process_id": "divide",
+                            "arguments": {"x": {"from_node": "subtract1"}, "y": {"from_node": "add1"}},
+                            "result": True
+                        }
+                    }
+                }
+            }
+        },
+        "adddimension1": {
+            "process_id": "add_dimension",
+            "arguments": {
+                "data": {"from_node": "reducedimension1"}, "label": "s2_ndvi", "name": "bands",
+                "type": "bands"}
+        },
+        "loadcollection2": {
+            "process_id": "load_collection",
+            "arguments": {"id": "PROBAV_L3_S10_TOC_NDVI_333M_V2", "bands": ["ndvi"], }
+        },
+        "resamplecubespatial1": {
+            "process_id": "resample_cube_spatial",
+            "arguments": {
+                "data": {"from_node": "loadcollection2"},
+                "method": "near",
+                "target": {"from_node": "adddimension1"}
+            }
+        },
+        "maskpolygon1": {
+            "process_id": "mask_polygon",
+            "arguments": {
+                "data": {"from_node": "resamplecubespatial1"},
+                "mask": {
+                    "type": "Polygon",
+                    "coordinates": [[
+                        [5.03536, 51.219], [5.03586, 51.230], [5.01754, 51.231], [5.01704, 51.219], [5.03536, 51.219]
+                    ]]
+                }
+            }
+        },
+        "mergecubes1": {
+            "process_id": "merge_cubes",
+            "arguments": {
+                "cube1": {"from_node": "adddimension1"},
+                "cube2": {"from_node": "maskpolygon1"}
+            }
+        },
+        "filtertemporal1": {
+            "process_id": "filter_temporal",
+            "arguments": {
+                "data": {"from_node": "mergecubes1"},
+                "extent": ["2019-03-01", "2019-04-01"]
+            }
+        },
+        "filterbbox1": {
+            "process_id": "filter_bbox",
+            "arguments": {
+                "data": {"from_node": "filtertemporal1"},
+                "extent": {
+                    "west": 640860.0, "east": 642140.0, "north": 5677450.0, "south": 5676170.0, "crs": "EPSG:32631"
+                }
+            },
+            "result": True
+        }
+    }
+
+    cube = evaluate(pg, env=dry_run_env)
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert source_constraints == [
+        (
+            ('load_collection', ('S2_FOOBAR', ())),
+            {
+                'bands': ['B04', 'B08'],
+                'spatial_extent': {'crs': 'EPSG:32631', 'east': 642140.0, 'north': 5677450.0, 'south': 5676170.0,
+                                   'west': 640860.0},
+                'temporal_extent': ('2019-03-01', '2019-04-01')}
+        ),
+        (
+            ('load_collection', ('PROBAV_L3_S10_TOC_NDVI_333M_V2', ())),
+            {
+                'bands': ['ndvi'],
+                'process_type': [ProcessType.FOCAL_SPACE],
+                'resample': {'resolution': [10, 10], 'target_crs': 'AUTO:42001'},
+                'spatial_extent': {'crs': 'EPSG:4326', 'east': 5.03586, 'north': 51.231, 'south': 51.219,
+                                   'west': 5.01704},
+                'temporal_extent': ('2019-03-01', '2019-04-01')}
+        ),
+        (
+            ('load_collection', ('S2_FOOBAR', ())),
+            {
+                'bands': ['B04', 'B08'],
+                'spatial_extent': {'crs': 'EPSG:4326', 'east': 5.03586, 'north': 51.231, 'south': 51.219,
+                                   'west': 5.01704},
+                'temporal_extent': ('2019-03-01', '2019-04-01')}
+        )
+    ]

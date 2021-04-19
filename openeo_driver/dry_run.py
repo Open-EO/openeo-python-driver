@@ -336,6 +336,7 @@ class DryRunDataCube(DriverDataCube):
         self._data_tracer = data_tracer
 
     def _process(self, operation, arguments) -> 'DryRunDataCube':
+        """Helper to handle single-cube operations"""
         # New data cube with operation added to each trace
         traces = self._data_tracer.process_traces(traces=self._traces, operation=operation, arguments=arguments)
         # TODO: manipulate metadata properly?
@@ -363,7 +364,7 @@ class DryRunDataCube(DriverDataCube):
     def mask(self, mask: 'DryRunDataCube', replacement=None) -> 'DryRunDataCube':
         # TODO: if mask cube has no temporal or bbox extent: copy from self?
         # TODO: or add reference to the self trace to the mask trace and vice versa?
-        cube = self._process("mask",{"mask":mask})
+        cube = self._process("mask", {"mask": mask})
         return DryRunDataCube(
             traces=cube._traces + mask._traces, data_tracer=cube._data_tracer,
             metadata=cube.metadata
@@ -415,8 +416,13 @@ class DryRunDataCube(DriverDataCube):
         return self.aggregate_spatial(geometries=regions, reducer=func)
 
     def resample_cube_spatial(self, target: 'DryRunDataCube', method: str = 'near') -> 'DryRunDataCube':
-        dc = self._process("process_type",[ProcessType.FOCAL_SPACE])
-        return dc._process("resample_cube_spatial", arguments={"target":target,"method":method})
+        cube = self._process("process_type", [ProcessType.FOCAL_SPACE])
+        cube = cube._process("resample_cube_spatial", arguments={"target": target, "method": method})
+        return DryRunDataCube(
+            traces=cube._traces + target._traces, data_tracer=self._data_tracer,
+            # TODO: properly merge (other) metadata?
+            metadata=self.metadata
+        )
 
     def reduce_dimension(self, reducer, dimension: str) -> 'DryRunDataCube':
         dc = self
