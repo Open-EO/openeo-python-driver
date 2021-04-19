@@ -316,13 +316,10 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     global_extent = None
     process_types = set()
     for _, constraint in source_constraints:
-        if("spatial_extent" in constraint):
+        if "spatial_extent" in constraint:
             extent = constraint["spatial_extent"]
-            if(global_extent==None):
-                global_extent = extent
-            else:
-                global_extent = spatial_extent_union(global_extent,extent)
-        if("process_type" in constraint):
+            global_extent = spatial_extent_union(global_extent, extent) if global_extent else extent
+        if "process_type" in constraint:
             process_types |= set(constraint["process_type"])
 
     _, constraints = source_constraints.pop(0)

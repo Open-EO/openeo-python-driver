@@ -1,7 +1,7 @@
 import pytest
 
 from openeo_driver.utils import smart_bool, EvalEnv, to_hashable, bands_union, temporal_extent_union, \
-    spatial_extent_union, dict_item
+    spatial_extent_union, dict_item, reproject_bounding_box
 
 
 def test_smart_bool():
@@ -169,6 +169,38 @@ def test_spatial_extent_union():
         {"west": -5, "south": 50, "east": 3, "north": 53},
         {"west": 3, "south": 53, "east": 4, "north": 54},
     ) == {"west": -5, "south": 50, "east": 4, "north": 54, "crs": "EPSG:4326"}
+
+
+def test_spatial_extent_union_mixed_crs():
+    bbox1 = {"west": 640860.0, "south": 5676170.0, "east": 642140.0, "north": 5677450.0, "crs": "EPSG:32631"}
+    bbox2 = {"west": 5.017, "south": 51.21, "east": 5.035, "north": 51.23, "crs": "EPSG:4326"}
+    assert spatial_extent_union(bbox1, bbox2) == {
+        "west": 640824.9450876965, "south": 5675111.354480841, "north": 5677450.0, "east": 642143.1739784481,
+        "crs": "EPSG:32631",
+    }
+    assert spatial_extent_union(bbox2, bbox1) == {
+        "west": 5.017, "south": 51.21, "east": 5.035868037661473, "north": 51.2310228422003,
+        "crs": "EPSG:4326",
+    }
+
+
+@pytest.mark.parametrize(["crs", "bbox"], [
+    ("EPSG:32631", {"west": 640800, "south": 5676000, "east": 642200, "north": 5677000}),
+    ("EPSG:4326", {"west": 5.01, "south": 51.2, "east": 5.1, "north": 51.5}),
+])
+def test_reproject_bounding_box_same(crs, bbox):
+    reprojected = reproject_bounding_box(bbox, from_crs=crs, to_crs=crs)
+    assert reprojected == dict(crs=crs, **bbox)
+
+
+def test_reproject_bounding_box():
+    bbox = {"west": 640800, "south": 5676000, "east": 642200.0, "north": 5677000.0}
+    reprojected = reproject_bounding_box(bbox, from_crs="EPSG:32631", to_crs="EPSG:4326")
+    assert reprojected == {
+        "west": 5.016118467277098, "south": 51.217660146353246,
+        "east": 5.036548264535997, "north": 51.22699369149726,
+        "crs": "EPSG:4326",
+    }
 
 
 def test_dict_item():
