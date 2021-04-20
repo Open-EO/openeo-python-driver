@@ -1,12 +1,16 @@
+import base64
 import copy
 import datetime
 import functools
 import logging
 import os
 import re
-import uuid
+import time
+import typing
 from collections import namedtuple, defaultdict
-from typing import Callable, Tuple, List
+import uuid
+from hashlib import md5
+from typing import Callable, Tuple, List, Union
 
 import flask
 import flask_cors
@@ -24,7 +28,8 @@ from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefined
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
-    FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException
+    FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, CredentialsInvalidException, \
+    ResultLinkExpiredException
 from openeo_driver.processes import DEFAULT_NAMESPACE
 from openeo_driver.save_result import SaveResult, get_temp_file
 from openeo_driver.users import HttpAuthHandler, User
@@ -591,13 +596,32 @@ def list_job_results(job_id, user: User):
     job_info = backend_implementation.batch_jobs.get_job_info(job_id, user.user_id)
     results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
 
+    def base64_user_id() -> str:
+        return base64.urlsafe_b64encode(user.user_id.encode()).decode()
+
+    def secure_token(filename, expires) -> str:
+        return _compute_secure_token(job_id, user.user_id, filename, expires)
+
+    def expiration_timestamp() -> Union[int, None]:
+        expiration = current_app.config.get('SIGNED_URL_EXPIRATION')
+        return time.time() + int(expiration) if expiration else None
+
+    def download_url(filename) -> str:
+        if smart_bool(current_app.config.get('SIGNED_URL')):
+            expires = expiration_timestamp()
+            return url_for('.download_job_result_signed', job_id=job_id, user_base64=base64_user_id(),
+                           secure_key=secure_token(filename, expires), filename=filename,
+                           expires=expires, _external=True)
+        else:
+            return url_for('.download_job_result', job_id=job_id, filename=filename, _external=True)
+
     def asset_object(filename: str, asset_metadata: dict) -> dict:
         bands = asset_metadata.get("bands")
         nodata = asset_metadata.get("nodata")
 
         return dict_no_none(**{
             "title": asset_metadata.get("title",filename), #there has to be title
-            "href": url_for('.download_job_result', job_id=job_id, filename=filename, _external=True),
+            "href": download_url(filename),
             "type": asset_metadata.get("media_type"),
             "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
                          for band in bands] if bands else None,
@@ -645,8 +669,7 @@ def list_job_results(job_id, user: User):
     else:
         result = {
             "links": [
-                {"href": url_for('.download_job_result', job_id=job_id, filename=filename, _external=True)}
-                for filename in results.keys()
+                {"href": download_url(filename)} for filename in results.keys()
             ]
         }
 
@@ -700,6 +723,27 @@ def download_job_result(job_id, filename, user: User):
         raise FilePathInvalidException(str(filename) + ' not in ' + str(list(results.keys())))
     output_dir = results[filename]["output_dir"]
     return send_from_directory(output_dir, filename, mimetype=results[filename].get("media_type"))
+
+
+@api_endpoint
+@openeo_bp.route('/jobs/<job_id>/results/<user_base64>/<secure_key>/<filename>', methods=['GET'])
+def download_job_result_signed(job_id, user_base64, secure_key, filename):
+    expires = request.args.get('expires')
+    user_id = base64.urlsafe_b64decode(user_base64).decode()
+    if secure_key != _compute_secure_token(job_id, user_id, filename, expires):
+        raise CredentialsInvalidException()
+    if expires and int(expires) < time.time():
+        raise ResultLinkExpiredException()
+    results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user_id)
+    if filename not in results.keys():
+        raise FilePathInvalidException(str(filename) + ' not in ' + str(list(results.keys())))
+    output_dir = results[filename]["output_dir"]
+    return send_from_directory(output_dir, filename, mimetype=results[filename].get("media_type"))
+
+
+def _compute_secure_token(job_id, user_id, filename, expiration_timestamp):
+    token_key = job_id + user_id + filename + str(expiration_timestamp) + current_app.config.get('SIGNED_URL_SECRET')
+    return md5(token_key.encode()).hexdigest()
 
 
 @api_endpoint

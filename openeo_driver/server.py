@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Union
 
 import gunicorn.app.base
@@ -21,6 +22,9 @@ def run(title: str, description: str, deploy_metadata: Union[dict, None], backen
     app.config['OPENEO_DESCRIPTION'] = description
     app.config['OPENEO_BACKEND_DEPLOY_METADATA'] = deploy_metadata
     app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024  # bytes
+    app.config['SIGNED_URL'] = os.getenv('SIGNED_URL')
+    app.config['SIGNED_URL_SECRET'] = os.getenv('SIGNED_URL_SECRET')
+    app.config['SIGNED_URL_EXPIRATION'] = os.getenv('SIGNED_URL_EXPIRATION')
 
     app.logger.info('App info logging enabled!')
     app.logger.debug('App debug logging enabled!')
