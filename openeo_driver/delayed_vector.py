@@ -15,7 +15,7 @@ from typing import Iterable, List, Dict
 
 class DelayedVector:
     """
-        Represents the result of a read_vector process.
+        Represents the result of a get_geometries process with filename.
 
         A DelayedVector essentially wraps a reference to a vector file (a path); it's delayed in that it does not load
         geometries into memory until needed to avoid MemoryErrors.

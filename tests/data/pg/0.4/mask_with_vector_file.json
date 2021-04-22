@@ -41,8 +41,8 @@
     },
     "result": false
   },
-  "readvector1": {
-    "process_id": "read_vector",
+  "getgeometries1": {
+    "process_id": "get_geometries",
     "arguments": {
       "filename": "PLACEHOLDER"
     },

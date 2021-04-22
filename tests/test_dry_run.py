@@ -470,11 +470,11 @@ def test_mask_polygon(dry_run_env, dry_run_tracer):
 
 
 
-def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
+def test_aggregate_spatial_get_geometries(dry_run_env, dry_run_tracer):
     geometry_path = str(get_path("GeometryCollection.geojson"))
     pg = {
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
-        "vector": {"process_id": "read_vector", "arguments": {"filename": geometry_path}},
+        "vector": {"process_id": "get_geometries", "arguments": {"filename": geometry_path}},
         "agg": {
             "process_id": "aggregate_spatial",
             "arguments": {
@@ -505,10 +505,10 @@ def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
     assert isinstance(geometries, DelayedVector)
 
 
-def test_aggregate_spatial_read_vector_feature_collection(dry_run_env, dry_run_tracer):
+def test_aggregate_spatial_get_geometries_feature_collection(dry_run_env, dry_run_tracer):
     pg = {
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
-        "vector": {"process_id": "read_vector", "arguments": {"filename": {
+        "vector": {"process_id": "get_geometries", "arguments": {"feature_collection": {
             "type": "FeatureCollection",
             "name": "fields",
             "crs": {

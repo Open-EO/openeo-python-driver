@@ -16,7 +16,7 @@
     }
   },
   "geojson_file": {
-    "process_id": "read_vector",
+    "process_id": "get_geometries",
     "arguments": {
       "filename": "PLACEHOLDER"
     }

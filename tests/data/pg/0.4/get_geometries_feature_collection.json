@@ -3,6 +3,12 @@
     "process_id": "load_collection",
     "arguments": {
       "id": "PROBAV_L3_S10_TOC_NDVI_333M_V2",
+      "spatial_extent": {
+        "west": 5,
+        "east": 6,
+        "north": 52,
+        "south": 51
+      },
       "temporal_extent": [
         "2017-11-21",
         "2017-12-21"
@@ -10,7 +16,7 @@
     }
   },
   "geojson_file": {
-    "process_id": "read_vector",
+    "process_id": "get_geometries",
     "arguments": {
       "filename": "PLACEHOLDER"
     }
