@@ -55,7 +55,7 @@
         "from_node": "filtertemporal1"
       },
       "mask": {
-        "from_node": "readvector1"
+        "from_node": "getgeometries1"
       }
     },
     "result": false
