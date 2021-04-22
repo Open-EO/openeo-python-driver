@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Union, Any, List, Tuple
 
 import shapely.geometry
+import shapely.ops
+import pyproj
 
 
 class EvalEnv:
@@ -20,6 +22,10 @@ class EvalEnv:
     This layering of immutable key-value mappings allows
     "overwriting" keys when walking "up" from the result node of a process graph
     and restoring original values when walking "down" again.
+
+    A common key is "parameters" under which the arguments of the
+    current process should be pushed to build layered scopes
+    of process arguments accessible through "from_parameter" references.
     """
 
     def __init__(self, values: dict = None, parent: 'EvalEnv' = None):
@@ -44,9 +50,23 @@ class EvalEnv:
             return default
 
     def push(self, values: dict = None, **kwargs) -> 'EvalEnv':
-        """Create new EvalStack by pushing new values (as dict argument or through kwargs"""
+        """Create new EvalStack by pushing new values (as dict argument or through kwargs)"""
         merged = {**(values or {}), **kwargs}
         return EvalEnv(values=merged, parent=self)
+
+    def collect(self, key: str) -> dict:
+        """
+        Walk the parent chain, collect the values (which must be dicts) for given key and combine to a single dict
+        """
+        d = self.get(key, default={})
+        assert isinstance(d, dict)
+        if self._parent:
+            d = {**self._parent.collect(key=key), **d}
+        return d
+
+    def collect_parameters(self) -> dict:
+        """Collect single dict of all parameters"""
+        return self.collect("parameters")
 
     def as_dict(self) -> dict:
         if self._parent:
@@ -148,24 +168,49 @@ def temporal_extent_union(
     return start, end
 
 
-def spatial_extent_union(*args: dict) -> dict:
+def reproject_bounding_box(bbox: dict, from_crs: str, to_crs: str) -> dict:
+    """
+    Reproject given bounding box dictionary
+
+    :param bbox: bbox dict with fields "west", "south", "east", "north"
+    :param from_crs: source CRS. Specify `None` to use the "crs" field of input bbox dict
+    :param to_crs: target CRS
+    :return: bbox dict (fields "west", "south", "east", "north", "crs")
+    """
+    box = shapely.geometry.box(bbox["west"], bbox["south"], bbox["east"], bbox["north"])
+    if from_crs is None:
+        from_crs = bbox["crs"]
+    tranformer = pyproj.Transformer.from_crs(crs_from=from_crs, crs_to=to_crs, always_xy=True)
+    reprojected = shapely.ops.transform(tranformer.transform, box)
+    return dict(zip(["west", "south", "east", "north"], reprojected.bounds), crs=to_crs)
+
+
+def spatial_extent_union(*bboxes: dict, default_crs="EPSG:4326") -> dict:
     """
     Calculate spatial bbox covering all given bounding boxes
 
     :return: bbox dict (fields "west", "south", "east", "north", "crs")
     """
-    # TODO: assuming CRS where west/south is lower and east/north is higher.
-    # TODO: smarter CRS handling/combining
-    assert len(args) >= 1
-    crss = set(a.get("crs", "EPSG:4326") for a in args)
+    assert len(bboxes) >= 1
+    crss = set(b.get("crs", default_crs) for b in bboxes)
     if len(crss) > 1:
-        raise ValueError("Different CRS's: {c}".format(c=crss))
-    crs = crss.pop()
+        # Re-project to CRS of first bbox
+        def reproject(bbox, to_crs):
+            from_crs = bbox.get("crs", default_crs)
+            if from_crs != to_crs:
+                return reproject_bounding_box(bbox, from_crs=from_crs, to_crs=to_crs)
+            return bbox
+
+        to_crs = bboxes[0].get("crs", default_crs)
+        bboxes = [reproject(b, to_crs=to_crs) for b in bboxes]
+        crs = to_crs
+    else:
+        crs = crss.pop()
     bbox = {
-        "west": min(a["west"] for a in args),
-        "south": min(a["south"] for a in args),
-        "east": max(a["east"] for a in args),
-        "north": max(a["north"] for a in args),
+        "west": min(b["west"] for b in bboxes),
+        "south": min(b["south"] for b in bboxes),
+        "east": max(b["east"] for b in bboxes),
+        "north": max(b["north"] for b in bboxes),
         "crs": crs
     }
     return bbox

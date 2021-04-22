@@ -320,15 +320,15 @@ class UserDefinedProcessMetadata(NamedTuple):
     """
     Container for user-defined process metadata.
     """
-    id: str
     process_graph: dict
+    id: str = None
     parameters: List[dict] = None
     public: bool = False
 
     @classmethod
     def from_dict(cls, d: dict) -> 'UserDefinedProcessMetadata':
         return UserDefinedProcessMetadata(
-            id=d['id'],
+            id=d.get('id'),
             process_graph=d['process_graph'],
             parameters=d.get('parameters'),
             public=d.get('public', False)
