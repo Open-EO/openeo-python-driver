@@ -570,7 +570,7 @@ def test_aggregate_spatial_get_geometries_feature_collection(dry_run_env, dry_ru
 
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
-    src, constraints = source_constraints.popitem()
+    src, constraints = source_constraints[0]
     assert src == ("load_collection", ("S2_FOOBAR", ()))
     expected_geometry_collection = shapely.geometry.GeometryCollection(
             [shapely.geometry.shape({"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]})])
