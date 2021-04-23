@@ -42,15 +42,9 @@ def client():
 class ApiTester(openeo_driver.testing.ApiTester):
     """Helper container class for compact writing of api version aware `views` tests"""
 
-    def __init__(self, api_version: str, client: FlaskClient):
-        super().__init__(api_version=api_version, client=client, data_root=TEST_DATA_ROOT)
+    def __init__(self, api_version: str, client: FlaskClient, data_root):
+        super().__init__(api_version=api_version, client=client, data_root=data_root)
         self.impl = dummy_backend
-
-    def load_json(self, filename, preprocess: Callable = None) -> dict:
-        """Load test process graph from json file"""
-        version = ".".join(self.api_version.split(".")[:2])
-        path = self.data_path(filename="pg/{v}/{f}".format(v=version, f=filename))
-        return load_json(path=path, preprocess=preprocess)
 
     def get_collection(self, collection_id) -> DummyDataCube:
         return self.impl.get_collection(collection_id)
@@ -61,44 +55,26 @@ class ApiTester(openeo_driver.testing.ApiTester):
     def all_load_collection_calls(self, collection_id) -> LoadParameters:
         return self.impl.all_load_collection_calls(collection_id)
 
-    def result(
-            self, process_graph: Union[dict, str], path="/result",
-            preprocess: Callable = None
-    ) -> openeo_driver.testing.ApiResponse:
-        """Post a process_graph (as dict or by filename) and get response."""
-        if isinstance(process_graph, str):
-            # Assume it is a file name
-            process_graph = self.load_json(process_graph, preprocess=preprocess)
-        data = self.get_process_graph_dict(process_graph)
-        self.set_auth_bearer_token()
-        response = self.post(path=path, json=data)
-        return response
-
-    def check_result(
-            self, process_graph: Union[dict, str], path="/result",
-            preprocess: Callable = None
-    ) -> openeo_driver.testing.ApiResponse:
-        """Post a process_graph (as dict or by filename), get response and do basic checks."""
-        response = self.result(process_graph=process_graph, path=path, preprocess=preprocess)
-        return response.assert_status_code(200).assert_content()
-
 
 @pytest.fixture
 def api(api_version, client) -> ApiTester:
     dummy_backend.reset()
-    return ApiTester(api_version=api_version, client=client)
+    data_root = TEST_DATA_ROOT / "pg" / (".".join(api_version.split(".")[:2]))
+    return ApiTester(api_version=api_version, client=client, data_root=data_root)
 
 
 @pytest.fixture
 def api040(client) -> ApiTester:
     dummy_backend.reset()
-    return ApiTester(api_version="0.4.0", client=client)
+    data_root = TEST_DATA_ROOT / "pg" / "0.4"
+    return ApiTester(api_version="0.4.0", client=client, data_root=data_root)
 
 
 @pytest.fixture
 def api100(client) -> ApiTester:
     dummy_backend.reset()
-    return ApiTester(api_version="1.0.0", client=client)
+    data_root = TEST_DATA_ROOT / "pg" / "1.0"
+    return ApiTester(api_version="1.0.0", client=client, data_root=data_root)
 
 
 def test_udf_runtimes(api):
@@ -733,14 +709,18 @@ def test_aggregate_feature_collection_no_load_collection_spatial_extent(api):
     }
 
 
-def test_post_result_process_100(client):
-    api = ApiTester(api_version="1.0.0", client=client)
-    api.set_auth_bearer_token()
-    response = api.post(
+@pytest.mark.parametrize("auth", [True, False])
+def test_post_result_process_100(api100, client, auth):
+    if auth:
+        api100.set_auth_bearer_token()
+    response = api100.post(
         path='/result',
-        json={"process": {"process_graph": api.load_json("basic.json")}},
+        json=api100.get_process_graph_dict(api100.load_json("basic.json")),
     )
-    response.assert_status_code(200).assert_content()
+    if auth:
+        response.assert_status_code(200).assert_content()
+    else:
+        response.assert_error(401, "AuthenticationRequired")
 
 
 def test_missing_process_graph(api):
