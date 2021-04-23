@@ -1,7 +1,6 @@
 import json
 import os
 import re
-from typing import List
 from unittest import mock
 
 import numpy as np
@@ -9,12 +8,11 @@ import pytest
 import shapely.geometry
 
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
-from openeo_driver.backend import get_backend_implementation, LoadParameters
+from openeo_driver.backend import get_backend_implementation
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import ProcessType
 from openeo_driver.dummy import dummy_backend
-from openeo_driver.dummy.dummy_backend import DummyDataCube
 from openeo_driver.errors import ProcessGraphMissingException
 from openeo_driver.testing import ApiTester, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN, \
     preprocess_regex_check_and_replace, generate_unique_test_process_id
@@ -37,40 +35,25 @@ def client():
     return app.test_client()
 
 
-class DummyApiTester(ApiTester):
-    """Helper container class for compact writing of api version aware `views` tests"""
-
-    impl = dummy_backend
-
-    def get_collection(self, collection_id) -> DummyDataCube:
-        return self.impl.get_collection(collection_id)
-
-    def last_load_collection_call(self, collection_id) -> LoadParameters:
-        return self.impl.last_load_collection_call(collection_id)
-
-    def all_load_collection_calls(self, collection_id) -> List[LoadParameters]:
-        return self.impl.all_load_collection_calls(collection_id)
-
-
 @pytest.fixture
-def api(api_version, client) -> DummyApiTester:
+def api(api_version, client) -> ApiTester:
     dummy_backend.reset()
     data_root = TEST_DATA_ROOT / "pg" / (".".join(api_version.split(".")[:2]))
-    return DummyApiTester(api_version=api_version, client=client, data_root=data_root)
+    return ApiTester(api_version=api_version, client=client, data_root=data_root)
 
 
 @pytest.fixture
-def api040(client) -> DummyApiTester:
+def api040(client) -> ApiTester:
     dummy_backend.reset()
     data_root = TEST_DATA_ROOT / "pg" / "0.4"
-    return DummyApiTester(api_version="0.4.0", client=client, data_root=data_root)
+    return ApiTester(api_version="0.4.0", client=client, data_root=data_root)
 
 
 @pytest.fixture
-def api100(client) -> DummyApiTester:
+def api100(client) -> ApiTester:
     dummy_backend.reset()
     data_root = TEST_DATA_ROOT / "pg" / "1.0"
-    return DummyApiTester(api_version="1.0.0", client=client, data_root=data_root)
+    return ApiTester(api_version="1.0.0", client=client, data_root=data_root)
 
 
 def test_udf_runtimes(api):
@@ -110,7 +93,7 @@ def test_execute_filter_temporal(api):
             'result': True
         },
     })
-    params = api.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    params = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
     assert params["temporal_extent"] == ("2018-01-01", "2018-12-31")
 
 
@@ -133,7 +116,7 @@ def test_execute_filter_bbox(api):
             'result': True
         },
     })
-    params = api.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    params = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
     assert params["spatial_extent"] == {"west": 3, "east": 5, "south": 50, "north": 51, "crs": "EPSG:4326", }
 
 
@@ -159,7 +142,7 @@ def test_execute_filter_bands(api):
 def test_execute_apply_kernel(api):
     kernel_list = [[0, 1, 0], [1, 1, 1], [0, 1, 0]]
     api.check_result("apply_kernel.json")
-    dummy = api.get_collection("S2_FAPAR_CLOUDCOVER")
+    dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
     assert dummy.apply_kernel.call_count == 1
     np_kernel = dummy.apply_kernel.call_args[1]["kernel"]
     assert np_kernel.tolist() == kernel_list
@@ -211,12 +194,12 @@ def test_load_collection_spatial_extent_geojson(api):
 
 def test_execute_apply_unary_040(api040):
     api040.check_result("apply_unary.json")
-    assert api040.get_collection("S2_FAPAR_CLOUDCOVER").apply.call_count == 2
+    assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").apply.call_count == 2
 
 
 def test_execute_apply_unary(api100):
     api100.check_result("apply_unary.json")
-    assert api100.get_collection("S2_FAPAR_CLOUDCOVER").apply.call_count == 1
+    assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").apply.call_count == 1
 
 
 def test_execute_apply_unary_parent_scope(api100):
@@ -238,22 +221,22 @@ def test_execute_apply_unary_invalid_from_parameter(api100):
 
 def test_execute_apply_run_udf(api040):
     api040.check_result("apply_run_udf.json")
-    assert api040.get_collection("S2_FAPAR_CLOUDCOVER").apply_tiles.call_count == 1
+    assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").apply_tiles.call_count == 1
 
 
 def test_execute_apply_run_udf_100(api100):
     api100.check_result("apply_run_udf.json")
-    assert api100.get_collection("S2_FAPAR_CLOUDCOVER").apply.call_count == 1
+    assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").apply.call_count == 1
 
 
 def test_reduce_temporal_run_udf(api):
     api.check_result("reduce_temporal_run_udf.json")
     if api.api_version_compare.at_least("1.0.0"):
-        loadCall = api.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+        loadCall = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
         assert loadCall.process_types == set([ProcessType.GLOBAL_TIME])
-        assert api.get_collection("S2_FAPAR_CLOUDCOVER").reduce_dimension.call_count == 1
+        assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").reduce_dimension.call_count == 1
     else:
-        assert api.get_collection("S2_FAPAR_CLOUDCOVER").apply_tiles_spatiotemporal.call_count == 1
+        assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").apply_tiles_spatiotemporal.call_count == 1
 
 
 def test_reduce_temporal_run_udf_legacy_client(api):
@@ -262,9 +245,9 @@ def test_reduce_temporal_run_udf_legacy_client(api):
         preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "temporal"')
     )
     if api.api_version_compare.at_least("1.0.0"):
-        assert api.get_collection("S2_FAPAR_CLOUDCOVER").reduce_dimension.call_count == 1
+        assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").reduce_dimension.call_count == 1
     else:
-        assert api.get_collection("S2_FAPAR_CLOUDCOVER").apply_tiles_spatiotemporal.call_count == 1
+        assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").apply_tiles_spatiotemporal.call_count == 1
 
 
 def test_reduce_temporal_run_udf_invalid_dimension(api):
@@ -283,9 +266,9 @@ def test_reduce_temporal_run_udf_invalid_dimension(api):
 def test_reduce_bands_run_udf(api):
     api.check_result("reduce_bands_run_udf.json")
     if api.api_version_compare.at_least("1.0.0"):
-        assert api.get_collection("S2_FOOBAR").reduce_dimension.call_count == 1
+        assert dummy_backend.get_collection("S2_FOOBAR").reduce_dimension.call_count == 1
     else:
-        assert api.get_collection("S2_FOOBAR").apply_tiles.call_count == 1
+        assert dummy_backend.get_collection("S2_FOOBAR").apply_tiles.call_count == 1
 
 
 def test_reduce_bands_run_udf_legacy_client(api):
@@ -294,9 +277,9 @@ def test_reduce_bands_run_udf_legacy_client(api):
         preprocess=preprocess_check_and_replace('"dimension": "bands"', '"dimension": "spectral_bands"')
     )
     if api.api_version_compare.at_least("1.0.0"):
-        assert api.get_collection("S2_FOOBAR").reduce_dimension.call_count == 1
+        assert dummy_backend.get_collection("S2_FOOBAR").reduce_dimension.call_count == 1
     else:
-        assert api.get_collection("S2_FOOBAR").apply_tiles.call_count == 1
+        assert dummy_backend.get_collection("S2_FOOBAR").apply_tiles.call_count == 1
 
 
 def test_reduce_bands_run_udf_invalid_dimension(api):
@@ -314,12 +297,13 @@ def test_reduce_bands_run_udf_invalid_dimension(api):
 
 def test_apply_dimension_temporal_run_udf(api):
     api.check_result("apply_dimension_temporal_run_udf.json")
-    dummy = api.get_collection("S2_FAPAR_CLOUDCOVER")
+    dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
     assert dummy.apply_tiles_spatiotemporal.call_count == 1
     assert dummy.apply_dimension.call_count == 1
     if api.api_version_compare.at_least("1.0.0"):
         dummy.rename_dimension.assert_called_with('t', 'new_time_dimension')
-        assert api.last_load_collection_call("S2_FAPAR_CLOUDCOVER").process_types == set([ProcessType.GLOBAL_TIME])
+        load_parameters = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+        assert load_parameters.process_types == set([ProcessType.GLOBAL_TIME])
 
 
 def test_apply_dimension_temporal_run_udf_legacy_client(api):
@@ -327,7 +311,7 @@ def test_apply_dimension_temporal_run_udf_legacy_client(api):
         "apply_dimension_temporal_run_udf.json",
         preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "temporal"')
     )
-    dummy = api.get_collection("S2_FAPAR_CLOUDCOVER")
+    dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
     assert dummy.apply_tiles_spatiotemporal.call_count == 1
     assert dummy.apply_dimension.call_count == 1
 
@@ -347,7 +331,8 @@ def test_apply_neighborhood(api100):
     api100.check_result(
         "apply_neighborhood.json"
     )
-    assert api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER").process_types == set([ProcessType.GLOBAL_TIME])
+    load_parameters = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    assert load_parameters.process_types == set([ProcessType.GLOBAL_TIME])
 
 
 def test_reduce_max_t(api):
@@ -382,7 +367,7 @@ def test_reduce_max_invalid_dimension(api):
 
 def test_execute_merge_cubes(api):
     api.check_result("merge_cubes.json")
-    dummy = api.get_collection("S2_FAPAR_CLOUDCOVER")
+    dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
     assert dummy.merge_cubes.call_count == 1
     args, kwargs = dummy.merge_cubes.call_args
     assert args[1:] == ('or',)
@@ -390,8 +375,8 @@ def test_execute_merge_cubes(api):
 
 def test_execute_resample_and_merge_cubes(api100):
     api100.check_result("resample_and_merge_cubes.json")
-    dummy = api100.get_collection("S2_FAPAR_CLOUDCOVER")
-    last_load_collection_call = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
+    last_load_collection_call = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
     assert last_load_collection_call.target_crs == "AUTO:42001"
     assert last_load_collection_call.target_resolution == [10, 10]
     assert dummy.merge_cubes.call_count == 1
@@ -402,7 +387,7 @@ def test_execute_resample_and_merge_cubes(api100):
 
 def test_execute_merge_cubes_and_reduce(api100):
     api100.check_result("merge_cubes_and_reduce.json")
-    dummy = api100.get_collection("S2_FAPAR_CLOUDCOVER")
+    dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
     assert dummy.reduce_dimension.call_count == 1
     args, kwargs = dummy.reduce_dimension.call_args
     assert args == ()
@@ -411,7 +396,7 @@ def test_execute_merge_cubes_and_reduce(api100):
 
 def test_reduce_bands(api):
     api.check_result("reduce_bands.json")
-    dummy = api.get_collection("S2_FOOBAR")
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
     if api.api_version_compare.at_least("1.0.0"):
         reduce_bands = dummy.reduce_dimension
     else:
@@ -428,7 +413,7 @@ def test_reduce_bands_legacy_client(api):
         "reduce_bands.json",
         preprocess=preprocess_check_and_replace('"dimension": "bands"', '"dimension": "spectral_bands"')
     )
-    dummy = api.get_collection("S2_FOOBAR")
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
     if api.api_version_compare.at_least("1.0.0"):
         reduce_bands = dummy.reduce_dimension
     else:
@@ -454,7 +439,7 @@ def test_reduce_bands_invalid_dimension(api):
 
 def test_execute_mask(api):
     api.check_result("mask.json")
-    assert api.get_collection("S2_FAPAR_CLOUDCOVER").mask.call_count == 1
+    assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").mask.call_count == 1
 
     expected = {
         "west": 7.02,
@@ -468,17 +453,17 @@ def test_execute_mask(api):
         "coordinates": [[[7.02, 51.7], [7.65, 51.7], [7.65, 51.2], [7.04, 51.3], [7.02, 51.7]]]
     })
 
-    params = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
+    params = dummy_backend.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
     assert params["spatial_extent"] == expected
     assert params["aggregate_spatial_geometries"] == expected_geometry
 
-    params = api.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
+    params = dummy_backend.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
     assert params["spatial_extent"] == expected
 
 
 def test_execute_mask_polygon(api):
     api.check_result("mask_polygon.json")
-    dummy = api.get_collection("S2_FAPAR_CLOUDCOVER")
+    dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
     assert dummy.mask_polygon.call_count == 1
     args, kwargs = dummy.mask_polygon.call_args
     assert isinstance(kwargs['mask'], shapely.geometry.Polygon)
@@ -519,7 +504,7 @@ def test_execute_aggregate_spatial(api):
         "2015-07-06T00:00:00": [2.345],
         "2015-08-22T00:00:00": [None]
     }
-    params = api.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
+    params = dummy_backend.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
     assert params["spatial_extent"] == {"west": 7.02, "south": 51.29, "east": 7.65, "north": 51.75, "crs": 'EPSG:4326'}
     assert params["aggregate_spatial_geometries"] == shapely.geometry.shape({
         "type": "Polygon",
@@ -569,7 +554,7 @@ def test_read_vector(api):
     resp = api.check_result(process_graph)
     assert b'NaN' not in resp.data
     assert resp.json == {"2015-07-06T00:00:00": [2.345], "2015-08-22T00:00:00": [None]}
-    params = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
+    params = dummy_backend.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
     assert params["spatial_extent"] == {"west": 5, "south": 51, "east": 6, "north": 52, "crs": 'EPSG:4326'}
     assert params["temporal_extent"] == ('2017-11-21', '2017-12-21')
     assert params["aggregate_spatial_geometries"] == DelayedVector(geometry_filename)
@@ -585,7 +570,7 @@ def test_read_vector_no_load_collection_spatial_extent(api):
     resp = api.check_result(process_graph)
     assert b'NaN' not in resp.data
     assert resp.json == {"2015-07-06T00:00:00": [2.345], "2015-08-22T00:00:00": [None]}
-    params = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
+    params = dummy_backend.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
     assert params["spatial_extent"] == {"west": 5.05, "south": 51.21, "east": 5.15, "north": 51.3, "crs": 'EPSG:4326'}
     assert params["temporal_extent"] == ('2017-11-21', '2017-12-21')
     assert params["aggregate_spatial_geometries"] == DelayedVector(geometry_filename)
@@ -629,7 +614,7 @@ def test_load_collection_without_spatial_extent_incorporates_read_vector_extent(
         "2015-07-06T00:00:00": [2.345],
         "2015-08-22T00:00:00": [None]
     }
-    params = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
+    params = dummy_backend.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
     assert params["spatial_extent"] == {"west": 5.05, "south": 51.21, "east": 5.15, "north": 51.3, "crs": 'EPSG:4326'}
 
 
@@ -644,7 +629,7 @@ def test_read_vector_from_feature_collection(api):
         "2015-07-06T00:00:00": [2.345],
         "2015-08-22T00:00:00": [None]
     }
-    params = api.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
+    params = dummy_backend.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
     assert params["spatial_extent"] == {"west": 5, "south": 51, "east": 6, "north": 52, "crs": 'EPSG:4326'}
 
 
@@ -672,13 +657,15 @@ def test_timeseries_point_with_bbox(api):
         }
     }
     api.check_result(process_graph, path="/timeseries/point?x=1&y=2")
-    params = api.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
+    params = dummy_backend.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
     assert params["spatial_extent"] == {"west": 3, "east": 6, "south": 50, "north": 51, "crs": "EPSG:4326"}
 
 
 def test_load_disk_data(api):
     api.check_result("load_disk_data.json")
-    params = api.last_load_collection_call("/data/MTDA/CGS_S2/CGS_S2_FAPAR/2019/04/24/*/*/10M/*_FAPAR_10M_V102.tif")
+    params = dummy_backend.last_load_collection_call(
+        "/data/MTDA/CGS_S2/CGS_S2_FAPAR/2019/04/24/*/*/10M/*_FAPAR_10M_V102.tif"
+    )
     assert params["spatial_extent"] == {"west": 3, "south": 50, "east": 6, "north": 51, "crs": "EPSG:4326"}
 
 
@@ -692,14 +679,14 @@ def test_mask_with_vector_file(api):
 
 def test_aggregate_feature_collection(api):
     api.check_result("aggregate_feature_collection.json")
-    params = api.last_load_collection_call('S2_FOOBAR')
+    params = dummy_backend.last_load_collection_call('S2_FOOBAR')
     assert params["spatial_extent"] == {"west": 5, "south": 51, "east": 6, "north": 52, "crs": 'EPSG:4326'}
 
 
 def test_aggregate_feature_collection_no_load_collection_spatial_extent(api):
     preprocess = preprocess_regex_check_and_replace(r'"spatial_extent"\s*:\s*\{.*?\},', replacement='')
     api.check_result("aggregate_feature_collection.json", preprocess=preprocess)
-    params = api.last_load_collection_call('S2_FOOBAR')
+    params = dummy_backend.last_load_collection_call('S2_FOOBAR')
     assert params["spatial_extent"] == {
         "west": 5.076, "south": 51.21, "east": 5.166, "north": 51.26, "crs": 'EPSG:4326'
     }
@@ -755,7 +742,7 @@ def test_user_defined_process_bbox_mol_basic(api100, namespace):
     elif "namespace" in pg["bboxmol1"]:
         del pg["bboxmol1"]["namespace"]
     api100.check_result(pg)
-    params = api100.last_load_collection_call('S2_FOOBAR')
+    params = dummy_backend.last_load_collection_call('S2_FOOBAR')
     assert params["spatial_extent"] == {"west": 5.05, "south": 51.2, "east": 5.1, "north": 51.23, "crs": 'EPSG:4326'}
 
 
@@ -799,7 +786,7 @@ def test_user_defined_process_date_window(
     }
 
     api100.check_result(pg)
-    params = api100.last_load_collection_call('S2_FOOBAR')
+    params = dummy_backend.last_load_collection_call('S2_FOOBAR')
     assert params["temporal_extent"] == (expected_start_date, expected_end_date)
 
 
@@ -847,22 +834,21 @@ def test_user_defined_process_udf(api100):
     }
 
     response = api100.result(pg)
-    dummy = api100.get_collection("S2_FOOBAR")
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.reduce_dimension.call_count == 1
     dummy.reduce_dimension.assert_called_with(reducer=mock.ANY, dimension="bands")
     args, kwargs = dummy.reduce_dimension.call_args
     assert "udf" in kwargs["reducer"]
     context = kwargs["reducer"]["udf"]["arguments"]["context"]
-    #TODO I would expect parameters to be substituted here
-    #assert context["param"] == "test"
-
+    # TODO I would expect parameters to be substituted here
+    # assert context["param"] == "test"
 
 
 def test_user_defined_process_udp_vs_pdp_priority(api100):
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     # First without a defined "ndvi" UDP
     api100.check_result("udp_ndvi.json")
-    dummy = api100.get_collection("S2_FOOBAR")
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.ndvi.call_count == 1
     dummy.ndvi.assert_called_with(nir=None, red=None, target_band=None)
     assert dummy.reduce_dimension.call_count == 0
@@ -870,7 +856,7 @@ def test_user_defined_process_udp_vs_pdp_priority(api100):
     # Overload ndvi with UDP.
     user_defined_process_registry.save(user_id=TEST_USER, process_id="ndvi", spec=api100.load_json("udp/myndvi.json"))
     api100.check_result("udp_ndvi.json")
-    dummy = api100.get_collection("S2_FOOBAR")
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.ndvi.call_count == 1
     assert dummy.reduce_dimension.call_count == 1
     dummy.reduce_dimension.assert_called_with(reducer=mock.ANY, dimension="bands")
@@ -958,7 +944,7 @@ def test_evaluate_process_from_url(api100, requests_mock, url, namespace):
     pg["bboxmol1"]["namespace"] = namespace
     api100.check_result(pg)
 
-    params = api100.last_load_collection_call('S2_FOOBAR')
+    params = dummy_backend.last_load_collection_call('S2_FOOBAR')
     assert params["spatial_extent"] == {"west": 5.05, "south": 51.2, "east": 5.1, "north": 51.23, "crs": 'EPSG:4326'}
     assert url_mock.called
 
@@ -1009,7 +995,7 @@ def test_execute_no_cube_dynamic_args(api100):
         }
     }
     api100.check_result(pg)
-    apply_kernel_mock = api100.get_collection("S2_FOOBAR").apply_kernel
+    apply_kernel_mock = dummy_backend.get_collection("S2_FOOBAR").apply_kernel
     args, kwargs = apply_kernel_mock.call_args
     assert kwargs["factor"] == 7.75
 
@@ -1042,7 +1028,7 @@ def test_execute_EP3509_process_order(api100):
         }, "result": True}
     }
     api100.check_result(pg)
-    params = api100.last_load_collection_call("S2_FOOBAR")
+    params = dummy_backend.last_load_collection_call("S2_FOOBAR")
     assert params["temporal_extent"] == ("2020-02-02", "2020-03-03")
     assert params["spatial_extent"] == {"west": 5, "east": 6, "south": 50, "north": 51, "crs": "EPSG:4326"}
     assert params["bands"] == ["B02", "B03"]
@@ -1102,14 +1088,14 @@ def test_execute_EP3509_process_order(api100):
 def test_execute_EP3509_issue38_leaking_band_filter(api, pg, ndvi_expected, mask_expected):
     """https://github.com/Open-EO/openeo-python-driver/issues/38"""
     api.check_result(pg)
-    assert api.last_load_collection_call("PROBAV_L3_S10_TOC_NDVI_333M_V2").get("bands") == ndvi_expected
-    assert api.last_load_collection_call("S2_FOOBAR").get("bands") == mask_expected
+    assert dummy_backend.last_load_collection_call("PROBAV_L3_S10_TOC_NDVI_333M_V2").get("bands") == ndvi_expected
+    assert dummy_backend.last_load_collection_call("S2_FOOBAR").get("bands") == mask_expected
 
 
 def test_reduce_add_reduce_dim(api100):
     """Test reduce_dimension -> add_dimension -> reduce_dimension"""
     api100.check_result("reduce_add_reduce_dimension.json")
-    dummy = api100.get_collection("S2_FOOBAR")
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.reduce_dimension.call_count == 2
     assert dummy.add_dimension.call_count == 1
 
@@ -1123,7 +1109,7 @@ def test_add_dimension_type_argument(api100, arguments, expected):
         "l": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "s": {"process_id": "add_dimension", "arguments": arguments, "result": True}
     })
-    dummy = api100.get_collection("S2_FOOBAR")
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
     dummy.add_dimension.assert_called_with(name="foo", label="bar", type=expected)
 
 
@@ -1156,7 +1142,7 @@ def test_execute_load_collection_sar_backscatter_defaults(api100):
             "result": True
         },
     })
-    params = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    params = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
     assert params.sar_backscatter == SarBackscatterArgs(
         coefficient="gamma0-terrain", elevation_model=None, mask=False, contributing_area=False,
         local_incidence_angle=False, ellipsoid_incidence_angle=False, noise_removal=True, options={}
@@ -1179,7 +1165,7 @@ def test_execute_load_collection_sar_backscatter_none_values(api100):
             "result": True
         },
     })
-    params = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    params = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
     assert params.sar_backscatter == SarBackscatterArgs(
         coefficient=None, elevation_model=None, mask=False, contributing_area=False,
         local_incidence_angle=False, ellipsoid_incidence_angle=False, noise_removal=True, options={}
@@ -1206,7 +1192,7 @@ def test_execute_load_collection_sar_backscatter(api100):
             "result": True
         },
     })
-    params = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    params = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
     assert params.sar_backscatter == SarBackscatterArgs(
         coefficient='gamma0-ellipsoid', elevation_model=None, mask=True, contributing_area=True,
         local_incidence_angle=False, ellipsoid_incidence_angle=True, noise_removal=False, options={"tile_size": 1024}
@@ -1222,7 +1208,7 @@ def test_execute_load_collection_sar_backscatter_compatibility(api100):
             "result": True
         }
     })
-    params = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    params = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
     assert params.sar_backscatter is None
 
 
@@ -1234,9 +1220,7 @@ def test_execute_load_collection_custom_properties(api100):
                     "od": {
                         "process_id": "eq",
                         "arguments": {
-                            "x": {
-                                "from_parameter": "value"
-                            },
+                            "x": {"from_parameter": "value"},
                             "y": direction
                         },
                         "result": True
@@ -1248,17 +1232,19 @@ def test_execute_load_collection_custom_properties(api100):
     properties = get_props()
     asc_props = get_props("ASCENDING")
     pg = {
-        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER", "properties": properties},
-               "result": False},
-        "lc2": {"process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER", "properties": asc_props},
-               "result": False},
-        "merge": {"process_id": "merge_cubes", "arguments": {"cube1": {"from_node":"lc"},"cube2": {"from_node":"lc2"}},
-                "result": True}
+        "lc": {
+            "process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER", "properties": properties}},
+        "lc2": {
+            "process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER", "properties": asc_props}},
+        "merge": {
+            "process_id": "merge_cubes",
+            "arguments": {"cube1": {"from_node": "lc"}, "cube2": {"from_node": "lc2"}},
+            "result": True
+        }
     }
 
-
     api100.check_result(pg)
-    params = api100.all_load_collection_calls("S2_FAPAR_CLOUDCOVER")
+    params = dummy_backend.all_load_collection_calls("S2_FAPAR_CLOUDCOVER")
     print(params)
     assert len(params) == 2
     assert params[0].properties == properties
@@ -1287,7 +1273,7 @@ def test_execute_load_collection_custom_cloud_mask(api100):
             'result': True
         },
     })
-    params = api100.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    params = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
     assert params.custom_mask == {"method": "mask_scl_dilation"}
     assert params.bands == None
 
@@ -1310,8 +1296,8 @@ def test_execute_load_collection_resolution_merge(api100):
             "result": True
         },
     })
-    params = api100.last_load_collection_call("S2_FOOBAR")
-    resolution_merge_mock = api100.get_collection("S2_FOOBAR").resolution_merge
+    params = dummy_backend.last_load_collection_call("S2_FOOBAR")
+    resolution_merge_mock = dummy_backend.get_collection("S2_FOOBAR").resolution_merge
     args, kwargs = resolution_merge_mock.call_args
     assert args[0] == ResolutionMergeArgs(
         method="improphe",
@@ -1431,7 +1417,7 @@ def test_ard_normalized_radar_backscatter(api100):
         }
     })
 
-    dummy = api100.get_collection("S2_FOOBAR")
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.sar_backscatter.call_count == 1
     args, kwargs = dummy.sar_backscatter.call_args
     assert args == (SarBackscatterArgs(
@@ -1453,7 +1439,7 @@ def test_ard_normalized_radar_backscatter_without_optional_arguments(api100):
         }
     })
 
-    dummy = api100.get_collection("S2_FOOBAR")
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.sar_backscatter.call_count == 1
     args, kwargs = dummy.sar_backscatter.call_args
     assert args == (SarBackscatterArgs(

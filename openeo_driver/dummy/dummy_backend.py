@@ -40,8 +40,10 @@ def _register_load_collection_call(collection_id: str, load_params: LoadParamete
         _load_collection_calls[collection_id] = []
     _load_collection_calls[collection_id].append(load_params.copy())
 
+
 def all_load_collection_calls(collection_id: str) -> List[LoadParameters]:
     return _load_collection_calls[collection_id]
+
 
 def last_load_collection_call(collection_id: str) -> LoadParameters:
     return _load_collection_calls[collection_id][-1]
