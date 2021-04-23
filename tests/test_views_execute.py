@@ -1,15 +1,13 @@
 import json
 import os
 import re
-from typing import Callable, Union
+from typing import List
 from unittest import mock
 
 import numpy as np
 import pytest
 import shapely.geometry
-from flask.testing import FlaskClient
 
-import openeo_driver.testing
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
 from openeo_driver.backend import get_backend_implementation, LoadParameters
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
@@ -18,7 +16,7 @@ from openeo_driver.dry_run import ProcessType
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyDataCube
 from openeo_driver.errors import ProcessGraphMissingException
-from openeo_driver.testing import load_json, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN, \
+from openeo_driver.testing import ApiTester, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN, \
     preprocess_regex_check_and_replace, generate_unique_test_process_id
 from openeo_driver.views import app
 from .data import get_path, TEST_DATA_ROOT
@@ -39,12 +37,10 @@ def client():
     return app.test_client()
 
 
-class ApiTester(openeo_driver.testing.ApiTester):
+class DummyApiTester(ApiTester):
     """Helper container class for compact writing of api version aware `views` tests"""
 
-    def __init__(self, api_version: str, client: FlaskClient, data_root):
-        super().__init__(api_version=api_version, client=client, data_root=data_root)
-        self.impl = dummy_backend
+    impl = dummy_backend
 
     def get_collection(self, collection_id) -> DummyDataCube:
         return self.impl.get_collection(collection_id)
@@ -52,29 +48,29 @@ class ApiTester(openeo_driver.testing.ApiTester):
     def last_load_collection_call(self, collection_id) -> LoadParameters:
         return self.impl.last_load_collection_call(collection_id)
 
-    def all_load_collection_calls(self, collection_id) -> LoadParameters:
+    def all_load_collection_calls(self, collection_id) -> List[LoadParameters]:
         return self.impl.all_load_collection_calls(collection_id)
 
 
 @pytest.fixture
-def api(api_version, client) -> ApiTester:
+def api(api_version, client) -> DummyApiTester:
     dummy_backend.reset()
     data_root = TEST_DATA_ROOT / "pg" / (".".join(api_version.split(".")[:2]))
-    return ApiTester(api_version=api_version, client=client, data_root=data_root)
+    return DummyApiTester(api_version=api_version, client=client, data_root=data_root)
 
 
 @pytest.fixture
-def api040(client) -> ApiTester:
+def api040(client) -> DummyApiTester:
     dummy_backend.reset()
     data_root = TEST_DATA_ROOT / "pg" / "0.4"
-    return ApiTester(api_version="0.4.0", client=client, data_root=data_root)
+    return DummyApiTester(api_version="0.4.0", client=client, data_root=data_root)
 
 
 @pytest.fixture
-def api100(client) -> ApiTester:
+def api100(client) -> DummyApiTester:
     dummy_backend.reset()
     data_root = TEST_DATA_ROOT / "pg" / "1.0"
-    return ApiTester(api_version="1.0.0", client=client, data_root=data_root)
+    return DummyApiTester(api_version="1.0.0", client=client, data_root=data_root)
 
 
 def test_udf_runtimes(api):
