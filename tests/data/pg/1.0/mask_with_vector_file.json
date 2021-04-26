@@ -41,8 +41,8 @@
     },
     "result": false
   },
-  "getgeometries1": {
-    "process_id": "get_geometries",
+  "readvector1": {
+    "process_id": "read_vector",
     "arguments": {
       "filename": "PLACEHOLDER"
     },
@@ -55,7 +55,7 @@
         "from_node": "filtertemporal1"
       },
       "mask": {
-        "from_node": "getgeometries1"
+        "from_node": "readvector1"
       }
     },
     "result": false

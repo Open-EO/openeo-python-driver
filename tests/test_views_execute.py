@@ -588,10 +588,10 @@ def test_create_wmts_100(api100):
     assert resp.headers['Location'].endswith("/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec")
 
 
-def test_get_geometries(api):
+def test_read_vector(api):
     geometry_filename = str(get_path("GeometryCollection.geojson"))
     process_graph = api.load_json(
-        "get_geometries.json",
+        "read_vector.json",
         preprocess=preprocess_check_and_replace("PLACEHOLDER", geometry_filename)
     )
     resp = api.check_result(process_graph)
@@ -603,12 +603,12 @@ def test_get_geometries(api):
     assert params["aggregate_spatial_geometries"] == DelayedVector(geometry_filename)
 
 
-def test_get_geometries_no_load_collection_spatial_extent(api):
+def test_read_vector_no_load_collection_spatial_extent(api):
     geometry_filename = str(get_path("GeometryCollection.geojson"))
     preprocess1 = preprocess_check_and_replace("PLACEHOLDER", geometry_filename)
     preprocess2 = preprocess_regex_check_and_replace(r'"spatial_extent"\s*:\s*\{.*?\},', replacement='')
     process_graph = api.load_json(
-        "get_geometries.json", preprocess=lambda s: preprocess2(preprocess1(s))
+        "read_vector.json", preprocess=lambda s: preprocess2(preprocess1(s))
     )
     resp = api.check_result(process_graph)
     assert b'NaN' not in resp.data
@@ -646,9 +646,9 @@ def test_process_reference_as_argument(api100):
     print(resp.json)
 
 
-def test_load_collection_without_spatial_extent_incorporates_get_geometries_extent(api):
+def test_load_collection_without_spatial_extent_incorporates_read_vector_extent(api):
     process_graph = api.load_json(
-        "get_geometries_spatial_extent.json",
+        "read_vector_spatial_extent.json",
         preprocess=lambda s: s.replace("PLACEHOLDER", str(get_path("GeometryCollection.geojson")))
     )
     resp = api.check_result(process_graph)
@@ -661,9 +661,9 @@ def test_load_collection_without_spatial_extent_incorporates_get_geometries_exte
     assert params["spatial_extent"] == {"west": 5.05, "south": 51.21, "east": 5.15, "north": 51.3, "crs": 'EPSG:4326'}
 
 
-def test_get_geometries_from_feature_collection(api):
+def test_read_vector_from_feature_collection(api):
     process_graph = api.load_json(
-        "get_geometries_feature_collection.json",
+        "read_vector_feature_collection.json",
         preprocess=lambda s: s.replace("PLACEHOLDER", str(get_path("FeatureCollection.geojson")))
     )
     resp = api.check_result(process_graph)

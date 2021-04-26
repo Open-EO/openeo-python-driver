@@ -930,6 +930,16 @@ def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalE
 
 
 @non_standard_process(
+    ProcessSpec("read_vector", description="Reads vector data from a file or a URL.")
+        .param('filename', description="filename or http url of a vector file", schema={"type": "string"})
+        .returns("TODO", schema={"type": "object", "subtype": "vector-cube"})
+)
+def read_vector(args: Dict, env: EvalEnv) -> DelayedVector:
+    path = extract_arg(args, 'filename')
+    return DelayedVector(path)
+
+
+@non_standard_process(
     ProcessSpec("get_geometries", description="Reads vector data from a file or a URL or get geometries from a FeatureCollection")
         .param('filename', description="filename or http url of a vector file", schema={"type": "string"}, required=False)
         .param('feature_collection', description="feature collection", schema={"type": "object"}, required=False)
@@ -942,6 +952,7 @@ def get_geometries(args: Dict, env: EvalEnv) -> Union[DelayedVector, dict]:
         return DelayedVector(path)
     else:
         return feature_collection
+
 
 @non_standard_process(
     ProcessSpec("raster_to_vector", description="Converts this raster data cube into a vector data cube. The bounding polygon of homogenous areas of pixels is constructed.\n"
