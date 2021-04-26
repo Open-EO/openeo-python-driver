@@ -216,6 +216,29 @@ class ApiTester:
             data["description"] = description
         return data
 
+    def result(
+            self, process_graph: Union[dict, str], path="/result",
+            preprocess: Callable = None
+    ) -> ApiResponse:
+        """Post a process_graph (as dict or by filename) and get response."""
+        if isinstance(process_graph, str):
+            # Assume it is a file name
+            process_graph = self.load_json(process_graph, preprocess=preprocess)
+        data = self.get_process_graph_dict(process_graph)
+        self.set_auth_bearer_token()
+        response = self.post(path=path, json=data)
+        return response
+
+    def check_result(
+            self, process_graph: Union[dict, str], path="/result",
+            preprocess: Callable = None
+    ) -> ApiResponse:
+        """Post a process_graph (as dict or by filename), get response and do basic checks."""
+        response = self.result(process_graph=process_graph, path=path, preprocess=preprocess)
+        return response.assert_status_code(200).assert_content()
+
+
+
 
 class IgnoreOrder:
     """

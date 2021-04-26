@@ -9,13 +9,12 @@ from unittest import TestCase, mock
 
 import flask
 import pytest
-from flask.testing import FlaskClient
 
-import openeo_driver.testing
 from openeo.capabilities import ComparableVersion
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
 from openeo_driver.backend import BatchJobMetadata, UserDefinedProcessMetadata
 from openeo_driver.dummy import dummy_backend
+from openeo_driver.testing import ApiTester
 from openeo_driver.testing import TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, generate_unique_test_process_id
 from openeo_driver.views import app, EndpointRegistry, build_backend_deploy_metadata, _normalize_collection_metadata, \
     backend_implementation
@@ -38,26 +37,19 @@ def client():
     return app.test_client()
 
 
-class ApiTester(openeo_driver.testing.ApiTester):
-    """Helper container class for compact writing of api version aware `views` tests"""
-
-    def __init__(self, api_version: str, client: FlaskClient):
-        super().__init__(api_version=api_version, client=client, data_root=TEST_DATA_ROOT)
-
-
 @pytest.fixture
 def api(api_version, client) -> ApiTester:
-    return ApiTester(api_version=api_version, client=client)
+    return ApiTester(api_version=api_version, client=client, data_root=TEST_DATA_ROOT)
 
 
 @pytest.fixture
 def api040(client) -> ApiTester:
-    return ApiTester(api_version="0.4.0", client=client)
+    return ApiTester(api_version="0.4.0", client=client, data_root=TEST_DATA_ROOT)
 
 
 @pytest.fixture
 def api100(client) -> ApiTester:
-    return ApiTester(api_version="1.0.0", client=client)
+    return ApiTester(api_version="1.0.0", client=client, data_root=TEST_DATA_ROOT)
 
 
 class TestGeneral:
