@@ -480,7 +480,6 @@ def reduce_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
     dimension = extract_arg(args, 'dimension')
     data_cube = extract_arg(args, 'data')
 
-    # TODO: avoid special case handling for run_udf?
     # do check_dimension here for error handling
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce_dimension")
     return data_cube.reduce_dimension(reducer=reduce_pg, dimension=dimension, env=env)
