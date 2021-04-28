@@ -45,8 +45,7 @@ from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.save_result import AggregatePolygonResult
 from openeo_driver.utils import geojson_to_geometry, to_hashable, bands_union, temporal_extent_union, \
-    spatial_extent_union
-
+    spatial_extent_union, EvalEnv
 
 _log = logging.getLogger(__name__)
 
@@ -424,7 +423,7 @@ class DryRunDataCube(DriverDataCube):
             metadata=self.metadata
         )
 
-    def reduce_dimension(self, reducer, dimension: str) -> 'DryRunDataCube':
+    def reduce_dimension(self, reducer, dimension: str, env: EvalEnv) -> 'DryRunDataCube':
         dc = self
         if(self.metadata.has_temporal_dimension() and self.metadata.temporal_dimension.name == dimension):
             #TODO: reduce is not necessarily global in call cases
