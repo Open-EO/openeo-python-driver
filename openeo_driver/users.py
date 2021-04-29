@@ -22,9 +22,10 @@ _log = logging.getLogger(__name__)
 
 class User:
     # TODO more fields
-    def __init__(self, user_id: str, info: dict = None):
+    def __init__(self, user_id: str, info: dict = None, internal_auth_data: dict = None):
         self.user_id = user_id
         self.info = info
+        self.internal_auth_data = internal_auth_data
 
     def __repr__(self):
         return "%s(%r, %r)" % (self.__class__.__name__, self.user_id, self.info)
@@ -174,6 +175,9 @@ class HttpAuthHandler:
             # The "sub" claim is the only claim in the response that is guaranteed per OIDC spec
             # TODO: do we have better options?
             user_id = userinfo["sub"]
-            return User(user_id=user_id, info=userinfo)
+            internal_auth_data = {
+                "type": "OIDC", "oidc_discovery_url": oidc_discovery_url, "access_token": access_token
+            }
+            return User(user_id=user_id, info=userinfo, internal_auth_data=internal_auth_data)
         except Exception:
             raise TokenInvalidException

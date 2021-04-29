@@ -14,13 +14,14 @@ import logging
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Union, NamedTuple, Dict
+from typing import List, Union, NamedTuple, Dict, Optional, Callable
 
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.util import rfc3339
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException
+from openeo_driver.users import User
 from openeo_driver.utils import read_json, dict_item, EvalEnv
 
 logger = logging.getLogger(__name__)
@@ -400,6 +401,7 @@ class OpenEoBackendImplementation:
         self.catalog = catalog
         self.batch_jobs = batch_jobs
         self.user_defined_processes = user_defined_processes
+        self._get_preferred_username = lambda user: None
 
     def health_check(self) -> str:
         return "OK"
@@ -426,6 +428,13 @@ class OpenEoBackendImplementation:
 
     def summarize_exception(self, error: Exception) -> Union[ErrorSummary, Exception]:
         return error
+
+    def get_preferred_username(self, user: User) -> Optional[str]:
+        if self._get_preferred_username:
+            return self._get_preferred_username(user)
+
+    def set_preferred_username_getter(self, getter: Callable[[User], Optional[str]]):
+        self._get_preferred_username = getter
 
 
 _backend_implementation = None
