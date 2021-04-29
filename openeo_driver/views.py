@@ -398,7 +398,7 @@ def credentials_oidc():
 def me(user: User):
     return jsonify({
         "user_id": user.user_id,
-        "info": user.info,
+        "info": user.info
         # TODO more fields
     })
 
@@ -561,7 +561,7 @@ def _jsonable_batch_job_metadata(metadata: BatchJobMetadata, full=True) -> dict:
 @openeo_bp.route('/jobs/<job_id>', methods=['GET'])
 @auth_handler.requires_bearer_auth
 def get_job_info(job_id, user: User):
-    job_info = backend_implementation.batch_jobs.get_job_info(job_id, user.user_id)
+    job_info = backend_implementation.batch_jobs.get_job_info(job_id, user)
     return jsonify(_jsonable_batch_job_metadata(job_info))
 
 
@@ -585,7 +585,7 @@ def modify_job(job_id, user: User):
 @openeo_bp.route('/jobs/<job_id>/results', methods=['POST'])
 @auth_handler.requires_bearer_auth
 def queue_job(job_id, user: User):
-    backend_implementation.batch_jobs.start_job(job_id=job_id, user_id=user.user_id)
+    backend_implementation.batch_jobs.start_job(job_id=job_id, user=user)
     return make_response("", 202)
 
 
@@ -593,7 +593,7 @@ def queue_job(job_id, user: User):
 @openeo_bp.route('/jobs/<job_id>/results', methods=['GET'])
 @auth_handler.requires_bearer_auth
 def list_job_results(job_id, user: User):
-    job_info = backend_implementation.batch_jobs.get_job_info(job_id, user.user_id)
+    job_info = backend_implementation.batch_jobs.get_job_info(job_id, user)
     results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
 
     def base64_user_id() -> str:

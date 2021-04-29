@@ -14,7 +14,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Union, NamedTuple, Dict
+from typing import List, Union, NamedTuple, Dict, Optional, Callable
 
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.util import rfc3339
@@ -247,7 +247,7 @@ class BatchJobs(MicroService):
     ) -> BatchJobMetadata:
         raise NotImplementedError
 
-    def get_job_info(self, job_id: str, user_id: str) -> BatchJobMetadata:
+    def get_job_info(self, job_id: str, user: 'User') -> BatchJobMetadata:  # 2) is the SHub polling endpoint and needs an access_token to call start_job with impersonation
         """
         Get details about a batch job
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-job
@@ -262,7 +262,7 @@ class BatchJobs(MicroService):
         """
         raise NotImplementedError
 
-    def start_job(self, job_id: str, user_id: str):
+    def start_job(self, job_id: str, user: 'User'):  # 1) needs an access_token to do impersonation
         """
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/start-job
         """
@@ -400,6 +400,7 @@ class OpenEoBackendImplementation:
         self.catalog = catalog
         self.batch_jobs = batch_jobs
         self.user_defined_processes = user_defined_processes
+        self._get_preferred_username: Callable[['User'], Optional[str]] = lambda user: None
 
     def health_check(self) -> str:
         return "OK"
@@ -426,6 +427,12 @@ class OpenEoBackendImplementation:
 
     def summarize_exception(self, error: Exception) -> Union[ErrorSummary, Exception]:
         return error
+
+    def get_preferred_username(self, user: 'User') -> Optional[str]:
+        return self._get_preferred_username(user)
+
+    def set_preferred_username_getter(self, getter: Callable[['User'], Optional[str]]):
+        self._get_preferred_username = getter
 
 
 _backend_implementation = None
