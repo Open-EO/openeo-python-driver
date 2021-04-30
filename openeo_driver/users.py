@@ -111,7 +111,8 @@ class HttpAuthHandler:
         if bearer_type == 'basic':
             return self.resolve_basic_access_token(access_token=access_token)
         elif bearer_type == 'oidc':
-            return self.resolve_oidc_access_token(provider_id=provider_id, access_token=access_token)
+            oidc_discovery_url = self._oidc_discovery_urls[provider_id]
+            return self.resolve_oidc_access_token(oidc_discovery_url=oidc_discovery_url, access_token=access_token)
         else:
             _log.warning("Invalid bearer token {b!r}".format(b=bearer))
             raise TokenInvalidException
@@ -163,9 +164,7 @@ class HttpAuthHandler:
             raise TokenInvalidException
         return User(user_id=user_id, info={"authentication": "basic"})
 
-    def resolve_oidc_access_token(self, provider_id: str, access_token: str) -> User:
-        oidc_discovery_url = self._oidc_discovery_urls[provider_id]
-
+    def resolve_oidc_access_token(self, oidc_discovery_url: str, access_token: str) -> User:
         try:
             resp = requests.get(oidc_discovery_url)
             resp.raise_for_status()
@@ -177,7 +176,7 @@ class HttpAuthHandler:
             # TODO: do we have better options?
             user_id = userinfo["sub"]
             return User(user_id=user_id, info=userinfo, internal_auth_data={
-                "type": "OIDC", "provider_id": provider_id, "access_token": access_token
+                "type": "OIDC", "oidc_discovery_url": oidc_discovery_url, "access_token": access_token
             })
         except Exception:
             raise TokenInvalidException
