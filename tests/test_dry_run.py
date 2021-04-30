@@ -6,7 +6,6 @@ from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER,
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer, DataSource, DataTrace, ProcessType
-from openeo_driver.testing import IgnoreOrder
 from openeo_driver.utils import EvalEnv
 from tests.data import get_path
 
@@ -233,7 +232,7 @@ def test_evaluate_graph_diamond(dry_run_env, dry_run_tracer):
         {
             "bands": ["red"],
             "spatial_extent": {"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"}
-        }),(
+        }), (
         ("load_collection", ("S2_FOOBAR", ())),
         {
             "bands": ["grass"],
@@ -319,9 +318,9 @@ def test_evaluate_merge_collections(dry_run_env, dry_run_tracer):
                 "bands": ["VV"]
             },
         },
-        "merge":{
-            "process_id":"merge_cubes",
-            "arguments":{
+        "merge": {
+            "process_id": "merge_cubes",
+            "arguments": {
                 "cube1": {"from_node": "load"},
                 "cube2": {"from_node": "load_s1"}
             },
@@ -489,7 +488,6 @@ def test_mask_polygon(dry_run_env, dry_run_tracer):
     }
 
 
-
 def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
     geometry_path = str(get_path("GeometryCollection.geojson"))
     pg = {
@@ -573,7 +571,8 @@ def test_aggregate_spatial_get_geometries_feature_collection(dry_run_env, dry_ru
     src, constraints = source_constraints[0]
     assert src == ("load_collection", ("S2_FOOBAR", ()))
     expected_geometry_collection = shapely.geometry.GeometryCollection(
-            [shapely.geometry.shape({"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]})])
+        [shapely.geometry.shape({"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]})]
+    )
     assert constraints == {
         "spatial_extent": {'west': 0.0, 'south': 0.0, 'east': 8.0, 'north': 5.0, 'crs': 'EPSG:4326'},
         "aggregate_spatial": {"geometries": expected_geometry_collection}
@@ -628,9 +627,7 @@ def test_load_collection_properties(dry_run_env, dry_run_tracer):
                     "od": {
                         "process_id": "eq",
                         "arguments": {
-                            "x": {
-                                "from_parameter": "value"
-                            },
+                            "x": {"from_parameter": "value"},
                             "y": direction
                         },
                         "result": True
@@ -642,12 +639,17 @@ def test_load_collection_properties(dry_run_env, dry_run_tracer):
     properties = get_props()
     asc_props = get_props("ASCENDING")
     pg = {
-        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "properties": properties},
-               "result": False},
-        "lc2": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "properties": asc_props},
-               "result": False},
-        "merge": {"process_id": "merge_cubes", "arguments": {"cube1": {"from_node":"lc"},"cube2": {"from_node":"lc2"}},
-                "result": True}
+        "lc": {
+            "process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "properties": properties},
+        },
+        "lc2": {
+            "process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "properties": asc_props},
+        },
+        "merge": {
+            "process_id": "merge_cubes",
+            "arguments": {"cube1": {"from_node": "lc"}, "cube2": {"from_node": "lc2"}},
+            "result": True
+        }
     }
     cube = evaluate(pg, env=dry_run_env)
 
@@ -662,22 +664,26 @@ def test_load_collection_properties(dry_run_env, dry_run_tracer):
 @pytest.mark.parametrize(["arguments", "expected"], [
     (
             {},
-            [{"rel":"atmospheric-scattering", "href":"https://remotesensing.vito.be/case/icor"},
-            {'href': 'https://atmosphere.copernicus.eu/catalogue#/product/urn:x-wmo:md:int.ecmwf::copernicus:cams:prod:fc:total-aod:pid094',
-                'rel': 'related'},
-             {'href': 'https://doi.org/10.7289/V52R3PMS', 'rel': 'elevation-model'},
-             {'href': 'https://doi.org/10.1109/LGRS.2016.2635942', 'rel': 'water-vapor'}]
+            [
+                {"rel": "atmospheric-scattering", "href": "https://remotesensing.vito.be/case/icor"},
+                {
+                    'href': 'https://atmosphere.copernicus.eu/catalogue#/product/urn:x-wmo:md:int.ecmwf::copernicus:cams:prod:fc:total-aod:pid094',
+                    'rel': 'related'},
+                {'href': 'https://doi.org/10.7289/V52R3PMS', 'rel': 'elevation-model'},
+                {'href': 'https://doi.org/10.1109/LGRS.2016.2635942', 'rel': 'water-vapor'}
+            ]
     ),
     (
-            {
-                "method": "SMAC"
-            },
-            [{"rel":"atmospheric-scattering", "href":"https://doi.org/10.1080/01431169408954055"},
-            {'href': 'https://atmosphere.copernicus.eu/catalogue#/product/urn:x-wmo:md:int.ecmwf::copernicus:cams:prod:fc:total-aod:pid094',
-              'rel': 'related'},
-             {'href': 'https://doi.org/10.7289/V52R3PMS', 'rel': 'elevation-model'},
-             {'href': 'https://doi.org/10.1109/LGRS.2016.2635942', 'rel': 'water-vapor'}]
-    )
+            {"method": "SMAC"},
+            [
+                {"rel": "atmospheric-scattering", "href": "https://doi.org/10.1080/01431169408954055"},
+                {
+                    'href': 'https://atmosphere.copernicus.eu/catalogue#/product/urn:x-wmo:md:int.ecmwf::copernicus:cams:prod:fc:total-aod:pid094',
+                    'rel': 'related'},
+                {'href': 'https://doi.org/10.7289/V52R3PMS', 'rel': 'elevation-model'},
+                {'href': 'https://doi.org/10.1109/LGRS.2016.2635942', 'rel': 'water-vapor'}
+            ]
+    ),
 ])
 def test_evaluate_atmospheric_correction(dry_run_env, dry_run_tracer, arguments, expected):
     pg = {
