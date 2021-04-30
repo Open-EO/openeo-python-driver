@@ -241,6 +241,9 @@ class BatchJobs(MicroService):
     https://openeo.org/documentation/1.0/developers/api/reference.html#operation/stop-job
     """
 
+    def __init__(self):
+        self._get_proxy_user: Callable[['User'], Optional[str]] = lambda user: None
+
     def create_job(
             self, user_id: str, process: dict, api_version: str,
             metadata: dict, job_options: dict = None
@@ -296,6 +299,12 @@ class BatchJobs(MicroService):
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/delete-job
         """
         raise NotImplementedError
+
+    def get_proxy_user(self, user: 'User') -> Optional[str]:
+        return self._get_proxy_user(user)
+
+    def set_proxy_user_getter(self, getter: Callable[['User'], Optional[str]]):
+        self._get_proxy_user = getter
 
 
 class OidcProvider(NamedTuple):
@@ -400,7 +409,6 @@ class OpenEoBackendImplementation:
         self.catalog = catalog
         self.batch_jobs = batch_jobs
         self.user_defined_processes = user_defined_processes
-        self._get_preferred_username: Callable[['User'], Optional[str]] = lambda user: None
 
     def health_check(self) -> str:
         return "OK"
@@ -428,11 +436,8 @@ class OpenEoBackendImplementation:
     def summarize_exception(self, error: Exception) -> Union[ErrorSummary, Exception]:
         return error
 
-    def get_preferred_username(self, user: 'User') -> Optional[str]:
-        return self._get_preferred_username(user)
-
     def set_preferred_username_getter(self, getter: Callable[['User'], Optional[str]]):
-        self._get_preferred_username = getter
+        self.batch_jobs.set_proxy_user_getter(getter)
 
 
 _backend_implementation = None
