@@ -4,6 +4,7 @@ from typing import List
 from openeo import ImageCollection
 from openeo.metadata import CollectionMetadata
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
+from openeo_driver.utils import EvalEnv
 
 
 class DriverDataCube(ImageCollection):
@@ -41,7 +42,7 @@ class DriverDataCube(ImageCollection):
     def apply_tiles_spatiotemporal(self, process, context={}) -> 'DriverDataCube':
         self._not_implemented()
 
-    def reduce_dimension(self, reducer, dimension: str) -> 'DriverDataCube':
+    def reduce_dimension(self, reducer, dimension: str, env: EvalEnv) -> 'DriverDataCube':
         self._not_implemented()
 
     def add_dimension(self, name: str, label, type: str = "other") -> 'DriverDataCube':

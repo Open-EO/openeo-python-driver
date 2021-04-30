@@ -16,6 +16,7 @@ from openeo_driver.dummy import dummy_backend
 from openeo_driver.errors import ProcessGraphMissingException
 from openeo_driver.testing import ApiTester, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN, \
     preprocess_regex_check_and_replace, generate_unique_test_process_id
+from openeo_driver.utils import EvalEnv
 from openeo_driver.views import app
 from .data import get_path, TEST_DATA_ROOT
 
@@ -812,7 +813,8 @@ def test_user_defined_process_required_parameter(api100):
     response.assert_error(400, "ProcessParameterRequired", message="parameter 'data' is required")
 
 
-def test_user_defined_process_udf(api100):
+@pytest.mark.parametrize("set_parameter", [False, True])
+def test_user_defined_process_udf(api100, set_parameter):
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     spec = api100.load_json("udp/udf.json")
     user_defined_process_registry.save(user_id=TEST_USER, process_id="udf_udp", spec=spec)
@@ -822,26 +824,26 @@ def test_user_defined_process_udf(api100):
             "process_id": "load_collection",
             "arguments": {"id": "S2_FOOBAR"}
         },
-        "bboxmol1": {
+        "udfudp1": {
             "process_id": "udf_udp",
             "namespace": "user",
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
-                "udfparam": "test"
+                ("udfparam" if set_parameter else "_ignore_me"): "test_the_udfparam"
             },
             "result": True
         }
     }
 
-    response = api100.result(pg)
+    response = api100.result(pg).assert_status_code(200)
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.reduce_dimension.call_count == 1
-    dummy.reduce_dimension.assert_called_with(reducer=mock.ANY, dimension="bands")
+    dummy.reduce_dimension.assert_called_with(reducer=mock.ANY, dimension="bands", env=mock.ANY)
     args, kwargs = dummy.reduce_dimension.call_args
-    assert "udf" in kwargs["reducer"]
-    context = kwargs["reducer"]["udf"]["arguments"]["context"]
-    # TODO I would expect parameters to be substituted here
-    # assert context["param"] == "test"
+    assert "runudf1" in kwargs["reducer"]
+    env: EvalEnv = kwargs["env"]
+    expected_param = "test_the_udfparam" if set_parameter else "udfparam_default"
+    assert env.collect_parameters()["udfparam"] == expected_param
 
 
 def test_user_defined_process_udp_vs_pdp_priority(api100):
@@ -859,7 +861,7 @@ def test_user_defined_process_udp_vs_pdp_priority(api100):
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.ndvi.call_count == 1
     assert dummy.reduce_dimension.call_count == 1
-    dummy.reduce_dimension.assert_called_with(reducer=mock.ANY, dimension="bands")
+    dummy.reduce_dimension.assert_called_with(reducer=mock.ANY, dimension="bands", env=mock.ANY)
     args, kwargs = dummy.reduce_dimension.call_args
     assert "red" in kwargs["reducer"]
     assert "nir" in kwargs["reducer"]

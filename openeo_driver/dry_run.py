@@ -45,17 +45,22 @@ from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.save_result import AggregatePolygonResult
 from openeo_driver.utils import geojson_to_geometry, to_hashable, bands_union, temporal_extent_union, \
-    spatial_extent_union
-
+    spatial_extent_union, EvalEnv
 
 _log = logging.getLogger(__name__)
 
 source_constraint_blockers = {
-    'bands': ['sar_backscatter', 'atmospheric_correction', 'mask_scl_dilation', 'resolution_merge', 'custom_cloud_mask' ],
+    'bands': [
+        'sar_backscatter', 'atmospheric_correction', 'mask_scl_dilation', 'resolution_merge', 'custom_cloud_mask'
+    ],
     'spatial_extent': [],
     'temporal_extent': [],
-    'resample':["apply_kernel", "reduce_dimension", "apply", "apply_dimension", "resample_spatial","apply_neighborhood", "reduce_dimension_binary"]
+    'resample': [
+        "apply_kernel", "reduce_dimension", "apply", "apply_dimension", "resample_spatial", "apply_neighborhood",
+        "reduce_dimension_binary"
+    ]
 }
+
 
 class DataTraceBase:
     """Base class for data traces."""
@@ -239,7 +244,7 @@ class DryRunDataTracer:
         result = {}
         for leaf in self.get_trace_leaves():
             source_id = leaf.get_source().get_source_id()
-            result[source_id]=leaf.get_arguments_by_operation("log_metadata_link")
+            result[source_id] = leaf.get_arguments_by_operation("log_metadata_link")
         return result
 
     def get_source_constraints(self, merge=True) -> List[Tuple[tuple, dict]]:
@@ -257,11 +262,14 @@ class DryRunDataTracer:
             resampling_op = leaf.get_operation_closest_to_source("resample_cube_spatial")
             if resampling_op:
                 resample_valid = True
-                #the resampling parameters can be taken into account during load_collection,
-                #under the condition that no operations occur in between that may be affected
-                for op in ["apply_kernel", "reduce_dimension", "apply", "apply_dimension", "resample_spatial","apply_neighborhood", "reduce_dimension_binary"]:
+                # the resampling parameters can be taken into account during load_collection,
+                # under the condition that no operations occur in between that may be affected
+                for op in [
+                    "apply_kernel", "reduce_dimension", "apply", "apply_dimension", "resample_spatial",
+                    "apply_neighborhood", "reduce_dimension_binary"
+                ]:
                     args = resampling_op.get_arguments_by_operation(op)
-                    if(args):
+                    if args:
                         resample_valid = False
                         break
                 if resample_valid:
@@ -273,15 +281,20 @@ class DryRunDataTracer:
                         resolutions = [dim.step for dim in metadata.spatial_dimensions if dim.step is not None]
                         constraints["resample"] = {"target_crs": spatial_dim.crs, "resolution": resolutions}
 
-            for op in ["temporal_extent", "spatial_extent", "bands", "aggregate_spatial", "sar_backscatter",
-                       "process_type", "custom_cloud_mask", "properties"]:
-                #1 some processes can not be skipped when pushing filters down, so find the subgraph that no longer contains these blockers
+            for op in [
+                "temporal_extent", "spatial_extent", "bands", "aggregate_spatial", "sar_backscatter",
+                "process_type", "custom_cloud_mask", "properties"
+            ]:
+                # 1 some processes can not be skipped when pushing filters down,
+                # so find the subgraph that no longer contains these blockers
                 if op in source_constraint_blockers:
-                    subgraph_without_blocking_processes =  leaf.get_operation_closest_to_source(source_constraint_blockers[op])
-                    if(subgraph_without_blocking_processes is not None):
+                    subgraph_without_blocking_processes = leaf.get_operation_closest_to_source(
+                        source_constraint_blockers[op]
+                    )
+                    if subgraph_without_blocking_processes is not None:
                         leaf = subgraph_without_blocking_processes
 
-                #2 merge filtering arguments
+                # 2 merge filtering arguments
                 args = leaf.get_arguments_by_operation(op)
                 if args:
                     if merge:
@@ -309,13 +322,14 @@ class DryRunDataTracer:
         # TODO: we just pass all (0 or more) geometries we encountered. Do something smarter when there are multiple?
         return list(geometries_by_id.values())
 
+
 class ProcessType(Enum):
-    LOCAL = 1 #band math
-    FOCAL_TIME = 2  #aggregate_temporal
-    FOCAL_SPACE_TIME = 3 #apply_neighborhood
-    GLOBAL_TIME = 4 # reduce_dimension
+    LOCAL = 1  # band math
+    FOCAL_TIME = 2  # aggregate_temporal
+    FOCAL_SPACE_TIME = 3  # apply_neighborhood
+    GLOBAL_TIME = 4  # reduce_dimension
     UNKNOWN = 5
-    FOCAL_SPACE = 6 #resampling, apply_kernel
+    FOCAL_SPACE = 6  # resampling, apply_kernel
 
 
 class DryRunDataCube(DriverDataCube):
@@ -359,7 +373,7 @@ class DryRunDataCube(DriverDataCube):
         return self._process("properties", properties)
 
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
-        return self._process("save_result",{"format":format, "options":format_options})
+        return self._process("save_result", {"format": format, "options": format_options})
 
     def mask(self, mask: 'DryRunDataCube', replacement=None) -> 'DryRunDataCube':
         # TODO: if mask cube has no temporal or bbox extent: copy from self?
@@ -378,7 +392,7 @@ class DryRunDataCube(DriverDataCube):
         )
 
     def mask_polygon(self, mask, replacement=None, inside: bool = False) -> 'DriverDataCube':
-        if not inside and replacement==None:
+        if not inside and replacement is None:
             cube, geometries = self.spatial_filter_cube(mask)
             return cube._process(operation="mask_polygon", arguments={"mask": geometries})
         else:
@@ -424,10 +438,10 @@ class DryRunDataCube(DriverDataCube):
             metadata=self.metadata
         )
 
-    def reduce_dimension(self, reducer, dimension: str) -> 'DryRunDataCube':
+    def reduce_dimension(self, reducer, dimension: str, env: EvalEnv) -> 'DryRunDataCube':
         dc = self
-        if(self.metadata.has_temporal_dimension() and self.metadata.temporal_dimension.name == dimension):
-            #TODO: reduce is not necessarily global in call cases
+        if self.metadata.has_temporal_dimension() and self.metadata.temporal_dimension.name == dimension:
+            # TODO: reduce is not necessarily global in call cases
             dc = self._process("process_type", [ProcessType.GLOBAL_TIME])
 
         return dc._process_metadata(self.metadata.reduce_dimension(dimension_name=dimension))
@@ -441,21 +455,26 @@ class DryRunDataCube(DriverDataCube):
     def resolution_merge(self, args: ResolutionMergeArgs) -> 'DryRunDataCube':
         return self._process("resolution_merge", args)
 
-    def resample_spatial(self, resolution: Union[float, Tuple[float, float]], projection: Union[int, str] = None,
-                         method: str = 'near', align: str = 'upper-left'):
-        return self._process("resample_spatial", arguments={"resolution":resolution,"projection":projection,"method":method,"align":align})
+    def resample_spatial(
+            self, resolution: Union[float, Tuple[float, float]], projection: Union[int, str] = None,
+            method: str = 'near', align: str = 'upper-left'
+    ):
+        return self._process(
+            "resample_spatial",
+            arguments={"resolution": resolution, "projection": projection, "method": method, "align": align}
+        )
 
     def apply_kernel(self, kernel: list, factor=1, border=0, replace_invalid=0) -> 'DriverDataCube':
-        return self._process("apply_kernel",arguments={"kernel":kernel})
+        return self._process("apply_kernel", arguments={"kernel": kernel})
 
-    def apply_dimension(self, process, dimension: str, target_dimension: str=None) -> 'DriverDataCube':
+    def apply_dimension(self, process, dimension: str, target_dimension: str = None) -> 'DriverDataCube':
         cube = self
-        if (self.metadata.has_temporal_dimension() and self.metadata.temporal_dimension.name == dimension):
+        if self.metadata.has_temporal_dimension() and self.metadata.temporal_dimension.name == dimension:
             # TODO: reduce is not necessarily global in call cases
             cube = self._process("process_type", [ProcessType.GLOBAL_TIME])
 
-        if(target_dimension is not None):
-            cube = cube._process_metadata(self.metadata.rename_dimension(source=dimension,target=target_dimension))
+        if target_dimension is not None:
+            cube = cube._process_metadata(self.metadata.rename_dimension(source=dimension, target=target_dimension))
         else:
             cube = self
         return cube._process("apply_dimension", arguments={"dimension": dimension})
@@ -473,29 +492,29 @@ class DryRunDataCube(DriverDataCube):
         if self.metadata.has_temporal_dimension():
             temporal_size = size_dict.get(self.metadata.temporal_dimension.name, None)
             temporal_overlap = overlap_dict.get(self.metadata.temporal_dimension.name, None)
-            if temporal_size is None or temporal_size.get('value',None) is None:
+            if temporal_size is None or temporal_size.get('value', None) is None:
                 return self._process("process_type", [ProcessType.GLOBAL_TIME])
         return self
 
     def atmospheric_correction(self, method: str = None, *args) -> 'DriverDataCube':
         method_link = "https://remotesensing.vito.be/case/icor"
-        if(method=="SMAC"):
+        if method == "SMAC":
             method_link = "https://doi.org/10.1080/01431169408954055"
 
         aot_link = "https://atmosphere.copernicus.eu/catalogue#/product/urn:x-wmo:md:int.ecmwf::copernicus:cams:prod:fc:total-aod:pid094"
-        #by default GLOBE DEM is used
+        # by default GLOBE DEM is used
         dem_doi = "https://doi.org/10.7289/V52R3PMS"
-        #default APDA water vapour algorithm
+        # default APDA water vapour algorithm
         wvp_doi = "https://doi.org/10.1109/LGRS.2016.2635942"
 
-        return self\
-            ._process("log_metadata_link", arguments={"rel": "atmospheric-scattering", "href":method_link})\
-            ._process("log_metadata_link", arguments={"rel": "related", "href":aot_link}) \
+        return self \
+            ._process("log_metadata_link", arguments={"rel": "atmospheric-scattering", "href": method_link}) \
+            ._process("log_metadata_link", arguments={"rel": "related", "href": aot_link}) \
             ._process("log_metadata_link", arguments={"rel": "elevation-model", "href": dem_doi}) \
             ._process("log_metadata_link", arguments={"rel": "water-vapor", "href": wvp_doi})
 
     def mask_scl_dilation(self) -> 'DriverDataCube':
-        return self._process("custom_cloud_mask",arguments={"method":"mask_scl_dilation"})
+        return self._process("custom_cloud_mask", arguments={"method": "mask_scl_dilation"})
 
     def _nop(self, *args, **kwargs) -> 'DryRunDataCube':
         """No Operation: do nothing"""

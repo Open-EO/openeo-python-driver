@@ -14,6 +14,8 @@
     {
       "name": "udfparam",
       "description": "A parameter for the UDF.",
+      "optional": true,
+      "default": "udfparam_default",
       "schema": {
         "type": "string"
       }
@@ -36,7 +38,7 @@
         "dimension": "bands",
         "reducer": {
           "process_graph": {
-            "udf": {
+            "runudf1": {
               "process_id": "run_udf",
               "arguments": {
                 "data": {
