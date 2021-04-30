@@ -282,8 +282,8 @@ class DryRunDataTracer:
                         constraints["resample"] = {"target_crs": spatial_dim.crs, "resolution": resolutions}
 
             for op in [
-                "temporal_extent", "spatial_extent", "bands", "aggregate_spatial", "sar_backscatter",
-                "process_type", "custom_cloud_mask", "properties"
+                "temporal_extent", "spatial_extent", "_weak_spatial_extent", "bands", "aggregate_spatial",
+                "sar_backscatter", "process_type", "custom_cloud_mask", "properties"
             ]:
                 # 1 some processes can not be skipped when pushing filters down,
                 # so find the subgraph that no longer contains these blockers
@@ -304,6 +304,11 @@ class DryRunDataTracer:
                         constraints[op] = args[0]
                     else:
                         constraints[op] = args
+
+            if "_weak_spatial_extent" in constraints:
+                if "spatial_extent" not in constraints:
+                    constraints["spatial_extent"] = constraints["_weak_spatial_extent"]
+                del constraints["_weak_spatial_extent"]
 
             source_id = leaf.get_source().get_source_id()
             source_constraints.append((source_id, constraints))
@@ -363,8 +368,10 @@ class DryRunDataCube(DriverDataCube):
     def filter_temporal(self, start: str, end: str) -> 'DryRunDataCube':
         return self._process("temporal_extent", (start, end))
 
-    def filter_bbox(self, west, south, east, north, crs=None, base=None, height=None) -> 'DryRunDataCube':
-        return self._process("spatial_extent", {"west": west, "south": south, "east": east, "north": north, "crs": crs})
+    def filter_bbox(
+            self, west, south, east, north, crs=None, base=None, height=None, operation="spatial_extent"
+    ) -> 'DryRunDataCube':
+        return self._process(operation, {"west": west, "south": south, "east": east, "north": north, "crs": crs})
 
     def filter_bands(self, bands) -> 'DryRunDataCube':
         return self._process("bands", bands)
@@ -392,21 +399,25 @@ class DryRunDataCube(DriverDataCube):
         )
 
     def mask_polygon(self, mask, replacement=None, inside: bool = False) -> 'DriverDataCube':
+        cube = self
         if not inside and replacement is None:
-            cube, geometries = self.spatial_filter_cube(mask)
-            return cube._process(operation="mask_polygon", arguments={"mask": geometries})
-        else:
-            self._nop()
+            mask, bbox = cube._normalize_geometry(mask)
+            cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
+        return cube._process(operation="mask_polygon", arguments={"mask": mask})
 
     def aggregate_spatial(
             self, geometries: Union[str, dict, DelayedVector, shapely.geometry.base.BaseGeometry],
             reducer, target_dimension: str = "result"
     ) -> AggregatePolygonResult:
-        cube, geometries = self.spatial_filter_cube(geometries)
+        geometries, bbox = self._normalize_geometry(geometries)
+        cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
         cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
         return AggregatePolygonResult(timeseries={}, regions=geometries)
 
-    def spatial_filter_cube(self, geometries):
+    def _normalize_geometry(self, geometries):
+        """
+        Helper to preprocess geometries (as used in aggregate_spatial and mask_polygon) and apply related filter_bbox
+        """
         if isinstance(geometries, dict):
             geometries = geojson_to_geometry(geometries)
             bbox = geometries.bounds
@@ -419,8 +430,8 @@ class DryRunDataCube(DriverDataCube):
             bbox = geometries.bounds
         else:
             raise ValueError(geometries)
-        cube = self.filter_bbox(west=bbox[0], south=bbox[1], east=bbox[2], north=bbox[3], crs="EPSG:4326")
-        return cube, geometries
+        bbox = dict(west=bbox[0], south=bbox[1], east=bbox[2], north=bbox[3], crs="EPSG:4326")
+        return geometries, bbox
 
     # TODO: this is a workaround until vectorcube is fully upgraded
     def raster_to_vector(self):

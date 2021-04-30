@@ -1,6 +1,8 @@
 import pytest
 import shapely.geometry
 
+from openeo.internal.graph_building import PGNode
+from openeo.rest.datacube import DataCube
 from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER, _extract_load_parameters, \
     ENV_SOURCE_CONSTRAINTS
 from openeo_driver.datastructs import SarBackscatterArgs
@@ -419,11 +421,76 @@ def test_evaluate_load_collection_and_filter_extents_dynamic(dry_run_env, dry_ru
     }
 
 
-def test_aggregate_spatial(dry_run_env, dry_run_tracer):
-    polygon = {
-        "type": "Polygon",
-        "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]
+@pytest.mark.parametrize(["inside", "replacement", "expect_spatial_extent"], [
+    (None, None, True),
+    (False, None, True),
+    (True, None, False),
+    (None, 123, False),
+])
+def test_mask_polygon_only(dry_run_env, dry_run_tracer, inside, replacement, expect_spatial_extent):
+    polygon = {"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]}
+    cube = DataCube(PGNode("load_collection", id="S2_FOOBAR"), connection=None)
+    cube = cube.mask_polygon(mask=polygon, inside=inside, replacement=replacement)
+    pg = cube.flat_graph()
+    res = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints[0]
+    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    if expect_spatial_extent:
+        expected = {
+            "spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"}
+        }
+    else:
+        expected = {}
+    assert constraints == expected
+
+
+def test_mask_polygon_and_load_collection_spatial_extent(dry_run_env, dry_run_tracer):
+    polygon = {"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]}
+    cube = DataCube(PGNode(
+        "load_collection", id="S2_FOOBAR",
+        spatial_extent={"west": -1, "south": -1, "east": 10, "north": 10}
+    ), connection=None)
+    cube = cube.mask_polygon(mask=polygon)
+    pg = cube.flat_graph()
+    res = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints[0]
+    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert constraints == {
+        "spatial_extent": {"west": -1, "south": -1, "east": 10, "north": 10, "crs": "EPSG:4326"}
     }
+
+
+@pytest.mark.parametrize("bbox_first", [True, False])
+def test_mask_polygon_and_filter_bbox(dry_run_env, dry_run_tracer, bbox_first):
+    polygon = {"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]}
+    bbox = {"west": -1, "south": -1, "east": 9, "north": 9, "crs": "EPSG:4326"}
+    # Use client lib to build process graph in flexible way
+    cube = DataCube(PGNode("load_collection", id="S2_FOOBAR"), connection=None)
+    if bbox_first:
+        cube = cube.filter_bbox(bbox=bbox).mask_polygon(mask=polygon)
+    else:
+        cube = cube.mask_polygon(mask=polygon).filter_bbox(bbox=bbox)
+
+    pg = cube.flat_graph()
+    res = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints[0]
+    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert constraints == {
+        "spatial_extent": {"west": -1, "south": -1, "east": 9, "north": 9, "crs": "EPSG:4326"}
+    }
+
+
+def test_aggregate_spatial_only(dry_run_env, dry_run_tracer):
+    polygon = {"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]}
     pg = {
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "agg": {
@@ -460,31 +527,29 @@ def test_aggregate_spatial(dry_run_env, dry_run_tracer):
     }
 
 
-def test_mask_polygon(dry_run_env, dry_run_tracer):
-    polygon = {
-        "type": "Polygon",
-        "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]
-    }
-    pg = {
-        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
-        "agg": {
-            "process_id": "mask_polygon",
-            "arguments": {
-                "data": {"from_node": "lc"},
-                "mask": polygon,
-                "inside": False
-            },
-            "result": True,
-        },
-    }
-    cube = evaluate(pg, env=dry_run_env)
+def test_aggregate_spatial_and_filter_bbox(dry_run_env, dry_run_tracer):
+    polygon = {"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]}
+    bbox = {"west": -1, "south": -1, "east": 9, "north": 9, "crs": "EPSG:4326"}
+    cube = DataCube(PGNode("load_collection", id="S2_FOOBAR"), connection=None)
+    cube = cube.filter_bbox(bbox=bbox)
+    cube = cube.aggregate_spatial(geometries=polygon, reducer="mean")
+
+    pg = cube.flat_graph()
+    res = evaluate(pg, env=dry_run_env)
 
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
     assert src == ("load_collection", ("S2_FOOBAR", ()))
     assert constraints == {
-        "spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"}
+        "spatial_extent": bbox,
+        "aggregate_spatial": {"geometries": shapely.geometry.shape(polygon)},
+    }
+    geometries, = dry_run_tracer.get_geometries()
+    assert isinstance(geometries, shapely.geometry.Polygon)
+    assert shapely.geometry.mapping(geometries) == {
+        "type": "Polygon",
+        "coordinates": (((0.0, 0.0), (3.0, 5.0), (8.0, 2.0), (0.0, 0.0)),)
     }
 
 
@@ -870,8 +935,9 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
             ('load_collection', ('S2_FOOBAR', ())),
             {
                 'bands': ['B04', 'B08'],
-                'spatial_extent': {'crs': 'EPSG:32631', 'east': 642140.0, 'north': 5677450.0, 'south': 5676170.0,
-                                   'west': 640860.0},
+                'spatial_extent': {
+                    'crs': 'EPSG:32631', 'east': 642140.0, 'north': 5677450.0, 'south': 5676170.0, 'west': 640860.0,
+                },
                 'temporal_extent': ('2019-03-01', '2019-04-01')}
         ),
         (
@@ -880,16 +946,18 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
                 'bands': ['ndvi'],
                 'process_type': [ProcessType.FOCAL_SPACE],
                 'resample': {'resolution': [10, 10], 'target_crs': 'AUTO:42001'},
-                'spatial_extent': {'crs': 'EPSG:4326', 'east': 5.03586, 'north': 51.231, 'south': 51.219,
-                                   'west': 5.01704},
+                'spatial_extent': {
+                    'crs': 'EPSG:32631', 'east': 642140.0, 'north': 5677450.0, 'south': 5676170.0, 'west': 640860.0,
+                },
                 'temporal_extent': ('2019-03-01', '2019-04-01')}
         ),
         (
             ('load_collection', ('S2_FOOBAR', ())),
             {
                 'bands': ['B04', 'B08'],
-                'spatial_extent': {'crs': 'EPSG:4326', 'east': 5.03586, 'north': 51.231, 'south': 51.219,
-                                   'west': 5.01704},
+                'spatial_extent': {
+                    'crs': 'EPSG:32631', 'east': 642140.0, 'north': 5677450.0, 'south': 5676170.0, 'west': 640860.0,
+                },
                 'temporal_extent': ('2019-03-01', '2019-04-01')}
         )
     ]
