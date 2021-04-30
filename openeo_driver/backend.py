@@ -250,7 +250,7 @@ class BatchJobs(MicroService):
     ) -> BatchJobMetadata:
         raise NotImplementedError
 
-    def get_job_info(self, job_id: str, user: 'User') -> BatchJobMetadata:  # 2) is the SHub polling endpoint and needs an access_token to call start_job with impersonation
+    def get_job_info(self, job_id: str, user: 'User') -> BatchJobMetadata:
         """
         Get details about a batch job
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-job
@@ -265,7 +265,7 @@ class BatchJobs(MicroService):
         """
         raise NotImplementedError
 
-    def start_job(self, job_id: str, user: 'User'):  # 1) needs an access_token to do impersonation
+    def start_job(self, job_id: str, user: 'User'):
         """
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/start-job
         """
