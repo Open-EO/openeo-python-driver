@@ -14,7 +14,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Union, NamedTuple, Dict
+from typing import List, Union, NamedTuple, Dict, Optional, Callable
 
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.util import rfc3339
@@ -241,13 +241,16 @@ class BatchJobs(MicroService):
     https://openeo.org/documentation/1.0/developers/api/reference.html#operation/stop-job
     """
 
+    def __init__(self):
+        self._get_proxy_user: Callable[['User'], Optional[str]] = lambda user: None
+
     def create_job(
             self, user_id: str, process: dict, api_version: str,
             metadata: dict, job_options: dict = None
     ) -> BatchJobMetadata:
         raise NotImplementedError
 
-    def get_job_info(self, job_id: str, user_id: str) -> BatchJobMetadata:
+    def get_job_info(self, job_id: str, user: 'User') -> BatchJobMetadata:
         """
         Get details about a batch job
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-job
@@ -262,7 +265,7 @@ class BatchJobs(MicroService):
         """
         raise NotImplementedError
 
-    def start_job(self, job_id: str, user_id: str):
+    def start_job(self, job_id: str, user: 'User'):
         """
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/start-job
         """
@@ -296,6 +299,12 @@ class BatchJobs(MicroService):
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/delete-job
         """
         raise NotImplementedError
+
+    def get_proxy_user(self, user: 'User') -> Optional[str]:
+        return self._get_proxy_user(user)
+
+    def set_proxy_user_getter(self, getter: Callable[['User'], Optional[str]]):
+        self._get_proxy_user = getter
 
 
 class OidcProvider(NamedTuple):
@@ -426,6 +435,9 @@ class OpenEoBackendImplementation:
 
     def summarize_exception(self, error: Exception) -> Union[ErrorSummary, Exception]:
         return error
+
+    def set_preferred_username_getter(self, getter: Callable[['User'], Optional[str]]):
+        self.batch_jobs.set_proxy_user_getter(getter)
 
 
 _backend_implementation = None

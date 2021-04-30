@@ -7,7 +7,7 @@ import base64
 import functools
 import hashlib
 import logging
-from typing import Callable, Tuple, List
+from typing import Callable, Tuple, List, Optional
 
 from flask import request, Request
 import requests
@@ -22,9 +22,10 @@ _log = logging.getLogger(__name__)
 
 class User:
     # TODO more fields
-    def __init__(self, user_id: str, info: dict = None):
+    def __init__(self, user_id: str, info: dict = None, internal_auth_data: dict = None):
         self.user_id = user_id
         self.info = info
+        self.internal_auth_data = internal_auth_data
 
     def __repr__(self):
         return "%s(%r, %r)" % (self.__class__.__name__, self.user_id, self.info)
@@ -110,8 +111,7 @@ class HttpAuthHandler:
         if bearer_type == 'basic':
             return self.resolve_basic_access_token(access_token=access_token)
         elif bearer_type == 'oidc':
-            oidc_discovery_url = self._oidc_discovery_urls[provider_id]
-            return self.resolve_oidc_access_token(oidc_discovery_url=oidc_discovery_url, access_token=access_token)
+            return self.resolve_oidc_access_token(provider_id=provider_id, access_token=access_token)
         else:
             _log.warning("Invalid bearer token {b!r}".format(b=bearer))
             raise TokenInvalidException
@@ -163,7 +163,9 @@ class HttpAuthHandler:
             raise TokenInvalidException
         return User(user_id=user_id, info={"authentication": "basic"})
 
-    def resolve_oidc_access_token(self, oidc_discovery_url: str, access_token: str) -> User:
+    def resolve_oidc_access_token(self, provider_id: str, access_token: str) -> User:
+        oidc_discovery_url = self._oidc_discovery_urls[provider_id]
+
         try:
             resp = requests.get(oidc_discovery_url)
             resp.raise_for_status()
@@ -174,6 +176,8 @@ class HttpAuthHandler:
             # The "sub" claim is the only claim in the response that is guaranteed per OIDC spec
             # TODO: do we have better options?
             user_id = userinfo["sub"]
-            return User(user_id=user_id, info=userinfo)
+            return User(user_id=user_id, info=userinfo, internal_auth_data={
+                "type": "OIDC", "provider_id": provider_id, "access_token": access_token
+            })
         except Exception:
             raise TokenInvalidException

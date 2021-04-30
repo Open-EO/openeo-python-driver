@@ -17,6 +17,7 @@ from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, ProcessGraphNotFoundException
 from openeo_driver.save_result import AggregatePolygonResult
+from openeo_driver.users import User
 from openeo_driver.utils import EvalEnv
 
 DEFAULT_DATETIME = datetime(2020, 4, 23, 16, 20, 27)
@@ -345,7 +346,10 @@ class DummyBatchJobs(BatchJobs):
         self._job_registry[(user_id, job_id)] = job_info
         return job_info
 
-    def get_job_info(self, job_id: str, user_id: str) -> BatchJobMetadata:
+    def get_job_info(self, job_id: str, user: User) -> BatchJobMetadata:
+        return self._get_job_info(job_id=job_id, user_id=user.user_id)
+
+    def _get_job_info(self, job_id: str, user_id: str) -> BatchJobMetadata:
         try:
             return self._job_registry[(user_id, job_id)]
         except KeyError:
@@ -361,14 +365,14 @@ class DummyBatchJobs(BatchJobs):
         except KeyError:
             raise JobNotFoundException(job_id)
 
-    def start_job(self, job_id: str, user_id: str):
-        self._update_status(job_id=job_id, user_id=user_id, status="running")
+    def start_job(self, job_id: str, user: User):
+        self._update_status(job_id=job_id, user_id=user.user_id, status="running")
 
     def _output_root(self) -> Path:
         return Path("/data/jobs")
 
     def get_results(self, job_id: str, user_id: str) -> Dict[str, dict]:
-        if self.get_job_info(job_id=job_id, user_id=user_id).status != "finished":
+        if self._get_job_info(job_id=job_id, user_id=user_id).status != "finished":
             raise JobNotFinishedException
         return {
             "output.tiff": {
@@ -381,13 +385,13 @@ class DummyBatchJobs(BatchJobs):
         }
 
     def get_log_entries(self, job_id: str, user_id: str, offset: str) -> List[dict]:
-        self.get_job_info(job_id=job_id, user_id=user_id)
+        self._get_job_info(job_id=job_id, user_id=user_id)
         return [
             {"id": "1", "level": "info", "message": "hello world"}
         ]
 
     def cancel_job(self, job_id: str, user_id: str):
-        self.get_job_info(job_id=job_id, user_id=user_id)
+        self._get_job_info(job_id=job_id, user_id=user_id)
 
     def delete_job(self, job_id: str, user_id: str):
         self.cancel_job(job_id, user_id)
