@@ -120,6 +120,8 @@ def geojson_to_geometry(geojson: dict) -> shapely.geometry.base.BaseGeometry:
             'type': 'GeometryCollection',
             'geometries': [feature['geometry'] for feature in geojson['features']]
         }
+    elif geojson["type"] == "Feature":
+        geojson = geojson["geometry"]
     return shapely.geometry.shape(geojson)
 
 
