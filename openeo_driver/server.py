@@ -4,6 +4,7 @@ from typing import Union
 
 import gunicorn.app.base
 
+_log = logging.getLogger(__name__)
 
 def show_log_level(logger: logging.Logger):
     """Helper to show threshold log level of a logger."""
@@ -43,17 +44,20 @@ def run(title: str, description: str, deploy_metadata: Union[dict, None], backen
         'errorlog': '-'
     }
 
-    print(options)
+    _log.info(f"StandaloneApplication options: {options}")
 
     def when_ready(server) -> None:
-        print(server)
+        _log.info(f"when_ready: {server}")
 
         logging.getLogger('gunicorn.error').info('Gunicorn info logging enabled!')
         logging.getLogger('flask').info('Flask info logging enabled!')
 
         on_started()
 
+    _log.info("Creating StandaloneApplication")
     application = StandaloneApplication(app, when_ready, options)
+
+    _log.info("Running StandaloneApplication")
     application.run()
 
 
