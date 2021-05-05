@@ -15,7 +15,7 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Union, NamedTuple, Dict, Optional, Callable
-
+import abc
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.util import rfc3339
 from openeo_driver.datacube import DriverDataCube
@@ -141,9 +141,27 @@ class LoadParameters(dict):
         return LoadParameters(super().copy())
 
 
-class CollectionCatalog(MicroService):
+class AbstractCollectionCatalog(MicroService, metaclass=abc.ABCMeta):
+
+    @abc.abstractmethod
+    def get_all_metadata(self) -> List[dict]:
+        """Basic metadata for all collections"""
+        ...
+
+    @abc.abstractmethod
+    def get_collection_metadata(self, collection_id: str) -> dict:
+        """Full metadata for a specific collections"""
+        ...
+
+    @abc.abstractmethod
+    def load_collection(self, collection_id: str, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
+        """Load a collection as a DriverDataCube"""
+        ...
+
+
+class CollectionCatalog(AbstractCollectionCatalog):
     """
-    Basic implementation of a catalog of collections/EO data
+    Basic implementation of a catalog of collections/EO data, based on predefined list of collections
     """
 
     def __init__(self, all_metadata: List[dict]):
@@ -161,18 +179,15 @@ class CollectionCatalog(MicroService):
         """
         return list(self._catalog.values())
 
-    def _get(self, collection_id: str) -> dict:
-        try:
-            return self._catalog[collection_id]
-        except KeyError:
-            raise CollectionNotFoundException(collection_id)
-
     def get_collection_metadata(self, collection_id: str) -> dict:
         """
         Full metadata for a specific dataset
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-collection
         """
-        return self._get(collection_id=collection_id)
+        try:
+            return self._catalog[collection_id]
+        except KeyError:
+            raise CollectionNotFoundException(collection_id)
 
     def load_collection(self, collection_id: str, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
         raise NotImplementedError
@@ -401,7 +416,7 @@ class OpenEoBackendImplementation:
     def __init__(
             self,
             secondary_services: SecondaryServices,
-            catalog: CollectionCatalog,
+            catalog: AbstractCollectionCatalog,
             batch_jobs: BatchJobs,
             user_defined_processes: UserDefinedProcesses
     ):
