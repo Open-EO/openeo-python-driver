@@ -1,0 +1,86 @@
+{
+  "id": "udf_apply_neighborhood",
+  "summary": "udf_apply_neighborhood",
+  "description": "udf_apply_neighborhood",
+  "parameters": [
+    {
+      "name": "data",
+      "description": "A data cube.",
+      "schema": {
+        "type": "object",
+        "subtype": "raster-cube"
+      }
+    },
+    {
+      "name": "udfparam",
+      "description": "A parameter for the UDF.",
+      "optional": true,
+      "default": "udfparam_default",
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "returns": {
+    "description": "UDF datacube",
+    "schema": {
+      "type": "object",
+      "subtype": "raster-cube"
+    }
+  },
+  "process_graph": {
+    "applyneighborhood1": {
+      "process_id": "apply_neighborhood",
+      "arguments": {
+        "data": {
+          "from_parameter": "data"
+        },
+        "process": {
+          "process_graph": {
+            "runudf1": {
+              "process_id": "run_udf",
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "udf": "print('hello world')",
+                "runtime": "Python",
+                "context": {
+                  "param": {
+                    "from_parameter": "udfparam"
+                  }
+                }
+              },
+              "result": true
+            }
+          }
+        },
+        "size": [
+          {
+            "dimension": "x",
+            "value": 128,
+            "unit": "px"
+          },
+          {
+            "dimension": "y",
+            "value": 128,
+            "unit": "px"
+          }
+        ],
+        "overlap": [
+          {
+            "dimension": "x",
+            "value": 16,
+            "unit": "px"
+          },
+          {
+            "dimension": "y",
+            "value": 16,
+            "unit": "px"
+          }
+        ]
+      },
+      "result": true
+    }
+  }
+}

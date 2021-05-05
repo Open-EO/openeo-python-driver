@@ -408,9 +408,10 @@ def apply_neighborhood(args: dict, env: EvalEnv) -> DriverDataCube:
     process = extract_deep(args, "process", "process_graph")
     size = extract_arg(args, 'size')
     overlap = extract_arg(args, 'overlap')
-    context = args.get( 'context',{})
+    # TODO: pass context?
+    context = args.get('context', {})
     data_cube = extract_arg(args, 'data')
-    return data_cube.apply_neighborhood(process,size,overlap)
+    return data_cube.apply_neighborhood(process=process, size=size, overlap=overlap, env=env)
 
 @process
 def apply_dimension(args: Dict, env: EvalEnv) -> DriverDataCube:

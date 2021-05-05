@@ -33,7 +33,7 @@ class DriverDataCube(ImageCollection):
     def apply_kernel(self, kernel: list, factor=1, border=0, replace_invalid=0) -> 'DriverDataCube':
         self._not_implemented()
 
-    def apply_neighborhood(self, process, size: List[dict], overlap: List[dict]) -> 'DriverDataCube':
+    def apply_neighborhood(self, process, size: List[dict], overlap: List[dict], env: EvalEnv) -> 'DriverDataCube':
         self._not_implemented()
 
     def apply_dimension(self, process, dimension: str, target_dimension: str=None) -> 'DriverDataCube':

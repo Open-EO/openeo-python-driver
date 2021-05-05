@@ -1,7 +1,7 @@
 {
-  "id": "udf_udp",
-  "summary": "UDP using a UDF",
-  "description": "UDP version of NDVI",
+  "id": "udf_reduce_dimension",
+  "summary": "udf_reduce_dimension",
+  "description": "udf_reduce_dimension",
   "parameters": [
     {
       "name": "data",
@@ -44,13 +44,16 @@
                 "data": {
                   "from_parameter": "data"
                 },
+                "udf": "print('hello world')",
+                "runtime": "Python",
                 "context": {
-                    "param": {"from_parameter": "udfparam"}
+                  "param": {
+                    "from_parameter": "udfparam"
+                  }
                 }
               },
               "result": true
             }
-
           }
         }
       },

@@ -814,24 +814,18 @@ def test_user_defined_process_required_parameter(api100):
 
 
 @pytest.mark.parametrize("set_parameter", [False, True])
-def test_user_defined_process_udf(api100, set_parameter):
+def test_udp_udf_reduce_dimension(api100, set_parameter):
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
-    spec = api100.load_json("udp/udf.json")
-    user_defined_process_registry.save(user_id=TEST_USER, process_id="udf_udp", spec=spec)
+    spec = api100.load_json("udp/udf_reduce_dimension.json")
+    user_defined_process_registry.save(user_id=TEST_USER, process_id="udf_reduce_dimension", spec=spec)
 
+    udp_args = {"data": {"from_node": "loadcollection1"}}
+    if set_parameter:
+        udp_args["udfparam"] = "test_the_udfparam"
     pg = {
-        "loadcollection1": {
-            "process_id": "load_collection",
-            "arguments": {"id": "S2_FOOBAR"}
-        },
-        "udfudp1": {
-            "process_id": "udf_udp",
-            "namespace": "user",
-            "arguments": {
-                "data": {"from_node": "loadcollection1"},
-                ("udfparam" if set_parameter else "_ignore_me"): "test_the_udfparam"
-            },
-            "result": True
+        "loadcollection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "udfreducedimension1": {
+            "process_id": "udf_reduce_dimension", "namespace": "user", "arguments": udp_args, "result": True
         }
     }
 
@@ -841,6 +835,33 @@ def test_user_defined_process_udf(api100, set_parameter):
     dummy.reduce_dimension.assert_called_with(reducer=mock.ANY, dimension="bands", env=mock.ANY)
     args, kwargs = dummy.reduce_dimension.call_args
     assert "runudf1" in kwargs["reducer"]
+    env: EvalEnv = kwargs["env"]
+    expected_param = "test_the_udfparam" if set_parameter else "udfparam_default"
+    assert env.collect_parameters()["udfparam"] == expected_param
+
+
+@pytest.mark.parametrize("set_parameter", [False, True])
+def test_udp_apply_neighborhood(api100, set_parameter):
+    api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+    spec = api100.load_json("udp/udf_apply_neighborhood.json")
+    user_defined_process_registry.save(user_id=TEST_USER, process_id="udf_apply_neighborhood", spec=spec)
+
+    udp_args = {"data": {"from_node": "loadcollection1"}}
+    if set_parameter:
+        udp_args["udfparam"] = "test_the_udfparam"
+    pg = {
+        "loadcollection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "udfapplyneighborhood1": {
+            "process_id": "udf_apply_neighborhood", "namespace": "user", "arguments": udp_args, "result": True
+        }
+    }
+
+    response = api100.result(pg).assert_status_code(200)
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
+    assert dummy.apply_neighborhood.call_count == 1
+    dummy.apply_neighborhood.assert_called_with(process=mock.ANY, size=mock.ANY, overlap=mock.ANY, env=mock.ANY)
+    args, kwargs = dummy.apply_neighborhood.call_args
+    assert "runudf1" in kwargs["process"]
     env: EvalEnv = kwargs["env"]
     expected_param = "test_the_udfparam" if set_parameter else "udfparam_default"
     assert env.collect_parameters()["udfparam"] == expected_param
