@@ -415,15 +415,16 @@ class OpenEoBackendImplementation:
 
     def __init__(
             self,
-            secondary_services: SecondaryServices,
-            catalog: AbstractCollectionCatalog,
-            batch_jobs: BatchJobs,
-            user_defined_processes: UserDefinedProcesses
+            secondary_services: Optional[SecondaryServices],
+            catalog: Optional[AbstractCollectionCatalog],
+            batch_jobs: Optional[BatchJobs],
+            user_defined_processes: Optional[UserDefinedProcesses]
     ):
         self.secondary_services = secondary_services
         self.catalog = catalog
         self.batch_jobs = batch_jobs
         self.user_defined_processes = user_defined_processes
+        self.user_files = None  # TODO: implement user file storage microservice
 
     def health_check(self) -> str:
         return "OK"

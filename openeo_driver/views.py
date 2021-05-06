@@ -483,50 +483,17 @@ def execute():
         return jsonify(replace_nan_values(result))
 
 
-@api_endpoint
-@openeo_bp.route('/jobs', methods=['POST'])
-@auth_handler.requires_bearer_auth
-def create_job(user: User):
-    # TODO: wrap this job specification in a 1.0-style ProcessGrahpWithMetadata?
-    post_data = request.get_json()
-    process = {"process_graph": _extract_process_graph(post_data)}
-    job_options = post_data.get("job_options")
-    job_info = backend_implementation.batch_jobs.create_job(
-        user_id=user.user_id,
-        process=process,
-        api_version=g.api_version,
-        metadata=dict_no_none(title=post_data.get("title"), description=post_data.get("description")),
-        job_options=job_options,
-    )
-    job_id = job_info.id
-    response = make_response("", 201)
-    response.headers['Location'] = url_for('.get_job_info', job_id=job_id)
-    response.headers['OpenEO-Identifier'] = str(job_id)
-    return response
-
-
-@api_endpoint
-@openeo_bp.route('/jobs', methods=['GET'])
-@auth_handler.requires_bearer_auth
-def list_jobs(user: User):
-    return jsonify({
-        "jobs": [
-            _jsonable_batch_job_metadata(m, full=False)
-            for m in backend_implementation.batch_jobs.get_user_jobs(user.user_id)
-        ],
-        "links": [],
-    })
-
-
 def _jsonable_batch_job_metadata(metadata: BatchJobMetadata, full=True) -> dict:
     """API-version-aware conversion of batch job metadata to jsonable dict"""
     d = metadata.prepare_for_json()
     # Fields to export
     fields = ['id', 'title', 'description', 'status', 'created', 'updated', 'plan', 'costs', 'budget']
     if full:
-        fields.extend(['process', 'progress', 'duration_seconds', 'duration_human_readable',
-                       'memory_time_megabyte_seconds', 'memory_time_human_readable',
-                       'cpu_time_seconds', 'cpu_time_human_readable'])
+        fields.extend([
+            'process', 'progress', 'duration_seconds', 'duration_human_readable',
+            'memory_time_megabyte_seconds', 'memory_time_human_readable',
+            'cpu_time_seconds', 'cpu_time_human_readable',
+        ])
     d = {k: v for (k, v) in d.items() if k in fields}
 
     if requested_api_version().below("1.0.0"):
@@ -537,126 +504,6 @@ def _jsonable_batch_job_metadata(metadata: BatchJobMetadata, full=True) -> dict:
             d["status"] = "submitted"
 
     return dict_no_none(**d)
-
-
-@api_endpoint
-@openeo_bp.route('/jobs/<job_id>', methods=['GET'])
-@auth_handler.requires_bearer_auth
-def get_job_info(job_id, user: User):
-    job_info = backend_implementation.batch_jobs.get_job_info(job_id, user)
-    return jsonify(_jsonable_batch_job_metadata(job_info))
-
-
-@api_endpoint(hidden=True)
-@openeo_bp.route('/jobs/<job_id>', methods=['DELETE'])
-@auth_handler.requires_bearer_auth
-def delete_job(job_id, user: User):
-    backend_implementation.batch_jobs.delete_job(job_id=job_id, user_id=user.user_id)
-    return response_204_no_content()
-
-
-@api_endpoint(hidden=True)
-@openeo_bp.route('/jobs/<job_id>', methods=['PATCH'])
-@auth_handler.requires_bearer_auth
-def modify_job(job_id, user: User):
-    # TODO
-    raise FeatureUnsupportedException()
-
-
-@api_endpoint
-@openeo_bp.route('/jobs/<job_id>/results', methods=['POST'])
-@auth_handler.requires_bearer_auth
-def queue_job(job_id, user: User):
-    backend_implementation.batch_jobs.start_job(job_id=job_id, user=user)
-    return make_response("", 202)
-
-
-@api_endpoint
-@openeo_bp.route('/jobs/<job_id>/results', methods=['GET'])
-@auth_handler.requires_bearer_auth
-def list_job_results(job_id, user: User):
-    job_info = backend_implementation.batch_jobs.get_job_info(job_id, user)
-    results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
-
-    def base64_user_id() -> str:
-        return base64.urlsafe_b64encode(user.user_id.encode()).decode()
-
-    def secure_token(filename, expires) -> str:
-        return _compute_secure_token(job_id, user.user_id, filename, expires)
-
-    def expiration_timestamp() -> Union[int, None]:
-        expiration = current_app.config.get('SIGNED_URL_EXPIRATION')
-        return time.time() + int(expiration) if expiration else None
-
-    def download_url(filename) -> str:
-        if smart_bool(current_app.config.get('SIGNED_URL')):
-            expires = expiration_timestamp()
-            return url_for('.download_job_result_signed', job_id=job_id, user_base64=base64_user_id(),
-                           secure_key=secure_token(filename, expires), filename=filename,
-                           expires=expires, _external=True)
-        else:
-            return url_for('.download_job_result', job_id=job_id, filename=filename, _external=True)
-
-    def asset_object(filename: str, asset_metadata: dict) -> dict:
-        bands = asset_metadata.get("bands")
-        nodata = asset_metadata.get("nodata")
-
-        return dict_no_none(**{
-            "title": asset_metadata.get("title",filename), #there has to be title
-            "href": download_url(filename),
-            "type": asset_metadata.get("media_type"),
-            "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
-                         for band in bands] if bands else None,
-            "file:nodata": [nodata],
-            "roles": asset_metadata.get("roles",["data"])
-        })
-
-    if requested_api_version().at_least("1.0.0"):
-        links = job_info.links
-        if links == None:
-            links = []
-        links.append({
-                    "rel": "self",
-                    "href": url_for('.list_job_results', job_id=job_id, _external=True),
-                    "type": "application/json"
-                })
-        links.append({
-                    "rel": "card4l-document",
-                    "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
-                    "type": "application/pdf"
-                })
-        result = {
-            "stac_version": "0.9.0",
-            "id": job_info.id,
-            "type": "Feature",
-            "properties": _properties_from_job_info(job_info),
-            "assets": {
-                filename: asset_object(filename, asset_metadata) for filename, asset_metadata in results.items()
-            },
-            "links": links
-        }
-
-        geometry = job_info.geometry
-        result["geometry"] = geometry
-        if geometry:
-            result["bbox"] = job_info.bbox
-
-        result["stac_extensions"] = ["processing","card4l-eo","https://stac-extensions.github.io/file/v1.0.0/schema.json"]
-
-        if any("eo:bands" in asset_object for asset_object in result["assets"].values()):
-            result["stac_extensions"].append("eo")
-
-        if "proj:epsg" in result["properties"]:
-            result["stac_extensions"].append("projection")
-    else:
-        result = {
-            "links": [
-                {"href": download_url(filename)} for filename in results.keys()
-            ]
-        }
-
-    # TODO "OpenEO-Costs" header?
-    return jsonify(result)
 
 
 def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
@@ -670,7 +517,7 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
         "card4l:specification": "SR",
         "card4l:specification_version": "5.0",
         "processing:facility": 'VITO - SPARK',
-        "processing:software": 'openeo-geotrellis-' +  current_app.config.get('OPENEO_BACKEND_VERSION', '0.0.1')
+        "processing:software": 'openeo-geotrellis-' + current_app.config.get('OPENEO_BACKEND_VERSION', '0.0.1')
     })
     properties["datetime"] = None
 
@@ -696,99 +543,225 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
     return properties
 
 
-@api_endpoint
-@openeo_bp.route('/jobs/<job_id>/results/<filename>', methods=['GET'])
-@auth_handler.requires_bearer_auth
-def download_job_result(job_id, filename, user: User):
-    results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
-    if filename not in results.keys():
-        raise FilePathInvalidException(str(filename) + ' not in ' + str(list(results.keys())))
-    output_dir = results[filename]["output_dir"]
-    return send_from_directory(output_dir, filename, mimetype=results[filename].get("media_type"))
+if backend_implementation.batch_jobs:
+
+    @api_endpoint
+    @openeo_bp.route('/jobs', methods=['POST'])
+    @auth_handler.requires_bearer_auth
+    def create_job(user: User):
+        # TODO: wrap this job specification in a 1.0-style ProcessGrahpWithMetadata?
+        post_data = request.get_json()
+        process = {"process_graph": _extract_process_graph(post_data)}
+        job_options = post_data.get("job_options")
+        job_info = backend_implementation.batch_jobs.create_job(
+            user_id=user.user_id,
+            process=process,
+            api_version=g.api_version,
+            metadata=dict_no_none(title=post_data.get("title"), description=post_data.get("description")),
+            job_options=job_options,
+        )
+        job_id = job_info.id
+        response = make_response("", 201)
+        response.headers['Location'] = url_for('.get_job_info', job_id=job_id)
+        response.headers['OpenEO-Identifier'] = str(job_id)
+        return response
 
 
-@api_endpoint
-@openeo_bp.route('/jobs/<job_id>/results/<user_base64>/<secure_key>/<filename>', methods=['GET'])
-def download_job_result_signed(job_id, user_base64, secure_key, filename):
-    expires = request.args.get('expires')
-    user_id = base64.urlsafe_b64decode(user_base64).decode()
-    if secure_key != _compute_secure_token(job_id, user_id, filename, expires):
-        raise CredentialsInvalidException()
-    if expires and int(expires) < time.time():
-        raise ResultLinkExpiredException()
-    results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user_id)
-    if filename not in results.keys():
-        raise FilePathInvalidException(str(filename) + ' not in ' + str(list(results.keys())))
-    output_dir = results[filename]["output_dir"]
-    return send_from_directory(output_dir, filename, mimetype=results[filename].get("media_type"))
+    @api_endpoint
+    @openeo_bp.route('/jobs', methods=['GET'])
+    @auth_handler.requires_bearer_auth
+    def list_jobs(user: User):
+        return jsonify({
+            "jobs": [
+                _jsonable_batch_job_metadata(m, full=False)
+                for m in backend_implementation.batch_jobs.get_user_jobs(user.user_id)
+            ],
+            "links": [],
+        })
 
 
-def _compute_secure_token(job_id, user_id, filename, expiration_timestamp):
-    token_key = job_id + user_id + filename + str(expiration_timestamp) + current_app.config.get('SIGNED_URL_SECRET')
-    return md5(token_key.encode()).hexdigest()
+    @api_endpoint
+    @openeo_bp.route('/jobs/<job_id>', methods=['GET'])
+    @auth_handler.requires_bearer_auth
+    def get_job_info(job_id, user: User):
+        job_info = backend_implementation.batch_jobs.get_job_info(job_id, user)
+        return jsonify(_jsonable_batch_job_metadata(job_info))
 
 
-@api_endpoint
-@openeo_bp.route('/jobs/<job_id>/logs', methods=['GET'])
-@auth_handler.requires_bearer_auth
-def get_job_logs(job_id, user: User):
-    offset = request.args.get('offset', 0)
-    return jsonify({
-        "logs": backend_implementation.batch_jobs.get_log_entries(job_id=job_id, user_id=user.user_id, offset=offset),
-        "links": [],
-    })
+    @api_endpoint(hidden=True)
+    @openeo_bp.route('/jobs/<job_id>', methods=['DELETE'])
+    @auth_handler.requires_bearer_auth
+    def delete_job(job_id, user: User):
+        backend_implementation.batch_jobs.delete_job(job_id=job_id, user_id=user.user_id)
+        return response_204_no_content()
 
 
-@api_endpoint
-@openeo_bp.route('/jobs/<job_id>/results', methods=['DELETE'])
-@auth_handler.requires_bearer_auth
-def cancel_job(job_id, user: User):
-    backend_implementation.batch_jobs.cancel_job(job_id=job_id, user_id=user.user_id)
-    return make_response("", 204)
+    @api_endpoint(hidden=True)
+    @openeo_bp.route('/jobs/<job_id>', methods=['PATCH'])
+    @auth_handler.requires_bearer_auth
+    def modify_job(job_id, user: User):
+        # TODO
+        raise FeatureUnsupportedException()
 
 
-@api_endpoint(hidden=True)
-@openeo_bp.route('/jobs/<job_id>/estimate', methods=['GET'])
-@auth_handler.requires_bearer_auth
-def job_estimate(job_id, user: User):
-    # TODO: implement cost estimation?
-    raise FeatureUnsupportedException()
+    @api_endpoint
+    @openeo_bp.route('/jobs/<job_id>/results', methods=['POST'])
+    @auth_handler.requires_bearer_auth
+    def queue_job(job_id, user: User):
+        backend_implementation.batch_jobs.start_job(job_id=job_id, user=user)
+        return make_response("", 202)
 
 
-@api_endpoint
-@openeo_bp.route('/service_types', methods=['GET'])
-def service_types():
-    service_types = backend_implementation.secondary_services.service_types()
-    expected_fields = {"configuration", "process_parameters"}
-    assert all(expected_fields.issubset(st.keys()) for st in service_types.values())
-    return jsonify(service_types)
+    @api_endpoint
+    @openeo_bp.route('/jobs/<job_id>/results', methods=['GET'])
+    @auth_handler.requires_bearer_auth
+    def list_job_results(job_id, user: User):
+        job_info = backend_implementation.batch_jobs.get_job_info(job_id, user)
+        results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
+
+        def base64_user_id() -> str:
+            return base64.urlsafe_b64encode(user.user_id.encode()).decode()
+
+        def secure_token(filename, expires) -> str:
+            return _compute_secure_token(job_id, user.user_id, filename, expires)
+
+        def expiration_timestamp() -> Union[int, None]:
+            expiration = current_app.config.get('SIGNED_URL_EXPIRATION')
+            return time.time() + int(expiration) if expiration else None
+
+        def download_url(filename) -> str:
+            if smart_bool(current_app.config.get('SIGNED_URL')):
+                expires = expiration_timestamp()
+                return url_for('.download_job_result_signed', job_id=job_id, user_base64=base64_user_id(),
+                               secure_key=secure_token(filename, expires), filename=filename,
+                               expires=expires, _external=True)
+            else:
+                return url_for('.download_job_result', job_id=job_id, filename=filename, _external=True)
+
+        def asset_object(filename: str, asset_metadata: dict) -> dict:
+            bands = asset_metadata.get("bands")
+            nodata = asset_metadata.get("nodata")
+
+            return dict_no_none(**{
+                "title": asset_metadata.get("title", filename),  # there has to be title
+                "href": download_url(filename),
+                "type": asset_metadata.get("media_type"),
+                "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
+                             for band in bands] if bands else None,
+                "file:nodata": [nodata],
+                "roles": asset_metadata.get("roles", ["data"])
+            })
+
+        if requested_api_version().at_least("1.0.0"):
+            links = job_info.links
+            if links == None:
+                links = []
+            links.append({
+                "rel": "self",
+                "href": url_for('.list_job_results', job_id=job_id, _external=True),
+                "type": "application/json"
+            })
+            links.append({
+                "rel": "card4l-document",
+                "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
+                "type": "application/pdf"
+            })
+            result = {
+                "stac_version": "0.9.0",
+                "id": job_info.id,
+                "type": "Feature",
+                "properties": _properties_from_job_info(job_info),
+                "assets": {
+                    filename: asset_object(filename, asset_metadata) for filename, asset_metadata in results.items()
+                },
+                "links": links
+            }
+
+            geometry = job_info.geometry
+            result["geometry"] = geometry
+            if geometry:
+                result["bbox"] = job_info.bbox
+
+            result["stac_extensions"] = [
+                "processing", "card4l-eo", "https://stac-extensions.github.io/file/v1.0.0/schema.json"
+            ]
+
+            if any("eo:bands" in asset_object for asset_object in result["assets"].values()):
+                result["stac_extensions"].append("eo")
+
+            if "proj:epsg" in result["properties"]:
+                result["stac_extensions"].append("projection")
+        else:
+            result = {
+                "links": [
+                    {"href": download_url(filename)} for filename in results.keys()
+                ]
+            }
+
+        # TODO "OpenEO-Costs" header?
+        return jsonify(result)
 
 
-@api_endpoint
-@openeo_bp.route('/services', methods=['POST'])
-@auth_handler.requires_bearer_auth
-def services_post(user: User):
-    """
-    Create a secondary web service such as WMTS, TMS or WCS. The underlying data is processes on-demand, but a process graph may simply access results from a batch job. Computations should be performed in the sense that it is only evaluated for the requested spatial / temporal extent and resolution.
+    @api_endpoint
+    @openeo_bp.route('/jobs/<job_id>/results/<filename>', methods=['GET'])
+    @auth_handler.requires_bearer_auth
+    def download_job_result(job_id, filename, user: User):
+        results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
+        if filename not in results.keys():
+            raise FilePathInvalidException(str(filename) + ' not in ' + str(list(results.keys())))
+        output_dir = results[filename]["output_dir"]
+        return send_from_directory(output_dir, filename, mimetype=results[filename].get("media_type"))
 
-    Note: Costs incurred by shared secondary web services are usually paid by the owner, but this depends on the service type and whether it supports charging fees or not.
 
-    :return:
-    """
-    post_data = request.get_json()
-    service_id = backend_implementation.secondary_services.create_service(
-        user_id=user.user_id,
-        process_graph=_extract_process_graph(post_data),
-        service_type=post_data["type"],
-        api_version=g.api_version,
-        configuration=post_data.get("configuration", {})
-    )
+    @api_endpoint
+    @openeo_bp.route('/jobs/<job_id>/results/<user_base64>/<secure_key>/<filename>', methods=['GET'])
+    def download_job_result_signed(job_id, user_base64, secure_key, filename):
+        expires = request.args.get('expires')
+        user_id = base64.urlsafe_b64decode(user_base64).decode()
+        if secure_key != _compute_secure_token(job_id, user_id, filename, expires):
+            raise CredentialsInvalidException()
+        if expires and int(expires) < time.time():
+            raise ResultLinkExpiredException()
+        results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user_id)
+        if filename not in results.keys():
+            raise FilePathInvalidException(str(filename) + ' not in ' + str(list(results.keys())))
+        output_dir = results[filename]["output_dir"]
+        return send_from_directory(output_dir, filename, mimetype=results[filename].get("media_type"))
 
-    return make_response('', 201, {
-        'Content-Type': 'application/json',
-        'Location': url_for('.get_service_info', service_id=service_id),
-        'OpenEO-Identifier': service_id
-    })
+
+    def _compute_secure_token(job_id, user_id, filename, expiration_timestamp):
+        secret = current_app.config.get('SIGNED_URL_SECRET')
+        token_key = job_id + user_id + filename + str(expiration_timestamp) + secret
+        return md5(token_key.encode()).hexdigest()
+
+
+    @api_endpoint
+    @openeo_bp.route('/jobs/<job_id>/logs', methods=['GET'])
+    @auth_handler.requires_bearer_auth
+    def get_job_logs(job_id, user: User):
+        offset = request.args.get('offset', 0)
+        return jsonify({
+            "logs": backend_implementation.batch_jobs.get_log_entries(
+                job_id=job_id, user_id=user.user_id, offset=offset
+            ),
+            "links": [],
+        })
+
+
+    @api_endpoint
+    @openeo_bp.route('/jobs/<job_id>/results', methods=['DELETE'])
+    @auth_handler.requires_bearer_auth
+    def cancel_job(job_id, user: User):
+        backend_implementation.batch_jobs.cancel_job(job_id=job_id, user_id=user.user_id)
+        return make_response("", 204)
+
+
+    @api_endpoint(hidden=True)
+    @openeo_bp.route('/jobs/<job_id>/estimate', methods=['GET'])
+    @auth_handler.requires_bearer_auth
+    def job_estimate(job_id, user: User):
+        # TODO: implement cost estimation?
+        raise FeatureUnsupportedException()
 
 
 def _jsonable_service_metadata(metadata: ServiceMetadata, full=True) -> dict:
@@ -804,109 +777,148 @@ def _jsonable_service_metadata(metadata: ServiceMetadata, full=True) -> dict:
     return dict_no_none(**d)
 
 
-@api_endpoint
-@openeo_bp.route('/services', methods=['GET'])
-@auth_handler.requires_bearer_auth
-def services_get(user: User):
-    """List all running secondary web services for authenticated user"""
-    return jsonify({
-        "services": [
-            _jsonable_service_metadata(m, full=False)
-            for m in backend_implementation.secondary_services.list_services(user_id=user.user_id)
-        ],
-        "links": [],
-    })
+if backend_implementation.secondary_services:
+    @api_endpoint
+    @openeo_bp.route('/service_types', methods=['GET'])
+    def service_types():
+        service_types = backend_implementation.secondary_services.service_types()
+        expected_fields = {"configuration", "process_parameters"}
+        assert all(expected_fields.issubset(st.keys()) for st in service_types.values())
+        return jsonify(service_types)
 
 
-@api_endpoint
-@openeo_bp.route('/services/<service_id>', methods=['GET'])
-@auth_handler.requires_bearer_auth
-def get_service_info(service_id, user: User):
-    try:
-        metadata = backend_implementation.secondary_services.service_info(user_id=user.user_id, service_id=service_id)
-    except Exception:
-        raise ServiceNotFoundException(service_id)
-    return jsonify(_jsonable_service_metadata(metadata, full=True))
+    @api_endpoint
+    @openeo_bp.route('/services', methods=['POST'])
+    @auth_handler.requires_bearer_auth
+    def services_post(user: User):
+        """
+        Create a secondary web service such as WMTS, TMS or WCS. The underlying data is processes on-demand, but a process graph may simply access results from a batch job. Computations should be performed in the sense that it is only evaluated for the requested spatial / temporal extent and resolution.
+
+        Note: Costs incurred by shared secondary web services are usually paid by the owner, but this depends on the service type and whether it supports charging fees or not.
+
+        :return:
+        """
+        post_data = request.get_json()
+        service_id = backend_implementation.secondary_services.create_service(
+            user_id=user.user_id,
+            process_graph=_extract_process_graph(post_data),
+            service_type=post_data["type"],
+            api_version=g.api_version,
+            configuration=post_data.get("configuration", {})
+        )
+
+        return make_response('', 201, {
+            'Content-Type': 'application/json',
+            'Location': url_for('.get_service_info', service_id=service_id),
+            'OpenEO-Identifier': service_id
+        })
 
 
-@api_endpoint(hidden=True)
-@openeo_bp.route('/services/<service_id>', methods=['PATCH'])
-@auth_handler.requires_bearer_auth
-def service_patch(service_id, user: User):
-    process_graph = _extract_process_graph(request.get_json())
-    backend_implementation.secondary_services.update_service(user_id=user.user_id, service_id=service_id,
-                                                             process_graph=process_graph)
-    return response_204_no_content()
+    @api_endpoint
+    @openeo_bp.route('/services', methods=['GET'])
+    @auth_handler.requires_bearer_auth
+    def services_get(user: User):
+        """List all running secondary web services for authenticated user"""
+        return jsonify({
+            "services": [
+                _jsonable_service_metadata(m, full=False)
+                for m in backend_implementation.secondary_services.list_services(user_id=user.user_id)
+            ],
+            "links": [],
+        })
 
 
-@api_endpoint
-@openeo_bp.route('/services/<service_id>', methods=['DELETE'])
-@auth_handler.requires_bearer_auth
-def service_delete(service_id, user: User):
-    backend_implementation.secondary_services.remove_service(user_id=user.user_id, service_id=service_id)
-    return response_204_no_content()
+    @api_endpoint
+    @openeo_bp.route('/services/<service_id>', methods=['GET'])
+    @auth_handler.requires_bearer_auth
+    def get_service_info(service_id, user: User):
+        try:
+            metadata = backend_implementation.secondary_services.service_info(
+                user_id=user.user_id, service_id=service_id
+            )
+        except Exception:
+            raise ServiceNotFoundException(service_id)
+        return jsonify(_jsonable_service_metadata(metadata, full=True))
 
 
-@api_endpoint
-@openeo_bp.route('/services/<service_id>/logs', methods=['GET'])
-@auth_handler.requires_bearer_auth
-def service_logs(service_id, user: User):
-    offset = request.args.get('offset', 0)
-    logs = backend_implementation.secondary_services.get_log_entries(
-        service_id=service_id, user_id=user.user_id, offset=offset
-    )
-    return jsonify({"logs": logs, "links": []})
+    @api_endpoint(hidden=True)
+    @openeo_bp.route('/services/<service_id>', methods=['PATCH'])
+    @auth_handler.requires_bearer_auth
+    def service_patch(service_id, user: User):
+        process_graph = _extract_process_graph(request.get_json())
+        backend_implementation.secondary_services.update_service(user_id=user.user_id, service_id=service_id,
+                                                                 process_graph=process_graph)
+        return response_204_no_content()
 
 
-@api_endpoint(hidden=True)
-@openeo_bp.route('/validation', methods=["POST"])
-def udp_validate():
-    # TODO
-    raise FeatureUnsupportedException()
+    @api_endpoint
+    @openeo_bp.route('/services/<service_id>', methods=['DELETE'])
+    @auth_handler.requires_bearer_auth
+    def service_delete(service_id, user: User):
+        backend_implementation.secondary_services.remove_service(user_id=user.user_id, service_id=service_id)
+        return response_204_no_content()
 
 
-@api_endpoint
-@openeo_bp.route('/process_graphs/<process_graph_id>', methods=['PUT'])
-@auth_handler.requires_bearer_auth
-def udp_store(process_graph_id: str, user: User):
-    backend_implementation.user_defined_processes.save(
-        user_id=user.user_id,
-        process_id=process_graph_id,
-        spec=request.get_json()
-    )
+    @api_endpoint
+    @openeo_bp.route('/services/<service_id>/logs', methods=['GET'])
+    @auth_handler.requires_bearer_auth
+    def service_logs(service_id, user: User):
+        offset = request.args.get('offset', 0)
+        logs = backend_implementation.secondary_services.get_log_entries(
+            service_id=service_id, user_id=user.user_id, offset=offset
+        )
+        return jsonify({"logs": logs, "links": []})
 
-    return make_response("", 200)
-
-
-@api_endpoint
-@openeo_bp.route('/process_graphs/<process_graph_id>', methods=['GET'])
-@auth_handler.requires_bearer_auth
-def udp_get(process_graph_id: str, user: User):
-    udp = backend_implementation.user_defined_processes.get(user_id=user.user_id, process_id=process_graph_id)
-    if udp:
-        return _jsonable_udp_metadata(udp)
-
-    raise ProcessGraphNotFoundException(process_graph_id)
+if backend_implementation.user_defined_processes:
+    @api_endpoint(hidden=True)
+    @openeo_bp.route('/validation', methods=["POST"])
+    def udp_validate():
+        # TODO
+        raise FeatureUnsupportedException()
 
 
-@api_endpoint
-@openeo_bp.route('/process_graphs', methods=['GET'])
-@auth_handler.requires_bearer_auth
-def udp_list_for_user(user: User):
-    user_udps = backend_implementation.user_defined_processes.get_for_user(user.user_id)
-    return {
-        'processes': [_jsonable_udp_metadata(udp, full=False) for udp in user_udps],
-        # TODO: pagination links?
-        "links": [],
-    }
+    @api_endpoint
+    @openeo_bp.route('/process_graphs/<process_graph_id>', methods=['PUT'])
+    @auth_handler.requires_bearer_auth
+    def udp_store(process_graph_id: str, user: User):
+        backend_implementation.user_defined_processes.save(
+            user_id=user.user_id,
+            process_id=process_graph_id,
+            spec=request.get_json()
+        )
+
+        return make_response("", 200)
 
 
-@api_endpoint
-@openeo_bp.route('/process_graphs/<process_graph_id>', methods=['DELETE'])
-@auth_handler.requires_bearer_auth
-def udp_delete(process_graph_id: str, user: User):
-    backend_implementation.user_defined_processes.delete(user_id=user.user_id, process_id=process_graph_id)
-    return response_204_no_content()
+    @api_endpoint
+    @openeo_bp.route('/process_graphs/<process_graph_id>', methods=['GET'])
+    @auth_handler.requires_bearer_auth
+    def udp_get(process_graph_id: str, user: User):
+        udp = backend_implementation.user_defined_processes.get(user_id=user.user_id, process_id=process_graph_id)
+        if udp:
+            return _jsonable_udp_metadata(udp)
+
+        raise ProcessGraphNotFoundException(process_graph_id)
+
+
+    @api_endpoint
+    @openeo_bp.route('/process_graphs', methods=['GET'])
+    @auth_handler.requires_bearer_auth
+    def udp_list_for_user(user: User):
+        user_udps = backend_implementation.user_defined_processes.get_for_user(user.user_id)
+        return {
+            'processes': [_jsonable_udp_metadata(udp, full=False) for udp in user_udps],
+            # TODO: pagination links?
+            "links": [],
+        }
+
+
+    @api_endpoint
+    @openeo_bp.route('/process_graphs/<process_graph_id>', methods=['DELETE'])
+    @auth_handler.requires_bearer_auth
+    def udp_delete(process_graph_id: str, user: User):
+        backend_implementation.user_defined_processes.delete(user_id=user.user_id, process_id=process_graph_id)
+        return response_204_no_content()
 
 
 def _jsonable_udp_metadata(metadata: UserDefinedProcessMetadata, full=True) -> dict:
@@ -993,7 +1005,7 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
 
     # Make sure some required fields are set.
     metadata.setdefault("stac_version", "0.9.0" if api_version.at_least("1.0.0") else "0.6.2")
-    metadata.setdefault("stac_extensions",["datacube"])
+    metadata.setdefault("stac_extensions", ["datacube"])
     metadata.setdefault("links", [])
     metadata.setdefault("description", collection_id)
     metadata.setdefault("license", "proprietary")
@@ -1026,26 +1038,29 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
     return metadata
 
 
-@api_endpoint
-@openeo_bp.route('/collections', methods=['GET'])
-def collections():
-    metadata = [
-        _normalize_collection_metadata(metadata=m, api_version=requested_api_version(), full=False)
-        for m in backend_implementation.catalog.get_all_metadata()
-    ]
-    return jsonify({
-        'collections': metadata,
-        'links': []
-    })
+if backend_implementation.catalog:
+    @api_endpoint
+    @openeo_bp.route('/collections', methods=['GET'])
+    def collections():
+        metadata = [
+            _normalize_collection_metadata(metadata=m, api_version=requested_api_version(), full=False)
+            for m in backend_implementation.catalog.get_all_metadata()
+        ]
+        return jsonify({
+            'collections': metadata,
+            'links': []
+        })
 
 
-@api_endpoint
-@openeo_bp.route('/collections/<collection_id>', methods=['GET'])
-def collection_by_id(collection_id):
-    metadata = backend_implementation.catalog.get_collection_metadata(collection_id=collection_id)
-    metadata = _normalize_collection_metadata(metadata=metadata, api_version=requested_api_version(), full=True)
-    return jsonify(metadata)
+    @api_endpoint
+    @openeo_bp.route('/collections/<collection_id>', methods=['GET'])
+    def collection_by_id(collection_id):
+        metadata = backend_implementation.catalog.get_collection_metadata(collection_id=collection_id)
+        metadata = _normalize_collection_metadata(metadata=metadata, api_version=requested_api_version(), full=True)
+        return jsonify(metadata)
 
+
+# TODO EP-3849 put `/processes` also under microservice?
 
 @api_endpoint
 @openeo_bp.route('/processes', methods=['GET'])
@@ -1082,36 +1097,37 @@ def processes_from_namespace(namespace):
     return jsonify({'processes': processes, 'links': []})
 
 
-@api_endpoint(hidden=True)
-@openeo_bp.route('/files', methods=['GET'])
-@auth_handler.requires_bearer_auth
-def files_list_for_user(user: User):
-    # TODO EP-3538
-    raise FeatureUnsupportedException()
+if backend_implementation.user_files:
+    @api_endpoint
+    @openeo_bp.route('/files', methods=['GET'])
+    @auth_handler.requires_bearer_auth
+    def files_list_for_user(user: User):
+        # TODO EP-3538
+        raise FeatureUnsupportedException()
 
 
-@api_endpoint(hidden=True)
-@openeo_bp.route('/files/<path>', methods=['GET'])
-@auth_handler.requires_bearer_auth
-def fildes_download(path, user: User):
-    # TODO EP-3538
-    raise FeatureUnsupportedException()
+    @api_endpoint
+    @openeo_bp.route('/files/<path>', methods=['GET'])
+    @auth_handler.requires_bearer_auth
+    def fildes_download(path, user: User):
+        # TODO EP-3538
+        raise FeatureUnsupportedException()
 
 
-@api_endpoint(hidden=True)
-@openeo_bp.route('/files/<path>', methods=['PUT'])
-@auth_handler.requires_bearer_auth
-def files_upload(path, user: User):
-    # TODO EP-3538
-    raise FeatureUnsupportedException()
+    @api_endpoint
+    @openeo_bp.route('/files/<path>', methods=['PUT'])
+    @auth_handler.requires_bearer_auth
+    def files_upload(path, user: User):
+        # TODO EP-3538
+        raise FeatureUnsupportedException()
 
 
-@api_endpoint(hidden=True)
-@openeo_bp.route('/files/<path>', methods=['DELETE'])
-@auth_handler.requires_bearer_auth
-def files_delete(path, user: User):
-    # TODO EP-3538
-    raise FeatureUnsupportedException()
+    @api_endpoint
+    @openeo_bp.route('/files/<path>', methods=['DELETE'])
+    @auth_handler.requires_bearer_auth
+    def files_delete(path, user: User):
+        # TODO EP-3538
+        raise FeatureUnsupportedException()
 
 
 @openeo_bp.route('/.well-known/openeo')
@@ -1156,4 +1172,3 @@ def well_known_openeo():
             if v.wellknown
         ]
     })
-
