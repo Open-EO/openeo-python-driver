@@ -44,7 +44,7 @@ API_VERSIONS = {
     "1.0.0": ApiVersionInfo(version="1.0.0", supported=True, wellknown=False, production=True),
     "1.0": ApiVersionInfo(version="1.0.0", supported=True, wellknown=True, production=True),
 }
-DEFAULT_VERSION = '0.4.2'
+DEFAULT_VERSION = '1.0.0'
 
 _log.info("API Versions: {v}".format(v=API_VERSIONS))
 _log.info("Default API Version: {v}".format(v=DEFAULT_VERSION))
@@ -1151,7 +1151,7 @@ def debug_echo():
     })
 
 
-app.register_blueprint(openeo_bp, url_prefix='/openeo')
+app.register_blueprint(openeo_bp, url_prefix='/openeo')  # TODO: do we still need this?
 app.register_blueprint(openeo_bp, url_prefix='/openeo/<version>')
 
 # Build endpoint metadata dictionary

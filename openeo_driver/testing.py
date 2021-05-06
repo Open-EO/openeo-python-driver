@@ -189,6 +189,15 @@ class ApiTester:
             headers=self._request_headers(headers),
         ))
 
+    def patch(self, path: str, json: dict = None, headers: dict = None) -> ApiResponse:
+        """Do versioned PATH request, given non-versioned path"""
+        return ApiResponse(self.client.patch(
+            path=self.url(path),
+            json=json or {},
+            content_type='application/json',
+            headers=self._request_headers(headers),
+        ))
+
     def data_path(self, filename: str) -> Path:
         """Get absolute pat to a test data file"""
         return self.data_root / filename
@@ -236,8 +245,6 @@ class ApiTester:
         """Post a process_graph (as dict or by filename), get response and do basic checks."""
         response = self.result(process_graph=process_graph, path=path, preprocess=preprocess)
         return response.assert_status_code(200).assert_content()
-
-
 
 
 class IgnoreOrder:

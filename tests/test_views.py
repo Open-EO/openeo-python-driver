@@ -1066,19 +1066,11 @@ class TestBatchJobs:
         assert resp.status_code == 204
 
 
-class TestSecondaryServices(TestCase):
-    # TODO: port to pytest style fixtures instead of TestCase.setUp
+class TestSecondaryServices:
+    AUTH_HEADER = TEST_USER_AUTH_HEADER
 
-    def setUp(self):
-        app.config['TESTING'] = True
-        app.config['SERVER_NAME'] = 'oeo.net'
-        self.client = app.test_client()
-        self._auth_header = TEST_USER_AUTH_HEADER
-        dummy_backend.reset()
-
-    def test_service_types_v100(self):
-        resp = self.client.get('/openeo/1.0.0/service_types')
-        assert resp.status_code == 200, resp.data
+    def test_service_types_v100(self, api):
+        resp = api.get('/service_types').assert_status_code(200)
         service_types = resp.json
         assert list(service_types.keys()) == ["WMTS"]
         wmts = service_types["WMTS"]
@@ -1086,31 +1078,22 @@ class TestSecondaryServices(TestCase):
         assert wmts["process_parameters"] == []
         assert wmts["links"] == []
 
-    def test_create_unsupported_service_type_returns_BadRequest(self):
-        resp = self.client.post('/openeo/services', content_type='application/json', json={
-            "process_graph": {'product_id': 'S2'},
+    def test_create_unsupported_service_type_returns_400_BadRequest(self, api):
+        resp = api.post('/services', json={
+            "process": {"process_graph": {'product_id': 'S2'}},
             "type": '???',
-        }, headers=self._auth_header)
+        }, headers=self.AUTH_HEADER)
+        resp.assert_status_code(400)
 
-        self.assertEqual(400, resp.status_code)
-
-    def test_unsupported_services_methods_return_MethodNotAllowed(self):
-        resp = self.client.put('/openeo/services', content_type='application/json', json={
-            "process_graph": {'product_id': 'S2'},
+    def test_unsupported_services_methods_return_405_MethodNotAllowed(self, api):
+        res = api.put('/services', json={
+            "process": {"process_graph": {'product_id': 'S2'}},
             "type": 'WMTS',
         })
+        res.assert_status_code(405)
 
-        self.assertEqual(405, resp.status_code)
-
-    def test_uncaught_exceptions_return_InternalServerError(self):
-        resp = self.client.post('/openeo/services', content_type='application/json', json={
-            "process_graph": {'product_id': 'S2'}
-        }, headers=self._auth_header)
-
-        self.assertEqual(500, resp.status_code)
-
-    def test_list_services_040(self):
-        metadata = self.client.get('/openeo/0.4.0/services', headers=self._auth_header).json
+    def test_list_services_040(self, api040):
+        metadata = api040.get('/services', headers=self.AUTH_HEADER).json
         assert metadata == {
             "services": [{
                 'id': 'wmts-foo',
@@ -1124,8 +1107,8 @@ class TestSecondaryServices(TestCase):
             "links": []
         }
 
-    def test_list_services_100(self):
-        metadata = self.client.get('/openeo/1.0.0/services', headers=self._auth_header).json
+    def test_list_services_100(self, api100):
+        metadata = api100.get('/services', headers=self.AUTH_HEADER).json
         assert metadata == {
             "services": [{
                 'id': 'wmts-foo',
@@ -1139,8 +1122,8 @@ class TestSecondaryServices(TestCase):
             "links": []
         }
 
-    def test_get_service_metadata_040(self):
-        metadata = self.client.get('/openeo/0.4.0/services/wmts-foo', headers=self._auth_header).json
+    def test_get_service_metadata_040(self, api040):
+        metadata = api040.get('/services/wmts-foo', headers=self.AUTH_HEADER).json
         assert metadata == {
             "id": "wmts-foo",
             "process_graph": {"foo": {"process_id": "foo", "arguments": {}}},
@@ -1153,8 +1136,8 @@ class TestSecondaryServices(TestCase):
             'submitted': '2020-04-09T15:05:08Z',
         }
 
-    def test_get_service_metadata_100(self):
-        metadata = self.client.get('/openeo/1.0.0/services/wmts-foo', headers=self._auth_header).json
+    def test_get_service_metadata_100(self, api100):
+        metadata = api100.get('/services/wmts-foo', headers=self.AUTH_HEADER).json
         assert metadata == {
             "id": "wmts-foo",
             "process": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
@@ -1167,33 +1150,23 @@ class TestSecondaryServices(TestCase):
             'created': '2020-04-09T15:05:08Z',
         }
 
-    def test_get_service_metadata_wrong_id(self):
-        res = self.client.get('/openeo/1.0.0/services/wmts-invalid', headers=self._auth_header)
-        assert res.status_code == 404
-        assert res.json['code'] == 'ServiceNotFound'
+    def test_get_service_metadata_wrong_id(self, api):
+        api.get('/services/wmts-invalid', headers=self.AUTH_HEADER).assert_error(404, 'ServiceNotFound')
 
-    def test_services_requires_authentication(self):
-        res = self.client.get('/openeo/1.0.0/services')
-        assert res.status_code == 401
-        assert res.json['code'] == 'AuthenticationRequired'
+    def test_services_requires_authentication(self, api):
+        api.get('/services').assert_error(401, 'AuthenticationRequired')
 
-    def test_get_service_requires_authentication(self):
-        res = self.client.get('/openeo/1.0.0/services/wmts-foo')
-        assert res.status_code == 401
-        assert res.json['code'] == 'AuthenticationRequired'
+    def test_get_service_requires_authentication(self, api):
+        api.get('/services/wmts-foo').assert_error(401, 'AuthenticationRequired')
 
-    def test_patch_service_requires_authentication(self):
-        res = self.client.patch('/openeo/1.0.0/services/wmts-foo')
-        assert res.status_code == 401
-        assert res.json['code'] == 'AuthenticationRequired'
+    def test_patch_service_requires_authentication(self, api):
+        api.patch('/services/wmts-foo').assert_error(401, 'AuthenticationRequired')
 
-    def test_delete_service_requires_authentication(self):
-        res = self.client.delete('/openeo/1.0.0/services/wmts-foo')
-        assert res.status_code == 401
-        assert res.json['code'] == 'AuthenticationRequired'
+    def test_delete_service_requires_authentication(self, api):
+        api.delete('/services/wmts-foo').assert_error(401, 'AuthenticationRequired')
 
-    def test_service_logs_100(self):
-        logs = self.client.get('/openeo/1.0.0/services/wmts-foo/logs', headers=self._auth_header).json
+    def test_service_logs_100(self, api):
+        logs = api.get('/services/wmts-foo/logs', headers=self.AUTH_HEADER).json
         assert logs == {
             "logs": [
                 {"id": 3, "level": "info", "message": "Loaded data."},
