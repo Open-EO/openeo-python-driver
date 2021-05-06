@@ -1,15 +1,33 @@
+import datetime
 import logging
 import os
-from typing import Union
+from typing import Union, List
 
 import gunicorn.app.base
+import pkg_resources
+
+from openeo.util import rfc3339
 
 _log = logging.getLogger(__name__)
+
 
 def show_log_level(logger: logging.Logger):
     """Helper to show threshold log level of a logger."""
     level = logger.getEffectiveLevel()
     logger.log(level, 'Logger {n!r} level: {t}'.format(n=logger.name, t=logging.getLevelName(level)))
+
+
+def build_backend_deploy_metadata(packages: List[str]) -> dict:
+    version_info = {}
+    for package in packages:
+        try:
+            version_info[package] = str(pkg_resources.get_distribution(package))
+        except pkg_resources.DistributionNotFound:
+            version_info[package] = "n/a"
+    return {
+        'date': rfc3339.normalize(datetime.datetime.utcnow()),
+        'versions': version_info
+    }
 
 
 def run(title: str, description: str, deploy_metadata: Union[dict, None], backend_version: str, threads: int, host: str, port: int, on_started=lambda: None) -> None:

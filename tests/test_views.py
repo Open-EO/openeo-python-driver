@@ -16,7 +16,7 @@ from openeo_driver.backend import BatchJobMetadata, UserDefinedProcessMetadata
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.testing import ApiTester
 from openeo_driver.testing import TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, generate_unique_test_process_id
-from openeo_driver.views import app, EndpointRegistry, build_backend_deploy_metadata, _normalize_collection_metadata, \
+from openeo_driver.views import app, EndpointRegistry, _normalize_collection_metadata, \
     backend_implementation
 from .data import TEST_DATA_ROOT
 from .test_users import _build_basic_http_auth_header
@@ -1200,14 +1200,6 @@ class TestSecondaryServices(TestCase):
             ],
             "links": []
         }
-
-
-def test_build_backend_deploy_metadata():
-    data = build_backend_deploy_metadata(packages=["openeo", "openeo_driver", "foobarblerghbwop"])
-    assert data["date"].startswith(datetime.utcnow().strftime("%Y-%m-%dT%H"))
-    assert re.match(r"openeo \d+\.\d+\.\d+", data["versions"]["openeo"])
-    assert re.match(r"openeo-driver \d+\.\d+\.\d+", data["versions"]["openeo_driver"])
-    assert data["versions"]["foobarblerghbwop"] == "n/a"
 
 
 def test_credentials_basic_no_headers(api):

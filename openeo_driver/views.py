@@ -254,8 +254,7 @@ def index():
     service_id = app_config.get('OPENEO_SERVICE_ID', re.sub(r"\s+", "", title.lower() + '-' + api_version))
     # TODO only list endpoints that are actually supported by the backend.
     endpoints = EndpointRegistry.get_capabilities_endpoints(_openeo_endpoint_metadata, api_version=api_version)
-    deploy_metadata = app_config.get('OPENEO_BACKEND_DEPLOY_METADATA') \
-                      or build_backend_deploy_metadata(packages=["openeo", "openeo_driver"])
+    deploy_metadata = app_config.get('OPENEO_BACKEND_DEPLOY_METADATA') or {}
 
     capabilities = {
         "version": api_version,  # Deprecated pre-0.4.0 API version field
@@ -300,19 +299,6 @@ def index():
     }
 
     return jsonify(capabilities)
-
-
-def build_backend_deploy_metadata(packages: List[str]) -> dict:
-    version_info = {}
-    for package in packages:
-        try:
-            version_info[package] = str(pkg_resources.get_distribution(package))
-        except pkg_resources.DistributionNotFound:
-            version_info[package] = "n/a"
-    return {
-        'date': date_to_rfc3339(datetime.datetime.utcnow()),
-        'versions': version_info
-    }
 
 
 @openeo_bp.route('/conformance')
