@@ -1,27 +1,24 @@
 import base64
 import copy
-import datetime
 import functools
 import logging
 import os
 import re
 import time
-import typing
-from collections import namedtuple, defaultdict
 import uuid
+from collections import namedtuple, defaultdict
 from hashlib import md5
 from typing import Callable, Tuple, List, Union
 
 import flask
 import flask_cors
 import numpy as np
-import pkg_resources
 from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, current_app
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from openeo.capabilities import ComparableVersion
-from openeo.util import date_to_rfc3339, dict_no_none, deep_get, Rfc3339
+from openeo.util import dict_no_none, deep_get, Rfc3339
 from openeo_driver.ProcessGraphDeserializer import evaluate, get_process_registry
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
     get_backend_implementation, ErrorSummary
@@ -30,7 +27,6 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, CredentialsInvalidException, \
     ResultLinkExpiredException
-from openeo_driver.processes import DEFAULT_NAMESPACE
 from openeo_driver.save_result import SaveResult, get_temp_file
 from openeo_driver.users import HttpAuthHandler, User
 from openeo_driver.utils import replace_nan_values, EvalEnv, smart_bool
