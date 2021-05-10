@@ -385,39 +385,6 @@ def me(user: User):
     })
 
 
-@openeo_bp.route('/timeseries')
-def timeseries():
-    # TODO: deprecated? do we still need this endpoint? #35
-    return 'OpenEO GeoPyspark backend. ' + url_for('.point')
-
-
-@openeo_bp.route('/timeseries/point', methods=['POST'])
-def point():
-    # TODO: deprecated? do we still need this endpoint? #35
-    x = float(request.args.get('x', ''))
-    y = float(request.args.get('y', ''))
-    srs = request.args.get('srs', None)
-    process_graph = _extract_process_graph(request.json)
-    image_collection = evaluate(process_graph, env=EvalEnv({'version': g.api_version}))
-    return jsonify(image_collection.timeseries(x, y, srs))
-
-
-@openeo_bp.route('/download', methods=['GET', 'POST'])
-def download():
-    # TODO: deprecated?
-    if request.method == 'POST':
-        outputformat = request.args.get('outputformat', 'geotiff')
-
-        process_graph = request.get_json()
-        image_collection = evaluate(process_graph)
-        # TODO Unify with execute?
-
-        filename = image_collection.save_result(filename=get_temp_file(), format=outputformat, format_options={})
-        return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
-    else:
-        return 'Usage: Download image using POST.'
-
-
 def _extract_process_graph(post_data: dict) -> dict:
     """
     Extract process graph dictionary from POST data

@@ -642,26 +642,6 @@ def test_no_nested_JSONResult(api):
     ).assert_status_code(200).assert_content()
 
 
-def test_timeseries_point_with_bbox(api):
-    process_graph = {
-        "loadcollection1": {
-            'process_id': 'load_collection',
-            'arguments': {'id': 'S2_FAPAR_CLOUDCOVER'},
-        },
-        "filterbbox": {
-            "process_id": "filter_bbox",
-            "arguments": {
-                "data": {"from_node": "loadcollection1"},
-                "extent": {"west": 3, "east": 6, "south": 50, "north": 51, "crs": "EPSG:4326"}
-            },
-            "result": True
-        }
-    }
-    api.check_result(process_graph, path="/timeseries/point?x=1&y=2")
-    params = dummy_backend.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
-    assert params["spatial_extent"] == {"west": 3, "east": 6, "south": 50, "north": 51, "crs": "EPSG:4326"}
-
-
 def test_load_disk_data(api):
     api.check_result("load_disk_data.json")
     params = dummy_backend.last_load_collection_call(
