@@ -19,7 +19,6 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from openeo.capabilities import ComparableVersion
 from openeo.util import dict_no_none, deep_get, Rfc3339
-from openeo_driver.ProcessGraphDeserializer import evaluate, get_process_registry
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
     get_backend_implementation, ErrorSummary
 from openeo_driver.datacube import DriverDataCube
@@ -398,7 +397,10 @@ def point():
     y = float(request.args.get('y', ''))
     srs = request.args.get('srs', None)
     process_graph = _extract_process_graph(request.json)
-    image_collection = evaluate(process_graph, env=EvalEnv({'version': g.api_version}))
+    image_collection = backend_implementation.processing.evaluate(
+        process_graph=process_graph,
+        env=EvalEnv({'version': g.api_version})
+    )
     return jsonify(image_collection.timeseries(x, y, srs))
 
 
@@ -409,7 +411,10 @@ def download():
         outputformat = request.args.get('outputformat', 'geotiff')
 
         process_graph = request.get_json()
-        image_collection = evaluate(process_graph)
+        image_collection = backend_implementation.processing.evaluate(
+            process_graph=process_graph,
+            env=EvalEnv({'version': g.api_version})
+        )
         # TODO Unify with execute?
 
         filename = image_collection.save_result(filename=get_temp_file(), format=outputformat, format_options={})
@@ -434,49 +439,51 @@ def _extract_process_graph(post_data: dict) -> dict:
         raise ProcessGraphMissingException
 
 
-@api_endpoint
-@openeo_bp.route('/result', methods=['POST'])
-@auth_handler.requires_bearer_auth
-def result(user: User):
-    post_data = request.get_json()
-    process_graph = _extract_process_graph(post_data)
+if backend_implementation.processing:
 
-    result = evaluate(process_graph, env=EvalEnv({
-        'version': g.api_version,
-        'pyramid_levels': 'highest',
-        'user': user,
-        'require_bounds': True,
-        'correlation_id': str(uuid.uuid4())
-    }))
+    @api_endpoint
+    @openeo_bp.route('/result', methods=['POST'])
+    @auth_handler.requires_bearer_auth
+    def result(user: User):
+        post_data = request.get_json()
+        process_graph = _extract_process_graph(post_data)
 
-    # TODO unify all this output handling within SaveResult logic?
-    if isinstance(result, DriverDataCube):
-        format_options = post_data.get('output', {})
-        filename = result.save_result(filename=get_temp_file(), format="GTiff", format_options=format_options)
-        return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
-    elif result is None:
-        abort(500, "Process graph evaluation gave no result")
-    elif isinstance(result, SaveResult):
-        return result.create_flask_response()
-    elif isinstance(result, DelayedVector):
-        from shapely.geometry import mapping
-        geojsons = (mapping(geometry) for geometry in result.geometries)
-        return jsonify(list(geojsons))
-    elif isinstance(result, np.ndarray):
-        return jsonify(result.tolist())
-    elif isinstance(result, np.generic):
-        # Convert numpy datatype to native Python datatype first
-        return jsonify(result.item())
-    else:
-        return jsonify(replace_nan_values(result))
+        result = backend_implementation.processing.evaluate(process_graph=process_graph, env=EvalEnv({
+            'version': g.api_version,
+            'pyramid_levels': 'highest',
+            'user': user,
+            'require_bounds': True,
+            'correlation_id': str(uuid.uuid4())
+        }))
+
+        # TODO unify all this output handling within SaveResult logic?
+        if isinstance(result, DriverDataCube):
+            format_options = post_data.get('output', {})
+            filename = result.save_result(filename=get_temp_file(), format="GTiff", format_options=format_options)
+            return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
+        elif result is None:
+            abort(500, "Process graph evaluation gave no result")
+        elif isinstance(result, SaveResult):
+            return result.create_flask_response()
+        elif isinstance(result, DelayedVector):
+            from shapely.geometry import mapping
+            geojsons = (mapping(geometry) for geometry in result.geometries)
+            return jsonify(list(geojsons))
+        elif isinstance(result, np.ndarray):
+            return jsonify(result.tolist())
+        elif isinstance(result, np.generic):
+            # Convert numpy datatype to native Python datatype first
+            return jsonify(result.item())
+        else:
+            return jsonify(replace_nan_values(result))
 
 
-@openeo_bp.route('/execute', methods=['POST'])
-@auth_handler.requires_bearer_auth
-def execute(user: User):
-    # TODO:  This is not an official endpoint, does this "/execute" still have to be exposed as route?
-    _log.warning(f"Request to non-standard `/execute` endpoint by {user.user_id}")
-    return result(user=user)
+    @openeo_bp.route('/execute', methods=['POST'])
+    @auth_handler.requires_bearer_auth
+    def execute(user: User):
+        # TODO:  This is not an official endpoint, does this "/execute" still have to be exposed as route?
+        _log.warning(f"Request to non-standard `/execute` endpoint by {user.user_id}")
+        return result(user=user)
 
 
 def _jsonable_batch_job_metadata(metadata: BatchJobMetadata, full=True) -> dict:
@@ -1056,61 +1063,65 @@ if backend_implementation.catalog:
         return jsonify(metadata)
 
 
-# TODO EP-3849 put `/processes` also under microservice?
-
-@api_endpoint
-@openeo_bp.route('/processes', methods=['GET'])
-def processes():
-    # TODO: this `qname` feature is non-standard. Is this necessary for some reason?
-    substring = request.args.get('qname')
-    processes = get_process_registry(requested_api_version()).get_specs(substring)
-    return jsonify({'processes': processes, 'links': []})
-
-
-@api_endpoint
-@openeo_bp.route('/processes/<namespace>', methods=['GET'])
-def processes_from_namespace(namespace):
-    # TODO: this endpoint is in draft at the moment
-    #       see https://github.com/Open-EO/openeo-api/issues/310, https://github.com/Open-EO/openeo-api/pull/348
-    # TODO: convention for user namespace? use '@' instead of "u:"
-    # TODO: unify with `/processes` endpoint?
-    full = smart_bool(request.args.get("full", False))
-    if namespace.startswith("u:"):
-        user_id = namespace.partition("u:")[-1]
-        user_udps = [p for p in backend_implementation.user_defined_processes.get_for_user(user_id) if p.public]
-        processes = [_jsonable_udp_metadata(udp, full=full) for udp in user_udps]
-    elif ":" not in namespace:
-        process_registry = get_process_registry(requested_api_version())
-        processes = process_registry.get_specs(namespace=namespace)
-        if not full:
-            # Strip some fields
-            processes = [
-                {k: v for k, v in p.items() if k not in ["process_graph"]}
-                for p in processes
-            ]
-    else:
-        raise OpenEOApiException("Could not handle namespace {n!r}".format(n=namespace))
-    # TODO: pagination links?
-    return jsonify({'processes': processes, 'links': []})
+if backend_implementation.processing:
+    @api_endpoint
+    @openeo_bp.route('/processes', methods=['GET'])
+    def processes():
+        # TODO: this `qname` feature is non-standard. Is this necessary for some reason?
+        substring = request.args.get('qname')
+        process_registry = backend_implementation.processing.get_process_registry(api_version=requested_api_version())
+        processes = process_registry.get_specs(substring)
+        return jsonify({'processes': processes, 'links': []})
 
 
-@api_endpoint
-@openeo_bp.route('/processes/<namespace>/<process_id>', methods=['GET'])
-def processes_details(namespace, process_id):
-    # TODO: this endpoint is in draft at the moment
-    #       see https://github.com/Open-EO/openeo-api/issues/310, https://github.com/Open-EO/openeo-api/pull/348
-    if namespace.startswith("u:"):
-        user_id = namespace.partition("u:")[-1]
-        udp = backend_implementation.user_defined_processes.get(user_id=user_id, process_id=process_id)
-        if not udp:
-            raise ProcessUnsupportedException(process=process_id, namespace=namespace)
-        process = _jsonable_udp_metadata(udp, full=True)
-    elif ":" not in namespace:
-        process_registry = get_process_registry(requested_api_version())
-        process = process_registry.get_spec(name=process_id, namespace=namespace)
-    else:
-        raise OpenEOApiException("Could not handle namespace {n!r}".format(n=namespace))
-    return jsonify(process)
+    @api_endpoint
+    @openeo_bp.route('/processes/<namespace>', methods=['GET'])
+    def processes_from_namespace(namespace):
+        # TODO: this endpoint is in draft at the moment
+        #       see https://github.com/Open-EO/openeo-api/issues/310, https://github.com/Open-EO/openeo-api/pull/348
+        # TODO: convention for user namespace? use '@' instead of "u:"
+        # TODO: unify with `/processes` endpoint?
+        full = smart_bool(request.args.get("full", False))
+        if namespace.startswith("u:"):
+            user_id = namespace.partition("u:")[-1]
+            user_udps = [p for p in backend_implementation.user_defined_processes.get_for_user(user_id) if p.public]
+            processes = [_jsonable_udp_metadata(udp, full=full) for udp in user_udps]
+        elif ":" not in namespace:
+            process_registry = backend_implementation.processing.get_process_registry(
+                api_version=requested_api_version()
+            )
+            processes = process_registry.get_specs(namespace=namespace)
+            if not full:
+                # Strip some fields
+                processes = [
+                    {k: v for k, v in p.items() if k not in ["process_graph"]}
+                    for p in processes
+                ]
+        else:
+            raise OpenEOApiException("Could not handle namespace {n!r}".format(n=namespace))
+        # TODO: pagination links?
+        return jsonify({'processes': processes, 'links': []})
+
+
+    @api_endpoint
+    @openeo_bp.route('/processes/<namespace>/<process_id>', methods=['GET'])
+    def processes_details(namespace, process_id):
+        # TODO: this endpoint is in draft at the moment
+        #       see https://github.com/Open-EO/openeo-api/issues/310, https://github.com/Open-EO/openeo-api/pull/348
+        if namespace.startswith("u:"):
+            user_id = namespace.partition("u:")[-1]
+            udp = backend_implementation.user_defined_processes.get(user_id=user_id, process_id=process_id)
+            if not udp:
+                raise ProcessUnsupportedException(process=process_id, namespace=namespace)
+            process = _jsonable_udp_metadata(udp, full=True)
+        elif ":" not in namespace:
+            process_registry = backend_implementation.processing.get_process_registry(
+                api_version=requested_api_version()
+            )
+            process = process_registry.get_spec(name=process_id, namespace=namespace)
+        else:
+            raise OpenEOApiException("Could not handle namespace {n!r}".format(n=namespace))
+        return jsonify(process)
 
 
 if backend_implementation.user_files:

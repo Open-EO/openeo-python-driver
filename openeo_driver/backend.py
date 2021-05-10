@@ -16,11 +16,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Union, NamedTuple, Dict, Optional, Callable
 import abc
+
+from openeo.capabilities import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.util import rfc3339
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException
+from openeo_driver.processes import ProcessRegistry
 from openeo_driver.utils import read_json, dict_item, EvalEnv
 
 logger = logging.getLogger(__name__)
@@ -393,6 +396,19 @@ class UserDefinedProcesses(MicroService):
         raise NotImplementedError
 
 
+class Processing(MicroService):
+    """
+    Base contract/implementation for processing: available processes and process graph evaluation
+    """
+
+    def get_process_registry(self, api_version: Union[str, ComparableVersion]) -> ProcessRegistry:
+        raise NotImplementedError
+
+    def evaluate(self, process_graph: dict, env: EvalEnv = None):
+        """Evaluate given process graph (flat dict format)."""
+        raise NotImplementedError
+
+
 class ErrorSummary:
     # TODO: this is specific for openeo-geopyspark-driver: can we avoid defining it in openeo-python-driver?
     def __init__(self, exception: Exception, is_client_error: bool, summary: str = None):
@@ -418,13 +434,15 @@ class OpenEoBackendImplementation:
             secondary_services: Optional[SecondaryServices],
             catalog: Optional[AbstractCollectionCatalog],
             batch_jobs: Optional[BatchJobs],
-            user_defined_processes: Optional[UserDefinedProcesses]
+            user_defined_processes: Optional[UserDefinedProcesses],
+            processing: Optional[Processing],
     ):
         self.secondary_services = secondary_services
         self.catalog = catalog
         self.batch_jobs = batch_jobs
         self.user_defined_processes = user_defined_processes
         self.user_files = None  # TODO: implement user file storage microservice
+        self.processing = processing
 
     def health_check(self) -> str:
         return "OK"

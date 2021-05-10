@@ -13,6 +13,7 @@ from openeo.metadata import CollectionMetadata, Band
 from openeo_driver.backend import (SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata,
                                    BatchJobs, BatchJobMetadata, OidcProvider, UserDefinedProcesses,
                                    UserDefinedProcessMetadata, LoadParameters)
+from openeo_driver.ProcessGraphDeserializer import ConcreteProcessing
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, ProcessGraphNotFoundException
@@ -427,7 +428,8 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
             secondary_services=DummySecondaryServices(),
             catalog=DummyCatalog(),
             batch_jobs=DummyBatchJobs(),
-            user_defined_processes=DummyUserDefinedProcesses()
+            user_defined_processes=DummyUserDefinedProcesses(),
+            processing=ConcreteProcessing(),
         )
 
     def oidc_providers(self) -> List[OidcProvider]:

@@ -17,7 +17,7 @@ from openeo.capabilities import ComparableVersion
 from openeo.metadata import CollectionMetadata, MetadataException
 from openeo.util import dict_no_none, load_json
 from openeo_driver import dry_run
-from openeo_driver.backend import get_backend_implementation, UserDefinedProcessMetadata, LoadParameters
+from openeo_driver.backend import get_backend_implementation, UserDefinedProcessMetadata, LoadParameters, Processing
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
@@ -177,18 +177,24 @@ def _register_fallback_implementations_by_process_graph(process_registry: Proces
             custom_process_from_process_graph(process_spec=spec, process_registry=process_registry)
 
 
-def get_process_registry(api_version: ComparableVersion) -> ProcessRegistry:
-    if api_version.at_least("1.0.0"):
-        return process_registry_100
-    else:
-        return process_registry_040
-
-
-backend_implementation = get_backend_implementation()
-
 # Some (env) string constants to simplify code navigation
 ENV_SOURCE_CONSTRAINTS = "source_constraints"
 ENV_DRY_RUN_TRACER = "dry_run_tracer"
+
+
+class ConcreteProcessing(Processing):
+    """
+    Concrete process graph processing: (most) processes have concrete Python implementation
+    (manipulating `DriverDataCube` instances)
+    """
+    def get_process_registry(self, api_version: Union[str, ComparableVersion]) -> ProcessRegistry:
+        if ComparableVersion("1.0.0").or_higher(api_version):
+            return process_registry_100
+        else:
+            return process_registry_040
+
+    def evaluate(self, process_graph: dict, env: EvalEnv = None):
+        return evaluate(process_graph=process_graph, env=env)
 
 
 def evaluate(
@@ -361,7 +367,7 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
     if args.get("featureflags"):
         arguments["featureflags"] = extract_arg(args, 'featureflags', process_id="load_collection")
 
-    metadata = backend_implementation.catalog.get_collection_metadata(collection_id)
+    metadata = get_backend_implementation().catalog.get_collection_metadata(collection_id)
 
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
@@ -376,7 +382,7 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
         load_params = _extract_load_parameters(env, source_id=source_id)
         # Override with explicit arguments
         load_params.update(arguments)
-        return backend_implementation.catalog.load_collection(collection_id, load_params=load_params, env=env)
+        return get_backend_implementation().catalog.load_collection(collection_id, load_params=load_params, env=env)
 
 
 @non_standard_process(
@@ -400,7 +406,7 @@ def load_disk_data(args: Dict, env: EvalEnv) -> DriverDataCube:
     else:
         source_id = dry_run.DataSource.load_disk_data(**kwargs).get_source_id()
         load_params = _extract_load_parameters(env, source_id=source_id)
-        return backend_implementation.load_disk_data(**kwargs, load_params=load_params, env=env)
+        return get_backend_implementation().load_disk_data(**kwargs, load_params=load_params, env=env)
 
 
 @process_registry_100.add_function
@@ -469,7 +475,7 @@ def reduce(args: dict, env: EvalEnv) -> DriverDataCube:
     if dimension == band_dim:
         if not binary and len(reduce_pg) == 1 and next(iter(reduce_pg.values())).get('process_id') == 'run_udf':
             return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce', env=env)
-        visitor = backend_implementation.visit_process_graph(reduce_pg)
+        visitor = get_backend_implementation().visit_process_graph(reduce_pg)
         return data_cube.reduce_bands(visitor)
     else:
         return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce', env=env)
@@ -914,7 +920,7 @@ def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalE
             #   is more expensive IO-wise?
             # the DB-call can be cached if necessary, but how will a user be able to use a new pre-defined process of the same
             # name without renaming his UDP?
-            udp = backend_implementation.user_defined_processes.get(user_id=user.user_id, process_id=process_id)
+            udp = get_backend_implementation().user_defined_processes.get(user_id=user.user_id, process_id=process_id)
             if udp:
                 if namespace is None:
                     _log.info("Using process {p!r} from namespace 'user'.".format(p=process_id))
@@ -924,7 +930,8 @@ def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalE
     if namespace is None:
         namespace = "backend"
         _log.info("Using process {p!r} from namespace 'backend'.".format(p=process_id))
-    process_registry = get_process_registry(ComparableVersion(env["version"]))
+
+    process_registry = get_backend_implementation().processing.get_process_registry(api_version=env["version"])
     process_function = process_registry.get_function(process_id, namespace=namespace)
     return process_function(args=args, env=env)
 
