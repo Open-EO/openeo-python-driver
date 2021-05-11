@@ -437,21 +437,9 @@ def _extract_process_graph(post_data: dict) -> dict:
 @api_endpoint
 @openeo_bp.route('/result', methods=['POST'])
 @auth_handler.requires_bearer_auth
-def result():
-    return execute()
-
-
-@openeo_bp.route('/execute', methods=['POST'])
-def execute():
-    # TODO:  This is not an official endpoint, does this "/execute" still have to be exposed as route?
+def result(user: User):
     post_data = request.get_json()
     process_graph = _extract_process_graph(post_data)
-    # TODO: EP-3510 this endpoint actually *requires* an authenticated user, are we ready to enforce this?
-    try:
-        user = auth_handler.get_user_from_bearer_token(request)
-    except Exception as e:
-        _log.warning("/execute by un-authenticated user. %(e)r", {"e": e})
-        user = None
 
     result = evaluate(process_graph, env=EvalEnv({
         'version': g.api_version,
@@ -481,6 +469,14 @@ def execute():
         return jsonify(result.item())
     else:
         return jsonify(replace_nan_values(result))
+
+
+@openeo_bp.route('/execute', methods=['POST'])
+@auth_handler.requires_bearer_auth
+def execute(user: User):
+    # TODO:  This is not an official endpoint, does this "/execute" still have to be exposed as route?
+    _log.warning(f"Request to non-standard `/execute` endpoint by {user.user_id}")
+    return result(user=user)
 
 
 def _jsonable_batch_job_metadata(metadata: BatchJobMetadata, full=True) -> dict:
