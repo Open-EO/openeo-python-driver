@@ -623,7 +623,7 @@ if backend_implementation.batch_jobs:
 
         def expiration_timestamp() -> Union[int, None]:
             expiration = current_app.config.get('SIGNED_URL_EXPIRATION')
-            return time.time() + int(expiration) if expiration else None
+            return int(time.time()) + int(expiration) if expiration else None
 
         def download_url(filename) -> str:
             if smart_bool(current_app.config.get('SIGNED_URL')):
