@@ -26,7 +26,7 @@ from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, CredentialsInvalidException, \
-    ResultLinkExpiredException
+    ResultLinkExpiredException, ProcessUnsupportedException
 from openeo_driver.save_result import SaveResult, get_temp_file
 from openeo_driver.users import HttpAuthHandler, User
 from openeo_driver.utils import replace_nan_values, EvalEnv, smart_bool
@@ -1070,17 +1070,18 @@ def processes():
 @api_endpoint
 @openeo_bp.route('/processes/<namespace>', methods=['GET'])
 def processes_from_namespace(namespace):
-    # TODO: this is non-standard endpoint.
-    #       convention for namespaces (user, organisation, ....)
-    #       See https://github.com/Open-EO/openeo-api/issues/310
-    # TODO: unify with `/processes`
+    # TODO: this endpoint is in draft at the moment
+    #       see https://github.com/Open-EO/openeo-api/issues/310, https://github.com/Open-EO/openeo-api/pull/348
+    # TODO: convention for user namespace? use '@' instead of "u:"
+    # TODO: unify with `/processes` endpoint?
     full = smart_bool(request.args.get("full", False))
     if namespace.startswith("u:"):
         user_id = namespace.partition("u:")[-1]
         user_udps = [p for p in backend_implementation.user_defined_processes.get_for_user(user_id) if p.public]
         processes = [_jsonable_udp_metadata(udp, full=full) for udp in user_udps]
     elif ":" not in namespace:
-        processes = get_process_registry(requested_api_version()).get_specs(namespace=namespace)
+        process_registry = get_process_registry(requested_api_version())
+        processes = process_registry.get_specs(namespace=namespace)
         if not full:
             # Strip some fields
             processes = [
@@ -1091,6 +1092,25 @@ def processes_from_namespace(namespace):
         raise OpenEOApiException("Could not handle namespace {n!r}".format(n=namespace))
     # TODO: pagination links?
     return jsonify({'processes': processes, 'links': []})
+
+
+@api_endpoint
+@openeo_bp.route('/processes/<namespace>/<process_id>', methods=['GET'])
+def processes_details(namespace, process_id):
+    # TODO: this endpoint is in draft at the moment
+    #       see https://github.com/Open-EO/openeo-api/issues/310, https://github.com/Open-EO/openeo-api/pull/348
+    if namespace.startswith("u:"):
+        user_id = namespace.partition("u:")[-1]
+        udp = backend_implementation.user_defined_processes.get(user_id=user_id, process_id=process_id)
+        if not udp:
+            raise ProcessUnsupportedException(process=process_id, namespace=namespace)
+        process = _jsonable_udp_metadata(udp, full=True)
+    elif ":" not in namespace:
+        process_registry = get_process_registry(requested_api_version())
+        process = process_registry.get_spec(name=process_id, namespace=namespace)
+    else:
+        raise OpenEOApiException("Could not handle namespace {n!r}".format(n=namespace))
+    return jsonify(process)
 
 
 if backend_implementation.user_files:

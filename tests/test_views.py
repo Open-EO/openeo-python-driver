@@ -254,6 +254,16 @@ class TestGeneral:
         for process in processes:
             assert all(k in process for k in expected_keys)
 
+    def test_process_details(self, api100):
+        spec = api100.get("/processes/backend/add").assert_status_code(200).json
+        assert spec["id"] == "add"
+        assert spec["summary"].lower() == "addition of two numbers"
+        assert "x + y" in spec["description"]
+        assert set(p["name"] for p in spec["parameters"]) == {"x", "y"}
+        assert "computed sum" in spec["returns"]["description"]
+        assert "process_graph" in spec
+
+
     def test_processes_non_standard_histogram(self, api):
         resp = api.get('/processes').assert_status_code(200).json
         histogram_spec, = [p for p in resp["processes"] if p['id'] == "histogram"]
