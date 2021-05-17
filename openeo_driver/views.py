@@ -54,6 +54,9 @@ class OpenEoApiApp(Flask):
     def __init__(self, import_name):
         super().__init__(import_name=import_name)
 
+        # Make sure app handles reverse proxy aspects (e.g. HTTPS) correctly.
+        self.wsgi_app = ProxyFix(self.wsgi_app)
+
         # Setup up general CORS headers (for all HTTP methods)
         flask_cors.CORS(
             self,
@@ -73,9 +76,6 @@ class OpenEoApiApp(Flask):
 
 
 app = OpenEoApiApp(__name__)
-
-# Make sure app handles reverse proxy aspects (e.g. HTTPS) correctly.
-app.wsgi_app = ProxyFix(app.wsgi_app)
 
 openeo_bp = Blueprint('openeo', __name__)
 

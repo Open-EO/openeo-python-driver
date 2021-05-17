@@ -72,6 +72,15 @@ class TestGeneral:
     def test_versioned_well_known_openeo(self, api):
         api.get('/.well-known/openeo').assert_error(404, "NotFound")
 
+    @pytest.mark.parametrize(["headers", "expected"], [
+        ({}, "http://oeo.net/"),
+        ({"X-Forwarded-Proto": "https"}, "https://oeo.net/"),
+    ])
+    def test_https_proxy_handling(self, client, headers, expected):
+        resp = client.get('/.well-known/openeo', headers=headers)
+        for url in [v["url"] for v in resp.json["versions"]]:
+            assert url.startswith(expected)
+
     def test_capabilities_040(self, api040):
         capabilities = api040.get('/').assert_status_code(200).json
         assert capabilities["api_version"] == "0.4.0"
@@ -262,7 +271,6 @@ class TestGeneral:
         assert set(p["name"] for p in spec["parameters"]) == {"x", "y"}
         assert "computed sum" in spec["returns"]["description"]
         assert "process_graph" in spec
-
 
     def test_processes_non_standard_histogram(self, api):
         resp = api.get('/processes').assert_status_code(200).json
