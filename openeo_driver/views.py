@@ -20,7 +20,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from openeo.capabilities import ComparableVersion
 from openeo.util import dict_no_none, deep_get, Rfc3339
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
-    get_backend_implementation, ErrorSummary
+    get_backend_implementation, ErrorSummary, OpenEoBackendImplementation
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
@@ -34,6 +34,7 @@ _log = logging.getLogger(__name__)
 
 ApiVersionInfo = namedtuple("ApiVersionInfo", ["version", "supported", "wellknown", "production"])
 
+# TODO: move this version info listing and default version configurable too?
 # Available OpenEO API versions: map of URL version component to API version info
 API_VERSIONS = {
     "0.4.0": ApiVersionInfo(version="0.4.0", supported=True, wellknown=False, production=True),
@@ -75,83 +76,145 @@ class OpenEoApiApp(Flask):
         return rv
 
 
-app = OpenEoApiApp(__name__)
+def build_app(backend_implementation: OpenEoBackendImplementation, import_name=__name__) -> OpenEoApiApp:
+    """
+    Build Flask app serving the endpoints that are implemented in given backend implementation
 
-openeo_bp = Blueprint('openeo', __name__)
+    :param backend_implementation:
+    :param import_name:
+    :return:
+    """
+    app = OpenEoApiApp(import_name=import_name)
 
-backend_implementation = get_backend_implementation()
+    @app.url_defaults
+    def _add_version(endpoint, values):
+        """Blueprint.url_defaults handler to automatically add "version" argument in `url_for` calls."""
+        if 'version' not in values and current_app.url_map.is_endpoint_expecting(endpoint, 'version'):
+            values['version'] = g.get('request_version', DEFAULT_VERSION)
 
-auth_handler = HttpAuthHandler(oidc_providers=backend_implementation.oidc_providers())
-
-
-@openeo_bp.url_defaults
-def _add_version(endpoint, values):
-    """Blueprint.url_defaults handler to automatically add "version" argument in `url_for` calls."""
-    if 'version' not in values and current_app.url_map.is_endpoint_expecting(endpoint, 'version'):
-        values['version'] = g.get('request_version', DEFAULT_VERSION)
-
-
-@openeo_bp.url_value_preprocessor
-def _pull_version(endpoint, values):
-    """Get API version from request and store in global context"""
-    version = values.pop('version', DEFAULT_VERSION)
-    if not (version in API_VERSIONS and API_VERSIONS[version].supported):
-        raise OpenEOApiException(
-            status_code=501,
-            code="UnsupportedApiVersion",
-            message="Unsupported version component in URL: {v!r}.  Available versions: {s!r}".format(
-                v=version, s=[k for k, v in API_VERSIONS.items() if v.supported]
+    @app.url_value_preprocessor
+    def _pull_version(endpoint, values):
+        """Get API version from request and store in global context"""
+        version = (values or {}).pop('version', DEFAULT_VERSION)
+        if not (version in API_VERSIONS and API_VERSIONS[version].supported):
+            raise OpenEOApiException(
+                status_code=501,
+                code="UnsupportedApiVersion",
+                message="Unsupported version component in URL: {v!r}.  Available versions: {s!r}".format(
+                    v=version, s=[k for k, v in API_VERSIONS.items() if v.supported]
+                )
             )
+        g.request_version = version
+        g.api_version = API_VERSIONS[version].version
+
+    @app.before_request
+    def _before_request():
+        # Log some info about request
+        data = request.data
+        if len(data) > 1000:
+            data = repr(data[:1000] + b'...') + ' ({b} bytes)'.format(b=len(data))
+        else:
+            data = repr(data)
+        _log.info("Handling {method} {url} with data {data}".format(
+            method=request.method, url=request.url, data=data
+        ))
+
+    @app.errorhandler(HTTPException)
+    def handle_http_exceptions(error: HTTPException):
+        # Convert to OpenEOApiException based handling
+        return handle_openeoapi_exception(OpenEOApiException(
+            message=str(error),
+            code="NotFound" if isinstance(error, NotFound) else "Internal",
+            status_code=error.code
+        ))
+
+    @app.errorhandler(OpenEOApiException)
+    def handle_openeoapi_exception(error: OpenEOApiException):
+        error_dict = error.to_dict()
+        _log.error(str(error_dict), exc_info=True)
+        return jsonify(error_dict), error.status_code
+
+    @app.errorhandler(Exception)
+    def handle_error(error: Exception):
+        # TODO: convert to OpenEOApiException based handling
+        error = backend_implementation.summarize_exception(error)
+
+        if isinstance(error, ErrorSummary):
+            return _error_response(error, 400, error.summary) if error.is_client_error \
+                else _error_response(error, 500, error.summary)
+
+        return _error_response(error, 500)
+
+    # Note: /.well-known/openeo should be available directly under domain, without version prefix.
+    @app.route('/.well-known/openeo', methods=['GET'])
+    def well_known_openeo():
+        return jsonify({
+            'versions': [
+                {
+                    "url": url_for('openeo.index', version=k, _external=True),
+                    "api_version": v.version,
+                    "production": v.production,
+                }
+                for k, v in API_VERSIONS.items()
+                if v.wellknown
+            ]
+        })
+
+    auth = HttpAuthHandler(oidc_providers=backend_implementation.oidc_providers())
+    api_reg = EndpointRegistry()
+    bp = Blueprint("openeo", import_name=__name__)
+
+    register_views_general(
+        blueprint=bp, backend_implementation=backend_implementation, api_endpoint=api_reg, auth_handler=auth
+    )
+    register_views_auth(
+        blueprint=bp, backend_implementation=backend_implementation, api_endpoint=api_reg, auth_handler=auth
+    )
+
+    if backend_implementation.catalog:
+        register_views_catalog(
+            blueprint=bp, backend_implementation=backend_implementation, api_endpoint=api_reg, auth_handler=auth
         )
-    g.request_version = version
-    g.api_version = API_VERSIONS[version].version
+
+    if backend_implementation.processing:
+        register_views_processing(
+            blueprint=bp, backend_implementation=backend_implementation, api_endpoint=api_reg, auth_handler=auth
+        )
+
+    if backend_implementation.batch_jobs:
+        register_views_batch_jobs(
+            blueprint=bp, backend_implementation=backend_implementation, api_endpoint=api_reg, auth_handler=auth
+        )
+
+    if backend_implementation.secondary_services:
+        register_views_secondary_services(
+            blueprint=bp, backend_implementation=backend_implementation, api_endpoint=api_reg, auth_handler=auth
+        )
+
+    if backend_implementation.user_defined_processes:
+        register_views_udp(
+            blueprint=bp, backend_implementation=backend_implementation, api_endpoint=api_reg, auth_handler=auth
+        )
+
+    if backend_implementation.user_files:
+        register_views_user_files(
+            blueprint=bp, backend_implementation=backend_implementation, api_endpoint=api_reg, auth_handler=auth
+        )
+
+    app.register_blueprint(bp, url_prefix='/openeo')  # TODO: do we still need this?
+    app.register_blueprint(bp, url_prefix='/openeo/<version>')
+
+    # Build endpoint metadata dictionary
+    # TODO: find another way to pass this to `index()`
+    global _openeo_endpoint_metadata
+    _openeo_endpoint_metadata = api_reg.get_path_metadata(bp)
+
+    return app
 
 
 def requested_api_version() -> ComparableVersion:
     """Get the currently requested API version as a ComparableVersion object"""
     return ComparableVersion(g.api_version)
-
-
-@openeo_bp.before_request
-def _before_request():
-    # Log some info about request
-    data = request.data
-    if len(data) > 1000:
-        data = repr(data[:1000] + b'...') + ' ({b} bytes)'.format(b=len(data))
-    else:
-        data = repr(data)
-    _log.info("Handling {method} {url} with data {data}".format(
-        method=request.method, url=request.url, data=data
-    ))
-
-
-@app.errorhandler(HTTPException)
-def handle_http_exceptions(error: HTTPException):
-    # Convert to OpenEOApiException based handling
-    return handle_openeoapi_exception(OpenEOApiException(
-        message=str(error),
-        code="NotFound" if isinstance(error, NotFound) else "Internal",
-        status_code=error.code
-    ))
-
-
-@app.errorhandler(OpenEOApiException)
-def handle_openeoapi_exception(error: OpenEOApiException):
-    error_dict = error.to_dict()
-    _log.error(str(error_dict), exc_info=True)
-    return jsonify(error_dict), error.status_code
-
-
-@app.errorhandler(Exception)
-def handle_error(error: Exception):
-    # TODO: convert to OpenEOApiException based handling
-    error = backend_implementation.summarize_exception(error)
-
-    if isinstance(error, ErrorSummary):
-        return _error_response(error, 400, error.summary) if error.is_client_error \
-            else _error_response(error, 500, error.summary)
-
-    return _error_response(error, 500)
 
 
 def _error_response(error: Exception, status_code: int, summary: str = None):
@@ -236,191 +299,168 @@ class EndpointRegistry:
         return endpoints
 
 
-# Endpoint registry, to be used as decorator too
-api_endpoint = EndpointRegistry()
+def register_views_general(
+        blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
+        auth_handler: HttpAuthHandler
+):
+    @blueprint.route('/')
+    def index():
+        app_config = current_app.config
 
+        api_version = requested_api_version().to_string()
+        title = app_config.get('OPENEO_TITLE', 'OpenEO API')
+        service_id = app_config.get('OPENEO_SERVICE_ID', re.sub(r"\s+", "", title.lower() + '-' + api_version))
+        # TODO only list endpoints that are actually supported by the backend.
+        endpoints = EndpointRegistry.get_capabilities_endpoints(_openeo_endpoint_metadata, api_version=api_version)
+        deploy_metadata = app_config.get('OPENEO_BACKEND_DEPLOY_METADATA') or {}
 
-@openeo_bp.route('/')
-def index():
-    app_config = current_app.config
-
-    api_version = requested_api_version().to_string()
-    title = app_config.get('OPENEO_TITLE', 'OpenEO API')
-    service_id = app_config.get('OPENEO_SERVICE_ID', re.sub(r"\s+", "", title.lower() + '-' + api_version))
-    # TODO only list endpoints that are actually supported by the backend.
-    endpoints = EndpointRegistry.get_capabilities_endpoints(_openeo_endpoint_metadata, api_version=api_version)
-    deploy_metadata = app_config.get('OPENEO_BACKEND_DEPLOY_METADATA') or {}
-
-    capabilities = {
-        "version": api_version,  # Deprecated pre-0.4.0 API version field
-        "api_version": api_version,  # API version field since 0.4.0
-        "backend_version": app_config.get('OPENEO_BACKEND_VERSION', '0.0.1'),
-        "stac_version": "0.9.0",
-        "id": service_id,
-        "title": title,
-        "description": app_config.get('OPENEO_DESCRIPTION', 'OpenEO API'),
-        "production": API_VERSIONS[g.request_version].production,
-        "endpoints": endpoints,
-        "billing": {
-            "currency": "EUR",
-            "plans": [
+        capabilities = {
+            "version": api_version,  # Deprecated pre-0.4.0 API version field
+            "api_version": api_version,  # API version field since 0.4.0
+            "backend_version": app_config.get('OPENEO_BACKEND_VERSION', '0.0.1'),
+            "stac_version": "0.9.0",
+            "id": service_id,
+            "title": title,
+            "description": app_config.get('OPENEO_DESCRIPTION', 'OpenEO API'),
+            "production": API_VERSIONS[g.request_version].production,
+            "endpoints": endpoints,
+            "billing": {
+                "currency": "EUR",
+                "plans": [
+                    {
+                        "name": "free",
+                        "description": "Free plan. No limits!",
+                        "url": "http://openeo.org/plans/free-plan",
+                        "paid": False
+                    }
+                ]
+            },
+            "_backend_deploy_metadata": deploy_metadata,
+            "links": [
                 {
-                    "name": "free",
-                    "description": "Free plan. No limits!",
-                    "url": "http://openeo.org/plans/free-plan",
-                    "paid": False
-                }
+                    "rel": "version-history",
+                    "href": url_for("well_known_openeo", _external=True),
+                    "type": "application/json",
+                },
+                {
+                    "rel": "data",
+                    "href": url_for("openeo.collections", _external=True),
+                    "type": "application/json",
+                },
+                {
+                    "rel": "conformance",
+                    "href": url_for("openeo.conformance", _external=True),
+                    "type": "application/json",
+                },
+                # TODO #60: also add terms-of-service, privacy policy
             ]
-        },
-        "_backend_deploy_metadata": deploy_metadata,
-        "links": [
-            {
-                "rel": "version-history",
-                "href": url_for("well_known_openeo", _external=True),
-                "type": "application/json",
-            },
-            {
-                "rel": "data",
-                "href": url_for("openeo.collections", _external=True),
-                "type": "application/json",
-            },
-            {
-                "rel": "conformance",
-                "href": url_for("openeo.conformance", _external=True),
-                "type": "application/json",
-            },
-            # TODO #60: also add terms-of-service, privacy policy
-        ]
-    }
+        }
 
-    return jsonify(capabilities)
+        return jsonify(capabilities)
 
+    @blueprint.route('/conformance')
+    def conformance():
+        return jsonify({"conformsTo": [
+            # TODO: expand/manage conformance classes?
+            "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core"
+        ]})
 
-@openeo_bp.route('/conformance')
-def conformance():
-    return jsonify({"conformsTo": [
-        # TODO: expand/manage conformance classes?
-        "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core"
-    ]})
+    @blueprint.route('/health')
+    def health():
+        return jsonify({
+            "health": backend_implementation.health_check()
+        })
 
+    @api_endpoint(version=ComparableVersion("1.0.0").accept_lower)
+    @blueprint.route('/output_formats')
+    def output_formats():
+        # TODO deprecated endpoint, remove it when v0.4 API support is not necessary anymore
+        return jsonify(backend_implementation.file_formats()["output"])
 
-@openeo_bp.route('/health')
-def health():
-    return jsonify({
-        "health": backend_implementation.health_check()
-    })
+    @api_endpoint(version=ComparableVersion("1.0.0").or_higher)
+    @blueprint.route('/file_formats')
+    def file_formats():
+        return jsonify(backend_implementation.file_formats())
 
-
-@api_endpoint(version=ComparableVersion("1.0.0").accept_lower)
-@openeo_bp.route('/output_formats')
-def output_formats():
-    # TODO deprecated endpoint, remove it when v0.4 API support is not necessary anymore
-    return jsonify(backend_implementation.file_formats()["output"])
-
-
-@api_endpoint(version=ComparableVersion("1.0.0").or_higher)
-@openeo_bp.route('/file_formats')
-def file_formats():
-    return jsonify(backend_implementation.file_formats())
-
-
-@api_endpoint
-@openeo_bp.route('/udf_runtimes')
-def udf_runtimes():
-    # TODO: move this to OpenEoBackendImplementation?
-    runtimes = {
-        "Python": {
-            "title": "Python 3.5",
-            "description": "Predefined Python runtime environment.",
-            "type": "language",
-            "default": "latest",
-            "versions": {
-                # TODO: get these versions from somewhere instead of hardcoding them?
-                "3.5.1": {
-                    "libraries": {
-                        "numpy": {"version": "1.14.3"},
-                        "pandas": {"version": "0.22.0"},
-                        "tensorflow": {"version": "1.11.0"},
+    @api_endpoint
+    @blueprint.route('/udf_runtimes')
+    def udf_runtimes():
+        # TODO: move this to OpenEoBackendImplementation?
+        runtimes = {
+            "Python": {
+                "title": "Python 3.5",
+                "description": "Predefined Python runtime environment.",
+                "type": "language",
+                "default": "latest",
+                "versions": {
+                    # TODO: get these versions from somewhere instead of hardcoding them?
+                    "3.5.1": {
+                        "libraries": {
+                            "numpy": {"version": "1.14.3"},
+                            "pandas": {"version": "0.22.0"},
+                            "tensorflow": {"version": "1.11.0"},
+                        }
                     }
                 }
             }
         }
-    }
-    return jsonify(runtimes)
+        return jsonify(runtimes)
 
+    @blueprint.route('/.well-known/openeo')
+    def versioned_well_known_openeo():
+        # Clients might request this for version discovery. Avoid polluting (error) logs by explicitly handling this.
+        error = OpenEOApiException(status_code=404, code="NotFound", message="Not a well-known openEO URI")
+        return make_response(jsonify(error.to_dict()), error.status_code)
 
-@api_endpoint
-@openeo_bp.route("/credentials/basic", methods=["GET"])
-@auth_handler.requires_http_basic_auth
-def credentials_basic():
-    access_token, user_id = auth_handler.authenticate_basic(request)
-    resp = {"access_token": access_token}
-    if requested_api_version().below("1.0.0"):
-        resp["user_id"] = user_id
-    return jsonify(resp)
-
-
-@api_endpoint
-@openeo_bp.route("/credentials/oidc", methods=["GET"])
-@auth_handler.public
-def credentials_oidc():
-    providers = backend_implementation.oidc_providers()
-    if requested_api_version().at_least("1.0.0"):
+    @blueprint.route('/_debug/echo', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'])
+    def debug_echo():
         return jsonify({
-            "providers": [p.prepare_for_json() for p in providers]
+            "url": request.url,
+            "path": request.path,
+            "method": request.method,
+            "headers": dict(request.headers.items()),
+            "args": request.args,
+            "data": repr(request.get_data()),
+            "remote_addr": request.remote_addr,
+            "environ": {k: request.environ.get(k) for k in ["HTTP_USER_AGENT", "SERVER_PROTOCOL", "wsgi.url_scheme"]}
         })
-    else:
-        return flask.redirect(providers[0].issuer + '/.well-known/openid-configuration', code=303)
 
 
-@api_endpoint
-@openeo_bp.route("/me", methods=["GET"])
-@auth_handler.requires_bearer_auth
-def me(user: User):
-    return jsonify({
-        "user_id": user.user_id,
-        "info": user.info
-        # TODO more fields
-    })
+def register_views_auth(
+        blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
+        auth_handler: HttpAuthHandler
+):
+    @api_endpoint
+    @blueprint.route("/credentials/basic", methods=["GET"])
+    @auth_handler.requires_http_basic_auth
+    def credentials_basic():
+        access_token, user_id = auth_handler.authenticate_basic(request)
+        resp = {"access_token": access_token}
+        if requested_api_version().below("1.0.0"):
+            resp["user_id"] = user_id
+        return jsonify(resp)
 
+    @api_endpoint
+    @blueprint.route("/credentials/oidc", methods=["GET"])
+    @auth_handler.public
+    def credentials_oidc():
+        providers = backend_implementation.oidc_providers()
+        if requested_api_version().at_least("1.0.0"):
+            return jsonify({
+                "providers": [p.prepare_for_json() for p in providers]
+            })
+        else:
+            return flask.redirect(providers[0].issuer + '/.well-known/openid-configuration', code=303)
 
-@openeo_bp.route('/timeseries')
-def timeseries():
-    # TODO: deprecated? do we still need this endpoint? #35
-    return 'OpenEO GeoPyspark backend. ' + url_for('.point')
-
-
-@openeo_bp.route('/timeseries/point', methods=['POST'])
-def point():
-    # TODO: deprecated? do we still need this endpoint? #35
-    x = float(request.args.get('x', ''))
-    y = float(request.args.get('y', ''))
-    srs = request.args.get('srs', None)
-    process_graph = _extract_process_graph(request.json)
-    image_collection = backend_implementation.processing.evaluate(
-        process_graph=process_graph,
-        env=EvalEnv({'version': g.api_version})
-    )
-    return jsonify(image_collection.timeseries(x, y, srs))
-
-
-@openeo_bp.route('/download', methods=['GET', 'POST'])
-def download():
-    # TODO: deprecated?
-    if request.method == 'POST':
-        outputformat = request.args.get('outputformat', 'geotiff')
-
-        process_graph = request.get_json()
-        image_collection = backend_implementation.processing.evaluate(
-            process_graph=process_graph,
-            env=EvalEnv({'version': g.api_version})
-        )
-        # TODO Unify with execute?
-
-        filename = image_collection.save_result(filename=get_temp_file(), format=outputformat, format_options={})
-        return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
-    else:
-        return 'Usage: Download image using POST.'
+    @api_endpoint
+    @blueprint.route("/me", methods=["GET"])
+    @auth_handler.requires_bearer_auth
+    def me(user: User):
+        return jsonify({
+            "user_id": user.user_id,
+            "info": user.info
+            # TODO more fields
+        })
 
 
 def _extract_process_graph(post_data: dict) -> dict:
@@ -439,10 +479,48 @@ def _extract_process_graph(post_data: dict) -> dict:
         raise ProcessGraphMissingException
 
 
-if backend_implementation.processing:
+def register_views_processing(
+        blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
+        auth_handler: HttpAuthHandler
+):
+    @blueprint.route('/timeseries')
+    def timeseries():
+        # TODO: deprecated? do we still need this endpoint? #35
+        return 'OpenEO GeoPyspark backend. ' + url_for('.point')
+
+    @blueprint.route('/timeseries/point', methods=['POST'])
+    def point():
+        # TODO: deprecated? do we still need this endpoint? #35
+        x = float(request.args.get('x', ''))
+        y = float(request.args.get('y', ''))
+        srs = request.args.get('srs', None)
+        process_graph = _extract_process_graph(request.json)
+        image_collection = backend_implementation.processing.evaluate(
+            process_graph=process_graph,
+            env=EvalEnv({'version': g.api_version})
+        )
+        return jsonify(image_collection.timeseries(x, y, srs))
+
+    @blueprint.route('/download', methods=['GET', 'POST'])
+    def download():
+        # TODO: deprecated?
+        if request.method == 'POST':
+            outputformat = request.args.get('outputformat', 'geotiff')
+
+            process_graph = request.get_json()
+            image_collection = backend_implementation.processing.evaluate(
+                process_graph=process_graph,
+                env=EvalEnv({'version': g.api_version})
+            )
+            # TODO Unify with execute?
+
+            filename = image_collection.save_result(filename=get_temp_file(), format=outputformat, format_options={})
+            return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
+        else:
+            return 'Usage: Download image using POST.'
 
     @api_endpoint
-    @openeo_bp.route('/result', methods=['POST'])
+    @blueprint.route('/result', methods=['POST'])
     @auth_handler.requires_bearer_auth
     def result(user: User):
         post_data = request.get_json()
@@ -477,13 +555,69 @@ if backend_implementation.processing:
         else:
             return jsonify(replace_nan_values(result))
 
-
-    @openeo_bp.route('/execute', methods=['POST'])
+    @blueprint.route('/execute', methods=['POST'])
     @auth_handler.requires_bearer_auth
     def execute(user: User):
         # TODO:  This is not an official endpoint, does this "/execute" still have to be exposed as route?
         _log.warning(f"Request to non-standard `/execute` endpoint by {user.user_id}")
         return result(user=user)
+
+    @api_endpoint
+    @blueprint.route('/processes', methods=['GET'])
+    def processes():
+        # TODO: this `qname` feature is non-standard. Is this necessary for some reason?
+        substring = request.args.get('qname')
+        process_registry = backend_implementation.processing.get_process_registry(api_version=requested_api_version())
+        processes = process_registry.get_specs(substring)
+        return jsonify({'processes': processes, 'links': []})
+
+    @api_endpoint
+    @blueprint.route('/processes/<namespace>', methods=['GET'])
+    def processes_from_namespace(namespace):
+        # TODO: this endpoint is in draft at the moment
+        #       see https://github.com/Open-EO/openeo-api/issues/310, https://github.com/Open-EO/openeo-api/pull/348
+        # TODO: convention for user namespace? use '@' instead of "u:"
+        # TODO: unify with `/processes` endpoint?
+        full = smart_bool(request.args.get("full", False))
+        if namespace.startswith("u:"):
+            user_id = namespace.partition("u:")[-1]
+            user_udps = [p for p in backend_implementation.user_defined_processes.get_for_user(user_id) if p.public]
+            processes = [_jsonable_udp_metadata(udp, full=full) for udp in user_udps]
+        elif ":" not in namespace:
+            process_registry = backend_implementation.processing.get_process_registry(
+                api_version=requested_api_version()
+            )
+            processes = process_registry.get_specs(namespace=namespace)
+            if not full:
+                # Strip some fields
+                processes = [
+                    {k: v for k, v in p.items() if k not in ["process_graph"]}
+                    for p in processes
+                ]
+        else:
+            raise OpenEOApiException("Could not handle namespace {n!r}".format(n=namespace))
+        # TODO: pagination links?
+        return jsonify({'processes': processes, 'links': []})
+
+    @api_endpoint
+    @blueprint.route('/processes/<namespace>/<process_id>', methods=['GET'])
+    def processes_details(namespace, process_id):
+        # TODO: this endpoint is in draft at the moment
+        #       see https://github.com/Open-EO/openeo-api/issues/310, https://github.com/Open-EO/openeo-api/pull/348
+        if namespace.startswith("u:"):
+            user_id = namespace.partition("u:")[-1]
+            udp = backend_implementation.user_defined_processes.get(user_id=user_id, process_id=process_id)
+            if not udp:
+                raise ProcessUnsupportedException(process=process_id, namespace=namespace)
+            process = _jsonable_udp_metadata(udp, full=True)
+        elif ":" not in namespace:
+            process_registry = backend_implementation.processing.get_process_registry(
+                api_version=requested_api_version()
+            )
+            process = process_registry.get_spec(name=process_id, namespace=namespace)
+        else:
+            raise OpenEOApiException("Could not handle namespace {n!r}".format(n=namespace))
+        return jsonify(process)
 
 
 def _jsonable_batch_job_metadata(metadata: BatchJobMetadata, full=True) -> dict:
@@ -546,10 +680,12 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
     return properties
 
 
-if backend_implementation.batch_jobs:
-
+def register_views_batch_jobs(
+        blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
+        auth_handler: HttpAuthHandler
+):
     @api_endpoint
-    @openeo_bp.route('/jobs', methods=['POST'])
+    @blueprint.route('/jobs', methods=['POST'])
     @auth_handler.requires_bearer_auth
     def create_job(user: User):
         # TODO: wrap this job specification in a 1.0-style ProcessGrahpWithMetadata?
@@ -569,9 +705,8 @@ if backend_implementation.batch_jobs:
         response.headers['OpenEO-Identifier'] = str(job_id)
         return response
 
-
     @api_endpoint
-    @openeo_bp.route('/jobs', methods=['GET'])
+    @blueprint.route('/jobs', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def list_jobs(user: User):
         return jsonify({
@@ -582,41 +717,36 @@ if backend_implementation.batch_jobs:
             "links": [],
         })
 
-
     @api_endpoint
-    @openeo_bp.route('/jobs/<job_id>', methods=['GET'])
+    @blueprint.route('/jobs/<job_id>', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def get_job_info(job_id, user: User):
         job_info = backend_implementation.batch_jobs.get_job_info(job_id, user)
         return jsonify(_jsonable_batch_job_metadata(job_info))
 
-
     @api_endpoint(hidden=True)
-    @openeo_bp.route('/jobs/<job_id>', methods=['DELETE'])
+    @blueprint.route('/jobs/<job_id>', methods=['DELETE'])
     @auth_handler.requires_bearer_auth
     def delete_job(job_id, user: User):
         backend_implementation.batch_jobs.delete_job(job_id=job_id, user_id=user.user_id)
         return response_204_no_content()
 
-
     @api_endpoint(hidden=True)
-    @openeo_bp.route('/jobs/<job_id>', methods=['PATCH'])
+    @blueprint.route('/jobs/<job_id>', methods=['PATCH'])
     @auth_handler.requires_bearer_auth
     def modify_job(job_id, user: User):
         # TODO
         raise FeatureUnsupportedException()
 
-
     @api_endpoint
-    @openeo_bp.route('/jobs/<job_id>/results', methods=['POST'])
+    @blueprint.route('/jobs/<job_id>/results', methods=['POST'])
     @auth_handler.requires_bearer_auth
     def queue_job(job_id, user: User):
         backend_implementation.batch_jobs.start_job(job_id=job_id, user=user)
         return make_response("", 202)
 
-
     @api_endpoint
-    @openeo_bp.route('/jobs/<job_id>/results', methods=['GET'])
+    @blueprint.route('/jobs/<job_id>/results', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def list_job_results(job_id, user: User):
         job_info = backend_implementation.batch_jobs.get_job_info(job_id, user)
@@ -704,9 +834,8 @@ if backend_implementation.batch_jobs:
         # TODO "OpenEO-Costs" header?
         return jsonify(result)
 
-
     @api_endpoint
-    @openeo_bp.route('/jobs/<job_id>/results/<filename>', methods=['GET'])
+    @blueprint.route('/jobs/<job_id>/results/<filename>', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def download_job_result(job_id, filename, user: User):
         results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
@@ -715,9 +844,8 @@ if backend_implementation.batch_jobs:
         output_dir = results[filename]["output_dir"]
         return send_from_directory(output_dir, filename, mimetype=results[filename].get("media_type"))
 
-
     @api_endpoint
-    @openeo_bp.route('/jobs/<job_id>/results/<user_base64>/<secure_key>/<filename>', methods=['GET'])
+    @blueprint.route('/jobs/<job_id>/results/<user_base64>/<secure_key>/<filename>', methods=['GET'])
     def download_job_result_signed(job_id, user_base64, secure_key, filename):
         expires = request.args.get('expires')
         user_id = base64.urlsafe_b64decode(user_base64).decode()
@@ -731,15 +859,13 @@ if backend_implementation.batch_jobs:
         output_dir = results[filename]["output_dir"]
         return send_from_directory(output_dir, filename, mimetype=results[filename].get("media_type"))
 
-
     def _compute_secure_token(job_id, user_id, filename, expiration_timestamp):
         secret = current_app.config.get('SIGNED_URL_SECRET')
         token_key = job_id + user_id + filename + str(expiration_timestamp) + secret
         return md5(token_key.encode()).hexdigest()
 
-
     @api_endpoint
-    @openeo_bp.route('/jobs/<job_id>/logs', methods=['GET'])
+    @blueprint.route('/jobs/<job_id>/logs', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def get_job_logs(job_id, user: User):
         offset = request.args.get('offset', 0)
@@ -750,17 +876,15 @@ if backend_implementation.batch_jobs:
             "links": [],
         })
 
-
     @api_endpoint
-    @openeo_bp.route('/jobs/<job_id>/results', methods=['DELETE'])
+    @blueprint.route('/jobs/<job_id>/results', methods=['DELETE'])
     @auth_handler.requires_bearer_auth
     def cancel_job(job_id, user: User):
         backend_implementation.batch_jobs.cancel_job(job_id=job_id, user_id=user.user_id)
         return make_response("", 204)
 
-
     @api_endpoint(hidden=True)
-    @openeo_bp.route('/jobs/<job_id>/estimate', methods=['GET'])
+    @blueprint.route('/jobs/<job_id>/estimate', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def job_estimate(job_id, user: User):
         # TODO: implement cost estimation?
@@ -780,18 +904,20 @@ def _jsonable_service_metadata(metadata: ServiceMetadata, full=True) -> dict:
     return dict_no_none(**d)
 
 
-if backend_implementation.secondary_services:
+def register_views_secondary_services(
+        blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
+        auth_handler: HttpAuthHandler
+):
     @api_endpoint
-    @openeo_bp.route('/service_types', methods=['GET'])
+    @blueprint.route('/service_types', methods=['GET'])
     def service_types():
         service_types = backend_implementation.secondary_services.service_types()
         expected_fields = {"configuration", "process_parameters"}
         assert all(expected_fields.issubset(st.keys()) for st in service_types.values())
         return jsonify(service_types)
 
-
     @api_endpoint
-    @openeo_bp.route('/services', methods=['POST'])
+    @blueprint.route('/services', methods=['POST'])
     @auth_handler.requires_bearer_auth
     def services_post(user: User):
         """
@@ -816,9 +942,8 @@ if backend_implementation.secondary_services:
             'OpenEO-Identifier': service_id
         })
 
-
     @api_endpoint
-    @openeo_bp.route('/services', methods=['GET'])
+    @blueprint.route('/services', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def services_get(user: User):
         """List all running secondary web services for authenticated user"""
@@ -830,9 +955,8 @@ if backend_implementation.secondary_services:
             "links": [],
         })
 
-
     @api_endpoint
-    @openeo_bp.route('/services/<service_id>', methods=['GET'])
+    @blueprint.route('/services/<service_id>', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def get_service_info(service_id, user: User):
         try:
@@ -843,9 +967,8 @@ if backend_implementation.secondary_services:
             raise ServiceNotFoundException(service_id)
         return jsonify(_jsonable_service_metadata(metadata, full=True))
 
-
     @api_endpoint(hidden=True)
-    @openeo_bp.route('/services/<service_id>', methods=['PATCH'])
+    @blueprint.route('/services/<service_id>', methods=['PATCH'])
     @auth_handler.requires_bearer_auth
     def service_patch(service_id, user: User):
         process_graph = _extract_process_graph(request.get_json())
@@ -853,17 +976,15 @@ if backend_implementation.secondary_services:
                                                                  process_graph=process_graph)
         return response_204_no_content()
 
-
     @api_endpoint
-    @openeo_bp.route('/services/<service_id>', methods=['DELETE'])
+    @blueprint.route('/services/<service_id>', methods=['DELETE'])
     @auth_handler.requires_bearer_auth
     def service_delete(service_id, user: User):
         backend_implementation.secondary_services.remove_service(user_id=user.user_id, service_id=service_id)
         return response_204_no_content()
 
-
     @api_endpoint
-    @openeo_bp.route('/services/<service_id>/logs', methods=['GET'])
+    @blueprint.route('/services/<service_id>/logs', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def service_logs(service_id, user: User):
         offset = request.args.get('offset', 0)
@@ -872,16 +993,19 @@ if backend_implementation.secondary_services:
         )
         return jsonify({"logs": logs, "links": []})
 
-if backend_implementation.user_defined_processes:
+
+def register_views_udp(
+        blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
+        auth_handler: HttpAuthHandler
+):
     @api_endpoint(hidden=True)
-    @openeo_bp.route('/validation', methods=["POST"])
+    @blueprint.route('/validation', methods=["POST"])
     def udp_validate():
         # TODO
         raise FeatureUnsupportedException()
 
-
     @api_endpoint
-    @openeo_bp.route('/process_graphs/<process_graph_id>', methods=['PUT'])
+    @blueprint.route('/process_graphs/<process_graph_id>', methods=['PUT'])
     @auth_handler.requires_bearer_auth
     def udp_store(process_graph_id: str, user: User):
         backend_implementation.user_defined_processes.save(
@@ -892,9 +1016,8 @@ if backend_implementation.user_defined_processes:
 
         return make_response("", 200)
 
-
     @api_endpoint
-    @openeo_bp.route('/process_graphs/<process_graph_id>', methods=['GET'])
+    @blueprint.route('/process_graphs/<process_graph_id>', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def udp_get(process_graph_id: str, user: User):
         udp = backend_implementation.user_defined_processes.get(user_id=user.user_id, process_id=process_graph_id)
@@ -903,9 +1026,8 @@ if backend_implementation.user_defined_processes:
 
         raise ProcessGraphNotFoundException(process_graph_id)
 
-
     @api_endpoint
-    @openeo_bp.route('/process_graphs', methods=['GET'])
+    @blueprint.route('/process_graphs', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def udp_list_for_user(user: User):
         user_udps = backend_implementation.user_defined_processes.get_for_user(user.user_id)
@@ -915,9 +1037,8 @@ if backend_implementation.user_defined_processes:
             "links": [],
         }
 
-
     @api_endpoint
-    @openeo_bp.route('/process_graphs/<process_graph_id>', methods=['DELETE'])
+    @blueprint.route('/process_graphs/<process_graph_id>', methods=['DELETE'])
     @auth_handler.requires_bearer_auth
     def udp_delete(process_graph_id: str, user: User):
         backend_implementation.user_defined_processes.delete(user_id=user.user_id, process_id=process_graph_id)
@@ -930,13 +1051,6 @@ def _jsonable_udp_metadata(metadata: UserDefinedProcessMetadata, full=True) -> d
     if not full:
         d.pop("process_graph")
     return dict_no_none(**d)
-
-
-@api_endpoint(hidden=True)
-@openeo_bp.route('/subscription', methods=["GET"])
-def subscription():
-    # TODO
-    raise FeatureUnsupportedException()
 
 
 def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersion, full=False) -> dict:
@@ -1041,9 +1155,12 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
     return metadata
 
 
-if backend_implementation.catalog:
+def register_views_catalog(
+        blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
+        auth_handler: HttpAuthHandler
+):
     @api_endpoint
-    @openeo_bp.route('/collections', methods=['GET'])
+    @blueprint.route('/collections', methods=['GET'])
     def collections():
         metadata = [
             _normalize_collection_metadata(metadata=m, api_version=requested_api_version(), full=False)
@@ -1054,148 +1171,47 @@ if backend_implementation.catalog:
             'links': []
         })
 
-
     @api_endpoint
-    @openeo_bp.route('/collections/<collection_id>', methods=['GET'])
+    @blueprint.route('/collections/<collection_id>', methods=['GET'])
     def collection_by_id(collection_id):
         metadata = backend_implementation.catalog.get_collection_metadata(collection_id=collection_id)
         metadata = _normalize_collection_metadata(metadata=metadata, api_version=requested_api_version(), full=True)
         return jsonify(metadata)
 
 
-if backend_implementation.processing:
+def register_views_user_files(
+        blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
+        auth_handler: HttpAuthHandler
+):
     @api_endpoint
-    @openeo_bp.route('/processes', methods=['GET'])
-    def processes():
-        # TODO: this `qname` feature is non-standard. Is this necessary for some reason?
-        substring = request.args.get('qname')
-        process_registry = backend_implementation.processing.get_process_registry(api_version=requested_api_version())
-        processes = process_registry.get_specs(substring)
-        return jsonify({'processes': processes, 'links': []})
-
-
-    @api_endpoint
-    @openeo_bp.route('/processes/<namespace>', methods=['GET'])
-    def processes_from_namespace(namespace):
-        # TODO: this endpoint is in draft at the moment
-        #       see https://github.com/Open-EO/openeo-api/issues/310, https://github.com/Open-EO/openeo-api/pull/348
-        # TODO: convention for user namespace? use '@' instead of "u:"
-        # TODO: unify with `/processes` endpoint?
-        full = smart_bool(request.args.get("full", False))
-        if namespace.startswith("u:"):
-            user_id = namespace.partition("u:")[-1]
-            user_udps = [p for p in backend_implementation.user_defined_processes.get_for_user(user_id) if p.public]
-            processes = [_jsonable_udp_metadata(udp, full=full) for udp in user_udps]
-        elif ":" not in namespace:
-            process_registry = backend_implementation.processing.get_process_registry(
-                api_version=requested_api_version()
-            )
-            processes = process_registry.get_specs(namespace=namespace)
-            if not full:
-                # Strip some fields
-                processes = [
-                    {k: v for k, v in p.items() if k not in ["process_graph"]}
-                    for p in processes
-                ]
-        else:
-            raise OpenEOApiException("Could not handle namespace {n!r}".format(n=namespace))
-        # TODO: pagination links?
-        return jsonify({'processes': processes, 'links': []})
-
-
-    @api_endpoint
-    @openeo_bp.route('/processes/<namespace>/<process_id>', methods=['GET'])
-    def processes_details(namespace, process_id):
-        # TODO: this endpoint is in draft at the moment
-        #       see https://github.com/Open-EO/openeo-api/issues/310, https://github.com/Open-EO/openeo-api/pull/348
-        if namespace.startswith("u:"):
-            user_id = namespace.partition("u:")[-1]
-            udp = backend_implementation.user_defined_processes.get(user_id=user_id, process_id=process_id)
-            if not udp:
-                raise ProcessUnsupportedException(process=process_id, namespace=namespace)
-            process = _jsonable_udp_metadata(udp, full=True)
-        elif ":" not in namespace:
-            process_registry = backend_implementation.processing.get_process_registry(
-                api_version=requested_api_version()
-            )
-            process = process_registry.get_spec(name=process_id, namespace=namespace)
-        else:
-            raise OpenEOApiException("Could not handle namespace {n!r}".format(n=namespace))
-        return jsonify(process)
-
-
-if backend_implementation.user_files:
-    @api_endpoint
-    @openeo_bp.route('/files', methods=['GET'])
+    @blueprint.route('/files', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def files_list_for_user(user: User):
         # TODO EP-3538
         raise FeatureUnsupportedException()
 
-
     @api_endpoint
-    @openeo_bp.route('/files/<path>', methods=['GET'])
+    @blueprint.route('/files/<path>', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def fildes_download(path, user: User):
         # TODO EP-3538
         raise FeatureUnsupportedException()
 
-
     @api_endpoint
-    @openeo_bp.route('/files/<path>', methods=['PUT'])
+    @blueprint.route('/files/<path>', methods=['PUT'])
     @auth_handler.requires_bearer_auth
     def files_upload(path, user: User):
         # TODO EP-3538
         raise FeatureUnsupportedException()
 
-
     @api_endpoint
-    @openeo_bp.route('/files/<path>', methods=['DELETE'])
+    @blueprint.route('/files/<path>', methods=['DELETE'])
     @auth_handler.requires_bearer_auth
     def files_delete(path, user: User):
         # TODO EP-3538
         raise FeatureUnsupportedException()
 
 
-@openeo_bp.route('/.well-known/openeo')
-def versioned_well_known_openeo():
-    # Clients might request this for version discovery. Avoid polluting (error) logs by explicitly handling this.
-    error = OpenEOApiException(status_code=404, code="NotFound", message="Not a well-known openEO URI")
-    return make_response(jsonify(error.to_dict()), error.status_code)
-
-
-@openeo_bp.route('/_debug/echo', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'])
-def debug_echo():
-    return jsonify({
-        "url": request.url,
-        "path": request.path,
-        "method": request.method,
-        "headers": dict(request.headers.items()),
-        "args": request.args,
-        "data": repr(request.get_data()),
-        "remote_addr": request.remote_addr,
-        "environ": {k: request.environ.get(k) for k in ["HTTP_USER_AGENT", "SERVER_PROTOCOL", "wsgi.url_scheme"]}
-    })
-
-
-app.register_blueprint(openeo_bp, url_prefix='/openeo')  # TODO: do we still need this?
-app.register_blueprint(openeo_bp, url_prefix='/openeo/<version>')
-
-# Build endpoint metadata dictionary
-_openeo_endpoint_metadata = api_endpoint.get_path_metadata(openeo_bp)
-
-
-# Note: /.well-known/openeo should be available directly under domain, without version prefix.
-@app.route('/.well-known/openeo', methods=['GET'])
-def well_known_openeo():
-    return jsonify({
-        'versions': [
-            {
-                "url": url_for('openeo.index', version=k, _external=True),
-                "api_version": v.version,
-                "production": v.production,
-            }
-            for k, v in API_VERSIONS.items()
-            if v.wellknown
-        ]
-    })
+# TODO: eliminate this top level logic
+backend_implementation = get_backend_implementation()
+app = build_app(backend_implementation=backend_implementation)

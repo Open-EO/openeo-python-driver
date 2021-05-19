@@ -81,6 +81,19 @@ class TestGeneral:
         for url in [v["url"] for v in resp.json["versions"]]:
             assert url.startswith(expected)
 
+    @pytest.mark.parametrize(["url","expected_version"], [
+        ("/openeo/", "1.0.0"),
+        ("/openeo/0.4/", "0.4.2"),
+        ("/openeo/1.0/", "1.0.0"),
+        ("/openeo/1.0.0/", "1.0.0"),
+    ])
+    def test_versioned_urls(self, client, url, expected_version):
+        resp = client.get(url)
+        assert resp.status_code == 200
+        capabilities = resp.json
+        assert capabilities["description"] == "OpenEO API"
+        assert capabilities["api_version"] == expected_version
+
     def test_capabilities_040(self, api040):
         capabilities = api040.get('/').assert_status_code(200).json
         assert capabilities["api_version"] == "0.4.0"

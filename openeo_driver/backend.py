@@ -479,7 +479,7 @@ class OpenEoBackendImplementation:
     def set_preferred_username_getter(self, getter: Callable[['User'], Optional[str]]):
         self.batch_jobs.set_proxy_user_getter(getter)
 
-
+# TODO: associate backend implementation with Flask app, instead of using global (cache) variable)
 _backend_implementation = None
 
 
