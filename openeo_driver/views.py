@@ -20,7 +20,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from openeo.capabilities import ComparableVersion
 from openeo.util import dict_no_none, deep_get, Rfc3339
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
-    get_backend_implementation, ErrorSummary, OpenEoBackendImplementation
+    ErrorSummary, OpenEoBackendImplementation
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
@@ -208,6 +208,9 @@ def build_app(backend_implementation: OpenEoBackendImplementation, import_name=_
     # TODO: find another way to pass this to `index()`
     global _openeo_endpoint_metadata
     _openeo_endpoint_metadata = api_reg.get_path_metadata(bp)
+
+    # Load default config.
+    app.config.from_object("openeo_driver.config.flask_defaults")
 
     return app
 
@@ -497,7 +500,7 @@ def register_views_processing(
         process_graph = _extract_process_graph(request.json)
         image_collection = backend_implementation.processing.evaluate(
             process_graph=process_graph,
-            env=EvalEnv({'version': g.api_version})
+            env=EvalEnv({"backend_implementation": backend_implementation, 'version': g.api_version})
         )
         return jsonify(image_collection.timeseries(x, y, srs))
 
@@ -510,7 +513,7 @@ def register_views_processing(
             process_graph = request.get_json()
             image_collection = backend_implementation.processing.evaluate(
                 process_graph=process_graph,
-                env=EvalEnv({'version': g.api_version})
+                env=EvalEnv({"backend_implementation": backend_implementation, 'version': g.api_version})
             )
             # TODO Unify with execute?
 
@@ -527,6 +530,7 @@ def register_views_processing(
         process_graph = _extract_process_graph(post_data)
 
         result = backend_implementation.processing.evaluate(process_graph=process_graph, env=EvalEnv({
+            "backend_implementation": backend_implementation,
             'version': g.api_version,
             'pyramid_levels': 'highest',
             'user': user,
@@ -1210,8 +1214,3 @@ def register_views_user_files(
     def files_delete(path, user: User):
         # TODO EP-3538
         raise FeatureUnsupportedException()
-
-
-# TODO: eliminate this top level logic
-backend_implementation = get_backend_implementation()
-app = build_app(backend_implementation=backend_implementation)

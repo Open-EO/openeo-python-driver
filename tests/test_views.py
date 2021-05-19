@@ -1,11 +1,8 @@
 import logging
-import logging
-import os
-import re
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest import TestCase, mock
+from unittest import mock
 
 import flask
 import pytest
@@ -16,25 +13,15 @@ from openeo_driver.backend import BatchJobMetadata, UserDefinedProcessMetadata
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.testing import ApiTester
 from openeo_driver.testing import TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, generate_unique_test_process_id
-from openeo_driver.views import app, EndpointRegistry, _normalize_collection_metadata, \
-    backend_implementation
+from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata
 from .data import TEST_DATA_ROOT
 from .test_users import _build_basic_http_auth_header
-
-os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "openeo_driver.dummy.dummy_backend"
-app.config["OPENEO_TITLE"] = "OpenEO Test API"
 
 
 @pytest.fixture(params=["0.4.0", "1.0.0"])
 def api_version(request):
     return request.param
 
-
-@pytest.fixture
-def client():
-    app.config['TESTING'] = True
-    app.config['SERVER_NAME'] = 'oeo.net'
-    return app.test_client()
 
 
 @pytest.fixture
@@ -91,7 +78,7 @@ class TestGeneral:
         resp = client.get(url)
         assert resp.status_code == 200
         capabilities = resp.json
-        assert capabilities["description"] == "OpenEO API"
+        assert capabilities["title"] == "openEO Unit Test Dummy Backend"
         assert capabilities["api_version"] == expected_version
 
     def test_capabilities_040(self, api040):
@@ -99,16 +86,16 @@ class TestGeneral:
         assert capabilities["api_version"] == "0.4.0"
         assert capabilities["version"] == "0.4.0"
         assert capabilities["stac_version"] == "0.9.0"
-        assert capabilities["title"] == "OpenEO Test API"
-        assert capabilities["id"] == "openeotestapi-0.4.0"
+        assert capabilities["title"] == "openEO Unit Test Dummy Backend"
+        assert capabilities["id"] == "openeounittestdummybackend-0.4.0"
         assert capabilities["production"] is True
 
     def test_capabilities_100(self, api100):
         capabilities = api100.get('/').assert_status_code(200).json
         assert capabilities["api_version"] == "1.0.0"
         assert capabilities["stac_version"] == "0.9.0"
-        assert capabilities["title"] == "OpenEO Test API"
-        assert capabilities["id"] == "openeotestapi-1.0.0"
+        assert capabilities["title"] == "openEO Unit Test Dummy Backend"
+        assert capabilities["id"] == "openeounittestdummybackend-1.0.0"
         assert capabilities["production"] is True
 
         def get_link(rel):
@@ -887,9 +874,9 @@ class TestBatchJobs:
                 'type': 'Feature'
             }
 
-    @mock.patch.dict(app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'})
-    def test_get_job_results_signed_040(self, api040):
-        with self._fresh_job_registry(next_job_id='job-370'):
+    def test_get_job_results_signed_040(self, api040, flask_app):
+        with mock.patch.dict(flask_app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}), \
+                self._fresh_job_registry(next_job_id='job-370'):
             dummy_backend.DummyBatchJobs._update_status(
                 job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
             resp = api040.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
@@ -901,9 +888,9 @@ class TestBatchJobs:
             ]
         }
 
-    @mock.patch.dict(app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'})
-    def test_get_job_results_signed_100(self, api100):
-        with self._fresh_job_registry(next_job_id='job-372'):
+    def test_get_job_results_signed_100(self, api100, flask_app):
+        with mock.patch.dict(flask_app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}), \
+                self._fresh_job_registry(next_job_id='job-372'):
             dummy_backend.DummyBatchJobs._update_status(
                 job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
             resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
@@ -953,9 +940,9 @@ class TestBatchJobs:
             }
 
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
-    @mock.patch.dict(app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'})
-    def test_get_job_results_signed_with_expiration_040(self, api040):
-        with self._fresh_job_registry(next_job_id='job-371'):
+    def test_get_job_results_signed_with_expiration_040(self, api040, flask_app):
+        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
+        with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry(next_job_id='job-371'):
             dummy_backend.DummyBatchJobs._update_status(
                 job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
             resp = api040.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
@@ -968,9 +955,9 @@ class TestBatchJobs:
         }
 
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
-    @mock.patch.dict(app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'})
-    def test_get_job_results_signed_with_expiration_100(self, api100):
-        with self._fresh_job_registry(next_job_id='job-373'):
+    def test_get_job_results_signed_with_expiration_100(self, api100, flask_app):
+        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
+        with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry(next_job_id='job-373'):
             dummy_backend.DummyBatchJobs._update_status(
                 job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
             resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
@@ -1036,10 +1023,10 @@ class TestBatchJobs:
         assert resp.assert_status_code(200).data == b"tiffdata"
         assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
 
-    @mock.patch.dict(app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'})
-    def test_download_result_signed(self, api, tmp_path):
+    def test_download_result_signed(self, api, tmp_path, flask_app):
         output_root = Path(tmp_path)
-        with mock.patch.object(dummy_backend.DummyBatchJobs, '_output_root', return_value=output_root):
+        with mock.patch.dict(flask_app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}),\
+            mock.patch.object(dummy_backend.DummyBatchJobs, '_output_root', return_value=output_root):
             output = output_root / '07024ee9-7847-4b8a-b260-6c879a2b3cdc' / 'output.tiff'
             output.parent.mkdir(parents=True)
             with output.open('wb') as f:
@@ -1048,16 +1035,17 @@ class TestBatchJobs:
         assert resp.assert_status_code(200).data == b'tiffdata'
         assert resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
 
-    @mock.patch.dict(app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'})
-    def test_download_result_signed_invalid(self, api):
-        resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/test123/output.tiff')
+    def test_download_result_signed_invalid(self, api, flask_app):
+        with mock.patch.dict(flask_app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}):
+            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/test123/output.tiff')
         assert resp.assert_error(403, 'CredentialsInvalid')
 
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
-    @mock.patch.dict(app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'})
-    def test_download_result_signed_with_expiration(self, api, tmp_path):
+    def test_download_result_signed_with_expiration(self, api, tmp_path, flask_app):
         output_root = Path(tmp_path)
-        with mock.patch.object(dummy_backend.DummyBatchJobs, '_output_root', return_value=output_root):
+        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
+        with mock.patch.dict(flask_app.config, app_config), \
+                mock.patch.object(dummy_backend.DummyBatchJobs, '_output_root', return_value=output_root):
             output = output_root / '07024ee9-7847-4b8a-b260-6c879a2b3cdc' / 'output.tiff'
             output.parent.mkdir(parents=True)
             with output.open('wb') as f:
@@ -1067,9 +1055,10 @@ class TestBatchJobs:
         assert resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
 
     @mock.patch('time.time', mock.MagicMock(return_value=3456))
-    @mock.patch.dict(app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'})
-    def test_download_result_signed_with_expiration_invalid(self, api, tmp_path):
-        resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
+    def test_download_result_signed_with_expiration_invalid(self, api, tmp_path, flask_app):
+        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
+        with mock.patch.dict(flask_app.config, app_config):
+            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
         assert resp.assert_error(410, 'ResultLinkExpired')
 
     def test_get_batch_job_logs(self, api):
@@ -1295,7 +1284,7 @@ def test_endpoint_registry_multiple_methods():
 
 
 @pytest.fixture
-def udp_store() -> dummy_backend.DummyUserDefinedProcesses:
+def udp_store(backend_implementation) -> dummy_backend.DummyUserDefinedProcesses:
     udps = backend_implementation.user_defined_processes
     assert isinstance(udps, dummy_backend.DummyUserDefinedProcesses)
     udps.reset({

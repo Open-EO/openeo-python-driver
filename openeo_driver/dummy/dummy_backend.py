@@ -10,10 +10,10 @@ from shapely.geometry.collection import GeometryCollection
 
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.metadata import CollectionMetadata, Band
+from openeo_driver.ProcessGraphDeserializer import ConcreteProcessing
 from openeo_driver.backend import (SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata,
                                    BatchJobs, BatchJobMetadata, OidcProvider, UserDefinedProcesses,
                                    UserDefinedProcessMetadata, LoadParameters)
-from openeo_driver.ProcessGraphDeserializer import ConcreteProcessing
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, ProcessGraphNotFoundException
@@ -23,7 +23,7 @@ from openeo_driver.utils import EvalEnv
 
 DEFAULT_DATETIME = datetime(2020, 4, 23, 16, 20, 27)
 
-# TODO: eliminate this global state with proper pytest fixture usage
+# TODO: eliminate this global state with proper pytest fixture usage!
 _collections = {}
 _load_collection_calls = {}
 
@@ -52,6 +52,7 @@ def last_load_collection_call(collection_id: str) -> LoadParameters:
 
 
 def reset():
+    # TODO: can we eliminate reset now?
     global _collections, _load_collection_calls
     _collections = {}
     _load_collection_calls = {}
@@ -477,5 +478,3 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
         return DummyVisitor().accept_process_graph(process_graph)
 
 
-def get_openeo_backend_implementation() -> OpenEoBackendImplementation:
-    return DummyBackendImplementation()
