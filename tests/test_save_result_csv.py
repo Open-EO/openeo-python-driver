@@ -67,6 +67,35 @@ def test_aggregate_polygon_result_empty_ts_data(tmp_path):
     assert pd.DataFrame.from_dict(expected_results).equals(pd.read_csv(filename))
 
 
+def test_aggregate_polygon_result_empty_single_polygon_single_band(tmp_path):
+    """https://github.com/Open-EO/openeo-python-driver/issues/70"""
+    time_series = {
+        "2019-01-01T12:34:56Z": [[]],
+        "2019-02-01T12:34:56Z": [[2]],
+        "2019-03-01T12:34:56Z": [[]],
+        "2019-04-01T12:34:56Z": [[8]],
+        "2019-05-01T12:34:56Z": [[9]],
+    }
+    regions = GeometryCollection([
+        Polygon([(0, 0), (5, 1), (1, 4)]),
+    ])
+
+    result = AggregatePolygonResult(time_series, regions=regions)
+    result.set_format("csv")
+
+    filename = result.to_csv(tmp_path / 'timeseries_empty.csv')
+
+    expected_results = {
+        '2019-01-01T12:34:56Z': [nan],
+        '2019-02-01T12:34:56Z': [2],
+        '2019-03-01T12:34:56Z': [nan],
+        '2019-04-01T12:34:56Z': [8],
+        '2019-05-01T12:34:56Z': [9],
+    }
+
+    assert pd.DataFrame.from_dict(expected_results).equals(pd.read_csv(filename))
+
+
 def test_aggregate_polygon_result_inconsistent_bands(tmp_path):
     time_series = {
         "2019-01-01T12:34:56Z": [[1, 2], [3, 4, 5]],

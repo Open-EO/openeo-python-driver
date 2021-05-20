@@ -239,9 +239,9 @@ class AggregatePolygonResult(JSONResult):
             if nb_bands > 1:
                 for i in range(0, nb_bands):
                     date_band = date + '__' + str(i + 1).zfill(2)
-                    date_band_dict[date_band] = list(map(lambda p: p[i] if p else None, polygon_results))
+                    date_band_dict[date_band] = [(p[i] if p else None) for p in polygon_results]
             else:
-                date_band_dict[date] = list(map(lambda p: p[0], polygon_results))
+                date_band_dict[date] = [(p[0] if p else None) for p in polygon_results]
 
         if destination is None:
             filename = get_temp_file(suffix=".csv")
