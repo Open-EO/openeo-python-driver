@@ -9,13 +9,11 @@ to allow composability, isolation and better reuse.
 Also see https://github.com/Open-EO/openeo-python-driver/issues/8
 """
 
-import importlib
+import abc
 import logging
-import os
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Union, NamedTuple, Dict, Optional, Callable
-import abc
 
 from openeo.capabilities import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
@@ -478,18 +476,3 @@ class OpenEoBackendImplementation:
 
     def set_preferred_username_getter(self, getter: Callable[['User'], Optional[str]]):
         self.batch_jobs.set_proxy_user_getter(getter)
-
-
-_backend_implementation = None
-
-
-def get_backend_implementation() -> OpenEoBackendImplementation:
-    global _backend_implementation  # pylint: disable=global-statement
-    if _backend_implementation is None:
-        # TODO: #36 avoid non-standard importing through env var DRIVER_IMPLEMENTATION_PACKAGE
-        _driver_implementation_package = os.getenv('DRIVER_IMPLEMENTATION_PACKAGE', "openeo_driver.dummy.dummy_backend")
-        logger.info(f"Using driver implementation package {_driver_implementation_package!r}")
-        module = importlib.import_module(_driver_implementation_package)
-        logger.info(f"Loaded {module!r}")
-        _backend_implementation = module.get_openeo_backend_implementation()
-    return _backend_implementation

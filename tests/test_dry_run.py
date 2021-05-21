@@ -18,9 +18,10 @@ def dry_run_tracer() -> DryRunDataTracer:
 
 
 @pytest.fixture
-def dry_run_env(dry_run_tracer) -> EvalEnv:
+def dry_run_env(dry_run_tracer, backend_implementation) -> EvalEnv:
     return EvalEnv({
         ENV_DRY_RUN_TRACER: dry_run_tracer,
+        "backend_implementation": backend_implementation,
         "version": "1.0.0"
     })
 
@@ -768,12 +769,13 @@ def test_evaluate_atmospheric_correction(dry_run_env, dry_run_tracer, arguments,
     assert links == expected
 
 
-def test_evaluate_predefined_property():
+def test_evaluate_predefined_property(backend_implementation):
     pg = {
         "lc": {"process_id": "load_collection", "arguments": {"id": "TERRASCOPE_S2_FAPAR_V2"}, "result": True},
     }
 
-    evaluate(pg, do_dry_run=True)
+    env = EvalEnv(dict(backend_implementation=backend_implementation))
+    evaluate(pg, do_dry_run=True, env=env)
 
 
 def test_sources_are_subject_to_correct_constraints(dry_run_env, dry_run_tracer):

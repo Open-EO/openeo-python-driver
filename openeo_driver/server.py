@@ -3,6 +3,7 @@ import logging
 import os
 from typing import Union, List
 
+import flask
 import gunicorn.app.base
 import pkg_resources
 
@@ -30,25 +31,15 @@ def build_backend_deploy_metadata(packages: List[str]) -> dict:
     }
 
 
-def run(title: str, description: str, deploy_metadata: Union[dict, None], backend_version: str, threads: int, host: str, port: int, on_started=lambda: None) -> None:
-    """ Starts a web server exposing OpenEO-GeoPySpark, bound to a public IP. """
+def run_gunicorn(app: flask.Flask, threads: int, host: str, port: int, on_started=lambda: None):
+    """Run Flask app as gunicorn application."""
 
-    from openeo_driver.views import app
-
+    # TODO move this meta logging out of this function?
     app.logger.setLevel('DEBUG')
-    app.config['OPENEO_BACKEND_VERSION'] = backend_version
-    app.config['OPENEO_TITLE'] = title
-    app.config['OPENEO_DESCRIPTION'] = description
-    app.config['OPENEO_BACKEND_DEPLOY_METADATA'] = deploy_metadata
-    app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024  # bytes
-    app.config['SIGNED_URL'] = os.getenv('SIGNED_URL')
-    app.config['SIGNED_URL_SECRET'] = os.getenv('SIGNED_URL_SECRET')
-    app.config['SIGNED_URL_EXPIRATION'] = os.getenv('SIGNED_URL_EXPIRATION')
-
     app.logger.info('App info logging enabled!')
     app.logger.debug('App debug logging enabled!')
 
-    #note the use of 1 worker and multiple threads
+    # note the use of 1 worker and multiple threads
     # we were seeing strange py4j errors when executing multiple requests in parallel
     # this seems to be related by the type and configuration of worker that gunicorn uses, aiohttp also gave very bad results
     options = {

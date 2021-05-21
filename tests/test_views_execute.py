@@ -1,5 +1,4 @@
 import json
-import os
 import re
 from unittest import mock
 
@@ -8,7 +7,6 @@ import pytest
 import shapely.geometry
 
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
-from openeo_driver.backend import get_backend_implementation
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import ProcessType
@@ -17,23 +15,12 @@ from openeo_driver.errors import ProcessGraphMissingException
 from openeo_driver.testing import ApiTester, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN, \
     preprocess_regex_check_and_replace, generate_unique_test_process_id
 from openeo_driver.utils import EvalEnv
-from openeo_driver.views import app
 from .data import get_path, TEST_DATA_ROOT
-
-os.environ["DRIVER_IMPLEMENTATION_PACKAGE"] = "openeo_driver.dummy.dummy_backend"
-
-user_defined_process_registry = get_backend_implementation().user_defined_processes
 
 
 @pytest.fixture(params=["0.4.0", "1.0.0"])
 def api_version(request):
     return request.param
-
-
-@pytest.fixture
-def client():
-    app.config['TESTING'] = True
-    return app.test_client()
 
 
 @pytest.fixture
@@ -745,10 +732,10 @@ def test_rename_labels(api100):
 
 
 @pytest.mark.parametrize("namespace", ["user", None, "_undefined"])
-def test_user_defined_process_bbox_mol_basic(api100, namespace):
+def test_user_defined_process_bbox_mol_basic(api100, namespace, udp_registry):
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     bbox_mol_spec = api100.load_json("udp/bbox_mol.json")
-    user_defined_process_registry.save(user_id=TEST_USER, process_id="bbox_mol", spec=bbox_mol_spec)
+    udp_registry.save(user_id=TEST_USER, process_id="bbox_mol", spec=bbox_mol_spec)
     pg = api100.load_json("udp_bbox_mol_basic.json")
     if namespace != "_undefined":
         pg["bboxmol1"]["namespace"] = namespace
@@ -760,10 +747,10 @@ def test_user_defined_process_bbox_mol_basic(api100, namespace):
 
 
 @pytest.mark.parametrize("namespace", ["backend", "foobar"])
-def test_user_defined_process_bbox_mol_basic_other_namespace(api100, namespace):
+def test_user_defined_process_bbox_mol_basic_other_namespace(api100, udp_registry, namespace):
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     bbox_mol_spec = api100.load_json("udp/bbox_mol.json")
-    user_defined_process_registry.save(user_id=TEST_USER, process_id="bbox_mol", spec=bbox_mol_spec)
+    udp_registry.save(user_id=TEST_USER, process_id="bbox_mol", spec=bbox_mol_spec)
     pg = api100.load_json("udp_bbox_mol_basic.json")
     pg["bboxmol1"]["namespace"] = namespace
     api100.result(pg).assert_error(status_code=400, error_code="ProcessUnsupported")
@@ -776,11 +763,11 @@ def test_user_defined_process_bbox_mol_basic_other_namespace(api100, namespace):
     ({"start_date": "2019-08-08", "end_date": "2019-12-12"}, "2019-08-08", "2019-12-12"),
 ])
 def test_user_defined_process_date_window(
-        api100, udp_args, expected_start_date, expected_end_date
+        api100, udp_registry, udp_args, expected_start_date, expected_end_date
 ):
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     spec = api100.load_json("udp/date_window.json")
-    user_defined_process_registry.save(user_id=TEST_USER, process_id="date_window", spec=spec)
+    udp_registry.save(user_id=TEST_USER, process_id="date_window", spec=spec)
 
     pg = {
         "loadcollection1": {
@@ -803,10 +790,10 @@ def test_user_defined_process_date_window(
     assert params["temporal_extent"] == (expected_start_date, expected_end_date)
 
 
-def test_user_defined_process_required_parameter(api100):
+def test_user_defined_process_required_parameter(api100, udp_registry):
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     spec = api100.load_json("udp/date_window.json")
-    user_defined_process_registry.save(user_id=TEST_USER, process_id="date_window", spec=spec)
+    udp_registry.save(user_id=TEST_USER, process_id="date_window", spec=spec)
 
     pg = {
         "loadcollection1": {
@@ -826,10 +813,10 @@ def test_user_defined_process_required_parameter(api100):
 
 
 @pytest.mark.parametrize("set_parameter", [False, True])
-def test_udp_udf_reduce_dimension(api100, set_parameter):
+def test_udp_udf_reduce_dimension(api100, udp_registry, set_parameter):
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     spec = api100.load_json("udp/udf_reduce_dimension.json")
-    user_defined_process_registry.save(user_id=TEST_USER, process_id="udf_reduce_dimension", spec=spec)
+    udp_registry.save(user_id=TEST_USER, process_id="udf_reduce_dimension", spec=spec)
 
     udp_args = {"data": {"from_node": "loadcollection1"}}
     if set_parameter:
@@ -853,10 +840,10 @@ def test_udp_udf_reduce_dimension(api100, set_parameter):
 
 
 @pytest.mark.parametrize("set_parameter", [False, True])
-def test_udp_apply_neighborhood(api100, set_parameter):
+def test_udp_apply_neighborhood(api100, udp_registry, set_parameter):
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     spec = api100.load_json("udp/udf_apply_neighborhood.json")
-    user_defined_process_registry.save(user_id=TEST_USER, process_id="udf_apply_neighborhood", spec=spec)
+    udp_registry.save(user_id=TEST_USER, process_id="udf_apply_neighborhood", spec=spec)
 
     udp_args = {"data": {"from_node": "loadcollection1"}}
     if set_parameter:
@@ -879,7 +866,7 @@ def test_udp_apply_neighborhood(api100, set_parameter):
     assert env.collect_parameters()["udfparam"] == expected_param
 
 
-def test_user_defined_process_udp_vs_pdp_priority(api100):
+def test_user_defined_process_udp_vs_pdp_priority(api100, udp_registry):
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     # First without a defined "ndvi" UDP
     api100.check_result("udp_ndvi.json")
@@ -889,7 +876,7 @@ def test_user_defined_process_udp_vs_pdp_priority(api100):
     assert dummy.reduce_dimension.call_count == 0
 
     # Overload ndvi with UDP.
-    user_defined_process_registry.save(user_id=TEST_USER, process_id="ndvi", spec=api100.load_json("udp/myndvi.json"))
+    udp_registry.save(user_id=TEST_USER, process_id="ndvi", spec=api100.load_json("udp/myndvi.json"))
     api100.check_result("udp_ndvi.json")
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.ndvi.call_count == 1

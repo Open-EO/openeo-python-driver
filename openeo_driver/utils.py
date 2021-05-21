@@ -2,14 +2,13 @@
 Small general utilities and helper functions
 """
 import json
-from functools import reduce
 from math import isnan
 from pathlib import Path
-from typing import Union, Any, List, Tuple
+from typing import Union, List, Tuple, Any
 
+import pyproj
 import shapely.geometry
 import shapely.ops
-import pyproj
 
 
 class EvalEnv:
@@ -74,6 +73,9 @@ class EvalEnv:
         else:
             return self._values.copy()
 
+    @property
+    def backend_implementation(self) -> 'OpenEoBackendImplementation':
+        return self["backend_implementation"]
 
 def replace_nan_values(o):
     """
