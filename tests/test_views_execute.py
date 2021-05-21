@@ -513,6 +513,18 @@ def test_execute_aggregate_spatial(api):
     })
 
 
+@pytest.mark.parametrize(["geometries", "expected"], [
+    ("some text", "Invalid type: <class 'str'> ('some text')"),
+    (1234, "Invalid type: <class 'int'> (1234)"),
+    (["a", "list"], "Invalid type: <class 'list'> (['a', 'list'])")
+])
+def test_execute_aggregate_spatial_invalid_geometry(api100, geometries, expected):
+    pg = api100.load_json("aggregate_spatial.json")
+    assert pg["aggregate_spatial"]["arguments"]["geometries"]
+    pg["aggregate_spatial"]["arguments"]["geometries"] = geometries
+    _ = api100.result(pg).assert_error(400, "ProcessParameterInvalid", expected)
+
+
 def test_create_wmts_040(api040):
     api040.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     process_graph = api040.load_json("filter_temporal.json")

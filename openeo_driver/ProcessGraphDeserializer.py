@@ -888,7 +888,9 @@ def apply_process(process_id: str, args: dict, namespace: str = None, env: EvalE
         elif isinstance(polygons, DelayedVector):
             return image_collection.zonal_statistics(polygons.path, func=process_id)
         else:
-            raise ValueError(polygons)
+            raise ProcessParameterInvalidException(
+                parameter="geometries", process=parent_process, reason=f"Invalid type: {type(polygons)} ({polygons!r})"
+            )
 
     elif parent_process == 'aggregate_temporal':
         image_collection = extract_arg(args, 'data', process_id=process_id)

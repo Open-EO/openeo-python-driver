@@ -21,7 +21,7 @@
       "data": {
         "from_node": "loadco1"
       },
-      "polygons": {
+      "geometries": {
         "from_node": "geojson_file"
       },
       "reducer": {

@@ -11,7 +11,7 @@
       "data": {
         "from_node": "collection"
       },
-      "polygons": {
+      "geometries": {
         "type": "Polygon",
         "coordinates": [
           [
@@ -40,7 +40,7 @@
       },
       "reducer": {
         "process_graph": {
-          "max": {
+          "mean": {
             "arguments": {
               "data": {
                 "from_parameter": "data"
@@ -50,8 +50,7 @@
             "result": true
           }
         }
-      },
-      "name": "my_name"
+      }
     }
   },
   "save_result": {
@@ -60,7 +59,7 @@
       "data": {
         "from_node": "aggregate_spatial"
       },
-      "format": "VITO-TSService-JSON"
+      "format": "JSON"
     },
     "result": true
   }

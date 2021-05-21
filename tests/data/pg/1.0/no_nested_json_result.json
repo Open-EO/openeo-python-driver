@@ -20,7 +20,7 @@
           "data": {
             "from_node": "loadcollection1"
           },
-          "polygons": {
+          "geometries": {
             "type": "Polygon",
             "coordinates": [
               [

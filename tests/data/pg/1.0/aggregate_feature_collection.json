@@ -21,7 +21,7 @@
       "data": {
         "from_node": "loadco1"
       },
-      "polygons": {
+      "geometries": {
         "type": "FeatureCollection",
         "features": [
           {
