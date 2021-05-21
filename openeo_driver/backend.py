@@ -350,7 +350,10 @@ class UserDefinedProcessMetadata(NamedTuple):
     process_graph: dict
     id: str = None
     parameters: List[dict] = None
-    public: bool = False
+    returns: dict = None
+    summary: str = None
+    description: str = None
+    public: bool = False  # Note: experimental non-standard flag
 
     @classmethod
     def from_dict(cls, d: dict) -> 'UserDefinedProcessMetadata':
@@ -358,7 +361,10 @@ class UserDefinedProcessMetadata(NamedTuple):
             id=d.get('id'),
             process_graph=d['process_graph'],
             parameters=d.get('parameters'),
-            public=d.get('public', False)
+            returns=d.get('returns'),
+            summary=d.get('summary'),
+            description=d.get('description'),
+            public=d.get('public', False),
         )
 
     def prepare_for_json(self) -> dict:

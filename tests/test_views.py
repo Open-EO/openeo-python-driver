@@ -1351,7 +1351,7 @@ class TestUserDefinedProcesses:
 
         udp = resp.json
         assert udp['id'] == 'udp1'
-        assert udp['public']
+        assert udp['public'] is True
 
     def test_get_unknown_udp(self, api100, udp_store):
         api100.get('/process_graphs/unknown', headers=TEST_USER_AUTH_HEADER).assert_status_code(404)
@@ -1389,6 +1389,35 @@ class TestUserDefinedProcesses:
             ],
             "links": [],
         }
+
+    def test_add_and_get_udp(self, api100, udp_store):
+        api100.put("/process_graphs/evi", headers=TEST_USER_AUTH_HEADER, json={
+            "id": "evi",
+            "parameters": [{"name": "red"}],
+            "returns": {"schema": {"type": "number"}},
+            "process_graph": {"sub": {}},
+            "summary": "evify it",
+            "description": "Calculate the EVI",
+            "public": True
+        }).assert_status_code(200)
+
+        udp = udp_store._processes["Mr.Test", "evi"]
+        assert udp.id == "evi"
+        assert udp.parameters == [{"name": "red"}]
+        assert udp.returns == {"schema": {"type": "number"}}
+        assert udp.process_graph == {"sub": {}}
+        assert udp.summary == "evify it"
+        assert udp.description == "Calculate the EVI"
+        assert udp.public is True
+
+        udp = api100.get("/process_graphs/evi", headers=TEST_USER_AUTH_HEADER).assert_status_code(200).json
+        assert udp["id"] == "evi"
+        assert udp["parameters"] == [{"name": "red"}]
+        assert udp["returns"] == {"schema": {"type": "number"}}
+        assert udp["process_graph"] == {"sub": {}}
+        assert udp["summary"] == "evify it"
+        assert udp["description"] == "Calculate the EVI"
+        assert udp["public"] is True
 
 
 def test_debug_echo_get(api):

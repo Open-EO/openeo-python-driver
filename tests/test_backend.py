@@ -41,15 +41,35 @@ def test_user_defined_process_metadata():
         "id": "enhance",
         "process_graph": {"foo": {"process_id": "foo"}},
         "parameters": None,
+        "returns": None,
+        "summary": None,
+        "description": None,
         "public": False
     }
 
 
-def test_user_defined_process_metadata_from_dict():
+def test_user_defined_process_metadata_from_dict_basic():
     udp = UserDefinedProcessMetadata.from_dict({"id": "enhance", "process_graph": {"foo": {"process_id": "foo"}}})
     assert udp.id == "enhance"
     assert udp.process_graph == {"foo": {"process_id": "foo"}}
     assert udp.parameters is None
+
+
+def test_user_defined_process_metadata_from_dict_extra():
+    udp = UserDefinedProcessMetadata.from_dict({
+        "id": "enhance",
+        "process_graph": {"foo": {"process_id": "foo"}},
+        "parameters": [],
+        "returns": {"schema": {"type": "number"}},
+        "summary": "Enhance it!",
+        "description": "Enhance the image with the foo process."
+    })
+    assert udp.id == "enhance"
+    assert udp.process_graph == {"foo": {"process_id": "foo"}}
+    assert udp.parameters == []
+    assert udp.returns == {"schema": {"type": "number"}}
+    assert udp.summary == "Enhance it!"
+    assert udp.description == "Enhance the image with the foo process."
 
 
 def test_user_defined_process_metadata_from_dict_no_id():
