@@ -563,6 +563,8 @@ def register_views_processing(
             from shapely.geometry import mapping
             geojsons = (mapping(geometry) for geometry in result.geometries)
             return jsonify(list(geojsons))
+        elif isinstance(result, flask.Response):
+            return result
         elif isinstance(result, np.ndarray):
             return jsonify(result.tolist())
         elif isinstance(result, np.generic):
