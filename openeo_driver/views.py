@@ -78,7 +78,11 @@ class OpenEoApiApp(Flask):
         return rv
 
 
-def build_app(backend_implementation: OpenEoBackendImplementation, import_name=__name__) -> OpenEoApiApp:
+def build_app(
+        backend_implementation: OpenEoBackendImplementation,
+        error_handling=True,
+        import_name=__name__,
+) -> OpenEoApiApp:
     """
     Build Flask app serving the endpoints that are implemented in given backend implementation
 
@@ -121,31 +125,8 @@ def build_app(backend_implementation: OpenEoBackendImplementation, import_name=_
             method=request.method, url=request.url, data=data
         ))
 
-    @app.errorhandler(HTTPException)
-    def handle_http_exceptions(error: HTTPException):
-        # Convert to OpenEOApiException based handling
-        return handle_openeoapi_exception(OpenEOApiException(
-            message=str(error),
-            code="NotFound" if isinstance(error, NotFound) else "Internal",
-            status_code=error.code
-        ))
-
-    @app.errorhandler(OpenEOApiException)
-    def handle_openeoapi_exception(error: OpenEOApiException):
-        error_dict = error.to_dict()
-        _log.error(str(error_dict), exc_info=True)
-        return jsonify(error_dict), error.status_code
-
-    @app.errorhandler(Exception)
-    def handle_error(error: Exception):
-        # TODO: convert to OpenEOApiException based handling
-        error = backend_implementation.summarize_exception(error)
-
-        if isinstance(error, ErrorSummary):
-            return _error_response(error, 400, error.summary) if error.is_client_error \
-                else _error_response(error, 500, error.summary)
-
-        return _error_response(error, 500)
+    if error_handling:
+        register_error_handlers(app=app, backend_implementation=backend_implementation)
 
     # Note: /.well-known/openeo should be available directly under domain, without version prefix.
     @app.route('/.well-known/openeo', methods=['GET'])
@@ -220,6 +201,35 @@ def build_app(backend_implementation: OpenEoBackendImplementation, import_name=_
 def requested_api_version() -> ComparableVersion:
     """Get the currently requested API version as a ComparableVersion object"""
     return ComparableVersion(g.api_version)
+
+
+def register_error_handlers(app: flask.Flask, backend_implementation: OpenEoBackendImplementation):
+    """Register error handlers to the app"""
+    @app.errorhandler(HTTPException)
+    def handle_http_exceptions(error: HTTPException):
+        # Convert to OpenEOApiException based handling
+        return handle_openeoapi_exception(OpenEOApiException(
+            message=str(error),
+            code="NotFound" if isinstance(error, NotFound) else "Internal",
+            status_code=error.code
+        ))
+
+    @app.errorhandler(OpenEOApiException)
+    def handle_openeoapi_exception(error: OpenEOApiException):
+        error_dict = error.to_dict()
+        _log.error(str(error_dict), exc_info=True)
+        return jsonify(error_dict), error.status_code
+
+    @app.errorhandler(Exception)
+    def handle_error(error: Exception):
+        # TODO: convert to OpenEOApiException based handling
+        error = backend_implementation.summarize_exception(error)
+
+        if isinstance(error, ErrorSummary):
+            return _error_response(error, 400, error.summary) if error.is_client_error \
+                else _error_response(error, 500, error.summary)
+
+        return _error_response(error, 500)
 
 
 def _error_response(error: Exception, status_code: int, summary: str = None):
