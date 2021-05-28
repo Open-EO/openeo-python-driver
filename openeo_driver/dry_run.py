@@ -543,3 +543,4 @@ class DryRunDataCube(DriverDataCube):
     rename_dimension = _nop
     ndvi = _nop
     water_vapor = _nop
+    linear_scale_range = _nop
