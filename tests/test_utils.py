@@ -1,7 +1,8 @@
 import pytest
+import shapely.geometry
 
 from openeo_driver.utils import smart_bool, EvalEnv, to_hashable, bands_union, temporal_extent_union, \
-    spatial_extent_union, dict_item, reproject_bounding_box
+    spatial_extent_union, dict_item, reproject_bounding_box, geojson_to_multipolygon
 
 
 def test_smart_bool():
@@ -250,3 +251,59 @@ def test_dict_item_defaults():
     assert user.name == "Alice"
     assert user["age"] == 32
     assert user.age == 32
+
+
+def test_geojson_to_multipolygon():
+    poly1_coords = [(0, 0), (1, 0), (1, 1), (0, 0)]
+    poly2_coords = [(0, 2), (1, 2), (1, 3), (0, 2)]
+    poly3_coords = [(2, 0), (3, 0), (3, 1), (2, 0)]
+    gj_poly_1 = {"type": "Polygon", "coordinates": (poly1_coords,)}
+    gj_poly_2 = {"type": "Polygon", "coordinates": (poly2_coords,)}
+    gj_poly_3 = {"type": "Polygon", "coordinates": (poly3_coords,)}
+    gj_multipoly_p1_p2 = {"type": "MultiPolygon", "coordinates": [(poly1_coords,), (poly2_coords,)]}
+    gj_geometry_collection_p1_p2 = {"type": "GeometryCollection", "geometries": [gj_poly_1, gj_poly_2]}
+    gj_geometry_collection_mp12_p3 = {"type": "GeometryCollection", "geometries": [gj_multipoly_p1_p2, gj_poly_3]}
+    gj_geometry_collection_p3 = {"type": "GeometryCollection", "geometries": [gj_poly_3]}
+    gj_feature_p1 = {"type": "Feature", "geometry": gj_poly_1}
+    gj_feature_mp12 = {"type": "Feature", "geometry": gj_multipoly_p1_p2}
+    gj_feature_gc12 = {"type": "Feature", "geometry": gj_geometry_collection_p1_p2}
+    gj_feature_gc123 = {"type": "Feature", "geometry": gj_geometry_collection_mp12_p3}
+    gj_featcol_p1_p2 = {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "geometry": gj_poly_1}, {"type": "Feature", "geometry": gj_poly_2}
+    ]}
+    gj_featcol_mp12_p3 = {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "geometry": gj_multipoly_p1_p2}, {"type": "Feature", "geometry": gj_poly_3}
+    ]}
+    gj_featcol_gc12_p3 = {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "geometry": gj_geometry_collection_p1_p2}, {"type": "Feature", "geometry": gj_poly_3}
+    ]}
+    gj_featcol_mp12_gc3 = {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "geometry": gj_multipoly_p1_p2}, {"type": "Feature", "geometry": gj_geometry_collection_p3}
+    ]}
+
+    def assert_equal_multipolygon(a, b):
+        assert isinstance(a, shapely.geometry.MultiPolygon)
+        assert isinstance(b, shapely.geometry.MultiPolygon)
+        assert len(a) == len(b)
+        assert sorted(shapely.geometry.mapping(x)["coordinates"] for x in a) == \
+               sorted(shapely.geometry.mapping(x)["coordinates"] for x in b)
+
+    poly_1 = shapely.geometry.Polygon(poly1_coords)
+    poly_2 = shapely.geometry.Polygon(poly2_coords)
+    poly_3 = shapely.geometry.Polygon(poly3_coords)
+    multipoly_p1_p2 = shapely.geometry.MultiPolygon([poly_1, poly_2])
+    multipoly_p1_p2_p3 = shapely.geometry.MultiPolygon([poly_1, poly_2, poly_3])
+
+    assert geojson_to_multipolygon(gj_poly_1) == poly_1
+    assert geojson_to_multipolygon(gj_feature_p1) == poly_1
+
+    assert_equal_multipolygon(geojson_to_multipolygon(gj_multipoly_p1_p2), multipoly_p1_p2)
+    assert_equal_multipolygon(geojson_to_multipolygon(gj_geometry_collection_p1_p2), multipoly_p1_p2)
+    assert_equal_multipolygon(geojson_to_multipolygon(gj_geometry_collection_mp12_p3), multipoly_p1_p2_p3)
+    assert_equal_multipolygon(geojson_to_multipolygon(gj_feature_mp12), multipoly_p1_p2)
+    assert_equal_multipolygon(geojson_to_multipolygon(gj_feature_gc12), multipoly_p1_p2)
+    assert_equal_multipolygon(geojson_to_multipolygon(gj_feature_gc123), multipoly_p1_p2_p3)
+    assert_equal_multipolygon(geojson_to_multipolygon(gj_featcol_p1_p2), multipoly_p1_p2)
+    assert_equal_multipolygon(geojson_to_multipolygon(gj_featcol_mp12_p3), multipoly_p1_p2_p3)
+    assert_equal_multipolygon(geojson_to_multipolygon(gj_featcol_gc12_p3), multipoly_p1_p2_p3)
+    assert_equal_multipolygon(geojson_to_multipolygon(gj_featcol_mp12_gc3), multipoly_p1_p2_p3)

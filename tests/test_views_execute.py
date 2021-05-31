@@ -470,6 +470,81 @@ def test_execute_mask_polygon(api):
     assert isinstance(kwargs['mask'], shapely.geometry.Polygon)
 
 
+@pytest.mark.parametrize(["mask", "expected"], [
+    ({"type": "Polygon", "coordinates": [[(0, 0), (1, 0), (1, 1), (0, 0)]]}, shapely.geometry.Polygon),
+    (
+            {
+                "type": "MultiPolygon",
+                "coordinates": [
+                    [[(0, 0), (1, 0), (1, 1), (0, 0)]],
+                    [[(2, 0), (3, 0), (3, 1), (2, 0)]],
+                ]
+            },
+            shapely.geometry.MultiPolygon
+    ),
+    (
+            {
+                "type": "GeometryCollection",
+                "geometries": [
+                    {"type": "Polygon", "coordinates": [[(0, 0), (1, 0), (1, 1), (0, 0)]]},
+                    {"type": "Polygon", "coordinates": [[(2, 0), (3, 0), (3, 1), (2, 0)]]},
+                ]
+            },
+            shapely.geometry.MultiPolygon
+    ),
+    (
+            {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[(0, 0), (1, 0), (1, 1), (0, 0)]]}, },
+            shapely.geometry.Polygon
+    ),
+    (
+            {
+                "type": "Feature",
+                "geometry": {"type": "MultiPolygon", "coordinates": [
+                    [[(0, 0), (1, 0), (1, 1), (0, 0)]],
+                    [[(2, 0), (3, 0), (3, 1), (2, 0)]],
+                ]},
+            },
+            shapely.geometry.MultiPolygon,
+    ),
+    (
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Polygon", "coordinates": [[(0, 0), (1, 0), (1, 1), (0, 0)]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "MultiPolygon",
+                            "coordinates": [
+                                [[(0, 0), (1, 0), (1, 1), (0, 0)]],
+                                [[(2, 0), (3, 0), (3, 1), (2, 0)]]
+                            ]
+                        }
+                    }
+                ]
+            },
+            shapely.geometry.MultiPolygon
+    ),
+])
+def test_execute_mask_polygon_types(api100, mask, expected):
+    pg = {
+        "lc1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "mask1": {"process_id": "mask_polygon", "arguments": {
+            "data": {"from_node": "lc1"},
+            "mask": mask
+        }, "result": True}
+    }
+    api100.check_result(pg)
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
+    assert dummy.mask_polygon.call_count == 1
+    args, kwargs = dummy.mask_polygon.call_args
+    assert isinstance(kwargs['mask'], expected)
+
+
+
 def test_aggregate_temporal_max(api):
     api.check_result("aggregate_temporal_max.json")
 
