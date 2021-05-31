@@ -27,7 +27,7 @@ from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult, null
 from openeo_driver.specs import SPECS_ROOT, read_spec
-from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union
+from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union, geojson_to_multipolygon
 from openeo_udf.api.feature_collection import FeatureCollection
 from openeo_udf.api.structured_data import StructuredData
 from openeo_udf.api.udf_data import UdfData
@@ -604,7 +604,8 @@ def mask_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     replacement = args.get('replacement', None)
     inside = args.get('inside', False)
     # TODO: avoid reading DelayedVector twice due to dry-run?
-    polygon = list(mask.geometries)[0] if isinstance(mask, DelayedVector) else geojson_to_geometry(mask)
+    # TODO: the `DelayedVector` case: aren't we ignoring geometries by doing `[0]`?
+    polygon = list(mask.geometries)[0] if isinstance(mask, DelayedVector) else geojson_to_multipolygon(mask)
     if polygon.area == 0:
         reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
         raise ProcessParameterInvalidException(parameter='mask', process='mask', reason=reason)

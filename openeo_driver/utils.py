@@ -77,6 +77,7 @@ class EvalEnv:
     def backend_implementation(self) -> 'OpenEoBackendImplementation':
         return self["backend_implementation"]
 
+
 def replace_nan_values(o):
     """
 
@@ -125,6 +126,31 @@ def geojson_to_geometry(geojson: dict) -> shapely.geometry.base.BaseGeometry:
     elif geojson["type"] == "Feature":
         geojson = geojson["geometry"]
     return shapely.geometry.shape(geojson)
+
+
+def geojson_to_multipolygon(
+        geojson: dict
+) -> Union[shapely.geometry.MultiPolygon, shapely.geometry.Polygon]:
+    """
+    Convert GeoJSON object (dict) to shapely MultiPolygon (or Polygon where possible/allowed).
+    """
+    # TODO: option to also force conversion of Polygon to MultiPolygon?
+    if geojson["type"] == "Feature":
+        geojson = geojson["geometry"]
+
+    if geojson["type"] in ("MultiPolygon", "Polygon"):
+        geometry = shapely.geometry.shape(geojson)
+    elif geojson["type"] == "GeometryCollection":
+        geometry = shapely.ops.unary_union(shapely.geometry.shape(geojson).geoms)
+    elif geojson["type"] == "FeatureCollection":
+        geometry = shapely.ops.unary_union([shapely.geometry.shape(f["geometry"]) for f in geojson["features"]])
+    else:
+        raise ValueError(f"Invalid GeoJSON type for MultiPolygon conversion: {geojson['type']}")
+
+    if not isinstance(geometry, (shapely.geometry.MultiPolygon, shapely.geometry.Polygon)):
+        raise ValueError(f"Failed to convert to MultiPolygon ({geojson['type']})")
+
+    return geometry
 
 
 def to_hashable(obj):
