@@ -14,7 +14,7 @@ pythonPipeline {
   python_version = ["3.6"]
   downstream_job = 'geo.openEO_all/geo.openeo_integrationtests'
   wheel_repo = 'python-openeo'
-//   wheel_repo_dev = 'python-openeo'
+  wheel_repo_dev = 'python-openeo'
   extras_require = 'dev'
   upload_dev_wheels = true
   node_label = 'rscloud'
