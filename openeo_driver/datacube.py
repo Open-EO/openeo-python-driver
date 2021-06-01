@@ -36,7 +36,7 @@ class DriverDataCube(ImageCollection):
     def apply_neighborhood(self, process, size: List[dict], overlap: List[dict], env: EvalEnv) -> 'DriverDataCube':
         self._not_implemented()
 
-    def apply_dimension(self, process, dimension: str, target_dimension: str=None) -> 'DriverDataCube':
+    def apply_dimension(self, process, dimension: str, target_dimension: str=None, context:dict = None, env: EvalEnv = None) -> 'DriverDataCube':
         self._not_implemented()
 
     def apply_tiles_spatiotemporal(self, process, context={}) -> 'DriverDataCube':

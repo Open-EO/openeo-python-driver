@@ -286,7 +286,6 @@ def test_reduce_bands_run_udf_invalid_dimension(api):
 def test_apply_dimension_temporal_run_udf(api):
     api.check_result("apply_dimension_temporal_run_udf.json")
     dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
-    assert dummy.apply_tiles_spatiotemporal.call_count == 1
     assert dummy.apply_dimension.call_count == 1
     if api.api_version_compare.at_least("1.0.0"):
         dummy.rename_dimension.assert_called_with('t', 'new_time_dimension')
@@ -300,7 +299,6 @@ def test_apply_dimension_temporal_run_udf_legacy_client(api):
         preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "temporal"')
     )
     dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
-    assert dummy.apply_tiles_spatiotemporal.call_count == 1
     assert dummy.apply_dimension.call_count == 1
 
 

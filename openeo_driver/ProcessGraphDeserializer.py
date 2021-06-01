@@ -419,7 +419,19 @@ def apply_neighborhood(args: dict, env: EvalEnv) -> DriverDataCube:
 
 @process
 def apply_dimension(args: Dict, env: EvalEnv) -> DriverDataCube:
-    return _evaluate_sub_process_graph(args, 'process', parent_process='apply_dimension', env=env)
+    process = extract_deep(args, 'process')
+    dimension = extract_arg(args, 'dimension')
+    target_dimension = args.get('target_dimension',null)
+    data_cube = extract_arg(args, 'data')
+    context = args.get('context',null)
+
+    # do check_dimension here for error handling
+    dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="apply_dimension")
+
+    transformed_collection = data_cube.apply_dimension(process, dimension,target_dimension=target_dimension,context=context)
+    if target_dimension is not None:
+        transformed_collection.rename_dimension(dimension, target_dimension)
+    return transformed_collection
 
 
 @process
@@ -858,6 +870,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
 
         return image_collection.reduce(process_id, dimension)
     elif parent_process == 'apply_dimension':
+        # TODO EP-3285 this code path is for version <1.0.0, soon to be deprecated
         image_collection = extract_arg(args, 'data', process_id=process_id)
         dimension = parameters.get('dimension', None) # By default, applies the the process on all pixel values (as apply does).
         target_dimension = parameters.get('target_dimension', None)

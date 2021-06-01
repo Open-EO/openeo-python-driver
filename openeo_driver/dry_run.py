@@ -478,7 +478,7 @@ class DryRunDataCube(DriverDataCube):
     def apply_kernel(self, kernel: list, factor=1, border=0, replace_invalid=0) -> 'DriverDataCube':
         return self._process("apply_kernel", arguments={"kernel": kernel})
 
-    def apply_dimension(self, process, dimension: str, target_dimension: str = None) -> 'DriverDataCube':
+    def apply_dimension(self, process, dimension: str, target_dimension: str = None, context:dict = None, env: EvalEnv=None) -> 'DriverDataCube':
         cube = self
         if self.metadata.has_temporal_dimension() and self.metadata.temporal_dimension.name == dimension:
             # TODO: reduce is not necessarily global in call cases
