@@ -582,11 +582,9 @@ def aggregate_temporal_period(args: dict, env: EvalEnv) -> DriverDataCube:
 
     dimension = _get_time_dim_or_default(args, data_cube, "aggregate_temporal_period")
 
-    from datetime import datetime, timedelta
-
     temporal_extent = data_cube.metadata.temporal_dimension.extent
-    start: datetime = temporal_extent[0]
-    end: datetime = temporal_extent[1]
+    start = temporal_extent[0]
+    end = temporal_extent[1]
 
     intervals = _period_to_intervals(end, period, start)
 
