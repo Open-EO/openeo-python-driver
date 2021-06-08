@@ -597,8 +597,8 @@ def aggregate_temporal_period(args: dict, env: EvalEnv) -> DriverDataCube:
 def _period_to_intervals(start, end, period):
     from datetime import datetime, timedelta
     import pandas as pd
-    start = datetime.fromisoformat(start)
-    end = datetime.fromisoformat(end)
+    start = pd.to_datetime(start)
+    end = pd.to_datetime(end)
     intervals = []
     if "week" == period:
         offset = timedelta(weeks=1)
