@@ -1,7 +1,8 @@
 import datetime
 import logging
-import os
-from typing import Union, List
+import logging.config
+import time
+from typing import List, Dict
 
 import flask
 import gunicorn.app.base
@@ -12,10 +13,57 @@ from openeo.util import rfc3339
 _log = logging.getLogger(__name__)
 
 
+class UtcLogFormatter(logging.Formatter):
+    """Log formatter that uses UTC instead of local time."""
+    # based on https://docs.python.org/3/howto/logging-cookbook.html#formatting-times-using-utc-gmt-via-configuration
+    converter = time.gmtime
+
+
+def setup_logging(root_level="INFO", loggers: Dict[str, dict] = None, show_loggers: List[str] = None):
+    """
+    Set up logging for flask app
+    """
+    # Based on https://flask.palletsprojects.com/en/2.0.x/logging/
+    config = {
+        'version': 1,
+        'formatters': {
+            'utclogformatter': {
+                '()': UtcLogFormatter,
+                'format': '[%(asctime)s] %(process)s %(levelname)s in %(name)s: %(message)s',
+            }
+        },
+        'handlers': {
+            'wsgi': {
+                'class': 'logging.StreamHandler',
+                'stream': 'ext://flask.logging.wsgi_errors_stream',
+                'formatter': 'utclogformatter'
+            }
+        },
+        'root': {
+            'level': root_level,
+            'handlers': ['wsgi']
+        },
+    }
+
+    # Merge log levels per logger with some defaults
+    loggers_defaults = {
+        'openeo': {'level': 'INFO'},
+        'openeo_driver': {'level': 'DEBUG'},
+        'werkzeug': {'level': 'INFO'},
+        'kazoo': {'level': 'WARN'},
+    }
+    config["loggers"] = {**loggers_defaults, **(loggers or {})}
+
+    logging.config.dictConfig(config)
+
+    for name in {"openeo_driver"}.union(show_loggers):
+        show_log_level(logging.getLogger(name))
+
+
 def show_log_level(logger: logging.Logger):
     """Helper to show threshold log level of a logger."""
     level = logger.getEffectiveLevel()
-    logger.log(level, 'Logger {n!r} level: {t}'.format(n=logger.name, t=logging.getLevelName(level)))
+    logger.log(level, 'Logger {n!r}: effective level {t}'.format(n=logger.name, t=logging.getLevelName(level)))
 
 
 def build_backend_deploy_metadata(packages: List[str]) -> dict:
