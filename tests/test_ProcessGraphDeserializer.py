@@ -1,5 +1,5 @@
 import pytest
-from openeo_driver.ProcessGraphDeserializer import extract_deep, extract_args_subset
+from openeo_driver.ProcessGraphDeserializer import extract_deep, extract_args_subset, _period_to_intervals
 from openeo_driver.errors import ProcessParameterInvalidException
 
 
@@ -38,3 +38,47 @@ def test_extract_args_subset():
 def test_extract_args_subset_aliases():
     assert extract_args_subset({"foo": 3, "bar": 5}, ["foo", "mask"], aliases={"bar": "mask"}) == {"foo": 3, "mask": 5}
     assert extract_args_subset({"foo": 3, "bar": 5}, ["foo", "mask"], aliases={"bar": "foo"}) == {"foo": 3}
+
+
+def test_period_to_intervals():
+
+    weekly_intervals = _period_to_intervals("2021-06-08","2021-06-24","week")
+    print(list(weekly_intervals))
+    weekly_intervals = [ (i[0].isoformat(),i[1].isoformat()) for i in weekly_intervals]
+    assert 3 == len(weekly_intervals)
+    assert weekly_intervals[0] == ('2021-06-06T00:00:00', '2021-06-13T00:00:00')
+    assert weekly_intervals[1] == ('2021-06-13T00:00:00', '2021-06-20T00:00:00')
+    assert weekly_intervals[2] == ('2021-06-20T00:00:00', '2021-06-27T00:00:00')
+
+def test_period_to_intervals_monthly():
+
+    intervals = _period_to_intervals("2021-06-08","2021-08-24","month")
+    print(list(intervals))
+    intervals = [ (i[0].isoformat(),i[1].isoformat()) for i in intervals]
+    assert 3 == len(intervals)
+    assert intervals[0] == ('2021-06-01T00:00:00', '2021-07-01T00:00:00')
+    assert intervals[1] == ('2021-07-01T00:00:00', '2021-08-01T00:00:00')
+    assert intervals[2] == ('2021-08-01T00:00:00', '2021-09-01T00:00:00')
+
+def test_period_to_intervals_monthly():
+
+    intervals = _period_to_intervals("2021-06-08","2021-06-11","day")
+    print(list(intervals))
+    intervals = [ (i[0].isoformat(),i[1].isoformat()) for i in intervals]
+    assert 4 == len(intervals)
+    assert intervals[0] == ('2021-06-07T00:00:00', '2021-06-08T00:00:00')
+    assert intervals[1] == ('2021-06-08T00:00:00', '2021-06-09T00:00:00')
+    assert intervals[2] == ('2021-06-09T00:00:00', '2021-06-10T00:00:00')
+    assert intervals[3] == ('2021-06-10T00:00:00', '2021-06-11T00:00:00')
+
+def test_period_to_intervals_dekad():
+
+    intervals = _period_to_intervals("2021-06-08","2021-07-20","dekad")
+    print(list(intervals))
+    intervals = [ (i[0].isoformat(),i[1].isoformat()) for i in intervals]
+    assert 5 == len(intervals)
+    assert intervals[0] == ('2021-06-01T00:00:00', '2021-06-11T00:00:00')
+    assert intervals[1] == ('2021-06-11T00:00:00', '2021-06-21T00:00:00')
+    assert intervals[2] == ('2021-06-21T00:00:00', '2021-07-01T00:00:00')
+    assert intervals[3] == ('2021-07-01T00:00:00', '2021-07-11T00:00:00')
+    assert intervals[4] == ('2021-07-11T00:00:00', '2021-07-21T00:00:00')

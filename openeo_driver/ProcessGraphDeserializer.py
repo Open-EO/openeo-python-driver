@@ -571,6 +571,67 @@ def aggregate_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
     return data_cube.aggregate_temporal(intervals=intervals,labels=labels,reducer=reduce_pg, dimension=dimension, context=context)
 
 
+@process_registry_100.add_function
+def aggregate_temporal_period(args: dict, env: EvalEnv) -> DriverDataCube:
+    data_cube = extract_arg(args, 'data')
+
+    reduce_pg = extract_deep(args, "reducer", "process_graph")
+
+    context = args.get('context', null)
+    period = extract_arg(args, 'period')
+
+    dimension = _get_time_dim_or_default(args, data_cube, "aggregate_temporal_period")
+
+    from datetime import datetime, timedelta
+
+    temporal_extent = data_cube.metadata.temporal_dimension.extent
+    start: datetime = datetime.fromisoformat(temporal_extent[0])
+    end: datetime = datetime.fromisoformat(temporal_extent[1])
+
+    intervals = _period_to_intervals(end, period, start)
+
+    return data_cube.aggregate_temporal(intervals=intervals, labels=None, reducer=reduce_pg, dimension=dimension,
+                                        context=context)
+
+
+def _period_to_intervals(start, end, period):
+    from datetime import datetime, timedelta
+    import pandas as pd
+    start = datetime.fromisoformat(start)
+    end = datetime.fromisoformat(end)
+    intervals = []
+    if "week" == period:
+        offset = timedelta(weeks=1)
+        start_dates = pd.date_range(start - offset, end, freq='W', closed='left')
+        end_dates = pd.date_range(start, end + offset, freq='W', closed='left')
+        intervals = zip(start_dates, end_dates)
+    elif "month" == period:
+        offset = timedelta(weeks=4)
+        start_dates = pd.date_range(start - offset, end, freq='MS', closed='left')
+        end_dates = pd.date_range(start, end + offset, freq='MS', closed='left')
+        intervals = zip(start_dates, end_dates)
+    elif "day" == period:
+        offset = timedelta(days=1)
+        start_dates = pd.date_range(start - offset, end, freq='D', closed='left')
+        end_dates = pd.date_range(start, end + offset, freq='D', closed='left')
+        intervals = zip(start_dates, end_dates)
+    elif "dekad" == period:
+        offset = timedelta(days=10)
+        start_dates = pd.date_range(start - offset, end, freq='MS', closed='left')
+        ten_days = pd.Timedelta(days=10)
+        first_dekad_month = [(date,date+ten_days) for date in start_dates]
+        second_dekad_month = [(date + ten_days, date + ten_days+ten_days ) for date in start_dates]
+        end_month = pd.date_range(start, end-offset, freq='MS', closed='left')
+        third_dekad_month = list(zip([ date + ten_days+ten_days  for date in start_dates],end_month))
+        intervals = (first_dekad_month + second_dekad_month + third_dekad_month)
+        intervals.sort( key = lambda t:t[0])
+
+    else:
+        raise ProcessParameterInvalidException('period', 'aggregate_temporal_period',
+                                               'No support for a period of type: ' + str(period))
+    return list(intervals)
+
+
 def _get_time_dim_or_default(args, data_cube, process_id =  "aggregate_temporal"):
     dimension = args.get('dimension', None)
     if dimension is not None:
