@@ -60,7 +60,7 @@ def test_period_to_intervals_monthly():
     assert intervals[1] == ('2021-07-01T00:00:00', '2021-08-01T00:00:00')
     assert intervals[2] == ('2021-08-01T00:00:00', '2021-09-01T00:00:00')
 
-def test_period_to_intervals_monthly():
+def test_period_to_intervals_daily():
 
     intervals = _period_to_intervals("2021-06-08","2021-06-11","day")
     print(list(intervals))
