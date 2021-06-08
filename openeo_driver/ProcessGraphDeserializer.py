@@ -565,7 +565,7 @@ def aggregate_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
     reduce_pg = extract_deep(args, "reducer", "process_graph")
     context = args.get('context', null)
     intervals = extract_arg(args, 'intervals')
-    labels = extract_arg(args, 'labels')
+    labels = args.get('labels', null)
 
     dimension = _get_time_dim_or_default(args, data_cube)
     return data_cube.aggregate_temporal(intervals=intervals,labels=labels,reducer=reduce_pg, dimension=dimension, context=context)
