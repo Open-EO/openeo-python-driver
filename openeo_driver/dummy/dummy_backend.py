@@ -70,6 +70,8 @@ class DummyVisitor(ProcessGraphVisitor):
     def constantArgument(self, argument_id: str, value):
         if isinstance(value, numbers.Real):
             pass
+        elif isinstance(value, str):
+            pass
         else:
             raise ValueError(
                 'Only numeric constants are accepted, but got: ' + str(value) + ' for argument: ' + str(

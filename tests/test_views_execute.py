@@ -11,6 +11,7 @@ from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import ProcessType
 from openeo_driver.dummy import dummy_backend
+from openeo_driver.dummy.dummy_backend import DummyVisitor
 from openeo_driver.errors import ProcessGraphMissingException
 from openeo_driver.testing import ApiTester, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN, \
     preprocess_regex_check_and_replace, generate_unique_test_process_id
@@ -287,7 +288,11 @@ def test_apply_dimension_temporal_run_udf(api):
     api.check_result("apply_dimension_temporal_run_udf.json")
     dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
     assert dummy.apply_dimension.call_count == 1
+    args,kwargs = dummy.apply_dimension.call_args
     if api.api_version_compare.at_least("1.0.0"):
+        callback = args[0]
+        #check if callback is valid
+        DummyVisitor().accept_process_graph(callback)
         dummy.rename_dimension.assert_called_with('t', 'new_time_dimension')
         load_parameters = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
         assert load_parameters.process_types == set([ProcessType.GLOBAL_TIME])
