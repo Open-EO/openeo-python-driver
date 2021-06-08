@@ -419,7 +419,7 @@ def apply_neighborhood(args: dict, env: EvalEnv) -> DriverDataCube:
 
 @process
 def apply_dimension(args: Dict, env: EvalEnv) -> DriverDataCube:
-    process = extract_deep(args, 'process')
+    process = extract_deep(args, 'process', "process_graph")
     dimension = extract_arg(args, 'dimension')
     target_dimension = args.get('target_dimension',null)
     data_cube = extract_arg(args, 'data')
