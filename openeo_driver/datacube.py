@@ -75,7 +75,7 @@ class DriverDataCube(ImageCollection):
         self._not_implemented()
 
     def aggregate_temporal(self, intervals: list, reducer, labels: list = None,
-                           dimension: str = None) -> 'DriverDataCube':
+                           dimension: str = None, context:dict = None) -> 'DriverDataCube':
         self._not_implemented()
 
     def aggregate_spatial(self, geometries: dict, reducer, target_dimension: str = "result") -> 'DriverDataCube':

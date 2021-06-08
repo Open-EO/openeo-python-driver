@@ -560,7 +560,33 @@ def _check_dimension(cube: DriverDataCube, dim: str, process: str):
 
 @process
 def aggregate_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
-    return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_temporal', env=env)
+    data_cube = extract_arg(args, 'data')
+
+    reduce_pg = extract_deep(args, "reducer", "process_graph")
+    context = args.get('context', null)
+    intervals = extract_arg(args, 'intervals')
+    labels = extract_arg(args, 'labels')
+
+    dimension = _get_time_dim_or_default(args, data_cube)
+    return data_cube.aggregate_temporal(intervals=intervals,labels=labels,reducer=reduce_pg, dimension=dimension, context=context)
+
+
+def _get_time_dim_or_default(args, data_cube, process_id =  "aggregate_temporal"):
+    dimension = args.get('dimension', None)
+    if dimension is not None:
+        dimension, _, _ = _check_dimension(cube=data_cube, dim=dimension, process=process_id)
+    else:
+        # default: there is a single temporal dimension
+        try:
+            dimension = data_cube.metadata.temporal_dimension.name
+        except MetadataException:
+            raise ProcessParameterInvalidException(
+                parameter="dimension", process=process_id,
+                reason="No dimension was set, and no temporal dimension could be found. Available dimensions: {n!r}".format(
+                    n=data_cube.metadata.dimension_names()))
+    # do check_dimension here for error handling
+    dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process=process_id)
+    return dimension
 
 
 def _evaluate_sub_process_graph(args: dict, name: str, parent_process: str, env: EvalEnv) -> DriverDataCube:
@@ -904,6 +930,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
             )
 
     elif parent_process == 'aggregate_temporal':
+        # TODO EP-3285 this code path is for version <1.0.0, soon to be deprecated
         image_collection = extract_arg(args, 'data', process_id=process_id)
         intervals = extract_arg(parameters, 'intervals')
         labels = extract_arg(parameters, 'labels')

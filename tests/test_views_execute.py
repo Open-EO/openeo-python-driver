@@ -18,7 +18,7 @@ from openeo_driver.utils import EvalEnv
 from .data import get_path, TEST_DATA_ROOT
 
 
-@pytest.fixture(params=["0.4.0", "1.0.0"])
+@pytest.fixture(params=["1.0.0"])
 def api_version(request):
     return request.param
 
