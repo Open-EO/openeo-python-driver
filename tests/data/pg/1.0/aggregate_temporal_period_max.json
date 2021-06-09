@@ -1,0 +1,32 @@
+{
+  "collection": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "S2_FAPAR_CLOUDCOVER"
+    }
+  },
+  "apply": {
+    "process_id": "aggregate_temporal_period",
+    "arguments": {
+      "data": {
+        "from_node": "collection"
+      },
+      "dimension": "t",
+      "period": "dekad",
+      "reducer": {
+        "process_graph": {
+          "max": {
+            "arguments": {
+              "data": {
+                "from_parameter": "data"
+              }
+            },
+            "process_id": "max",
+            "result": true
+          }
+        }
+      }
+    },
+    "result": true
+  }
+}

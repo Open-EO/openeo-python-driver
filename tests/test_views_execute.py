@@ -533,7 +533,8 @@ def test_execute_mask_polygon_types(api100, mask, expected):
     args, kwargs = dummy.mask_polygon.call_args
     assert isinstance(kwargs['mask'], expected)
 
-
+def test_aggregate_temporal_period(api100):
+    api100.check_result("aggregate_temporal_period_max.json")
 
 def test_aggregate_temporal_max(api):
     api.check_result("aggregate_temporal_max.json")
