@@ -421,9 +421,9 @@ def apply_neighborhood(args: dict, env: EvalEnv) -> DriverDataCube:
 def apply_dimension(args: Dict, env: EvalEnv) -> DriverDataCube:
     process = extract_deep(args, 'process', "process_graph")
     dimension = extract_arg(args, 'dimension')
-    target_dimension = args.get('target_dimension',null)
+    target_dimension = args.get('target_dimension',None)
     data_cube = extract_arg(args, 'data')
-    context = args.get('context',null)
+    context = args.get('context',None)
 
     # do check_dimension here for error handling
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="apply_dimension")
@@ -563,9 +563,9 @@ def aggregate_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
 
     reduce_pg = extract_deep(args, "reducer", "process_graph")
-    context = args.get('context', null)
+    context = args.get('context', None)
     intervals = extract_arg(args, 'intervals')
-    labels = args.get('labels', null)
+    labels = args.get('labels', None)
 
     dimension = _get_time_dim_or_default(args, data_cube)
     return data_cube.aggregate_temporal(intervals=intervals,labels=labels,reducer=reduce_pg, dimension=dimension, context=context)
@@ -577,7 +577,7 @@ def aggregate_temporal_period(args: dict, env: EvalEnv) -> DriverDataCube:
 
     reduce_pg = extract_deep(args, "reducer", "process_graph")
 
-    context = args.get('context', null)
+    context = args.get('context', None)
     period = extract_arg(args, 'period')
 
     dimension = _get_time_dim_or_default(args, data_cube, "aggregate_temporal_period")
