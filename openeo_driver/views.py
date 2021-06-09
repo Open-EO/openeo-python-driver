@@ -440,6 +440,10 @@ def register_views_general(
             "environ": {k: request.environ.get(k) for k in ["HTTP_USER_AGENT", "SERVER_PROTOCOL", "wsgi.url_scheme"]}
         })
 
+    @blueprint.route('/_debug/error', methods=["GET", "POST"])
+    def debug_error():
+        raise Exception("Computer says no.")
+
 
 def register_views_auth(
         blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
