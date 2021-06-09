@@ -17,7 +17,7 @@ from openeo.capabilities import ComparableVersion
 from openeo.metadata import CollectionMetadata, MetadataException
 from openeo.util import load_json
 from openeo_driver import dry_run
-from openeo_driver.backend import UserDefinedProcessMetadata, LoadParameters, Processing, OpenEoBackendImplementation
+from openeo_driver.backend import UserDefinedProcessMetadata, LoadParameters, Processing
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector

@@ -34,7 +34,7 @@ These source constraints can then be fetched from the EvalEnv at `load_collectio
 """
 import logging
 from enum import Enum
-from typing import List, Union, Set, Dict, Tuple
+from typing import List, Union, Tuple
 
 import shapely.geometry.base
 
@@ -44,8 +44,7 @@ from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.save_result import AggregatePolygonResult
-from openeo_driver.utils import geojson_to_geometry, to_hashable, bands_union, temporal_extent_union, \
-    spatial_extent_union, EvalEnv
+from openeo_driver.utils import geojson_to_geometry, to_hashable, EvalEnv
 
 _log = logging.getLogger(__name__)
 

@@ -5,18 +5,17 @@ import warnings
 from abc import ABC
 from pathlib import Path
 from tempfile import mkstemp
-from typing import Union,Dict
+from typing import Union, Dict
 from zipfile import ZipFile
 
-import pandas as pd
 import numpy as np
-from flask import send_from_directory, jsonify, make_response
-
-from openeo_driver.datacube import DriverDataCube
-from openeo_driver.utils import replace_nan_values, EvalEnv
+import pandas as pd
+from flask import send_from_directory, jsonify
 from shapely.geometry import GeometryCollection, mapping
 
 from openeo.metadata import CollectionMetadata
+from openeo_driver.datacube import DriverDataCube
+from openeo_driver.utils import replace_nan_values
 
 
 class SaveResult(ABC):
