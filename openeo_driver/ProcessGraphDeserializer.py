@@ -582,11 +582,14 @@ def aggregate_temporal_period(args: dict, env: EvalEnv) -> DriverDataCube:
 
     dimension = _get_time_dim_or_default(args, data_cube, "aggregate_temporal_period")
 
-    temporal_extent = data_cube.metadata.temporal_dimension.extent
-    start = temporal_extent[0]
-    end = temporal_extent[1]
-
-    intervals = _period_to_intervals(end, period, start)
+    dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
+    if dry_run_tracer:
+        intervals = []
+    else:
+        temporal_extent = data_cube.metadata.temporal_dimension.extent
+        start = temporal_extent[0]
+        end = temporal_extent[1]
+        intervals = _period_to_intervals(end, period, start)
 
     return data_cube.aggregate_temporal(intervals=intervals, labels=None, reducer=reduce_pg, dimension=dimension,
                                         context=context)
