@@ -47,6 +47,7 @@ def setup_logging(root_level="INFO", loggers: Dict[str, dict] = None, show_logge
 
     # Merge log levels per logger with some defaults
     loggers_defaults = {
+        "gunicorn": {"level": "INFO"},
         'openeo': {'level': 'INFO'},
         'openeo_driver': {'level': 'DEBUG'},
         'werkzeug': {'level': 'INFO'},
