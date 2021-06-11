@@ -554,6 +554,31 @@ def test_aggregate_spatial_and_filter_bbox(dry_run_env, dry_run_tracer):
     }
 
 
+def test_filter_spatial(dry_run_env, dry_run_tracer):
+    polygon = {"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]}
+    cube = DataCube(PGNode("load_collection", id="S2_FOOBAR"), connection=None)
+    cube = cube.filter_spatial(geometries = polygon)
+
+
+    pg = cube.flat_graph()
+    res = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints[0]
+    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    geometries, = dry_run_tracer.get_geometries(operation="filter_spatial")
+    assert constraints == {
+        "spatial_extent": {'crs': 'EPSG:4326','east': 8.0,'north': 5.0,'south': 0.0,'west': 0.0},
+        "filter_spatial": {"geometries": shapely.geometry.shape(polygon)},
+    }
+    assert isinstance(geometries, shapely.geometry.Polygon)
+    assert shapely.geometry.mapping(geometries) == {
+        "type": "Polygon",
+        "coordinates": (((0.0, 0.0), (3.0, 5.0), (8.0, 2.0), (0.0, 0.0)),)
+    }
+
+
 def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
     geometry_path = str(get_path("GeometryCollection.geojson"))
     pg = {

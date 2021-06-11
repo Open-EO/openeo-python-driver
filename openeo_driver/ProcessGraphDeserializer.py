@@ -334,6 +334,8 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     params.bands = constraints.get("bands", None)
     params.properties = constraints.get("properties", {})
     params.aggregate_spatial_geometries = constraints.get("aggregate_spatial", {}).get("geometries")
+    if params.aggregate_spatial_geometries == None:
+        params.aggregate_spatial_geometries = constraints.get("filter_spatial", {}).get("geometries")
     params.sar_backscatter = constraints.get("sar_backscatter", None)
     params.process_types = process_types
     params.custom_mask = constraints.get("custom_cloud_mask", {})
@@ -750,6 +752,11 @@ def filter_bbox(args: Dict, env: EvalEnv) -> DriverDataCube:
     spatial_extent = _extract_bbox_extent(args, "extent", process_id="filter_bbox")
     return cube.filter_bbox(**spatial_extent)
 
+@process_registry_100.add_function
+def filter_spatial(args: Dict, env: EvalEnv) -> DriverDataCube:
+    cube = extract_arg(args, 'data')
+    geometries = extract_arg(args,'geometries')
+    return cube.filter_spatial(geometries)
 
 @process
 def filter_bands(args: Dict, env: EvalEnv) -> DriverDataCube:

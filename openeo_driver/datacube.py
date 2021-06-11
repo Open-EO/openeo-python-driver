@@ -24,6 +24,9 @@ class DriverDataCube(ImageCollection):
     def filter_bbox(self, west, south, east, north, crs=None, base=None, height=None) -> 'DriverDataCube':
         self._not_implemented()
 
+    def filter_spatial(self, geometries) -> 'DriverDataCube':
+        self._not_implemented()
+
     def filter_bands(self, bands) -> 'DriverDataCube':
         self._not_implemented()
 

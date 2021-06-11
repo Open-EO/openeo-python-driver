@@ -282,7 +282,7 @@ class DryRunDataTracer:
 
             for op in [
                 "temporal_extent", "spatial_extent", "_weak_spatial_extent", "bands", "aggregate_spatial",
-                "sar_backscatter", "process_type", "custom_cloud_mask", "properties"
+                "sar_backscatter", "process_type", "custom_cloud_mask", "properties", "filter_spatial"
             ]:
                 # 1 some processes can not be skipped when pushing filters down,
                 # so find the subgraph that no longer contains these blockers
@@ -371,6 +371,11 @@ class DryRunDataCube(DriverDataCube):
             self, west, south, east, north, crs=None, base=None, height=None, operation="spatial_extent"
     ) -> 'DryRunDataCube':
         return self._process(operation, {"west": west, "south": south, "east": east, "north": north, "crs": crs})
+
+    def filter_spatial(self, geometries):
+        geometries, bbox = self._normalize_geometry(geometries)
+        cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
+        return cube._process(operation="filter_spatial", arguments={"geometries": geometries})
 
     def filter_bands(self, bands) -> 'DryRunDataCube':
         return self._process("bands", bands)
