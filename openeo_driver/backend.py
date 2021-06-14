@@ -22,7 +22,7 @@ from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException
 from openeo_driver.processes import ProcessRegistry
-from openeo_driver.utils import read_json, dict_item, EvalEnv
+from openeo_driver.utils import read_json, dict_item, EvalEnv, extract_namedtuple_fields_from_dict
 
 logger = logging.getLogger(__name__)
 
@@ -69,9 +69,9 @@ class ServiceMetadata(NamedTuple):
     @classmethod
     def from_dict(cls, d: dict) -> 'ServiceMetadata':
         """Load ServiceMetadata from dict (e.g. parsed JSON dump)."""
+        d = extract_namedtuple_fields_from_dict(d, ServiceMetadata)
         created = d.get("created")
         if isinstance(created, str):
-            d = d.copy()
             d["created"] = rfc3339.parse_datetime(created)
         return cls(**d)
 
@@ -237,6 +237,14 @@ class BatchJobMetadata(NamedTuple):
         """Returns the job duration if possible, else None."""
         return self.finished - self.started if self.started and self.finished else None
 
+    @classmethod
+    def from_dict(cls, d: dict) -> 'BatchJobMetadata':
+        d = extract_namedtuple_fields_from_dict(d, BatchJobMetadata)
+        created = d.get("created")
+        if isinstance(created, str):
+            d["created"] = rfc3339.parse_datetime(created)
+        return cls(**d)
+
     def prepare_for_json(self) -> dict:
         """Prepare metadata for JSON serialization"""
         d = self._asdict()  # pylint: disable=no-member
@@ -355,15 +363,8 @@ class UserDefinedProcessMetadata(NamedTuple):
 
     @classmethod
     def from_dict(cls, d: dict) -> 'UserDefinedProcessMetadata':
-        return UserDefinedProcessMetadata(
-            id=d.get('id'),
-            process_graph=d['process_graph'],
-            parameters=d.get('parameters'),
-            returns=d.get('returns'),
-            summary=d.get('summary'),
-            description=d.get('description'),
-            public=d.get('public', False),
-        )
+        d = extract_namedtuple_fields_from_dict(d, UserDefinedProcessMetadata)
+        return cls(**d)
 
     def prepare_for_json(self) -> dict:
         return self._asdict()  # pylint: disable=no-member

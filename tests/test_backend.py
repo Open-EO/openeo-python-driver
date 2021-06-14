@@ -1,6 +1,8 @@
+import datetime
 import pytest
 
-from openeo_driver.backend import CollectionCatalog, LoadParameters, UserDefinedProcessMetadata
+from openeo_driver.backend import CollectionCatalog, LoadParameters, UserDefinedProcessMetadata, ServiceMetadata, \
+    BatchJobMetadata
 from openeo_driver.errors import CollectionNotFoundException
 
 
@@ -77,3 +79,45 @@ def test_user_defined_process_metadata_from_dict_no_id():
     assert udp.id is None
     assert udp.process_graph == {"foo": {"process_id": "foo"}}
     assert udp.parameters is None
+
+
+def test_service_metadata_from_dict_basic():
+    service = ServiceMetadata.from_dict({
+        "id": "badcafe", "process": {"id": "ndvi", "process_graph": {}},
+        "url": "https://oeo.test/srv/f00b67",
+        "type": "WMTS", "enabled": True,
+        "configuration": {}, "attributes": {},
+        "flavor": "strawberry",
+    })
+    assert service.id == "badcafe"
+    assert service.process == {"id": "ndvi", "process_graph": {}}
+    assert service.url == "https://oeo.test/srv/f00b67"
+    assert service.type == "WMTS"
+    assert service.enabled is True
+
+
+def test_service_metadata_from_dict_created_date():
+    service = ServiceMetadata.from_dict({
+        "id": "badcafe", "process": {"id": "ndvi", "process_graph": {}},
+        "url": "https://oeo.test/srv/f00b67",
+        "type": "WMTS", "enabled": True,
+        "configuration": {}, "attributes": {},
+        "created": "2020-05-18T12:34:56Z",
+    })
+    assert service.created == datetime.datetime(2020, 5, 18, 12, 34, 56)
+
+
+def test_batch_job_metadata_from_dict_emtpy():
+    with pytest.raises(KeyError, match="Missing BatchJobMetadata fields: created, id, process, status"):
+        _ = BatchJobMetadata.from_dict({})
+
+
+def test_batch_job_metadata_from_dict_basic():
+    job = BatchJobMetadata.from_dict({
+        "id": "ba7c470b", "created": "2021-06-18T12:34:56Z",
+        "process": {"id": "ndvi", "process_graph": {}}, "status": "running"
+    })
+    assert job.id == "ba7c470b"
+    assert job.created == datetime.datetime(2021, 6, 18, 12, 34, 56)
+    assert job.process == {"id": "ndvi", "process_graph": {}}
+    assert job.status == "running"

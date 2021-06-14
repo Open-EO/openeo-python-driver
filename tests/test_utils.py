@@ -1,8 +1,10 @@
+import typing
+
 import pytest
 import shapely.geometry
 
 from openeo_driver.utils import smart_bool, EvalEnv, to_hashable, bands_union, temporal_extent_union, \
-    spatial_extent_union, dict_item, reproject_bounding_box, geojson_to_multipolygon
+    spatial_extent_union, dict_item, reproject_bounding_box, geojson_to_multipolygon, extract_namedtuple_fields_from_dict
 
 
 def test_smart_bool():
@@ -307,3 +309,27 @@ def test_geojson_to_multipolygon():
     assert_equal_multipolygon(geojson_to_multipolygon(gj_featcol_mp12_p3), multipoly_p1_p2_p3)
     assert_equal_multipolygon(geojson_to_multipolygon(gj_featcol_gc12_p3), multipoly_p1_p2_p3)
     assert_equal_multipolygon(geojson_to_multipolygon(gj_featcol_mp12_gc3), multipoly_p1_p2_p3)
+
+
+def test_extract_namedtuple_fields_from_dict():
+    class Foo(typing.NamedTuple):
+        id: str
+        size: int
+        color: str = "red"
+
+    with pytest.raises(KeyError, match=r"Missing Foo fields: id, size."):
+        extract_namedtuple_fields_from_dict({}, Foo)
+    with pytest.raises(KeyError, match=r"Missing Foo field: size."):
+        extract_namedtuple_fields_from_dict({"id": "bar"}, Foo)
+    with pytest.raises(KeyError, match=r"Missing Foo field: id."):
+        extract_namedtuple_fields_from_dict({"size": 3}, Foo)
+
+    assert extract_namedtuple_fields_from_dict(
+        {"id": "b", "size": 3}, Foo
+    ) == {"id": "b", "size": 3}
+    assert extract_namedtuple_fields_from_dict(
+        {"id": "bar", "size": 3, "color": "blue"}, Foo
+    ) == {"id": "bar", "size": 3, "color": "blue"}
+    assert extract_namedtuple_fields_from_dict(
+        {"id": "bar", "size": 3, "height": 666}, Foo
+    ) == {"id": "bar", "size": 3}

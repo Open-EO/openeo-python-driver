@@ -2,6 +2,7 @@
 Small general utilities and helper functions
 """
 import json
+import typing
 from math import isnan
 from pathlib import Path
 from typing import Union, List, Tuple, Any
@@ -301,3 +302,26 @@ class dict_item:
 
     def __set__(self, instance, value):
         instance[self.key] = value
+
+
+def extract_namedtuple_fields_from_dict(d: dict, named_tuple_class: typing.Type[typing.NamedTuple]) -> dict:
+    """
+    Extract `typing.NamedTuple` fields from given dictionary,
+    silently skipping items not defined as field.
+
+    :param d: dictionary
+    :param named_tuple_class: `typing.NamedTuple` subclass
+    :return: subset of given dictionary (only containing fields defined by named tuple class)
+    """
+
+    field_names = set(named_tuple_class.__annotations__.keys())
+    result = {k: v for k, v in d.items() if k in field_names}
+
+    required = set(f for f in field_names if f not in named_tuple_class._field_defaults)
+    missing = set(f for f in required if f not in result)
+    if missing:
+        raise KeyError(
+            f"Missing {named_tuple_class.__name__} field{'s' if len(missing) > 1 else ''}: {', '.join(sorted(missing))}."
+        )
+
+    return result
