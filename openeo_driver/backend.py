@@ -335,11 +335,16 @@ class OidcProvider(NamedTuple):
     """OIDC provider metadata"""
     id: str
     issuer: str
-    scopes: List[str]
     title: str
+    scopes: List[str] = ["openid"]
     description: str = None
     default_client: dict = None  # TODO: remove this legacy experimental field
     default_clients: List[dict] = None
+
+    @classmethod
+    def from_dict(cls, d: dict) -> 'OidcProvider':
+        d = extract_namedtuple_fields_from_dict(d, OidcProvider)
+        return cls(**d)
 
     def prepare_for_json(self) -> dict:
         d = self._asdict()
