@@ -1,6 +1,27 @@
+import flask
 import pytest
 
-from openeo_driver.testing import preprocess_check_and_replace, IgnoreOrder
+from openeo_driver.testing import preprocess_check_and_replace, IgnoreOrder, ApiTester
+
+
+def test_api_tester_url():
+    app = flask.Flask(__name__)
+    api = ApiTester("1.0", client=app.test_client())
+    assert api.url("foo/bar") == "/openeo/1.0/foo/bar"
+    assert api.url("/foo/bar") == "/openeo/1.0/foo/bar"
+
+
+@pytest.mark.parametrize(["url_root", "expected"], [
+    ("", "/foo/bar"),
+    ("/", "/foo/bar"),
+    ("/oeo-v{api_version}", "/oeo-v1.0/foo/bar"),
+    ("oeo", "/oeo/foo/bar"),
+])
+def test_api_tester_url_root(url_root, expected):
+    app = flask.Flask(__name__)
+    api = ApiTester("1.0", client=app.test_client(), url_root=url_root)
+    assert api.url("foo/bar") == expected
+    assert api.url("/foo/bar") == expected
 
 
 def test_preprocess_check_and_replace():

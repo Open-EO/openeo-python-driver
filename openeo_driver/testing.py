@@ -158,8 +158,8 @@ class ApiTester:
         self.url_root = url_root.format(api_version=api_version)
 
     def url(self, path):
-        """Get versioned url from non-versioned path"""
-        return self.url_root.rstrip("/") + "/" + path.lstrip("/")
+        """Build URL based on (possibly versioned) root URL."""
+        return re.sub("/+", "/", f"/{self.url_root}/{path}")
 
     def _request_headers(self, headers: dict = None) -> dict:
         return {**self.default_request_headers, **(headers or {})}
