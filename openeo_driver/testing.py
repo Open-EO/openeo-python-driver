@@ -145,17 +145,21 @@ class ApiTester:
     """
     data_root = None
 
-    def __init__(self, api_version: str, client: FlaskClient, data_root: Path = None):
+    def __init__(
+            self, api_version: str, client: FlaskClient, data_root: Path = None,
+            url_root: str = "/openeo/{api_version}"
+    ):
         self.api_version = api_version
         self.api_version_compare = ComparableVersion(self.api_version)
         self.client = client
         if data_root:
             self.data_root = Path(data_root)
         self.default_request_headers = {}
+        self.url_root = url_root.format(api_version=api_version)
 
     def url(self, path):
         """Get versioned url from non-versioned path"""
-        return "/openeo/{v}/{p}".format(v=self.api_version, p=path.lstrip("/"))
+        return self.url_root.rstrip("/") + "/" + path.lstrip("/")
 
     def _request_headers(self, headers: dict = None) -> dict:
         return {**self.default_request_headers, **(headers or {})}
