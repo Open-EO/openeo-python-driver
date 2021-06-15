@@ -178,5 +178,6 @@ class HttpAuthHandler:
             return User(user_id=user_id, info=userinfo, internal_auth_data={
                 "type": "OIDC", "oidc_discovery_url": oidc_discovery_url, "access_token": access_token
             })
-        except Exception:
+        except Exception as e:
+            _log.warning("Failed to resolve OIDC access token", exc_info=True)
             raise TokenInvalidException
