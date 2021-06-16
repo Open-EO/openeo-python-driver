@@ -207,11 +207,11 @@ class BatchJobMetadata(NamedTuple):
 
     # Required fields (no default)
     id: str
-    process: dict  # TODO: also encapsulate this "process graph with metadata" struct (instead of free-form dict)?
     status: str
     created: datetime
 
     # Optional fields (with default)
+    process: dict = None  # TODO: also encapsulate this "process graph with metadata" struct (instead of free-form dict)?
     job_options: dict = None
     title: str = None
     description: str = None
