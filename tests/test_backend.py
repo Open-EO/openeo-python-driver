@@ -109,7 +109,7 @@ def test_service_metadata_from_dict_created_date():
 
 
 def test_batch_job_metadata_from_dict_emtpy():
-    with pytest.raises(KeyError, match="Missing BatchJobMetadata fields: created, id, process, status"):
+    with pytest.raises(KeyError, match="Missing BatchJobMetadata fields: created, id, status"):
         _ = BatchJobMetadata.from_dict({})
 
 
