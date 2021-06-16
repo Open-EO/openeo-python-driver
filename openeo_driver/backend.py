@@ -272,6 +272,7 @@ class BatchJobs(MicroService):
             self, user_id: str, process: dict, api_version: str,
             metadata: dict, job_options: dict = None
     ) -> BatchJobMetadata:
+        # TODO: why return a full BatchJobMetadata? only job id is used
         raise NotImplementedError
 
     def get_job_info(self, job_id: str, user: 'User') -> BatchJobMetadata:
