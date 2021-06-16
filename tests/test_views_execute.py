@@ -785,9 +785,15 @@ def test_post_result_process_100(api100, client, auth):
         response.assert_error(401, "AuthenticationRequired")
 
 
-def test_missing_process_graph(api):
+@pytest.mark.parametrize("body", [
+    {"foo": "meh"},
+    {"process": "meh"},
+    {"process_graph": "meh"},
+    {"process": {"process_graph": "meh"}},
+])
+def test_missing_process_graph(api, body):
     api.set_auth_bearer_token()
-    response = api.post(path='/result', json={"foo": "bar"})
+    response = api.post(path='/result', json=body)
     response.assert_error(status_code=ProcessGraphMissingException.status_code, error_code='ProcessGraphMissing')
 
 

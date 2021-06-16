@@ -490,12 +490,14 @@ def _extract_process_graph(post_data: dict) -> dict:
     """
     try:
         if requested_api_version().at_least("1.0.0"):
-            return post_data["process"]["process_graph"]
+            pg = post_data["process"]["process_graph"]
         else:
             # API v0.4 style
-            return post_data['process_graph']
-    except KeyError:
+            pg = post_data['process_graph']
+        assert isinstance(pg, dict)
+    except (KeyError, TypeError, AssertionError) as e:
         raise ProcessGraphMissingException
+    return pg
 
 
 def register_views_processing(
