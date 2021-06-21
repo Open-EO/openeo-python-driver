@@ -2,7 +2,7 @@ import numbers
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Union, Tuple
+from typing import List, Dict, Union, Tuple, Optional
 from unittest.mock import Mock
 
 from shapely.geometry import Polygon, MultiPolygon
@@ -388,7 +388,7 @@ class DummyBatchJobs(BatchJobs):
             }
         }
 
-    def get_log_entries(self, job_id: str, user_id: str, offset: str) -> List[dict]:
+    def get_log_entries(self, job_id: str, user_id: str, offset: Optional[str] = None) -> List[dict]:
         self._get_job_info(job_id=job_id, user_id=user_id)
         return [
             {"id": "1", "level": "info", "message": "hello world"}

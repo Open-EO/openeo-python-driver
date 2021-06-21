@@ -308,7 +308,7 @@ class BatchJobs(MicroService):
         """
         raise NotImplementedError
 
-    def get_log_entries(self, job_id: str, user_id: str, offset: str) -> List[dict]:
+    def get_log_entries(self, job_id: str, user_id: str, offset: Optional[str] = None) -> List[dict]:
         """
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/debug-job
         """
