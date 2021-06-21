@@ -800,7 +800,7 @@ def register_views_batch_jobs(
 
             return dict_no_none(**{
                 "title": asset_metadata.get("title", filename),  # there has to be title
-                "href": download_url(filename),
+                "href": asset_metadata.get("href") or download_url(filename),
                 "type": asset_metadata.get("media_type"),
                 "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
                              for band in bands] if bands else None,

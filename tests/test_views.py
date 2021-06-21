@@ -874,6 +874,21 @@ class TestBatchJobs:
                 'type': 'Feature'
             }
 
+    def test_get_job_results_href_asset_100(self, api100, backend_implementation):
+        results_data = {"output.tiff": {"href": "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349"}}
+        with self._fresh_job_registry(next_job_id="job-362"), \
+                mock.patch.object(backend_implementation.batch_jobs, "get_results", return_value=results_data):
+            resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
+        res = resp.assert_status_code(200).json
+        assert res["assets"] == {
+            "output.tiff": {
+                "href": "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349",
+                "roles": ["data"],
+                "title": "output.tiff",
+                "file:nodata": [None],
+            }
+        }
+
     def test_get_job_results_signed_040(self, api040, flask_app):
         with mock.patch.dict(flask_app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}), \
                 self._fresh_job_registry(next_job_id='job-370'):
