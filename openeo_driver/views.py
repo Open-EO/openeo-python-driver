@@ -677,6 +677,7 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
         "updated": to_datetime(job_info.updated),
         "card4l:specification": "SR",
         "card4l:specification_version": "5.0",
+        # TODO: eliminate hard coded VITO/Spark/Geotrellis references. See https://github.com/Open-EO/openeo-python-driver/issues/74
         "processing:facility": 'VITO - SPARK',
         "processing:software": 'openeo-geotrellis-' + current_app.config.get('OPENEO_BACKEND_VERSION', '0.0.1')
     })
