@@ -22,7 +22,8 @@ from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefined
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
-    FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, ProcessUnsupportedException
+    FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, ProcessUnsupportedException, \
+    JobNotFinishedException
 from openeo_driver.save_result import SaveResult, get_temp_file
 from openeo_driver.users import HttpAuthHandler, User
 from openeo_driver.utils import replace_nan_values, EvalEnv, smart_bool
@@ -772,6 +773,9 @@ def register_views_batch_jobs(
     @auth_handler.requires_bearer_auth
     def list_job_results(job_id, user: User):
         job_info = backend_implementation.batch_jobs.get_job_info(job_id, user)
+        if job_info.status != "finished":
+            raise JobNotFinishedException()
+
         results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
 
         if smart_bool(current_app.config.get('SIGNED_URL')):
