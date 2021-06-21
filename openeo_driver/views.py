@@ -1,14 +1,11 @@
-import base64
 import copy
 import functools
 import logging
 import os
 import re
-import time
 import uuid
 from collections import namedtuple, defaultdict
-from hashlib import md5
-from typing import Callable, Tuple, List, Union
+from typing import Callable, Tuple, List
 
 import flask
 import flask_cors
@@ -19,13 +16,14 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from openeo.capabilities import ComparableVersion
 from openeo.util import dict_no_none, deep_get, Rfc3339
+from openeo_driver import urlsigning
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
     ErrorSummary, OpenEoBackendImplementation
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
-    FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, CredentialsInvalidException, \
-    ResultLinkExpiredException, ProcessUnsupportedException
+    FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, ProcessUnsupportedException, \
+    JobNotFinishedException
 from openeo_driver.save_result import SaveResult, get_temp_file
 from openeo_driver.users import HttpAuthHandler, User
 from openeo_driver.utils import replace_nan_values, EvalEnv, smart_bool
@@ -775,24 +773,28 @@ def register_views_batch_jobs(
     @auth_handler.requires_bearer_auth
     def list_job_results(job_id, user: User):
         job_info = backend_implementation.batch_jobs.get_job_info(job_id, user)
+        if job_info.status != "finished":
+            raise JobNotFinishedException()
+
         results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
 
-        def base64_user_id() -> str:
-            return base64.urlsafe_b64encode(user.user_id.encode()).decode()
-
-        def secure_token(filename, expires) -> str:
-            return _compute_secure_token(job_id, user.user_id, filename, expires)
-
-        def expiration_timestamp() -> Union[int, None]:
-            expiration = current_app.config.get('SIGNED_URL_EXPIRATION')
-            return int(time.time()) + int(expiration) if expiration else None
+        if smart_bool(current_app.config.get('SIGNED_URL')):
+            signer = urlsigning.Signer.from_config(current_app.config)
+        else:
+            signer = None
 
         def download_url(filename) -> str:
-            if smart_bool(current_app.config.get('SIGNED_URL')):
-                expires = expiration_timestamp()
-                return url_for('.download_job_result_signed', job_id=job_id, user_base64=base64_user_id(),
-                               secure_key=secure_token(filename, expires), filename=filename,
-                               expires=expires, _external=True)
+            if signer:
+                expires = signer.get_expires()
+                secure_key = signer.sign_job_asset(
+                    job_id=job_id, user_id=user.user_id, filename=filename, expires=expires
+                )
+                user_base64 = urlsigning.user_id_b64_encode(user.user_id)
+                return url_for(
+                    '.download_job_result_signed',
+                    job_id=job_id, user_base64=user_base64, filename=filename, expires=expires, secure_key=secure_key,
+                    _external=True
+                )
             else:
                 return url_for('.download_job_result', job_id=job_id, filename=filename, _external=True)
 
@@ -802,7 +804,7 @@ def register_views_batch_jobs(
 
             return dict_no_none(**{
                 "title": asset_metadata.get("title", filename),  # there has to be title
-                "href": download_url(filename),
+                "href": asset_metadata.get("href") or download_url(filename),
                 "type": asset_metadata.get("media_type"),
                 "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
                              for band in bands] if bands else None,
@@ -873,27 +875,26 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs/<job_id>/results/<user_base64>/<secure_key>/<filename>', methods=['GET'])
     def download_job_result_signed(job_id, user_base64, secure_key, filename):
         expires = request.args.get('expires')
-        user_id = base64.urlsafe_b64decode(user_base64).decode()
-        if secure_key != _compute_secure_token(job_id, user_id, filename, expires):
-            raise CredentialsInvalidException()
-        if expires and int(expires) < time.time():
-            raise ResultLinkExpiredException()
+        signer = urlsigning.Signer.from_config(current_app.config)
+        user_id = urlsigning.user_id_b64_decode(user_base64)
+        signer.verify_job_asset(
+            signature=secure_key,
+            job_id=job_id, user_id=user_id, filename=filename, expires=expires
+        )
+
         results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user_id)
         if filename not in results.keys():
             raise FilePathInvalidException(str(filename) + ' not in ' + str(list(results.keys())))
         output_dir = results[filename]["output_dir"]
         return send_from_directory(output_dir, filename, mimetype=results[filename].get("media_type"))
 
-    def _compute_secure_token(job_id, user_id, filename, expiration_timestamp):
-        secret = current_app.config.get('SIGNED_URL_SECRET')
-        token_key = job_id + user_id + filename + str(expiration_timestamp) + secret
-        return md5(token_key.encode()).hexdigest()
 
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/logs', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def get_job_logs(job_id, user: User):
-        offset = request.args.get('offset', 0)
+        offset = request.args.get('offset')
+        # TODO: implement paging support: `limit`, next/prev/first/last `links`, ...
         return jsonify({
             "logs": backend_implementation.batch_jobs.get_log_entries(
                 job_id=job_id, user_id=user.user_id, offset=offset
