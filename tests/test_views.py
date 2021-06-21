@@ -878,6 +878,8 @@ class TestBatchJobs:
         results_data = {"output.tiff": {"href": "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349"}}
         with self._fresh_job_registry(next_job_id="job-362"), \
                 mock.patch.object(backend_implementation.batch_jobs, "get_results", return_value=results_data):
+            dummy_backend.DummyBatchJobs._update_status(
+                job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="finished")
             resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
         res = resp.assert_status_code(200).json
         assert res["assets"] == {
