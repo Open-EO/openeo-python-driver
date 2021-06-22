@@ -9,7 +9,7 @@ import pytest
 
 from openeo.capabilities import ComparableVersion
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
-from openeo_driver.backend import BatchJobMetadata, UserDefinedProcessMetadata
+from openeo_driver.backend import BatchJobMetadata, UserDefinedProcessMetadata, BatchJobs
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.testing import ApiTester
 from openeo_driver.testing import TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, generate_unique_test_process_id
@@ -874,8 +874,10 @@ class TestBatchJobs:
                 'type': 'Feature'
             }
 
-    def test_get_job_results_href_asset_100(self, api100, backend_implementation):
-        results_data = {"output.tiff": {"href": "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349"}}
+    def test_get_job_results_public_href_asset_100(self, api100, backend_implementation):
+        results_data = {
+            "output.tiff": {BatchJobs.ASSET_PUBLIC_HREF: "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349"}
+        }
         with self._fresh_job_registry(next_job_id="job-362"), \
                 mock.patch.object(backend_implementation.batch_jobs, "get_results", return_value=results_data):
             dummy_backend.DummyBatchJobs._update_status(

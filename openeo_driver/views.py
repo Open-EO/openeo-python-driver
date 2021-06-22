@@ -18,7 +18,7 @@ from openeo.capabilities import ComparableVersion
 from openeo.util import dict_no_none, deep_get, Rfc3339
 from openeo_driver import urlsigning
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
-    ErrorSummary, OpenEoBackendImplementation
+    ErrorSummary, OpenEoBackendImplementation, BatchJobs
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
@@ -804,7 +804,7 @@ def register_views_batch_jobs(
 
             return dict_no_none(**{
                 "title": asset_metadata.get("title", filename),  # there has to be title
-                "href": asset_metadata.get("href") or download_url(filename),
+                "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or download_url(filename),
                 "type": asset_metadata.get("media_type"),
                 "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
                              for band in bands] if bands else None,
