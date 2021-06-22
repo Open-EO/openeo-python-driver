@@ -1,6 +1,7 @@
 # TODO: rename this module to something in snake case? It doesn't even implement a ProcessGraphDeserializer class.
 
 # pylint: disable=unused-argument
+import datetime
 import logging
 import tempfile
 import time
@@ -1236,6 +1237,8 @@ def date_shift(args: Dict, env: EvalEnv) -> str:
     unit_values = {"year", "month", "week", "day", "hour", "minute", "second", "millisecond"}
     unit = extract_arg_enum(args, "unit", enum_values=unit_values, process_id="date_shift")
     shifted = date + relativedelta(**{unit + "s": value})
+    if type(date) is datetime.date and type(shifted) is datetime.datetime:
+        shifted = shifted.date()
     return rfc3339.normalize(shifted)
 
 
