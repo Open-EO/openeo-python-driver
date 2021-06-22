@@ -11,11 +11,12 @@ from typing import Dict, Callable, List, Union, Tuple, Any
 import numpy as np
 import openeo_processes
 import requests
+from dateutil.relativedelta import relativedelta
 from shapely.geometry import shape, mapping
 
 from openeo.capabilities import ComparableVersion
 from openeo.metadata import CollectionMetadata, MetadataException
-from openeo.util import load_json
+from openeo.util import load_json, rfc3339
 from openeo_driver import dry_run
 from openeo_driver.backend import UserDefinedProcessMetadata, LoadParameters, Processing
 from openeo_driver.datacube import DriverDataCube
@@ -263,6 +264,7 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
 
 def extract_arg(args: dict, name: str, process_id='n/a'):
     """Get process argument by name."""
+    # TODO: support optional default value for optional parameters?
     try:
         return args[name]
     except KeyError:
@@ -313,6 +315,17 @@ def extract_args_subset(args: dict, keys: List[str], aliases: Dict[str, str] = N
             if alias in args and key not in kwargs:
                 kwargs[key] = args[alias]
     return kwargs
+
+
+def extract_arg_enum(args: dict, name: str, enum_values: Union[set, list, tuple], process_id='n/a'):
+    """Get process argument by name and check if it is proper enum value."""
+    # TODO: support optional default value for optional parameters?
+    value = extract_arg(args=args, name=name, process_id=process_id)
+    if value not in enum_values:
+        raise ProcessParameterInvalidException(
+            parameter=name, process=process_id, reason=f"Invalid enum value {value!r}"
+        )
+    return value
 
 
 def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
@@ -1214,6 +1227,17 @@ def mask_scl_dilation(args: Dict, env: EvalEnv):
 
 
 custom_process_from_process_graph(read_spec("openeo-processes/1.0/proposals/ard_normalized_radar_backscatter.json"))
+
+
+@process_registry_100.add_function(spec=read_spec("openeo-processes/1.0/proposals/date_shift.json"))
+def date_shift(args: Dict, env: EvalEnv) -> str:
+    date = rfc3339.parse_date_or_datetime(extract_arg(args, "date"))
+    value = int(extract_arg(args, "value"))
+    unit_values = {"year", "month", "week", "day", "hour", "minute", "second", "millisecond"}
+    unit = extract_arg_enum(args, "unit", enum_values=unit_values, process_id="date_shift")
+    shifted = date + relativedelta(**{unit + "s": value})
+    return rfc3339.normalize(shifted)
+
 
 
 # Finally: register some fallback implementation if possible
