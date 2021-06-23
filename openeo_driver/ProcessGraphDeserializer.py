@@ -24,7 +24,8 @@ from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer
-from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException
+from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException, \
+    FeatureUnsupportedException
 from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult, NullResult
@@ -1236,6 +1237,8 @@ def date_shift(args: Dict, env: EvalEnv) -> str:
     value = int(extract_arg(args, "value"))
     unit_values = {"year", "month", "week", "day", "hour", "minute", "second", "millisecond"}
     unit = extract_arg_enum(args, "unit", enum_values=unit_values, process_id="date_shift")
+    if unit == "millisecond":
+        raise FeatureUnsupportedException(message="Millisecond unit is not supported in date_shift")
     shifted = date + relativedelta(**{unit + "s": value})
     if type(date) is datetime.date and type(shifted) is datetime.datetime:
         shifted = shifted.date()

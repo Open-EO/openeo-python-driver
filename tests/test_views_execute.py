@@ -1558,10 +1558,12 @@ def test_ard_normalized_radar_backscatter_without_optional_arguments(api100):
 @pytest.mark.parametrize(["date", "value", "unit", "expected"], [
     # Examples from date_shift.json
     ("2020-02-01T17:22:45Z", 6, "month", "2020-08-01T17:22:45Z"),
+    # TODO timezone support https://github.com/Open-EO/openeo-python-driver/issues/75
     # ("2021-03-31T00:00:00+02:00", -7, "day",  "2021-03-24T00:00:00+02:00"),
     ("2020-02-29T17:22:45Z", 1, "year", "2021-02-28T17:22:45Z"),
     ("2020-01-31", 1, "month", "2020-02-29"),
     ("2016-12-31T23:59:59Z", 1, "second", "2017-01-01T00:00:00Z"),
+    # TODO millisecond support https://github.com/Open-EO/openeo-python-driver/issues/75
     # ("2018-12-31T17:22:45Z", 1150, "millisecond", "2018-12-31T17:22:46.150Z"),
     ("2018-01-01", 25, "hour", "2018-01-02"),
     ("2018-01-01", -1, "hour", "2017-12-31"),
