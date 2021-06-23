@@ -84,6 +84,28 @@ def build_app(
     """
     Build Flask app serving the endpoints that are implemented in given backend implementation
 
+    After building the flask app you can configure it with standard flask configuration tools
+    (https://flask.palletsprojects.com/en/2.0.x/config/).
+
+    Some example patterns used in various places:
+
+        # Build app
+        app = build_app(backend_implementation=backend_implementation)
+
+        # Directly set config values
+        app.config['TESTING'] = True
+        app.config['SERVER_NAME'] = 'oeo.net'
+
+        # Load config values from a module (upper case variables)
+        from openeogeotrellis.deploy import flask_config
+        app.config.from_object(flask_config)
+
+        # Load from a dictionary/mapping
+        app.config.from_mapping(
+            OPENEO_TITLE="Local GeoPySpark",
+            OPENEO_DESCRIPTION="Local openEO API using GeoPySpark driver",
+        )
+
     :param backend_implementation:
     :param import_name:
     :return:
