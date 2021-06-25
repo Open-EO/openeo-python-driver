@@ -3,9 +3,12 @@ import re
 from unittest import mock
 
 import numpy as np
+import pyproj
 import pytest
 import shapely.geometry
+import geopandas as gpd
 
+from openeo_driver import utils
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
@@ -16,8 +19,7 @@ from openeo_driver.errors import ProcessGraphMissingException
 from openeo_driver.testing import ApiTester, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN, \
     preprocess_regex_check_and_replace, generate_unique_test_process_id
 from openeo_driver.utils import EvalEnv
-from .data import get_path, TEST_DATA_ROOT
-
+from .data import get_path, TEST_DATA_ROOT, load_json
 
 @pytest.fixture(params=["1.0.0"])
 def api_version(request):
@@ -1553,3 +1555,70 @@ def test_ard_normalized_radar_backscatter_without_optional_arguments(api100):
         coefficient="gamma0-terrain", elevation_model=None, mask=True, contributing_area=False,
         local_incidence_angle=True, ellipsoid_incidence_angle=False, noise_removal=True, options={}),)
     assert kwargs == {}
+
+
+@pytest.mark.parametrize(["type", "buf", "unit"], [
+    ("point", 100, "meters"),
+    ("line", 100, "meters"),
+    ("polygon", 100, "meters"),
+    ("polygon", -100, "meters"),
+    ("polygon", 1, "kilometers"),
+])
+def test_vector_buffer(api100, type, buf, unit):
+    proj = lambda x, y : pyproj.Transformer.from_proj(pyproj.Proj(x), pyproj.Proj(y), always_xy=True)
+    buf_exp = np.transpose([-buf] * 2 + [buf] * 2)
+
+    if type=="kilometers":
+        buf_exp *= 1000
+    if type == "point":
+        point_coords = [601305, 5661945]
+        geom_orig = shapely.geometry.mapping(shapely.geometry.Point(point_coords))
+        new_bounds = point_coords*2 + buf_exp
+    elif type == "line":
+        line_coords = [[601305,5661945],
+                       [606425,5661945]]
+        geom_orig = shapely.geometry.mapping(shapely.geometry.LineString(line_coords))
+        new_bounds = np.array(line_coords).flatten() + buf_exp
+    elif type == "polygon":
+        poly_coords = (601305, 5661945, 606425, 5673163)
+        geom_orig = shapely.geometry.mapping(shapely.geometry.box(*poly_coords))
+        new_bounds = poly_coords + buf_exp
+    else:
+        raise NotImplementedError("The type {} is unavailable. Please choose point, line or polygon".format(type))
+
+    repr_pol = shapely.ops.transform(proj("EPSG:32631","EPSG:4326").transform, shapely.geometry.shape(geom_orig))
+    geom_new = shapely.geometry.mapping(shapely.geometry.box(*new_bounds))
+    expected_res = shapely.ops.transform(proj("EPSG:32631","EPSG:4326").transform, shapely.geometry.shape(geom_new))
+
+    pg = {
+        "vectorbuffer1": {
+            "process_id": "vector_buffer",
+            "arguments": {"geometry": shapely.geometry.mapping(repr_pol), "distance": buf, "unit": unit},
+            "result": True,
+        }
+    }
+    res = api100.result(pg).assert_status_code(200).json
+    res_gs = gpd.GeoSeries.from_file(res)
+    assert res_gs[0].bounds == pytest.approx(expected_res.bounds, 0.01)
+
+def test_vector_buffer_multipolygon(api100):
+    buf = 1000
+    proj = lambda x, y : pyproj.Transformer.from_proj(pyproj.Proj(x), pyproj.Proj(y), always_xy=True)
+    delay_vect_path = str(get_path("GeometryCollection.geojson"))
+
+    geom_orig = shapely.geometry.GeometryCollection(list(DelayedVector(delay_vect_path).geometries))[0]
+    geom_old_utm = shapely.ops.transform(proj("EPSG:4326","EPSG:32631").transform, shapely.geometry.shape(geom_orig))
+    new_bounds = geom_old_utm.bounds + np.transpose([-buf] * 2 + [buf] * 2)
+    geom_new = shapely.geometry.mapping(shapely.geometry.box(*new_bounds))
+    expected_res = shapely.ops.transform(proj("EPSG:32631","EPSG:4326").transform, shapely.geometry.shape(geom_new))
+
+    pg = {
+        "vectorbuffer1": {
+            "process_id": "vector_buffer",
+            "arguments": {"geometry": delay_vect_path, "distance": buf, "unit": "meters"},
+            "result": True,
+        }
+    }
+    res = api100.result(pg).assert_status_code(200).json
+    res_gs = gpd.GeoSeries.from_file(res)
+    assert res_gs[0].bounds == pytest.approx(expected_res.bounds, 0.01)
