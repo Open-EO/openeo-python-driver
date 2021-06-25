@@ -1,6 +1,8 @@
 import pytest
-from openeo_driver.ProcessGraphDeserializer import extract_deep, extract_args_subset, _period_to_intervals
-from openeo_driver.errors import ProcessParameterInvalidException
+
+from openeo_driver.ProcessGraphDeserializer import extract_deep, extract_args_subset, _period_to_intervals, \
+    extract_arg_enum
+from openeo_driver.errors import ProcessParameterInvalidException, ProcessParameterRequiredException
 
 
 def test_extract_deep():
@@ -38,6 +40,21 @@ def test_extract_args_subset():
 def test_extract_args_subset_aliases():
     assert extract_args_subset({"foo": 3, "bar": 5}, ["foo", "mask"], aliases={"bar": "mask"}) == {"foo": 3, "mask": 5}
     assert extract_args_subset({"foo": 3, "bar": 5}, ["foo", "mask"], aliases={"bar": "foo"}) == {"foo": 3}
+
+
+def test_extract_arg_enum():
+    enum_values = {"hour", "minute", "second"}
+
+    assert extract_arg_enum({"unit": "hour"}, "unit", enum_values=enum_values) == "hour"
+    assert extract_arg_enum({"unit": "minute"}, "unit", enum_values=enum_values) == "minute"
+
+    with pytest.raises(ProcessParameterRequiredException, match="parameter 'unit' is required."):
+        extract_arg_enum({"foo": "hour"}, "unit", enum_values=enum_values)
+
+    with pytest.raises(ProcessParameterInvalidException, match="Invalid enum value 'hours'"):
+        extract_arg_enum({"unit": "hours"}, "unit", enum_values=enum_values)
+    with pytest.raises(ProcessParameterInvalidException, match="Invalid enum value 'foo'"):
+        extract_arg_enum({"unit": "foo"}, "unit", enum_values=enum_values)
 
 
 def test_period_to_intervals():

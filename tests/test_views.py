@@ -9,7 +9,7 @@ import pytest
 
 from openeo.capabilities import ComparableVersion
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
-from openeo_driver.backend import BatchJobMetadata, UserDefinedProcessMetadata
+from openeo_driver.backend import BatchJobMetadata, UserDefinedProcessMetadata, BatchJobs
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.testing import ApiTester
 from openeo_driver.testing import TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, generate_unique_test_process_id
@@ -873,6 +873,25 @@ class TestBatchJobs:
                 'stac_version': '0.9.0',
                 'type': 'Feature'
             }
+
+    def test_get_job_results_public_href_asset_100(self, api100, backend_implementation):
+        results_data = {
+            "output.tiff": {BatchJobs.ASSET_PUBLIC_HREF: "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349"}
+        }
+        with self._fresh_job_registry(next_job_id="job-362"), \
+                mock.patch.object(backend_implementation.batch_jobs, "get_results", return_value=results_data):
+            dummy_backend.DummyBatchJobs._update_status(
+                job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="finished")
+            resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
+        res = resp.assert_status_code(200).json
+        assert res["assets"] == {
+            "output.tiff": {
+                "href": "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349",
+                "roles": ["data"],
+                "title": "output.tiff",
+                "file:nodata": [None],
+            }
+        }
 
     def test_get_job_results_signed_040(self, api040, flask_app):
         with mock.patch.dict(flask_app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}), \

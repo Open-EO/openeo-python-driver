@@ -8,7 +8,6 @@ import pytest
 import shapely.geometry
 import geopandas as gpd
 
-from openeo_driver import utils
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
@@ -1622,3 +1621,39 @@ def test_vector_buffer_multipolygon(api100):
     res = api100.result(pg).assert_status_code(200).json
     res_gs = gpd.GeoSeries.from_file(res)
     assert res_gs[0].bounds == pytest.approx(expected_res.bounds, 0.01)
+
+
+@pytest.mark.parametrize(["date", "value", "unit", "expected"], [
+    # Examples from date_shift.json
+    ("2020-02-01T17:22:45Z", 6, "month", "2020-08-01T17:22:45Z"),
+    # TODO timezone support https://github.com/Open-EO/openeo-python-driver/issues/75
+    # ("2021-03-31T00:00:00+02:00", -7, "day",  "2021-03-24T00:00:00+02:00"),
+    ("2020-02-29T17:22:45Z", 1, "year", "2021-02-28T17:22:45Z"),
+    ("2020-01-31", 1, "month", "2020-02-29"),
+    ("2016-12-31T23:59:59Z", 1, "second", "2017-01-01T00:00:00Z"),
+    # TODO millisecond support https://github.com/Open-EO/openeo-python-driver/issues/75
+    # ("2018-12-31T17:22:45Z", 1150, "millisecond", "2018-12-31T17:22:46.150Z"),
+    ("2018-01-01", 25, "hour", "2018-01-02"),
+    ("2018-01-01", -1, "hour", "2017-12-31"),
+    # Additional tests
+    ("2011-12-13", 3, "day", "2011-12-16"),
+    ("2011-12-13T14:15:16Z", 3, "day", "2011-12-16T14:15:16Z"),
+    ("2011-12-13", -3, "day", "2011-12-10"),
+    ("2011-12-13T14:15:16Z", -3, "day", "2011-12-10T14:15:16Z"),
+    ("2018-01-01T01:02:03Z", 25, "hour", "2018-01-02T02:02:03Z"),
+    ("2018-01-01T01:02:03Z", -2, "hour", "2017-12-31T23:02:03Z"),
+    ("2018-01-01", 24 * 60 + 1, "minute", "2018-01-02"),
+    ("2018-01-01", -1, "minute", "2017-12-31"),
+    ("2018-01-01T00:01:02Z", 24 * 60 + 1, "minute", "2018-01-02T00:02:02Z"),
+    ("2018-01-01T00:01:02Z", -2, "minute", "2017-12-31T23:59:02Z"),
+])
+def test_date_shift(api100, date, value, unit, expected):
+    pg = {
+        "dateshift1": {
+            "process_id": "date_shift",
+            "arguments": {"date": date, "value": value, "unit": unit},
+            "result": True,
+        }
+    }
+    res = api100.result(pg).assert_status_code(200).json
+    assert res == expected
