@@ -1075,14 +1075,39 @@ def test_execute_no_cube_1_plus_2(api100):
     ({"med1": {"process_id": "median", "arguments": {"data": [2, 8, 5, 3, 11]}, "result": True}}, 5),
     ({"var1": {"process_id": "variance", "arguments": {"data": [2, 8, 5, 3]}, "result": True}}, 7.0),
     ({"cnt1": {"process_id": "count", "arguments": {"data": [2, 8, None, 3]}, "result": True}}, 3),
-    ({"arc1": {"process_id": "array_contains", "arguments": {"data": [2, 8, 5, 3], "value": 5}, "result": True}}, True),
-    ({"arf1": {"process_id": "array_find", "arguments": {"data": [2, 8, 5, 3], "value": 5}, "result": True}}, 2),
-    ({"srt1": {"process_id": "sort", "arguments": {"data": [2, 8, 5, 3]}, "result": True}}, [2, 3, 5, 8]),
     # any/all implementation is bit weird at the moment https://github.com/Open-EO/openeo-processes-python/issues/16
     # ({"any1": {"process_id": "any", "arguments": {"data": [False, True, False]}, "result": True}}, True),
     # ({"all1": {"process_id": "all", "arguments": {"data": [False, True, False]}, "result": True}}, False),
 ])
 def test_execute_no_cube_just_math(api100, process_graph, expected):
+    assert api100.result(process_graph).assert_status_code(200).json == expected
+
+
+@pytest.mark.parametrize(["process_graph", "expected"], [
+    ({"arc1": {"process_id": "array_contains", "arguments": {"data": [2, 8, 5, 3], "value": 5}, "result": True}}, True),
+    ({"arf1": {"process_id": "array_find", "arguments": {"data": [2, 8, 5, 3], "value": 5}, "result": True}}, 2),
+    ({"srt1": {"process_id": "sort", "arguments": {"data": [2, 8, 5, 3]}, "result": True}}, [2, 3, 5, 8]),
+    (
+            {"arc1": {"process_id": "array_concat", "arguments": {"array1": [2, 8], "array2": [5, 3]}, "result": True}},
+            [2, 8, 5, 3]
+    ),
+    (
+            {
+                "ar1": {"process_id": "array_create", "arguments": {"data": [2, 8]}},
+                "ar2": {"process_id": "array_create", "arguments": {"data": [5, 3]}},
+                "arc1": {
+                    "process_id": "array_concat",
+                    "arguments": {"array1": {"from_node": "ar1"}, "array2": {"from_node": "ar2"}}, "result": True
+                }
+            },
+            [2, 8, 5, 3]
+    ),
+    (
+            {"arc1": {"process_id": "array_create", "arguments": {"data": [2, 8], "repeat": 3}, "result": True}},
+            [2, 8, 2, 8, 2, 8]
+    ),
+])
+def test_execute_no_cube_just_arrays(api100, process_graph, expected):
     assert api100.result(process_graph).assert_status_code(200).json == expected
 
 

@@ -1245,6 +1245,24 @@ def date_shift(args: Dict, env: EvalEnv) -> str:
     return rfc3339.normalize(shifted)
 
 
+@process_registry_100.add_function(spec=read_spec("openeo-processes/1.0/proposals/array_concat.json"))
+def array_concat(args: dict, env: EvalEnv) -> list:
+    array1 = extract_arg(args, "array1")
+    array2 = extract_arg(args, "array2")
+    return list(array1) + list(array2)
+
+
+@process_registry_100.add_function(spec=read_spec("openeo-processes/1.0/proposals/array_create.json"))
+def array_create(args: dict, env: EvalEnv) -> list:
+    data = extract_arg(args, "data")
+    repeat = args.get("repeat", 1)
+    if not isinstance(repeat, int) or repeat < 1:
+        raise ProcessParameterInvalidException(
+            parameter="repeat", process="array_create",
+            reason="The `repeat` parameter should be an integer of at least value 1."
+        )
+    return list(data) * repeat
+
 
 # Finally: register some fallback implementation if possible
 _register_fallback_implementations_by_process_graph(process_registry_100)
