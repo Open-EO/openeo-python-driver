@@ -1132,6 +1132,26 @@ def test_execute_no_cube_dynamic_args(api100):
     assert kwargs["factor"] == 7.75
 
 
+@pytest.mark.parametrize(["border", "expected"], [(0, 0), ("0", 0), ])
+def test_execute_apply_kernel_border(api100, border, expected):
+    pg = {
+        "lc1": {'process_id': 'load_collection', 'arguments': {'id': 'S2_FOOBAR'}},
+        "ak1": {
+            "process_id": "apply_kernel",
+            "arguments": {
+                "data": {"from_node": "lc1"},
+                "kernel": [[1, 1, 1], [1, 2, 1], [1, 1, 1]],
+                "border": border,
+            },
+            "result": True
+        }
+    }
+    api100.check_result(pg)
+    apply_kernel_mock = dummy_backend.get_collection("S2_FOOBAR").apply_kernel
+    args, kwargs = apply_kernel_mock.call_args
+    assert kwargs["border"] == expected
+
+
 # TODO: test using dynamic arguments in bbox_filter (not possible yet: see EP-3509)
 
 
