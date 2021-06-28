@@ -1046,6 +1046,16 @@ def register_views_udp(
         blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
         auth_handler: HttpAuthHandler
 ):
+    _process_id_regex = re.compile(r"^\w+$")
+
+    def _check_valid_process_graph_id(process_id: str):
+        if not _process_id_regex.match(process_id):
+            # TODO: official error code? See https://github.com/Open-EO/openeo-api/issues/402
+            raise OpenEOApiException(
+                code="InvalidId", status_code=400,
+                message=f"Invalid process identifier {process_id!r}, must match {_process_id_regex.pattern!r}."
+            )
+
     @api_endpoint(hidden=True)
     @blueprint.route('/validation', methods=["POST"])
     def udp_validate():
@@ -1056,8 +1066,11 @@ def register_views_udp(
     @blueprint.route('/process_graphs/<process_graph_id>', methods=['PUT'])
     @auth_handler.requires_bearer_auth
     def udp_store(process_graph_id: str, user: User):
+        _check_valid_process_graph_id(process_id=process_graph_id)
         spec: dict = request.get_json()
         spec["id"] = process_graph_id
+        if "process_graph" not in spec:
+            raise ProcessGraphMissingException()
         backend_implementation.user_defined_processes.save(
             user_id=user.user_id,
             process_id=process_graph_id,
@@ -1070,6 +1083,7 @@ def register_views_udp(
     @blueprint.route('/process_graphs/<process_graph_id>', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def udp_get(process_graph_id: str, user: User):
+        _check_valid_process_graph_id(process_id=process_graph_id)
         udp = backend_implementation.user_defined_processes.get(user_id=user.user_id, process_id=process_graph_id)
         if udp:
             return _jsonable_udp_metadata(udp)
@@ -1091,6 +1105,7 @@ def register_views_udp(
     @blueprint.route('/process_graphs/<process_graph_id>', methods=['DELETE'])
     @auth_handler.requires_bearer_auth
     def udp_delete(process_graph_id: str, user: User):
+        _check_valid_process_graph_id(process_id=process_graph_id)
         backend_implementation.user_defined_processes.delete(user_id=user.user_id, process_id=process_graph_id)
         return response_204_no_content()
 

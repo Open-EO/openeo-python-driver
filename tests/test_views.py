@@ -1340,6 +1340,16 @@ class TestUserDefinedProcesses:
         assert new_udp.process_graph == {'sub': {}}
         assert new_udp.public
 
+    def test_add_udp_no_pg(self, api100):
+        spec = {"id": "evi", 'parameters': [{'name': 'red'}]}
+        res = api100.put('/process_graphs/evi', headers=TEST_USER_AUTH_HEADER, json=spec)
+        res.assert_error(400, "ProcessGraphMissing")
+
+    def test_add_udp_invalid_id(self, api100):
+        spec = {"id": "foob@r", 'process_graph': {'sub': {}}}
+        res = api100.put('/process_graphs/foob@r', headers=TEST_USER_AUTH_HEADER, json=spec)
+        res.assert_error(400, "InvalidId")
+
     @pytest.mark.parametrize("body_id", [None, "udp1", "meh"])
     def test_update_udp(self, api100, udp_store, body_id):
         spec = {
@@ -1374,7 +1384,12 @@ class TestUserDefinedProcesses:
         assert udp['public'] is True
 
     def test_get_unknown_udp(self, api100, udp_store):
-        api100.get('/process_graphs/unknown', headers=TEST_USER_AUTH_HEADER).assert_status_code(404)
+        res = api100.get('/process_graphs/unknown', headers=TEST_USER_AUTH_HEADER)
+        res.assert_error(404, "ProcessGraphNotFound")
+
+    def test_get_invalid_id(self, api100, udp_store):
+        res = api100.get('/process_graphs/foob@r', headers=TEST_USER_AUTH_HEADER)
+        res.assert_error(400, 'InvalidId')
 
     def test_delete_udp(self, api100, udp_store):
         assert ('Mr.Test', 'udp2') in udp_store._processes
@@ -1385,7 +1400,12 @@ class TestUserDefinedProcesses:
         assert ('Mr.Test', 'udp2') not in udp_store._processes
 
     def test_delete_unknown_udp(self, api100, udp_store):
-        api100.delete('/process_graphs/unknown', headers=TEST_USER_AUTH_HEADER).assert_status_code(404)
+        res = api100.delete('/process_graphs/unknown', headers=TEST_USER_AUTH_HEADER)
+        res.assert_error(404, "ProcessGraphNotFound")
+
+    def test_delete_invalid_id(self, api100, udp_store):
+        res = api100.delete('/process_graphs/foob@r', headers=TEST_USER_AUTH_HEADER)
+        res.assert_error(400, "InvalidId")
 
     def test_public_udp(self, api100, udp_store):
         api100.put('/process_graphs/evi', headers=TEST_USER_AUTH_HEADER, json={
