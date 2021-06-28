@@ -1322,17 +1322,17 @@ def udp_store(backend_implementation) -> dummy_backend.DummyUserDefinedProcesses
 
 
 class TestUserDefinedProcesses:
-    def test_add_udp(self, api100, udp_store):
-        api100.put('/process_graphs/evi', headers=TEST_USER_AUTH_HEADER, json={
-            'id': 'evi',
-            'parameters': [
-                {'name': 'red'}
-            ],
-            'process_graph': {
-                'sub': {}
-            },
+
+    @pytest.mark.parametrize("body_id", [None, "evi", "meh"])
+    def test_add_udp(self, api100, udp_store, body_id):
+        spec = {
+            'parameters': [{'name': 'red'}],
+            'process_graph': {'sub': {}},
             'public': True
-        }).assert_status_code(200)
+        }
+        if body_id:
+            spec["id"] = body_id
+        api100.put('/process_graphs/evi', headers=TEST_USER_AUTH_HEADER, json=spec).assert_status_code(200)
 
         new_udp = udp_store._processes['Mr.Test', 'evi']
         assert new_udp.id == 'evi'
@@ -1340,17 +1340,16 @@ class TestUserDefinedProcesses:
         assert new_udp.process_graph == {'sub': {}}
         assert new_udp.public
 
-    def test_update_udp(self, api100, udp_store):
-        api100.put('/process_graphs/udp1', headers=TEST_USER_AUTH_HEADER, json={
-            'id': 'udp1',
-            'parameters': [
-                {'name': 'blue'}
-            ],
-            'process_graph': {
-                'add': {}
-            },
+    @pytest.mark.parametrize("body_id", [None, "udp1", "meh"])
+    def test_update_udp(self, api100, udp_store, body_id):
+        spec = {
+            'parameters': [{'name': 'blue'}],
+            'process_graph': {'add': {}},
             'public': True
-        }).assert_status_code(200)
+        }
+        if body_id:
+            spec["id"] = body_id
+        api100.put('/process_graphs/udp1', headers=TEST_USER_AUTH_HEADER, json=spec).assert_status_code(200)
 
         modified_udp = udp_store._processes['Mr.Test', 'udp1']
         assert modified_udp.id == 'udp1'
@@ -1390,13 +1389,11 @@ class TestUserDefinedProcesses:
 
     def test_public_udp(self, api100, udp_store):
         api100.put('/process_graphs/evi', headers=TEST_USER_AUTH_HEADER, json={
-            'id': 'evi',
             'parameters': [{'name': 'red'}],
             'process_graph': {'sub': {}},
             'public': True
         }).assert_status_code(200)
         api100.put('/process_graphs/secret', headers=TEST_USER_AUTH_HEADER, json={
-            'id': 'secret',
             'parameters': [{'name': 'red'}],
             'process_graph': {'sub': {}},
             'public': False
@@ -1411,16 +1408,19 @@ class TestUserDefinedProcesses:
             "links": [],
         }
 
-    def test_add_and_get_udp(self, api100, udp_store):
-        api100.put("/process_graphs/evi", headers=TEST_USER_AUTH_HEADER, json={
-            "id": "evi",
+    @pytest.mark.parametrize("body_id", [None, "evi", "meh"])
+    def test_add_and_get_udp(self, api100, udp_store, body_id):
+        spec = {
             "parameters": [{"name": "red"}],
             "returns": {"schema": {"type": "number"}},
             "process_graph": {"sub": {}},
             "summary": "evify it",
             "description": "Calculate the EVI",
             "public": True
-        }).assert_status_code(200)
+        }
+        if body_id:
+            spec["id"] = body_id
+        api100.put("/process_graphs/evi", headers=TEST_USER_AUTH_HEADER, json=spec).assert_status_code(200)
 
         udp = udp_store._processes["Mr.Test", "evi"]
         assert udp.id == "evi"

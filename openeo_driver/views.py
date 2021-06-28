@@ -1056,10 +1056,12 @@ def register_views_udp(
     @blueprint.route('/process_graphs/<process_graph_id>', methods=['PUT'])
     @auth_handler.requires_bearer_auth
     def udp_store(process_graph_id: str, user: User):
+        spec: dict = request.get_json()
+        spec["id"] = process_graph_id
         backend_implementation.user_defined_processes.save(
             user_id=user.user_id,
             process_id=process_graph_id,
-            spec=request.get_json()
+            spec=spec
         )
 
         return make_response("", 200)
