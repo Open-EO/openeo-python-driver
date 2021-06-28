@@ -41,7 +41,7 @@ setup(
         'openeo>=0.7.1a2.*',
         'openeo_processes>=0.0.4',
         'gunicorn>=20.0.1',
-        'numpy>=1.17.0',#tensorflow 2.3 requires numpy <1.19
+        'numpy>=1.17.0,<1.19.0',#tensorflow 2.3 requires numpy <1.19
         'shapely',
         'geopandas~=0.7.0',
         'xarray~=0.16.2',

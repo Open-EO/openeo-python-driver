@@ -12,17 +12,14 @@ from typing import Dict, Callable, List, Union, Tuple, Any
 import numpy as np
 import openeo_processes
 import requests
-import shapely.geometry
 from dateutil.relativedelta import relativedelta
 from shapely.geometry import shape, mapping
 import geopandas as gpd
 
 from openeo.capabilities import ComparableVersion
 from openeo.metadata import CollectionMetadata, MetadataException
-from openeo.util import load_json
-from openeo_driver import dry_run, _utm
 from openeo.util import load_json, rfc3339
-from openeo_driver import dry_run
+from openeo_driver import dry_run, _utm
 from openeo_driver.backend import UserDefinedProcessMetadata, LoadParameters, Processing
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
@@ -432,8 +429,8 @@ def load_disk_data(args: Dict, env: EvalEnv) -> DriverDataCube:
 @non_standard_process(
     ProcessSpec(id='vector_buffer', description="Creates a buffer around a geometry.")
         .param(name='geometry', description="the input geojson on which the operation should be executed", schema={"type": "object"}, required=True)
-        .param(name='distance', description="the distance of the geometric object", schema={"type": "number"}, required=True)
-        .param(name='unit', description="the unit in which the distance is measured", schema={"type": "string"})
+        .param(name='distance', description="the size of the buffer", schema={"type": "number"}, required=True)
+        .param(name='unit', description="the unit in which the distance is measured", schema={"enum": ["meter", "kilometer"]})
         .returns(description="an output geojson with the added or subtracted buffer", schema={})
 )
 def vector_buffer(args: Dict, env: EvalEnv) -> dict:
@@ -445,28 +442,26 @@ def vector_buffer(args: Dict, env: EvalEnv) -> dict:
         geom_shape = gpd.GeoSeries(list(geometry.geometries))
     elif isinstance(geometry, str):
         geom_shape = gpd.GeoSeries(list(DelayedVector(geometry).geometries))
-    else:
-        try:
-            geom_shape = gpd.GeoSeries(list(shape(geometry)))
-        except:
+    elif isinstance(geometry, dict):
+        if "data" in geometry and geometry["data"]["type"] == "FeatureCollection":
+            geom_shape = gpd.GeoSeries(FeatureCollection.from_dict(geometry).get_data().geometry)
+        else:
             geom_shape = gpd.GeoSeries(shape(geometry))
+    else:
+        raise ProcessParameterInvalidException(parameter="geometry", process="vector_buffer", reason="The input geometry needs to either be an implementation of superclass shapely.geometry.base.BaseGeometry or be an instance of class openeo_driver.delayed_vector.DelayedVector or openeo_udf.api.feature_collection.FeatureCollection")
 
     if geom_shape.crs is None:
         geom_shape.crs = 'epsg:4326'
 
-    if distance < 0 and (isinstance(geom_shape, shapely.geometry.Point) or isinstance(geom_shape, shapely.geometry.LineString)):
-        raise ValueError("Negative buffers are not allowed for points or lines")
-    if unit not in ("meters", "kilometers"):
-        raise NotImplementedError("The unit "+unit+" has not yet been implemented. For now, the only units available are meters and kilometers")
-    if unit == "kilometers":
+    if unit not in ("meter", "kilometer"):
+        raise ProcessParameterInvalidException(parameter="unit", process="vector_buffer", reason="The unit "+unit+" has not yet been implemented. For now, the only units available are meters and kilometers")
+    if unit == "kilometer":
         distance *= 1000
 
     epsg_latlon = 'epsg:4326'
-    epsg_utmzone = _utm.auto_utm_epsg_for_geometry(geom_shape[0])
+    epsg_utmzone = _utm.auto_utm_epsg_for_geometry(geom_shape.geometry[0])
 
     poly_utm = geom_shape.to_crs(epsg_utmzone)
-    if distance < 0 and isinstance(poly_utm, shapely.geometry.Polygon) and (poly_utm.bounds[0]-poly_utm.bounds[2]>distance or poly_utm.bounds[1]-poly_utm.bounds[3]>distance):
-        raise ValueError("The buffer needs to be bigger than the polygon itself")
     poly_utm = poly_utm.buffer(distance)
     poly_latlon = poly_utm.to_crs(epsg_latlon)
     return poly_latlon.to_json()

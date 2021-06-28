@@ -1556,49 +1556,27 @@ def test_ard_normalized_radar_backscatter_without_optional_arguments(api100):
     assert kwargs == {}
 
 
-@pytest.mark.parametrize(["type", "buf", "unit"], [
-    ("point", 100, "meters"),
-    ("line", 100, "meters"),
-    ("polygon", 100, "meters"),
-    ("polygon", -100, "meters"),
-    ("polygon", 1, "kilometers"),
+@pytest.mark.parametrize(["buf", "unit", "repr_geom", "bounds"], [
+    (100, "meter", {'type': 'Point', 'coordinates': (4.44686216974982, 51.10003677743774)}, (4.445406396615764, 51.09912015123834, 4.448317998224226, 51.100953387185534)),
+    (100, "meter", {'type': 'LineString', 'coordinates': ((4.44686216974982, 51.10003677743774), (4.519960333326625, 51.09910920826044))}, (4.445406396615764, 51.09819171937761, 4.521417502592133, 51.100953387185534)),
+    (100, "meter", {'type': 'Polygon', 'coordinates': (((4.519960333326625, 51.09910920826044), (4.523277112125711, 51.199948873415146), (4.4500195770520055, 51.200879768877634), (4.44686216974982, 51.10003677743774), (4.519960333326625, 51.09910920826044)),)}, (4.445406396615764, 51.09819171937761, 4.524737564764997, 51.20179642512721)),
+    (-100, "meter", {'type': 'Polygon', 'coordinates': (((4.519960333326625, 51.09910920826044), (4.523277112125711, 51.199948873415146), (4.4500195770520055, 51.200879768877634), (4.44686216974982, 51.10003677743774), (4.519960333326625, 51.09910920826044)),)}, (4.448317998224226, 51.100026680749586, 4.521816715136695, 51.199963096118914)),
+    (1, "kilometer", {'type': 'Polygon', 'coordinates': (((4.519960333326625, 51.09910920826044), (4.523277112125711, 51.199948873415146), (4.4500195770520055, 51.200879768877634), (4.44686216974982, 51.10003677743774), (4.519960333326625, 51.09910920826044)),)}, (4.432306928287983, 51.089933581986884, 4.537884143219318, 51.210045588190425)),
+    (1000, "meter", str(get_path("GeometryCollection.geojson")), (5.033061176785658, 51.239870231998765, 5.117027442452851, 51.310122117276414)),
+    (100, "meter", {'type': 'MultiPoint', 'coordinates': ((4.44686216974982, 51.10003677743774), (4.519960333326625, 51.09910920826044))}, (4.44543443293813, 51.09821029022452, 4.521387992871542, 51.10093572491007)),
+    (100, "meter", {'id': 0, 'data': {'type': 'FeatureCollection', 'features': [{'id': '0', 'type': 'Feature', 'properties': {'col1': '1'}, 'geometry': {'type': 'Point', 'coordinates': [4.44686216974982, 51.10003677743774]}}, {'id': '1', 'type': 'Feature', 'properties': {'col1': '2'}, 'geometry': {'type': 'Point', 'coordinates': [4.519960333326625, 51.09910920826044]}}]}}, (4.44543443293813, 51.09821029022452, 4.521387992871542, 51.10093572491007))
 ])
-def test_vector_buffer(api100, type, buf, unit):
-    proj = lambda x, y : pyproj.Transformer.from_proj(pyproj.Proj(x), pyproj.Proj(y), always_xy=True)
-    buf_exp = np.transpose([-buf] * 2 + [buf] * 2)
-
-    if type=="kilometers":
-        buf_exp *= 1000
-    if type == "point":
-        point_coords = [601305, 5661945]
-        geom_orig = shapely.geometry.mapping(shapely.geometry.Point(point_coords))
-        new_bounds = point_coords*2 + buf_exp
-    elif type == "line":
-        line_coords = [[601305,5661945],
-                       [606425,5661945]]
-        geom_orig = shapely.geometry.mapping(shapely.geometry.LineString(line_coords))
-        new_bounds = np.array(line_coords).flatten() + buf_exp
-    elif type == "polygon":
-        poly_coords = (601305, 5661945, 606425, 5673163)
-        geom_orig = shapely.geometry.mapping(shapely.geometry.box(*poly_coords))
-        new_bounds = poly_coords + buf_exp
-    else:
-        raise NotImplementedError("The type {} is unavailable. Please choose point, line or polygon".format(type))
-
-    repr_pol = shapely.ops.transform(proj("EPSG:32631","EPSG:4326").transform, shapely.geometry.shape(geom_orig))
-    geom_new = shapely.geometry.mapping(shapely.geometry.box(*new_bounds))
-    expected_res = shapely.ops.transform(proj("EPSG:32631","EPSG:4326").transform, shapely.geometry.shape(geom_new))
-
+def test_vector_buffer(api100, buf, unit, repr_geom, bounds):
     pg = {
         "vectorbuffer1": {
             "process_id": "vector_buffer",
-            "arguments": {"geometry": shapely.geometry.mapping(repr_pol), "distance": buf, "unit": unit},
+            "arguments": {"geometry": repr_geom, "distance": buf, "unit": unit},
             "result": True,
         }
     }
     res = api100.result(pg).assert_status_code(200).json
     res_gs = gpd.GeoSeries.from_file(res)
-    assert res_gs[0].bounds == pytest.approx(expected_res.bounds, 0.01)
+    assert res_gs.total_bounds == pytest.approx(bounds, 0.01)
 
 def test_vector_buffer_multipolygon(api100):
     buf = 1000
@@ -1611,10 +1589,12 @@ def test_vector_buffer_multipolygon(api100):
     geom_new = shapely.geometry.mapping(shapely.geometry.box(*new_bounds))
     expected_res = shapely.ops.transform(proj("EPSG:32631","EPSG:4326").transform, shapely.geometry.shape(geom_new))
 
+    print(delay_vect_path)
+    print(expected_res.bounds)
     pg = {
         "vectorbuffer1": {
             "process_id": "vector_buffer",
-            "arguments": {"geometry": delay_vect_path, "distance": buf, "unit": "meters"},
+            "arguments": {"geometry": delay_vect_path, "distance": buf, "unit": "meter"},
             "result": True,
         }
     }
