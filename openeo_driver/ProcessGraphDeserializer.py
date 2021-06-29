@@ -40,7 +40,7 @@ _log = logging.getLogger(__name__)
 
 # Set up process registries (version dependent)
 process_registry_040 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/0.4', argument_names=["args", "env"])
-process_registry_100 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/1.0', argument_names=["args", "env"])
+process_registry_100 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/1.x', argument_names=["args", "env"])
 
 # Bootstrap with some mathematical/logical processes
 process_registry_040.add_spec_by_name(
@@ -1239,7 +1239,7 @@ def atmospheric_correction(args: Dict, env: EvalEnv) -> object:
     return image_collection.atmospheric_correction(method,elevation_model, missionId, sza, vza, raa, gnd, aot, cwv, appendDebugBands)
 
 
-@process_registry_100.add_function(spec=read_spec("openeo-processes/1.0/proposals/sar_backscatter.json"))
+@process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/sar_backscatter.json"))
 def sar_backscatter(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
     kwargs = extract_args_subset(
@@ -1275,10 +1275,10 @@ def mask_scl_dilation(args: Dict, env: EvalEnv):
         return cube
 
 
-custom_process_from_process_graph(read_spec("openeo-processes/1.0/proposals/ard_normalized_radar_backscatter.json"))
+custom_process_from_process_graph(read_spec("openeo-processes/1.x/proposals/ard_normalized_radar_backscatter.json"))
 
 
-@process_registry_100.add_function(spec=read_spec("openeo-processes/1.0/proposals/date_shift.json"))
+@process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/date_shift.json"))
 def date_shift(args: Dict, env: EvalEnv) -> str:
     date = rfc3339.parse_date_or_datetime(extract_arg(args, "date"))
     value = int(extract_arg(args, "value"))
@@ -1292,14 +1292,14 @@ def date_shift(args: Dict, env: EvalEnv) -> str:
     return rfc3339.normalize(shifted)
 
 
-@process_registry_100.add_function(spec=read_spec("openeo-processes/1.0/proposals/array_concat.json"))
+@process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/array_concat.json"))
 def array_concat(args: dict, env: EvalEnv) -> list:
     array1 = extract_arg(args, "array1")
     array2 = extract_arg(args, "array2")
     return list(array1) + list(array2)
 
 
-@process_registry_100.add_function(spec=read_spec("openeo-processes/1.0/proposals/array_create.json"))
+@process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/array_create.json"))
 def array_create(args: dict, env: EvalEnv) -> list:
     data = extract_arg(args, "data")
     repeat = args.get("repeat", 1)

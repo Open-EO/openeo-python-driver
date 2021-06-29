@@ -97,7 +97,7 @@ class ProcessRegistry:
     Basically a dictionary of process specification dictionaries
     """
 
-    def __init__(self, spec_root: Path = SPECS_ROOT / 'openeo-processes/1.0', argument_names: List[str] = None):
+    def __init__(self, spec_root: Path = SPECS_ROOT / 'openeo-processes/1.x', argument_names: List[str] = None):
         self._processes_spec_root = spec_root
         # Dictionary (namespace, process_name) -> ProcessData
         self._processes: Dict[Tuple[str, str], ProcessData] = {}
