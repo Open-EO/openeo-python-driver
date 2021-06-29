@@ -25,7 +25,7 @@ from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingExceptio
     FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, ProcessUnsupportedException, \
     JobNotFinishedException
 from openeo_driver.save_result import SaveResult, get_temp_file
-from openeo_driver.users import HttpAuthHandler, User
+from openeo_driver.users import HttpAuthHandler, User, user_id_b64_encode, user_id_b64_decode
 from openeo_driver.utils import replace_nan_values, EvalEnv, smart_bool
 
 _log = logging.getLogger(__name__)
@@ -811,7 +811,7 @@ def register_views_batch_jobs(
                 secure_key = signer.sign_job_asset(
                     job_id=job_id, user_id=user.user_id, filename=filename, expires=expires
                 )
-                user_base64 = urlsigning.user_id_b64_encode(user.user_id)
+                user_base64 = user_id_b64_encode(user.user_id)
                 return url_for(
                     '.download_job_result_signed',
                     job_id=job_id, user_base64=user_base64, filename=filename, expires=expires, secure_key=secure_key,
@@ -898,7 +898,7 @@ def register_views_batch_jobs(
     def download_job_result_signed(job_id, user_base64, secure_key, filename):
         expires = request.args.get('expires')
         signer = urlsigning.Signer.from_config(current_app.config)
-        user_id = urlsigning.user_id_b64_decode(user_base64)
+        user_id = user_id_b64_decode(user_base64)
         signer.verify_job_asset(
             signature=secure_key,
             job_id=job_id, user_id=user_id, filename=filename, expires=expires
