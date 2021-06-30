@@ -31,7 +31,6 @@ from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESP
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult, NullResult
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union, geojson_to_multipolygon
-from openeo_udf.api.feature_collection import FeatureCollection
 from openeo_udf.api.structured_data import StructuredData
 from openeo_udf.api.udf_data import UdfData
 
@@ -877,6 +876,8 @@ def run_udf(args: dict, env: EvalEnv):
                 reason='The run_udf process can only be used on vector cubes or aggregated timeseries directly, or as part of a callback on a raster-cube! Tried to use: %s' % str(data) )
 
     from openeo_udf.api.run_code import run_user_code
+    # Local import of this `FeatureCollection` class to avoid confusion with any standard GeoJSON FeatureCollection wrapper
+    from openeo_udf.api.feature_collection import FeatureCollection
 
     udf = _get_udf(args)
     context = args.get('context',{})
