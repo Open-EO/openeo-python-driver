@@ -626,7 +626,7 @@ def register_views_processing(
         if namespace.startswith("u:"):
             user_id = namespace.partition("u:")[-1]
             user_udps = [p for p in backend_implementation.user_defined_processes.get_for_user(user_id) if p.public]
-            processes = [_jsonable_udp_metadata(udp, full=full) for udp in user_udps]
+            processes = [_jsonable_udp_metadata(udp, full=full, user=User(user_id=user_id)) for udp in user_udps]
         elif ":" not in namespace:
             process_registry = backend_implementation.processing.get_process_registry(
                 api_version=requested_api_version()
@@ -653,7 +653,7 @@ def register_views_processing(
             udp = backend_implementation.user_defined_processes.get(user_id=user_id, process_id=process_id)
             if not udp:
                 raise ProcessUnsupportedException(process=process_id, namespace=namespace)
-            process = _jsonable_udp_metadata(udp, full=True)
+            process = _jsonable_udp_metadata(udp, full=True, user=User(user_id=user_id))
         elif ":" not in namespace:
             process_registry = backend_implementation.processing.get_process_registry(
                 api_version=requested_api_version()
@@ -1086,7 +1086,7 @@ def register_views_udp(
         _check_valid_process_graph_id(process_id=process_graph_id)
         udp = backend_implementation.user_defined_processes.get(user_id=user.user_id, process_id=process_graph_id)
         if udp:
-            return _jsonable_udp_metadata(udp)
+            return _jsonable_udp_metadata(udp, full=True , user=user)
 
         raise ProcessGraphNotFoundException(process_graph_id)
 
@@ -1110,11 +1110,24 @@ def register_views_udp(
         return response_204_no_content()
 
 
-def _jsonable_udp_metadata(metadata: UserDefinedProcessMetadata, full=True) -> dict:
+def _jsonable_udp_metadata(metadata: UserDefinedProcessMetadata, full=True, user: User = None) -> dict:
     """API-version-aware conversion of UDP metadata to jsonable dict"""
     d = metadata.prepare_for_json()
     if not full:
-        d.pop("process_graph")
+        # API recommends to limit response size by omitting larger/optional fields
+        d = {k: v for k, v in d.items() if k in ["id", "summary", "description", "parameters", "returns"]}
+    elif metadata.public and user:
+        namespace = "u:" + user.user_id
+        d["links"] = (d.get("links") or []) + [
+            {
+                # TODO: standardized link rel type? See https://github.com/Open-EO/openeo-api/issues/405
+                "rel": "public",
+                # TODO: use signed url?
+                "href": url_for(".processes_details", namespace=namespace, process_id=metadata.id, _external=True),
+                "title": f"Public URL for user-defined process {metadata.id!r}"
+            }
+        ]
+
     return dict_no_none(**d)
 
 

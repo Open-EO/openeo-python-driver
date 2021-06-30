@@ -1309,13 +1309,12 @@ def udp_store(backend_implementation) -> dummy_backend.DummyUserDefinedProcesses
     udps.reset({
         ('Mr.Test', 'udp1'): UserDefinedProcessMetadata(
             id='udp1',
-            process_graph={'process1': {}},
-            public=True,
+            process_graph={'add23': {"process_id": "add", "arguments": {"x": 2, "y": 3}, "result": True}},
         ),
         ('Mr.Test', 'udp2'): UserDefinedProcessMetadata(
             id='udp2',
-            process_graph={'process1': {}},
-            public=False,
+            process_graph={'add58': {"process_id": "add", "arguments": {"x": 5, "y": 8}, "result": True}},
+            public=True,
         )
     })
     return udps
@@ -1371,17 +1370,28 @@ class TestUserDefinedProcesses:
         resp = api100.get('/process_graphs', headers=TEST_USER_AUTH_HEADER).assert_status_code(200)
 
         udps = resp.json['processes']
-        udp1 = next(udp for udp in udps if udp['id'] == 'udp1')
-
-        assert 'process_graph' not in udp1
-        assert udp1['public']
+        assert udps == [{"id": "udp1"}, {"id": "udp2"}]
 
     def test_get_udp(self, api100, udp_store):
-        resp = api100.get('/process_graphs/udp1', headers=TEST_USER_AUTH_HEADER).assert_status_code(200)
+        udp = api100.get('/process_graphs/udp1', headers=TEST_USER_AUTH_HEADER).assert_status_code(200).json
+        assert udp == {
+            "id": "udp1",
+            "process_graph": {'add23': {'process_id': 'add', 'arguments': {'x': 2, 'y': 3}, 'result': True}},
+            "public": False
+        }
 
-        udp = resp.json
-        assert udp['id'] == 'udp1'
-        assert udp['public'] is True
+    def test_get_udp_public(self, api100, udp_store):
+        udp = api100.get('/process_graphs/udp2', headers=TEST_USER_AUTH_HEADER).assert_status_code(200).json
+        assert udp == {
+            "id": "udp2",
+            "process_graph": {'add58': {'process_id': 'add', 'arguments': {'x': 5, 'y': 8}, 'result': True}},
+            'links': [{
+                'rel': 'public',
+                'href': 'http://oeo.net/openeo/1.0.0/processes/u:Mr.Test/udp2',
+                'title': "Public URL for user-defined process 'udp2'"
+            }],
+            "public": True
+        }
 
     def test_get_unknown_udp(self, api100, udp_store):
         res = api100.get('/process_graphs/unknown', headers=TEST_USER_AUTH_HEADER)
@@ -1411,6 +1421,7 @@ class TestUserDefinedProcesses:
         api100.put('/process_graphs/evi', headers=TEST_USER_AUTH_HEADER, json={
             'parameters': [{'name': 'red'}],
             'process_graph': {'sub': {}},
+            'links': [{"rel":"about", "href": "https://wikipedia.test/evi"}],
             'public': True
         }).assert_status_code(200)
         api100.put('/process_graphs/secret', headers=TEST_USER_AUTH_HEADER, json={
@@ -1422,11 +1433,43 @@ class TestUserDefinedProcesses:
         r = api100.get("/processes/u:Mr.Test").assert_status_code(200)
         assert r.json == {
             "processes": [
-                {"id": "udp1", "public": True},
-                {"id": "evi", "parameters": [{"name": "red"}], "public": True}
+                {"id": "udp2"},
+                {"id": "evi", "parameters": [{"name": "red"}]}
             ],
             "links": [],
         }
+
+    def test_public_udp_link(self, api100, udp_store):
+        api100.put('/process_graphs/evi', headers=TEST_USER_AUTH_HEADER, json={
+            'parameters': [{'name': 'red'}],
+            "process_graph": {'add35': {'process_id': 'add', 'arguments': {'x': 3, 'y': 5}, 'result': True}},
+            'links': [{"rel": "about", "href": "https://wikipedia.test/evi"}],
+            'public': True
+        }).assert_status_code(200)
+
+        expected = {
+            "id": "evi",
+            "parameters": [{"name": "red"}],
+            "process_graph": {'add35': {'process_id': 'add', 'arguments': {'x': 3, 'y': 5}, 'result': True}},
+            "public": True,
+            "links": [
+                {'rel': 'about', 'href': 'https://wikipedia.test/evi'},
+                {
+                    'rel': 'public',
+                    'href': 'http://oeo.net/openeo/1.0.0/processes/u:Mr.Test/evi',
+                    'title': "Public URL for user-defined process 'evi'"
+                }
+            ]
+        }
+
+        api100.get("/process_graphs/evi").assert_error(401, "AuthenticationRequired")
+        udp = api100.get("/process_graphs/evi", headers=TEST_USER_AUTH_HEADER).assert_status_code(200).json
+        assert udp == expected
+
+        udp = api100.get("/processes/u:Mr.Test/evi").assert_status_code(200).json
+        assert udp == expected
+
+
 
     @pytest.mark.parametrize("body_id", [None, "evi", "meh"])
     def test_add_and_get_udp(self, api100, udp_store, body_id):

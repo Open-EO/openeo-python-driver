@@ -369,6 +369,7 @@ class UserDefinedProcessMetadata(NamedTuple):
     returns: dict = None
     summary: str = None
     description: str = None
+    links: list = None
     public: bool = False  # Note: experimental non-standard flag
 
     @classmethod

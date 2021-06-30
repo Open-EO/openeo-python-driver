@@ -47,6 +47,7 @@ def test_user_defined_process_metadata():
         "returns": None,
         "summary": None,
         "description": None,
+        "links": None,
         "public": False
     }
 
