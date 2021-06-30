@@ -430,28 +430,28 @@ def load_disk_data(args: Dict, env: EvalEnv) -> DriverDataCube:
     ProcessSpec(id='vector_buffer', description="Creates a buffer around a geometry.")
         .param(name='geometry', description="the input geojson on which the operation should be executed", schema={"type": "object"}, required=True)
         .param(name='distance', description="the size of the buffer", schema={"type": "number"}, required=True)
-        .param(name='unit', description="the unit in which the distance is measured", schema={"enum": ["meter", "kilometer"]})
+        .param(name='unit', description="the unit in which the distance is measured", schema={"type": "string", "enum":["meter", "kilometer"]})
         .returns(description="an output geojson with the added or subtracted buffer", schema={})
 )
 def vector_buffer(args: Dict, env: EvalEnv) -> dict:
+    import json
     geometry = extract_arg(args, 'geometry')
     distance = extract_arg(args, 'distance')
     unit = extract_arg(args, 'unit')
 
-    if isinstance(geometry, DelayedVector):
-        geom_shape = gpd.GeoSeries(list(geometry.geometries))
-    elif isinstance(geometry, str):
-        geom_shape = gpd.GeoSeries(list(DelayedVector(geometry).geometries))
+    if isinstance(geometry, str):
+        geoms = gpd.GeoSeries(list(DelayedVector(geometry).geometries))
     elif isinstance(geometry, dict):
-        if "data" in geometry and geometry["data"]["type"] == "FeatureCollection":
-            geom_shape = gpd.GeoSeries(FeatureCollection.from_dict(geometry).get_data().geometry)
+        if geometry["type"] == "FeatureCollection":
+            geoms = [shape(feat["geometry"]) for feat in geometry["features"]]
+            geoms = gpd.GeoSeries(geoms)
         else:
-            geom_shape = gpd.GeoSeries(shape(geometry))
+            geoms = gpd.GeoSeries(shape(geometry))
     else:
-        raise ProcessParameterInvalidException(parameter="geometry", process="vector_buffer", reason="The input geometry needs to either be an implementation of superclass shapely.geometry.base.BaseGeometry or be an instance of class openeo_driver.delayed_vector.DelayedVector or openeo_udf.api.feature_collection.FeatureCollection")
+        raise ProcessParameterInvalidException(parameter="geometry", process="vector_buffer", reason="The input geometry cannot be parsed")
 
-    if geom_shape.crs is None:
-        geom_shape.crs = 'epsg:4326'
+    if geoms.crs is None:
+        geoms.crs = 'epsg:4326'
 
     if unit not in ("meter", "kilometer"):
         raise ProcessParameterInvalidException(parameter="unit", process="vector_buffer", reason="The unit "+unit+" has not yet been implemented. For now, the only units available are meters and kilometers")
@@ -459,13 +459,10 @@ def vector_buffer(args: Dict, env: EvalEnv) -> dict:
         distance *= 1000
 
     epsg_latlon = 'epsg:4326'
-    epsg_utmzone = _utm.auto_utm_epsg_for_geometry(geom_shape.geometry[0])
+    epsg_utmzone = _utm.auto_utm_epsg_for_geometry(geoms.geometry[0])
 
-    poly_utm = geom_shape.to_crs(epsg_utmzone)
-    poly_utm = poly_utm.buffer(distance)
-    poly_latlon = poly_utm.to_crs(epsg_latlon)
-    return poly_latlon.to_json()
-
+    poly_buff_latlon = geoms.to_crs(epsg_utmzone).buffer(distance).to_crs(epsg_latlon)
+    return mapping(poly_buff_latlon[0]) if len(poly_buff_latlon) == 1 else mapping(poly_buff_latlon)
 
 @process_registry_100.add_function
 def apply_neighborhood(args: dict, env: EvalEnv) -> DriverDataCube:
