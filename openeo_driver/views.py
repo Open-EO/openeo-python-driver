@@ -671,9 +671,7 @@ def _jsonable_batch_job_metadata(metadata: BatchJobMetadata, full=True) -> dict:
     fields = ['id', 'title', 'description', 'status', 'created', 'updated', 'plan', 'costs', 'budget']
     if full:
         fields.extend([
-            'process', 'progress', 'duration_seconds', 'duration_human_readable',
-            'memory_time_megabyte_seconds', 'memory_time_human_readable',
-            'cpu_time_seconds', 'cpu_time_human_readable',
+            'process', 'progress', 'usage'
         ])
     d = {k: v for (k, v) in d.items() if k in fields}
 

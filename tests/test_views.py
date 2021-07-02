@@ -694,12 +694,11 @@ class TestBatchJobs:
             'status': 'finished',
             'created': "2020-06-11T11:51:29Z",
             'process': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
-            'duration_seconds': 6,
-            'duration_human_readable': "0:00:06",
-            'memory_time_megabyte_seconds': 18704944,
-            'memory_time_human_readable': "18704944 MB-seconds",
-            'cpu_time_seconds': 1621,
-            'cpu_time_human_readable': "1621 cpu-seconds"
+            'usage': {
+                'cpu': {'value': 1621, 'unit': 'cpu-seconds'},
+                'duration': {'value': 6, 'unit': 'seconds'},
+                'memory': {'value': 18704944, 'unit': 'mb-seconds'}
+            }
         }
 
     def test_get_job_info_100(self, api100):

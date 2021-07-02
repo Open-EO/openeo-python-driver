@@ -250,12 +250,21 @@ class BatchJobMetadata(NamedTuple):
         d = self._asdict()  # pylint: disable=no-member
         d["created"] = rfc3339.datetime(self.created) if self.created else None
         d["updated"] = rfc3339.datetime(self.updated) if self.updated else None
-        d["duration_seconds"] = int(round(self.duration.total_seconds())) if self.duration else None
-        d["duration_human_readable"] = str(self.duration) if self.duration else None
-        d["memory_time_megabyte_seconds"] = int(round(self.memory_time_megabyte.total_seconds())) if self.memory_time_megabyte else None
-        d["memory_time_human_readable"] = "{s:.0f} MB-seconds".format(s=self.memory_time_megabyte.total_seconds()) if self.memory_time_megabyte else None
-        d["cpu_time_seconds"] = int(round(self.cpu_time.total_seconds())) if self.cpu_time else None
-        d["cpu_time_human_readable"] = "{s:.0f} cpu-seconds".format(s=self.cpu_time.total_seconds()) if self.cpu_time else None
+
+        usage = {}
+
+        if self.cpu_time:
+            usage["cpu"] = {"value": int(round(self.cpu_time.total_seconds())), "unit": "cpu-seconds"}
+
+        if self.duration:
+            usage["duration"] = {"value": int(round(self.duration.total_seconds())), "unit": "seconds"}
+
+        if self.memory_time_megabyte:
+            usage["memory"] = {"value": int(round(self.memory_time_megabyte.total_seconds())), "unit": "mb-seconds"}
+
+        if usage:
+            d["usage"] = usage
+
         return d
 
 
