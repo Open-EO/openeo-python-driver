@@ -3,8 +3,10 @@ import re
 from unittest import mock
 
 import numpy as np
+import pyproj
 import pytest
 import shapely.geometry
+import geopandas as gpd
 
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
@@ -1634,3 +1636,31 @@ def test_date_shift(api100, date, value, unit, expected):
     }
     res = api100.result(pg).assert_status_code(200).json
     assert res == expected
+
+
+@pytest.mark.parametrize(["buf", "unit", "repr_geom", "bounds"], [
+    (100, "meter", {'type': 'Point', 'coordinates': (4.44686216974982, 51.10003677743774)}, (4.445406396615764, 51.09912015123834, 4.448317998224226, 51.100953387185534)),
+    (100, "meter", {'type': 'LineString', 'coordinates': ((4.44686216974982, 51.10003677743774), (4.519960333326625, 51.09910920826044))}, (4.445406396615764, 51.09819171937761, 4.521417502592133, 51.100953387185534)),
+    (100, "meter", {'type': 'Polygon', 'coordinates': (((4.519960333326625, 51.09910920826044), (4.523277112125711, 51.199948873415146), (4.4500195770520055, 51.200879768877634), (4.44686216974982, 51.10003677743774), (4.519960333326625, 51.09910920826044)),)}, (4.445406396615764, 51.09819171937761, 4.524737564764997, 51.20179642512721)),
+    (-100, "meter", {'type': 'Polygon', 'coordinates': (((4.519960333326625, 51.09910920826044), (4.523277112125711, 51.199948873415146), (4.4500195770520055, 51.200879768877634), (4.44686216974982, 51.10003677743774), (4.519960333326625, 51.09910920826044)),)}, (4.448317998224226, 51.100026680749586, 4.521816715136695, 51.199963096118914)),
+    (1, "kilometer", {'type': 'Polygon', 'coordinates': (((4.519960333326625, 51.09910920826044), (4.523277112125711, 51.199948873415146), (4.4500195770520055, 51.200879768877634), (4.44686216974982, 51.10003677743774), (4.519960333326625, 51.09910920826044)),)}, (4.432306928287983, 51.089933581986884, 4.537884143219318, 51.210045588190425)),
+    (1000, "meter", str(get_path("GeometryCollection.geojson")), (5.033061176785658, 51.239870231998765, 5.117027442452851, 51.310122117276414)),
+    (100, "meter", {'type': 'MultiPoint', 'coordinates': ((4.44686216974982, 51.10003677743774), (4.519960333326625, 51.09910920826044))}, (4.44543443293813, 51.09821029022452, 4.521387992871542, 51.10093572491007)),
+    (100, "meter", {'type': 'FeatureCollection', 'features': [{'id': '0', 'type': 'Feature', 'properties': {'col1': '1'}, 'geometry': {'type': 'Point', 'coordinates': [4.44686216974982, 51.10003677743774]}}, {'id': '1', 'type': 'Feature', 'properties': {'col1': '2'}, 'geometry': {'type': 'Point', 'coordinates': [4.519960333326625, 51.09910920826044]}}]}, (4.44543443293813, 51.09821029022452, 4.521387992871542, 51.10093572491007))
+])
+def test_vector_buffer(api100, buf, unit, repr_geom, bounds):
+    pg = {
+        "vectorbuffer1": {
+            "process_id": "vector_buffer",
+            "arguments": {"geometry": repr_geom, "distance": buf, "unit": unit},
+            "result": True,
+        }
+    }
+    res = api100.result(pg).assert_status_code(200).json
+    assert res["type"] == "FeatureCollection" if isinstance(repr_geom, str) or repr_geom["type"]=="FeatureCollection" else res["type"] in ["Polygon", "MultiPolygon"]
+    if res["type"] == "FeatureCollection":
+        res_gs = gpd.GeoSeries([shapely.geometry.shape(feat["geometry"]) for feat in res["features"]])
+    else:
+        res_gs = gpd.GeoSeries([shapely.geometry.shape(res)])
+    assert res_gs.total_bounds == pytest.approx(bounds, 0.01)
+
