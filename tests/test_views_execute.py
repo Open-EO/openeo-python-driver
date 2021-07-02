@@ -3,7 +3,6 @@ import re
 from unittest import mock
 
 import numpy as np
-import pyproj
 import pytest
 import shapely.geometry
 import geopandas as gpd
@@ -18,7 +17,7 @@ from openeo_driver.errors import ProcessGraphMissingException
 from openeo_driver.testing import ApiTester, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN, \
     preprocess_regex_check_and_replace, generate_unique_test_process_id
 from openeo_driver.utils import EvalEnv
-from .data import get_path, TEST_DATA_ROOT
+from .data import get_path, TEST_DATA_ROOT, load_json
 
 
 @pytest.fixture(params=["1.0.0"])
@@ -1638,17 +1637,67 @@ def test_date_shift(api100, date, value, unit, expected):
     assert res == expected
 
 
-@pytest.mark.parametrize(["buf", "unit", "repr_geom", "bounds"], [
-    (100, "meter", {'type': 'Point', 'coordinates': (4.44686216974982, 51.10003677743774)}, (4.445406396615764, 51.09912015123834, 4.448317998224226, 51.100953387185534)),
-    (100, "meter", {'type': 'LineString', 'coordinates': ((4.44686216974982, 51.10003677743774), (4.519960333326625, 51.09910920826044))}, (4.445406396615764, 51.09819171937761, 4.521417502592133, 51.100953387185534)),
-    (100, "meter", {'type': 'Polygon', 'coordinates': (((4.519960333326625, 51.09910920826044), (4.523277112125711, 51.199948873415146), (4.4500195770520055, 51.200879768877634), (4.44686216974982, 51.10003677743774), (4.519960333326625, 51.09910920826044)),)}, (4.445406396615764, 51.09819171937761, 4.524737564764997, 51.20179642512721)),
-    (-100, "meter", {'type': 'Polygon', 'coordinates': (((4.519960333326625, 51.09910920826044), (4.523277112125711, 51.199948873415146), (4.4500195770520055, 51.200879768877634), (4.44686216974982, 51.10003677743774), (4.519960333326625, 51.09910920826044)),)}, (4.448317998224226, 51.100026680749586, 4.521816715136695, 51.199963096118914)),
-    (1, "kilometer", {'type': 'Polygon', 'coordinates': (((4.519960333326625, 51.09910920826044), (4.523277112125711, 51.199948873415146), (4.4500195770520055, 51.200879768877634), (4.44686216974982, 51.10003677743774), (4.519960333326625, 51.09910920826044)),)}, (4.432306928287983, 51.089933581986884, 4.537884143219318, 51.210045588190425)),
-    (1000, "meter", str(get_path("GeometryCollection.geojson")), (5.033061176785658, 51.239870231998765, 5.117027442452851, 51.310122117276414)),
-    (100, "meter", {'type': 'MultiPoint', 'coordinates': ((4.44686216974982, 51.10003677743774), (4.519960333326625, 51.09910920826044))}, (4.44543443293813, 51.09821029022452, 4.521387992871542, 51.10093572491007)),
-    (100, "meter", {'type': 'FeatureCollection', 'features': [{'id': '0', 'type': 'Feature', 'properties': {'col1': '1'}, 'geometry': {'type': 'Point', 'coordinates': [4.44686216974982, 51.10003677743774]}}, {'id': '1', 'type': 'Feature', 'properties': {'col1': '2'}, 'geometry': {'type': 'Point', 'coordinates': [4.519960333326625, 51.09910920826044]}}]}, (4.44543443293813, 51.09821029022452, 4.521387992871542, 51.10093572491007))
+@pytest.mark.parametrize(["buf", "unit", "repr_geom", "expected_type", "bounds"], [
+    # Template to calculate expected bounds of single geometries:
+    #       import geopandas as gpd
+    #       shape = Point(5.1, 51.22)
+    #       series = gpd.GeoSeries([shape], crs=4326)
+    #       buffered = series.to_crs(32631).buffer(100).to_crs(4326)
+    #       print(buffered.iloc[0].bounds)
+    (
+            100, "meter", {"type": "Point", "coordinates": (5.1, 51.22)},
+            "Polygon", (5.098569060859835, 51.219101388461105, 5.101430937032029, 51.22089861137662),
+    ),
+    (
+            1000, "meter", {"type": "Point", "coordinates": (5.1, 51.22)},
+            "Polygon", (5.085690513968438, 51.21101387730941, 5.114309275218151, 51.22898610646433),
+    ),
+    (
+            100, "kilometer", {"type": "Point", "coordinates": (5.1, 51.22)},
+            "Polygon", (3.668246824769951, 50.321307522288016, 6.529646150453797, 52.11853021385508),
+    ),
+    (
+            100, "meter", {"type": "MultiPoint", "coordinates": ((5.1, 51.22), (5.11, 51.23))},
+            "MultiPolygon", (5.098569060859835, 51.219101388461105, 5.111431237949069, 51.23089860406231),
+    ),
+    (
+            750, "meter", {"type": "MultiPoint", "coordinates": ((5.1, 51.22), (5.11, 51.23))},
+            "Polygon", (5.089267905161828, 51.213260409503235, 5.120734232861271, 51.23673952650676),
+    ),
+    (
+            100, "meter", {"type": "LineString", "coordinates": ((5.1, 51.22), (5.11, 51.23))},
+            "Polygon", (5.09856905615526, 51.21910138452717, 5.111431257271536, 51.23089861521429),
+    ),
+    (
+            100, "meter", load_json("geojson/polygon01.json"),
+            "Polygon", (5.0985703229820665, 51.19910120996896, 5.141430817509717, 51.23089799863948),
+    ),
+    (
+            -500, "meter", load_json("geojson/polygon01.json"),
+            "Polygon", (5.1084522374601145, 51.206647698484225, 5.129458164090344, 51.222687097228174),
+    ),
+    (
+            1, "kilometer", load_json("geojson/polygon01.json"),
+            "Polygon", (5.087874843800581, 51.19113803453279, 5.154275007454256, 51.23894705603116),
+    ),
+    (
+            100, "meter", load_json("geojson/multipolygon01.json"),
+            "MultiPolygon", (5.098787598453318, 51.19911380673043, 5.141427521031006, 51.2408707459342),
+    ),
+    (
+            500, "meter", load_json("geojson/multipolygon01.json"),
+            "Polygon", (5.092851581512912, 51.19550604834508, 5.147157170251627, 51.244493919231424,)
+    ),
+    (
+            1000, "meter", load_json("FeatureCollection.geojson"),
+            "FeatureCollection", (4.43568898, 51.09100882, 4.53429533, 51.20899105),
+    ),
+    (
+            1000, "meter", str(get_path("FeatureCollection.geojson")),
+            "FeatureCollection", (4.43568898, 51.09100882, 4.53429533, 51.20899105),
+    ),
 ])
-def test_vector_buffer(api100, buf, unit, repr_geom, bounds):
+def test_vector_buffer(api100, buf, unit, repr_geom, expected_type, bounds):
     pg = {
         "vectorbuffer1": {
             "process_id": "vector_buffer",
@@ -1657,10 +1706,9 @@ def test_vector_buffer(api100, buf, unit, repr_geom, bounds):
         }
     }
     res = api100.result(pg).assert_status_code(200).json
-    assert res["type"] == "FeatureCollection" if isinstance(repr_geom, str) or repr_geom["type"]=="FeatureCollection" else res["type"] in ["Polygon", "MultiPolygon"]
+    assert res["type"] == expected_type
     if res["type"] == "FeatureCollection":
         res_gs = gpd.GeoSeries([shapely.geometry.shape(feat["geometry"]) for feat in res["features"]])
     else:
         res_gs = gpd.GeoSeries([shapely.geometry.shape(res)])
-    assert res_gs.total_bounds == pytest.approx(bounds, 0.01)
-
+    assert res_gs.total_bounds == pytest.approx(bounds, 0.001)

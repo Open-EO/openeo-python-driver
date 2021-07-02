@@ -425,44 +425,50 @@ def load_disk_data(args: Dict, env: EvalEnv) -> DriverDataCube:
         return env.backend_implementation.load_disk_data(**kwargs, load_params=load_params, env=env)
 
 
-
 @non_standard_process(
-    ProcessSpec(id='vector_buffer', description="Creates a buffer around a geometry.")
-        .param(name='geometry', description="the input geojson on which the operation should be executed", schema={"type": "object"}, required=True)
-        .param(name='distance', description="the size of the buffer", schema={"type": "number"}, required=True)
-        .param(name='unit', description="the unit in which the distance is measured", schema={"type": "string", "enum":["meter", "kilometer"]})
-        .returns(description="an output geojson with the added or subtracted buffer", schema={})
+    ProcessSpec(id='vector_buffer', description="Add a buffer around a geometry.")
+        .param(name='geometry', description="Input geometry (GeoJSON object) to add buffer to.",
+               schema={"type": "object", "subtype": "geojson"}, required=True)
+        .param(name='distance', description="The size of the buffer. Can be negative to subtract the buffer",
+               schema={"type": "number"}, required=True)
+        .param(name='unit', description="The unit in which the distance is measured.",
+               schema={"type": "string", "enum": ["meter", "kilometer"]})
+        .returns(description="Output geometry (GeoJSON object) with the added or subtracted buffer",
+                 schema={"type": "object", "subtype": "geojson"})
 )
 def vector_buffer(args: Dict, env: EvalEnv) -> dict:
-    import json
     geometry = extract_arg(args, 'geometry')
     distance = extract_arg(args, 'distance')
     unit = extract_arg(args, 'unit')
+    input_crs = 'epsg:4326'
+    buffer_resolution = 3
 
     if isinstance(geometry, str):
-        geoms = gpd.GeoSeries(list(DelayedVector(geometry).geometries))
+        geoms = list(DelayedVector(geometry).geometries)
     elif isinstance(geometry, dict):
         if geometry["type"] == "FeatureCollection":
             geoms = [shape(feat["geometry"]) for feat in geometry["features"]]
-            geoms = gpd.GeoSeries(geoms)
         else:
-            geoms = gpd.GeoSeries(shape(geometry))
+            geoms = [shape(geometry)]
     else:
-        raise ProcessParameterInvalidException(parameter="geometry", process="vector_buffer", reason="The input geometry cannot be parsed")
+        raise ProcessParameterInvalidException(
+            parameter="geometry", process="vector_buffer", reason="The input geometry cannot be parsed"
+        )
+    geoms = gpd.GeoSeries(geoms, crs=input_crs)
 
-    if geoms.crs is None:
-        geoms.crs = 'epsg:4326'
+    unit_scaling = {"meter": 1, "kilometer": 1000}
+    if unit not in unit_scaling:
+        raise ProcessParameterInvalidException(
+            parameter="unit", process="vector_buffer",
+            reason=f"Invalid unit {unit!r}. Should be one of {list(unit_scaling.keys())}."
+        )
+    distance = distance * unit_scaling[unit]
 
-    if unit not in ("meter", "kilometer"):
-        raise ProcessParameterInvalidException(parameter="unit", process="vector_buffer", reason="The unit "+unit+" has not yet been implemented. For now, the only units available are meters and kilometers")
-    if unit == "kilometer":
-        distance *= 1000
-
-    epsg_latlon = 'epsg:4326'
     epsg_utmzone = auto_utm_epsg_for_geometry(geoms.geometry[0])
 
-    poly_buff_latlon = geoms.to_crs(epsg_utmzone).buffer(distance).to_crs(epsg_latlon)
+    poly_buff_latlon = geoms.to_crs(epsg_utmzone).buffer(distance, resolution=buffer_resolution).to_crs(input_crs)
     return mapping(poly_buff_latlon[0]) if len(poly_buff_latlon) == 1 else mapping(poly_buff_latlon)
+
 
 @process_registry_100.add_function
 def apply_neighborhood(args: dict, env: EvalEnv) -> DriverDataCube:
