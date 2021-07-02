@@ -14,6 +14,7 @@ import openeo_processes
 import requests
 from dateutil.relativedelta import relativedelta
 from shapely.geometry import shape, mapping
+import geopandas as gpd
 
 from openeo.capabilities import ComparableVersion
 from openeo.metadata import CollectionMetadata, MetadataException
@@ -30,6 +31,7 @@ from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult, NullResult
 from openeo_driver.specs import SPECS_ROOT, read_spec
+from openeo_driver.util.utm import auto_utm_epsg_for_geometry
 from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union, geojson_to_multipolygon
 from openeo_udf.api.structured_data import StructuredData
 from openeo_udf.api.udf_data import UdfData
@@ -421,6 +423,51 @@ def load_disk_data(args: Dict, env: EvalEnv) -> DriverDataCube:
         source_id = dry_run.DataSource.load_disk_data(**kwargs).get_source_id()
         load_params = _extract_load_parameters(env, source_id=source_id)
         return env.backend_implementation.load_disk_data(**kwargs, load_params=load_params, env=env)
+
+
+@non_standard_process(
+    ProcessSpec(id='vector_buffer', description="Add a buffer around a geometry.")
+        .param(name='geometry', description="Input geometry (GeoJSON object) to add buffer to.",
+               schema={"type": "object", "subtype": "geojson"}, required=True)
+        .param(name='distance', description="The size of the buffer. Can be negative to subtract the buffer",
+               schema={"type": "number"}, required=True)
+        .param(name='unit', description="The unit in which the distance is measured.",
+               schema={"type": "string", "enum": ["meter", "kilometer"]})
+        .returns(description="Output geometry (GeoJSON object) with the added or subtracted buffer",
+                 schema={"type": "object", "subtype": "geojson"})
+)
+def vector_buffer(args: Dict, env: EvalEnv) -> dict:
+    geometry = extract_arg(args, 'geometry')
+    distance = extract_arg(args, 'distance')
+    unit = extract_arg(args, 'unit')
+    input_crs = 'epsg:4326'
+    buffer_resolution = 3
+
+    if isinstance(geometry, str):
+        geoms = list(DelayedVector(geometry).geometries)
+    elif isinstance(geometry, dict):
+        if geometry["type"] == "FeatureCollection":
+            geoms = [shape(feat["geometry"]) for feat in geometry["features"]]
+        else:
+            geoms = [shape(geometry)]
+    else:
+        raise ProcessParameterInvalidException(
+            parameter="geometry", process="vector_buffer", reason="The input geometry cannot be parsed"
+        )
+    geoms = gpd.GeoSeries(geoms, crs=input_crs)
+
+    unit_scaling = {"meter": 1, "kilometer": 1000}
+    if unit not in unit_scaling:
+        raise ProcessParameterInvalidException(
+            parameter="unit", process="vector_buffer",
+            reason=f"Invalid unit {unit!r}. Should be one of {list(unit_scaling.keys())}."
+        )
+    distance = distance * unit_scaling[unit]
+
+    epsg_utmzone = auto_utm_epsg_for_geometry(geoms.geometry[0])
+
+    poly_buff_latlon = geoms.to_crs(epsg_utmzone).buffer(distance, resolution=buffer_resolution).to_crs(input_crs)
+    return mapping(poly_buff_latlon[0]) if len(poly_buff_latlon) == 1 else mapping(poly_buff_latlon)
 
 
 @process_registry_100.add_function
