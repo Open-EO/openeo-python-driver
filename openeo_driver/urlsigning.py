@@ -10,16 +10,6 @@ from openeo_driver.utils import smart_bool
 _log = logging.getLogger(__name__)
 
 
-def user_id_b64_encode(user_id: str) -> str:
-    """Encode a user id in way that is safe to use in urls"""
-    return base64.urlsafe_b64encode(user_id.encode("utf8")).decode("ascii")
-
-
-def user_id_b64_decode(encoded: str) -> str:
-    """Decode a user id that was encoded with user_id_b64_encode"""
-    return base64.urlsafe_b64decode(encoded.encode("ascii")).decode("utf-8")
-
-
 class Signer:
     def __init__(self, secret: str, expiration: int = None):
         self._secret = secret

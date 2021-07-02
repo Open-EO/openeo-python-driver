@@ -47,15 +47,26 @@ def test_user_defined_process_metadata():
         "returns": None,
         "summary": None,
         "description": None,
+        "links": None,
         "public": False
     }
 
 
-def test_user_defined_process_metadata_from_dict_basic():
+def test_user_defined_process_metadata_from_dict_minimal():
     udp = UserDefinedProcessMetadata.from_dict({"id": "enhance", "process_graph": {"foo": {"process_id": "foo"}}})
     assert udp.id == "enhance"
     assert udp.process_graph == {"foo": {"process_id": "foo"}}
     assert udp.parameters is None
+
+
+def test_user_defined_process_metadata_from_dict_no_id():
+    with pytest.raises(KeyError):
+        _ = UserDefinedProcessMetadata.from_dict({"process_graph": {"foo": {"process_id": "foo"}}})
+
+
+def test_user_defined_process_metadata_from_dict_no_pg():
+    with pytest.raises(KeyError):
+        _ = UserDefinedProcessMetadata.from_dict({"id": "enhance"})
 
 
 def test_user_defined_process_metadata_from_dict_extra():
@@ -73,13 +84,6 @@ def test_user_defined_process_metadata_from_dict_extra():
     assert udp.returns == {"schema": {"type": "number"}}
     assert udp.summary == "Enhance it!"
     assert udp.description == "Enhance the image with the foo process."
-
-
-def test_user_defined_process_metadata_from_dict_no_id():
-    udp = UserDefinedProcessMetadata.from_dict({"process_graph": {"foo": {"process_id": "foo"}}})
-    assert udp.id is None
-    assert udp.process_graph == {"foo": {"process_id": "foo"}}
-    assert udp.parameters is None
 
 
 def test_service_metadata_from_dict_basic():

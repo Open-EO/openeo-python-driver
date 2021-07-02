@@ -364,11 +364,12 @@ class UserDefinedProcessMetadata(NamedTuple):
     Container for user-defined process metadata.
     """
     process_graph: dict
-    id: str = None
+    id: str
     parameters: List[dict] = None
     returns: dict = None
     summary: str = None
     description: str = None
+    links: list = None
     public: bool = False  # Note: experimental non-standard flag
 
     @classmethod
