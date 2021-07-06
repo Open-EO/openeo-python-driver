@@ -1118,8 +1118,7 @@ def _jsonable_udp_metadata(metadata: UserDefinedProcessMetadata, full=True, user
         namespace = "u:" + user.user_id
         d["links"] = (d.get("links") or []) + [
             {
-                # TODO: standardized link rel type? See https://github.com/Open-EO/openeo-api/issues/405
-                "rel": "public",
+                "rel": "canonical",
                 # TODO: use signed url?
                 "href": url_for(".processes_details", namespace=namespace, process_id=metadata.id, _external=True),
                 "title": f"Public URL for user-defined process {metadata.id!r}"
