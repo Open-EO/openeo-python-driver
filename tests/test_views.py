@@ -1385,7 +1385,7 @@ class TestUserDefinedProcesses:
             "id": "udp2",
             "process_graph": {'add58': {'process_id': 'add', 'arguments': {'x': 5, 'y': 8}, 'result': True}},
             'links': [{
-                'rel': 'public',
+                'rel': 'canonical',
                 'href': 'http://oeo.net/openeo/1.0.0/processes/u:Mr.Test/udp2',
                 'title': "Public URL for user-defined process 'udp2'"
             }],
@@ -1454,7 +1454,7 @@ class TestUserDefinedProcesses:
             "links": [
                 {'rel': 'about', 'href': 'https://wikipedia.test/evi'},
                 {
-                    'rel': 'public',
+                    'rel': 'canonical',
                     'href': 'http://oeo.net/openeo/1.0.0/processes/u:Mr.Test/evi',
                     'title': "Public URL for user-defined process 'evi'"
                 }
