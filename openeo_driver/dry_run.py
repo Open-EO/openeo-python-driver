@@ -370,7 +370,8 @@ class DryRunDataCube(DriverDataCube):
     def filter_bbox(
             self, west, south, east, north, crs=None, base=None, height=None, operation="spatial_extent"
     ) -> 'DryRunDataCube':
-        return self._process(operation, {"west": west, "south": south, "east": east, "north": north, "crs": crs})
+        return self._process(operation, {"west": west, "south": south, "east": east, "north": north,
+                                         "crs": (crs or "EPSG:4326")})
 
     def filter_spatial(self, geometries):
         geometries, bbox = self._normalize_geometry(geometries)
