@@ -1,6 +1,6 @@
 import math
 from functools import partial
-from typing import Tuple
+from typing import Tuple, Union
 
 import pyproj
 import shapely.ops
@@ -71,11 +71,14 @@ def geometry_to_crs(geometry, crs_from, crs_to):
     return shapely.ops.transform(project, geometry)
 
 
-def area_in_square_meters(geometry, crs):
+def area_in_square_meters(geometry, crs: Union[str, pyproj.CRS]):
+    if isinstance(crs, str):
+        crs = "+init=" + crs  # TODO: this is deprecated
+
     geometry_area = shapely.ops.transform(
         partial(
             pyproj.transform,
-            pyproj.Proj(init=crs),
+            pyproj.Proj(crs),
             pyproj.Proj(
                 proj='aea',
                 lat_1=geometry.bounds[1],
