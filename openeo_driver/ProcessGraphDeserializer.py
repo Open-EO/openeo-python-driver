@@ -33,6 +33,7 @@ from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveRes
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
 from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union, geojson_to_multipolygon
+from openeo_udf.api.run_code import run_user_code
 from openeo_udf.api.structured_data import StructuredData
 from openeo_udf.api.udf_data import UdfData
 
@@ -908,36 +909,34 @@ def run_udf(args: dict, env: EvalEnv):
     # TODO: note: this implements a non-standard usage of `run_udf`: processing "vector" cube (direct JSON or from aggregate_spatial, ...)
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     data = extract_arg(args, 'data')
+    udf = _get_udf(args)
+    context = args.get('context',{})
 
     # TODO: this is simple heuristic about skipping `run_udf` in dry-run mode. Does this have to be more advanced?
     # TODO: would it be useful to let user hook into dry-run phase of run_udf (e.g. hint about result type/structure)?
     if dry_run_tracer and isinstance(data, AggregatePolygonResult):
         return JSONResult({})
 
-    if not isinstance(data, DelayedVector) and not isinstance(data,AggregatePolygonResult):
-        if isinstance(data, dict):
-            data = DelayedVector.from_json_dict(data)
-        else:
-            raise ProcessParameterInvalidException(
-                parameter='data', process='run_udf',
-                reason='The run_udf process can only be used on vector cubes or aggregated timeseries directly, or as part of a callback on a raster-cube! Tried to use: %s' % str(data) )
-
-    from openeo_udf.api.run_code import run_user_code
     # Local import of this `FeatureCollection` class to avoid confusion with any standard GeoJSON FeatureCollection wrapper
     from openeo_udf.api.feature_collection import FeatureCollection
 
-    udf = _get_udf(args)
-    context = args.get('context',{})
-
-    if isinstance(data,DelayedVector):
+    if isinstance(data, AggregatePolygonResult):
+        pass
+    if isinstance(data, (DelayedVector, dict)):
+        if isinstance(data, dict):
+            data = DelayedVector.from_json_dict(data)
         collection = FeatureCollection(id='VectorCollection', data=data.as_geodataframe())
         data = UdfData(proj={"EPSG":data.crs.to_epsg()}, feature_collection_list=[collection])
-    elif isinstance(data,JSONResult):
+    elif isinstance(data, JSONResult):
         st = StructuredData(description="Dictionary data", data=data.get_data(), type="dict")
-        data = UdfData(proj={},structured_data_list=[st])
+        data = UdfData(proj={}, structured_data_list=[st])
+    elif isinstance(data, list):
+        data = UdfData(structured_data_list=[StructuredData(description="Data list", data=data, type="list")])
+    else:
+        raise ProcessParameterInvalidException(
+            parameter='data', process='run_udf', reason=f"Invalid data type {type(data)!r}")
 
-    data.user_context=context
-
+    data.user_context = context
     result_data = run_user_code(udf, data)
 
     result_collections = result_data.get_feature_collection_list()

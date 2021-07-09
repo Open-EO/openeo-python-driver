@@ -1,5 +1,6 @@
 import json
 import re
+import textwrap
 from unittest import mock
 
 import numpy as np
@@ -673,6 +674,35 @@ def test_run_udf_on_json(api100):
     )
     resp = api100.check_result(process_graph)
     assert resp.json == {'len': 2, 'keys': ['2015-07-06T00:00:00', '2015-08-22T00:00:00'], 'values': [[2.345], [None]]}
+
+
+def test_run_udf_on_list(api100):
+    udf = textwrap.dedent("""\
+        from openeo_udf.api.udf_data import UdfData
+        from openeo_udf.api.structured_data import StructuredData
+
+        def transform(data: UdfData) -> UdfData:
+            res = [
+                StructuredData(description="res", data=[x * x for x in sd.data], type="list")
+                for sd in data.get_structured_data_list()
+            ]
+            data.set_structured_data_list(res)
+    """)
+    process_graph = {
+        "udf": {
+            "process_id": "run_udf",
+            "arguments": {
+                "data": [1, 2, 3, 5, 8],
+                "udf": udf,
+                "runtime": "Python"
+            },
+            "result": True
+        }
+    }
+    resp = api100.check_result(process_graph)
+    assert resp.json == [1, 4, 9, 25, 64]
+
+
 
 
 def test_process_reference_as_argument(api100):
