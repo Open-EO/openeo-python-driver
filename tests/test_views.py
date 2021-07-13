@@ -875,7 +875,9 @@ class TestBatchJobs:
 
     def test_get_job_results_public_href_asset_100(self, api100, backend_implementation):
         results_data = {
-            "output.tiff": {BatchJobs.ASSET_PUBLIC_HREF: "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349"}
+            "output.tiff": {BatchJobs.ASSET_PUBLIC_HREF: "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349",
+                            "type":"application/tiff"
+                            }
         }
         with self._fresh_job_registry(next_job_id="job-362"), \
                 mock.patch.object(backend_implementation.batch_jobs, "get_results", return_value=results_data):
@@ -889,6 +891,7 @@ class TestBatchJobs:
                 "roles": ["data"],
                 "title": "output.tiff",
                 "file:nodata": [None],
+                "type": "application/tiff"
             }
         }
 
