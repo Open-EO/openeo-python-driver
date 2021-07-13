@@ -825,7 +825,7 @@ def register_views_batch_jobs(
             return dict_no_none(**{
                 "title": asset_metadata.get("title", filename),  # there has to be title
                 "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or download_url(filename),
-                "type": asset_metadata.get("media_type"),
+                "type": asset_metadata.get("type",asset_metadata.get("media_type","application/octet-stream")),
                 "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
                              for band in bands] if bands else None,
                 "file:nodata": [nodata],
@@ -889,7 +889,7 @@ def register_views_batch_jobs(
         if filename not in results.keys():
             raise FilePathInvalidException(str(filename) + ' not in ' + str(list(results.keys())))
         output_dir = results[filename]["output_dir"]
-        return send_from_directory(output_dir, filename, mimetype=results[filename].get("media_type"))
+        return send_from_directory(output_dir, filename, mimetype=results[filename].get("type"))
 
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results/<user_base64>/<secure_key>/<filename>', methods=['GET'])
@@ -906,7 +906,7 @@ def register_views_batch_jobs(
         if filename not in results.keys():
             raise FilePathInvalidException(str(filename) + ' not in ' + str(list(results.keys())))
         output_dir = results[filename]["output_dir"]
-        return send_from_directory(output_dir, filename, mimetype=results[filename].get("media_type"))
+        return send_from_directory(output_dir, filename, mimetype=results[filename].get("type"))
 
 
     @api_endpoint
