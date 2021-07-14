@@ -657,43 +657,101 @@ def test_read_vector_no_load_collection_spatial_extent(api):
     assert params["aggregate_spatial_geometries"] == DelayedVector(geometry_filename)
 
 
-def test_run_udf_on_vector(api100):
-    process_graph = api100.load_json(
-        "run_udf_on_vector.json",
-        preprocess=lambda s: s.replace("PLACEHOLDER", str(get_path("GeometryCollection.geojson")))
-    )
+@pytest.mark.parametrize("udf_code", [
+    """
+        from openeo_udf.api.datacube import DataCube  # Old style openeo_udf API
+        def fct_buffer(udf_data: UdfData):
+            return udf_data
+    """,
+    """
+        from openeo.udf import UdfData
+        def fct_buffer(udf_data: UdfData):
+            return udf_data
+    """,
+])
+def test_run_udf_on_vector(api100, udf_code):
+    udf_code = textwrap.dedent(udf_code)
+    process_graph = {
+        "geojson_file": {
+            "process_id": "read_vector",
+            "arguments": {"filename": str(get_path("GeometryCollection.geojson"))},
+        },
+        "udf": {
+            "process_id": "run_udf",
+            "arguments": {
+                "data": {"from_node": "geojson_file"},
+                "udf": udf_code,
+                "runtime": "Python",
+            },
+            "result": "true"
+        }
+    }
     resp = api100.check_result(process_graph)
     print(resp.json)
     assert len(resp.json) == 2
     assert resp.json[0]['type'] == 'Polygon'
 
 
-def test_run_udf_on_json(api100):
+@pytest.mark.parametrize("udf_code", [
+    """
+        from openeo_udf.api.udf_data import UdfData  # Old style openeo_udf API
+        from openeo_udf.api.structured_data import StructuredData  # Old style openeo_udf API
+        def fct_buffer(udf_data: UdfData):
+            data = udf_data.get_structured_data_list()
+            udf_data.set_structured_data_list([
+                StructuredData(description='res', data={'len': len(s.data), 'keys': s.data.keys(), 'values': s.data.values()}, type='dict') 
+                for s in data
+            ])
+    """,
+    """
+        from openeo.udf import UdfData, StructuredData
+        def fct_buffer(udf_data: UdfData):
+            data = udf_data.get_structured_data_list()
+            udf_data.set_structured_data_list([
+                StructuredData(description='res', data={'len': len(s.data), 'keys': s.data.keys(), 'values': s.data.values()}, type='dict') 
+                for s in data
+            ])
+    """,
+])
+def test_run_udf_on_json(api100, udf_code):
+    udf_code = textwrap.dedent(udf_code)
     process_graph = api100.load_json(
-        "run_udf_on_timeseries.json"
+        "run_udf_on_timeseries.json",
+        preprocess=lambda s: s.replace('"PLACEHOLDER_UDF"', repr(udf_code))
     )
     resp = api100.check_result(process_graph)
     assert resp.json == {'len': 2, 'keys': ['2015-07-06T00:00:00', '2015-08-22T00:00:00'], 'values': [[2.345], [None]]}
 
 
-def test_run_udf_on_list(api100):
-    udf = textwrap.dedent("""\
-        from openeo_udf.api.udf_data import UdfData
-        from openeo_udf.api.structured_data import StructuredData
-
+@pytest.mark.parametrize("udf_code", [
+    """
+        from openeo_udf.api.udf_data import UdfData  # Old style openeo_udf API
+        from openeo_udf.api.structured_data import StructuredData   # Old style openeo_udf API
         def transform(data: UdfData) -> UdfData:
             res = [
                 StructuredData(description="res", data=[x * x for x in sd.data], type="list")
                 for sd in data.get_structured_data_list()
             ]
             data.set_structured_data_list(res)
-    """)
+    """,
+    """
+        from openeo.udf import UdfData, StructuredData
+        def transform(data: UdfData) -> UdfData:
+            res = [
+                StructuredData(description="res", data=[x * x for x in sd.data], type="list")
+                for sd in data.get_structured_data_list()
+            ]
+            data.set_structured_data_list(res)
+    """,
+])
+def test_run_udf_on_list(api100, udf_code):
+    udf_code = textwrap.dedent(udf_code)
     process_graph = {
         "udf": {
             "process_id": "run_udf",
             "arguments": {
                 "data": [1, 2, 3, 5, 8],
-                "udf": udf,
+                "udf": udf_code,
                 "runtime": "Python"
             },
             "result": True

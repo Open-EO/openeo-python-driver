@@ -9,13 +9,14 @@ import warnings
 from pathlib import Path
 from typing import Dict, Callable, List, Union, Tuple, Any
 
+import geopandas as gpd
 import numpy as np
 import openeo_processes
 import requests
 from dateutil.relativedelta import relativedelta
 from shapely.geometry import shape, mapping
-import geopandas as gpd
 
+import openeo.udf
 from openeo.capabilities import ComparableVersion
 from openeo.metadata import CollectionMetadata, MetadataException
 from openeo.util import load_json, rfc3339
@@ -33,9 +34,6 @@ from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveRes
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
 from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union, geojson_to_multipolygon
-from openeo_udf.api.run_code import run_user_code
-from openeo_udf.api.structured_data import StructuredData
-from openeo_udf.api.udf_data import UdfData
 
 _log = logging.getLogger(__name__)
 
@@ -917,32 +915,33 @@ def run_udf(args: dict, env: EvalEnv):
     if dry_run_tracer and isinstance(data, AggregatePolygonResult):
         return JSONResult({})
 
-    # Local import of this `FeatureCollection` class to avoid confusion with any standard GeoJSON FeatureCollection wrapper
-    from openeo_udf.api.feature_collection import FeatureCollection
-
     if isinstance(data, AggregatePolygonResult):
         pass
     if isinstance(data, (DelayedVector, dict)):
         if isinstance(data, dict):
             data = DelayedVector.from_json_dict(data)
-        collection = FeatureCollection(id='VectorCollection', data=data.as_geodataframe())
-        data = UdfData(proj={"EPSG":data.crs.to_epsg()}, feature_collection_list=[collection])
+        collection = openeo.udf.FeatureCollection(id='VectorCollection', data=data.as_geodataframe())
+        data = openeo.udf.UdfData(
+            proj={"EPSG": data.crs.to_epsg()}, feature_collection_list=[collection], user_context=context
+        )
     elif isinstance(data, JSONResult):
-        st = StructuredData(description="Dictionary data", data=data.get_data(), type="dict")
-        data = UdfData(proj={}, structured_data_list=[st])
+        st = openeo.udf.StructuredData(description="Dictionary data", data=data.get_data(), type="dict")
+        data = openeo.udf.UdfData(structured_data_list=[st], user_context=context)
     elif isinstance(data, list):
-        data = UdfData(structured_data_list=[StructuredData(description="Data list", data=data, type="list")])
+        data = openeo.udf.UdfData(
+            structured_data_list=[openeo.udf.StructuredData(description="Data list", data=data, type="list")],
+            user_context=context
+        )
     else:
         raise ProcessParameterInvalidException(
             parameter='data', process='run_udf', reason=f"Invalid data type {type(data)!r}")
 
-    data.user_context = context
-    result_data = run_user_code(udf, data)
+    result_data = openeo.udf.run_udf_code(udf, data)
 
     result_collections = result_data.get_feature_collection_list()
     if result_collections != None and len(result_collections) > 0:
         with tempfile.NamedTemporaryFile(suffix=".json.tmp", delete=False) as temp_file:
-            result_collections[0].get_data().to_file(temp_file.name, driver='GeoJSON')
+            result_collections[0].data.to_file(temp_file.name, driver='GeoJSON')
             return DelayedVector(temp_file.name)
     structured_result = result_data.get_structured_data_list()
     if structured_result != None and len(structured_result)>0:
