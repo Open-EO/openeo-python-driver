@@ -77,6 +77,18 @@ def test_period_to_intervals_monthly():
     assert intervals[1] == ('2021-07-01T00:00:00', '2021-08-01T00:00:00')
     assert intervals[2] == ('2021-08-01T00:00:00', '2021-09-01T00:00:00')
 
+def test_period_to_intervals_monthly_full_year():
+
+    intervals = _period_to_intervals("2020-01-01","2021-01-01","month")
+    print(list(intervals))
+    intervals = [ (i[0].isoformat(),i[1].isoformat()) for i in intervals]
+    assert 12 == len(intervals)
+    assert intervals[0] == ('2020-01-01T00:00:00', '2020-02-01T00:00:00')
+    assert intervals[1] == ('2020-02-01T00:00:00', '2020-03-01T00:00:00')
+    assert intervals[2] == ('2020-03-01T00:00:00', '2020-04-01T00:00:00')
+    assert intervals[11] == ('2020-12-01T00:00:00', '2021-01-01T00:00:00')
+
+
 def test_period_to_intervals_daily():
 
     intervals = _period_to_intervals("2021-06-08","2021-06-11","day")
