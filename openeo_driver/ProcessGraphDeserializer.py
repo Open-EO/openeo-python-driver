@@ -26,7 +26,7 @@ from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException, \
-    FeatureUnsupportedException
+    FeatureUnsupportedException, OpenEOApiException
 from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult, NullResult
@@ -1078,7 +1078,9 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         return image_collection.aggregate_temporal(intervals, labels, process_id, dimension)
 
     if namespace and any(namespace.startswith(p) for p in ["http://", "https://"]):
+        # TODO: HTTPS only by default and config to also allow HTTP (e.g. for localhost dev and testing)
         # TODO: security aspects: only allow for certain users, only allow whitelisted domains, ...?
+
         return evaluate_process_from_url(
             process_id=process_id, namespace=namespace, args=args, env=env
         )
@@ -1179,18 +1181,35 @@ def evaluate_udp(process_id: str, udp: UserDefinedProcessMetadata, args: dict, e
 
 
 def evaluate_process_from_url(process_id: str, namespace: str, args: dict, env: EvalEnv):
-    if namespace.endswith('.json'):
-        # TODO: if namespace URL is json file: handle it as collection of processes instead of a single process spec?
-        url = namespace
+    if namespace.endswith("/"):
+        # Assume namespace is a folder possibly containing multiple processes
+        candidates = [
+            f"{namespace}{process_id}",
+            f"{namespace}{process_id}.json",
+        ]
     else:
-        url = '{n}/{p}.json'.format(n=namespace.rstrip('/'), p=process_id)
-    res = requests.get(url)
-    if res.status_code != 200:
-        raise ProcessUnsupportedException(process=process_id)
-    spec = res.json()
+        # Assume namespace is direct URL to process/UDP metadata
+        candidates = [namespace]
+
+    for candidate in candidates:
+        res = requests.get(candidate)
+        if res.status_code == 200:
+            break
+    else:
+        raise ProcessUnsupportedException(process=process_id, namespace=namespace)
+
+    try:
+        spec = res.json()
+        assert spec["id"] == process_id
+        process_graph = spec["process_graph"]
+        parameters = spec.get("parameters", [])
+    except Exception:
+        # TODO use ProcessGraphInvalidException when that is introduced after updating openeo_driver/specs/openeo-api/1.0 submodule
+        # TODO: log information about what is wrong, so user can debug issue properly
+        raise OpenEOApiException(code="ProcessGraphInvalid", status_code=400, message="Invalid process graph specified.")
+
     return _evaluate_process_graph_process(
-        process_id=process_id, process_graph=spec["process_graph"], parameters=spec.get("parameters", []),
-        args=args, env=env
+        process_id=process_id, process_graph=process_graph, parameters=parameters, args=args, env=env
     )
 
 

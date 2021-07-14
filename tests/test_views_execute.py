@@ -1065,26 +1065,99 @@ def test_discard_result(api):
     assert res.json is None
 
 
-@pytest.mark.parametrize(["url", "namespace"], [
-    ("https://oeo.net/user/123/procs/bbox_mol.json", "https://oeo.net/user/123/procs"),
-    ("https://oeo.net/user/123/procs/bbox_mol.json", "https://oeo.net/user/123/procs/"),
-    ("https://oeo.net/user/123/procs/bbox_mol.json", "https://oeo.net/user/123/procs/bbox_mol.json"),
-    ("https://oeo.net/user/123/procs/foo.json", "https://oeo.net/user/123/procs/foo.json"),
-    ("http://oeo.net/user/123/procs/bbox_mol.json", "http://oeo.net/user/123/procs"),
+@pytest.mark.parametrize(["namespace", "url_mocks", "expected_error"], [
+    (
+            "https://oeo.test/u/42/udp/bbox_mol",
+            {"https://oeo.test/u/42/udp/bbox_mol": "udp/bbox_mol.json"},
+            None,
+    ),
+    (
+            "https://oeo.test/u/42/udp/",
+            {"https://oeo.test/u/42/udp/bbox_mol": "udp/bbox_mol.json"},
+            None,
+    ),
+    (
+            "https://oeo.test/u/42/udp/",
+            {
+                "https://oeo.test/u/42/udp/bbox_mol": 404,
+                "https://oeo.test/u/42/udp/bbox_mol.json": "udp/bbox_mol.json",
+            },
+            None,
+    ),
+    (
+            "https://share.example/u42/bbox_mol.json",
+            {"https://share.example/u42/bbox_mol.json": "udp/bbox_mol.json"},
+            None,
+    ),
+    (
+            "https://share.test/u42/bbox_mol.json",
+            {
+                "https://share.test/u42/bbox_mol.json": (302, "https://shr976.test/45435"),
+                "https://shr976.test/45435": "udp/bbox_mol.json",
+            },
+            None,
+    ),
+    (
+            "https://oeo.test/u/42/udp/bbox_mol",
+            {"https://oeo.test/u/42/udp/bbox_mol": 404},
+            (
+                    400, "ProcessUnsupported",
+                    "'bbox_mol' is not available in namespace 'https://oeo.test/u/42/udp/bbox_mol'."
+            ),
+    ),
+    (
+            "https://oeo.test/u/42/udp/",
+            {
+                "https://oeo.test/u/42/udp/bbox_mol": 404,
+                "https://oeo.test/u/42/udp/bbox_mol.json": 404,
+            },
+            (
+                    400, "ProcessUnsupported",
+                    "'bbox_mol' is not available in namespace 'https://oeo.test/u/42/udp/'."
+            ),
+    ),
+    (
+            "https://oeo.test/u/42/udp/bbox_mol",
+            {"https://oeo.test/u/42/udp/bbox_mol": {"foo": "bar"}},
+            (400, "ProcessGraphInvalid", "Invalid process graph specified."),
+    ),
+    (
+            "https://oeo.test/u/42/udp/bbox_mol",
+            {"https://oeo.test/u/42/udp/bbox_mol": '{"foo": invalid json'},
+            (400, "ProcessGraphInvalid", "Invalid process graph specified."),
+    ),
 ])
-def test_evaluate_process_from_url(api100, requests_mock, url, namespace):
-    # Setup up "online" definition of `bbox_mol` process
-    bbox_mol_spec = api100.load_json("udp/bbox_mol.json")
-    url_mock = requests_mock.get(url, json=bbox_mol_spec)
+def test_evaluate_process_from_url(api100, requests_mock, namespace, url_mocks, expected_error):
+    for url, value in url_mocks.items():
+        if isinstance(value, str):
+            if value.endswith(".json"):
+                bbox_mol_spec = api100.load_json(value)
+                requests_mock.get(url, json=bbox_mol_spec)
+            else:
+                requests_mock.get(url, text=value)
+        elif isinstance(value, dict):
+            requests_mock.get(url, json=value)
+        elif value in [404, 500]:
+            requests_mock.get(url, status_code=value)
+        elif isinstance(value, tuple) and value[0] in [302]:
+            status_code, target = value
+            requests_mock.get(url, status_code=status_code, headers={"Location": target})
+        else:
+            raise ValueError(value)
 
     # Evaluate process graph (with URL namespace)
     pg = api100.load_json("udp_bbox_mol_basic.json")
+    assert pg["bboxmol1"]["process_id"] == "bbox_mol"
     pg["bboxmol1"]["namespace"] = namespace
-    api100.check_result(pg)
 
-    params = dummy_backend.last_load_collection_call('S2_FOOBAR')
-    assert params["spatial_extent"] == {"west": 5.05, "south": 51.2, "east": 5.1, "north": 51.23, "crs": 'EPSG:4326'}
-    assert url_mock.called
+    res = api100.result(pg)
+    if expected_error:
+        status_code, error_code, message = expected_error
+        res.assert_error(status_code=status_code, error_code=error_code, message=message)
+    else:
+        res.assert_status_code(200)
+        params = dummy_backend.last_load_collection_call('S2_FOOBAR')
+        assert params["spatial_extent"] == {"west": 5.05, "south": 51.2, "east": 5.1, "north": 51.23, "crs": 'EPSG:4326'}
 
 
 def test_execute_no_cube_1_plus_2(api100):
