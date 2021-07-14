@@ -21,6 +21,7 @@ tests_require = [
     'requests-mock',
     'pylint>=2.5.0',
     'astroid>=2.4.0',
+    'openeo_udf>=1.0.0rc3',
 ]
 
 setup(
@@ -46,7 +47,6 @@ setup(
         'geopandas~=0.7.0',
         'xarray~=0.16.2',
         'netCDF4~=1.5.4',
-        'openeo_udf>=1.0.0rc3',
         'flask-cors',
         'pyproj',
         'python-dateutil',
