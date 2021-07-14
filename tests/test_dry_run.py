@@ -4,12 +4,12 @@ import shapely.geometry
 from openeo.internal.graph_building import PGNode
 from openeo.rest.datacube import DataCube
 from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER, _extract_load_parameters, \
-    ENV_SOURCE_CONSTRAINTS
+    ENV_SOURCE_CONSTRAINTS, custom_process_from_process_graph, process_registry_100
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer, DataSource, DataTrace, ProcessType
 from openeo_driver.utils import EvalEnv
-from tests.data import get_path
+from tests.data import get_path, load_json
 
 
 @pytest.fixture
@@ -988,3 +988,37 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
                 'temporal_extent': ('2019-03-01', '2019-04-01')}
         )
     ]
+
+
+@pytest.mark.skip('TODO: unskip if fixed')
+def test_CropSAR_aggregate_spatial_constraint(dry_run_env, dry_run_tracer):
+    cropsar_process = load_json("pg/1.0/cropsar_graph.json")
+    custom_process_from_process_graph(cropsar_process, namespace="test")
+
+    try:
+        geometry_path = str(get_path("geojson/thaipolys_ad.geojson"))
+
+        pg = {
+            "CropSAR1": {
+                "process_id": "CropSAR",
+                "arguments": {
+                    "file_polygons": geometry_path,
+                    "time_range": [
+                        "2019-07-01",
+                        "2019-08-31"
+                    ]
+                },
+                "namespace": "test",
+                "result": True
+            }
+        }
+
+        evaluate(pg, env=dry_run_env)
+        source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+
+        assert len(source_constraints) > 0
+
+        for _, constraints in source_constraints:
+            assert constraints['aggregate_spatial']['geometries'].path == geometry_path
+    finally:
+        del process_registry_100._processes['test', 'CropSAR']
