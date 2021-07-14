@@ -990,7 +990,6 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
     ]
 
 
-@pytest.mark.skip('TODO: unskip if fixed')
 def test_CropSAR_aggregate_spatial_constraint(dry_run_env, dry_run_tracer):
     cropsar_process = load_json("pg/1.0/cropsar_graph.json")
     custom_process_from_process_graph(cropsar_process, namespace="test")

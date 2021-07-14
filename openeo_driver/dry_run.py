@@ -286,15 +286,16 @@ class DryRunDataTracer:
             ]:
                 # 1 some processes can not be skipped when pushing filters down,
                 # so find the subgraph that no longer contains these blockers
+                leaf_without_blockers = leaf
                 if op in source_constraint_blockers:
                     subgraph_without_blocking_processes = leaf.get_operation_closest_to_source(
                         source_constraint_blockers[op]
                     )
                     if subgraph_without_blocking_processes is not None:
-                        leaf = subgraph_without_blocking_processes
+                        leaf_without_blockers = subgraph_without_blocking_processes
 
                 # 2 merge filtering arguments
-                args = leaf.get_arguments_by_operation(op)
+                args = leaf_without_blockers.get_arguments_by_operation(op)
                 if args:
                     if merge:
                         # Take first item (to reproduce original behavior)
