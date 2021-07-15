@@ -68,6 +68,22 @@ def test_load_collection(api):
         }
     })
 
+def test_load_collection_date_shift(api):
+    api.check_result({
+        'dateshift1': {'arguments': {'date': '2020-01-01',
+                                     'unit': 'day',
+                                     'value': -30},
+                       'process_id': 'date_shift'
+                       },
+        'loadcollection1': {'arguments': {'id': 'S2_FAPAR_CLOUDCOVER',
+                                   'temporal_extent': [{'from_node': 'dateshift1'},
+                                                       '2021-01-01']},
+                     'process_id': 'load_collection',
+                     'result': True}})
+
+    params = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    assert params["temporal_extent"] == ('2019-12-02', '2021-01-01')
+
 
 def test_execute_filter_temporal(api):
     api.check_result({
