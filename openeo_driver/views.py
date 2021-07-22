@@ -828,7 +828,7 @@ def register_views_batch_jobs(
                 "type": asset_metadata.get("type",asset_metadata.get("media_type","application/octet-stream")),
                 "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
                              for band in bands] if bands else None,
-                "file:nodata": [nodata],
+                "file:nodata": ["nan" if nodata!=None and np.isnan(nodata) else nodata],
                 "roles": asset_metadata.get("roles", ["data"])
             })
 

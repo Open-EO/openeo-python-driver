@@ -874,9 +874,12 @@ class TestBatchJobs:
             }
 
     def test_get_job_results_public_href_asset_100(self, api100, backend_implementation):
+        import numpy as np
+
         results_data = {
             "output.tiff": {BatchJobs.ASSET_PUBLIC_HREF: "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349",
-                            "type":"application/tiff"
+                            "type":"application/tiff",
+                            "nodata":np.nan
                             }
         }
         with self._fresh_job_registry(next_job_id="job-362"), \
@@ -890,7 +893,7 @@ class TestBatchJobs:
                 "href": "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349",
                 "roles": ["data"],
                 "title": "output.tiff",
-                "file:nodata": [None],
+                "file:nodata": ['nan'],
                 "type": "application/tiff"
             }
         }
