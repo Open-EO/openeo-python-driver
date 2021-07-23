@@ -492,8 +492,7 @@ class DryRunDataCube(DriverDataCube):
 
         if target_dimension is not None:
             cube = cube._process_metadata(self.metadata.rename_dimension(source=dimension, target=target_dimension))
-        else:
-            cube = self
+
         return cube._process("apply_dimension", arguments={"dimension": dimension})
 
     def apply_tiles_spatiotemporal(self, process, context={}) -> 'DriverDataCube':

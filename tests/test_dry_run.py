@@ -528,6 +528,80 @@ def test_aggregate_spatial_only(dry_run_env, dry_run_tracer):
     }
 
 
+def test_aggregate_spatial_apply_dimension(dry_run_env, dry_run_tracer):
+    polygon = {"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]}
+    pg = {'loadcollection1': {'process_id': 'load_collection', 'arguments': {'bands': ['B04', 'B08', 'B11', 'SCL'],
+                                                                             'id': 'S2_FOOBAR',
+                                                                             'spatial_extent': None,
+                                                                             'temporal_extent': ['2018-11-01',
+                                                                                                 '2020-02-01']}},
+          'maskscldilation1': {'process_id': 'mask_scl_dilation',
+                               'arguments': {'data': {'from_node': 'loadcollection1'}, 'scl_band_name': 'SCL'}},
+          'aggregatetemporalperiod1': {'process_id': 'aggregate_temporal_period',
+                                       'arguments': {'data': {'from_node': 'maskscldilation1'}, 'period': 'month',
+                                                     'reducer': {'process_graph': {'mean1': {'process_id': 'mean',
+                                                                                             'arguments': {'data': {
+                                                                                                 'from_parameter': 'data'}},
+                                                                                             'result': True}}}}},
+          'applydimension1': {'process_id': 'apply_dimension',
+                              'arguments': {'data': {'from_node': 'aggregatetemporalperiod1'}, 'dimension': 't',
+                                            'process': {'process_graph': {
+                                                'arrayinterpolatelinear1': {'process_id': 'array_interpolate_linear',
+                                                                            'arguments': {
+                                                                                'data': {'from_parameter': 'data'}},
+                                                                            'result': True}}}}},
+          'filtertemporal1': {'process_id': 'filter_temporal', 'arguments': {'data': {'from_node': 'applydimension1'},
+                                                                             'extent': ['2019-01-01', '2020-01-01']}},
+          'applydimension2': {'process_id': 'apply_dimension',
+                              'arguments': {'data': {'from_node': 'filtertemporal1'}, 'dimension': 'bands', 'process': {
+                                  'process_graph': {'arrayelement1': {'process_id': 'array_element',
+                                                                      'arguments': {'data': {'from_parameter': 'data'},
+                                                                                    'index': 1}},
+                                                    'arrayelement2': {'process_id': 'array_element',
+                                                                      'arguments': {'data': {'from_parameter': 'data'},
+                                                                                    'index': 0}},
+                                                    'normalizeddifference1': {'process_id': 'normalized_difference',
+                                                                              'arguments': {
+                                                                                  'x': {'from_node': 'arrayelement1'},
+                                                                                  'y': {'from_node': 'arrayelement2'}}},
+                                                    'arraymodify1': {'process_id': 'array_modify',
+                                                                     'arguments': {'data': {'from_parameter': 'data'},
+                                                                                   'index': 0, 'values': {
+                                                                             'from_node': 'normalizeddifference1'}},
+                                                                     'result': True}}}}},
+          'renamelabels1': {'process_id': 'rename_labels',
+                            'arguments': {'data': {'from_node': 'applydimension2'}, 'dimension': 'bands',
+                                          'target': ['NDVI', 'B04', 'B08']}},
+          'aggregatespatial1': {'process_id': 'aggregate_spatial',
+                                'arguments': {'data': {'from_node': 'renamelabels1'}, 'geometries': polygon,
+                                              'reducer': {'process_graph': {'mean2': {'process_id': 'mean',
+                                                                                      'arguments': {'data': {
+                                                                                          'from_parameter': 'data'}},
+                                                                                      'result': True}}}},
+                                'result': True}}
+
+    cube = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints[0]
+    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert constraints == {
+        "spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
+        "process_type": [ProcessType.GLOBAL_TIME],
+        "bands": ["B04", "B08", "B11", "SCL"],
+        "custom_cloud_mask": {"method": "mask_scl_dilation"},
+        "aggregate_spatial": {"geometries": shapely.geometry.shape(polygon)},
+        "temporal_extent": ("2018-11-01", "2020-02-01")
+    }
+    geometries, = dry_run_tracer.get_geometries()
+    assert isinstance(geometries, shapely.geometry.Polygon)
+    assert shapely.geometry.mapping(geometries) == {
+        "type": "Polygon",
+        "coordinates": (((0.0, 0.0), (3.0, 5.0), (8.0, 2.0), (0.0, 0.0)),)
+    }
+
+
 def test_aggregate_spatial_and_filter_bbox(dry_run_env, dry_run_tracer):
     polygon = {"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]}
     bbox = {"west": -1, "south": -1, "east": 9, "north": 9, "crs": "EPSG:4326"}
