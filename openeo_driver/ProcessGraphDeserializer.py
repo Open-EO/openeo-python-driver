@@ -1148,7 +1148,7 @@ def _get_udf(args):
     udf = extract_arg(args, "udf")
     runtime = extract_arg(args, "runtime")
     # TODO allow registration of supported runtimes, so we can be more generic
-    if not (runtime == "Python" or runtime == "PythonOffheap"):
+    if not (runtime == "Python" or runtime == "Python-Jep"):
         raise NotImplementedError("Unsupported runtime: " + runtime + " this backend only supports the Python runtime.")
     version = args.get("version", None)
     if version is not None and version != "3.5.1" and version != "latest":
