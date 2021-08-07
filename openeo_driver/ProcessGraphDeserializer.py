@@ -907,7 +907,7 @@ def run_udf(args: dict, env: EvalEnv):
     # TODO: note: this implements a non-standard usage of `run_udf`: processing "vector" cube (direct JSON or from aggregate_spatial, ...)
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     data = extract_arg(args, 'data')
-    udf = _get_udf(args)
+    udf, runtime = _get_udf(args)
     context = args.get('context',{})
 
     # TODO: this is simple heuristic about skipping `run_udf` in dry-run mode. Does this have to be more advanced?
@@ -1001,9 +1001,9 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         # TODO EP-3404 this code path is for version <1.0.0, soon to be deprecated
         image_collection = extract_arg_list(args, ['x', 'data'])
         if process_id == "run_udf":
-            udf = _get_udf(args)
+            udf, runtime = _get_udf(args)
             # TODO replace non-standard apply_tiles with standard "reduce_dimension" https://github.com/Open-EO/openeo-python-client/issues/140
-            return image_collection.apply_tiles(udf)
+            return image_collection.apply_tiles(udf, {}, runtime)
         else:
             # TODO : add support for `apply` with non-trivial child process graphs #EP-3404
             return image_collection.apply(process_id, args)
@@ -1014,14 +1014,14 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         binary = parameters.get('binary', False) or parent_process == "reduce_dimension_binary"
         dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         if 'run_udf' == process_id and not binary:
-            udf = _get_udf(args)
+            udf, runtime = _get_udf(args)
             context = args.get("context", {})
             if dimension == temporal_dim:
                 # EP-2760 a special case of reduce where only a single udf based callback is provided. The more generic case is not yet supported.
                 return image_collection.apply_tiles_spatiotemporal(udf,context)
             elif dimension == band_dim:
                 # TODO replace non-standard apply_tiles with standard "reduce_dimension" https://github.com/Open-EO/openeo-python-client/issues/140
-                return image_collection.apply_tiles(udf,context)
+                return image_collection.apply_tiles(udf,context,runtime)
 
         return image_collection.reduce(process_id, dimension)
     elif parent_process == 'apply_dimension':
@@ -1032,13 +1032,13 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         transformed_collection = None
         if process_id == "run_udf":
-            udf = _get_udf(args)
+            udf, runtime = _get_udf(args)
             context = args.get("context",{})
             if dimension == temporal_dim:
                 transformed_collection = image_collection.apply_tiles_spatiotemporal(udf,context)
             else:
                 # TODO replace non-standard apply_tiles with standard "reduce_dimension" https://github.com/Open-EO/openeo-python-client/issues/140
-                transformed_collection = image_collection.apply_tiles(udf,context)
+                transformed_collection = image_collection.apply_tiles(udf,context,runtime)
         else:
             transformed_collection = image_collection.apply_dimension(process_id, dimension)
         if target_dimension is not None:
@@ -1148,12 +1148,12 @@ def _get_udf(args):
     udf = extract_arg(args, "udf")
     runtime = extract_arg(args, "runtime")
     # TODO allow registration of supported runtimes, so we can be more generic
-    if runtime != "Python":
+    if not (runtime == "Python" or runtime == "Python-Jep"):
         raise NotImplementedError("Unsupported runtime: " + runtime + " this backend only supports the Python runtime.")
     version = args.get("version", None)
     if version is not None and version != "3.5.1" and version != "latest":
         raise NotImplementedError("Unsupported Python version: " + version + "this backend only support version 3.5.1.")
-    return udf
+    return udf, runtime
 
 
 def _evaluate_process_graph_process(
