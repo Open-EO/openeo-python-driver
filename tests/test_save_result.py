@@ -2,8 +2,15 @@ import numpy as np
 import pytest
 from shapely.geometry import GeometryCollection, Polygon
 
-from openeo_driver.save_result import AggregatePolygonResult
+from openeo_driver.save_result import AggregatePolygonResult, SaveResult
 from .data import load_json, json_normalize
+
+
+def test_is_format():
+    r = SaveResult("GTiff")
+    assert r.is_format("gtiff")
+    assert r.is_format("gtiff", "geotiff")
+    assert not r.is_format("geotiff")
 
 
 def test_aggregate_polygon_result_basic():

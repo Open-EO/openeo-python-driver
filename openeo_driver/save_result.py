@@ -27,6 +27,9 @@ class SaveResult(ABC):
         self.format = format and format.lower()
         self.options = options or {}
 
+    def is_format(self, *args):
+        return self.format.lower() in {f.lower() for f in args}
+
     def set_format(self, format: str, options: dict = None):
         self.format = format.lower()
         self.options = options or {}
@@ -144,7 +147,7 @@ class AggregatePolygonResult(JSONResult):
         self._metadata = metadata
 
     def get_data(self):
-        if self.format in ('covjson', 'coveragejson'):
+        if self.is_format('covjson', 'coveragejson'):
             return self.to_covjson()
         # By default, keep original (proprietary) result format
         return self.data
@@ -162,11 +165,11 @@ class AggregatePolygonResult(JSONResult):
             "roles": ["data"],
             "type": "application/json"
         }
-        if self.format.lower() in ('netcdf'):
+        if self.is_format('netcdf', 'ncdf'):
             filename = str(Path(directory) / "timeseries.nc")
             self.to_netcdf(filename)
             asset["type"] = "application/x-netcdf"
-        elif self.format.lower() == 'csv':
+        elif self.is_format('csv'):
             filename = str(Path(directory) / "timeseries.csv")
             self.to_csv(filename)
             asset["type"] = "text/csv"
@@ -182,11 +185,11 @@ class AggregatePolygonResult(JSONResult):
         return {str(Path(filename).name): asset}
 
     def create_flask_response(self):
-        if self.format.lower() in ('netcdf'):
+        if self.is_format('netcdf', 'ncdf'):
             filename = self.to_netcdf()
             return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
 
-        if self.format.lower() == 'csv':
+        if self.is_format('csv'):
             filename = self.to_csv()
             return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
 
