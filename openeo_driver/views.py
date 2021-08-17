@@ -421,15 +421,16 @@ def register_views_general(
     @blueprint.route('/udf_runtimes')
     def udf_runtimes():
         # TODO: move this to OpenEoBackendImplementation?
+        python_version = "3.5.1"
         runtimes = {
             "Python": {
                 "title": "Python 3.5",
                 "description": "Predefined Python runtime environment.",
                 "type": "language",
-                "default": "latest",
+                "default": python_version,
                 "versions": {
                     # TODO: get these versions from somewhere instead of hardcoding them?
-                    "3.5.1": {
+                    python_version: {
                         "libraries": {
                             "numpy": {"version": "1.14.3"},
                             "pandas": {"version": "0.22.0"},
