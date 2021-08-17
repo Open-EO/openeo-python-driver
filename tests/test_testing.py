@@ -1,7 +1,7 @@
 import flask
 import pytest
 
-from openeo_driver.testing import preprocess_check_and_replace, IgnoreOrder, ApiTester
+from openeo_driver.testing import preprocess_check_and_replace, IgnoreOrder, ApiTester, RegexMatcher
 
 
 def test_api_tester_url():
@@ -65,3 +65,7 @@ def test_ignore_order_nesting():
 
 def test_ignore_order_key():
     assert [{"f": "b"}, {"x": "y:"}] == IgnoreOrder([{"x": "y:"}, {"f": "b"}], key=repr)
+
+
+def test_regex_matcher():
+    assert {"foo": "baaaaa"} == {"foo": RegexMatcher("ba+")}

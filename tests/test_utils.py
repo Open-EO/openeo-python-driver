@@ -3,8 +3,10 @@ import typing
 import pytest
 import shapely.geometry
 
+from openeo_driver.testing import RegexMatcher
 from openeo_driver.utils import smart_bool, EvalEnv, to_hashable, bands_union, temporal_extent_union, \
-    spatial_extent_union, dict_item, reproject_bounding_box, geojson_to_multipolygon, extract_namedtuple_fields_from_dict
+    spatial_extent_union, dict_item, reproject_bounding_box, geojson_to_multipolygon, \
+    extract_namedtuple_fields_from_dict, get_package_versions
 
 
 def test_smart_bool():
@@ -333,3 +335,22 @@ def test_extract_namedtuple_fields_from_dict():
     assert extract_namedtuple_fields_from_dict(
         {"id": "bar", "size": 3, "height": 666}, Foo
     ) == {"id": "bar", "size": 3}
+
+
+def test_get_package_versions_basic():
+    versions = get_package_versions(["flask", "requests"])
+    assert versions == {
+        "flask": RegexMatcher(r"Flask \d+\.\d+\.\d+"),
+        "requests": RegexMatcher(r"requests \d+\.\d+\.\d+"),
+    }
+
+
+def test_get_package_versions_na():
+    versions = get_package_versions(["foobarmeh"])
+    assert versions == {
+        "foobarmeh": "n/a",
+    }
+    versions = get_package_versions(["foobarmeh"], na_value=None)
+    assert versions == {
+        "foobarmeh": None,
+    }

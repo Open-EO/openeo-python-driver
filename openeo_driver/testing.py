@@ -271,6 +271,23 @@ class IgnoreOrder:
         return '{c}({v!r})'.format(c=self.__class__.__name__, v=self.items)
 
 
+class RegexMatcher:
+    """
+    pytest helper to check a string against a regex, especially in nested structures, e.g.:
+
+        >>> assert {"foo": "baaaaa"} == {"foo": RegexMatcher("ba+")}
+    """
+
+    def __init__(self, pattern: str, flags=0):
+        self.regex = re.compile(pattern=pattern, flags=flags)
+
+    def __eq__(self, other):
+        return bool(self.regex.match(other))
+
+    def __repr__(self):
+        return self.regex.pattern
+
+
 def generate_unique_test_process_id():
     # Because the process registries are global variables we can not mock easily
     # we'll add new test processes with a (random) unique name.

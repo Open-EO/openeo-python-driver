@@ -7,6 +7,7 @@ from math import isnan
 from pathlib import Path
 from typing import Union, List, Tuple, Any
 
+import pkg_resources
 import pyproj
 import shapely.geometry
 import shapely.ops
@@ -325,3 +326,14 @@ def extract_namedtuple_fields_from_dict(d: dict, named_tuple_class: typing.Type[
         )
 
     return result
+
+
+def get_package_versions(packages: List[str], na_value="n/a") -> dict:
+    """Get (installed) version number of each package (where possible)."""
+    version_info = {}
+    for package in packages:
+        try:
+            version_info[package] = str(pkg_resources.get_distribution(package))
+        except pkg_resources.DistributionNotFound:
+            version_info[package] = na_value
+    return version_info

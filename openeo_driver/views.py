@@ -3,6 +3,7 @@ import functools
 import logging
 import os
 import re
+import sys
 import uuid
 from collections import namedtuple, defaultdict
 from typing import Callable, Tuple, List
@@ -26,7 +27,7 @@ from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingExceptio
     JobNotFinishedException
 from openeo_driver.save_result import SaveResult, get_temp_file
 from openeo_driver.users import HttpAuthHandler, User, user_id_b64_encode, user_id_b64_decode
-from openeo_driver.utils import replace_nan_values, EvalEnv, smart_bool
+from openeo_driver.utils import replace_nan_values, EvalEnv, smart_bool, get_package_versions
 
 _log = logging.getLogger(__name__)
 
@@ -420,23 +421,30 @@ def register_views_general(
     @api_endpoint
     @blueprint.route('/udf_runtimes')
     def udf_runtimes():
-        # TODO: move this to OpenEoBackendImplementation?
-        python_version = "3.5.1"
+        # Current Python version
+        major, minor, patch = sys.version_info[:3]
+        aliases = [
+            f"{major}",
+            f"{major}.{minor}",
+            f"{major}.{minor}.{patch}"
+        ]
+        default_version = aliases[0]
+
+        libraries = {
+            p: {"version": v.split(" ", 1)[-1]}
+            for p, v in get_package_versions(["numpy", "pandas", "tensorflow"], na_value=None).items()
+            if v
+        }
+
         runtimes = {
             "Python": {
-                "title": "Python 3.5",
-                "description": "Predefined Python runtime environment.",
+                "title": f"Python {major}",
+                "description": f"Python {major} runtime environment.",
                 "type": "language",
-                "default": python_version,
+                "default": default_version,
                 "versions": {
-                    # TODO: get these versions from somewhere instead of hardcoding them?
-                    python_version: {
-                        "libraries": {
-                            "numpy": {"version": "1.14.3"},
-                            "pandas": {"version": "0.22.0"},
-                            "tensorflow": {"version": "1.11.0"},
-                        }
-                    }
+                    v: {"libraries": libraries}
+                    for v in aliases
                 }
             }
         }

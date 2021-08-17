@@ -1,4 +1,5 @@
 import json
+import platform
 import re
 import textwrap
 from unittest import mock
@@ -51,7 +52,11 @@ def test_udf_runtimes(api):
     runtimes = api.get('/udf_runtimes').assert_status_code(200).json
     assert "Python" in runtimes
     assert runtimes["Python"]["type"] == "language"
-    assert runtimes["Python"]["default"] in runtimes["Python"]["versions"]
+    assert runtimes["Python"]["default"] == "3"
+    assert "3" in runtimes["Python"]["versions"]
+    python_version = platform.python_version()
+    for v in [python_version, python_version.rsplit(".", 1)[0], python_version.rsplit(".", 2)[0]]:
+        assert v in runtimes["Python"]["versions"]
 
 
 def test_execute_simple_download(api):

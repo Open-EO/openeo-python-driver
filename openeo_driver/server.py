@@ -6,9 +6,9 @@ from typing import List, Dict
 
 import flask
 import gunicorn.app.base
-import pkg_resources
 
 from openeo.util import rfc3339
+from openeo_driver.utils import get_package_versions
 
 _log = logging.getLogger(__name__)
 
@@ -68,15 +68,9 @@ def show_log_level(logger: logging.Logger):
 
 
 def build_backend_deploy_metadata(packages: List[str]) -> dict:
-    version_info = {}
-    for package in packages:
-        try:
-            version_info[package] = str(pkg_resources.get_distribution(package))
-        except pkg_resources.DistributionNotFound:
-            version_info[package] = "n/a"
     return {
         'date': rfc3339.normalize(datetime.datetime.utcnow()),
-        'versions': version_info
+        'versions': get_package_versions(packages)
     }
 
 
