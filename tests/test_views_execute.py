@@ -17,7 +17,7 @@ from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyVisitor
 from openeo_driver.errors import ProcessGraphMissingException
 from openeo_driver.testing import ApiTester, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN, \
-    preprocess_regex_check_and_replace, generate_unique_test_process_id
+    preprocess_regex_check_and_replace, generate_unique_test_process_id, RegexMatcher, DictSubSet
 from openeo_driver.utils import EvalEnv
 from .data import get_path, TEST_DATA_ROOT, load_json
 
@@ -50,13 +50,17 @@ def api100(client) -> ApiTester:
 
 def test_udf_runtimes(api):
     runtimes = api.get('/udf_runtimes').assert_status_code(200).json
-    assert "Python" in runtimes
-    assert runtimes["Python"]["type"] == "language"
-    assert runtimes["Python"]["default"] == "3"
-    assert "3" in runtimes["Python"]["versions"]
-    python_version = platform.python_version()
-    for v in [python_version, python_version.rsplit(".", 1)[0], python_version.rsplit(".", 2)[0]]:
-        assert v in runtimes["Python"]["versions"]
+    assert runtimes == DictSubSet({
+        "Python": DictSubSet({
+            "title": RegexMatcher("Python"),
+            "type": "language",
+            "default": "3",
+            "versions": DictSubSet({
+                "3": {"libraries": DictSubSet({"numpy": {"version": RegexMatcher("\d+\.\d+\.\d+")}})},
+                "3.6": {"libraries": DictSubSet({"numpy": {"version": RegexMatcher("\d+\.\d+\.\d+")}})},
+            })
+        })
+    })
 
 
 def test_execute_simple_download(api):
@@ -231,7 +235,7 @@ def test_execute_apply_unary_invalid_from_parameter(api100):
     resp.assert_error(400, "ProcessParameterRequired")
 
 
-def test_execute_apply_run_udf(api040):
+def test_execute_apply_run_udf_040(api040):
     api040.check_result("apply_run_udf.json")
     assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").apply_tiles.call_count == 1
 
@@ -781,6 +785,58 @@ def test_run_udf_on_list(api100, udf_code):
     resp = api100.check_result(process_graph)
     assert resp.json == [1, 4, 9, 25, 64]
 
+
+@pytest.mark.parametrize(["runtime", "version", "failure"], [
+    ("Python", None, None),
+    ("pYthOn", None, None),
+    ("Python", "3", None),
+    ("Python", "3.6", None),
+    (
+            "Python", "2",
+            re.compile(r"unsupported runtime version Python '2', should be one of \['3', '3\.\d+'.* or null"),
+    ),
+    (
+            "Python", "1.2.3",
+            re.compile(r"unsupported runtime version Python '1.2.3', should be one of \['3', '3\.\d+'.* or null"),
+    ),
+    ("Python-Jep", None, None),
+    ("Python-Jep", "3", None),
+    (
+            "meh", "3.6",
+            "unsupported runtime 'meh', should be one of ['Python', 'Python-Jep']",
+    ),
+    (
+            None, "3.6",
+            "unsupported runtime None, should be one of ['Python', 'Python-Jep']",
+    ),
+])
+def test_run_udf_on_list_runtimes(api100, runtime, version, failure):
+    udf_code = textwrap.dedent("""
+        from openeo.udf import UdfData, StructuredData
+        def transform(data: UdfData) -> UdfData:
+            res = [
+                StructuredData(description="res", data=[x * x for x in sd.data], type="list")
+                for sd in data.get_structured_data_list()
+            ]
+            data.set_structured_data_list(res)
+    """)
+    process_graph = {
+        "udf": {
+            "process_id": "run_udf",
+            "arguments": {
+                "data": [1, 2, 3, 5, 8],
+                "udf": udf_code,
+                "runtime": runtime,
+                "version": version
+            },
+            "result": True
+        }
+    }
+    resp = api100.result(process_graph)
+    if failure:
+        resp.assert_error(400, error_code="ProcessParameterInvalid", message=failure)
+    else:
+        assert resp.assert_status_code(200).json == [1, 4, 9, 25, 64]
 
 
 

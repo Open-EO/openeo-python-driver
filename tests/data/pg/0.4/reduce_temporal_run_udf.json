@@ -20,7 +20,6 @@
                 "from_argument": "data"
               },
               "runtime": "Python",
-              "version": "3.5.1",
               "udf": "my python code"
             },
             "process_id": "run_udf",

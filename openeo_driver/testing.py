@@ -282,10 +282,26 @@ class RegexMatcher:
         self.regex = re.compile(pattern=pattern, flags=flags)
 
     def __eq__(self, other):
-        return bool(self.regex.match(other))
+        return isinstance(other, str) and bool(self.regex.match(other))
 
     def __repr__(self):
         return self.regex.pattern
+
+
+class DictSubSet:
+    """
+    pytest helper to check if a dictionary contains a subset of items, e.g.:
+
+    >> assert {"foo": "bar", "meh": 4} == DictSubSet({"foo": "bar"})
+    """
+    def __init__(self, items:dict):
+        self.items = items
+
+    def __eq__(self, other):
+        return self.items == {k: other[k] for k in self.items if k in other}
+
+    def __repr__(self):
+        return repr(self.items)
 
 
 def generate_unique_test_process_id():

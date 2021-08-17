@@ -11,6 +11,7 @@ Also see https://github.com/Open-EO/openeo-python-driver/issues/8
 
 import abc
 import logging
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Union, NamedTuple, Dict, Optional, Callable
@@ -22,7 +23,7 @@ from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException
 from openeo_driver.processes import ProcessRegistry
-from openeo_driver.utils import read_json, dict_item, EvalEnv, extract_namedtuple_fields_from_dict
+from openeo_driver.utils import read_json, dict_item, EvalEnv, extract_namedtuple_fields_from_dict, get_package_versions
 
 logger = logging.getLogger(__name__)
 
@@ -449,6 +450,52 @@ class ErrorSummary:
         })
 
 
+class UdfRuntimes(MicroService):
+    # Python libraries to list
+    python_libraries = ["numpy", "scipy"]
+
+    def __init__(self):
+        pass
+
+    def get_python_versions(self):
+        major, minor, patch = (str(v) for v in sys.version_info[:3])
+        aliases = [
+            f"{major}",
+            f"{major}.{minor}",
+            f"{major}.{minor}.{patch}"
+        ]
+        default_version = major
+        return major, aliases, default_version
+
+    def _get_python_udf_runtime_metadata(self):
+        major, aliases, default_version = self.get_python_versions()
+        libraries = {
+            p: {"version": v.split(" ", 1)[-1]}
+            for p, v in get_package_versions(self.python_libraries, na_value=None).items()
+            if v
+        }
+
+        return {
+            "title": f"Python {major}",
+            "description": f"Python {major} runtime environment.",
+            "type": "language",
+            "default": default_version,
+            "versions": {
+                v: {"libraries": libraries}
+                for v in aliases
+            }
+        }
+
+    def get_udf_runtimes(self) -> dict:
+        # TODO add caching of this result
+        return {
+            # TODO: toggle these runtimes through dependency injection or config?
+            "Python": self._get_python_udf_runtime_metadata(),
+            "Python-Jep": self._get_python_udf_runtime_metadata(),
+        }
+
+
+
 class OpenEoBackendImplementation:
     """
     Simple container of all openEo "microservices"
@@ -468,6 +515,7 @@ class OpenEoBackendImplementation:
         self.user_defined_processes = user_defined_processes
         self.user_files = None  # TODO: implement user file storage microservice
         self.processing = processing
+        self.udf_runtimes = UdfRuntimes()
 
     def health_check(self) -> str:
         return "OK"

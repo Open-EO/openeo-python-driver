@@ -421,33 +421,7 @@ def register_views_general(
     @api_endpoint
     @blueprint.route('/udf_runtimes')
     def udf_runtimes():
-        # Current Python version
-        major, minor, patch = sys.version_info[:3]
-        aliases = [
-            f"{major}",
-            f"{major}.{minor}",
-            f"{major}.{minor}.{patch}"
-        ]
-        default_version = aliases[0]
-
-        libraries = {
-            p: {"version": v.split(" ", 1)[-1]}
-            for p, v in get_package_versions(["numpy", "pandas", "tensorflow"], na_value=None).items()
-            if v
-        }
-
-        runtimes = {
-            "Python": {
-                "title": f"Python {major}",
-                "description": f"Python {major} runtime environment.",
-                "type": "language",
-                "default": default_version,
-                "versions": {
-                    v: {"libraries": libraries}
-                    for v in aliases
-                }
-            }
-        }
+        runtimes = backend_implementation.udf_runtimes.get_udf_runtimes()
         return jsonify(runtimes)
 
     @blueprint.route('/.well-known/openeo')

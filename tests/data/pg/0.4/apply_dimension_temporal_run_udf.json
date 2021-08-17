@@ -28,7 +28,6 @@
                 "from_node": "cumsum"
               },
               "runtime": "Python",
-              "version": "3.5.1",
               "udf": "my python code"
             },
             "process_id": "run_udf",

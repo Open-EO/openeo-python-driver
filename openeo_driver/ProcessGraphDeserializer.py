@@ -907,7 +907,7 @@ def run_udf(args: dict, env: EvalEnv):
     # TODO: note: this implements a non-standard usage of `run_udf`: processing "vector" cube (direct JSON or from aggregate_spatial, ...)
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     data = extract_arg(args, 'data')
-    udf, runtime = _get_udf(args)
+    udf, runtime = _get_udf(args, env=env)
     context = args.get('context',{})
 
     # TODO: this is simple heuristic about skipping `run_udf` in dry-run mode. Does this have to be more advanced?
@@ -1001,7 +1001,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         # TODO EP-3404 this code path is for version <1.0.0, soon to be deprecated
         image_collection = extract_arg_list(args, ['x', 'data'])
         if process_id == "run_udf":
-            udf, runtime = _get_udf(args)
+            udf, runtime = _get_udf(args, env=env)
             # TODO replace non-standard apply_tiles with standard "reduce_dimension" https://github.com/Open-EO/openeo-python-client/issues/140
             return image_collection.apply_tiles(udf, {}, runtime)
         else:
@@ -1014,7 +1014,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         binary = parameters.get('binary', False) or parent_process == "reduce_dimension_binary"
         dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         if 'run_udf' == process_id and not binary:
-            udf, runtime = _get_udf(args)
+            udf, runtime = _get_udf(args, env=env)
             context = args.get("context", {})
             if dimension == temporal_dim:
                 # EP-2760 a special case of reduce where only a single udf based callback is provided. The more generic case is not yet supported.
@@ -1032,7 +1032,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
         transformed_collection = None
         if process_id == "run_udf":
-            udf, runtime = _get_udf(args)
+            udf, runtime = _get_udf(args, env=env)
             context = args.get("context",{})
             if dimension == temporal_dim:
                 transformed_collection = image_collection.apply_tiles_spatiotemporal(udf,context)
@@ -1144,15 +1144,28 @@ def raster_to_vector(args: Dict, env: EvalEnv):
     return image_collection.raster_to_vector()
 
 
-def _get_udf(args):
+def _get_udf(args, env: EvalEnv):
     udf = extract_arg(args, "udf")
     runtime = extract_arg(args, "runtime")
-    # TODO allow registration of supported runtimes, so we can be more generic
-    if not (runtime == "Python" or runtime == "Python-Jep"):
-        raise NotImplementedError("Unsupported runtime: " + runtime + " this backend only supports the Python runtime.")
     version = args.get("version", None)
-    if version is not None and version != "3.5.1" and version != "latest":
-        raise NotImplementedError("Unsupported Python version: " + version + "this backend only support version 3.5.1.")
+
+    available_runtimes = env.backend_implementation.udf_runtimes.get_udf_runtimes()
+    available_runtime_names = list(available_runtimes.keys())
+    # Make lookup case insensitive
+    available_runtimes.update({k.lower(): v for k, v in available_runtimes.items()})
+
+    if not runtime or runtime.lower() not in available_runtimes:
+        raise ProcessParameterInvalidException(
+            parameter="runtime", process="run_udf",
+            reason=f"unsupported runtime {runtime!r}, should be one of {available_runtime_names}"
+        )
+    available_versions = list(available_runtimes[runtime.lower()]["versions"].keys())
+    if version and version not in available_versions:
+        raise ProcessParameterInvalidException(
+            parameter="version", process="run_udf",
+            reason=f"unsupported runtime version {runtime} {version!r}, should be one of {available_versions} or null"
+        )
+
     return udf, runtime
 
 

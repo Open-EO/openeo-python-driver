@@ -1,7 +1,7 @@
 import flask
 import pytest
 
-from openeo_driver.testing import preprocess_check_and_replace, IgnoreOrder, ApiTester, RegexMatcher
+from openeo_driver.testing import preprocess_check_and_replace, IgnoreOrder, ApiTester, RegexMatcher, DictSubSet
 
 
 def test_api_tester_url():
@@ -69,3 +69,12 @@ def test_ignore_order_key():
 
 def test_regex_matcher():
     assert {"foo": "baaaaa"} == {"foo": RegexMatcher("ba+")}
+
+
+def test_dict_subset():
+    expected = DictSubSet({"foo": "bar"})
+    assert {"foo": "bar"} == expected
+    assert {"foo": "nope"} != expected
+    assert {"foo": "bar", "meh": 4} == expected
+    assert {"foo": "nope", "meh": 4} != expected
+    assert {"meh": 4} != expected
