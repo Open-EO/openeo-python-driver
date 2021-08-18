@@ -1155,15 +1155,15 @@ def _get_udf(args, env: EvalEnv):
     available_runtimes.update({k.lower(): v for k, v in available_runtimes.items()})
 
     if not runtime or runtime.lower() not in available_runtimes:
-        raise ProcessParameterInvalidException(
-            parameter="runtime", process="run_udf",
-            reason=f"unsupported runtime {runtime!r}, should be one of {available_runtime_names}"
+        raise OpenEOApiException(
+            status_code=400, code="InvalidRuntime",
+            message=f"Unsupported UDF runtime {runtime!r}. Should be one of {available_runtime_names}"
         )
     available_versions = list(available_runtimes[runtime.lower()]["versions"].keys())
     if version and version not in available_versions:
-        raise ProcessParameterInvalidException(
-            parameter="version", process="run_udf",
-            reason=f"unsupported runtime version {runtime} {version!r}, should be one of {available_versions} or null"
+        raise OpenEOApiException(
+            status_code=400, code="InvalidVersion",
+            message=f"Unsupported UDF runtime version {runtime} {version!r}. Should be one of {available_versions} or null"
         )
 
     return udf, runtime

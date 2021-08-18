@@ -791,24 +791,19 @@ def test_run_udf_on_list(api100, udf_code):
     ("pYthOn", None, None),
     ("Python", "3", None),
     ("Python", "3.6", None),
-    (
-            "Python", "2",
-            re.compile(r"unsupported runtime version Python '2', should be one of \['3', '3\.\d+'.* or null"),
-    ),
-    (
-            "Python", "1.2.3",
-            re.compile(r"unsupported runtime version Python '1.2.3', should be one of \['3', '3\.\d+'.* or null"),
-    ),
+    ("Python", "2", (
+            "InvalidVersion",
+            re.compile(r"Unsupported UDF runtime version Python '2'. Should be one of \['3', '3\.\d+'.* or null")
+    )),
+    ("Python", "1.2.3", (
+            "InvalidVersion",
+            re.compile(r"Unsupported UDF runtime version Python '1.2.3'. Should be one of \['3', '3\.\d+'.* or null"),
+    )),
     ("Python-Jep", None, None),
     ("Python-Jep", "3", None),
-    (
-            "meh", "3.6",
-            "unsupported runtime 'meh', should be one of ['Python', 'Python-Jep']",
-    ),
-    (
-            None, "3.6",
-            "unsupported runtime None, should be one of ['Python', 'Python-Jep']",
-    ),
+    ("meh", "3.6", ("InvalidRuntime", "Unsupported UDF runtime 'meh'. Should be one of ['Python', 'Python-Jep']")),
+    (None, "3.6", ("InvalidRuntime", "Unsupported UDF runtime None. Should be one of ['Python', 'Python-Jep']"),
+     ),
 ])
 def test_run_udf_on_list_runtimes(api100, runtime, version, failure):
     udf_code = textwrap.dedent("""
@@ -834,7 +829,8 @@ def test_run_udf_on_list_runtimes(api100, runtime, version, failure):
     }
     resp = api100.result(process_graph)
     if failure:
-        resp.assert_error(400, error_code="ProcessParameterInvalid", message=failure)
+        error_code, message = failure
+        resp.assert_error(400, error_code=error_code, message=message)
     else:
         assert resp.assert_status_code(200).json == [1, 4, 9, 25, 64]
 
