@@ -532,6 +532,9 @@ class DryRunDataCube(DriverDataCube):
     def mask_scl_dilation(self) -> 'DriverDataCube':
         return self._process("custom_cloud_mask", arguments={"method": "mask_scl_dilation"})
 
+    def mask_l1c(self) -> 'DriverDataCube':
+        return self._process("custom_cloud_mask", arguments={"method": "mask_l1c"})
+
     def _nop(self, *args, **kwargs) -> 'DryRunDataCube':
         """No Operation: do nothing"""
         return self
