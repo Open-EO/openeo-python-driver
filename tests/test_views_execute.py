@@ -1664,6 +1664,23 @@ def test_execute_load_collection_custom_cloud_mask(api100):
     assert params.custom_mask == {"method": "mask_scl_dilation"}
     assert params.bands == None
 
+def test_execute_load_collection_custom_l1c_cloud_mask(api100):
+    api100.check_result({
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FAPAR_CLOUDCOVER"},
+            "result": False
+        },
+        "mask": {
+            "process_id": "mask_l1c",
+            "arguments": {"data": {"from_node": "loadcollection1"}},
+            "result": True
+        }
+    })
+    params = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    assert params.custom_mask == {"method": "mask_l1c"}
+    assert params.bands is None
+
 
 def test_execute_load_collection_resolution_merge(api100):
     api100.check_result({
