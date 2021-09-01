@@ -65,8 +65,8 @@ class OpenEoApiApp(Flask):
             origins="*",
             send_wildcard=True,
             supports_credentials=False,
-            allow_headers=["Content-Type", "Authorization"],
-            expose_headers=["Location", "OpenEO-Identifier", "OpenEO-Costs", "Link"]
+            allow_headers=["Content-Type", "Authorization", "Range"],
+            expose_headers=["Location", "OpenEO-Identifier", "OpenEO-Costs", "Link","Accept-Ranges","Content-Range", "Content-Encoding"]
         )
 
     def make_default_options_response(self):
