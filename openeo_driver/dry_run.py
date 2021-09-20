@@ -34,12 +34,15 @@ These source constraints can then be fetched from the EvalEnv at `load_collectio
 """
 import logging
 from enum import Enum
+from datetime import datetime
+from pathlib import Path
 from typing import List, Union, Tuple
 
 import shapely.geometry.base
 
 from openeo.metadata import CollectionMetadata
 from openeo_driver import filter_properties
+from openeo_driver.catalogs.creo import CatalogConstants, CatalogClient
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
@@ -531,6 +534,27 @@ class DryRunDataCube(DriverDataCube):
 
     def mask_scl_dilation(self) -> 'DriverDataCube':
         return self._process("custom_cloud_mask", arguments={"method": "mask_scl_dilation"})
+
+    def get_missing_products(self):
+        missing_products = []
+
+        if self.metadata.get("id") == "SENTINEL2_L2A":
+            opensearch_endpoint = self.metadata.get("_vito", "data_source", "opensearch_endpoint")
+            if opensearch_endpoint and "creo" in opensearch_endpoint:
+                mission = CatalogConstants.missionSentinel2
+                level = CatalogConstants.level2A
+                catalog = CatalogClient(mission, level)
+                source_constraints = self._data_tracer.get_source_constraints()
+                temporal_extent = source_constraints[0][1]['temporal_extent']
+                spatial_extent = source_constraints[0][1]['spatial_extent']
+                missing_product_paths = catalog.query_offline_product_paths(
+                    datetime.strptime(temporal_extent[0][:10], "%Y-%m-%d"),
+                    datetime.strptime(temporal_extent[1][:10], "%Y-%m-%d"),
+                    ulx=spatial_extent['west'], uly=spatial_extent['north'],
+                    brx=spatial_extent['east'], bry=spatial_extent['south'])
+                missing_products = [Path(p).name for p in missing_product_paths]
+
+        return missing_products
 
     def _nop(self, *args, **kwargs) -> 'DryRunDataCube':
         """No Operation: do nothing"""

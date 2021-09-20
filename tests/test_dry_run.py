@@ -1095,3 +1095,34 @@ def test_CropSAR_aggregate_spatial_constraint(dry_run_env, dry_run_tracer):
             assert constraints['aggregate_spatial']['geometries'].path == geometry_path
     finally:
         del process_registry_100._processes['test', 'CropSAR']
+
+
+def test_evaluate_load_collection_missing_data(dry_run_env, dry_run_tracer):
+    pg = {
+        "load": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "SENTINEL2_L2A",
+                "spatial_extent": {"west": -87, "south": 67, "east": -86, "north": 68},
+                "temporal_extent": ["2020-03-03", "2020-03-03"],
+            },
+        },
+        "filter_temporal": {
+            "process_id": "filter_temporal",
+            "arguments": {"data": {"from_node": "load"}, "extent": ["2020-03-03", "2020-03-03"]},
+        },
+        "filter_bbox": {
+            "process_id": "filter_bbox",
+            "arguments": {
+                "data": {"from_node": "filter_temporal"},
+                "extent": {"west": -87, "south": 67, "east": -86, "north": 68}
+            },
+            "result": True
+        },
+    }
+    cube = evaluate(pg, env=dry_run_env)
+
+    missing_products = cube.get_missing_products()
+    assert len(missing_products) == 2
+    assert sorted(missing_products) == ['S2B_MSIL2A_20200303T172119_N0214_R012_T16WEA_20200303T195252.SAFE',
+                                        'S2B_MSIL2A_20200303T172119_N0214_R012_T16WEV_20200303T195252.SAFE']

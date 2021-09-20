@@ -313,6 +313,48 @@ class DummyCatalog(CollectionCatalog):
                     }
                 }
             }
+        },
+        {
+            "id": "SENTINEL2_L2A",
+            "extent": {
+                "spatial": {"bbox": [[-180, -90, 180, 90]]},
+                "temporal": {"interval": [["2015-07-04", None]]}
+            },
+            "cube:dimensions": {
+                "x": {"type": "spatial", "axis": "x"},
+                "y": {"type": "spatial", "axis": "y"},
+                "t": {"type": "temporal"},
+                "bands": {"type": "bands", "values": ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B10", "B11", "B12", "SCL", "AOT", "WVP", "TCI"]}
+            },
+            "summaries": {
+                "eo:bands": [
+                    {"name": "B01"},
+                    {"name": "B02"},
+                    {"name": "B03"},
+                    {"name": "B04"},
+                    {"name": "B05"},
+                    {"name": "B06"},
+                    {"name": "B07"},
+                    {"name": "B08"},
+                    {"name": "B8A"},
+                    {"name": "B09"},
+                    {"name": "B10"},
+                    {"name": "B11"},
+                    {"name": "B12"},
+                    {"name": "TCI"},
+                    {"name": "WVP"},
+                    {"name": "AOT"},
+                    {"name": "SCL"}
+                ]
+            },
+            "_vito": {
+                "data_source": {
+                    "type": "file-s2",
+                    "opensearch_collection_id": "Sentinel2",
+                    "opensearch_endpoint": "https://finder.creodias.eu",
+                    "root_path": "/eodata"
+                }
+            }
         }
     ]
 

@@ -25,6 +25,7 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, ProcessUnsupportedException, \
     JobNotFinishedException
+from openeo_driver.ProcessGraphDeserializer import ENV_DRY_RUN_TRACER
 from openeo_driver.save_result import SaveResult, get_temp_file
 from openeo_driver.users import HttpAuthHandler, User, user_id_b64_encode, user_id_b64_decode
 from openeo_driver.utils import replace_nan_values, EvalEnv, smart_bool, get_package_versions
@@ -1039,9 +1040,25 @@ def register_views_udp(
 
     @api_endpoint(hidden=True)
     @blueprint.route('/validation', methods=["POST"])
-    def udp_validate():
-        # TODO
-        raise FeatureUnsupportedException()
+    @auth_handler.requires_bearer_auth
+    def udp_validate(user: User):
+        post_data = request.get_json()
+        process_graph = _extract_process_graph(post_data)
+
+        from openeo_driver.dry_run import DryRunDataTracer
+        missing_products = backend_implementation.processing.evaluate(process_graph=process_graph, env=EvalEnv({
+            ENV_DRY_RUN_TRACER: DryRunDataTracer(),
+            "backend_implementation": backend_implementation,
+            'version': g.api_version,
+            'user': user
+        })).get_missing_products()
+
+        return {
+            'errors': [{
+                "code": "missingProduct",
+                "message": "Product {} is not available".format(mp)
+            } for mp in missing_products]
+        }
 
     @api_endpoint
     @blueprint.route('/process_graphs/<process_graph_id>', methods=['PUT'])
