@@ -1,7 +1,7 @@
 {
     "id": "mask_l1c",
     "summary": "Mask high probability clouds from Sentinel-2 L1C data.",
-    "description": "Mask high probability clouds from Sentinel-2 L1C data. This will filter out fully clouded raster regions to improve performance.",
+    "description": "Mask high probability clouds from Sentinel-2 L1C data.",
     "categories": [
         "cubes",
         "ard"
