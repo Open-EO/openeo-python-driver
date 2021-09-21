@@ -1,0 +1,27 @@
+{
+    "id": "mask_l1c",
+    "summary": "Mask high probability clouds from Sentinel-2 L1C data.",
+    "description": "Mask high probability clouds from Sentinel-2 L1C data.",
+    "categories": [
+        "cubes",
+        "ard"
+    ],
+    "experimental": true,
+    "parameters": [
+        {
+            "name": "data",
+            "description": "The source data cube containing Sentinel-2 L1C input.",
+            "schema": {
+                "subtype": "raster-cube",
+                "type": "object"
+            }
+        }
+    ],
+    "returns": {
+        "description": "Masked data cube",
+        "schema": {
+            "subtype": "raster-cube",
+            "type": "object"
+        }
+    }
+}
