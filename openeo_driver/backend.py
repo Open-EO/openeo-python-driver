@@ -495,7 +495,6 @@ class UdfRuntimes(MicroService):
         }
 
 
-
 class OpenEoBackendImplementation:
     """
     Simple container of all openEo "microservices"
@@ -503,11 +502,11 @@ class OpenEoBackendImplementation:
 
     def __init__(
             self,
-            secondary_services: Optional[SecondaryServices],
-            catalog: Optional[AbstractCollectionCatalog],
-            batch_jobs: Optional[BatchJobs],
-            user_defined_processes: Optional[UserDefinedProcesses],
-            processing: Optional[Processing],
+            secondary_services: Optional[SecondaryServices] = None,
+            catalog: Optional[AbstractCollectionCatalog] = None,
+            batch_jobs: Optional[BatchJobs] = None,
+            user_defined_processes: Optional[UserDefinedProcesses] = None,
+            processing: Optional[Processing] = None,
     ):
         self.secondary_services = secondary_services
         self.catalog = catalog
