@@ -16,6 +16,7 @@ from openeo.rest.auth.auth import BearerAuth
 from openeo_driver.backend import OidcProvider
 from openeo_driver.errors import AuthenticationRequiredException, \
     AuthenticationSchemeInvalidException, TokenInvalidException, CredentialsInvalidException
+from openeo_driver.utils import TtlCache
 
 _log = logging.getLogger(__name__)
 
@@ -56,6 +57,7 @@ class HttpAuthHandler:
             p.id: p.issuer + '/.well-known/openid-configuration'
             for p in oidc_providers
         }
+        self._cache = TtlCache(default_ttl=10 * 60)
 
     def public(self, f: Callable):
         """
@@ -174,11 +176,18 @@ class HttpAuthHandler:
             raise TokenInvalidException
         return User(user_id=user_id, info={"authentication": "basic"})
 
-    def resolve_oidc_access_token(self, oidc_discovery_url: str, access_token: str) -> User:
-        try:
+    def _get_userinfo_endpoint(self, oidc_discovery_url: str) -> str:
+        key = ("userinfo_endpoint", oidc_discovery_url)
+        if not self._cache.contains(key):
             resp = requests.get(oidc_discovery_url)
             resp.raise_for_status()
             userinfo_url = resp.json()["userinfo_endpoint"]
+            self._cache.set(key, value=userinfo_url, ttl=10 * 60)
+        return self._cache.get(key)
+
+    def resolve_oidc_access_token(self, oidc_discovery_url: str, access_token: str) -> User:
+        try:
+            userinfo_url = self._get_userinfo_endpoint(oidc_discovery_url)
             resp = requests.get(userinfo_url, auth=BearerAuth(bearer=access_token))
             resp.raise_for_status()
             userinfo = resp.json()

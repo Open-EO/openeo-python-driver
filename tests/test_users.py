@@ -40,6 +40,7 @@ def app(oidc_provider):
     """Fixture for a flask app with some public and some auth requiring handlers"""
     app = Flask("__test__")
     auth = HttpAuthHandler(oidc_providers=[oidc_provider])
+    app.config["auth_handler"] = auth
 
     @app.route("/public/hello")
     @auth.public
@@ -227,3 +228,31 @@ def test_bearer_auth_oidc_success(app, url, expected_data, requests_mock, oidc_p
         resp = client.get(url, headers=headers)
         assert resp.status_code == 200
         assert resp.data == expected_data
+
+
+def test_userinfo_url_caching(app, requests_mock, oidc_provider):
+    oidc_discovery_url = oidc_provider.issuer + "/.well-known/openid-configuration"
+    oidc_userinfo_url = oidc_provider.issuer + "/userinfo"
+    discovery_mock = requests_mock.get(oidc_discovery_url, json={"userinfo_endpoint": oidc_userinfo_url})
+    requests_mock.get(oidc_provider.issuer + "/userinfo", json={"sub": "foo"})
+
+    def set_time(time):
+        app.config["auth_handler"]._cache._clock = lambda: time
+
+    with app.test_client() as client:
+        assert discovery_mock.call_count == 0
+
+        set_time(10)
+        resp = client.get("/private/hello", headers={"Authorization": f"Bearer oidc/{oidc_provider.id}/dfergef"})
+        assert resp.status_code == 200
+        assert discovery_mock.call_count == 1
+
+        set_time(60)
+        resp = client.get("/private/hello", headers={"Authorization": f"Bearer oidc/{oidc_provider.id}/ftreyer"})
+        assert resp.status_code == 200
+        assert discovery_mock.call_count == 1
+
+        set_time(30 * 60)
+        resp = client.get("/private/hello", headers={"Authorization": f"Bearer oidc/{oidc_provider.id}/th56te"})
+        assert resp.status_code == 200
+        assert discovery_mock.call_count == 2

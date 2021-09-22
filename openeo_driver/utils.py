@@ -2,6 +2,7 @@
 Small general utilities and helper functions
 """
 import json
+import time
 import typing
 from math import isnan
 from pathlib import Path
@@ -337,3 +338,34 @@ def get_package_versions(packages: List[str], na_value="n/a") -> dict:
         except pkg_resources.DistributionNotFound:
             version_info[package] = na_value
     return version_info
+
+
+class TtlCache:
+    """
+    Simple memory cache with expiry
+    """
+
+    def __init__(self, default_ttl: int = 60, _clock: typing.Callable[[], float] = time.time):
+        self._cache = {}
+        self.default_ttl = default_ttl
+        self._clock = _clock
+
+    def set(self, key, value, ttl: int = None):
+        """Add item to cache"""
+        self._cache[key] = (value, self._clock() + (ttl or self.default_ttl))
+
+    def contains(self, key) -> bool:
+        """Check whether cache contains item under given key"""
+        if key in self._cache:
+            value, expiration = self._cache[key]
+            if self._clock() <= expiration:
+                return True
+            del self._cache[key]
+        return False
+
+    def get(self, key, default=None):
+        """Get item from cache and if not available: return default value."""
+        return self._cache[key][0] if self.contains(key) else default
+
+    def flush(self):
+        self._cache = {}
