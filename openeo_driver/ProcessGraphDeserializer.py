@@ -1304,6 +1304,14 @@ def mask_scl_dilation(args: Dict, env: EvalEnv):
     else:
         return cube
 
+@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/mask_l1c.json"))
+def mask_l1c(args: Dict, env: EvalEnv):
+    cube: DriverDataCube = extract_arg(args, 'data')
+    if( "mask_l1c" in dir(cube)):
+        return cube.mask_l1c()
+    else:
+        return cube
+
 
 custom_process_from_process_graph(read_spec("openeo-processes/1.x/proposals/ard_normalized_radar_backscatter.json"))
 
