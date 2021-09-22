@@ -90,8 +90,8 @@ class CatalogClient(CatalogClientBase):
                     CatalogEntry(hit['properties']['productIdentifier'].replace('.SAFE', ''), CatalogStatus.ORDERABLE))
         return result
 
-    def __init__(self, mission, level):
-        super().__init__(mission, level)
+    def __init__(self, mission, level=None, product_type=None):
+        super().__init__(mission, level, product_type)
         self.itemsperpage = 100
         self.maxpages = 100  # elasticsearch has a 10000 limit on the paged search
 
@@ -105,6 +105,7 @@ class CatalogClient(CatalogClientBase):
                     from_index):
 
         query_params = [('processingLevel', self.level),
+                        ('productType', self.product_type),
                         ('startDate', start_date.isoformat()),
                         ('cloudCover', '[0,' + str(int(cldPrcnt)) + ']'),
                         ('page', str(from_index)),

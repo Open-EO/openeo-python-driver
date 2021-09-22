@@ -41,8 +41,7 @@ import shapely.geometry.base
 
 from openeo.metadata import CollectionMetadata
 from openeo_driver import filter_properties
-from openeo_driver.catalogs.creo import CatalogConstants, CatalogClient
-from openeo_driver.catalogs.oscars import OscarsCatalogClient
+from openeo_driver.catalogs import creo, oscars
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
@@ -339,9 +338,11 @@ class DryRunDataTracer:
 
         for lc in load_collections:
             collection = lc[0][1][0]
+            properties = dict(lc[0][1][1])
             source_info = dict(lc[0][1][2])
+            check_missing_products = source_info.get("check_missing_products")
 
-            if collection in ["SENTINEL2_L2A", "TERRASCOPE_S2_TOC_V2"]:
+            if check_missing_products:
                 temporal_extent = lc[1]['temporal_extent']
                 spatial_extent = lc[1]['spatial_extent']
 
@@ -352,22 +353,17 @@ class DryRunDataTracer:
                 brx = spatial_extent['east']
                 bry = spatial_extent['south']
 
-                if collection == "SENTINEL2_L2A":
-                    # env.backend_implementation.catalog.get_collection_metadata(collection)
-                    opensearch_endpoint = source_info.get("opensearch_endpoint")
-                    if opensearch_endpoint and "creo" in opensearch_endpoint:
-                        creo_l2a_catalog = CatalogClient(CatalogConstants.missionSentinel2, CatalogConstants.level2A)
-                        missing_products += [(collection, p.getTileId()) for p in
-                                             creo_l2a_catalog.query_offline(start_date, end_date, ulx, uly, brx, bry)]
-                elif collection == "TERRASCOPE_S2_TOC_V2":
-                    creo_l1c_catalog = CatalogClient(CatalogConstants.missionSentinel2, CatalogConstants.level1C)
+                if check_missing_products == "creo":
+                    creo_catalog = creo.CatalogClient(source_info["opensearch_collection_id"], product_type=properties.get("productType"))
+                    missing_products += [(collection, p.getTileId()) for p in creo_catalog.query_offline(start_date, end_date, ulx, uly, brx, bry)]
+                elif check_missing_products == "terrascope":
+                    creo_l1c_catalog = creo.CatalogClient(creo.CatalogConstants.missionSentinel2, creo.CatalogConstants.level1C)
                     expected_products = creo_l1c_catalog.query(start_date, end_date, ulx=ulx, uly=uly, brx=brx, bry=bry)
 
-                    oscars_catalog = OscarsCatalogClient(source_info["opensearch_collection_id"])
+                    oscars_catalog = oscars.CatalogClient(source_info["opensearch_collection_id"])
                     terrascope_products = oscars_catalog.query(start_date, end_date, ulx, uly, brx, bry)
 
-                    missing_tile_ids = {p.getTileId() for p in expected_products} - {p.getTileId() for p in
-                                                                                     terrascope_products}
+                    missing_tile_ids = {p.getTileId() for p in expected_products} - {p.getTileId() for p in terrascope_products}
                     missing_products += [(collection, t) for t in missing_tile_ids]
 
         return missing_products

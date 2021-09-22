@@ -3,6 +3,8 @@ import shapely.geometry
 
 from openeo.internal.graph_building import PGNode
 from openeo.rest.datacube import DataCube
+
+from openeo_driver.catalogs import creo, oscars
 from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER, _extract_load_parameters, \
     ENV_SOURCE_CONSTRAINTS, custom_process_from_process_graph, process_registry_100
 from openeo_driver.datastructs import SarBackscatterArgs
@@ -10,6 +12,7 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer, DataSource, DataTrace, ProcessType
 from openeo_driver.utils import EvalEnv
 from tests.data import get_path, load_json
+from unittest import mock
 
 
 @pytest.fixture
@@ -1097,7 +1100,11 @@ def test_CropSAR_aggregate_spatial_constraint(dry_run_env, dry_run_tracer):
         del process_registry_100._processes['test', 'CropSAR']
 
 
-def test_evaluate_load_collection_missing_data(dry_run_env, dry_run_tracer):
+@mock.patch('openeo_driver.catalogs.creo.CatalogClient.query_offline', mock.MagicMock(return_value=[
+    creo.CatalogEntry('S2B_MSIL2A_20200303T172119_N0214_R012_T16WEA_20200303T195252', 2),
+    creo.CatalogEntry('S2B_MSIL2A_20200303T172119_N0214_R012_T16WEV_20200303T195252', 2)
+]))
+def test_evaluate_load_collection_missing_data_creo(dry_run_env, dry_run_tracer):
     pg = {
         "load": {
             "process_id": "load_collection",
@@ -1126,6 +1133,16 @@ def test_evaluate_load_collection_missing_data(dry_run_env, dry_run_tracer):
                                         ('SENTINEL2_L2A', '16WEV')]
 
 
+@mock.patch('openeo_driver.catalogs.creo.CatalogClient.query', mock.MagicMock(return_value=[
+    creo.CatalogEntry('S2B_MSIL1C_20200303T103829_N0209_R008_T31UFA_20200303T125910', 2),
+    creo.CatalogEntry('S2B_MSIL1C_20200303T103829_N0209_R008_T32ULE_20200303T125910', 2),
+    creo.CatalogEntry('S2B_MSIL1C_20200303T103829_N0209_R008_T31UFV_20200303T125910', 2),
+    creo.CatalogEntry('S2B_MSIL1C_20200303T103829_N0209_R008_T32ULF_20200303T125910', 2)
+]))
+@mock.patch('openeo_driver.catalogs.oscars.CatalogClient.query', mock.MagicMock(return_value=[
+    oscars.CatalogEntry('S2B_20200303T103829_31UFV_TOC_V200'),
+    oscars.CatalogEntry('S2B_20200303T103829_32ULE_TOC_V200')
+]))
 def test_evaluate_load_collection_missing_data_terrascope(dry_run_env, dry_run_tracer):
     pg = {
         "load": {
@@ -1142,7 +1159,7 @@ def test_evaluate_load_collection_missing_data_terrascope(dry_run_env, dry_run_t
             "process_id": "filter_bbox",
             "arguments": {
                 "data": {"from_node": "filter_temporal"},
-                "extent": {"west": 5, "south": 50, "east": 6, "north": 60}
+                "extent": {"west": 5, "south": 54, "east": 6, "north": 55}
             },
             "result": True
         }
@@ -1150,12 +1167,22 @@ def test_evaluate_load_collection_missing_data_terrascope(dry_run_env, dry_run_t
     evaluate(pg, env=dry_run_env)
 
     missing_products = dry_run_tracer.get_missing_products()
-    assert len(missing_products) == 3
+    assert len(missing_products) == 2
     assert sorted(missing_products) == [('TERRASCOPE_S2_TOC_V2', '31UFA'),
-                                        ('TERRASCOPE_S2_TOC_V2', '31UGV'),
                                         ('TERRASCOPE_S2_TOC_V2', '32ULF')]
 
 
+@mock.patch('openeo_driver.catalogs.creo.CatalogClient.query_offline', mock.MagicMock(return_value=[]))
+@mock.patch('openeo_driver.catalogs.creo.CatalogClient.query', mock.MagicMock(return_value=[
+    creo.CatalogEntry('S2B_MSIL1C_20200303T103829_N0209_R008_T31UFA_20200303T125910', 2),
+    creo.CatalogEntry('S2B_MSIL1C_20200303T103829_N0209_R008_T32ULE_20200303T125910', 2),
+    creo.CatalogEntry('S2B_MSIL1C_20200303T103829_N0209_R008_T31UFV_20200303T125910', 2),
+    creo.CatalogEntry('S2B_MSIL1C_20200303T103829_N0209_R008_T32ULF_20200303T125910', 2)
+]))
+@mock.patch('openeo_driver.catalogs.oscars.CatalogClient.query', mock.MagicMock(return_value=[
+    oscars.CatalogEntry('S2B_20200303T103829_31UFV_TOC_V200'),
+    oscars.CatalogEntry('S2B_20200303T103829_32ULE_TOC_V200')
+]))
 def test_evaluate_load_collection_missing_data_multiple_load_collections(dry_run_env, dry_run_tracer):
     pg = {
         "load1": {
@@ -1182,7 +1209,7 @@ def test_evaluate_load_collection_missing_data_multiple_load_collections(dry_run
             "process_id": "filter_bbox",
             "arguments": {
                 "data": {"from_node": "filter_temporal"},
-                "extent": {"west": 5, "south": 50, "east": 6, "north": 60}
+                "extent": {"west": 5, "south": 54, "east": 6, "north": 55}
             },
             "result": True
         }
@@ -1191,7 +1218,6 @@ def test_evaluate_load_collection_missing_data_multiple_load_collections(dry_run
     evaluate(pg, env=dry_run_env)
 
     missing_products = dry_run_tracer.get_missing_products()
-    assert len(missing_products) == 3
+    assert len(missing_products) == 2
     assert sorted(missing_products) == [('TERRASCOPE_S2_TOC_V2', '31UFA'),
-                                        ('TERRASCOPE_S2_TOC_V2', '31UGV'),
                                         ('TERRASCOPE_S2_TOC_V2', '32ULF')]

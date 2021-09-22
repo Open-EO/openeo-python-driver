@@ -352,7 +352,24 @@ class DummyCatalog(CollectionCatalog):
                     "type": "file-s2",
                     "opensearch_collection_id": "Sentinel2",
                     "opensearch_endpoint": "https://finder.creodias.eu",
-                    "root_path": "/eodata"
+                    "root_path": "/eodata",
+                    "check_missing_products": "creo"
+                },
+                "properties": {
+                    "productType": {
+                        "process_graph": {
+                            "asc": {
+                                "process_id": "eq",
+                                "arguments": {
+                                    "x": {
+                                        "from_parameter": "value"
+                                    },
+                                    "y": "L2A"
+                                },
+                                "result": True
+                            }
+                        }
+                    }
                 }
             }
         },
@@ -390,7 +407,8 @@ class DummyCatalog(CollectionCatalog):
             "_vito": {
                 "data_source": {
                     "type": "file-s2",
-                    "opensearch_collection_id": "urn:eop:VITO:TERRASCOPE_S2_TOC_V2"
+                    "opensearch_collection_id": "urn:eop:VITO:TERRASCOPE_S2_TOC_V2",
+                    "check_missing_products": "terrascope"
                 }
             }
         }

@@ -14,7 +14,7 @@ class CatalogEntry:
         return m.group(1)
 
 
-class OscarsCatalogClient:
+class CatalogClient:
     def __init__(self, collection):
         self._collection = collection
 
