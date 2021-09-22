@@ -22,6 +22,7 @@ from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefined
     ErrorSummary, OpenEoBackendImplementation, BatchJobs
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
+from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, ProcessUnsupportedException, \
     JobNotFinishedException
@@ -1045,18 +1046,20 @@ def register_views_udp(
         post_data = request.get_json()
         process_graph = _extract_process_graph(post_data)
 
-        from openeo_driver.dry_run import DryRunDataTracer
-        missing_products = backend_implementation.processing.evaluate(process_graph=process_graph, env=EvalEnv({
-            ENV_DRY_RUN_TRACER: DryRunDataTracer(),
+        dry_run_tracer = DryRunDataTracer()
+        backend_implementation.processing.evaluate(process_graph=process_graph, env=EvalEnv({
+            ENV_DRY_RUN_TRACER: dry_run_tracer,
             "backend_implementation": backend_implementation,
             'version': g.api_version,
             'user': user
-        })).get_missing_products()
+        }))
+
+        missing_products = dry_run_tracer.get_missing_products()
 
         return {
             'errors': [{
                 "code": "missingProduct",
-                "message": "Product {} is not available".format(mp)
+                "message": "Tile {} in collection {} is not available".format(mp[1], mp[0])
             } for mp in missing_products]
         }
 

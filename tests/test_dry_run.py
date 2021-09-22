@@ -1102,9 +1102,7 @@ def test_evaluate_load_collection_missing_data(dry_run_env, dry_run_tracer):
         "load": {
             "process_id": "load_collection",
             "arguments": {
-                "id": "SENTINEL2_L2A",
-                "spatial_extent": {"west": -87, "south": 67, "east": -86, "north": 68},
-                "temporal_extent": ["2020-03-03", "2020-03-03"],
+                "id": "SENTINEL2_L2A"
             },
         },
         "filter_temporal": {
@@ -1118,11 +1116,82 @@ def test_evaluate_load_collection_missing_data(dry_run_env, dry_run_tracer):
                 "extent": {"west": -87, "south": 67, "east": -86, "north": 68}
             },
             "result": True
-        },
+        }
     }
-    cube = evaluate(pg, env=dry_run_env)
+    evaluate(pg, env=dry_run_env)
 
-    missing_products = cube.get_missing_products()
+    missing_products = dry_run_tracer.get_missing_products()
     assert len(missing_products) == 2
-    assert sorted(missing_products) == ['S2B_MSIL2A_20200303T172119_N0214_R012_T16WEA_20200303T195252.SAFE',
-                                        'S2B_MSIL2A_20200303T172119_N0214_R012_T16WEV_20200303T195252.SAFE']
+    assert sorted(missing_products) == [('SENTINEL2_L2A', '16WEA'),
+                                        ('SENTINEL2_L2A', '16WEV')]
+
+
+def test_evaluate_load_collection_missing_data_terrascope(dry_run_env, dry_run_tracer):
+    pg = {
+        "load": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "TERRASCOPE_S2_TOC_V2"
+            },
+        },
+        "filter_temporal": {
+            "process_id": "filter_temporal",
+            "arguments": {"data": {"from_node": "load"}, "extent": ["2020-03-03", "2020-03-03"]},
+        },
+        "filter_bbox": {
+            "process_id": "filter_bbox",
+            "arguments": {
+                "data": {"from_node": "filter_temporal"},
+                "extent": {"west": 5, "south": 50, "east": 6, "north": 60}
+            },
+            "result": True
+        }
+    }
+    evaluate(pg, env=dry_run_env)
+
+    missing_products = dry_run_tracer.get_missing_products()
+    assert len(missing_products) == 3
+    assert sorted(missing_products) == [('TERRASCOPE_S2_TOC_V2', '31UFA'),
+                                        ('TERRASCOPE_S2_TOC_V2', '31UGV'),
+                                        ('TERRASCOPE_S2_TOC_V2', '32ULF')]
+
+
+def test_evaluate_load_collection_missing_data_multiple_load_collections(dry_run_env, dry_run_tracer):
+    pg = {
+        "load1": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "SENTINEL2_L2A"
+            },
+        },
+        "load2": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "TERRASCOPE_S2_TOC_V2"
+            },
+        },
+        "merge": {
+            "process_id": "merge_cubes",
+            "arguments": {"cube1": {"from_node": "load1"}, "cube2": {"from_node": "load2"}}
+        },
+        "filter_temporal": {
+            "process_id": "filter_temporal",
+            "arguments": {"data": {"from_node": "merge"}, "extent": ["2020-03-03", "2020-03-03"]},
+        },
+        "filter_bbox": {
+            "process_id": "filter_bbox",
+            "arguments": {
+                "data": {"from_node": "filter_temporal"},
+                "extent": {"west": 5, "south": 50, "east": 6, "north": 60}
+            },
+            "result": True
+        }
+
+    }
+    evaluate(pg, env=dry_run_env)
+
+    missing_products = dry_run_tracer.get_missing_products()
+    assert len(missing_products) == 3
+    assert sorted(missing_products) == [('TERRASCOPE_S2_TOC_V2', '31UFA'),
+                                        ('TERRASCOPE_S2_TOC_V2', '31UGV'),
+                                        ('TERRASCOPE_S2_TOC_V2', '32ULF')]

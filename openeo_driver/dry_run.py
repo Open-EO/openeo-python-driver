@@ -34,8 +34,7 @@ These source constraints can then be fetched from the EvalEnv at `load_collectio
 """
 import logging
 from enum import Enum
-from datetime import datetime
-from pathlib import Path
+from datetime import datetime, time
 from typing import List, Union, Tuple
 
 import shapely.geometry.base
@@ -43,6 +42,7 @@ import shapely.geometry.base
 from openeo.metadata import CollectionMetadata
 from openeo_driver import filter_properties
 from openeo_driver.catalogs.creo import CatalogConstants, CatalogClient
+from openeo_driver.catalogs.oscars import OscarsCatalogClient
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
@@ -121,12 +121,12 @@ class DataSource(DataTraceBase):
         return self._process
 
     @classmethod
-    def load_collection(cls, collection_id, properties={}) -> 'DataSource':
+    def load_collection(cls, collection_id, properties={}, source_info={}) -> 'DataSource':
         """Factory for a `load_collection` DataSource."""
         exact_property_matches = {property_name: filter_properties.extract_literal_match(condition)
                                   for property_name, condition in properties.items()}
 
-        return cls(process="load_collection", arguments=(collection_id, exact_property_matches))
+        return cls(process="load_collection", arguments=(collection_id, exact_property_matches, source_info))
 
     @classmethod
     def load_disk_data(cls, glob_pattern: str, format: str, options: dict) -> 'DataSource':
@@ -203,8 +203,9 @@ class DryRunDataTracer:
         """Create a DryRunDataCube from a `load_collection` process."""
         properties = {**CollectionMetadata(metadata).get("_vito", "properties", default={}),
                       **arguments.get("properties", {})}
+        source_info = CollectionMetadata(metadata).get("_vito", "data_source", default={})
 
-        trace = DataSource.load_collection(collection_id=collection_id, properties=properties)
+        trace = DataSource.load_collection(collection_id=collection_id, properties=properties, source_info=source_info)
         self.add_trace(trace)
 
         cube = DryRunDataCube(traces=[trace], data_tracer=self, metadata=metadata)
@@ -329,6 +330,47 @@ class DryRunDataTracer:
                     geometries_by_id[id(geometries)] = geometries
         # TODO: we just pass all (0 or more) geometries we encountered. Do something smarter when there are multiple?
         return list(geometries_by_id.values())
+
+    def get_missing_products(self):
+        missing_products = []
+
+        source_constraints = self.get_source_constraints()
+        load_collections = filter(lambda s: s[0][0] == "load_collection", source_constraints)
+
+        for lc in load_collections:
+            collection = lc[0][1][0]
+            source_info = dict(lc[0][1][2])
+
+            if collection in ["SENTINEL2_L2A", "TERRASCOPE_S2_TOC_V2"]:
+                temporal_extent = lc[1]['temporal_extent']
+                spatial_extent = lc[1]['spatial_extent']
+
+                start_date = datetime.strptime(temporal_extent[0][:10], "%Y-%m-%d")
+                end_date = datetime.combine(datetime.strptime(temporal_extent[1][:10], "%Y-%m-%d"), time.max)
+                ulx = spatial_extent['west']
+                uly = spatial_extent['north']
+                brx = spatial_extent['east']
+                bry = spatial_extent['south']
+
+                if collection == "SENTINEL2_L2A":
+                    # env.backend_implementation.catalog.get_collection_metadata(collection)
+                    opensearch_endpoint = source_info.get("opensearch_endpoint")
+                    if opensearch_endpoint and "creo" in opensearch_endpoint:
+                        creo_l2a_catalog = CatalogClient(CatalogConstants.missionSentinel2, CatalogConstants.level2A)
+                        missing_products += [(collection, p.getTileId()) for p in
+                                             creo_l2a_catalog.query_offline(start_date, end_date, ulx, uly, brx, bry)]
+                elif collection == "TERRASCOPE_S2_TOC_V2":
+                    creo_l1c_catalog = CatalogClient(CatalogConstants.missionSentinel2, CatalogConstants.level1C)
+                    expected_products = creo_l1c_catalog.query(start_date, end_date, ulx=ulx, uly=uly, brx=brx, bry=bry)
+
+                    oscars_catalog = OscarsCatalogClient(source_info["opensearch_collection_id"])
+                    terrascope_products = oscars_catalog.query(start_date, end_date, ulx, uly, brx, bry)
+
+                    missing_tile_ids = {p.getTileId() for p in expected_products} - {p.getTileId() for p in
+                                                                                     terrascope_products}
+                    missing_products += [(collection, t) for t in missing_tile_ids]
+
+        return missing_products
 
 
 class ProcessType(Enum):
@@ -534,27 +576,6 @@ class DryRunDataCube(DriverDataCube):
 
     def mask_scl_dilation(self) -> 'DriverDataCube':
         return self._process("custom_cloud_mask", arguments={"method": "mask_scl_dilation"})
-
-    def get_missing_products(self):
-        missing_products = []
-
-        if self.metadata.get("id") == "SENTINEL2_L2A":
-            opensearch_endpoint = self.metadata.get("_vito", "data_source", "opensearch_endpoint")
-            if opensearch_endpoint and "creo" in opensearch_endpoint:
-                mission = CatalogConstants.missionSentinel2
-                level = CatalogConstants.level2A
-                catalog = CatalogClient(mission, level)
-                source_constraints = self._data_tracer.get_source_constraints()
-                temporal_extent = source_constraints[0][1]['temporal_extent']
-                spatial_extent = source_constraints[0][1]['spatial_extent']
-                missing_product_paths = catalog.query_offline_product_paths(
-                    datetime.strptime(temporal_extent[0][:10], "%Y-%m-%d"),
-                    datetime.strptime(temporal_extent[1][:10], "%Y-%m-%d"),
-                    ulx=spatial_extent['west'], uly=spatial_extent['north'],
-                    brx=spatial_extent['east'], bry=spatial_extent['south'])
-                missing_products = [Path(p).name for p in missing_product_paths]
-
-        return missing_products
 
     def _nop(self, *args, **kwargs) -> 'DryRunDataCube':
         """No Operation: do nothing"""

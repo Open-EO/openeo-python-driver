@@ -183,14 +183,13 @@ class CatalogClient(CatalogClientBase):
 
         return result
 
+    def query_offline(self, start_date, end_date, ulx=-180, uly=90, brx=180, bry=-90):
+        return [p for p in self.query(start_date, end_date, ulx=ulx, uly=uly, brx=brx, bry=bry) if p.getStatus() == CatalogStatus.ORDERABLE]
+
     def query_product_paths(self, start_date, end_date, ulx, uly, brx, bry):
         products = self.query(start_date, datetime.combine(end_date, time.max), ulx=ulx, uly=uly, brx=brx, bry=bry)
         return [str(Path("/", p.getS3Bucket().lower(), p.getS3Key())) for p in products]
     
-    def query_offline_product_paths(self, start_date, end_date, ulx, uly, brx, bry):
-        products = self.query(start_date, datetime.combine(end_date, time.max), ulx=ulx, uly=uly, brx=brx, bry=bry)
-        return [str(Path("/", p.getS3Bucket().lower(), p.getS3Key())) for p in products if p.getStatus() == CatalogStatus.ORDERABLE]
-
     def order(self, entries):
         tag = str(len(entries)) + 'products'
         if entries is not None:

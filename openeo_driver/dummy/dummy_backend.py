@@ -355,6 +355,44 @@ class DummyCatalog(CollectionCatalog):
                     "root_path": "/eodata"
                 }
             }
+        },
+        {
+            "id": "TERRASCOPE_S2_TOC_V2",
+            "extent": {
+                "spatial": {"bbox": [[-180, -56, 180, 83]]},
+                "temporal": {"interval": [["2015-07-06", None]]}
+            },
+            "summaries": {
+                "eo:bands": [
+                    {"name": "B01"},
+                    {"name": "B02"},
+                    {"name": "B03"},
+                    {"name": "B04"},
+                    {"name": "B05"},
+                    {"name": "B06"},
+                    {"name": "B07"},
+                    {"name": "B08"},
+                    {"name": "B8A"},
+                    {"name": "B11"},
+                    {"name": "B12"},
+                    {"name": "SCL"},
+                    {"name": "RAA_60M"},
+                    {"name": "SZA_60M"},
+                    {"name": "VZA_60M"}
+                ]
+            },
+            "cube:dimensions": {
+                "x": {"type": "spatial", "axis": "x", "step": 10},
+                "y": {"type": "spatial", "axis": "y", "step": 10},
+                "t": {"type": "temporal"},
+                "bands": {"type": "bands", "values": ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12", "SCL", "RAA_60M", "SZA_60M", "VZA_60M"]}
+            },
+            "_vito": {
+                "data_source": {
+                    "type": "file-s2",
+                    "opensearch_collection_id": "urn:eop:VITO:TERRASCOPE_S2_TOC_V2"
+                }
+            }
         }
     ]
 
