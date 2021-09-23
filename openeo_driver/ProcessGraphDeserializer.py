@@ -21,7 +21,7 @@ from openeo.capabilities import ComparableVersion
 from openeo.metadata import CollectionMetadata, MetadataException
 from openeo.util import load_json, rfc3339
 from openeo_driver import dry_run
-from openeo_driver.backend import UserDefinedProcessMetadata, LoadParameters, Processing
+from openeo_driver.backend import UserDefinedProcessMetadata, LoadParameters, Processing, OpenEoBackendImplementation
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
@@ -34,6 +34,7 @@ from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveRes
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
 from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union, geojson_to_multipolygon
+from openeo_driver.views import DEFAULT_VERSION
 
 _log = logging.getLogger(__name__)
 
@@ -80,7 +81,7 @@ def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List
             process_registry.add_spec_by_name(pid)
 
 
-_add_standard_processes(process_registry_100, [
+_OPENEO_PROCESSES_PYTHON_WHITELIST = [
     'array_apply', 'array_contains', 'array_element', 'array_filter', 'array_find', 'array_labels',
     'count', 'first', 'last', 'order', 'rearrange', 'sort',
     'between', 'eq', 'gt', 'gte', 'if', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
@@ -91,7 +92,9 @@ _add_standard_processes(process_registry_100, [
     'ceil', 'floor', 'int', 'round',
     'arccos', 'arcosh', 'arcsin', 'arctan', 'arctan2', 'arsinh', 'artanh', 'cos', 'cosh', 'sin', 'sinh', 'tan', 'tanh',
     'all', 'any', 'count', 'first', 'last', 'max', 'mean', 'median', 'min', 'product', 'sd', 'sum', 'variance'
-])
+]
+
+_add_standard_processes(process_registry_100, _OPENEO_PROCESSES_PYTHON_WHITELIST)
 
 
 # Type hint alias for a "process function":
@@ -185,6 +188,35 @@ ENV_SOURCE_CONSTRAINTS = "source_constraints"
 ENV_DRY_RUN_TRACER = "dry_run_tracer"
 
 
+class SimpleProcessing(Processing):
+    """
+    Simple graph processing: just implement basic math/logic operators
+    (based on openeo-processes-python implementation)
+    """
+
+    # For lazy loading of (global) process registry
+    _registry_cache = {}
+
+    def get_process_registry(self, api_version: Union[str, ComparableVersion]) -> ProcessRegistry:
+        # Lazy load registry.
+        assert ComparableVersion("1.0.0").or_higher(api_version)
+        spec = 'openeo-processes/1.x'
+        if spec not in self._registry_cache:
+            registry = ProcessRegistry(spec_root=SPECS_ROOT / spec, argument_names=["args", "env"])
+            _add_standard_processes(registry, _OPENEO_PROCESSES_PYTHON_WHITELIST)
+            self._registry_cache[spec] = registry
+        return self._registry_cache[spec]
+
+    def get_basic_env(self) -> EvalEnv:
+        return EvalEnv({
+            "backend_implementation": OpenEoBackendImplementation(processing=self),
+            "version": DEFAULT_VERSION,
+        })
+
+    def evaluate(self, process_graph: dict, env: EvalEnv = None):
+        return evaluate(process_graph=process_graph, env=env or self.get_basic_env(), do_dry_run=False)
+
+
 class ConcreteProcessing(Processing):
     """
     Concrete process graph processing: (most) processes have concrete Python implementation
@@ -210,6 +242,7 @@ def evaluate(
     """
 
     if 'version' not in env:
+        # TODO: make this a hard error, and stop defaulting to 0.4.0.
         warnings.warn("Blindly assuming 0.4.0")
         env = env.push({"version": "0.4.0"})
 
