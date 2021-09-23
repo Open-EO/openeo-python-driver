@@ -1,11 +1,10 @@
 import math
 import pytest
 
-from internal.graph_building import PGNode
+from openeo.rest.datacube import DataCube, PGNode
 from openeo_driver.ProcessGraphDeserializer import extract_deep, extract_args_subset, _period_to_intervals, \
     extract_arg_enum, SimpleProcessing
 from openeo_driver.errors import ProcessParameterInvalidException, ProcessParameterRequiredException
-from rest.datacube import DataCube
 
 
 def test_extract_deep():
