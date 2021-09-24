@@ -336,11 +336,27 @@ class PropertyNotEditableException(OpenEOApiException):
         super().__init__(message=self.message.format(property=property))
 
 
+class ProcessInvalidException(OpenEOApiException):
+    status_code = 400
+    code = 'ProcessInvalid'
+    message = 'Invalid process specified.'
+    _description = 'The process given is invalid, which ususlly means that the process metadata is invalid.'
+    _tags = ['Batch Jobs', 'Data Processing', 'Secondary Services', 'User-Defined Processes']
+
+
 class ProcessGraphMissingException(OpenEOApiException):
     status_code = 400
     code = 'ProcessGraphMissing'
-    message = 'Invalid process specified.'
+    message = "Invalid process specified. It doesn't contain a process graph."
     _description = "The parameter `process` doesn't contain a valid process."
+    _tags = ['Batch Jobs', 'Data Processing', 'Secondary Services', 'User-Defined Processes']
+
+
+class ProcessGraphInvalidException(OpenEOApiException):
+    status_code = 400
+    code = 'ProcessGraphInvalid'
+    message = 'Invalid process graph specified.'
+    _description = "The process doesn't contain a valid process graph, which means it doesn't comply to the general structure / schema."
     _tags = ['Batch Jobs', 'Data Processing', 'Secondary Services', 'User-Defined Processes']
 
 
@@ -423,16 +439,8 @@ class ProcessUnsupportedException(OpenEOApiException):
 class PredefinedProcessExistsException(OpenEOApiException):
     status_code = 400
     code = 'PredefinedProcessExists'
-    message = 'A pre-defined process with the given identifier exists.'
+    message = 'A predefined process with the given identifier exists.'
     _description = 'If a user wants to store a user-defined process with the id of a pre-defined process.'
-    _tags = ['User-Defined Processes']
-
-
-class ProcessGraphIdDoesntMatchException(OpenEOApiException):
-    status_code = 400
-    code = 'ProcessGraphIdDoesntMatch'
-    message = "The ids in the path and in the document don't match."
-    _description = 'If a user-defined process is stored and the ID in the request path and the JSON document are not equal.'
     _tags = ['User-Defined Processes']
 
 
