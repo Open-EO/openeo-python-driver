@@ -34,7 +34,6 @@ from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveRes
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
 from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union, geojson_to_multipolygon
-from openeo_driver.views import DEFAULT_VERSION
 
 _log = logging.getLogger(__name__)
 
@@ -207,10 +206,10 @@ class SimpleProcessing(Processing):
             self._registry_cache[spec] = registry
         return self._registry_cache[spec]
 
-    def get_basic_env(self) -> EvalEnv:
+    def get_basic_env(self, api_version=None) -> EvalEnv:
         return EvalEnv({
             "backend_implementation": OpenEoBackendImplementation(processing=self),
-            "version": DEFAULT_VERSION,
+            "version": api_version or "1.0.0",  # TODO: get better default api version from somewhere?
         })
 
     def evaluate(self, process_graph: dict, env: EvalEnv = None):
