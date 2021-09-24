@@ -533,7 +533,7 @@ class OpenEOApiErrorSpecHelper:
 
     def __init__(self, spec: dict = None):
         if spec is None:
-            with (SPECS_ROOT / 'openeo-api/1.0/errors.json').open('r', encoding='utf-8') as f:
+            with (SPECS_ROOT / 'openeo-api/1.x/errors.json').open('r', encoding='utf-8') as f:
                 spec = json.load(f)
         self._spec = spec
 
