@@ -15,7 +15,7 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import ProcessType
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyVisitor
-from openeo_driver.errors import ProcessGraphMissingException
+from openeo_driver.errors import ProcessGraphMissingException, ProcessGraphInvalidException
 from openeo_driver.testing import ApiTester, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN, \
     preprocess_regex_check_and_replace, generate_unique_test_process_id, RegexMatcher, DictSubSet
 from openeo_driver.utils import EvalEnv
@@ -951,12 +951,21 @@ def test_post_result_process_100(api100, client, auth):
     {"foo": "meh"},
     {"process": "meh"},
     {"process_graph": "meh"},
-    {"process": {"process_graph": "meh"}},
 ])
 def test_missing_process_graph(api, body):
     api.set_auth_bearer_token()
     response = api.post(path='/result', json=body)
     response.assert_error(status_code=ProcessGraphMissingException.status_code, error_code='ProcessGraphMissing')
+
+
+@pytest.mark.parametrize("body", [
+    {"process": {"process_graph": "meh"}},
+    {"process": {"process_graph": [1, 2, 3]}},
+])
+def test_invalid_process_graph(api, body):
+    api.set_auth_bearer_token()
+    response = api.post(path='/result', json=body)
+    response.assert_error(status_code=ProcessGraphInvalidException.status_code, error_code='ProcessGraphInvalid')
 
 
 def test_fuzzy_mask(api):

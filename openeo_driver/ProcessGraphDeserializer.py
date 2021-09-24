@@ -27,7 +27,7 @@ from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException, \
-    FeatureUnsupportedException, OpenEOApiException
+    FeatureUnsupportedException, OpenEOApiException, ProcessGraphInvalidException
 from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult, NullResult
@@ -1249,9 +1249,8 @@ def evaluate_process_from_url(process_id: str, namespace: str, args: dict, env: 
         process_graph = spec["process_graph"]
         parameters = spec.get("parameters", [])
     except Exception:
-        # TODO use ProcessGraphInvalidException when that is introduced after updating openeo_driver/specs/openeo-api/1.0 submodule
         # TODO: log information about what is wrong, so user can debug issue properly
-        raise OpenEOApiException(code="ProcessGraphInvalid", status_code=400, message="Invalid process graph specified.")
+        raise ProcessGraphInvalidException()
 
     return _evaluate_process_graph_process(
         process_id=process_id, process_graph=process_graph, parameters=parameters, args=args, env=env
