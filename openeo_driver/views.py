@@ -16,12 +16,15 @@ from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from openeo.capabilities import ComparableVersion
+from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphVisitException
 from openeo.util import dict_no_none, deep_get, Rfc3339
 from openeo_driver import urlsigning
+from openeo_driver.ProcessGraphDeserializer import ENV_DRY_RUN_TRACER, convert_node
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
     ErrorSummary, OpenEoBackendImplementation, BatchJobs
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
+from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, ProcessUnsupportedException, \
     JobNotFinishedException, ProcessGraphInvalidException
@@ -497,7 +500,7 @@ def _extract_process_graph(post_data: dict) -> dict:
         else:
             # API v0.4 style
             pg = post_data['process_graph']
-    except (KeyError, TypeError, AssertionError) as e:
+    except (KeyError, TypeError) as e:
         raise ProcessGraphMissingException
     if not isinstance(pg, dict):
         # TODO: more validity checks for (flat) process graph?
@@ -545,11 +548,43 @@ def register_views_processing(
         else:
             return 'Usage: Download image using POST.'
 
-    @api_endpoint(hidden=True)
+    @api_endpoint()
     @blueprint.route('/validation', methods=["POST"])
     def validation():
-        # TODO
-        raise FeatureUnsupportedException()
+        post_data = request.get_json()
+        try:
+            process_graph = post_data["process_graph"]
+        except (KeyError, TypeError) as e:
+            raise ProcessGraphMissingException
+        errors = _validation(process_graph=process_graph)
+        return jsonify({"errors": errors})
+
+    def _validation(process_graph) -> List[dict]:
+
+        dry_run_tracer = DryRunDataTracer()
+        env = EvalEnv({
+            ENV_DRY_RUN_TRACER: dry_run_tracer,
+            "backend_implementation": backend_implementation,
+            "version": g.api_version,
+            "user": None
+        })
+
+        try:
+            top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
+            result_node = process_graph[top_level_node]
+        except ProcessGraphVisitException as e:
+            return [{"code": "ProcessGraphInvalid", "message": str(e)}]
+
+        try:
+            result = convert_node(result_node, env=env)
+        except OpenEOApiException as e:
+            return [{"code": e.code, "message": str(e)}]
+        except Exception as e:
+            return [{"code": "Internal", "message": str(e)}]
+
+        # TODO: check dry run tracer for errors, warnings, ...?
+        # TODO: check other resources for errors, warnings?
+        return []
 
     @api_endpoint
     @blueprint.route('/result', methods=['POST'])
@@ -558,14 +593,15 @@ def register_views_processing(
         post_data = request.get_json()
         process_graph = _extract_process_graph(post_data)
 
-        result = backend_implementation.processing.evaluate(process_graph=process_graph, env=EvalEnv({
+        env = EvalEnv({
             "backend_implementation": backend_implementation,
             'version': g.api_version,
             'pyramid_levels': 'highest',
             'user': user,
             'require_bounds': True,
-            'correlation_id': str(uuid.uuid4())
-        }))
+            'correlation_id': str(uuid.uuid4()),
+        })
+        result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)
 
         # TODO unify all this output handling within SaveResult logic?
         if isinstance(result, DriverDataCube):

@@ -19,6 +19,7 @@ from shapely.geometry import shape, mapping
 import openeo.udf
 from openeo.capabilities import ComparableVersion
 from openeo.metadata import CollectionMetadata, MetadataException
+from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.util import load_json, rfc3339
 from openeo_driver import dry_run
 from openeo_driver.backend import UserDefinedProcessMetadata, LoadParameters, Processing, OpenEoBackendImplementation
@@ -245,8 +246,6 @@ def evaluate(
         warnings.warn("Blindly assuming 0.4.0")
         env = env.push({"version": "0.4.0"})
 
-    # TODO avoid local import
-    from openeo.internal.process_graph_visitor import ProcessGraphVisitor
     top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
     result_node = process_graph[top_level_node]
 
