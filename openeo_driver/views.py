@@ -545,6 +545,12 @@ def register_views_processing(
         else:
             return 'Usage: Download image using POST.'
 
+    @api_endpoint(hidden=True)
+    @blueprint.route('/validation', methods=["POST"])
+    def validation():
+        # TODO
+        raise FeatureUnsupportedException()
+
     @api_endpoint
     @blueprint.route('/result', methods=['POST'])
     @auth_handler.requires_bearer_auth
@@ -1038,12 +1044,6 @@ def register_views_udp(
                 code="InvalidId", status_code=400,
                 message=f"Invalid process identifier {process_id!r}, must match {_process_id_regex.pattern!r}."
             )
-
-    @api_endpoint(hidden=True)
-    @blueprint.route('/validation', methods=["POST"])
-    def udp_validate():
-        # TODO
-        raise FeatureUnsupportedException()
 
     @api_endpoint
     @blueprint.route('/process_graphs/<process_graph_id>', methods=['PUT'])
