@@ -582,9 +582,17 @@ def register_views_processing(
         except Exception as e:
             return [{"code": "Internal", "message": str(e)}]
 
-        # TODO: check dry run tracer for errors, warnings, ...?
+        errors = []
         # TODO: check other resources for errors, warnings?
-        return []
+
+        source_constraints = dry_run_tracer.get_source_constraints()
+        errors.extend(backend_implementation.extra_validation(
+            process_graph=process_graph,
+            result=result,
+            source_constraints=source_constraints
+        ))
+
+        return errors
 
     @api_endpoint
     @blueprint.route('/result', methods=['POST'])

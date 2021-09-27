@@ -26,7 +26,7 @@ from openeo_driver.backend import UserDefinedProcessMetadata, LoadParameters, Pr
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.dry_run import DryRunDataTracer
+from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint
 from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException, \
     FeatureUnsupportedException, OpenEOApiException, ProcessGraphInvalidException
 from openeo_driver.errors import ProcessUnsupportedException
@@ -362,7 +362,7 @@ def extract_arg_enum(args: dict, name: str, enum_values: Union[set, list, tuple]
 
 
 def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
-    source_constraints = env[ENV_SOURCE_CONSTRAINTS]
+    source_constraints: List[SourceConstraint] = env[ENV_SOURCE_CONSTRAINTS]
     global_extent = None
     process_types = set()
     for _, constraint in source_constraints:

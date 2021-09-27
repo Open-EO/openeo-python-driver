@@ -2,7 +2,7 @@ import numbers
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Union, Tuple, Optional
+from typing import List, Dict, Union, Tuple, Optional, Iterable
 from unittest.mock import Mock
 
 from shapely.geometry import Polygon, MultiPolygon
@@ -16,6 +16,7 @@ from openeo_driver.backend import (SecondaryServices, OpenEoBackendImplementatio
                                    UserDefinedProcessMetadata, LoadParameters)
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
+from openeo_driver.dry_run import SourceConstraint
 from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, ProcessGraphNotFoundException
 from openeo_driver.save_result import AggregatePolygonResult
 from openeo_driver.users import User
@@ -435,6 +436,9 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
             processing=ConcreteProcessing(),
         )
 
+        # Allow on the fly setting of "extra_validation" functions for unit tests.
+        self.extra_validations = []
+
     def oidc_providers(self) -> List[OidcProvider]:
         return [
             OidcProvider(id="testprovider", issuer="https://oidc.oeo.net", scopes=["openid"], title="Test"),
@@ -479,4 +483,10 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
     def visit_process_graph(self, process_graph: dict) -> ProcessGraphVisitor:
         return DummyVisitor().accept_process_graph(process_graph)
 
-
+    def extra_validation(
+            self, process_graph: dict, result, source_constraints: List[SourceConstraint]
+    ) -> Iterable[dict]:
+        for extra_validation in self.extra_validations:
+            yield from extra_validation(
+                process_graph=process_graph, result=result, source_constraints=source_constraints
+            )

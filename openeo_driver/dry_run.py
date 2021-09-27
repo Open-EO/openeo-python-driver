@@ -176,6 +176,11 @@ class DataTrace(DataTraceBase):
         return self.parent.describe() + "<-" + self._operation
 
 
+# Type hint for source constaints
+# TODO make this a real class?
+SourceConstraint = Tuple[Tuple[str, tuple], dict]
+
+
 class DryRunDataTracer:
     """
     Observer that keeps track of data traces in various DryRunDataCubes
@@ -198,6 +203,7 @@ class DryRunDataTracer:
 
     def load_collection(self, collection_id: str, arguments: dict, metadata: dict = None) -> 'DryRunDataCube':
         """Create a DryRunDataCube from a `load_collection` process."""
+        # TODO: avoid VITO/Terrascope specific handling here?
         properties = {**CollectionMetadata(metadata).get("_vito", "properties", default={}),
                       **arguments.get("properties", {})}
 
@@ -246,7 +252,7 @@ class DryRunDataTracer:
             result[source_id] = leaf.get_arguments_by_operation("log_metadata_link")
         return result
 
-    def get_source_constraints(self, merge=True) -> List[Tuple[tuple, dict]]:
+    def get_source_constraints(self, merge=True) -> List[SourceConstraint]:
         """
         Get the temporal/spatial constraints of all traced sources
 

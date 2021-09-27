@@ -14,13 +14,14 @@ import logging
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Union, NamedTuple, Dict, Optional, Callable
+from typing import List, Union, NamedTuple, Dict, Optional, Callable, Iterable
 
 from openeo.capabilities import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.util import rfc3339
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs
+from openeo_driver.dry_run import SourceConstraint
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException
 from openeo_driver.processes import ProcessRegistry
 from openeo_driver.utils import read_json, dict_item, EvalEnv, extract_namedtuple_fields_from_dict, get_package_versions
@@ -545,3 +546,13 @@ class OpenEoBackendImplementation:
     # TODO this "proxy user" feature is YARN/Spark/VITO specific. Move it to oppeno-geopyspark-driver?
     def set_preferred_username_getter(self, getter: Callable[['User'], Optional[str]]):
         self.batch_jobs.set_proxy_user_getter(getter)
+
+    def extra_validation(
+            self, process_graph: dict, result, source_constraints: List[SourceConstraint]
+    ) -> Iterable[dict]:
+        """
+        Back-end specific, extra process graph validation
+
+        :return: List (or generator) of validation error dicts (having at least a "code" and "message" field)
+        """
+        return []
