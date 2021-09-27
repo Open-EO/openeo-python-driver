@@ -19,13 +19,14 @@ from shapely.geometry import shape, mapping
 import openeo.udf
 from openeo.capabilities import ComparableVersion
 from openeo.metadata import CollectionMetadata, MetadataException
+from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.util import load_json, rfc3339
 from openeo_driver import dry_run
 from openeo_driver.backend import UserDefinedProcessMetadata, LoadParameters, Processing, OpenEoBackendImplementation
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.dry_run import DryRunDataTracer
+from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint
 from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException, \
     FeatureUnsupportedException, OpenEOApiException, ProcessGraphInvalidException
 from openeo_driver.errors import ProcessUnsupportedException
@@ -34,7 +35,6 @@ from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveRes
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
 from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union, geojson_to_multipolygon
-from openeo_driver.views import DEFAULT_VERSION
 
 _log = logging.getLogger(__name__)
 
@@ -207,10 +207,10 @@ class SimpleProcessing(Processing):
             self._registry_cache[spec] = registry
         return self._registry_cache[spec]
 
-    def get_basic_env(self) -> EvalEnv:
+    def get_basic_env(self, api_version=None) -> EvalEnv:
         return EvalEnv({
             "backend_implementation": OpenEoBackendImplementation(processing=self),
-            "version": DEFAULT_VERSION,
+            "version": api_version or "1.0.0",  # TODO: get better default api version from somewhere?
         })
 
     def evaluate(self, process_graph: dict, env: EvalEnv = None):
@@ -246,8 +246,6 @@ def evaluate(
         warnings.warn("Blindly assuming 0.4.0")
         env = env.push({"version": "0.4.0"})
 
-    # TODO avoid local import
-    from openeo.internal.process_graph_visitor import ProcessGraphVisitor
     top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
     result_node = process_graph[top_level_node]
 
@@ -364,7 +362,7 @@ def extract_arg_enum(args: dict, name: str, enum_values: Union[set, list, tuple]
 
 
 def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
-    source_constraints = env[ENV_SOURCE_CONSTRAINTS]
+    source_constraints: List[SourceConstraint] = env[ENV_SOURCE_CONSTRAINTS]
     global_extent = None
     process_types = set()
     for _, constraint in source_constraints:

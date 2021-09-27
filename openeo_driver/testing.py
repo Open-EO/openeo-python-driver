@@ -250,6 +250,19 @@ class ApiTester:
         response = self.result(process_graph=process_graph, path=path, preprocess=preprocess)
         return response.assert_status_code(200).assert_content()
 
+    def validation(self, process_graph: Union[dict, str], preprocess: Callable = None, do_auth: bool = True):
+        """Post a process_graph (as dict or by filename) and run validation."""
+        if isinstance(process_graph, str):
+            # Assume it is a file name
+            process_graph = self.load_json(process_graph, preprocess=preprocess)
+        data = {'process_graph': process_graph}
+        if do_auth:
+            self.set_auth_bearer_token()
+        response = self.post(path="/validation", json=data)
+        # "Please note that a validation always returns with HTTP status code 200."
+        response.assert_status_code(200)
+        return response
+
 
 class IgnoreOrder:
     """

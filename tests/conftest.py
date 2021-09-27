@@ -1,13 +1,13 @@
 import flask
 import pytest
 
-from openeo_driver.backend import OpenEoBackendImplementation, UserDefinedProcesses
+from openeo_driver.backend import UserDefinedProcesses
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
 from openeo_driver.views import build_app
 
 
 @pytest.fixture(scope="module")
-def backend_implementation() -> OpenEoBackendImplementation:
+def backend_implementation() -> DummyBackendImplementation:
     return DummyBackendImplementation()
 
 
