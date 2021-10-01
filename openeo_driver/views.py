@@ -11,7 +11,7 @@ from typing import Callable, Tuple, List
 import flask
 import flask_cors
 import numpy as np
-from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, current_app
+from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, current_app, redirect
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -167,6 +167,10 @@ def build_app(
             ]
         })
 
+    @app.route('/', methods=['GET'])
+    def redirect_root():
+        return redirect(url_for('openeo.index'))
+
     auth = HttpAuthHandler(oidc_providers=backend_implementation.oidc_providers())
     api_reg = EndpointRegistry()
     bp = Blueprint("openeo", import_name=__name__)
@@ -208,7 +212,6 @@ def build_app(
             blueprint=bp, backend_implementation=backend_implementation, api_endpoint=api_reg, auth_handler=auth
         )
 
-    app.register_blueprint(bp, url_prefix='/')
     app.register_blueprint(bp, url_prefix='/openeo')  # TODO: do we still need this?
     app.register_blueprint(bp, url_prefix='/openeo/<version>')
 
