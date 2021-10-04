@@ -367,10 +367,10 @@ def register_views_general(
                 "currency": "EUR",
                 "plans": [
                     {
-                        "name": "free",
-                        "description": "Free plan. No limits!",
-                        "url": "http://openeo.org/plans/free-plan",
-                        "paid": False
+                        "name": "early-adopter",
+                        "description": "openEO.cloud early adopter plan",
+                        "url": "https://openeo.cloud/early-adopters/",
+                        "paid": True
                     }
                 ]
             },
@@ -391,7 +391,16 @@ def register_views_general(
                     "href": url_for("openeo.conformance", _external=True),
                     "type": "application/json",
                 },
-                # TODO #60: also add terms-of-service, privacy policy
+                {
+                    "rel": "terms-of-service",
+                    "href": "https://openeo.cloud/aup",
+                    "type": "text/html",
+                },
+                {
+                    "rel": "privacy-policy",
+                    "href": "https://terrascope.be/en/privacy-policy",
+                    "type": "text/html",
+                }
             ]
         }
 
