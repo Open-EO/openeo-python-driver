@@ -168,7 +168,10 @@ def build_app(
             ]
         })
 
-    auth = HttpAuthHandler(oidc_providers=backend_implementation.oidc_providers())
+    auth = HttpAuthHandler(
+        oidc_providers=backend_implementation.oidc_providers(),
+        user_access_validation=backend_implementation.user_access_validation
+    )
     api_reg = EndpointRegistry()
     bp = Blueprint("openeo", import_name=__name__)
 

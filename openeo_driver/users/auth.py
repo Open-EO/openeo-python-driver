@@ -7,7 +7,7 @@ import base64
 import functools
 import hashlib
 import logging
-from typing import Callable, Tuple, List, Dict
+from typing import Callable, Tuple, List, Dict, Optional
 
 from flask import request, Request
 import requests
@@ -30,8 +30,13 @@ class HttpAuthHandler:
     # TODO: get rid of this prefix once 0.4 support is not necessary anymore
     _BASIC_ACCESS_TOKEN_PREFIX = 'basic.'
 
-    def __init__(self, oidc_providers: List[OidcProvider]):
+    def __init__(
+            self,
+            oidc_providers: List[OidcProvider],
+            user_access_validation: Optional[Callable[[User, Request], User]] = None
+    ):
         self._oidc_providers: Dict[str, OidcProvider] = {p.id: p for p in oidc_providers}
+        self._user_access_validation = user_access_validation
         self._cache = TtlCache(default_ttl=10 * 60)
 
     def public(self, f: Callable):
@@ -65,6 +70,8 @@ class HttpAuthHandler:
         def decorated(*args, **kwargs):
             # Try to load user info from request (failure will raise appropriate exception).
             user = self.get_user_from_bearer_token(request)
+            if self._user_access_validation:
+                user = self._user_access_validation(user, request)
             # If handler function expects a `user` argument: pass the user object
             if 'user' in f.__code__.co_varnames:
                 kwargs['user'] = user
@@ -128,6 +135,7 @@ class HttpAuthHandler:
         password_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
         _log.info("Handling basic auth for user {u!r} with sha256(pwd)={p})".format(u=username, p=password_hash))
         # TODO: do real password check
+        # move password checking to backend_implementation?
         if password != username + '123':
             raise CredentialsInvalidException
         # TODO real resolving of given user name to user_id

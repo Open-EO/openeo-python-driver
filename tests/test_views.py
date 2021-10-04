@@ -13,6 +13,7 @@ from openeo_driver.backend import BatchJobMetadata, UserDefinedProcessMetadata, 
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, \
     generate_unique_test_process_id, build_basic_http_auth_header
+from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata
 from .data import TEST_DATA_ROOT
 
@@ -345,6 +346,20 @@ class TestGeneral:
 
         processes = api100.get("/processes").assert_status_code(200).json["processes"]
         assert "increment" not in set(p['id'] for p in processes)
+
+    @pytest.mark.parametrize(["user_id", "expect_success"], [
+        ("Mark", False),
+        ("John", True),
+    ])
+    def test_user_access_validation(self, api, user_id, expect_success):
+        headers = {
+            "Authorization": "Bearer basic//" + HttpAuthHandler.build_basic_access_token(user_id=user_id)
+        }
+        response = api.get("/jobs", headers=headers)
+        if expect_success:
+            response.assert_status_code(200)
+        else:
+            response.assert_error(403, "PermissionsInsufficient", message="No access for Mark.")
 
 
 class TestCollections:
