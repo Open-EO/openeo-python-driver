@@ -140,6 +140,7 @@ def test_oidc_provider_from_dict_basic():
     assert p.title == "Foo ID"
     assert p.scopes == ["openid"]
     assert p.description is None
+    assert p.discovery_url == "https://oidc.foo.test/.well-known/openid-configuration"
 
     assert p.prepare_for_json() == {
         "id": "foo", "issuer": "https://oidc.foo.test/", "title": "Foo ID", "scopes": ["openid"]
@@ -158,6 +159,7 @@ def test_oidc_provider_from_dict_more():
     assert p.scopes == ["openid", "email"]
     assert p.description is None
     assert p.default_clients == {"id": "dcf0e6384", "grant_types": ["refresh_token"]}
+    assert p.discovery_url == "https://oidc.foo.test/.well-known/openid-configuration"
 
     assert p.prepare_for_json() == {
         "id": "foo", "issuer": "https://oidc.foo.test/", "title": "Foo ID",

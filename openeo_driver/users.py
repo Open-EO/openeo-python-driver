@@ -7,7 +7,7 @@ import base64
 import functools
 import hashlib
 import logging
-from typing import Callable, Tuple, List, Optional
+from typing import Callable, Tuple, List, Optional, Dict
 
 from flask import request, Request
 import requests
@@ -53,10 +53,7 @@ class HttpAuthHandler:
     _BASIC_ACCESS_TOKEN_PREFIX = 'basic.'
 
     def __init__(self, oidc_providers: List[OidcProvider]):
-        self._oidc_discovery_urls = {
-            p.id: p.issuer + '/.well-known/openid-configuration'
-            for p in oidc_providers
-        }
+        self._oidc_providers: Dict[str, OidcProvider] = {p.id: p for p in oidc_providers}
         self._cache = TtlCache(default_ttl=10 * 60)
 
     def public(self, f: Callable):
@@ -123,8 +120,8 @@ class HttpAuthHandler:
         if bearer_type == 'basic':
             return self.resolve_basic_access_token(access_token=access_token)
         elif bearer_type == 'oidc':
-            oidc_discovery_url = self._oidc_discovery_urls[provider_id]
-            return self.resolve_oidc_access_token(oidc_discovery_url=oidc_discovery_url, access_token=access_token)
+            oidc_provider = self._oidc_providers[provider_id]
+            return self.resolve_oidc_access_token(oidc_provider=oidc_provider, access_token=access_token)
         else:
             _log.warning("Invalid bearer token {b!r}".format(b=bearer))
             raise TokenInvalidException
@@ -176,18 +173,18 @@ class HttpAuthHandler:
             raise TokenInvalidException
         return User(user_id=user_id, info={"authentication": "basic"})
 
-    def _get_userinfo_endpoint(self, oidc_discovery_url: str) -> str:
-        key = ("userinfo_endpoint", oidc_discovery_url)
+    def _get_userinfo_endpoint(self, oidc_provider: OidcProvider) -> str:
+        key = ("userinfo_endpoint", oidc_provider.issuer)
         if not self._cache.contains(key):
-            resp = requests.get(oidc_discovery_url)
+            resp = requests.get(oidc_provider.discovery_url)
             resp.raise_for_status()
             userinfo_url = resp.json()["userinfo_endpoint"]
             self._cache.set(key, value=userinfo_url, ttl=10 * 60)
         return self._cache.get(key)
 
-    def resolve_oidc_access_token(self, oidc_discovery_url: str, access_token: str) -> User:
+    def resolve_oidc_access_token(self, oidc_provider: OidcProvider, access_token: str) -> User:
         try:
-            userinfo_url = self._get_userinfo_endpoint(oidc_discovery_url)
+            userinfo_url = self._get_userinfo_endpoint(oidc_provider=oidc_provider)
             resp = requests.get(userinfo_url, auth=BearerAuth(bearer=access_token))
             resp.raise_for_status()
             userinfo = resp.json()
@@ -195,7 +192,7 @@ class HttpAuthHandler:
             # TODO: do we have better options?
             user_id = userinfo["sub"]
             return User(user_id=user_id, info=userinfo, internal_auth_data={
-                "type": "OIDC", "oidc_discovery_url": oidc_discovery_url, "access_token": access_token
+                "type": "OIDC", "oidc_issuer": oidc_provider.issuer, "access_token": access_token,
             })
         except Exception as e:
             _log.warning("Failed to resolve OIDC access token", exc_info=True)

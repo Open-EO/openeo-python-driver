@@ -369,6 +369,10 @@ class OidcProvider(NamedTuple):
                 d.pop(omit_when_none)
         return d
 
+    @property
+    def discovery_url(self):
+        return self.issuer.rstrip("/") + '/.well-known/openid-configuration'
+
 
 class UserDefinedProcessMetadata(NamedTuple):
     """
