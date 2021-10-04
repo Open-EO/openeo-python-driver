@@ -1,29 +1,13 @@
 import base64
 import json
-import re
-
 import pytest
 from flask import Flask, jsonify, Response, request
 
 from openeo_driver.backend import OidcProvider
 from openeo_driver.errors import OpenEOApiException
-from openeo_driver.users import HttpAuthHandler, User
-from openeo_driver.users import user_id_b64_encode, user_id_b64_decode
-
-
-@pytest.mark.parametrize("user_id", [
-    "John", "John D", "John Do", "John Doe", "John Drop Tables",
-    "Jøhñ Δö€",
-    r"J()h&n |>*% $<{}@!\\:,^ #=!,.`=-_+°º¤ø,¸¸,ø¤º°»-(¯`·.·´¯)->¯\_(ツ)_/¯0(╯°□°）╯ ︵ ┻━┻ ",
-    "Pablo Diego José Francisco de Paula Juan Nepomuceno María de los Remedios Cipriano de la Santísima Trinidad Ruiz y Picasso"
-])
-def test_user_id_b64_encode(user_id):
-    encoded = user_id_b64_encode(user_id)
-    assert isinstance(encoded, str)
-    assert re.match("^[A-Za-z0-9_=-]*$", encoded)
-    decoded = user_id_b64_decode(encoded)
-    assert isinstance(decoded, str)
-    assert decoded == user_id
+from openeo_driver.testing import build_basic_http_auth_header
+from openeo_driver.users import User
+from openeo_driver.users.auth import HttpAuthHandler
 
 
 @pytest.fixture()
@@ -121,22 +105,16 @@ def test_basic_auth_invalid_auth_type(app):
         assert_invalid_authentication_method_failure(response)
 
 
-def _build_basic_http_auth_header(username: str, password: str) -> str:
-    """Build HTTP header for Basic HTTP authentication"""
-    # Note: this is not the basic bearer token
-    return "Basic " + base64.b64encode("{u}:{p}".format(u=username, p=password).encode("utf-8")).decode('ascii')
-
-
 def test_basic_auth_invalid_password(app):
     with app.test_client() as client:
-        headers = {"Authorization": _build_basic_http_auth_header("testuser", "wrongpassword")}
+        headers = {"Authorization": build_basic_http_auth_header("testuser", "wrongpassword")}
         response = client.get("/basic/hello", headers=headers)
         assert_invalid_credentials_failure(response)
 
 
 def test_basic_auth_success(app):
     with app.test_client() as client:
-        headers = {"Authorization": _build_basic_http_auth_header("testuser", "testuser123")}
+        headers = {"Authorization": build_basic_http_auth_header("testuser", "testuser123")}
         response = client.get("/basic/hello", headers=headers)
         assert response.status_code == 200
         assert response.data == b"hello basic"
@@ -187,7 +165,7 @@ def test_bearer_auth_basic_invalid_token_prefix(app, url):
 ])
 def test_bearer_auth_basic_token_success(app, url, expected_data):
     with app.test_client() as client:
-        headers = {"Authorization": _build_basic_http_auth_header("testuser", "testuser123")}
+        headers = {"Authorization": build_basic_http_auth_header("testuser", "testuser123")}
         resp = client.get("/basic/auth", headers=headers)
         assert resp.status_code == 200
         access_token = resp.json["access_token"]

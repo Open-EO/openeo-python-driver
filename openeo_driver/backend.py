@@ -24,6 +24,7 @@ from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.dry_run import SourceConstraint
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException
 from openeo_driver.processes import ProcessRegistry
+from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.utils import read_json, dict_item, EvalEnv, extract_namedtuple_fields_from_dict, get_package_versions
 
 logger = logging.getLogger(__name__)
@@ -345,33 +346,6 @@ class BatchJobs(MicroService):
 
     def set_proxy_user_getter(self, getter: Callable[['User'], Optional[str]]):
         self._get_proxy_user = getter
-
-
-class OidcProvider(NamedTuple):
-    """OIDC provider metadata"""
-    id: str
-    issuer: str
-    title: str
-    scopes: List[str] = ["openid"]
-    description: str = None
-    default_client: dict = None  # TODO: remove this legacy experimental field
-    default_clients: List[dict] = None
-
-    @classmethod
-    def from_dict(cls, d: dict) -> 'OidcProvider':
-        d = extract_namedtuple_fields_from_dict(d, OidcProvider)
-        return cls(**d)
-
-    def prepare_for_json(self) -> dict:
-        d = self._asdict()
-        for omit_when_none in ["description", "default_client", "default_clients"]:
-            if d[omit_when_none] is None:
-                d.pop(omit_when_none)
-        return d
-
-    @property
-    def discovery_url(self):
-        return self.issuer.rstrip("/") + '/.well-known/openid-configuration'
 
 
 class UserDefinedProcessMetadata(NamedTuple):
