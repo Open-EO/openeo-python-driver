@@ -11,11 +11,12 @@ from openeo.capabilities import ComparableVersion
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
 from openeo_driver.backend import BatchJobMetadata, UserDefinedProcessMetadata, BatchJobs
 from openeo_driver.dummy import dummy_backend
-from openeo_driver.testing import ApiTester
-from openeo_driver.testing import TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, generate_unique_test_process_id
+from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, \
+    generate_unique_test_process_id, build_basic_http_auth_header
+from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata
 from .data import TEST_DATA_ROOT
-from .test_users import _build_basic_http_auth_header
+
 
 
 @pytest.fixture(params=["0.4.0", "1.0.0"])
@@ -345,6 +346,20 @@ class TestGeneral:
 
         processes = api100.get("/processes").assert_status_code(200).json["processes"]
         assert "increment" not in set(p['id'] for p in processes)
+
+    @pytest.mark.parametrize(["user_id", "expect_success"], [
+        ("Mark", False),
+        ("John", True),
+    ])
+    def test_user_access_validation(self, api, user_id, expect_success):
+        headers = {
+            "Authorization": "Bearer basic//" + HttpAuthHandler.build_basic_access_token(user_id=user_id)
+        }
+        response = api.get("/jobs", headers=headers)
+        if expect_success:
+            response.assert_status_code(200)
+        else:
+            response.assert_error(403, "PermissionsInsufficient", message="No access for Mark.")
 
 
 class TestCollections:
@@ -1224,12 +1239,12 @@ def test_credentials_basic_no_headers(api):
 
 
 def test_credentials_basic_wrong_password(api):
-    headers = {"Authorization": _build_basic_http_auth_header(username="john", password="password123")}
+    headers = {"Authorization": build_basic_http_auth_header(username="john", password="password123")}
     api.get("/credentials/basic", headers=headers).assert_error(403, 'CredentialsInvalid')
 
 
 def test_credentials_basic(api):
-    headers = {"Authorization": _build_basic_http_auth_header(username="john", password="john123")}
+    headers = {"Authorization": build_basic_http_auth_header(username="john", password="john123")}
     response = api.get("/credentials/basic", headers=headers).assert_status_code(200).json
     expected = {"access_token"}
     if api.api_version_compare.below("1.0.0"):

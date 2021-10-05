@@ -7,42 +7,20 @@ import base64
 import functools
 import hashlib
 import logging
-from typing import Callable, Tuple, List, Optional, Dict
+from typing import Callable, Tuple, List, Dict, Optional
 
 from flask import request, Request
 import requests
 
 from openeo.rest.auth.auth import BearerAuth
-from openeo_driver.backend import OidcProvider
+from openeo_driver.users import User
+from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.errors import AuthenticationRequiredException, \
     AuthenticationSchemeInvalidException, TokenInvalidException, CredentialsInvalidException
 from openeo_driver.utils import TtlCache
 
 _log = logging.getLogger(__name__)
 
-
-class User:
-    # TODO more fields
-    def __init__(self, user_id: str, info: dict = None, internal_auth_data: dict = None):
-        self.user_id = user_id
-        self.info = info
-        self.internal_auth_data = internal_auth_data
-
-    def __repr__(self):
-        return "%s(%r, %r)" % (self.__class__.__name__, self.user_id, self.info)
-
-    def __str__(self):
-        return self.user_id
-
-
-def user_id_b64_encode(user_id: str) -> str:
-    """Encode a user id in way that is safe to use in urls"""
-    return base64.urlsafe_b64encode(user_id.encode("utf8")).decode("ascii")
-
-
-def user_id_b64_decode(encoded: str) -> str:
-    """Decode a user id that was encoded with user_id_b64_encode"""
-    return base64.urlsafe_b64decode(encoded.encode("ascii")).decode("utf-8")
 
 
 class HttpAuthHandler:
@@ -52,8 +30,13 @@ class HttpAuthHandler:
     # TODO: get rid of this prefix once 0.4 support is not necessary anymore
     _BASIC_ACCESS_TOKEN_PREFIX = 'basic.'
 
-    def __init__(self, oidc_providers: List[OidcProvider]):
+    def __init__(
+            self,
+            oidc_providers: List[OidcProvider],
+            user_access_validation: Optional[Callable[[User, Request], User]] = None
+    ):
         self._oidc_providers: Dict[str, OidcProvider] = {p.id: p for p in oidc_providers}
+        self._user_access_validation = user_access_validation
         self._cache = TtlCache(default_ttl=10 * 60)
 
     def public(self, f: Callable):
@@ -87,6 +70,8 @@ class HttpAuthHandler:
         def decorated(*args, **kwargs):
             # Try to load user info from request (failure will raise appropriate exception).
             user = self.get_user_from_bearer_token(request)
+            if self._user_access_validation:
+                user = self._user_access_validation(user, request)
             # If handler function expects a `user` argument: pass the user object
             if 'user' in f.__code__.co_varnames:
                 kwargs['user'] = user
@@ -150,6 +135,7 @@ class HttpAuthHandler:
         password_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
         _log.info("Handling basic auth for user {u!r} with sha256(pwd)={p})".format(u=username, p=password_hash))
         # TODO: do real password check
+        # move password checking to backend_implementation?
         if password != username + '123':
             raise CredentialsInvalidException
         # TODO real resolving of given user name to user_id

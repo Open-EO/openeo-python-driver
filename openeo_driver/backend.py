@@ -16,6 +16,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Union, NamedTuple, Dict, Optional, Callable, Iterable
 
+import flask
+
 from openeo.capabilities import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.util import rfc3339
@@ -24,6 +26,8 @@ from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.dry_run import SourceConstraint
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException
 from openeo_driver.processes import ProcessRegistry
+from openeo_driver.users import User
+from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.utils import read_json, dict_item, EvalEnv, extract_namedtuple_fields_from_dict, get_package_versions
 
 logger = logging.getLogger(__name__)
@@ -280,7 +284,7 @@ class BatchJobs(MicroService):
 
     def __init__(self):
         # TODO this "proxy user" feature is YARN/Spark/VITO specific. Move it to oppeno-geopyspark-driver?
-        self._get_proxy_user: Callable[['User'], Optional[str]] = lambda user: None
+        self._get_proxy_user: Callable[[User], Optional[str]] = lambda user: None
 
     def create_job(
             self, user_id: str, process: dict, api_version: str,
@@ -289,7 +293,7 @@ class BatchJobs(MicroService):
         # TODO: why return a full BatchJobMetadata? only job id is used
         raise NotImplementedError
 
-    def get_job_info(self, job_id: str, user: 'User') -> BatchJobMetadata:
+    def get_job_info(self, job_id: str, user: User) -> BatchJobMetadata:
         """
         Get details about a batch job
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-job
@@ -304,7 +308,7 @@ class BatchJobs(MicroService):
         """
         raise NotImplementedError
 
-    def start_job(self, job_id: str, user: 'User'):
+    def start_job(self, job_id: str, user: User):
         """
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/start-job
         """
@@ -340,38 +344,11 @@ class BatchJobs(MicroService):
         raise NotImplementedError
 
     # TODO this "proxy user" feature is YARN/Spark/VITO specific. Move it to oppeno-geopyspark-driver?
-    def get_proxy_user(self, user: 'User') -> Optional[str]:
+    def get_proxy_user(self, user: User) -> Optional[str]:
         return self._get_proxy_user(user)
 
-    def set_proxy_user_getter(self, getter: Callable[['User'], Optional[str]]):
+    def set_proxy_user_getter(self, getter: Callable[[User], Optional[str]]):
         self._get_proxy_user = getter
-
-
-class OidcProvider(NamedTuple):
-    """OIDC provider metadata"""
-    id: str
-    issuer: str
-    title: str
-    scopes: List[str] = ["openid"]
-    description: str = None
-    default_client: dict = None  # TODO: remove this legacy experimental field
-    default_clients: List[dict] = None
-
-    @classmethod
-    def from_dict(cls, d: dict) -> 'OidcProvider':
-        d = extract_namedtuple_fields_from_dict(d, OidcProvider)
-        return cls(**d)
-
-    def prepare_for_json(self) -> dict:
-        d = self._asdict()
-        for omit_when_none in ["description", "default_client", "default_clients"]:
-            if d[omit_when_none] is None:
-                d.pop(omit_when_none)
-        return d
-
-    @property
-    def discovery_url(self):
-        return self.issuer.rstrip("/") + '/.well-known/openid-configuration'
 
 
 class UserDefinedProcessMetadata(NamedTuple):
@@ -548,7 +525,7 @@ class OpenEoBackendImplementation:
         return error
 
     # TODO this "proxy user" feature is YARN/Spark/VITO specific. Move it to oppeno-geopyspark-driver?
-    def set_preferred_username_getter(self, getter: Callable[['User'], Optional[str]]):
+    def set_preferred_username_getter(self, getter: Callable[[User], Optional[str]]):
         self.batch_jobs.set_proxy_user_getter(getter)
 
     def extra_validation(
@@ -560,3 +537,7 @@ class OpenEoBackendImplementation:
         :return: List (or generator) of validation error dicts (having at least a "code" and "message" field)
         """
         return []
+
+    def user_access_validation(self, user: User, request: flask.Request) -> User:
+        """Additional user access validation based on flask request."""
+        return user

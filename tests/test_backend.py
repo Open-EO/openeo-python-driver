@@ -3,7 +3,7 @@ import datetime
 import pytest
 
 from openeo_driver.backend import CollectionCatalog, LoadParameters, UserDefinedProcessMetadata, ServiceMetadata, \
-    BatchJobMetadata, OidcProvider
+    BatchJobMetadata
 from openeo_driver.errors import CollectionNotFoundException
 
 
@@ -126,43 +126,3 @@ def test_batch_job_metadata_from_dict_basic():
     assert job.created == datetime.datetime(2021, 6, 18, 12, 34, 56)
     assert job.process == {"id": "ndvi", "process_graph": {}}
     assert job.status == "running"
-
-
-def test_oidc_provider_from_dict_empty():
-    with pytest.raises(KeyError, match="Missing OidcProvider fields: id, issuer, title"):
-        _ = OidcProvider.from_dict({})
-
-
-def test_oidc_provider_from_dict_basic():
-    p = OidcProvider.from_dict({"id": "foo", "issuer": "https://oidc.foo.test/", "title": "Foo ID"})
-    assert p.id == "foo"
-    assert p.issuer == "https://oidc.foo.test/"
-    assert p.title == "Foo ID"
-    assert p.scopes == ["openid"]
-    assert p.description is None
-    assert p.discovery_url == "https://oidc.foo.test/.well-known/openid-configuration"
-
-    assert p.prepare_for_json() == {
-        "id": "foo", "issuer": "https://oidc.foo.test/", "title": "Foo ID", "scopes": ["openid"]
-    }
-
-
-def test_oidc_provider_from_dict_more():
-    p = OidcProvider.from_dict({
-        "id": "foo", "issuer": "https://oidc.foo.test/", "title": "Foo ID",
-        "scopes": ["openid", "email"],
-        "default_clients": {"id": "dcf0e6384", "grant_types": ["refresh_token"]},
-    })
-    assert p.id == "foo"
-    assert p.issuer == "https://oidc.foo.test/"
-    assert p.title == "Foo ID"
-    assert p.scopes == ["openid", "email"]
-    assert p.description is None
-    assert p.default_clients == {"id": "dcf0e6384", "grant_types": ["refresh_token"]}
-    assert p.discovery_url == "https://oidc.foo.test/.well-known/openid-configuration"
-
-    assert p.prepare_for_json() == {
-        "id": "foo", "issuer": "https://oidc.foo.test/", "title": "Foo ID",
-        "scopes": ["openid", "email"],
-        "default_clients": {"id": "dcf0e6384", "grant_types": ["refresh_token"]},
-    }
