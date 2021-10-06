@@ -143,6 +143,7 @@ class LoadParameters(dict):
     custom_mask = dict_item(default={})
     target_crs = dict_item(default=None)
     target_resolution = dict_item(default=None)
+    backend_provider = dict_item(default=None)
 
     def copy(self) -> "LoadParameters":
         return LoadParameters(super().copy())
@@ -195,6 +196,9 @@ class CollectionCatalog(AbstractCollectionCatalog):
             return self._catalog[collection_id]
         except KeyError:
             raise CollectionNotFoundException(collection_id)
+
+    def get_collection_with_common_name(self, common_name: str):
+        return list(filter(lambda c: c.get("common_name") == common_name, self._catalog.values()))
 
     def load_collection(self, collection_id: str, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
         raise NotImplementedError
