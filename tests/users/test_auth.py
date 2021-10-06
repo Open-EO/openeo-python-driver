@@ -52,6 +52,11 @@ def app(oidc_provider):
     def personal_hello(user: User):
         return "hello {u}".format(u=user.user_id)
 
+    @app.route("/inspect")
+    @auth.requires_bearer_auth
+    def inspect(user: User):
+        return jsonify({"info": user.info, "internal_auth_data": user.internal_auth_data})
+
     @app.errorhandler(OpenEOApiException)
     def handle_openeoapi_exception(error: OpenEOApiException):
         return jsonify(error.to_dict()), error.status_code
@@ -207,6 +212,30 @@ def test_bearer_auth_oidc_success(app, url, expected_data, requests_mock, oidc_p
         resp = client.get(url, headers=headers)
         assert resp.status_code == 200
         assert resp.data == expected_data
+
+
+def test_bearer_auth_oidc_inspect(app, requests_mock, oidc_provider):
+    def userinfo(request, context):
+        """Fake OIDC /userinfo endpoint handler"""
+        _, _, token = request.headers["Authorization"].partition("Bearer ")
+        user_id = token.split(".")[1]
+        return json.dumps({"sub": user_id})
+
+    requests_mock.get(oidc_provider.issuer + "/userinfo", text=userinfo)
+
+    with app.test_client() as client:
+        # Note: user id is "hidden" in access token
+        oidc_access_token = "kcneududhey8rmxje3uhs.oidcuser.o94h4oe9djdndjeu3rkrnmlxpds834r"
+        headers = {"Authorization": "Bearer oidc/{p}/{a}".format(p=oidc_provider.id, a=oidc_access_token)}
+        resp = client.get("/inspect", headers=headers)
+        assert resp.status_code == 200
+        userinfo = resp.json["info"]["oidc_userinfo"]
+        assert userinfo["sub"] == "oidcuser"
+        internal_auth_data = resp.json["internal_auth_data"]
+        assert internal_auth_data["authentication_method"] == "OIDC"
+        assert internal_auth_data["provider_id"] == "testoidc"
+        assert internal_auth_data["oidc_issuer"] == 'https://oeo.example.com'
+        assert internal_auth_data["access_token"] == oidc_access_token
 
 
 def test_userinfo_url_caching(app, requests_mock, oidc_provider):

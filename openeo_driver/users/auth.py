@@ -157,7 +157,10 @@ class HttpAuthHandler:
             user_id = base64.urlsafe_b64decode(access_token.encode('ascii')).decode('utf-8')
         except Exception:
             raise TokenInvalidException
-        return User(user_id=user_id, info={"authentication": "basic"})
+        return User(
+            user_id=user_id,
+            internal_auth_data={"authentication_method": "basic"},
+        )
 
     def _get_userinfo_endpoint(self, oidc_provider: OidcProvider) -> str:
         key = ("userinfo_endpoint", oidc_provider.issuer)
@@ -177,9 +180,17 @@ class HttpAuthHandler:
             # The "sub" claim is the only claim in the response that is guaranteed per OIDC spec
             # TODO: do we have better options?
             user_id = userinfo["sub"]
-            return User(user_id=user_id, info=userinfo, internal_auth_data={
-                "type": "OIDC", "oidc_issuer": oidc_provider.issuer, "access_token": access_token,
-            })
+            return User(
+                user_id=user_id,
+                info={"oidc_userinfo": userinfo},
+                internal_auth_data={
+                    "authentication_method": "OIDC",
+                    "provider_id": oidc_provider.id,
+                    "oidc_issuer": oidc_provider.issuer,
+                    "userinfo_url": userinfo_url,
+                    "access_token": access_token,
+                }
+            )
         except Exception as e:
             _log.warning("Failed to resolve OIDC access token", exc_info=True)
             raise TokenInvalidException
