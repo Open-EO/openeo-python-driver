@@ -79,10 +79,7 @@ def area_in_square_meters(geometry, crs: Union[str, pyproj.CRS]):
         partial(
             pyproj.transform,
             pyproj.Proj(crs),
-            pyproj.Proj(
-                proj='aea',
-                lat_1=geometry.bounds[1],
-                lat_2=geometry.bounds[3])
+            pyproj.Proj(auto_utm_crs_for_geometry(geometry,crs))
         ),
         geometry)
 

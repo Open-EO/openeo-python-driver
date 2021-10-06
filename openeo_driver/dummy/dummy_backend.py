@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Dict, Union, Tuple, Optional, Iterable
 from unittest.mock import Mock
 
+import flask
 from shapely.geometry import Polygon, MultiPolygon
 from shapely.geometry.collection import GeometryCollection
 
@@ -17,7 +18,8 @@ from openeo_driver.backend import (SecondaryServices, OpenEoBackendImplementatio
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import SourceConstraint
-from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, ProcessGraphNotFoundException
+from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, ProcessGraphNotFoundException, \
+    PermissionsInsufficientException
 from openeo_driver.save_result import AggregatePolygonResult
 from openeo_driver.users import User
 from openeo_driver.utils import EvalEnv
@@ -490,3 +492,8 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
             yield from extra_validation(
                 process_graph=process_graph, result=result, source_constraints=source_constraints
             )
+
+    def user_access_validation(self, user: User, request: flask.Request) -> User:
+        if "mark" in user.user_id.lower():
+            raise PermissionsInsufficientException(message="No access for Mark.")
+        return user

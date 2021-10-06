@@ -29,7 +29,8 @@ from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingExceptio
     FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, ProcessUnsupportedException, \
     JobNotFinishedException, ProcessGraphInvalidException
 from openeo_driver.save_result import SaveResult, get_temp_file
-from openeo_driver.users import HttpAuthHandler, User, user_id_b64_encode, user_id_b64_decode
+from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
+from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.utils import replace_nan_values, EvalEnv, smart_bool, get_package_versions
 
 _log = logging.getLogger(__name__)
@@ -171,7 +172,10 @@ def build_app(
     def redirect_root():
         return redirect(url_for('openeo.index'))
 
-    auth = HttpAuthHandler(oidc_providers=backend_implementation.oidc_providers())
+    auth = HttpAuthHandler(
+        oidc_providers=backend_implementation.oidc_providers(),
+        user_access_validation=backend_implementation.user_access_validation
+    )
     api_reg = EndpointRegistry()
     bp = Blueprint("openeo", import_name=__name__)
 
@@ -371,10 +375,10 @@ def register_views_general(
                 "currency": "EUR",
                 "plans": [
                     {
-                        "name": "free",
-                        "description": "Free plan. No limits!",
-                        "url": "http://openeo.org/plans/free-plan",
-                        "paid": False
+                        "name": "early-adopter",
+                        "description": "openEO.cloud early adopter plan",
+                        "url": "https://openeo.cloud/early-adopters/",
+                        "paid": True
                     }
                 ]
             },
@@ -395,7 +399,16 @@ def register_views_general(
                     "href": url_for("openeo.conformance", _external=True),
                     "type": "application/json",
                 },
-                # TODO #60: also add terms-of-service, privacy policy
+                {
+                    "rel": "terms-of-service",
+                    "href": "https://openeo.cloud/aup",
+                    "type": "text/html",
+                },
+                {
+                    "rel": "privacy-policy",
+                    "href": "https://terrascope.be/en/privacy-policy",
+                    "type": "text/html",
+                }
             ]
         }
 

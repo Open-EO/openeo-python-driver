@@ -1,29 +1,13 @@
-import base64
+import flask
 import json
-import re
-
 import pytest
 from flask import Flask, jsonify, Response, request
 
 from openeo_driver.backend import OidcProvider
-from openeo_driver.errors import OpenEOApiException
-from openeo_driver.users import HttpAuthHandler, User
-from openeo_driver.users import user_id_b64_encode, user_id_b64_decode
-
-
-@pytest.mark.parametrize("user_id", [
-    "John", "John D", "John Do", "John Doe", "John Drop Tables",
-    "Jøhñ Δö€",
-    r"J()h&n |>*% $<{}@!\\:,^ #=!,.`=-_+°º¤ø,¸¸,ø¤º°»-(¯`·.·´¯)->¯\_(ツ)_/¯0(╯°□°）╯ ︵ ┻━┻ ",
-    "Pablo Diego José Francisco de Paula Juan Nepomuceno María de los Remedios Cipriano de la Santísima Trinidad Ruiz y Picasso"
-])
-def test_user_id_b64_encode(user_id):
-    encoded = user_id_b64_encode(user_id)
-    assert isinstance(encoded, str)
-    assert re.match("^[A-Za-z0-9_=-]*$", encoded)
-    decoded = user_id_b64_decode(encoded)
-    assert isinstance(decoded, str)
-    assert decoded == user_id
+from openeo_driver.errors import OpenEOApiException, PermissionsInsufficientException
+from openeo_driver.testing import build_basic_http_auth_header
+from openeo_driver.users import User
+from openeo_driver.users.auth import HttpAuthHandler
 
 
 @pytest.fixture()
@@ -121,29 +105,23 @@ def test_basic_auth_invalid_auth_type(app):
         assert_invalid_authentication_method_failure(response)
 
 
-def _build_basic_http_auth_header(username: str, password: str) -> str:
-    """Build HTTP header for Basic HTTP authentication"""
-    # Note: this is not the basic bearer token
-    return "Basic " + base64.b64encode("{u}:{p}".format(u=username, p=password).encode("utf-8")).decode('ascii')
-
-
 def test_basic_auth_invalid_password(app):
     with app.test_client() as client:
-        headers = {"Authorization": _build_basic_http_auth_header("testuser", "wrongpassword")}
+        headers = {"Authorization": build_basic_http_auth_header("testuser", "wrongpassword")}
         response = client.get("/basic/hello", headers=headers)
         assert_invalid_credentials_failure(response)
 
 
 def test_basic_auth_success(app):
     with app.test_client() as client:
-        headers = {"Authorization": _build_basic_http_auth_header("testuser", "testuser123")}
+        headers = {"Authorization": build_basic_http_auth_header("testuser", "testuser123")}
         response = client.get("/basic/hello", headers=headers)
         assert response.status_code == 200
         assert response.data == b"hello basic"
 
 
 @pytest.mark.parametrize("url", ["/private/hello", "/personal/hello"])
-def test_bearer_auth__no_auth(app, url):
+def test_bearer_auth_no_auth(app, url):
     with app.test_client() as client:
         response = client.get(url)
         assert_authentication_required_failure(response)
@@ -187,10 +165,11 @@ def test_bearer_auth_basic_invalid_token_prefix(app, url):
 ])
 def test_bearer_auth_basic_token_success(app, url, expected_data):
     with app.test_client() as client:
-        headers = {"Authorization": _build_basic_http_auth_header("testuser", "testuser123")}
+        headers = {"Authorization": build_basic_http_auth_header("testuser", "testuser123")}
         resp = client.get("/basic/auth", headers=headers)
         assert resp.status_code == 200
         access_token = resp.json["access_token"]
+
         headers = {"Authorization": "Bearer basic//" + access_token}
         resp = client.get(url, headers=headers)
         assert resp.status_code == 200
@@ -256,3 +235,84 @@ def test_userinfo_url_caching(app, requests_mock, oidc_provider):
         resp = client.get("/private/hello", headers={"Authorization": f"Bearer oidc/{oidc_provider.id}/th56te"})
         assert resp.status_code == 200
         assert discovery_mock.call_count == 2
+
+
+@pytest.fixture
+def app_with_user_access_validation(oidc_provider) -> Flask:
+    def user_access_validation(user: User, request: flask.Request) -> User:
+        """User check that only allows users with a "title case" user name"""
+        user_id = user.user_id
+        if user_id == user_id.title():
+            return User(user_id=f"{user.user_id} (verified)", info=user.info,
+                        internal_auth_data=user.internal_auth_data)
+        else:
+            raise PermissionsInsufficientException(f"Invalid user id {user_id}: expected {user_id.title()}.")
+
+    app = Flask("__test__")
+    auth = HttpAuthHandler(oidc_providers=[oidc_provider], user_access_validation=user_access_validation)
+
+    @app.route("/basic/auth")
+    @auth.requires_http_basic_auth
+    def basic():
+        access_token, user_id = auth.authenticate_basic(request)
+        return jsonify({"access_token": access_token, "user_id": user_id})
+
+    @app.route("/bearer/hello")
+    @auth.requires_bearer_auth
+    def personal_hello(user: User):
+        return "hello {u}".format(u=user.user_id)
+
+    @app.errorhandler(OpenEOApiException)
+    def handle_openeoapi_exception(error: OpenEOApiException):
+        return jsonify(error.to_dict()), error.status_code
+
+    return app
+
+
+@pytest.mark.parametrize(["user_id", "success", "message"], [
+    ("John", True, b"hello John (verified)"),
+    ("fluffYbeAr93", False, "Invalid user id fluffYbeAr93: expected Fluffybear93."),
+])
+def test_user_access_validation_basic_auth(app_with_user_access_validation, user_id, success, message):
+    with app_with_user_access_validation.test_client() as client:
+        headers = {"Authorization": build_basic_http_auth_header(user_id, f"{user_id}123")}
+        resp = client.get("/basic/auth", headers=headers)
+        assert resp.status_code == 200
+        access_token = resp.json["access_token"]
+
+        headers = {"Authorization": "Bearer basic//" + access_token}
+        resp = client.get("/bearer/hello", headers=headers)
+
+        if success:
+            assert (resp.status_code, resp.data) == (200, message)
+        else:
+            assert resp.status_code == PermissionsInsufficientException.status_code
+            assert resp.json["code"] == "PermissionsInsufficient"
+            assert resp.json["message"] == message
+
+
+@pytest.mark.parametrize(["user_id", "success", "message"], [
+    ("John", True, b"hello John (verified)"),
+    ("fluffYbeAr93", False, "Invalid user id fluffYbeAr93: expected Fluffybear93."),
+])
+def test_user_access_validation_oidc(app_with_user_access_validation, oidc_provider, requests_mock, user_id, success, message):
+    def userinfo(request, context):
+        """Fake OIDC /userinfo endpoint handler"""
+        _, _, token = request.headers["Authorization"].partition("Bearer ")
+        user_id = token.split(".")[1]
+        return json.dumps({"sub": user_id})
+
+    requests_mock.get(oidc_provider.issuer + "/userinfo", text=userinfo)
+
+    with app_with_user_access_validation.test_client() as client:
+        # Note: user id is "hidden" in access token
+        oidc_access_token = f"kcneududhey8rmxje3uhs.{user_id}.o94h4oe9djdndjeu3rkrnmlxpds834r"
+        headers = {"Authorization": "Bearer oidc/{p}/{a}".format(p=oidc_provider.id, a=oidc_access_token)}
+        resp = client.get("/bearer/hello", headers=headers)
+
+        if success:
+            assert (resp.status_code, resp.data) == (200, message)
+        else:
+            assert resp.status_code == PermissionsInsufficientException.status_code
+            assert resp.json["code"] == "PermissionsInsufficient"
+            assert resp.json["message"] == message

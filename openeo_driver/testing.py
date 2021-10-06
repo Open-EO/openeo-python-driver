@@ -1,6 +1,7 @@
 """
 Reusable helpers and fixtures for testing
 """
+import base64
 import json
 import re
 import uuid
@@ -12,7 +13,7 @@ from flask.testing import FlaskClient
 from werkzeug.datastructures import Headers
 
 from openeo.capabilities import ComparableVersion
-from openeo_driver.users import HttpAuthHandler
+from openeo_driver.users.auth import HttpAuthHandler
 
 TEST_USER = "Mr.Test"
 TEST_USER_BEARER_TOKEN = "basic//" + HttpAuthHandler.build_basic_access_token(user_id=TEST_USER)
@@ -321,3 +322,9 @@ def generate_unique_test_process_id():
     # Because the process registries are global variables we can not mock easily
     # we'll add new test processes with a (random) unique name.
     return "_test_process_{u}".format(u=uuid.uuid4())
+
+
+def build_basic_http_auth_header(username: str, password: str) -> str:
+    """Build HTTP header for Basic HTTP authentication"""
+    # Note: this is not the custom basic bearer token used in openEO API.
+    return "Basic " + base64.b64encode("{u}:{p}".format(u=username, p=password).encode("utf-8")).decode('ascii')
