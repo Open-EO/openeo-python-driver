@@ -24,7 +24,7 @@ from openeo.util import rfc3339
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.dry_run import SourceConstraint
-from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException
+from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException, FeatureUnsupportedException
 from openeo_driver.processes import ProcessRegistry
 from openeo_driver.users import User
 from openeo_driver.users.oidc import OidcProvider
@@ -165,6 +165,12 @@ class AbstractCollectionCatalog(MicroService, metaclass=abc.ABCMeta):
     def load_collection(self, collection_id: str, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
         """Load a collection as a DriverDataCube"""
         ...
+
+    def get_collection_items(self, collection_id: str, parameters: dict) -> Union[dict, flask.Response]:
+        """
+        Optional STAC API endpoint `GET /collections/{collectionId}/items`
+        """
+        raise FeatureUnsupportedException
 
 
 class CollectionCatalog(AbstractCollectionCatalog):

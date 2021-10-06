@@ -1299,6 +1299,19 @@ def register_views_catalog(
         metadata = _normalize_collection_metadata(metadata=metadata, api_version=requested_api_version(), full=True)
         return jsonify(metadata)
 
+    @blueprint.route('/collections/<collection_id>/items', methods=['GET'])
+    def collection_items(collection_id):
+        # Note: This is not an openEO API endpoint, but a STAC API endpoint
+        # https://stacspec.org/STAC-api.html#operation/getFeatures
+        params = {k: request.args.get(k) for k in ["limit", "bbox", "datetime"] if k in request.args}
+        res = backend_implementation.catalog.get_collection_items(collection_id=collection_id, parameters=params)
+        if isinstance(res, dict):
+            return jsonify(res)
+        elif isinstance(res, flask.Response):
+            return res
+        else:
+            raise ValueError(f"Invalid get_collection_items result: {type(res)}")
+
 
 def register_views_user_files(
         blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
