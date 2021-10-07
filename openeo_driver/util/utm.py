@@ -75,11 +75,16 @@ def area_in_square_meters(geometry, crs: Union[str, pyproj.CRS]):
     if isinstance(crs, str):
         crs = "+init=" + crs  # TODO: this is deprecated
 
+    geometry_lat_lon = geometry_to_crs(geometry,crs,pyproj.crs.CRS.from_epsg(4326))
+
     geometry_area = shapely.ops.transform(
         partial(
             pyproj.transform,
             pyproj.Proj(crs),
-            pyproj.Proj(auto_utm_crs_for_geometry(geometry,crs))
+            pyproj.Proj(
+                proj='aea',
+                lat_1=geometry_lat_lon.bounds[1],
+                lat_2=geometry_lat_lon.bounds[3])
         ),
         geometry)
 
