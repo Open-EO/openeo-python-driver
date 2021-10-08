@@ -185,7 +185,9 @@ class HttpAuthHandler:
                 info={"oidc_userinfo": userinfo},
                 internal_auth_data={
                     "authentication_method": "OIDC",
-                    "provider_id": oidc_provider.id,
+                    "provider_id": oidc_provider.id,  # TODO: deprecated
+                    "oidc_provider_id": oidc_provider.id,
+                    "oidc_provider_title": oidc_provider.title,
                     "oidc_issuer": oidc_provider.issuer,
                     "userinfo_url": userinfo_url,
                     "access_token": access_token,
