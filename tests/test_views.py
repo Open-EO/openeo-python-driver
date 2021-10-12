@@ -7,7 +7,6 @@ from unittest import mock
 import flask
 import pytest
 
-from conftest import TEST_APP_CONFIG
 from openeo.capabilities import ComparableVersion
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
 from openeo_driver.backend import BatchJobMetadata, UserDefinedProcessMetadata, BatchJobs, OpenEoBackendImplementation
@@ -17,6 +16,7 @@ from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_A
     generate_unique_test_process_id, build_basic_http_auth_header
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata, build_app
+from .conftest import TEST_APP_CONFIG
 from .data import TEST_DATA_ROOT
 
 
