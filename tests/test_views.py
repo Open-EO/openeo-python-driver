@@ -145,7 +145,7 @@ class TestGeneral:
         assert endpoints["/services"] == ["GET", "POST"]
         assert endpoints["/services/{service_id}"] == ["DELETE", "GET"]
         # assert endpoints["/subscription"] == ["GET"]
-        assert endpoints["/jobs/{job_id}"] == ["GET"]
+        assert endpoints["/jobs/{job_id}"] == ["DELETE", "GET"]
         assert endpoints["/jobs/{job_id}/results"] == ["DELETE", "GET", "POST"]
         assert endpoints["/credentials/basic"] == ["GET"]
         assert endpoints["/credentials/oidc"] == ["GET"]

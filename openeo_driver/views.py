@@ -822,7 +822,7 @@ def register_views_batch_jobs(
         job_info = backend_implementation.batch_jobs.get_job_info(job_id, user)
         return jsonify(_jsonable_batch_job_metadata(job_info))
 
-    @api_endpoint(hidden=True)
+    @api_endpoint()
     @blueprint.route('/jobs/<job_id>', methods=['DELETE'])
     @auth_handler.requires_bearer_auth
     def delete_job(job_id, user: User):
@@ -962,7 +962,6 @@ def register_views_batch_jobs(
             raise FilePathInvalidException(str(filename) + ' not in ' + str(list(results.keys())))
         output_dir = results[filename]["output_dir"]
         return send_from_directory(output_dir, filename, mimetype=results[filename].get("type"))
-
 
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/logs', methods=['GET'])
