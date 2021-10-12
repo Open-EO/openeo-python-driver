@@ -491,6 +491,8 @@ class OpenEoBackendImplementation:
     """
     Simple container of all openEo "microservices"
     """
+    enable_basic_auth = True
+    enable_oidc_auth = True
 
     def __init__(
             self,

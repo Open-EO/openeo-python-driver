@@ -472,27 +472,30 @@ def register_views_auth(
         blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
         auth_handler: HttpAuthHandler
 ):
-    @api_endpoint
-    @blueprint.route("/credentials/basic", methods=["GET"])
-    @auth_handler.requires_http_basic_auth
-    def credentials_basic():
-        access_token, user_id = auth_handler.authenticate_basic(request)
-        resp = {"access_token": access_token}
-        if requested_api_version().below("1.0.0"):
-            resp["user_id"] = user_id
-        return jsonify(resp)
 
-    @api_endpoint
-    @blueprint.route("/credentials/oidc", methods=["GET"])
-    @auth_handler.public
-    def credentials_oidc():
-        providers = backend_implementation.oidc_providers()
-        if requested_api_version().at_least("1.0.0"):
-            return jsonify({
-                "providers": [p.prepare_for_json() for p in providers]
-            })
-        else:
-            return flask.redirect(providers[0].issuer + '/.well-known/openid-configuration', code=303)
+    if backend_implementation.enable_basic_auth:
+        @api_endpoint
+        @blueprint.route("/credentials/basic", methods=["GET"])
+        @auth_handler.requires_http_basic_auth
+        def credentials_basic():
+            access_token, user_id = auth_handler.authenticate_basic(request)
+            resp = {"access_token": access_token}
+            if requested_api_version().below("1.0.0"):
+                resp["user_id"] = user_id
+            return jsonify(resp)
+
+    if backend_implementation.enable_oidc_auth:
+        @api_endpoint
+        @blueprint.route("/credentials/oidc", methods=["GET"])
+        @auth_handler.public
+        def credentials_oidc():
+            providers = backend_implementation.oidc_providers()
+            if requested_api_version().at_least("1.0.0"):
+                return jsonify({
+                    "providers": [p.prepare_for_json() for p in providers]
+                })
+            else:
+                return flask.redirect(providers[0].issuer + '/.well-known/openid-configuration', code=303)
 
     @api_endpoint
     @blueprint.route("/me", methods=["GET"])

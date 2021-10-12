@@ -7,14 +7,16 @@ from unittest import mock
 import flask
 import pytest
 
+from conftest import TEST_APP_CONFIG
 from openeo.capabilities import ComparableVersion
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
-from openeo_driver.backend import BatchJobMetadata, UserDefinedProcessMetadata, BatchJobs
+from openeo_driver.backend import BatchJobMetadata, UserDefinedProcessMetadata, BatchJobs, OpenEoBackendImplementation
 from openeo_driver.dummy import dummy_backend
+from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
 from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, \
     generate_unique_test_process_id, build_basic_http_auth_header
 from openeo_driver.users.auth import HttpAuthHandler
-from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata
+from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata, build_app
 from .data import TEST_DATA_ROOT
 
 
@@ -38,6 +40,17 @@ def api040(client) -> ApiTester:
 @pytest.fixture
 def api100(client) -> ApiTester:
     return ApiTester(api_version="1.0.0", client=client, data_root=TEST_DATA_ROOT)
+
+
+def api_from_backend_implementation(
+        backend_implementation: OpenEoBackendImplementation,
+        api_version="1.0.0", data_root=TEST_DATA_ROOT
+) -> ApiTester:
+    app: flask.Flask = build_app(backend_implementation)
+    app.config.from_mapping(TEST_APP_CONFIG)
+    client = app.test_client()
+    api = ApiTester(api_version=api_version, client=client, data_root=data_root)
+    return api
 
 
 class TestGeneral:
@@ -151,6 +164,36 @@ class TestGeneral:
         endpoints = {e["path"]: e["methods"] for e in capabilities["endpoints"]}
         assert endpoints["/file_formats"] == ["GET"]
         assert "/output_formats" not in endpoints
+
+    def test_capabilities_no_basic_auth(self):
+        backend_implementation = DummyBackendImplementation()
+        api100 = api_from_backend_implementation(backend_implementation)
+        capabilities = api100.get("/").assert_status_code(200).json
+        endpoints = {e["path"] for e in capabilities["endpoints"]}
+        assert "/credentials/basic" in endpoints
+        api100.get("/credentials/basic").assert_error(401, "AuthenticationRequired")
+
+        backend_implementation.enable_basic_auth = False
+        api100 = api_from_backend_implementation(backend_implementation)
+        capabilities = api100.get("/").assert_status_code(200).json
+        endpoints = {e["path"] for e in capabilities["endpoints"]}
+        assert "/credentials/basic" not in endpoints
+        api100.get("/credentials/basic").assert_error(404, "NotFound")
+
+    def test_capabilities_no_oidc_auth(self):
+        backend_implementation = DummyBackendImplementation()
+        api100 = api_from_backend_implementation(backend_implementation)
+        capabilities = api100.get("/").assert_status_code(200).json
+        endpoints = {e["path"] for e in capabilities["endpoints"]}
+        assert "/credentials/oidc" in endpoints
+        api100.get("/credentials/oidc").assert_status_code(200)
+
+        backend_implementation.enable_oidc_auth = False
+        api100 = api_from_backend_implementation(backend_implementation)
+        capabilities = api100.get("/").assert_status_code(200).json
+        endpoints = {e["path"] for e in capabilities["endpoints"]}
+        assert "/credentials/oidc" not in endpoints
+        api100.get("/credentials/oidc").assert_error(404, "NotFound")
 
     def test_conformance(self, api100):
         res = api100.get('/conformance').assert_status_code(200).json

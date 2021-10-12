@@ -16,17 +16,20 @@ def udp_registry(backend_implementation) -> UserDefinedProcesses:
     return backend_implementation.user_defined_processes
 
 
+TEST_APP_CONFIG = dict(
+    OPENEO_TITLE="openEO Unit Test Dummy Backend",
+    TESTING=True,
+    SERVER_NAME='oeo.net'
+)
+
+
 @pytest.fixture(scope="module")
 def flask_app(backend_implementation) -> flask.Flask:
     app = build_app(
         backend_implementation=backend_implementation,
         # error_handling=False
     )
-    app.config.from_mapping(
-        OPENEO_TITLE="openEO Unit Test Dummy Backend",
-        TESTING=True,
-        SERVER_NAME='oeo.net'
-    )
+    app.config.from_mapping(TEST_APP_CONFIG)
     return app
 
 
