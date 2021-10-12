@@ -423,9 +423,13 @@ def register_views_general(
 
     @blueprint.route('/health')
     def health():
-        return jsonify({
-            "health": backend_implementation.health_check()
-        })
+        response = backend_implementation.health_check()
+        if isinstance(response, str):
+            # Legacy style
+            response = jsonify({"health": response})
+        elif not isinstance(response, flask.Response):
+            response = jsonify(response)
+        return response
 
     @api_endpoint(version=ComparableVersion("1.0.0").accept_lower)
     @blueprint.route('/output_formats')

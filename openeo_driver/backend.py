@@ -510,7 +510,7 @@ class OpenEoBackendImplementation:
         self.processing = processing
         self.udf_runtimes = UdfRuntimes()
 
-    def health_check(self) -> str:
+    def health_check(self) -> Union[str, dict, flask.Response]:
         return "OK"
 
     def oidc_providers(self) -> List[OidcProvider]:

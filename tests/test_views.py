@@ -256,9 +256,22 @@ class TestGeneral:
         assert resp.access_control_allow_credentials is False
         assert {"Location", "OpenEO-Identifier", "OpenEO-Costs", "Link"}.issubset(resp.access_control_expose_headers)
 
-    def test_health(self, api):
+    def test_health_legacy(self, api):
         resp = api.get('/health').assert_status_code(200).json
         assert resp == {"health": "OK"}
+
+    def test_health_dict(self, api, backend_implementation):
+        with mock.patch.object(backend_implementation, "health_check") as health_check:
+            health_check.return_value = {"status": "OK", "color": "green"}
+            resp = api.get('/health').assert_status_code(200).json
+            assert resp == {"status": "OK", "color": "green"}
+
+    def test_health_flask_response(self, api, flask_app, backend_implementation):
+        with mock.patch.object(backend_implementation, "health_check") as health_check:
+            health_check.return_value = flask_app.make_response((
+                '{"code": "meh"}', 500, {"Content-type": "application/json"}
+            ))
+            api.get('/health').assert_error(500, "meh")
 
     def test_credentials_oidc_040(self, api040):
         resp = api040.get('/credentials/oidc').assert_status_code(303)
