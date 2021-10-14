@@ -14,6 +14,20 @@ class User:
     def __str__(self):
         return self.user_id
 
+    def get_name(self):
+        """Best effort name extraction"""
+        if isinstance(self.info, dict):
+            if "oidc_userinfo" in self.info:
+                oidc_userinfo = self.info["oidc_userinfo"]
+                if "name" in oidc_userinfo:
+                    return oidc_userinfo["name"]
+                if "voperson_verified_email" in oidc_userinfo and len(oidc_userinfo["voperson_verified_email"]) > 0:
+                    return oidc_userinfo["voperson_verified_email"][0]
+                if "email" in oidc_userinfo:
+                    return oidc_userinfo["email"]
+        # Fallback
+        return self.user_id
+
 
 def user_id_b64_encode(user_id: str) -> str:
     """Encode a user id in way that is safe to use in urls"""

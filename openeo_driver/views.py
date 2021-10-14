@@ -507,6 +507,7 @@ def register_views_auth(
     def me(user: User):
         return jsonify({
             "user_id": user.user_id,
+            "name": user.get_name(),
             "info": user.info
             # TODO more fields
         })
