@@ -1270,7 +1270,28 @@ def sleep(args: Dict, env: EvalEnv):
 
 
 @non_standard_process(
-    ProcessSpec(id='atmospheric_correction', description="iCor workflow test")
+    # TODO: get spec directly from @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/atmospheric_correction.json"))
+    ProcessSpec(
+        id='atmospheric_correction',
+        description="Applies an atmospheric correction that converts top of atmosphere reflectance values into bottom of atmosphere/top of canopy reflectance values.",
+        extra={
+            "summary": "Apply atmospheric correction",
+            "categories": ["cubes", "optical"],
+            "experimental": True,
+            "links": [
+                {
+                    "rel": "about",
+                    "href": "https://bok.eo4geo.eu/IP1-7-1",
+                    "title": "Atmospheric correction explained by EO4GEO body of knowledge."
+                }
+            ],
+            "exceptions": {
+                "DigitalElevationModelInvalid": {
+                    "message": "The digital elevation model specified is either not a DEM or can't be used with the data cube given."
+                }
+            },
+        }
+    )
         .param('data', description="Data cube containing multi-spectral optical top of atmosphere reflectances to be corrected.", schema={"type": "object", "subtype": "raster-cube"})
         .param(name='method', description="The atmospheric correction method to use. To get reproducible results, you have to set a specific method.\n\nSet to `null` to allow the back-end to choose, which will improve portability, but reduce reproducibility as you *may* get different results if you run the processes multiple times.",                      schema={"type": "string"}, required=False)
         .param(name='elevation_model', description="The digital elevation model to use, leave empty to allow the back-end to make a suitable choice.", schema={"type": "string"}, required=False)

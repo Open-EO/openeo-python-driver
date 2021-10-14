@@ -83,6 +83,30 @@ def test_process_spec_no_returns():
         spec.to_dict_100()
 
 
+def test_process_spec_extra_100():
+    spec = (
+        ProcessSpec("incr", "Increment", extra={"experimental": True, "categories":["math"]})
+            .param("value", "Input value", schema={"type": "number"})
+            .returns("Incremented value", schema={"type": "number"})
+    )
+    assert spec.to_dict_100() == {
+        "id": "incr",
+        "description": "Increment",
+        "parameters": [
+            {
+                "name": "value",
+                "description": "Input value",
+                "optional": False,
+                "schema": {"type": "number"}
+            },
+        ],
+        "returns": {"description": "Incremented value", "schema": {"type": "number"}},
+        "experimental": True,
+        "categories": ["math"],
+    }
+
+
+
 def test_process_registry_add_by_name():
     reg = ProcessRegistry()
     reg.add_spec_by_name("max")

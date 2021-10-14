@@ -3,7 +3,7 @@ import inspect
 import warnings
 from collections import namedtuple
 from pathlib import Path
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, Dict, List, Tuple, Optional
 
 from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.specs import SPECS_ROOT
@@ -30,11 +30,12 @@ class ProcessSpec:
     # Some predefined parameter schema's
     RASTERCUBE = {"type": "object", "format": "raster-cube"}
 
-    def __init__(self, id, description):
+    def __init__(self, id, description: str, extra: Optional[dict] = None):
         self.id = id
         self.description = description
         self._parameters: List[ProcessParameter] = []
         self._returns = None
+        self.extra = extra or {}
 
     def param(self, name, description, schema, required=True) -> 'ProcessSpec':
         """Add a process parameter"""
@@ -53,7 +54,7 @@ class ProcessSpec:
         if len(self._parameters) == 0:
             warnings.warn("Process with no parameters")
         assert self._returns is not None
-        return {
+        return {**self.extra, **{
             "id": self.id,
             "description": self.description,
             "parameters": {
@@ -62,14 +63,14 @@ class ProcessSpec:
             },
             "parameter_order": [p.name for p in self._parameters],
             "returns": self._returns
-        }
+        }}
 
     def to_dict_100(self) -> dict:
         """Generate process spec as (JSON-able) dictionary (API 1.0.0 style)."""
         if len(self._parameters) == 0:
             warnings.warn("Process with no parameters")
         assert self._returns is not None
-        return {
+        return {**self.extra, **{
             "id": self.id,
             "description": self.description,
             "parameters": [
@@ -77,7 +78,7 @@ class ProcessSpec:
                 for p in self._parameters
             ],
             "returns": self._returns
-        }
+        }}
 
 
 ProcessData = namedtuple("ProcessData", ["function", "spec"])

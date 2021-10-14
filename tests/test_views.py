@@ -355,6 +355,17 @@ class TestGeneral:
             'schema': {'type': 'object'}
         }
 
+    def test_processes_non_standard_atmospheric_correction(self, api):
+        if api.api_version_compare.below("1.0.0"):
+            pytest.skip()
+        resp = api.get('/processes').assert_status_code(200).json
+        spec, = [p for p in resp["processes"] if p['id'] == "atmospheric_correction"]
+        assert spec["summary"] == "Apply atmospheric correction"
+        assert spec["categories"] == ["cubes", "optical"]
+        assert spec["experimental"] is True
+        assert spec["links"][0]["rel"] == "about"
+        assert "DigitalElevationModelInvalid" in spec["exceptions"]
+
     def test_processes_040_vs_100(self, api040, api100):
         pids040 = {p['id'] for p in api040.get("/processes").assert_status_code(200).json["processes"]}
         pids100 = {p['id'] for p in api100.get("/processes").assert_status_code(200).json["processes"]}
