@@ -537,23 +537,6 @@ def register_views_processing(
         blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
         auth_handler: HttpAuthHandler
 ):
-    @blueprint.route('/timeseries')
-    def timeseries():
-        # TODO: deprecated? do we still need this endpoint? #35
-        return 'OpenEO GeoPyspark backend. ' + url_for('.point')
-
-    @blueprint.route('/timeseries/point', methods=['POST'])
-    def point():
-        # TODO: deprecated? do we still need this endpoint? #35
-        x = float(request.args.get('x', ''))
-        y = float(request.args.get('y', ''))
-        srs = request.args.get('srs', None)
-        process_graph = _extract_process_graph(request.json)
-        image_collection = backend_implementation.processing.evaluate(
-            process_graph=process_graph,
-            env=EvalEnv({"backend_implementation": backend_implementation, 'version': g.api_version})
-        )
-        return jsonify(image_collection.timeseries(x, y, srs))
 
     @blueprint.route('/download', methods=['GET', 'POST'])
     def download():
