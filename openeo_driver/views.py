@@ -538,24 +538,6 @@ def register_views_processing(
         auth_handler: HttpAuthHandler
 ):
 
-    @blueprint.route('/download', methods=['GET', 'POST'])
-    def download():
-        # TODO: deprecated?
-        if request.method == 'POST':
-            outputformat = request.args.get('outputformat', 'geotiff')
-
-            process_graph = request.get_json()
-            image_collection = backend_implementation.processing.evaluate(
-                process_graph=process_graph,
-                env=EvalEnv({"backend_implementation": backend_implementation, 'version': g.api_version})
-            )
-            # TODO Unify with execute?
-
-            filename = image_collection.save_result(filename=get_temp_file(), format=outputformat, format_options={})
-            return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
-        else:
-            return 'Usage: Download image using POST.'
-
     @api_endpoint()
     @blueprint.route('/validation', methods=["POST"])
     def validation():
