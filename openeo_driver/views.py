@@ -412,6 +412,8 @@ def register_views_general(
             ]
         }
 
+        capabilities = backend_implementation.postprocess_capabilities(capabilities)
+
         return jsonify(capabilities)
 
     @blueprint.route('/conformance')

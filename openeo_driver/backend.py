@@ -553,3 +553,7 @@ class OpenEoBackendImplementation:
     def user_access_validation(self, user: User, request: flask.Request) -> User:
         """Additional user access validation based on flask request."""
         return user
+
+    def postprocess_capabilities(self, capabilities: dict) -> dict:
+        """Postprocess the capabilities document"""
+        return capabilities
