@@ -20,6 +20,7 @@ def test_oidc_provider_from_dict_basic():
     assert p.prepare_for_json() == {
         "id": "foo", "issuer": "https://oidc.foo.test/", "title": "Foo ID", "scopes": ["openid"]
     }
+    assert p.get_issuer() == "https://oidc.foo.test"
 
 
 def test_oidc_provider_from_dict_more():
@@ -41,3 +42,15 @@ def test_oidc_provider_from_dict_more():
         "scopes": ["openid", "email"],
         "default_clients": {"id": "dcf0e6384", "grant_types": ["refresh_token"]},
     }
+    assert p.get_issuer() == "https://oidc.foo.test"
+
+
+def test_oidc_provider_get_issuer():
+    assert OidcProvider("d", "https://oidc.test", "t").get_issuer() == "https://oidc.test"
+    assert OidcProvider("d", "https://oidc.test/", "t").get_issuer() == "https://oidc.test"
+    assert OidcProvider("d", "https://oidc.test//", "t").get_issuer() == "https://oidc.test"
+    assert OidcProvider("d", "https://oidc.test//", "t").get_issuer() == "https://oidc.test"
+    assert OidcProvider("d", "https://OIDC.test/", "t").get_issuer() == "https://oidc.test"
+    assert OidcProvider("d", "https://oidc.test/foo", "t").get_issuer() == "https://oidc.test/foo"
+    assert OidcProvider("d", "https://oidc.test/foo/", "t").get_issuer() == "https://oidc.test/foo"
+    assert OidcProvider("d", "https://oidc.test/foo//", "t").get_issuer() == "https://oidc.test/foo"

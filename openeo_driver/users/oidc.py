@@ -28,3 +28,7 @@ class OidcProvider(NamedTuple):
     @property
     def discovery_url(self):
         return self.issuer.rstrip("/") + '/.well-known/openid-configuration'
+
+    def get_issuer(self):
+        """Get normalized version of issuer (for comparison/mapping situations)"""
+        return self.issuer.rstrip("/").lower()
