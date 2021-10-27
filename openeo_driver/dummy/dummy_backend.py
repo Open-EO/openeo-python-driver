@@ -457,6 +457,27 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
                 id="local", title="Local Keycloak",
                 issuer="http://localhost:9090/auth/realms/master", scopes=["openid"],
             ),
+            # Allow testing the dummy backend with EGI
+            OidcProvider(
+                id="egi",
+                issuer="https://aai.egi.eu/oidc/",
+                scopes=[
+                    "openid", "email",
+                    "eduperson_entitlement",
+                    "eduperson_scoped_affiliation",
+                ],
+                title="EGI Check-in",
+            ),
+            OidcProvider(
+                id="egi-dev",
+                issuer="https://aai-dev.egi.eu/oidc/",
+                scopes=[
+                    "openid", "email",
+                    "eduperson_entitlement",
+                    "eduperson_scoped_affiliation",
+                ],
+                title="EGI Check-in (dev)",
+            ),
         ]
 
     def file_formats(self) -> dict:
