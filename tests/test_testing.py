@@ -81,6 +81,8 @@ def test_dict_subset():
 
 
 def test_dict_subset_nesting():
+    assert {1: 2, 3: 4, 5: {6: 7, 8: 9}} == DictSubSet({})
+    assert {1: 2, 3: 4, 5: {6: 7, 8: 9}} == DictSubSet({1: DictSubSet({})})
     assert {1: 2, 3: 4, 5: {6: 7, 8: 9}} == DictSubSet({3: 4, 5: DictSubSet({8: 9})})
     assert {1: {2: 3, 4: 5}} == {1: DictSubSet({4: 5})}
-    assert {1: {2: {3: {4: 5, 6: 7}}}} == {1: {2: DictSubSet({4: DictSubSet({})})}}
+    assert {1: {2: {3: {4: 5, 6: 7}, 8: 9}}} == {1: {2: DictSubSet({3: DictSubSet({})})}}
