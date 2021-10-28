@@ -558,7 +558,6 @@ class OpenEoBackendImplementation:
         """Capabilities doc: field 'billing'"""
         return {
             "currency": None,
-            "plans": [],
         }
 
     def postprocess_capabilities(self, capabilities: dict) -> dict:
