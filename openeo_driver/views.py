@@ -371,17 +371,7 @@ def register_views_general(
             "description": app_config.get('OPENEO_DESCRIPTION', 'OpenEO API'),
             "production": API_VERSIONS[g.request_version].production,
             "endpoints": endpoints,
-            "billing": {
-                "currency": "EUR",
-                "plans": [
-                    {
-                        "name": "early-adopter",
-                        "description": "openEO.cloud early adopter plan",
-                        "url": "https://openeo.cloud/early-adopters/",
-                        "paid": True
-                    }
-                ]
-            },
+            "billing": backend_implementation.capabilities_billing(),
             "_backend_deploy_metadata": deploy_metadata,
             "links": [
                 {

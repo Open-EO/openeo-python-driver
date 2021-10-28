@@ -554,6 +554,13 @@ class OpenEoBackendImplementation:
         """Additional user access validation based on flask request."""
         return user
 
+    def capabilities_billing(self) -> dict:
+        """Capabilities doc: field 'billing'"""
+        return {
+            "currency": None,
+            "plans": [],
+        }
+
     def postprocess_capabilities(self, capabilities: dict) -> dict:
         """Postprocess the capabilities document"""
         return capabilities
