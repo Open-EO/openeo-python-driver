@@ -13,7 +13,7 @@ from openeo_driver.backend import BatchJobMetadata, UserDefinedProcessMetadata, 
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
 from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, \
-    generate_unique_test_process_id, build_basic_http_auth_header
+    generate_unique_test_process_id, build_basic_http_auth_header, ListSubSet, DictSubSet
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata, build_app
 from .conftest import TEST_APP_CONFIG
@@ -279,19 +279,16 @@ class TestGeneral:
 
     def test_credentials_oidc_100(self, api100):
         resp = api100.get('/credentials/oidc').assert_status_code(200).json
-        assert resp == {'providers': [
+        assert resp == {'providers': ListSubSet([
             {'id': 'testprovider', 'issuer': 'https://oidc.oeo.net', 'scopes': ['openid'], 'title': 'Test'},
-            {
-                'id': 'eoidc', 'issuer': 'https://eo.id', 'scopes': ['openid'], 'title': 'e-OIDC',
-                'default_client': {'id': 'badcafef00d'},
+            DictSubSet({
+                'id': 'eoidc', 'issuer': 'https://eo.id', 'scopes': ['openid'],
                 'default_clients': [{
                     'id': 'badcafef00d',
                     'grant_types': ['urn:ietf:params:oauth:grant-type:device_code+pkce', 'refresh_token']}],
-            },
-            {
-                'id': 'local', 'issuer': 'http://localhost:9090/auth/realms/master', 'scopes': ['openid'],
-                'title': 'Local Keycloak'}
-        ]}
+            }),
+            DictSubSet({'id': 'local'})
+        ])}
 
     def test_output_formats(self, api040):
         resp = api040.get('/output_formats').assert_status_code(200).json

@@ -308,11 +308,31 @@ class DictSubSet:
 
     >> assert {"foo": "bar", "meh": 4} == DictSubSet({"foo": "bar"})
     """
-    def __init__(self, items:dict):
+    def __init__(self, items: dict):
         self.items = items
 
     def __eq__(self, other):
-        return self.items == {k: other[k] for k in self.items if k in other}
+        return isinstance(other, type(self.items)) and self.items == {k: other[k] for k in self.items if k in other}
+
+    def __repr__(self):
+        return repr(self.items)
+
+
+class ListSubSet:
+    """
+    pytest helper to check if a list contains a subset of items, e.g.:
+
+    >> assert [1, 2, 3, 666] == ListSubSet([1, 666])
+    """
+    # TODO: also take item counts into account?
+    def __init__(self, items: list):
+        self.items = items
+
+    def __eq__(self, other):
+        return isinstance(other, type(self.items)) and all(
+            any(y == x for y in other)
+            for x in self.items
+        )
 
     def __repr__(self):
         return repr(self.items)

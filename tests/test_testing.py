@@ -1,7 +1,8 @@
 import flask
 import pytest
 
-from openeo_driver.testing import preprocess_check_and_replace, IgnoreOrder, ApiTester, RegexMatcher, DictSubSet
+from openeo_driver.testing import preprocess_check_and_replace, IgnoreOrder, ApiTester, RegexMatcher, DictSubSet, \
+    ListSubSet
 
 
 def test_api_tester_url():
@@ -78,11 +79,46 @@ def test_dict_subset():
     assert {"foo": "bar", "meh": 4} == expected
     assert {"foo": "nope", "meh": 4} != expected
     assert {"meh": 4} != expected
+    assert "foo" != expected
+    assert 3 != expected
 
 
 def test_dict_subset_nesting():
     assert {1: 2, 3: 4, 5: {6: 7, 8: 9}} == DictSubSet({})
-    assert {1: 2, 3: 4, 5: {6: 7, 8: 9}} == DictSubSet({1: DictSubSet({})})
+    assert {1: 2, 3: 4, 5: {6: 7, 8: 9}} == DictSubSet({5: DictSubSet({})})
     assert {1: 2, 3: 4, 5: {6: 7, 8: 9}} == DictSubSet({3: 4, 5: DictSubSet({8: 9})})
     assert {1: {2: 3, 4: 5}} == {1: DictSubSet({4: 5})}
     assert {1: {2: {3: {4: 5, 6: 7}, 8: 9}}} == {1: {2: DictSubSet({3: DictSubSet({})})}}
+
+
+def test_list_subset():
+    assert [] == ListSubSet([])
+    assert [2, 3, 5] == ListSubSet([])
+    assert [2, 3, 5] == ListSubSet([2])
+    assert 2 != ListSubSet([2])
+    assert (2, 3, 5) != ListSubSet([2])
+    assert [2, 3, 5] != ListSubSet([-100])
+    assert [2, 3, 5] == ListSubSet([2, 5])
+    assert [2, 3, 5] == ListSubSet([2, 5])
+    assert [2, 3, 5] == ListSubSet([5, 3])
+    assert [2, 3, 5] != ListSubSet([5, 3, 8])
+    assert [2, 3, 5] != ListSubSet([5, 3, None])
+    assert [2, 2, 3, 3, 3] == ListSubSet([2, 3])
+
+
+def test_list_subset_nesting():
+    assert [1, 2, [3, 4]] == ListSubSet([])
+    assert [1, 2, [3, 4]] == ListSubSet([2])
+    assert [1, 2, [3, 4]] == ListSubSet([1, ListSubSet([])])
+    assert [1, 2, [3, 4]] == ListSubSet([1, ListSubSet([4])])
+
+
+def test_list_and_dict_subset_nesting():
+    assert [1, {2: 3}, {5: 6, 7: [8, 9]}] == ListSubSet([])
+    assert [1, {2: 3}, {5: 6, 7: [8, 9]}] == ListSubSet([1])
+    assert [1, {2: 3}, {5: 6, 7: [8, 9]}] == ListSubSet([{2: 3}])
+    assert [1, {2: 3}, {5: 6, 7: [8, 9]}] == ListSubSet([1, {2: 3}])
+    assert [1, {2: 3}, {5: 6, 7: [8, 9]}] == ListSubSet([1, DictSubSet({})])
+    assert [1, {2: 3}, {5: 6, 7: [8, 9]}] == ListSubSet([1, DictSubSet({2: 3})])
+    assert [1, {2: 3}, {5: 6, 7: [8, 9]}] == ListSubSet([1, DictSubSet({7: [8, 9]})])
+    assert [1, {2: 3}, {5: 6, 7: [8, 9]}] == ListSubSet([1, DictSubSet({7: ListSubSet([8])})])
