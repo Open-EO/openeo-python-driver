@@ -275,14 +275,14 @@ class TestGeneral:
 
     def test_credentials_oidc_040(self, api040):
         resp = api040.get('/credentials/oidc').assert_status_code(303)
-        assert resp.headers["Location"] == "https://oidc.oeo.net/.well-known/openid-configuration"
+        assert resp.headers["Location"] == "https://oidc.test/.well-known/openid-configuration"
 
     def test_credentials_oidc_100(self, api100):
         resp = api100.get('/credentials/oidc').assert_status_code(200).json
         assert resp == {'providers': ListSubSet([
-            {'id': 'testprovider', 'issuer': 'https://oidc.oeo.net', 'scopes': ['openid'], 'title': 'Test'},
+            {'id': 'testprovider', 'issuer': 'https://oidc.test', 'scopes': ['openid'], 'title': 'Test'},
             DictSubSet({
-                'id': 'eoidc', 'issuer': 'https://eo.id', 'scopes': ['openid'],
+                'id': 'eoidc', 'issuer': 'https://eoidc.test', 'scopes': ['openid'],
                 'default_clients': [{
                     'id': 'badcafef00d',
                     'grant_types': ['urn:ietf:params:oauth:grant-type:device_code+pkce', 'refresh_token']}],
@@ -424,6 +424,48 @@ class TestGeneral:
             response.assert_status_code(200)
         else:
             response.assert_error(403, "PermissionsInsufficient", message="No access for Mark.")
+
+
+class TestUser:
+
+    def test_no_auth(self, api):
+        api.get("/me").assert_error(401, "AuthenticationRequired")
+
+    def test_basic_auth(self, api):
+        response = api.get("/me", headers=TEST_USER_AUTH_HEADER).assert_status_code(200).json
+        assert response == {"name": TEST_USER, "user_id": TEST_USER}
+
+    @pytest.fixture
+    def oidc_provider(self, requests_mock):
+        oidc_issuer = "https://eoidc.test"
+        user_db = {
+            "j0hn": {"sub": "john"},
+            "4l1c3": {"sub": "Alice"},
+        }
+        oidc_conf = f"{oidc_issuer}/.well-known/openid-configuration"
+        oidc_userinfo_url = f"{oidc_issuer}/userinfo"
+        requests_mock.get(oidc_conf, json={"userinfo_endpoint": oidc_userinfo_url})
+
+        def userinfo(request, context):
+            """Fake OIDC /userinfo endpoint handler"""
+            _, _, token = request.headers["Authorization"].partition("Bearer ")
+            return user_db[token]
+
+        requests_mock.get(oidc_userinfo_url, json=userinfo)
+
+    def test_oidc_basic(self, api, oidc_provider):
+        response = api.get("/me", headers={"Authorization": "Bearer oidc/eoidc/j0hn"}).assert_status_code(200).json
+        assert response == DictSubSet({"user_id": "john"})
+
+    def test_oidc_invalid_access_token(self, api, oidc_provider):
+        api.get("/me", headers={"Authorization": "Bearer oidc/eoidc/invalid"}).assert_error(403, "TokenInvalid")
+
+    def test_oidc_invalid_provider(self, api, oidc_provider):
+        api.get("/me", headers={"Authorization": "Bearer oidc/invalid/j0hn"}).assert_error(403, "TokenInvalid")
+
+    def test_default_plan(self, api, oidc_provider):
+        response = api.get("/me", headers={"Authorization": "Bearer oidc/eoidc/4l1c3"}).assert_status_code(200).json
+        assert response == DictSubSet({"user_id": "Alice", "default_plan": "alice-plan"})
 
 
 class TestCollections:

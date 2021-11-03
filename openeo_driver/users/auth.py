@@ -104,7 +104,7 @@ class HttpAuthHandler:
             raise TokenInvalidException
         if bearer_type == 'basic':
             return self.resolve_basic_access_token(access_token=access_token)
-        elif bearer_type == 'oidc':
+        elif bearer_type == 'oidc' and provider_id in self._oidc_providers:
             oidc_provider = self._oidc_providers[provider_id]
             return self.resolve_oidc_access_token(oidc_provider=oidc_provider, access_token=access_token)
         else:

@@ -1,3 +1,5 @@
+from typing import Union
+
 import base64
 
 
@@ -27,6 +29,11 @@ class User:
                     return oidc_userinfo["email"]
         # Fallback
         return self.user_id
+
+    def get_default_plan(self) -> Union[str, None]:
+        # TODO: "default_plan" field? see https://github.com/Open-EO/openeo-api/issues/425
+        if self.info:
+            return self.info.get("default_plan")
 
 
 def user_id_b64_encode(user_id: str) -> str:

@@ -443,9 +443,9 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
 
     def oidc_providers(self) -> List[OidcProvider]:
         return [
-            OidcProvider(id="testprovider", issuer="https://oidc.oeo.net", scopes=["openid"], title="Test"),
+            OidcProvider(id="testprovider", issuer="https://oidc.test", scopes=["openid"], title="Test"),
             OidcProvider(
-                id="eoidc", issuer="https://eo.id", scopes=["openid"], title="e-OIDC",
+                id="eoidc", issuer="https://eoidc.test", scopes=["openid"], title="e-OIDC",
                 default_client={"id": "badcafef00d"},
                 default_clients=[{
                     "id": "badcafef00d",
@@ -517,4 +517,6 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
     def user_access_validation(self, user: User, request: flask.Request) -> User:
         if "mark" in user.user_id.lower():
             raise PermissionsInsufficientException(message="No access for Mark.")
+        if user.user_id == "Alice":
+            user.info["default_plan"] = "alice-plan"
         return user
