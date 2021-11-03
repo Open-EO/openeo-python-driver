@@ -216,7 +216,7 @@ def build_app(
             blueprint=bp, backend_implementation=backend_implementation, api_endpoint=api_reg, auth_handler=auth
         )
 
-    app.register_blueprint(bp, url_prefix='/openeo')  # TODO: do we still need this?
+    app.register_blueprint(bp, url_prefix='/openeo', name="openeo_old")  # TODO: do we still need this?
     app.register_blueprint(bp, url_prefix='/openeo/<version>')
 
     # Build endpoint metadata dictionary
