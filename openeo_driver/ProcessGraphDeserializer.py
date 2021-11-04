@@ -1400,5 +1400,20 @@ def array_create(args: dict, env: EvalEnv) -> list:
     return list(data) * repeat
 
 
+@process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/load_result.json"))
+def load_result(args: dict, env: EvalEnv) -> DriverDataCube:
+    job_id = extract_arg(args, "id")
+    user_id = env["user"].user_id
+
+    dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
+    if dry_run_tracer:
+        return dry_run_tracer.load_result(job_id)
+    else:
+        source_id = dry_run.DataSource.load_result(job_id).get_source_id()
+        load_params = _extract_load_parameters(env, source_id=source_id)
+
+        return env.backend_implementation.load_result(job_id=job_id, user_id=user_id, load_params=load_params)
+
+
 # Finally: register some fallback implementation if possible
 _register_fallback_implementations_by_process_graph(process_registry_100)

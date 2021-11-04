@@ -130,6 +130,11 @@ class DataSource(DataTraceBase):
         """Factory for a `load_disk_data` DataSource."""
         return cls(process="load_disk_data", arguments=(glob_pattern, format, options))
 
+    @classmethod
+    def load_result(cls, job_id: str) -> 'DataSource':
+        """Factory for a `load_result` DataSource."""
+        return cls(process="load_result", arguments=(job_id,))
+
 
 class DataTrace(DataTraceBase):
     """
@@ -228,6 +233,11 @@ class DryRunDataTracer:
         trace = DataSource.load_disk_data(glob_pattern=glob_pattern, format=format, options=options)
         self.add_trace(trace)
         # TODO: metadata?
+        return DryRunDataCube(traces=[trace], data_tracer=self)
+
+    def load_result(self, job_id: str) -> 'DryRunDataCube':
+        trace = DataSource.load_result(job_id=job_id)
+        self.add_trace(trace)
         return DryRunDataCube(traces=[trace], data_tracer=self)
 
     def get_trace_leaves(self) -> List[DataTraceBase]:
