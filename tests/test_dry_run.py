@@ -42,6 +42,14 @@ def test_source_load_disk_data():
     assert s1.get_source_id() != s3.get_source_id()
 
 
+def test_source_load_result():
+    s1 = DataSource.load_result(job_id='a1a6dabc-20ae-43b8-b7c1-f9c9bd3f6dfd')
+    s2 = DataSource.load_result(job_id='a1a6dabc-20ae-43b8-b7c1-f9c9bd3f6dfd')
+    s3 = DataSource.load_result(job_id='a16b4310-45de-49ae-824b-f501038057c6')
+    assert s1.get_source_id() == s2.get_source_id()
+    assert s1.get_source_id() != s3.get_source_id()
+
+
 def test_data_source_hashable():
     s1 = DataSource("load_foo", arguments={"a": "b", "c": "d", "e": "f", "g": "h"})
     s2 = DataSource("load_foo", arguments={"g": "h", "e": "f", "c": "d", "a": "b"})

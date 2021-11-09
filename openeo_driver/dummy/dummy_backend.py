@@ -503,6 +503,10 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
         _register_load_collection_call(glob_pattern, load_params)
         return DummyDataCube()
 
+    def load_result(self, job_id: str, user_id: str, load_params: LoadParameters) -> DummyDataCube:
+        _register_load_collection_call(job_id, load_params)
+        return DummyDataCube()
+
     def visit_process_graph(self, process_graph: dict) -> ProcessGraphVisitor:
         return DummyVisitor().accept_process_graph(process_graph)
 

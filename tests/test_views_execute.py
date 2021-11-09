@@ -1952,3 +1952,10 @@ def test_vector_buffer(api100, buf, unit, repr_geom, expected_type, bounds):
     else:
         res_gs = gpd.GeoSeries([shapely.geometry.shape(res)])
     assert res_gs.total_bounds == pytest.approx(bounds, 0.001)
+
+
+def test_load_result(api100):
+    api100.check_result("load_result.json")
+    params = dummy_backend.last_load_collection_call("99a605a0-1a10-4ba9-abc1-6898544e25fc")
+
+    assert params["temporal_extent"] == ('2019-09-22', '2019-09-22')
