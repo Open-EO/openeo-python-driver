@@ -141,6 +141,7 @@ class LoadParameters(dict):
     sar_backscatter: Union[SarBackscatterArgs, None] = dict_item(default=None)
     process_types = dict_item(default=set())
     custom_mask = dict_item(default={})
+    data_mask = dict_item(default={})
     target_crs = dict_item(default=None)
     target_resolution = dict_item(default=None)
     backend_provider = dict_item(default=None)

@@ -10,6 +10,7 @@ import shapely.geometry
 import geopandas as gpd
 
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
+from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import ProcessType
@@ -477,6 +478,34 @@ def test_execute_mask(api):
 
     params = dummy_backend.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
     assert params["spatial_extent"] == expected
+
+def test_execute_mask_optimized_loading(api):
+    api.check_result("mask.json",
+                     preprocess=preprocess_check_and_replace('"10"', 'null')
+                     )
+    #assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").mask.call_count == 1
+
+    expected = {
+        "west": 7.02,
+        "south": 51.2,
+        "east": 7.65,
+        "north": 51.7,
+        "crs": 'EPSG:4326',
+    }
+    expected_geometry = shapely.geometry.shape({
+        "type": "Polygon",
+        "coordinates": [[[7.02, 51.7], [7.65, 51.7], [7.65, 51.2], [7.04, 51.3], [7.02, 51.7]]]
+    })
+
+    params = dummy_backend.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
+    assert params["spatial_extent"] == expected
+    assert isinstance(params.data_mask, DriverDataCube)
+
+    params = dummy_backend.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
+    assert params["spatial_extent"] == expected
+    assert params["aggregate_spatial_geometries"] == expected_geometry
+
+
 
 
 def test_execute_mask_polygon(api):
