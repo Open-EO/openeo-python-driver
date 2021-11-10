@@ -787,12 +787,9 @@ def mask_04(args: dict, env: EvalEnv) -> DriverDataCube:
 @process_registry_100.add_function
 def mask(args: dict, env: EvalEnv) -> DriverDataCube:
     cube = extract_arg(args, 'data')
-    if(env.get(ENV_DRY_RUN_TRACER) != None or 'data_mask' not in env):
-        mask = extract_arg(args, 'mask')
-        replacement = args.get('replacement', None)
-        return cube.mask(mask=mask, replacement=replacement)
-    else:
-        return cube
+    mask = extract_arg(args, 'mask')
+    replacement = args.get('replacement', None)
+    return cube.mask(mask=mask, replacement=replacement)
 
 
 @process_registry_100.add_function
@@ -1028,12 +1025,12 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
     parent_process = env.get('parent_process')
     parameters = env.collect_parameters()
 
-    if(env.get(ENV_DRY_RUN_TRACER) == None and process_id == "mask" and args.get("replacement",None) == None):
+    if(process_id == "mask" and args.get("replacement",None) == None):
         mask_node = args.get("mask",None)
         #evaluate the mask
         the_mask = convert_node(mask_node,env=env)
         env = env.push(data_mask=the_mask)
-        args = {"data": convert_node(args["data"], env=env) }
+        args = {"data": convert_node(args["data"], env=env), "mask":the_mask }
     else:
         # first we resolve child nodes and arguments in an arbitrary but deterministic order
         args = {name: convert_node(expr, env=env) for (name, expr) in sorted(args.items())}
