@@ -385,6 +385,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     params.sar_backscatter = constraints.get("sar_backscatter", None)
     params.process_types = process_types
     params.custom_mask = constraints.get("custom_cloud_mask", {})
+    params.data_mask = env.get("data_mask",None)
     params.target_crs = constraints.get("resample", {}).get("target_crs",None)
     params.target_resolution = constraints.get("resample", {}).get("resolution", None)
     return params
@@ -1024,8 +1025,15 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
     parent_process = env.get('parent_process')
     parameters = env.collect_parameters()
 
-    # first we resolve child nodes and arguments in an arbitrary but deterministic order
-    args = {name: convert_node(expr, env=env) for (name, expr) in sorted(args.items())}
+    if(process_id == "mask" and args.get("replacement",None) == None):
+        mask_node = args.get("mask",None)
+        #evaluate the mask
+        the_mask = convert_node(mask_node,env=env)
+        env = env.push(data_mask=the_mask)
+        args = {"data": convert_node(args["data"], env=env), "mask":the_mask }
+    else:
+        # first we resolve child nodes and arguments in an arbitrary but deterministic order
+        args = {name: convert_node(expr, env=env) for (name, expr) in sorted(args.items())}
 
     # when all arguments and dependencies are resolved, we can run the process
     if parent_process == "apply":

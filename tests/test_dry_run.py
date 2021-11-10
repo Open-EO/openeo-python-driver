@@ -241,12 +241,12 @@ def test_evaluate_graph_diamond(dry_run_env, dry_run_tracer):
     assert source_constraints == [(
         ("load_collection", ("S2_FOOBAR", ())),
         {
-            "bands": ["red"],
+            "bands": ["grass"],
             "spatial_extent": {"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"}
         }), (
         ("load_collection", ("S2_FOOBAR", ())),
         {
-            "bands": ["grass"],
+            "bands": ["red"],
             "spatial_extent": {"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"}
         }),
     ]
