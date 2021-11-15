@@ -530,7 +530,7 @@ class OpenEoBackendImplementation:
         # TODO: rename this to "load_uploaded_files" like in official openeo processes
         raise NotImplementedError
 
-    def load_result(self, job_id: str, user_id: str, load_params: LoadParameters) -> DriverDataCube:
+    def load_result(self, job_id: str, user: User, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
         raise NotImplementedError
 
     def visit_process_graph(self, process_graph: dict) -> ProcessGraphVisitor:
