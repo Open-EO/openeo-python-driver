@@ -23,6 +23,12 @@ from openeo_driver.utils import TtlCache
 _log = logging.getLogger(__name__)
 
 
+class OidcProviderUnavailableException(OpenEOApiException):
+    status_code = 503
+    code = "OidcProviderUnavailable"
+    message = "OIDC Provider is unavailable"
+
+
 class HttpAuthHandler:
     """Handler for processing HTTP authentication in a Flask app context"""
 
@@ -152,7 +158,7 @@ class HttpAuthHandler:
     def resolve_basic_access_token(self, access_token: str) -> User:
         try:
             # Resolve token to user id
-            head,_ , access_token = access_token.partition(self._BASIC_ACCESS_TOKEN_PREFIX)
+            head, _, access_token = access_token.partition(self._BASIC_ACCESS_TOKEN_PREFIX)
             assert head == '' and len(access_token) > 0
             user_id = base64.urlsafe_b64decode(access_token.encode('ascii')).decode('utf-8')
         except Exception:
@@ -171,11 +177,11 @@ class HttpAuthHandler:
             resp = requests.request(method=method, url=url, timeout=timeout, **kwargs)
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
             _log.error(f"OIDC provider unavailable for request {url!r}", exc_info=True)
-            raise OpenEOApiException(
-                status_code=503, code="OidcProviderUnavailable",
-                message="OIDC Provider is unavailable"
-            )
+            raise OidcProviderUnavailableException
 
+        if 500 <= resp.status_code < 600:
+            _log.error(f"OIDC provider server error on request {url!r}", exc_info=True)
+            raise OidcProviderUnavailableException
         if raise_for_status:
             resp.raise_for_status()
         return resp

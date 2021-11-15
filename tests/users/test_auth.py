@@ -350,23 +350,27 @@ def test_user_access_validation_oidc(
             assert resp.json["message"] == message
 
 
-@pytest.mark.parametrize("exception", [
-    requests.exceptions.ConnectionError(),
-    requests.exceptions.ProxyError(),
-    requests.exceptions.ConnectTimeout(),
-    requests.exceptions.Timeout(),
-    requests.exceptions.ReadTimeout(),
+@pytest.mark.parametrize("fail_kwargs", [
+    {"exc": requests.exceptions.ConnectionError()},
+    {"exc": requests.exceptions.ProxyError()},
+    {"exc": requests.exceptions.ConnectTimeout()},
+    {"exc": requests.exceptions.Timeout()},
+    {"exc": requests.exceptions.ReadTimeout()},
+    {"status_code": 500, "text": "Internal server error"},
+    {"status_code": 502, "text": "Bad Gateway"},
 ])
 @pytest.mark.parametrize("fail_url", [
     "/.well-known/openid-configuration",
     "/userinfo",
 ])
-def test_oidc_provider_down(app, requests_mock, oidc_provider, exception, fail_url):
+def test_oidc_provider_down(app, requests_mock, oidc_provider, fail_kwargs, fail_url):
     # Setup connection failure in OIDC provider
-    requests_mock.get(oidc_provider.get_issuer() + fail_url, exc=exception)
+    requests_mock.get(oidc_provider.get_issuer() + fail_url, **fail_kwargs)
 
     with app.test_client() as client:
         headers = {"Authorization": f"Bearer oidc/{oidc_provider.id}/f00b6r"}
         resp = client.get("/personal/hello", headers=headers)
-        assert resp.status_code == 503
-        assert resp.json == DictSubSet(code="OidcProviderUnavailable", message="OIDC Provider is unavailable")
+        assert (resp.status_code, resp.json) == (
+            503,
+            DictSubSet(code="OidcProviderUnavailable", message="OIDC Provider is unavailable")
+        )
