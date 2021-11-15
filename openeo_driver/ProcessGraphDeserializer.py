@@ -1243,6 +1243,7 @@ def evaluate_process_from_url(process_id: str, namespace: str, args: dict, env: 
         candidates = [namespace]
 
     for candidate in candidates:
+        # TODO: add request timeout, retry logic?
         res = requests.get(candidate)
         if res.status_code == 200:
             break

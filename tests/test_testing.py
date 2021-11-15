@@ -83,6 +83,12 @@ def test_dict_subset():
     assert 3 != expected
 
 
+def test_dict_subset_init():
+    assert {"foo": "bar"} == DictSubSet({"foo": "bar"})
+    assert {"foo": "bar"} == DictSubSet(foo="bar")
+    assert {"foo": "bar"} == DictSubSet({"foo": "meh"}, foo="bar")
+
+
 def test_dict_subset_nesting():
     assert {1: 2, 3: 4, 5: {6: 7, 8: 9}} == DictSubSet({})
     assert {1: 2, 3: 4, 5: {6: 7, 8: 9}} == DictSubSet({5: DictSubSet({})})

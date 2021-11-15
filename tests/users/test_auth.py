@@ -1,11 +1,12 @@
 import flask
 import json
 import pytest
+import requests.exceptions
 from flask import Flask, jsonify, Response, request
 
 from openeo_driver.backend import OidcProvider
 from openeo_driver.errors import OpenEOApiException, PermissionsInsufficientException
-from openeo_driver.testing import build_basic_http_auth_header
+from openeo_driver.testing import build_basic_http_auth_header, DictSubSet
 from openeo_driver.users import User
 from openeo_driver.users.auth import HttpAuthHandler
 
@@ -324,7 +325,9 @@ def test_user_access_validation_basic_auth(app_with_user_access_validation, user
     ("John", True, b"hello John (verified)"),
     ("fluffYbeAr93", False, "Invalid user id fluffYbeAr93: expected Fluffybear93."),
 ])
-def test_user_access_validation_oidc(app_with_user_access_validation, oidc_provider, requests_mock, user_id, success, message):
+def test_user_access_validation_oidc(
+        app_with_user_access_validation, oidc_provider, requests_mock, user_id, success, message
+):
     def userinfo(request, context):
         """Fake OIDC /userinfo endpoint handler"""
         _, _, token = request.headers["Authorization"].partition("Bearer ")
@@ -345,3 +348,25 @@ def test_user_access_validation_oidc(app_with_user_access_validation, oidc_provi
             assert resp.status_code == PermissionsInsufficientException.status_code
             assert resp.json["code"] == "PermissionsInsufficient"
             assert resp.json["message"] == message
+
+
+@pytest.mark.parametrize("exception", [
+    requests.exceptions.ConnectionError(),
+    requests.exceptions.ProxyError(),
+    requests.exceptions.ConnectTimeout(),
+    requests.exceptions.Timeout(),
+    requests.exceptions.ReadTimeout(),
+])
+@pytest.mark.parametrize("fail_url", [
+    "/.well-known/openid-configuration",
+    "/userinfo",
+])
+def test_oidc_provider_down(app, requests_mock, oidc_provider, exception, fail_url):
+    # Setup connection failure in OIDC provider
+    requests_mock.get(oidc_provider.get_issuer() + fail_url, exc=exception)
+
+    with app.test_client() as client:
+        headers = {"Authorization": f"Bearer oidc/{oidc_provider.id}/f00b6r"}
+        resp = client.get("/personal/hello", headers=headers)
+        assert resp.status_code == 503
+        assert resp.json == DictSubSet(code="OidcProviderUnavailable", message="OIDC Provider is unavailable")

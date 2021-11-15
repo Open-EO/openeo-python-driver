@@ -11,16 +11,16 @@ from typing import Callable, Tuple, List, Dict, Optional
 
 from flask import request, Request
 import requests
+import requests.exceptions
 
 from openeo.rest.auth.auth import BearerAuth
 from openeo_driver.users import User
 from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.errors import AuthenticationRequiredException, \
-    AuthenticationSchemeInvalidException, TokenInvalidException, CredentialsInvalidException
+    AuthenticationSchemeInvalidException, TokenInvalidException, CredentialsInvalidException, OpenEOApiException
 from openeo_driver.utils import TtlCache
 
 _log = logging.getLogger(__name__)
-
 
 
 class HttpAuthHandler:
@@ -162,11 +162,28 @@ class HttpAuthHandler:
             internal_auth_data={"authentication_method": "basic"},
         )
 
+    @staticmethod
+    def _oidc_provider_request(
+            url: str, method="get", timeout=10, raise_for_status=True, **kwargs
+    ) -> requests.Response:
+        """Helper to do  OIDC provider request with some extra safe-guarding and error handling"""
+        try:
+            resp = requests.request(method=method, url=url, timeout=timeout, **kwargs)
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            _log.error(f"OIDC provider unavailable for request {url!r}", exc_info=True)
+            raise OpenEOApiException(
+                status_code=503, code="OidcProviderUnavailable",
+                message="OIDC Provider is unavailable"
+            )
+
+        if raise_for_status:
+            resp.raise_for_status()
+        return resp
+
     def _get_userinfo_endpoint(self, oidc_provider: OidcProvider) -> str:
         key = ("userinfo_endpoint", oidc_provider.issuer)
         if not self._cache.contains(key):
-            resp = requests.get(oidc_provider.discovery_url)
-            resp.raise_for_status()
+            resp = self._oidc_provider_request(oidc_provider.discovery_url)
             userinfo_url = resp.json()["userinfo_endpoint"]
             self._cache.set(key, value=userinfo_url, ttl=10 * 60)
         return self._cache.get(key)
@@ -174,8 +191,7 @@ class HttpAuthHandler:
     def resolve_oidc_access_token(self, oidc_provider: OidcProvider, access_token: str) -> User:
         try:
             userinfo_url = self._get_userinfo_endpoint(oidc_provider=oidc_provider)
-            resp = requests.get(userinfo_url, auth=BearerAuth(bearer=access_token))
-            resp.raise_for_status()
+            resp = self._oidc_provider_request(userinfo_url, auth=BearerAuth(bearer=access_token))
             userinfo = resp.json()
             # The "sub" claim is the only claim in the response that is guaranteed per OIDC spec
             # TODO: do we have better options?
@@ -193,6 +209,8 @@ class HttpAuthHandler:
                     "access_token": access_token,
                 }
             )
-        except Exception as e:
+        except OpenEOApiException:
+            raise
+        except Exception:
             _log.warning("Failed to resolve OIDC access token", exc_info=True)
             raise TokenInvalidException
