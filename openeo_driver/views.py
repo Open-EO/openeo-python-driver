@@ -237,6 +237,9 @@ def requested_api_version() -> ComparableVersion:
 
 def register_error_handlers(app: flask.Flask, backend_implementation: OpenEoBackendImplementation):
     """Register error handlers to the app"""
+    # Dedicated log channel for unhandled exceptions (unhandled by the view functions internally)
+    _log = logging.getLogger(f"{__name__}.error")
+
     @app.errorhandler(HTTPException)
     def handle_http_exceptions(error: HTTPException):
         # Convert to OpenEOApiException based handling
@@ -249,7 +252,7 @@ def register_error_handlers(app: flask.Flask, backend_implementation: OpenEoBack
     @app.errorhandler(OpenEOApiException)
     def handle_openeoapi_exception(error: OpenEOApiException):
         error_dict = error.to_dict()
-        _log.error(str(error_dict), exc_info=True)
+        _log.error(repr(error), exc_info=True)
         return jsonify(error_dict), error.status_code
 
     @app.errorhandler(Exception)
@@ -462,6 +465,16 @@ def register_views_general(
     @blueprint.route('/_debug/error', methods=["GET", "POST"])
     def debug_error():
         raise Exception("Computer says no.")
+
+    @blueprint.route('/_debug/error/api', methods=["GET", "POST"])
+    @blueprint.route('/_debug/error/api/<int:status>/<code>', methods=["GET", "POST"])
+    def debug_error_api(status: int = None, code: str = None):
+        raise OpenEOApiException(message="Computer says no.", code=code, status_code=status)
+
+    @blueprint.route('/_debug/error/http', methods=["GET", "POST"])
+    @blueprint.route('/_debug/error/http/<int:status>', methods=["GET", "POST"])
+    def debug_error_http(status: int = 500):
+        abort(status, "Computer says no.")
 
 
 def register_views_auth(

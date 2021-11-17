@@ -6,6 +6,7 @@ from unittest import mock
 
 import flask
 import pytest
+import werkzeug.exceptions
 
 from openeo.capabilities import ComparableVersion
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
@@ -255,6 +256,40 @@ class TestGeneral:
         assert resp.access_control_allow_origin == "*"
         assert resp.access_control_allow_credentials is False
         assert {"Location", "OpenEO-Identifier", "OpenEO-Costs", "Link"}.issubset(resp.access_control_expose_headers)
+
+    def test_error_handling_generic(self, api, caplog):
+        caplog.set_level(logging.WARNING)
+        resp = api.get("/_debug/error")
+        assert (resp.status_code, resp.json) == (500, {"message": "Computer says no."})
+        assert caplog.record_tuples == [
+            (
+                "openeo_driver.views.error",
+                logging.ERROR,
+                "OpenEOApiException(status_code=500, code='Internal', message='Computer says no.', id='t3st')",
+            ),
+        ]
+
+    @pytest.mark.parametrize(["url", "error_status", "error_code", "error_message"], [
+        ("/_debug/error/api", 500, "Internal", "Computer says no."),
+        ("/_debug/error/api/404/CollectionNotFound", 404, "CollectionNotFound", "Computer says no."),
+        ("/_debug/error/http", 500, "Internal", "500 Internal Server Error: Computer says no."),
+        ("/_debug/error/http/404", 404, "NotFound", "404 Not Found: Computer says no."),
+        ("/_debug/error/http/501", 501, "Internal", "501 Not Implemented: Computer says no."),
+        ("/invalid/url", 404, "NotFound", f"404 Not Found: {werkzeug.exceptions.NotFound.description}"),
+    ])
+    def test_error_handling_api_error(self, api, caplog, url, error_status, error_code, error_message):
+        caplog.set_level(logging.WARNING)
+        with mock.patch("uuid.uuid4", return_value="t3st"):
+            resp = api.get(url)
+        assert resp.status_code == error_status
+        assert resp.json == {"code": error_code, "message": error_message, "id": "t3st"}
+        assert caplog.record_tuples == [
+            (
+                "openeo_driver.views.error",
+                logging.ERROR,
+                f"OpenEOApiException(status_code={error_status}, code={error_code!r}, message={error_message!r}, id='t3st')",
+            ),
+        ]
 
     def test_health_legacy(self, api):
         resp = api.get('/health').assert_status_code(200).json

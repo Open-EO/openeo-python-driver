@@ -77,6 +77,7 @@ def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List
             spec = process_registry.load_predefined_spec(pid)
             process_registry.add_process(name=pid, function=wrapped, spec=spec)
         else:
+            # TODO: this warning is triggered before logging is set up usually
             _log.warning("Adding process {p!r} without implementation".format(p=pid))
             process_registry.add_spec_by_name(pid)
 
