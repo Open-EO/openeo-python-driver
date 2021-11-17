@@ -37,6 +37,7 @@ from enum import Enum
 from typing import List, Union, Tuple
 
 import shapely.geometry.base
+from shapely.geometry import Polygon, MultiPolygon, GeometryCollection
 
 from openeo.metadata import CollectionMetadata
 from openeo_driver import filter_properties
@@ -434,6 +435,8 @@ class DryRunDataCube(DriverDataCube):
         geometries, bbox = self._normalize_geometry(geometries)
         cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
         cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
+        if isinstance(geometries, (Polygon, MultiPolygon)):
+            geometries = GeometryCollection([geometries])
         return AggregatePolygonResult(timeseries={}, regions=geometries)
 
     def _normalize_geometry(self, geometries):
