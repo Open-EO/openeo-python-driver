@@ -263,9 +263,9 @@ class TestGeneral:
         assert (resp.status_code, resp.json) == (500, {"message": "Computer says no."})
         assert caplog.record_tuples == [
             (
-                "openeo_driver.views.error",
+                "openeo_driver.views",
                 logging.ERROR,
-                "OpenEOApiException(status_code=500, code='Internal', message='Computer says no.', id='t3st')",
+                'Computer says no.',
             ),
         ]
 
