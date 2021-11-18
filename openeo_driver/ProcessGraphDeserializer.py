@@ -608,6 +608,18 @@ def add_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
 
 
 @process_registry_100.add_function
+def drop_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
+    data_cube = extract_arg(args, 'data')
+    return data_cube.drop_dimension(dimension=extract_arg(args, 'dimension'))
+
+
+@process_registry_100.add_function
+def dimension_labels(args: dict, env: EvalEnv) -> DriverDataCube:
+    data_cube = extract_arg(args, 'data')
+    return data_cube.dimension_labels(dimension=extract_arg(args, 'dimension'))
+
+
+@process_registry_100.add_function
 def rename_labels(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
     return data_cube.rename_labels(
