@@ -485,8 +485,8 @@ class DryRunDataCube(DriverDataCube):
     def add_dimension(self, name: str, label, type: str = "other") -> 'DryRunDataCube':
         return self._process_metadata(self.metadata.add_dimension(name=name, label=label, type=type))
 
-    def drop_dimension(self, dimension: str = "other") -> 'DryRunDataCube':
-        return self._process("drop_dimension", arguments={"dimension": dimension})
+    def drop_dimension(self, name: str) -> 'DryRunDataCube':
+        return self._process("drop_dimension", arguments={"name": name})
 
     def dimension_labels(self, dimension: str = "other") -> 'DryRunDataCube':
         return self._process("dimension_labels", arguments={"dimension": dimension})

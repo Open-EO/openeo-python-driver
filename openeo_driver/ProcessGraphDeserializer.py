@@ -610,7 +610,7 @@ def add_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
 @process_registry_100.add_function
 def drop_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
-    return data_cube.drop_dimension(dimension=extract_arg(args, 'dimension'))
+    return data_cube.drop_dimension(name=extract_arg(args, 'name'))
 
 
 @process_registry_100.add_function
