@@ -1359,6 +1359,36 @@ def test_execute_no_cube_just_math(api100, process_graph, expected):
             {"arc1": {"process_id": "array_create", "arguments": {"data": [2, 8], "repeat": 3}, "result": True}},
             [2, 8, 2, 8, 2, 8]
     ),
+    (
+            {
+                "arc1": {"process_id": "array_create", "arguments": {"data": [2, 3, 4, 5]}},
+                "arm1": {
+                    "process_id": "array_modify",
+                    "arguments": {"data": {"from_node": "arc1"}, "values": [7, 8, 9], "index": 1}, "result": True
+                }
+            },
+            [2, 7, 8, 9, 4, 5]
+    ),
+    (
+            {
+                "arc1": {"process_id": "array_create", "arguments": {"data": [2, 3, 4, 5]}},
+                "arm1": {
+                    "process_id": "array_modify",
+                    "arguments": {"data": {"from_node": "arc1"}, "values": [], "index": 2, "length": 2}, "result": True
+                }
+            },
+            [2, 3]
+    ),
+    (
+            {
+                "arc1": {"process_id": "array_create", "arguments": {"data": [2, 3, 4, 5]}},
+                "arm1": {
+                    "process_id": "array_modify",
+                    "arguments": {"data": {"from_node": "arc1"}, "values": [8, 9], "index": 7}, "result": True
+                }
+            },
+            [2, 3, 4, 5, None, None, None, 8, 9]
+    ),
 ])
 def test_execute_no_cube_just_arrays(api100, process_graph, expected):
     assert api100.result(process_graph).assert_status_code(200).json == expected

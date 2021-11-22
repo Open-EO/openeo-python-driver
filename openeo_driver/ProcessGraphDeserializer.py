@@ -1425,5 +1425,38 @@ def load_result(args: dict, env: EvalEnv) -> DriverDataCube:
         return env.backend_implementation.load_result(job_id=job_id, user=user, load_params=load_params, env=env)
 
 
+@process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/array_modify.json"))
+def array_modify(args: dict, env: EvalEnv) -> DriverDataCube:
+    data = list(extract_arg(args, 'data'))
+    values = list(extract_arg(args, 'values'))
+    index = extract_arg(args, 'index')
+
+    if not isinstance(index, int) or index < 0:
+        raise ProcessParameterInvalidException(
+            parameter="index", process="array_modify",
+            reason="The `index` parameter should be an integer of at least value 0."
+        )
+
+    length = args.get('length', 1)
+
+    if not isinstance(index, int) or index < 0:
+        raise ProcessParameterInvalidException(
+            parameter="length", process="array_modify",
+            reason="The `length` parameter should be an integer of at least value 0."
+        )
+
+    if not values and index > len(data):
+        raise OpenEOApiException(
+            status_code=400, code="ArrayElementNotAvailable",
+            message=f"The array has no element with index {index}."
+        )
+
+    if len(data) < index:
+        data += [None] * (index - len(data))
+
+    data[index:index+length] = values
+
+    return data
+
 # Finally: register some fallback implementation if possible
 _register_fallback_implementations_by_process_graph(process_registry_100)
