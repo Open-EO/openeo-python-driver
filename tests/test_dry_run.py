@@ -1103,3 +1103,20 @@ def test_CropSAR_aggregate_spatial_constraint(dry_run_env, dry_run_tracer):
             assert constraints['aggregate_spatial']['geometries'].path == geometry_path
     finally:
         del process_registry_100._processes['test', 'CropSAR']
+
+
+@pytest.mark.parametrize(["dimension_name", "expected"], [
+    ("bands", ["x", "y", "t"]),
+    ("t", ["x", "y", "bands"]),
+])
+def test_evaluate_drop_dimension(dry_run_env, dry_run_tracer, dimension_name, expected):
+    pg = {
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "drop": {
+            "process_id": "drop_dimension",
+            "arguments": {"data": {"from_node": "lc"}, "name": dimension_name},
+            "result": True,
+        },
+    }
+    cube = evaluate(pg, env=dry_run_env)
+    assert cube.metadata.dimension_names() == expected
