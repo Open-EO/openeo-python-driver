@@ -176,6 +176,15 @@ class DummyDataCube(DriverDataCube):
         self.metadata = self.metadata.add_dimension(name=name, label=label, type=type)
         return self
 
+    @mock_side_effect
+    def drop_dimension(self, name: str) -> 'DriverDataCube':
+        self.metadata = self.metadata.drop_dimension(name=name)
+        return self
+
+    @mock_side_effect
+    def dimension_labels(self, dimension: str) -> 'DriverDataCube':
+        return self.metadata.dimension_names()
+
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
         with open(filename, "w") as f:
             f.write("{f}:save_result({s!r}".format(f=format, s=self))

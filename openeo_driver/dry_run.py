@@ -371,12 +371,12 @@ class DryRunDataCube(DriverDataCube):
         self._traces = traces or []
         self._data_tracer = data_tracer
 
-    def _process(self, operation, arguments) -> 'DryRunDataCube':
+    def _process(self, operation, arguments, metadata: CollectionMetadata = None) -> 'DryRunDataCube':
         """Helper to handle single-cube operations"""
         # New data cube with operation added to each trace
         traces = self._data_tracer.process_traces(traces=self._traces, operation=operation, arguments=arguments)
         # TODO: manipulate metadata properly?
-        return DryRunDataCube(traces=traces, data_tracer=self._data_tracer, metadata=self.metadata)
+        return DryRunDataCube(traces=traces, data_tracer=self._data_tracer, metadata=metadata or self.metadata)
 
     def _process_metadata(self, metadata: CollectionMetadata) -> 'DryRunDataCube':
         """Just process metadata (leave traces as is)"""
@@ -486,10 +486,7 @@ class DryRunDataCube(DriverDataCube):
         return self._process_metadata(self.metadata.add_dimension(name=name, label=label, type=type))
 
     def drop_dimension(self, name: str) -> 'DryRunDataCube':
-        return self._process("drop_dimension", arguments={"name": name})
-
-    def dimension_labels(self, dimension: str = "other") -> 'DryRunDataCube':
-        return self._process("dimension_labels", arguments={"dimension": dimension})
+        return self._process("drop_dimension", {"name": name}, metadata=self.metadata.drop_dimension(name=name))
 
     def sar_backscatter(self, args: SarBackscatterArgs) -> 'DryRunDataCube':
         return self._process("sar_backscatter", args)
@@ -577,3 +574,4 @@ class DryRunDataCube(DriverDataCube):
     ndvi = _nop
     water_vapor = _nop
     linear_scale_range = _nop
+    dimension_labels = _nop

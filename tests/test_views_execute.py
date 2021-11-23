@@ -1505,6 +1505,34 @@ def test_reduce_add_reduce_dim(api100):
     assert dummy.add_dimension.call_count == 1
 
 
+def test_reduce_drop_dimension(api100):
+    api100.check_result({
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "drop": {
+            "process_id": "drop_dimension",
+            "arguments": {"data": {"from_node": "lc"}, "name": "bands"},
+            "result": True,
+        },
+    })
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
+    assert dummy.drop_dimension.call_count == 1
+    assert dummy.metadata.dimension_names() == ["x", "y", "t"]
+
+
+def test_reduce_dimension_labels(api100):
+    res = api100.check_result({
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "drop": {
+            "process_id": "dimension_labels",
+            "arguments": {"data": {"from_node": "lc"}, "dimension": "bands"},
+            "result": True,
+        },
+    })
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
+    assert dummy.dimension_labels.call_count == 1
+    assert res.json == ["x", "y", "t", "bands"]
+
+
 @pytest.mark.parametrize(["arguments", "expected"], [
     ({"data": {"from_node": "l"}, "name": "foo", "label": "bar"}, "other"),
     ({"data": {"from_node": "l"}, "name": "foo", "label": "bar", "type": "bands"}, "bands"),
