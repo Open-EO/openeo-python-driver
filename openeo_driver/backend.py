@@ -445,7 +445,19 @@ class ErrorSummary:
 
 class UdfRuntimes(MicroService):
     # Python libraries to list
-    python_libraries = ["numpy", "scipy"]
+    python_libraries = [
+        "openeo",
+        "openeo_driver",
+        "numpy",
+        "scipy",
+        "pandas",
+        "xarray",
+        "geopandas",
+        "netCDF4",
+        "shapely",
+        "pyproj",
+        "rasterio",
+    ]
 
     def __init__(self):
         pass
@@ -462,6 +474,7 @@ class UdfRuntimes(MicroService):
 
     def _get_python_udf_runtime_metadata(self):
         major, aliases, default_version = self.get_python_versions()
+        # TODO: get actual library version (instead of version of current environment).
         libraries = {
             p: {"version": v.split(" ", 1)[-1]}
             for p, v in get_package_versions(self.python_libraries, na_value=None).items()
