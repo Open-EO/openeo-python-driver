@@ -83,7 +83,7 @@ def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List
 
 
 _OPENEO_PROCESSES_PYTHON_WHITELIST = [
-    'array_apply', 'array_contains', 'array_element', 'array_filter', 'array_find', 'array_labels',
+    'array_apply', 'array_contains', 'array_element', 'array_filter', 'array_find', 'array_labels', 'array_interpolate_linear'
     'count', 'first', 'last', 'order', 'rearrange', 'sort',
     'between', 'eq', 'gt', 'gte', 'if', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
     'all', 'and', 'any', 'if', 'not', 'or', 'xor',
