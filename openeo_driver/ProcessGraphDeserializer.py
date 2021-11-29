@@ -618,6 +618,10 @@ def dimension_labels(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
     return data_cube.dimension_labels(dimension=extract_arg(args, 'dimension'))
 
+@process_registry_100.add_function
+def rename_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
+    data_cube = extract_arg(args, 'data')
+    return data_cube.rename_dimension(source=extract_arg(args, 'source'),target=extract_arg(args, 'target'))
 
 @process_registry_100.add_function
 def rename_labels(args: dict, env: EvalEnv) -> DriverDataCube:
