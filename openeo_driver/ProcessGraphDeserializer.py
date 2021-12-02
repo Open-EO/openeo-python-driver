@@ -1391,7 +1391,10 @@ def mask_l1c(args: Dict, env: EvalEnv):
 
 
 custom_process_from_process_graph(read_spec("openeo-processes/1.x/proposals/ard_normalized_radar_backscatter.json"))
-custom_process_from_process_graph(read_spec("openeo-processes/1.x/proposals/array_interpolate_linear.json"))
+
+@process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/array_interpolate_linear.json"))
+def array_interpolate_linear(args: Dict, env: EvalEnv) -> str:
+    pass
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/date_shift.json"))
 def date_shift(args: Dict, env: EvalEnv) -> str:
