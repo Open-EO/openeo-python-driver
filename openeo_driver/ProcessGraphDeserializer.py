@@ -83,7 +83,7 @@ def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List
 
 
 _OPENEO_PROCESSES_PYTHON_WHITELIST = [
-    'array_apply', 'array_contains', 'array_element', 'array_filter', 'array_find', 'array_labels', 'array_interpolate_linear',
+    'array_apply', 'array_contains', 'array_element', 'array_filter', 'array_find', 'array_labels',
     'count', 'first', 'last', 'order', 'rearrange', 'sort',
     'between', 'eq', 'gt', 'gte', 'if', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
     'all', 'and', 'any', 'if', 'not', 'or', 'xor',
@@ -1391,7 +1391,7 @@ def mask_l1c(args: Dict, env: EvalEnv):
 
 
 custom_process_from_process_graph(read_spec("openeo-processes/1.x/proposals/ard_normalized_radar_backscatter.json"))
-
+custom_process_from_process_graph(read_spec("openeo-processes/1.x/proposals/array_interpolate_linear.json"))
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/date_shift.json"))
 def date_shift(args: Dict, env: EvalEnv) -> str:
