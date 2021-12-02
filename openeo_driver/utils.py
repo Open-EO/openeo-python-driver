@@ -76,6 +76,9 @@ class EvalEnv:
         else:
             return self._values.copy()
 
+    def __str__(self):
+        return str(self.as_dict())
+
     @property
     def backend_implementation(self) -> 'OpenEoBackendImplementation':
         return self["backend_implementation"]
