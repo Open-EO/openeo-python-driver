@@ -766,12 +766,13 @@ def register_views_batch_jobs(
         # TODO: wrap this job specification in a 1.0-style ProcessGrahpWithMetadata?
         post_data = request.get_json()
         process = {"process_graph": _extract_process_graph(post_data)}
+        # TODO: this "job_options" is not part of official API. See https://github.com/Open-EO/openeo-api/issues/276
         job_options = post_data.get("job_options")
         job_info = backend_implementation.batch_jobs.create_job(
             user_id=user.user_id,
             process=process,
             api_version=g.api_version,
-            metadata=dict_no_none(title=post_data.get("title"), description=post_data.get("description")),
+            metadata={k: post_data[k] for k in ["title", "description", "plan", "budget"] if k in post_data},
             job_options=job_options,
         )
         job_id = job_info.id
