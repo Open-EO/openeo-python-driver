@@ -597,7 +597,7 @@ def reduce_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
     return data_cube.reduce_dimension(reducer=reduce_pg, dimension=dimension, env=env)
 
 
-@process_registry_100.add_function
+@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/chunk_polygon.json"))
 def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     reduce_pg = extract_deep(args, "process", "process_graph")
     chunks = extract_arg(args, 'chunks')
