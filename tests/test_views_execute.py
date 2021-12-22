@@ -2016,3 +2016,9 @@ def test_load_result(api100):
     params = dummy_backend.last_load_collection_call("99a605a0-1a10-4ba9-abc1-6898544e25fc")
 
     assert params["temporal_extent"] == ('2019-09-22', '2019-09-22')
+
+
+def test_chunk_polygon(api100):
+    api100.check_result("chunk_polygon.json")
+    params = dummy_backend.last_load_collection_call("S2_FOOBAR")
+    assert params["spatial_extent"] == {'west': 1.0, 'south': 5.0, 'east': 12.0, 'north': 16.0, 'crs': 'EPSG:4326'}

@@ -14,7 +14,7 @@ import numpy as np
 import openeo_processes
 import requests
 from dateutil.relativedelta import relativedelta
-from shapely.geometry import shape, mapping
+from shapely.geometry import shape, mapping, MultiPolygon
 
 import openeo.udf
 from openeo.capabilities import ComparableVersion
@@ -595,6 +595,27 @@ def reduce_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
     # do check_dimension here for error handling
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce_dimension")
     return data_cube.reduce_dimension(reducer=reduce_pg, dimension=dimension, env=env)
+
+
+@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/chunk_polygon.json"))
+def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
+    reduce_pg = extract_deep(args, "process", "process_graph")
+    chunks = extract_arg(args, 'chunks')
+    data_cube = extract_arg(args, 'data')
+
+    if isinstance(chunks, DelayedVector):
+        polygons = list(chunks.geometries)
+        for p in polygons:
+            reason = "{m!s} is not a polygon.".format(m=p)
+            raise ProcessParameterInvalidException(parameter='chunks', process='chunk_polygon', reason=reason)
+        polygon = MultiPolygon(polygons)
+    else:
+        polygon = geojson_to_multipolygon(chunks)
+
+    if polygon.area == 0:
+        reason = "polygon {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
+        raise ProcessParameterInvalidException(parameter='chunks', process='chunk_polygon', reason=reason)
+    return data_cube.chunk_polygon(reducer=reduce_pg, chunks=polygon, env=env)
 
 
 @process

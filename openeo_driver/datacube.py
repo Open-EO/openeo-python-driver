@@ -48,6 +48,9 @@ class DriverDataCube(ImageCollection):
     def reduce_dimension(self, reducer, dimension: str, env: EvalEnv) -> 'DriverDataCube':
         self._not_implemented()
 
+    def chunk_polygon(self, reducer, chunks, env: EvalEnv, context={}) -> 'DriverDataCube':
+        self._not_implemented()
+
     def add_dimension(self, name: str, label, type: str = "other") -> 'DriverDataCube':
         self._not_implemented()
 

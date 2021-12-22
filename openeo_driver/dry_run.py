@@ -482,6 +482,9 @@ class DryRunDataCube(DriverDataCube):
 
         return dc._process_metadata(self.metadata.reduce_dimension(dimension_name=dimension))
 
+    def chunk_polygon(self, reducer, chunks, env: EvalEnv, context={}) -> 'DryRunDataCube':
+        return self.filter_spatial(chunks)
+
     def add_dimension(self, name: str, label, type: str = "other") -> 'DryRunDataCube':
         return self._process_metadata(self.metadata.add_dimension(name=name, label=label, type=type))
 
