@@ -829,8 +829,8 @@ def test_load_collection_properties(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
 
     assert source_constraints == [
-        (("load_collection", ("S2_FOOBAR", (("orbitDirection", "DESCENDING",),))), {"properties": properties}),
-        (("load_collection", ("S2_FOOBAR", (("orbitDirection", "ASCENDING"),),)), {"properties": asc_props})
+        (("load_collection", ("S2_FOOBAR", (("orbitDirection", (("eq", "DESCENDING"),),),))), {"properties": properties}),
+        (("load_collection", ("S2_FOOBAR", (("orbitDirection", (("eq", "ASCENDING"),)),),)), {"properties": asc_props})
     ]
 
 
