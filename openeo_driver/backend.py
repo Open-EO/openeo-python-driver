@@ -224,7 +224,7 @@ class BatchJobMetadata(NamedTuple):
 
     # Required fields (no default)
     id: str
-    status: str
+    status: str  # created/queued/running/canceled/finished/error
     created: datetime
 
     # Optional fields (with default)
@@ -312,7 +312,7 @@ class BatchJobs(MicroService):
         """
         raise NotImplementedError
 
-    def get_user_jobs(self, user_id: str) -> List[BatchJobMetadata]:
+    def get_user_jobs(self, user_id: str) -> Union[List[BatchJobMetadata], dict]:
         """
         Get details about all batch jobs of a user
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-jobs

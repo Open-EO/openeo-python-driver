@@ -727,7 +727,7 @@ class TestBatchJobs:
 
     @staticmethod
     @contextmanager
-    def _fresh_job_registry(next_job_id):
+    def _fresh_job_registry(next_job_id="job-1234"):
         """Set up a fresh job registry and predefine next job id"""
         with mock.patch.object(dummy_backend.DummyBatchJobs, 'generate_job_id', return_value=next_job_id):
             dummy_backend.DummyBatchJobs._job_registry = {
@@ -871,7 +871,7 @@ class TestBatchJobs:
         assert resp.json["message"] == "The batch job 'deadbeef-f00' does not exist."
 
     def test_list_user_jobs_040(self, api040):
-        with self._fresh_job_registry(next_job_id="job-318"):
+        with self._fresh_job_registry():
             resp = api040.get('/jobs', headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).json == {
             "jobs": [
@@ -890,7 +890,7 @@ class TestBatchJobs:
         }
 
     def test_list_user_jobs_100(self, api100):
-        with self._fresh_job_registry(next_job_id="job-332"):
+        with self._fresh_job_registry():
             resp = api100.get('/jobs', headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).json == {
             "jobs": [
@@ -906,6 +906,28 @@ class TestBatchJobs:
                 }
             ],
             "links": []
+        }
+
+    def test_list_user_jobs_100_extra(self, api100):
+        """
+        `get_user_jobs` returns a richer `dict` instead of just `List[BatchJobMetadata]`
+        """
+
+        def get_user_jobs(self, user_id: str):
+            return {
+                "jobs": [BatchJobMetadata(id='id-123', status='running', created=datetime(2017, 1, 1, 9, 32, 12))],
+                "links": [{"rel": "info", "href": "https://info.test"}],
+                "federation:missing": ["b4"],
+                "something else": "ignore me",
+            }
+
+        with mock.patch.object(dummy_backend.DummyBatchJobs, 'get_user_jobs', new=get_user_jobs):
+            resp = api100.get('/jobs', headers=self.AUTH_HEADER)
+
+        assert resp.assert_status_code(200).json == {
+            "jobs": [{'id': 'id-123', 'status': 'running', 'created': "2017-01-01T09:32:12Z", }, ],
+            "links": [{"rel": "info", "href": "https://info.test"}],
+            "federation:missing": ["b4"],
         }
 
     def test_get_job_results_unfinished(self, api):

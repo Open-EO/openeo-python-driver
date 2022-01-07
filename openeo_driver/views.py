@@ -27,7 +27,7 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, ProcessUnsupportedException, \
-    JobNotFinishedException, ProcessGraphInvalidException
+    JobNotFinishedException, ProcessGraphInvalidException, InternalException
 from openeo_driver.save_result import SaveResult, get_temp_file
 from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
 from openeo_driver.users.auth import HttpAuthHandler
@@ -785,13 +785,28 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def list_jobs(user: User):
-        return jsonify({
-            "jobs": [
-                _jsonable_batch_job_metadata(m, full=False)
-                for m in backend_implementation.batch_jobs.get_user_jobs(user.user_id)
-            ],
-            "links": [],
-        })
+        # TODO: support for `limit` param and paging links?
+
+        listing = backend_implementation.batch_jobs.get_user_jobs(user.user_id)
+        if isinstance(listing, list):
+            jobs = listing
+            links = []
+            extra = {}
+        elif isinstance(listing, dict):
+            jobs = listing["jobs"]
+            links = listing.get("links", [])
+            # TODO: this "extra" whitelist is from experimental
+            #       "federation extension API" https://github.com/Open-EO/openeo-api/pull/419
+            extra = {k: listing[k] for k in ["federation:missing"] if k in listing}
+        else:
+            raise InternalException(f"Invalid user jobs listing {type(listing)}")
+
+        resp = dict(
+            jobs=[_jsonable_batch_job_metadata(m, full=False) for m in jobs],
+            links=links,
+            **extra
+        )
+        return jsonify(resp)
 
     @api_endpoint
     @blueprint.route('/jobs/<job_id>', methods=['GET'])
