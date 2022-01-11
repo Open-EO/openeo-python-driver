@@ -78,6 +78,7 @@
           }
         ]
       },
+      "mask_value": -5.0,
       "process": {
         "process_graph": {
           "runudf1": {

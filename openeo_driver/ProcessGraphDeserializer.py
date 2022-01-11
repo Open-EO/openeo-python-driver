@@ -601,6 +601,7 @@ def reduce_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
 def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     reduce_pg = extract_deep(args, "process", "process_graph")
     chunks = extract_arg(args, 'chunks')
+    mask_value = args.get('mask_value', None)
     data_cube = extract_arg(args, 'data')
 
     if isinstance(chunks, DelayedVector):
@@ -615,7 +616,7 @@ def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     if polygon.area == 0:
         reason = "polygon {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
         raise ProcessParameterInvalidException(parameter='chunks', process='chunk_polygon', reason=reason)
-    return data_cube.chunk_polygon(reducer=reduce_pg, chunks=polygon, env=env)
+    return data_cube.chunk_polygon(reducer=reduce_pg, chunks=polygon, mask_value=mask_value, env=env)
 
 
 @process

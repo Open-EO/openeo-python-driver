@@ -2,7 +2,7 @@
 {
     "id": "chunk_polygon",
     "summary": "Apply a process to spatial chunks of a data cube",
-    "description": "The given data cube is chunked by the given polygons and applies the given process to each individual chunk.",
+    "description": "The given data cube is chunked by the polygons and applies the given process to each individual chunk.",
     "categories": [
         "cubes"
     ],
@@ -25,8 +25,22 @@
             }
         },
         {
+            "name": "mask_value",
+            "description": "The value used for cells outside of the polygon.\n This provides a distinction between NoData cells within the polygon (due to e.g. clouds) and masked cells outside of it. If no value is provided, NoData cells are used outside of the polygon.",
+            "schema": [
+                {
+                    "type": "number"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "optional": true
+        },
+        {
             "name": "process",
-            "description": "A process that accepts and returns a single data cube and is applied on each individual chunk. The process may consist of multiple sub-processes.",
+            "description": "A process that accepts and returns a single data cube and is applied on each individual chunk. The datacube provided for each chunk uses the smallest possible grid-aligned extent covering the polygon, all cells outside of the polygon are masked out. The process may consist of multiple sub-processes.",
             "schema": {
                 "type": "object",
                 "subtype": "process-graph",
