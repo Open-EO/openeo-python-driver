@@ -27,7 +27,7 @@
                 "from_node": "abs"
               },
               "runtime": "Python",
-              "version": "3.6",
+              "version": "3",
               "udf": "my python code"
             },
             "process_id": "run_udf",

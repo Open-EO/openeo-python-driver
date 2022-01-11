@@ -58,7 +58,7 @@ def test_udf_runtimes(api):
             "default": "3",
             "versions": DictSubSet({
                 "3": {"libraries": DictSubSet({"numpy": {"version": RegexMatcher("\d+\.\d+\.\d+")}})},
-                "3.6": {"libraries": DictSubSet({"numpy": {"version": RegexMatcher("\d+\.\d+\.\d+")}})},
+                "3.8": {"libraries": DictSubSet({"numpy": {"version": RegexMatcher("\d+\.\d+\.\d+")}})},
             })
         })
     })
@@ -819,7 +819,7 @@ def test_run_udf_on_list(api100, udf_code):
     ("Python", None, None),
     ("pYthOn", None, None),
     ("Python", "3", None),
-    ("Python", "3.6", None),
+    ("Python", "3.8", None),
     ("Python", "2", (
             "InvalidVersion",
             re.compile(r"Unsupported UDF runtime version Python '2'. Should be one of \['3', '3\.\d+'.* or null")
