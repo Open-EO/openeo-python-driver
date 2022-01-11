@@ -31,6 +31,7 @@ from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingExceptio
 from openeo_driver.save_result import SaveResult, get_temp_file
 from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
 from openeo_driver.users.auth import HttpAuthHandler
+from openeo_driver.util.logging import RequestCorrelationIdLogging
 from openeo_driver.utils import replace_nan_values, EvalEnv, smart_bool, get_package_versions
 
 _log = logging.getLogger(__name__)
@@ -140,6 +141,9 @@ def build_app(
 
     @app.before_request
     def _before_request():
+
+        RequestCorrelationIdLogging.before_request()
+
         # Log some info about request
         data = request.data
         if len(data) > 1000:
