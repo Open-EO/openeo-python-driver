@@ -1,6 +1,7 @@
+
 import json
-import platform
 import re
+import sys
 import textwrap
 from unittest import mock
 
@@ -48,6 +49,8 @@ def api100(client) -> ApiTester:
     data_root = TEST_DATA_ROOT / "pg" / "1.0"
     return ApiTester(api_version="1.0.0", client=client, data_root=data_root)
 
+# Major.minor version of current python
+CURRENT_PY3x = f"{sys.version_info.major}.{sys.version_info.minor}"
 
 def test_udf_runtimes(api):
     runtimes = api.get('/udf_runtimes').assert_status_code(200).json
@@ -58,7 +61,7 @@ def test_udf_runtimes(api):
             "default": "3",
             "versions": DictSubSet({
                 "3": {"libraries": DictSubSet({"numpy": {"version": RegexMatcher("\d+\.\d+\.\d+")}})},
-                "3.8": {"libraries": DictSubSet({"numpy": {"version": RegexMatcher("\d+\.\d+\.\d+")}})},
+                CURRENT_PY3x: {"libraries": DictSubSet({"numpy": {"version": RegexMatcher("\d+\.\d+\.\d+")}})},
             })
         })
     })
@@ -819,7 +822,7 @@ def test_run_udf_on_list(api100, udf_code):
     ("Python", None, None),
     ("pYthOn", None, None),
     ("Python", "3", None),
-    ("Python", "3.8", None),
+    ("Python", CURRENT_PY3x, None),
     ("Python", "2", (
             "InvalidVersion",
             re.compile(r"Unsupported UDF runtime version Python '2'. Should be one of \['3', '3\.\d+'.* or null")
@@ -830,8 +833,8 @@ def test_run_udf_on_list(api100, udf_code):
     )),
     ("Python-Jep", None, None),
     ("Python-Jep", "3", None),
-    ("meh", "3.6", ("InvalidRuntime", "Unsupported UDF runtime 'meh'. Should be one of ['Python', 'Python-Jep']")),
-    (None, "3.6", ("InvalidRuntime", "Unsupported UDF runtime None. Should be one of ['Python', 'Python-Jep']"),
+    ("meh", CURRENT_PY3x, ("InvalidRuntime", "Unsupported UDF runtime 'meh'. Should be one of ['Python', 'Python-Jep']")),
+    (None, CURRENT_PY3x, ("InvalidRuntime", "Unsupported UDF runtime None. Should be one of ['Python', 'Python-Jep']"),
      ),
 ])
 def test_run_udf_on_list_runtimes(api100, runtime, version, failure):
