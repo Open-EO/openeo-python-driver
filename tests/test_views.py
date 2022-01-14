@@ -484,7 +484,11 @@ class TestUser:
         def userinfo(request, context):
             """Fake OIDC /userinfo endpoint handler"""
             _, _, token = request.headers["Authorization"].partition("Bearer ")
-            return user_db[token]
+            if token in user_db:
+                return user_db[token]
+            else:
+                context.status_code = 401
+                return {"code": "InvalidToken"}
 
         requests_mock.get(oidc_userinfo_url, json=userinfo)
 

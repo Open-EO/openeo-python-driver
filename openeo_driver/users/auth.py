@@ -197,26 +197,37 @@ class HttpAuthHandler:
     def resolve_oidc_access_token(self, oidc_provider: OidcProvider, access_token: str) -> User:
         try:
             userinfo_url = self._get_userinfo_endpoint(oidc_provider=oidc_provider)
-            resp = self._oidc_provider_request(userinfo_url, auth=BearerAuth(bearer=access_token))
-            userinfo = resp.json()
-            # The "sub" claim is the only claim in the response that is guaranteed per OIDC spec
-            # TODO: do we have better options?
-            user_id = userinfo["sub"]
-            return User(
-                user_id=user_id,
-                info={"oidc_userinfo": userinfo},
-                internal_auth_data={
-                    "authentication_method": "OIDC",
-                    "provider_id": oidc_provider.id,  # TODO: deprecated
-                    "oidc_provider_id": oidc_provider.id,
-                    "oidc_provider_title": oidc_provider.title,
-                    "oidc_issuer": oidc_provider.issuer,
-                    "userinfo_url": userinfo_url,
-                    "access_token": access_token,
-                }
-            )
+            auth = BearerAuth(bearer=access_token)
+            resp = self._oidc_provider_request(userinfo_url, auth=auth, raise_for_status=False)
+            if resp.status_code == 200:
+                # Access token was successfully accepted
+                userinfo = resp.json()
+                # The "sub" claim is the only claim in the response that is guaranteed per OIDC spec
+                # TODO: do we have better options?
+                user_id = userinfo["sub"]
+                return User(
+                    user_id=user_id,
+                    info={"oidc_userinfo": userinfo},
+                    internal_auth_data={
+                        "authentication_method": "OIDC",
+                        "provider_id": oidc_provider.id,  # TODO: deprecated
+                        "oidc_provider_id": oidc_provider.id,
+                        "oidc_provider_title": oidc_provider.title,
+                        "oidc_issuer": oidc_provider.issuer,
+                        "userinfo_url": userinfo_url,
+                        "access_token": access_token,
+                    }
+                )
+            elif resp.status_code in (401, 403):
+                # HTTP status `401 Unauthorized`/`403 Forbidden`: token was not accepted.
+                raise TokenInvalidException
+            else:
+                # Unexpected response status, probably a server side issue, not necessarily end user's fault.
+                _log.error(f"Unexpected '/userinfo' response {resp.status_code}: {resp.text!r}.")
+                raise OpenEOApiException(message=f"Unexpected '/userinfo' response: {resp.status_code}.")
+
         except OpenEOApiException:
             raise
-        except Exception:
-            _log.warning("Failed to resolve OIDC access token", exc_info=True)
-            raise TokenInvalidException
+        except Exception as e:
+            _log.error("Unexpected error while resolving OIDC access token.", exc_info=True)
+            raise OpenEOApiException(message=f"Unexpected error while resolving OIDC access token: {type(e).__name__}.")
