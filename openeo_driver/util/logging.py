@@ -31,23 +31,25 @@ class RequestCorrelationIdLogging(logging.Filter):
     LOG_RECORD_ATTR = "req_id"
 
     @classmethod
-    def get_correlation_id(cls):
+    def _build_request_id(cls) -> str:
         """Generate/extract request correlation id."""
         # TODO: get correlation id "from upstream/context" (e.g. nginx headers)
         return str(uuid.uuid4())
 
     @classmethod
     def before_request(cls):
-        """Flask `before_request` handler: store correlation id in Flask request global `g`."""
-        setattr(flask.g, cls.FLASK_G_ATTR, cls.get_correlation_id())
+        """Flask `before_request` handler: store request correlation id in Flask request global `g`."""
+        setattr(flask.g, cls.FLASK_G_ATTR, cls._build_request_id())
+
+    @classmethod
+    def get_request_id(cls) -> str:
+        """Get request correlation id as stored in Flask request global `g`."""
+        if flask._app_ctx_stack.top is None:
+            return "no-request"
+        else:
+            return flask.g.get(cls.FLASK_G_ATTR, "n/a")
 
     def filter(self, record: logging.LogRecord) -> bool:
         """Filter a log record (logging.Filter API)."""
-        if flask._app_ctx_stack.top is None:
-            corr_id = "no-request"
-        else:
-            corr_id = flask.g.get(self.FLASK_G_ATTR, "n/a")
-        if corr_id:
-            setattr(record, self.LOG_RECORD_ATTR, corr_id)
-
+        setattr(record, self.LOG_RECORD_ATTR, self.get_request_id())
         return True

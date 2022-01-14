@@ -28,10 +28,10 @@ where necessary or useful.
 import json
 import re
 import textwrap
-import uuid
 from typing import List, Set
 
 from openeo_driver.specs import SPECS_ROOT
+from openeo_driver.util.logging import RequestCorrelationIdLogging
 
 
 class OpenEOApiException(Exception):
@@ -62,7 +62,8 @@ class OpenEOApiException(Exception):
         self.code = code or self.code
         # HTTP status code
         self.status_code = status_code or self.status_code
-        self.id = id or str(uuid.uuid4())
+        # Use request correlation id as error id to simplify post-mortem analysis.
+        self.id = id or RequestCorrelationIdLogging.get_request_id()
         self.url = url or self.url
 
     def to_dict(self):

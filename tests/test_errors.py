@@ -1,12 +1,14 @@
-import warnings
 from inspect import isclass
 from itertools import groupby
 from typing import Dict, Type, List
+from unittest import mock
 
+import flask
 import pytest
 
 import openeo_driver.errors
 from openeo_driver.errors import OpenEOApiException, OpenEOApiErrorSpecHelper
+from openeo_driver.util.logging import RequestCorrelationIdLogging
 
 
 def get_defined_exceptions(mod=openeo_driver.errors) -> Dict[str, List[Type[OpenEOApiException]]]:
@@ -81,3 +83,30 @@ def test_error_code(error_code):
         if placeholders_actual and using_default_init:
             raise Exception("Exception class {c} has placeholder in message but no custom __init__".format(
                 c=exception_cls.__name__))
+
+
+def test_flask_request_id_as_api_error_id():
+    app = flask.Flask(__name__)
+
+    @app.before_request
+    def before_request():
+        RequestCorrelationIdLogging.before_request()
+
+    @app.errorhandler(OpenEOApiException)
+    def handle_openeoapi_exception(error: OpenEOApiException):
+        return flask.jsonify(error.to_dict()), error.status_code
+
+    @app.route("/hello")
+    def hello():
+        raise OpenEOApiException("No hello for you!")
+
+    with mock.patch.object(RequestCorrelationIdLogging, "_build_request_id", return_value="1234-5678-91011"):
+        with app.test_client() as client:
+            resp = client.get("/hello")
+
+    assert resp.status_code == 500
+    assert resp.json == {
+        "code": "Internal",
+        "id": "1234-5678-91011",
+        "message": "No hello for you!",
+    }

@@ -25,7 +25,7 @@ def test_request_correlation_id_logging(caplog):
         log.warning("Watch out!")
         return "Hello world"
 
-    with mock.patch.object(RequestCorrelationIdLogging, "get_correlation_id", return_value="1234-5678"):
+    with mock.patch.object(RequestCorrelationIdLogging, "_build_request_id", return_value="1234-5678"):
         with app.test_client() as client:
             client.get("/hello")
 
