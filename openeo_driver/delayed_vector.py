@@ -12,6 +12,8 @@ import os
 import json
 from typing import Iterable, List, Dict
 
+from openeo_driver.utils import reproject_bounding_box
+
 
 class DelayedVector:
     """
@@ -30,6 +32,7 @@ class DelayedVector:
         self.path = path
         self._downloaded_shapefile = None
         self._crs = None
+        self._area = None
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self.path)
@@ -78,6 +81,20 @@ class DelayedVector:
                     geometries = DelayedVector._read_geojson_geometries(geojson)
 
         return geometries
+
+    @property
+    def area(self):
+        if(self._area == None):
+            df = self.as_geodataframe()
+            latlonbounds = reproject_bounding_box(dict(zip(["west", "south", "east", "north"], self.bounds)),self.crs,"EPSG:4326")
+
+            equal_area_crs = pyproj.Proj(
+                proj='aea',
+                lat_1=latlonbounds['south'],
+                lat_2=latlonbounds['north'])
+            transformed_geometry = df.geometry.to_crs(equal_area_crs.crs)
+            self._area = transformed_geometry.area.sum()
+        return self._area
 
     def as_geodataframe(self):
         """
