@@ -700,27 +700,6 @@ def register_views_processing(
         return jsonify(process)
 
 
-def _jsonable_batch_job_metadata(metadata: BatchJobMetadata, full=True) -> dict:
-    """API-version-aware conversion of batch job metadata to jsonable dict"""
-    d = metadata.prepare_for_json()
-    # Fields to export
-    fields = ['id', 'title', 'description', 'status', 'created', 'updated', 'plan', 'costs', 'budget']
-    if full:
-        fields.extend([
-            'process', 'progress', 'usage'
-        ])
-    d = {k: v for (k, v) in d.items() if k in fields}
-
-    if requested_api_version().below("1.0.0"):
-        d["process_graph"] = d.pop("process", {}).get("process_graph")
-        d["submitted"] = d.pop("created", None)
-        # TODO wider status checking coverage?
-        if d["status"] == "created":
-            d["status"] = "submitted"
-
-    return dict_no_none(**d)
-
-
 def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
     to_datetime = Rfc3339(propagate_none=True).datetime
 
@@ -806,7 +785,10 @@ def register_views_batch_jobs(
             raise InternalException(f"Invalid user jobs listing {type(listing)}")
 
         resp = dict(
-            jobs=[_jsonable_batch_job_metadata(m, full=False) for m in jobs],
+            jobs=[
+                m.to_api_dict(full=False, api_version=requested_api_version())
+                for m in jobs
+            ],
             links=links,
             **extra
         )
@@ -816,8 +798,8 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs/<job_id>', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def get_job_info(job_id, user: User):
-        job_info = backend_implementation.batch_jobs.get_job_info(job_id, user)
-        return jsonify(_jsonable_batch_job_metadata(job_info))
+        job_info: BatchJobMetadata = backend_implementation.batch_jobs.get_job_info(job_id, user)
+        return jsonify(job_info.to_api_dict(full=True, api_version=requested_api_version()))
 
     @api_endpoint()
     @blueprint.route('/jobs/<job_id>', methods=['DELETE'])

@@ -20,7 +20,7 @@ import flask
 
 from openeo.capabilities import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
-from openeo.util import rfc3339
+from openeo.util import rfc3339, dict_no_none
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.dry_run import SourceConstraint
@@ -239,6 +239,7 @@ class BatchJobMetadata(NamedTuple):
     budget = None
     started: datetime = None
     finished: datetime = None
+    duration_: timedelta = None
     memory_time_megabyte: timedelta = None
     cpu_time: timedelta = None
     geometry: dict = None
@@ -250,39 +251,71 @@ class BatchJobMetadata(NamedTuple):
     links: List[Dict] = None
 
     @property
-    def duration(self) -> timedelta:
+    def duration(self) -> Union[timedelta, None]:
         """Returns the job duration if possible, else None."""
-        return self.finished - self.started if self.started and self.finished else None
+        if self.duration_:
+            return self.duration_
+        elif self.finished and self.started:
+            return self.finished - self.started
 
     @classmethod
-    def from_dict(cls, d: dict) -> 'BatchJobMetadata':
-        d = extract_namedtuple_fields_from_dict(d, BatchJobMetadata)
-        created = d.get("created")
-        if isinstance(created, str):
-            d["created"] = rfc3339.parse_datetime(created)
-        return cls(**d)
+    def from_api_dict(cls, d: dict) -> 'BatchJobMetadata':
+        """Populate from an openEO API compatible dictionary."""
+        kwargs = extract_namedtuple_fields_from_dict(
+            d, BatchJobMetadata, convert_datetime=True, convert_timedelta=True
+        )
 
-    def prepare_for_json(self) -> dict:
-        """Prepare metadata for JSON serialization"""
-        d = self._asdict()  # pylint: disable=no-member
-        d["created"] = rfc3339.datetime(self.created) if self.created else None
-        d["updated"] = rfc3339.datetime(self.updated) if self.updated else None
-
-        usage = {}
-
-        if self.cpu_time:
-            usage["cpu"] = {"value": int(round(self.cpu_time.total_seconds())), "unit": "cpu-seconds"}
-
-        if self.duration:
-            usage["duration"] = {"value": int(round(self.duration.total_seconds())), "unit": "seconds"}
-
-        if self.memory_time_megabyte:
-            usage["memory"] = {"value": int(round(self.memory_time_megabyte.total_seconds())), "unit": "mb-seconds"}
-
+        usage = d.get("usage")
         if usage:
-            d["usage"] = usage
+            if usage.get("cpu"):
+                # TODO: support other units too
+                assert usage["cpu"]["unit"] == "cpu-seconds"
+                kwargs["cpu_time"] = timedelta(seconds=usage["cpu"]["value"])
+            if usage.get("memory"):
+                assert usage["memory"]["unit"] == "mb-seconds"
+                kwargs["memory_time_megabyte"] = timedelta(seconds=usage["memory"]["value"])
+            if usage.get("duration"):
+                assert usage["duration"]["unit"] == "seconds"
+                kwargs["duration_"] = timedelta(seconds=usage["duration"]["value"])
 
-        return d
+        return cls(**kwargs)
+
+    def to_api_dict(self, full=True, api_version: ComparableVersion = None) -> dict:
+        """
+        API-version-aware conversion of batch job metadata to jsonable openEO API compatible dict.
+        see https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-job
+        """
+        # Basic/full fields to export
+        fields = ["id", "status", "created"]
+        if full:
+            fields.extend([
+                "title", "description", "process", "progress", "created", "updated", "plan", "costs", "budget",
+            ])
+        result = {f: getattr(self, f) for f in fields}
+
+        # Additional cleaning and massaging.
+        result["created"] = rfc3339.datetime(self.created) if self.created else None
+        result["updated"] = rfc3339.datetime(self.updated) if self.updated else None
+
+        if full:
+            usage = {}
+            if self.cpu_time:
+                usage["cpu"] = {"value": int(round(self.cpu_time.total_seconds())), "unit": "cpu-seconds"}
+            if self.duration:
+                usage["duration"] = {"value": int(round(self.duration.total_seconds())), "unit": "seconds"}
+            if self.memory_time_megabyte:
+                usage["memory"] = {"value": int(round(self.memory_time_megabyte.total_seconds())), "unit": "mb-seconds"}
+            if usage:
+                result["usage"] = usage
+
+        if api_version and api_version.below("1.0.0"):
+            result["process_graph"] = result.pop("process", {}).get("process_graph")
+            result["submitted"] = result.pop("created", None)
+            # TODO wider status checking coverage?
+            if result["status"] == "created":
+                result["status"] = "submitted"
+
+        return dict_no_none(result)
 
 
 class BatchJobs(MicroService):

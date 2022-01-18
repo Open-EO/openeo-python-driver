@@ -1,6 +1,8 @@
 """
 Small general utilities and helper functions
 """
+import datetime
+
 import json
 import time
 import typing
@@ -12,6 +14,8 @@ import pkg_resources
 import pyproj
 import shapely.geometry
 import shapely.ops
+
+from openeo.util import rfc3339
 
 
 class EvalEnv:
@@ -309,7 +313,10 @@ class dict_item:
         instance[self.key] = value
 
 
-def extract_namedtuple_fields_from_dict(d: dict, named_tuple_class: typing.Type[typing.NamedTuple]) -> dict:
+def extract_namedtuple_fields_from_dict(
+        d: dict, named_tuple_class: typing.Type[typing.NamedTuple],
+        convert_datetime: bool = False, convert_timedelta: bool = False,
+) -> dict:
     """
     Extract `typing.NamedTuple` fields from given dictionary,
     silently skipping items not defined as field.
@@ -328,6 +335,19 @@ def extract_namedtuple_fields_from_dict(d: dict, named_tuple_class: typing.Type[
         raise KeyError(
             f"Missing {named_tuple_class.__name__} field{'s' if len(missing) > 1 else ''}: {', '.join(sorted(missing))}."
         )
+
+    # Additional auto-conversions (by type annotation)
+    converters = {}
+    if convert_datetime:
+        converters[datetime.datetime] = lambda v: rfc3339.parse_datetime(v)
+    if convert_timedelta:
+        converters[datetime.timedelta] = lambda v: datetime.timedelta(seconds=v)
+
+    if converters:
+        for k in result:
+            converter = converters.get(named_tuple_class.__annotations__.get(k))
+            if converter:
+                result[k] = converter(result[k])
 
     return result
 

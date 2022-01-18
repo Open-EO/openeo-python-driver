@@ -2,6 +2,7 @@ import datetime
 
 import pytest
 
+from openeo.capabilities import ComparableVersion
 from openeo_driver.backend import CollectionCatalog, LoadParameters, UserDefinedProcessMetadata, ServiceMetadata, \
     BatchJobMetadata
 from openeo_driver.errors import CollectionNotFoundException
@@ -112,17 +113,88 @@ def test_service_metadata_from_dict_created_date():
     assert service.created == datetime.datetime(2020, 5, 18, 12, 34, 56)
 
 
-def test_batch_job_metadata_from_dict_emtpy():
+def test_batch_job_metadata_from_api_dict_emtpy():
     with pytest.raises(KeyError, match="Missing BatchJobMetadata fields: created, id, status"):
-        _ = BatchJobMetadata.from_dict({})
+        _ = BatchJobMetadata.from_api_dict({})
 
 
-def test_batch_job_metadata_from_dict_basic():
-    job = BatchJobMetadata.from_dict({
-        "id": "ba7c470b", "created": "2021-06-18T12:34:56Z",
-        "process": {"id": "ndvi", "process_graph": {}}, "status": "running"
+def test_batch_job_metadata_from_api_dict_basic():
+    job = BatchJobMetadata.from_api_dict({
+        "id": "ba7c470b", "created": "2021-06-18T12:34:56Z", "status": "running",
     })
     assert job.id == "ba7c470b"
     assert job.created == datetime.datetime(2021, 6, 18, 12, 34, 56)
-    assert job.process == {"id": "ndvi", "process_graph": {}}
     assert job.status == "running"
+
+    # Full round trip check
+    assert job == BatchJobMetadata.from_api_dict(job.to_api_dict())
+
+
+def test_batch_job_metadata_from_api_dict_auto_conversions():
+    job = BatchJobMetadata.from_api_dict({
+        "id": "ba7c470b",
+        "status": "running",
+        "created": "2021-06-18T12:34:56Z",
+        "updated": "2021-06-20T20:20:20Z",
+    })
+    assert job.created == datetime.datetime(2021, 6, 18, 12, 34, 56)
+    assert job.updated == datetime.datetime(2021, 6, 20, 20, 20, 20)
+
+    # Full round trip check
+    assert job == BatchJobMetadata.from_api_dict(job.to_api_dict())
+
+
+def test_batch_job_metadata_from_api_dict_usage():
+    job = BatchJobMetadata.from_api_dict({
+        "id": "ba7c470b", "created": "2021-06-18T12:34:56Z", "status": "running",
+        "usage": {
+            "cpu": {"value": 1000, "unit": "cpu-seconds"},
+            "memory": {"value": 2000, "unit": "mb-seconds"},
+            "duration": {"value": 3000, "unit": "seconds"},
+        }
+    })
+    assert job.id == "ba7c470b"
+    assert job.created == datetime.datetime(2021, 6, 18, 12, 34, 56)
+    assert job.status == "running"
+    assert job.cpu_time == datetime.timedelta(seconds=1000)
+    assert job.memory_time_megabyte == datetime.timedelta(seconds=2000)
+    assert job.duration == datetime.timedelta(seconds=3000)
+    assert job.duration_ == datetime.timedelta(seconds=3000)
+
+    # Full round trip check
+    assert job == BatchJobMetadata.from_api_dict(job.to_api_dict())
+
+
+def test_batch_job_metadata_to_api_dict():
+    api_version = ComparableVersion("1.0.0")
+    job = BatchJobMetadata(
+        id="123", status="running", created=datetime.datetime(2022, 1, 18, 16, 42, 0),
+        process={"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}},
+        title="Untitled01", description="Lorem ipsum.",
+        progress=0.3,
+        cpu_time=datetime.timedelta(seconds=1000),
+        memory_time_megabyte=datetime.timedelta(seconds=2000),
+        started=datetime.datetime(2022, 1, 18, 17, 0, 0),
+        finished=datetime.datetime(2022, 1, 18, 17, 20, 0),
+        epsg=4326,
+        links=[{}],
+    )
+
+    assert job.to_api_dict(full=False, api_version=api_version) == {
+        "id": "123",
+        "created": "2022-01-18T16:42:00Z",
+        "status": "running",
+    }
+    assert job.to_api_dict(full=True, api_version=api_version) == {
+        "id": "123",
+        "created": "2022-01-18T16:42:00Z",
+        "status": "running",
+        "process": {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}},
+        "title": "Untitled01", "description": "Lorem ipsum.",
+        "progress": 0.3,
+        "usage": {
+            "cpu": {"value": 1000, "unit": "cpu-seconds"},
+            "memory": {"value": 2000, "unit": "mb-seconds"},
+            "duration": {"value": 1200, "unit": "seconds"},
+        }
+    }
