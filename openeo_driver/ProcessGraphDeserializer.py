@@ -852,6 +852,20 @@ def _extract_temporal_extent(args: dict, field="extent", process_id="filter_temp
         raise ProcessParameterInvalidException(
             process=process_id, parameter=field, reason="should have length 2, but got {e!r}".format(e=extent)
         )
+
+    start, end = extent[0], extent[1]
+
+    if start is None and end is None:
+        raise ProcessParameterInvalidException(
+            process=process_id, parameter=field, reason="both start and end are null"
+        )
+
+    if (start is not None and end is not None
+            and rfc3339.parse_date_or_datetime(end) < rfc3339.parse_date_or_datetime(start)):
+        raise ProcessParameterInvalidException(
+            process=process_id, parameter=field, reason="end '{e}' is before start '{s}'".format(e=end, s=start)
+        )
+
     # TODO: convert to datetime? or at least normalize?
     return tuple(extent)
 

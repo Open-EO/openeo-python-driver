@@ -117,6 +117,48 @@ def test_execute_filter_temporal(api):
     assert params["temporal_extent"] == ("2018-01-01", "2018-12-31")
 
 
+def test_execute_filter_temporal_extent_reversed(api):
+    resp = api.result({
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2_FAPAR_CLOUDCOVER'}
+        },
+        'filtertemporal1': {
+            'process_id': 'filter_temporal',
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'extent': ['2021-12-07', '2021-12-06']
+            },
+            'result': True
+        },
+    })
+
+    resp.assert_error(400, "ProcessParameterInvalid",
+                      message="The value passed for parameter 'extent' in process 'filter_temporal' is invalid:"
+                              " end '2021-12-06' is before start '2021-12-07'")
+
+
+def test_execute_filter_temporal_extent_reversed(api):
+    resp = api.result({
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2_FAPAR_CLOUDCOVER'}
+        },
+        'filtertemporal1': {
+            'process_id': 'filter_temporal',
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'extent': [None, None]
+            },
+            'result': True
+        },
+    })
+
+    resp.assert_error(400, "ProcessParameterInvalid",
+                      message="The value passed for parameter 'extent' in process 'filter_temporal' is invalid:"
+                              " both start and end are null")
+
+
 def test_execute_filter_bbox(api):
     api.check_result({
         'loadcollection1': {
