@@ -899,16 +899,7 @@ def filter_bands(args: Dict, env: EvalEnv) -> DriverDataCube:
 # TODO deprecated process? also see https://github.com/Open-EO/openeo-python-client/issues/144
 @deprecated_process
 def zonal_statistics(args: Dict, env: EvalEnv) -> Dict:
-    image_collection = extract_arg(args, 'data')
-    geometry = extract_arg(args, 'regions')
-    func = args.get('func', 'mean')
-
-    # TODO: extract srs from geometry
-
-    if func == 'mean' or func == 'avg':
-        return image_collection.zonal_statistics(shape(geometry), func)
-    else:
-        raise AttributeError("func %s is not supported" % func)
+    raise ProcessUnsupportedException("The zonal_statistics process has been deprecated, and can no longer be used, use aggregate_spatial instead.")
 
 
 @process
