@@ -1,9 +1,11 @@
+import glob
 import os
 import pathlib
 import tempfile
 import warnings
 from abc import ABC
 from pathlib import Path
+from shutil import copy
 from tempfile import mkstemp
 from typing import Union, Dict
 from zipfile import ZipFile
@@ -363,6 +365,27 @@ class AggregatePolygonResult(JSONResult):
             "parameters": parameters,
             "ranges": ranges
         }
+
+class AggregatePolygonResultCSV(AggregatePolygonResult):
+
+    def __init__(self, csv_dir, regions: GeometryCollection, metadata:CollectionMetadata=None):
+        super().__init__(data={})
+        if not isinstance(regions, GeometryCollection):
+            # TODO: raise exception instead of warning?
+            warnings.warn("AggregatePolygonResult: GeometryCollection expected but got {t}".format(t=type(regions)))
+        self._csv_dir = csv_dir
+        self._regions = regions
+        self._metadata = metadata
+
+    def to_csv(self, destination=None):
+        csv_paths = glob.glob(self._csv_dir + "/*.csv")
+        print(csv_paths)
+        if(destination == None):
+            return csv_paths[0]
+        else:
+            copy(csv_paths[0],destination)
+            return destination
+
 
 
 class MultipleFilesResult(SaveResult):
