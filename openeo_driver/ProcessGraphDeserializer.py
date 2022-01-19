@@ -855,11 +855,10 @@ def _extract_temporal_extent(args: dict, field="extent", process_id="filter_temp
 
     start, end = extent[0], extent[1]
 
-    # TODO: as per unit tests, an entirely open interval seems to be allowed
-    #if start is None and end is None:
-    #    raise ProcessParameterInvalidException(
-    #        process=process_id, parameter=field, reason="both start and end are null"
-    #    )
+    if start is None and end is None:
+        raise ProcessParameterInvalidException(
+            process=process_id, parameter=field, reason="both start and end are null"
+        )
 
     if (start is not None and end is not None
             and rfc3339.parse_date_or_datetime(end) < rfc3339.parse_date_or_datetime(start)):
