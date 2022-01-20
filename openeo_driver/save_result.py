@@ -366,10 +366,20 @@ class AggregatePolygonResult(JSONResult):
             "ranges": ranges
         }
 
+
+
 class AggregatePolygonResultCSV(AggregatePolygonResult):
 
+
     def __init__(self, csv_dir, regions: GeometryCollection, metadata:CollectionMetadata=None):
-        super().__init__(timeseries={},regions=regions,metadata=metadata)
+
+        def _flatten_df(df):
+            df.index = df.feature_index
+            df.sort_index(inplace=True)
+            return [list(row.values[1:]) for index, row in df.iterrows()]
+
+        df = pd.concat(map(pd.read_csv, glob.glob(os.path.join(csv_dir, "*.csv"))))
+        super().__init__(timeseries={date: _flatten_df(df[df.date == date].drop(columns="date")) for date in df.date.values},regions=regions,metadata=metadata)
         if not isinstance(regions, GeometryCollection):
             # TODO: raise exception instead of warning?
             warnings.warn("AggregatePolygonResult: GeometryCollection expected but got {t}".format(t=type(regions)))
