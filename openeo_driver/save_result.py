@@ -369,13 +369,11 @@ class AggregatePolygonResult(JSONResult):
 class AggregatePolygonResultCSV(AggregatePolygonResult):
 
     def __init__(self, csv_dir, regions: GeometryCollection, metadata:CollectionMetadata=None):
-        super().__init__(data={})
+        super().__init__(timeseries={},regions=regions,metadata=metadata)
         if not isinstance(regions, GeometryCollection):
             # TODO: raise exception instead of warning?
             warnings.warn("AggregatePolygonResult: GeometryCollection expected but got {t}".format(t=type(regions)))
         self._csv_dir = csv_dir
-        self._regions = regions
-        self._metadata = metadata
 
     def to_csv(self, destination=None):
         csv_paths = glob.glob(self._csv_dir + "/*.csv")
