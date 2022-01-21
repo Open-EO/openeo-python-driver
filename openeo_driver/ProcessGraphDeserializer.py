@@ -599,6 +599,7 @@ def reduce_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/chunk_polygon.json"))
 def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
+    import shapely
     reduce_pg = extract_deep(args, "process", "process_graph")
     chunks = extract_arg(args, 'chunks')
     mask_value = args.get('mask_value', None)
@@ -610,9 +611,19 @@ def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
             reason = "{m!s} is not a polygon.".format(m=p)
             raise ProcessParameterInvalidException(parameter='chunks', process='chunk_polygon', reason=reason)
         polygon = MultiPolygon(polygons)
-    else:
+    elif isinstance(chunks, shapely.geometry.base.BaseGeometry):
+        polygon = MultiPolygon(chunks)
+    elif isinstance(chunks, dict):
         polygon = geojson_to_multipolygon(chunks)
-
+        if isinstance(polygon, shapely.geometry.Polygon):
+            polygon = MultiPolygon([polygon])
+    elif isinstance(chunks, str):
+        # Delayed vector is not supported yet.
+        reason = "Polygon of type string is not yet supported."
+        raise ProcessParameterInvalidException(parameter='chunks', process='chunk_polygon', reason=reason)
+    else:
+        reason = "Polygon type is not supported."
+        raise ProcessParameterInvalidException(parameter='chunks', process='chunk_polygon', reason=reason)
     if polygon.area == 0:
         reason = "polygon {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
         raise ProcessParameterInvalidException(parameter='chunks', process='chunk_polygon', reason=reason)
