@@ -379,14 +379,14 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
         def _flatten_df(df):
             df.index = df.feature_index
             df.sort_index(inplace=True)
-            return [list(row.values[1:]) for index, row in df.iterrows()]
+            return df.drop(columns="feature_index").values.tolist()
 
         paths = list(glob.glob(os.path.join(csv_dir, "*.csv")))
         _log.info(f"Parsing intermediate timeseries results: {paths}")
         if(len(paths)==0):
             raise OpenEOApiException(status_code=500, code="EmptyResult", message=f"aggregate_spatial did not generate any output, intermediate output path on the server: {csv_dir}")
         df = pd.concat(map(pd.read_csv, paths))
-        super().__init__(timeseries={date: _flatten_df(df[df.date == date].drop(columns="date")) for date in df.date.values},regions=regions,metadata=metadata)
+        super().__init__(timeseries={date: _flatten_df(df[df.date == date].drop(columns="date")) for date in df.date.unique()},regions=regions,metadata=metadata)
         self._csv_dir = csv_dir
 
     def to_csv(self, destination=None):
