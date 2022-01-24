@@ -605,6 +605,7 @@ def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     mask_value = args.get('mask_value', None)
     data_cube = extract_arg(args, 'data')
 
+    # Chunks parameter check.
     if isinstance(chunks, DelayedVector):
         polygons = list(chunks.geometries)
         for p in polygons:
@@ -625,8 +626,13 @@ def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
         reason = "Polygon type is not supported."
         raise ProcessParameterInvalidException(parameter='chunks', process='chunk_polygon', reason=reason)
     if polygon.area == 0:
-        reason = "polygon {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
+        reason = "Polygon {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
         raise ProcessParameterInvalidException(parameter='chunks', process='chunk_polygon', reason=reason)
+
+    # Mask_value parameter check.
+    if not isinstance(mask_value, float):
+        reason = "mask_value parameter is not of type float. Actual type: {m!s}".format(m=type(mask_value))
+        raise ProcessParameterInvalidException(parameter='mask_value', process='chunk_polygon', reason=reason)
     return data_cube.chunk_polygon(reducer=reduce_pg, chunks=polygon, mask_value=mask_value, env=env)
 
 
