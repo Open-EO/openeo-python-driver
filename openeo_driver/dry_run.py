@@ -484,9 +484,9 @@ class DryRunDataCube(DriverDataCube):
 
     def chunk_polygon(self, reducer, chunks: MultiPolygon, mask_value: float, env: EvalEnv, context={}) -> 'DryRunDataCube':
         polygons: List[Polygon] = chunks.geoms
-        geometries, bbox = self._normalize_geometry(polygons)
+        geometries, bbox = self._normalize_geometry(GeometryCollection(polygons))
         cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
-        return cube._process(operation="chunk_polygon")
+        return cube._process("chunk_polygon", arguments={"geometries": geometries})
 
     def add_dimension(self, name: str, label, type: str = "other") -> 'DryRunDataCube':
         return self._process_metadata(self.metadata.add_dimension(name=name, label=label, type=type))
