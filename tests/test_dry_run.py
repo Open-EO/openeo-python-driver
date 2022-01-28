@@ -636,11 +636,11 @@ def test_aggregate_spatial_and_filter_bbox(dry_run_env, dry_run_tracer):
     }
 
 
-def test_filter_spatial(dry_run_env, dry_run_tracer):
+def test_resample_filter_spatial(dry_run_env, dry_run_tracer):
     polygon = {"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]}
     cube = DataCube(PGNode("load_collection", id="S2_FOOBAR"), connection=None)
     cube = cube.filter_spatial(geometries = polygon)
-
+    cube = cube.resample_spatial(projection=4326, resolution=0.25)
 
     pg = cube.flat_graph()
     res = evaluate(pg, env=dry_run_env)
@@ -653,6 +653,7 @@ def test_filter_spatial(dry_run_env, dry_run_tracer):
     assert constraints == {
         "spatial_extent": {'crs': 'EPSG:4326','east': 8.0,'north': 5.0,'south': 0.0,'west': 0.0},
         "filter_spatial": {"geometries": shapely.geometry.shape(polygon)},
+        "resample": {'method': 'near', 'resolution': [0.25, 0.25], 'target_crs': 4326},
     }
     assert isinstance(geometries, shapely.geometry.Polygon)
     assert shapely.geometry.mapping(geometries) == {

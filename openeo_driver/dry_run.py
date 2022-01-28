@@ -275,13 +275,13 @@ class DryRunDataTracer:
         source_constraints = []
         for leaf in self.get_trace_leaves():
             constraints = {}
-            resampling_op = leaf.get_operation_closest_to_source("resample_cube_spatial")
+            resampling_op = leaf.get_operation_closest_to_source(["resample_cube_spatial", "resample_spatial"])
             if resampling_op:
                 resample_valid = True
                 # the resampling parameters can be taken into account during load_collection,
                 # under the condition that no operations occur in between that may be affected
                 for op in [
-                    "apply_kernel", "reduce_dimension", "apply", "apply_dimension", "resample_spatial",
+                    "apply_kernel", "reduce_dimension", "apply", "apply_dimension",
                     "apply_neighborhood", "reduce_dimension_binary"
                 ]:
                     args = resampling_op.get_arguments_by_operation(op)
@@ -296,6 +296,13 @@ class DryRunDataTracer:
                         spatial_dim = metadata.spatial_dimensions[0]
                         resolutions = [dim.step for dim in metadata.spatial_dimensions if dim.step is not None]
                         constraints["resample"] = {"target_crs": spatial_dim.crs, "resolution": resolutions}
+                    args = resampling_op.get_arguments_by_operation("resample_spatial")
+                    if args:
+                        resolution = args[0]["resolution"]
+                        if not isinstance(resolution,list):
+                            resolution = [resolution,resolution]
+                        projection = args[0]["projection"]
+                        constraints["resample"] = {"target_crs": projection, "resolution": resolution, "method": args[0]["method"]}
 
             for op in [
                 "temporal_extent", "spatial_extent", "_weak_spatial_extent", "bands", "aggregate_spatial",
