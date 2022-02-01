@@ -1,5 +1,6 @@
 import copy
 import functools
+import json
 import logging
 import os
 import re
@@ -948,12 +949,25 @@ def register_views_batch_jobs(
     def get_job_logs(job_id, user: User):
         offset = request.args.get('offset')
         # TODO: implement paging support: `limit`, next/prev/first/last `links`, ...
-        return jsonify({
-            "logs": backend_implementation.batch_jobs.get_log_entries(
-                job_id=job_id, user_id=user.user_id, offset=offset
-            ),
-            "links": [],
-        })
+        logs = backend_implementation.batch_jobs.get_log_entries(job_id=job_id, user_id=user.user_id, offset=offset)
+
+        def generate():
+            first_log_entry = True
+
+            yield """{"logs":["""
+
+            for log in logs:
+                log_json = json.dumps(log)
+
+                if first_log_entry:
+                    first_log_entry = False
+                    yield log_json
+                else:
+                    yield "," + log_json
+
+            yield """],"links":[]}"""
+
+        return current_app.response_class(generate(), mimetype="application/json")
 
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results', methods=['DELETE'])

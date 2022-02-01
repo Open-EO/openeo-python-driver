@@ -400,11 +400,9 @@ class DummyBatchJobs(BatchJobs):
             }
         }
 
-    def get_log_entries(self, job_id: str, user_id: str, offset: Optional[str] = None) -> List[dict]:
+    def get_log_entries(self, job_id: str, user_id: str, offset: Optional[str] = None) -> Iterable[dict]:
         self._get_job_info(job_id=job_id, user_id=user_id)
-        return [
-            {"id": "1", "level": "info", "message": "hello world"}
-        ]
+        yield {"id": "1", "level": "info", "message": "hello world"}
 
     def cancel_job(self, job_id: str, user_id: str):
         self._get_job_info(job_id=job_id, user_id=user_id)
