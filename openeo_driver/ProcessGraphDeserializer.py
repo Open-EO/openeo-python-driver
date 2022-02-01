@@ -480,6 +480,8 @@ def vector_buffer(args: Dict, env: EvalEnv) -> dict:
     elif isinstance(geometry, dict):
         if geometry["type"] == "FeatureCollection":
             geoms = [shape(feat["geometry"]) for feat in geometry["features"]]
+        elif geometry["type"] == "GeometryCollection":
+            geoms = [shape(geom) for geom in geometry["geometries"]]
         else:
             geoms = [shape(geometry)]
     else:
