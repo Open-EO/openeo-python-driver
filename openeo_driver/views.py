@@ -749,6 +749,7 @@ def register_views_batch_jobs(
     def create_job(user: User):
         # TODO: wrap this job specification in a 1.0-style ProcessGrahpWithMetadata?
         post_data = request.get_json()
+        # TODO: preserve original non-process_graph process fields too
         process = {"process_graph": _extract_process_graph(post_data)}
         # TODO: this "job_options" is not part of official API. See https://github.com/Open-EO/openeo-api/issues/276
         job_options = post_data.get("job_options")
@@ -916,15 +917,24 @@ def register_views_batch_jobs(
         # TODO "OpenEO-Costs" header?
         return jsonify(result)
 
+    def _download_job_result(job_id: str, filename: str, user_id: str) -> flask.Response:
+        results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user_id)
+        if filename not in results.keys():
+            raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
+        result = results[filename]
+        if "output_dir" in result:
+            return send_from_directory(result["output_dir"], filename, mimetype=result.get("type"))
+        elif "json_response" in result:
+            return jsonify(result["json_response"])
+        else:
+            _log.error(f"Unsupported job result: {result!r}")
+            raise InternalException("Unsupported job result")
+
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results/<filename>', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def download_job_result(job_id, filename, user: User):
-        results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
-        if filename not in results.keys():
-            raise FilePathInvalidException(str(filename) + ' not in ' + str(list(results.keys())))
-        output_dir = results[filename]["output_dir"]
-        return send_from_directory(output_dir, filename, mimetype=results[filename].get("type"))
+        return _download_job_result(job_id=job_id, filename=filename, user_id=user.user_id)
 
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results/<user_base64>/<secure_key>/<filename>', methods=['GET'])
@@ -936,12 +946,7 @@ def register_views_batch_jobs(
             signature=secure_key,
             job_id=job_id, user_id=user_id, filename=filename, expires=expires
         )
-
-        results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user_id)
-        if filename not in results.keys():
-            raise FilePathInvalidException(str(filename) + ' not in ' + str(list(results.keys())))
-        output_dir = results[filename]["output_dir"]
-        return send_from_directory(output_dir, filename, mimetype=results[filename].get("type"))
+        return _download_job_result(job_id=job_id, filename=filename, user_id=user_id)
 
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/logs', methods=['GET'])
