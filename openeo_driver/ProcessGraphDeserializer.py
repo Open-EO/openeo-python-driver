@@ -6,6 +6,7 @@ import logging
 import tempfile
 import time
 import warnings
+import calendar
 from pathlib import Path
 from typing import Dict, Callable, List, Union, Tuple, Any
 
@@ -774,7 +775,8 @@ def _period_to_intervals(start, end, period):
         ten_days = pd.Timedelta(days=10)
         first_dekad_month = [(date,date+ten_days) for date in start_dates]
         second_dekad_month = [(date + ten_days, date + ten_days+ten_days ) for date in start_dates]
-        end_month = pd.date_range(start, end-offset, freq='MS', closed='left')
+        end_month = [ date + pd.Timedelta(days=calendar.monthrange(date.year,date.month)[1]) for date in start_dates]
+
         third_dekad_month = list(zip([ date + ten_days+ten_days  for date in start_dates],end_month))
         intervals = (first_dekad_month + second_dekad_month + third_dekad_month)
         intervals.sort( key = lambda t:t[0])
@@ -782,6 +784,7 @@ def _period_to_intervals(start, end, period):
     else:
         raise ProcessParameterInvalidException('period', 'aggregate_temporal_period',
                                                'No support for a period of type: ' + str(period))
+    intervals = [i for i in intervals if i[0] < end ]
     return list(intervals)
 
 

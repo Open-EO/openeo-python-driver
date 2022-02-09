@@ -112,6 +112,17 @@ def test_period_to_intervals_dekad():
     assert intervals[3] == ('2021-07-01T00:00:00', '2021-07-11T00:00:00')
     assert intervals[4] == ('2021-07-11T00:00:00', '2021-07-21T00:00:00')
 
+def test_period_to_intervals_dekad_first_of_month():
+    intervals = _period_to_intervals("2021-06-01", "2021-07-20", "dekad")
+    print(list(intervals))
+    intervals = [(i[0].isoformat(), i[1].isoformat()) for i in intervals]
+    assert 5 == len(intervals)
+    assert intervals[0] == ('2021-06-01T00:00:00', '2021-06-11T00:00:00')
+    assert intervals[1] == ('2021-06-11T00:00:00', '2021-06-21T00:00:00')
+    assert intervals[2] == ('2021-06-21T00:00:00', '2021-07-01T00:00:00')
+    assert intervals[3] == ('2021-07-01T00:00:00', '2021-07-11T00:00:00')
+    assert intervals[4] == ('2021-07-11T00:00:00', '2021-07-21T00:00:00')
+
 
 class TestSimpleProcessing:
 
