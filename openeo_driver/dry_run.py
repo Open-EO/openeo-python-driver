@@ -574,6 +574,9 @@ class DryRunDataCube(DriverDataCube):
         """No Operation: do nothing"""
         return self
 
+    def fit_class_random_forest(self, predictors, target, training, num_trees, mtry):
+        return self
+
     # TODO: some methods need metadata manipulation?
 
     apply = _nop

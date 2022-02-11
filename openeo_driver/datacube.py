@@ -114,3 +114,6 @@ class DriverDataCube(ImageCollection):
 
     def resolution_merge(self, args: ResolutionMergeArgs) -> 'DriverDataCube':
         self._not_implemented()
+
+    def fit_class_random_forest(self, predictors, target, training, num_trees, mtry):
+        self._not_implemented()

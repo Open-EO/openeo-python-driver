@@ -639,6 +639,18 @@ def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     return data_cube.chunk_polygon(reducer=reduce_pg, chunks=polygon, mask_value=mask_value, env=env)
 
 
+@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/fit_class_random_forest.json"))
+def fit_class_random_forest(args: dict, env: EvalEnv) -> SaveResult:
+    data_cube = extract_arg(args, 'data')
+    predictors = extract_arg(args, 'predictors')
+    target = extract_arg(args, 'target')
+    training = int(extract_arg(args, 'training'))
+    num_trees = int(extract_arg(args, 'num_trees'))
+    mtry = args.get('mtry', None)
+    return data_cube.fit_class_random_forest(predictors=predictors, target=target,
+                                             training=training, num_trees=num_trees, mtry=mtry)
+
+
 @process
 def add_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
