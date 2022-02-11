@@ -651,6 +651,11 @@ def fit_class_random_forest(args: dict, env: EvalEnv) -> SaveResult:
                                              training=training, num_trees=num_trees, mtry=mtry)
 
 
+@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/predict_random_forest.json"))
+def predict_random_forest(args: dict, env: EvalEnv) -> SaveResult:
+    pass
+
+
 @process
 def add_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
