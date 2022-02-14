@@ -251,7 +251,7 @@ class ApiTester:
         response = self.result(process_graph=process_graph, path=path, preprocess=preprocess)
         return response.assert_status_code(200).assert_content()
 
-    def validation(self, process_graph: Union[dict, str], preprocess: Callable = None, do_auth: bool = True):
+    def validation(self, process_graph: Union[dict, str], preprocess: Callable = None, do_auth: bool = True) -> ApiResponse:
         """Post a process_graph (as dict or by filename) and run validation."""
         if isinstance(process_graph, str):
             # Assume it is a file name

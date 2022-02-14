@@ -344,6 +344,19 @@ class DummyCatalog(CollectionCatalog):
         return image_collection
 
 
+class DummyProcessing(ConcreteProcessing):
+    def extra_validation(
+            self, process_graph: dict, env: EvalEnv, result, source_constraints: List[SourceConstraint]
+    ) -> Iterable[dict]:
+        # Fake missing tiles
+        for source_id, constraints in source_constraints:
+            if source_id[0] == "load_collection" and source_id[1][0] == "S2_FOOBAR":
+                dates = constraints.get("temporal_extent")
+                bbox = constraints.get("spatial_extent")
+                if dates and dates[0] <= "2021-02-10" and bbox and bbox["west"] <= 1.4:
+                    yield {"code": "MissingProduct", "message": "Tile 4322 not available"}
+
+
 class DummyBatchJobs(BatchJobs):
     _job_registry = {}
 
@@ -442,11 +455,8 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
             catalog=DummyCatalog(),
             batch_jobs=DummyBatchJobs(),
             user_defined_processes=DummyUserDefinedProcesses(),
-            processing=ConcreteProcessing(),
+            processing=DummyProcessing(),
         )
-
-        # Allow on the fly setting of "extra_validation" functions for unit tests.
-        self.extra_validations = []
 
     def oidc_providers(self) -> List[OidcProvider]:
         return [
@@ -516,14 +526,6 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
 
     def visit_process_graph(self, process_graph: dict) -> ProcessGraphVisitor:
         return DummyVisitor().accept_process_graph(process_graph)
-
-    def extra_validation(
-            self, process_graph: dict, result, source_constraints: List[SourceConstraint]
-    ) -> Iterable[dict]:
-        for extra_validation in self.extra_validations:
-            yield from extra_validation(
-                process_graph=process_graph, result=result, source_constraints=source_constraints
-            )
 
     def user_access_validation(self, user: User, request: flask.Request) -> User:
         if "mark" in user.user_id.lower():

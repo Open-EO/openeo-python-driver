@@ -38,13 +38,6 @@ def test_basic_fail(api100, pg, expected_code, expected_message):
 
 
 def test_load_collection_basic(api100, backend_implementation):
-    def extra_validation(process_graph: dict, result, source_constraints: List[SourceConstraint]) -> Iterator[dict]:
-        for source_id, constraints in source_constraints:
-            if source_id[0] == "load_collection" and source_id[1][0] == "S2_FOOBAR":
-                yield {"code": "MissingProduct", "message": "Tile 4322 not available"}
-
-    backend_implementation.extra_validations.append(extra_validation)
-
     pg = {
         "lc": {
             "process_id": "load_collection",

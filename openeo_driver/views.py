@@ -558,43 +558,13 @@ def register_views_processing(
             process_graph = post_data["process_graph"]
         except (KeyError, TypeError) as e:
             raise ProcessGraphMissingException
-        errors = _validation(process_graph=process_graph)
-        return jsonify({"errors": errors})
-
-    def _validation(process_graph) -> List[dict]:
-
-        dry_run_tracer = DryRunDataTracer()
         env = EvalEnv({
-            ENV_DRY_RUN_TRACER: dry_run_tracer,
             "backend_implementation": backend_implementation,
             "version": g.api_version,
             "user": None
         })
-
-        try:
-            top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
-            result_node = process_graph[top_level_node]
-        except ProcessGraphVisitException as e:
-            return [{"code": "ProcessGraphInvalid", "message": str(e)}]
-
-        try:
-            result = convert_node(result_node, env=env)
-        except OpenEOApiException as e:
-            return [{"code": e.code, "message": str(e)}]
-        except Exception as e:
-            return [{"code": "Internal", "message": str(e)}]
-
-        errors = []
-        # TODO: check other resources for errors, warnings?
-
-        source_constraints = dry_run_tracer.get_source_constraints()
-        errors.extend(backend_implementation.extra_validation(
-            process_graph=process_graph,
-            result=result,
-            source_constraints=source_constraints
-        ))
-
-        return errors
+        errors = backend_implementation.processing.validate(process_graph=process_graph, env=env)
+        return jsonify({"errors": errors})
 
     @api_endpoint
     @blueprint.route('/result', methods=['POST'])

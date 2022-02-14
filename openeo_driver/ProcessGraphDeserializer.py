@@ -8,7 +8,7 @@ import time
 import warnings
 import calendar
 from pathlib import Path
-from typing import Dict, Callable, List, Union, Tuple, Any
+from typing import Dict, Callable, List, Union, Tuple, Any, Iterable
 
 import geopandas as gpd
 import numpy as np
@@ -20,7 +20,7 @@ from shapely.geometry import shape, mapping, MultiPolygon
 import openeo.udf
 from openeo.capabilities import ComparableVersion
 from openeo.metadata import CollectionMetadata, MetadataException
-from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphVisitException
 from openeo.util import load_json, rfc3339
 from openeo_driver import dry_run
 from openeo_driver.backend import UserDefinedProcessMetadata, LoadParameters, Processing, OpenEoBackendImplementation
@@ -224,6 +224,7 @@ class ConcreteProcessing(Processing):
     Concrete process graph processing: (most) processes have concrete Python implementation
     (manipulating `DriverDataCube` instances)
     """
+
     def get_process_registry(self, api_version: Union[str, ComparableVersion]) -> ProcessRegistry:
         if ComparableVersion("1.0.0").or_higher(api_version):
             return process_registry_100
@@ -232,6 +233,46 @@ class ConcreteProcessing(Processing):
 
     def evaluate(self, process_graph: dict, env: EvalEnv = None):
         return evaluate(process_graph=process_graph, env=env)
+
+    def validate(self, process_graph: dict, env: EvalEnv = None) -> List[dict]:
+        dry_run_tracer = DryRunDataTracer()
+        env = env.push({ENV_DRY_RUN_TRACER: dry_run_tracer})
+
+        try:
+            top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
+            result_node = process_graph[top_level_node]
+        except ProcessGraphVisitException as e:
+            return [{"code": "ProcessGraphInvalid", "message": str(e)}]
+
+        try:
+            result = convert_node(result_node, env=env)
+        except OpenEOApiException as e:
+            return [{"code": e.code, "message": str(e)}]
+        except Exception as e:
+            return [{"code": "Internal", "message": str(e)}]
+
+        errors = []
+        # TODO: check other resources for errors, warnings?
+
+        source_constraints = dry_run_tracer.get_source_constraints()
+        errors.extend(self.extra_validation(
+            process_graph=process_graph,
+            env=env,
+            result=result,
+            source_constraints=source_constraints
+        ))
+
+        return errors
+
+    def extra_validation(
+            self, process_graph: dict, env: EvalEnv, result, source_constraints: List[SourceConstraint]
+    ) -> Iterable[dict]:
+        """
+        Extra process graph validation
+
+        :return: List (or generator) of validation error dicts (having at least a "code" and "message" field)
+        """
+        return []
 
 
 def evaluate(

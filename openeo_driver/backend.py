@@ -460,6 +460,14 @@ class Processing(MicroService):
         """Evaluate given process graph (flat dict format)."""
         raise NotImplementedError
 
+    def validate(self, process_graph: dict, env: EvalEnv = None) -> List[dict]:
+        """
+        Process graph validation
+
+        :return: List (or generator) of validation error dicts (having at least a "code" and "message" field)
+        """
+        raise NotImplementedError
+
 
 class ErrorSummary:
     # TODO: this is specific for openeo-geopyspark-driver: can we avoid defining it in openeo-python-driver?
@@ -589,16 +597,6 @@ class OpenEoBackendImplementation:
     # TODO this "proxy user" feature is YARN/Spark/VITO specific. Move it to oppeno-geopyspark-driver?
     def set_preferred_username_getter(self, getter: Callable[[User], Optional[str]]):
         self.batch_jobs.set_proxy_user_getter(getter)
-
-    def extra_validation(
-            self, process_graph: dict, result, source_constraints: List[SourceConstraint]
-    ) -> Iterable[dict]:
-        """
-        Back-end specific, extra process graph validation
-
-        :return: List (or generator) of validation error dicts (having at least a "code" and "message" field)
-        """
-        return []
 
     def user_access_validation(self, user: User, request: flask.Request) -> User:
         """Additional user access validation based on flask request."""
