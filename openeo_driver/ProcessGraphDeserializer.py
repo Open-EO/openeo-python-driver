@@ -674,7 +674,7 @@ def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
         raise ProcessParameterInvalidException(parameter='chunks', process='chunk_polygon', reason=reason)
 
     # Mask_value parameter check.
-    if not isinstance(mask_value, float):
+    if not isinstance(mask_value, float) and mask_value is not None:
         reason = "mask_value parameter is not of type float. Actual type: {m!s}".format(m=type(mask_value))
         raise ProcessParameterInvalidException(parameter='mask_value', process='chunk_polygon', reason=reason)
     return data_cube.chunk_polygon(reducer=reduce_pg, chunks=polygon, mask_value=mask_value, env=env)
