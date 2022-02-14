@@ -451,11 +451,9 @@ class DryRunDataCube(DriverDataCube):
         Helper to preprocess geometries (as used in aggregate_spatial and mask_polygon) and apply related filter_bbox
         """
         if isinstance(geometries, dict):
-            geometries = geojson_to_geometry(geometries)
-            bbox = geometries.bounds
+            return self._normalize_geometry(geojson_to_geometry(geometries))
         elif isinstance(geometries, str):
-            geometries = DelayedVector(geometries)
-            bbox = geometries.bounds
+            return self._normalize_geometry(DelayedVector(geometries))
         elif isinstance(geometries, DelayedVector):
             bbox = geometries.bounds
         elif isinstance(geometries, shapely.geometry.base.BaseGeometry):
