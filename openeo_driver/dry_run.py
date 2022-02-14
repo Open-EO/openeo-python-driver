@@ -37,7 +37,7 @@ from enum import Enum
 from typing import List, Union, Tuple
 
 import shapely.geometry.base
-from shapely.geometry import Polygon, MultiPolygon, GeometryCollection
+from shapely.geometry import Point, Polygon, MultiPolygon, GeometryCollection
 
 from openeo.metadata import CollectionMetadata
 from openeo_driver import filter_properties
@@ -45,7 +45,7 @@ from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.save_result import AggregatePolygonResult
-from openeo_driver.utils import geojson_to_geometry, to_hashable, EvalEnv
+from openeo_driver.utils import buffer_point_approx, geojson_to_geometry, to_hashable, EvalEnv
 
 _log = logging.getLogger(__name__)
 
@@ -457,6 +457,12 @@ class DryRunDataCube(DriverDataCube):
         elif isinstance(geometries, DelayedVector):
             bbox = geometries.bounds
         elif isinstance(geometries, shapely.geometry.base.BaseGeometry):
+            if isinstance(geometries, Point):
+                geometries = buffer_point_approx(geometries, "EPSG:4326")
+            elif isinstance(geometries, GeometryCollection):
+                geometries = GeometryCollection([buffer_point_approx(geom, "EPSG:4326") if isinstance(geom, Point)
+                                                 else geom for geom in geometries.geoms])
+
             bbox = geometries.bounds
         else:
             raise ValueError(geometries)

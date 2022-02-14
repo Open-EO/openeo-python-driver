@@ -392,3 +392,23 @@ class TtlCache:
 
     def flush(self):
         self._cache = {}
+
+
+def buffer_point_approx(point: shapely.geometry.Point, point_crs: str, buffer_distance_in_meters=10.0) -> shapely.geometry.Polygon:
+    src_proj = pyproj.Proj("EPSG:3857")
+    dst_proj = pyproj.Proj(point_crs)
+
+    def reproject_point(x, y):
+        return pyproj.transform(
+            src_proj,
+            dst_proj,
+            x, y,
+            always_xy=True
+        )
+
+    left, _ = reproject_point(0.0, 0.0)
+    right, _ = reproject_point(buffer_distance_in_meters, 0.0)
+
+    buffer_distance = right - left
+
+    return point.buffer(buffer_distance)
