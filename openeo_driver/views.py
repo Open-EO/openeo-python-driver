@@ -927,18 +927,23 @@ def register_views_batch_jobs(
         logs = backend_implementation.batch_jobs.get_log_entries(job_id=job_id, user_id=user.user_id, offset=offset)
 
         def generate():
-            first_log_entry = True
-
             yield """{"logs":["""
 
-            for log in logs:
-                log_json = json.dumps(log)
+            sep = ""
+            try:
+                for log in logs:
+                    yield sep + json.dumps(log)
+                    sep = ","
 
-                if first_log_entry:
-                    first_log_entry = False
-                    yield log_json
-                else:
-                    yield "," + log_json
+            except Exception as e:
+                # TODO: because of chunked response, we can not update already sent 200 HTTP status code.
+                #       We could however wait sending the status based on successfully getting first log item.
+                _log.error(f"Log collection for job {job_id} failed", exc_info=True)
+                log = {
+                    "id": "-1", "code": "Internal", "level": "error",
+                    "message": f"Log collection failed: {e!r}"
+                }
+                yield sep + json.dumps(log)
 
             yield """],"links":[]}"""
 

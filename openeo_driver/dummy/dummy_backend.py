@@ -359,6 +359,7 @@ class DummyProcessing(ConcreteProcessing):
 
 class DummyBatchJobs(BatchJobs):
     _job_registry = {}
+    _custom_job_logs = {}
 
     def generate_job_id(self):
         return str(uuid.uuid4())
@@ -415,7 +416,14 @@ class DummyBatchJobs(BatchJobs):
 
     def get_log_entries(self, job_id: str, user_id: str, offset: Optional[str] = None) -> Iterable[dict]:
         self._get_job_info(job_id=job_id, user_id=user_id)
-        yield {"id": "1", "level": "info", "message": "hello world"}
+        default_logs = [{"id": "1", "level": "info", "message": "hello world"}]
+        for log in self._custom_job_logs.get(job_id, default_logs):
+            if isinstance(log, dict):
+                yield log
+            elif isinstance(log, Exception):
+                raise log
+            else:
+                raise ValueError(log)
 
     def cancel_job(self, job_id: str, user_id: str):
         self._get_job_info(job_id=job_id, user_id=user_id)

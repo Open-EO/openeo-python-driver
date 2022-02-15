@@ -1268,13 +1268,28 @@ class TestBatchJobs:
         assert resp.assert_error(410, 'ResultLinkExpired')
 
     def test_get_batch_job_logs(self, api):
-        resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs', headers=self.AUTH_HEADER)
+        with self._fresh_job_registry():
+            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs', headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).json == {
             "logs": [
                 {"id": "1", "level": "info", "message": "hello world"}
             ],
             "links": []
         }
+
+    def test_get_batch_job_logs_failure(self, api):
+        with self._fresh_job_registry():
+            with mock.patch.dict(dummy_backend.DummyBatchJobs._custom_job_logs, {
+                "07024ee9-7847-4b8a-b260-6c879a2b3cdc": [RuntimeError("nope")]
+            }):
+                resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs', headers=self.AUTH_HEADER)
+                assert resp.assert_status_code(200).json == {
+                    "logs": [
+                        {"id": "-1", "code": "Internal", "level": "error",
+                         "message": "Log collection failed: RuntimeError('nope',)"}
+                    ],
+                    "links": []
+                }
 
     def test_cancel_job(self, api):
         with self._fresh_job_registry(next_job_id="job-403"):
