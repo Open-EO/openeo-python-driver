@@ -2,11 +2,14 @@
 Reusable helpers and fixtures for testing
 """
 import base64
+import contextlib
 import json
 import re
+import urllib.request
 import uuid
 from pathlib import Path
-from typing import Union, Callable, Pattern
+from typing import Union, Callable, Pattern, Dict, Tuple
+from unittest import mock
 
 from flask import Response
 from flask.testing import FlaskClient
@@ -349,3 +352,51 @@ def build_basic_http_auth_header(username: str, password: str) -> str:
     """Build HTTP header for Basic HTTP authentication"""
     # Note: this is not the custom basic bearer token used in openEO API.
     return "Basic " + base64.b64encode("{u}:{p}".format(u=username, p=password).encode("utf-8")).decode('ascii')
+
+
+class UrllibMocker:
+    """
+    Poor man's urllib mocker (inspired by requests_mock).
+    """
+
+    class Response:
+        """Dummy http.client.HTTPResponse"""
+
+        def __init__(self, data: Union[bytes, str, Path] = b"", code: int = 200, msg=None):
+            if isinstance(data, str):
+                data = data.encode("utf8")
+            elif isinstance(data, Path):
+                data = data.read_bytes()
+            self.data: bytes = data
+            self.code = code
+            self.msg = msg
+
+        def read(self) -> bytes:
+            return self.data
+
+        def info(self):
+            return None
+
+    def __init__(self):
+        self.responses: Dict[Tuple[str, str], "Response"] = {}
+
+    def register(self, method: str, url: str, response: "Response"):
+        self.responses[method, url] = response
+
+    def get(self, url, data, code=200):
+        """Register a response for a GET request"""
+        self.register(method="GET", url=url, response=self.Response(data=data, code=code))
+
+    def _http_open(self, req: urllib.request.Request):
+        """Request handler mock"""
+        key = (req.get_method(), req.full_url)
+        if key in self.responses:
+            return self.responses[key]
+        else:
+            return self.Response(code=404, msg="Not Found")
+
+    @contextlib.contextmanager
+    def patch(self):
+        with mock.patch("urllib.request.HTTPHandler.http_open", new=self._http_open), \
+                mock.patch("urllib.request.HTTPSHandler.https_open", new=self._http_open):
+            yield self

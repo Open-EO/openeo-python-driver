@@ -1,6 +1,7 @@
 import flask
 import pytest
-
+import urllib.request
+import urllib.error
 from openeo_driver.testing import preprocess_check_and_replace, IgnoreOrder, ApiTester, RegexMatcher, DictSubSet, \
     ListSubSet
 
@@ -128,3 +129,13 @@ def test_list_and_dict_subset_nesting():
     assert [1, {2: 3}, {5: 6, 7: [8, 9]}] == ListSubSet([1, DictSubSet({2: 3})])
     assert [1, {2: 3}, {5: 6, 7: [8, 9]}] == ListSubSet([1, DictSubSet({7: [8, 9]})])
     assert [1, {2: 3}, {5: 6, 7: [8, 9]}] == ListSubSet([1, DictSubSet({7: ListSubSet([8])})])
+
+
+def test_urllib_mock(urllib_mock):
+    urllib_mock.get("http://a.test/foo", data="hello world")
+
+    r = urllib.request.urlopen("http://a.test/foo")
+    assert r.read() == b"hello world"
+
+    with pytest.raises(urllib.error.HTTPError, match="404: Not Found"):
+        urllib.request.urlopen("http://a.test/bar")

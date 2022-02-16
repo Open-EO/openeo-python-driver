@@ -3,6 +3,7 @@ import pytest
 
 from openeo_driver.backend import UserDefinedProcesses
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
+from openeo_driver.testing import UrllibMocker
 from openeo_driver.views import build_app
 
 
@@ -36,3 +37,9 @@ def flask_app(backend_implementation) -> flask.Flask:
 @pytest.fixture
 def client(flask_app):
     return flask_app.test_client()
+
+
+@pytest.fixture
+def urllib_mock() -> UrllibMocker:
+    with UrllibMocker().patch() as mocker:
+        yield mocker
