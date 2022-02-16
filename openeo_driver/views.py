@@ -23,7 +23,7 @@ from openeo_driver import urlsigning
 from openeo_driver.ProcessGraphDeserializer import ENV_DRY_RUN_TRACER, convert_node
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
     ErrorSummary, OpenEoBackendImplementation, BatchJobs
-from openeo_driver.datacube import DriverDataCube
+from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
@@ -586,8 +586,13 @@ def register_views_processing(
         # TODO unify all this output handling within SaveResult logic?
         if isinstance(result, DriverDataCube):
             format_options = post_data.get('output', {})
+            # TODO: clean up temp file when done?
             filename = result.save_result(filename=get_temp_file(), format="GTiff", format_options=format_options)
             return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
+        elif isinstance(result, DriverVectorCube):
+            path = result.save_result(filename=get_temp_file(), format="GeoJSON", format_options={})
+            # TODO: clean up temp file when done?
+            return send_from_directory(os.path.dirname(path), os.path.basename(path), mimetype="application/geo+json")
         elif result is None:
             abort(500, "Process graph evaluation gave no result")
         elif isinstance(result, SaveResult):

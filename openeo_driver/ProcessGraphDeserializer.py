@@ -8,6 +8,7 @@ import time
 import warnings
 import calendar
 from pathlib import Path
+from requests.structures import CaseInsensitiveDict
 from typing import Dict, Callable, List, Union, Tuple, Any, Iterable
 
 import geopandas as gpd
@@ -24,12 +25,12 @@ from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGr
 from openeo.util import load_json, rfc3339
 from openeo_driver import dry_run
 from openeo_driver.backend import UserDefinedProcessMetadata, LoadParameters, Processing, OpenEoBackendImplementation
-from openeo_driver.datacube import DriverDataCube
+from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint
 from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException, \
-    FeatureUnsupportedException, OpenEOApiException, ProcessGraphInvalidException
+    FeatureUnsupportedException, OpenEOApiException, ProcessGraphInvalidException, FileTypeInvalidException
 from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE
 from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult, NullResult
@@ -1291,6 +1292,24 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
 def read_vector(args: Dict, env: EvalEnv) -> DelayedVector:
     path = extract_arg(args, 'filename')
     return DelayedVector(path)
+
+
+@process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/load_uploaded_files.json"))
+def load_uploaded_files(args: dict, env: EvalEnv) -> DriverVectorCube:
+    # TODO EP-3981 process name is still under discussion https://github.com/Open-EO/openeo-processes/issues/322
+    paths = extract_arg(args, 'paths', process_id="load_uploaded_files")
+    format = extract_arg(args, 'format', process_id="load_uploaded_files")
+    options = args.get("options", {})
+
+    input_formats = CaseInsensitiveDict(env.backend_implementation.file_formats()["input"])
+    if format not in input_formats:
+        raise FileTypeInvalidException(type=format, types=", ".join(input_formats.keys()))
+    format = format.upper()
+
+    if format == "GEOJSON":
+        return DriverVectorCube.from_geojson(paths, options=options)
+    else:
+        raise FeatureUnsupportedException(f"Loading format {format!r} is not supported")
 
 
 @non_standard_process(

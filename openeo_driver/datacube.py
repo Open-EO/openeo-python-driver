@@ -1,14 +1,18 @@
 import inspect
 from typing import List
 
+import geopandas as gpd
+
 from openeo import ImageCollection
 from openeo.metadata import CollectionMetadata
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
+from openeo_driver.errors import FeatureUnsupportedException
 from openeo_driver.utils import EvalEnv
 
 
 class DriverDataCube(ImageCollection):
-    """Base class for "driver" side data cubes."""
+    """Base class for "driver" side raster data cubes."""
+
     # TODO cut the openeo.ImageCollection chord (https://github.com/Open-EO/openeo-python-client/issues/100)
 
     def __init__(self, metadata: CollectionMetadata = None):
@@ -117,3 +121,28 @@ class DriverDataCube(ImageCollection):
 
     def fit_class_random_forest(self, predictors, target, training, num_trees, mtry):
         self._not_implemented()
+
+
+class DriverVectorCube:
+    """
+    Base class for driver-side 'vector cubes'
+
+    Conceptually comparable to GeoJSON FeatureCollections, but possibly more advanced with more dimensions, bands, ...
+    """
+
+    def __init__(self, data: gpd.GeoDataFrame):
+        # TODO EP-3981: consider other data containers (xarray) and lazy loading?
+        self.data = data
+
+    @classmethod
+    def from_geojson(cls, paths: List[str], options: dict):
+        if len(paths) != 1:
+            # TODO EP-3981: support multiple paths
+            raise FeatureUnsupportedException(message="Loading a vector cube from multiple files is not supported")
+        # TODO EP-3981: lazy loading like/with DelayedVector
+        return cls(data=gpd.read_file(paths[0]))
+
+    def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
+        # TODO EP-3981: proper mapping of format to driver
+        self.data.to_file(filename, driver=format)
+        return filename

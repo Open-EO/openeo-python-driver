@@ -948,6 +948,61 @@ def test_read_vector_from_feature_collection(api):
     assert params["spatial_extent"] == {"west": 5, "south": 51, "east": 6, "north": 52, "crs": 'EPSG:4326'}
 
 
+def test_vector_cube_basic_feature_collection(api):
+    path = str(get_path("geojson/FeatureCollection02.json"))
+    pg = {"lf": {
+        "process_id": "load_uploaded_files",
+        "arguments": {"paths": [path], "format": "GeoJSON"},
+        "result": True,
+    }}
+    resp = api.check_result(pg)
+    assert resp.headers["Content-Type"] == "application/geo+json"
+    assert resp.json == DictSubSet({
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature", "properties": {"id": "first", "pop": 1234},
+                "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]}
+            },
+            {
+                "type": "Feature", "properties": {"id": "second", "pop": 5678},
+                "geometry": {"type": "Polygon", "coordinates": [[[4, 2], [5, 4], [3, 4], [4, 2]]]}
+            },
+        ]
+    })
+
+
+@pytest.mark.parametrize(["path", "expected_features"], [
+    ("geojson/Polygon01.json", [DictSubSet({"type": "Feature", "geometry": DictSubSet({"type": "Polygon"})})]),
+    (
+            "geojson/MultiPolygon01.json",
+            [DictSubSet({"type": "Feature", "geometry": DictSubSet({"type": "MultiPolygon"})})],
+    ),
+    (
+            "geojson/GeometryCollection01.json",
+            [DictSubSet({"type": "Feature", "geometry": DictSubSet({"type": "GeometryCollection"})})],
+    ),
+    (
+            "geojson/FeatureCollection01.json", [
+                DictSubSet({"type": "Feature", "geometry": DictSubSet({"type": "Polygon"})}),
+                DictSubSet({"type": "Feature", "geometry": DictSubSet({"type": "Polygon"})}),
+            ],
+    ),
+])
+def test_load_cube_geojson(api, path, expected_features):
+    pg = {"lf": {
+        "process_id": "load_uploaded_files",
+        "arguments": {"paths": [str(get_path(path))], "format": "GeoJSON"},
+        "result": True,
+    }}
+    resp = api.check_result(pg)
+    assert resp.headers["Content-Type"] == "application/geo+json"
+    assert resp.json == DictSubSet({
+        "type": "FeatureCollection",
+        "features": expected_features
+    })
+
+
 def test_no_nested_JSONResult(api):
     api.set_auth_bearer_token()
     api.post(
