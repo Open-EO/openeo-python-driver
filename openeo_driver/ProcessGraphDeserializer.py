@@ -653,8 +653,9 @@ def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     if isinstance(chunks, DelayedVector):
         polygons = list(chunks.geometries)
         for p in polygons:
-            reason = "{m!s} is not a polygon.".format(m=p)
-            raise ProcessParameterInvalidException(parameter='chunks', process='chunk_polygon', reason=reason)
+            if not isinstance(p, shapely.geometry.Polygon):
+                reason = "{m!s} is not a polygon.".format(m=p)
+                raise ProcessParameterInvalidException(parameter='chunks', process='chunk_polygon', reason=reason)
         polygon = MultiPolygon(polygons)
     elif isinstance(chunks, shapely.geometry.base.BaseGeometry):
         polygon = MultiPolygon(chunks)
