@@ -1286,7 +1286,7 @@ class TestBatchJobs:
                 assert resp.assert_status_code(200).json == {
                     "logs": [
                         {"id": "-1", "code": "Internal", "level": "error",
-                         "message": "Log collection failed: RuntimeError('nope',)"}
+                         "message": "Log collection failed: RuntimeError('nope')"}
                     ],
                     "links": []
                 }
