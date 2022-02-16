@@ -136,6 +136,7 @@ class DriverVectorCube:
 
     @classmethod
     def from_geojson(cls, paths: List[str], options: dict):
+        # TODO EP-3981: provide a more general factory instead of this GeoJSON-specific one?
         if len(paths) != 1:
             # TODO EP-3981: support multiple paths
             raise FeatureUnsupportedException(message="Loading a vector cube from multiple files is not supported")

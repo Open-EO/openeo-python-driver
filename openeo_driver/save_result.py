@@ -143,6 +143,8 @@ class AggregatePolygonResult(JSONResult):
 
     """
 
+    # TODO EP-3981 port this to proper vector cube support
+
     def __init__(self, timeseries: dict, regions: GeometryCollection, metadata:CollectionMetadata=None):
         super().__init__(data=timeseries)
         if not isinstance(regions, GeometryCollection):

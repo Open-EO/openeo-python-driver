@@ -598,6 +598,7 @@ def register_views_processing(
         elif isinstance(result, SaveResult):
             return result.create_flask_response()
         elif isinstance(result, DelayedVector):
+            # TODO EP-3981 Deprecate DelayedVector in favor of VectorCube
             from shapely.geometry import mapping
             geojsons = (mapping(geometry) for geometry in result.geometries)
             return jsonify(list(geojsons))

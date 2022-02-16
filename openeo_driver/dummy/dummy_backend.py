@@ -194,6 +194,7 @@ class DummyDataCube(DriverDataCube):
         # TODO: get rid of non-standard "zonal_statistics" (standard process is "aggregate_spatial")
         assert func == 'mean' or func == 'avg'
 
+        # TODO EP-3981 normalize to vector cube and preserve original properties
         def assert_polygon_or_multipolygon(geometry):
             assert isinstance(geometry, Polygon) or isinstance(geometry, MultiPolygon)
 

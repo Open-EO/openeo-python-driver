@@ -518,7 +518,9 @@ def vector_buffer(args: Dict, env: EvalEnv) -> dict:
     input_crs = 'epsg:4326'
     buffer_resolution = 3
 
+    # TODO EP-3981 convert `geometry` to vector cube and move buffer logic to there
     if isinstance(geometry, str):
+        # TODO: assumption here that `geometry` is a path/url
         geoms = list(DelayedVector(geometry).geometries)
     elif isinstance(geometry, dict):
         if geometry["type"] == "FeatureCollection":
@@ -586,6 +588,7 @@ def save_result(args: Dict, env: EvalEnv) -> SaveResult:
     elif isinstance(data, DriverDataCube):
         return ImageCollectionResult(data, format=format, options=options)
     elif isinstance(data, DelayedVector):
+        # TODO EP-3981 add vector cube support: keep features from feature collection
         geojsons = (mapping(geometry) for geometry in data.geometries)
         return JSONResult(geojsons)
     elif data is None:
@@ -651,6 +654,7 @@ def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
 
     # Chunks parameter check.
+    # TODO EP-3981 normalize first to vector cube and simplify logic
     if isinstance(chunks, DelayedVector):
         polygons = list(chunks.geometries)
         for p in polygons:
@@ -936,6 +940,7 @@ def mask_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     inside = args.get('inside', False)
     # TODO: avoid reading DelayedVector twice due to dry-run?
     # TODO: the `DelayedVector` case: aren't we ignoring geometries by doing `[0]`?
+    # TODO EP-3981: add VectorCube support? Also see  https://github.com/Open-EO/openeo-processes/issues/323
     polygon = list(mask.geometries)[0] if isinstance(mask, DelayedVector) else geojson_to_multipolygon(mask)
     if polygon.area == 0:
         reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
@@ -1290,6 +1295,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         .returns("TODO", schema={"type": "object", "subtype": "vector-cube"})
 )
 def read_vector(args: Dict, env: EvalEnv) -> DelayedVector:
+    # TODO EP-3981: deprecated in favor of load_uploaded_files/load_external? https://github.com/Open-EO/openeo-processes/issues/322
     path = extract_arg(args, 'filename')
     return DelayedVector(path)
 
@@ -1297,6 +1303,7 @@ def read_vector(args: Dict, env: EvalEnv) -> DelayedVector:
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/load_uploaded_files.json"))
 def load_uploaded_files(args: dict, env: EvalEnv) -> DriverVectorCube:
     # TODO EP-3981 process name is still under discussion https://github.com/Open-EO/openeo-processes/issues/322
+    # TODO EP-3981 also other return types: raster data cube, array, ...
     paths = extract_arg(args, 'paths', process_id="load_uploaded_files")
     format = extract_arg(args, 'format', process_id="load_uploaded_files")
     options = args.get("options", {})
@@ -1319,6 +1326,7 @@ def load_uploaded_files(args: dict, env: EvalEnv) -> DriverVectorCube:
         .returns("TODO", schema={"type": "object", "subtype": "vector-cube"})
 )
 def get_geometries(args: Dict, env: EvalEnv) -> Union[DelayedVector, dict]:
+    # TODO: standardize or deprecate this? EP-3981 https://github.com/Open-EO/openeo-processes/issues/322
     feature_collection = args.get('feature_collection', None)
     path = args.get('filename', None)
     if path is not None:

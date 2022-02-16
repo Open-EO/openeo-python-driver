@@ -128,6 +128,7 @@ def smart_bool(value):
 
 def geojson_to_geometry(geojson: dict) -> shapely.geometry.base.BaseGeometry:
     """Convert GeoJSON object to shapely geometry object"""
+    # TODO EP-3981 standardize on using (FeatureCollection like) vector cubes  instead of GeometryCollection?
     if geojson["type"] == "FeatureCollection":
         geojson = {
             'type': 'GeometryCollection',
