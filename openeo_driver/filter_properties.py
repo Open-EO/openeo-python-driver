@@ -17,13 +17,18 @@ def extract_literal_match(condition: dict, parameter_name="value") -> Dict[str, 
     """
 
     class LiteralMatchExtractingGraphVisitor(ProcessGraphVisitor):
+
+        SUPPORTED_PROCESSES = ['eq', 'lte', 'gte']
+
         def __init__(self):
             super().__init__()
             self.result = {}
 
         def enterProcess(self, process_id: str, arguments: dict, namespace: Union[str, None]):
-            if process_id not in ['eq', 'lte', 'gte']:
-                raise NotImplementedError("process %s is not supported" % process_id)
+            if process_id not in self.SUPPORTED_PROCESSES:
+                raise PropertyConditionException(
+                    f"Property filtering only supports {self.SUPPORTED_PROCESSES}, not {process_id!r}."
+                )
 
             self.result["operator"] = process_id
 
