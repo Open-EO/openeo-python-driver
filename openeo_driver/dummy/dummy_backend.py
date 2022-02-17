@@ -517,6 +517,11 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
                     "gis_data_types": ["vector"],
                     "parameters": {},
                 },
+                "GPKG": {
+                    "title": "OGC GeoPackage",
+                    "gis_data_types": ["raster", "vector"],
+                    "parameters": {},
+                },
             },
             "output": {
                 "GTiff": {

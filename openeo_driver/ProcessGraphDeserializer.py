@@ -1312,7 +1312,7 @@ def load_uploaded_files(args: dict, env: EvalEnv) -> DriverVectorCube:
     if format not in input_formats:
         raise FileTypeInvalidException(type=format, types=", ".join(input_formats.keys()))
 
-    if format.lower() in {"geojson", "esri shapefile"}:
+    if format.lower() in {"geojson", "esri shapefile", "gpkg"}:
         return DriverVectorCube.from_fiona(paths, driver=format, options=options)
     else:
         raise FeatureUnsupportedException(f"Loading format {format!r} is not supported")

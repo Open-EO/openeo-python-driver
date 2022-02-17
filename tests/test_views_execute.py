@@ -1048,12 +1048,17 @@ class TestVectorCubeLoading:
             ]
         })
 
-    def test_shapefile(self, api):
-        """Load vector cube from local shapefile"""
-        path = str(get_path("shapefile/shapefile01.shp"))
+    @pytest.mark.parametrize(["path", "format"], [
+        ("geojson/mol.json", "GeoJSON"),
+        ("shapefile/mol.shp", "ESRI Shapefile"),
+        ("gpkg/mol.gpkg", "GPKG"),
+    ])
+    def test_local_vector_file(self, api, path, format):
+        """Load vector cube from local vector file"""
+        path = str(get_path(path))
         pg = {"lf": {
             "process_id": "load_uploaded_files",
-            "arguments": {"paths": [path], "format": "ESRI Shapefile"},
+            "arguments": {"paths": [path], "format": format},
             "result": True,
         }}
         resp = api.check_result(pg)
@@ -1062,11 +1067,42 @@ class TestVectorCubeLoading:
             "type": "FeatureCollection",
             "features": [
                 {
-                    "type": "Feature", "properties": {"FID": 23, "name": "Lint", "population": 1234},
+                    "type": "Feature", "properties": {"id": 23, "name": "Mol", "class": 4},
                     "geometry": DictSubSet({"type": "Polygon"}),
                 },
                 {
-                    "type": "Feature", "properties": {"FID": 58, "name": "Borsbeek", "population": 5678},
+                    "type": "Feature", "properties": {"id": 58, "name": "TAP", "class": 5},
+                    "geometry": DictSubSet({"type": "Polygon"}),
+                },
+            ]
+        })
+
+    @pytest.mark.parametrize(["path", "format"], [
+        ("geojson/mol.json", "GeoJSON"),
+        ("gpkg/mol.gpkg", "GPKG"),
+    ])
+    def test_vector_url(self, api, path, format, urllib_mock):
+        """Load vector cube from URL"""
+        path = get_path(path)
+        url = f"https://a.test/{path.name}"
+        urllib_mock.get(url, data=path.read_bytes())
+
+        pg = {"lf": {
+            "process_id": "load_uploaded_files",
+            "arguments": {"paths": [url], "format": format},
+            "result": True,
+        }}
+        resp = api.check_result(pg)
+        assert resp.headers["Content-Type"] == "application/geo+json"
+        assert resp.json == DictSubSet({
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature", "properties": {"id": 23, "name": "Mol", "class": 4},
+                    "geometry": DictSubSet({"type": "Polygon"}),
+                },
+                {
+                    "type": "Feature", "properties": {"id": 58, "name": "TAP", "class": 5},
                     "geometry": DictSubSet({"type": "Polygon"}),
                 },
             ]
@@ -1082,7 +1118,7 @@ class TestVectorCubeLoading:
 
     def test_shapefile_url(self, api, urllib_mock):
         """Load vector cube from shapefile (zip) URL"""
-        zip_bytes = self._zip_content(get_path("shapefile").glob("shapefile01.*"))
+        zip_bytes = self._zip_content(get_path("shapefile").glob("mol.*"))
         urllib_mock.get(f"https://a.test/geom.shp.zip", data=zip_bytes)
         pg = {"lf": {
             "process_id": "load_uploaded_files",
@@ -1095,11 +1131,11 @@ class TestVectorCubeLoading:
             "type": "FeatureCollection",
             "features": [
                 {
-                    "type": "Feature", "properties": {"FID": 23, "name": "Lint", "population": 1234},
+                    "type": "Feature", "properties": {"id": 23, "name": "Mol", "class": 4},
                     "geometry": DictSubSet({"type": "Polygon"}),
                 },
                 {
-                    "type": "Feature", "properties": {"FID": 58, "name": "Borsbeek", "population": 5678},
+                    "type": "Feature", "properties": {"id": 58, "name": "TAP", "class": 5},
                     "geometry": DictSubSet({"type": "Polygon"}),
                 },
             ]
