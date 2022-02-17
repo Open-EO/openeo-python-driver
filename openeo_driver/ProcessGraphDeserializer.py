@@ -1311,10 +1311,9 @@ def load_uploaded_files(args: dict, env: EvalEnv) -> DriverVectorCube:
     input_formats = CaseInsensitiveDict(env.backend_implementation.file_formats()["input"])
     if format not in input_formats:
         raise FileTypeInvalidException(type=format, types=", ".join(input_formats.keys()))
-    format = format.upper()
 
-    if format == "GEOJSON":
-        return DriverVectorCube.from_geojson(paths, options=options)
+    if format.lower() in {"geojson", "esri shapefile"}:
+        return DriverVectorCube.from_fiona(paths, driver=format, options=options)
     else:
         raise FeatureUnsupportedException(f"Loading format {format!r} is not supported")
 

@@ -135,13 +135,13 @@ class DriverVectorCube:
         self.data = data
 
     @classmethod
-    def from_geojson(cls, paths: List[str], options: dict):
-        # TODO EP-3981: provide a more general factory instead of this GeoJSON-specific one?
+    def from_fiona(cls, paths: List[str], driver: str, options: dict):
+        """Factory to load vector cube data using fiona/GeoPandas."""
         if len(paths) != 1:
             # TODO EP-3981: support multiple paths
             raise FeatureUnsupportedException(message="Loading a vector cube from multiple files is not supported")
         # TODO EP-3981: lazy loading like/with DelayedVector
-        return cls(data=gpd.read_file(paths[0]))
+        return cls(data=gpd.read_file(paths[0], driver=driver))
 
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
         # TODO EP-3981: proper mapping of format to driver

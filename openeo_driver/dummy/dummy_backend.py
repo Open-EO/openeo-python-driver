@@ -512,7 +512,11 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
                 "GeoJSON": {
                     "gis_data_types": ["vector"],
                     "parameters": {},
-                }
+                },
+                "ESRI Shapefile": {
+                    "gis_data_types": ["vector"],
+                    "parameters": {},
+                },
             },
             "output": {
                 "GTiff": {

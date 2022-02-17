@@ -3,12 +3,16 @@ import json
 import re
 import sys
 import textwrap
+from io import BytesIO
+from pathlib import Path
+from typing import Iterable
 from unittest import mock
+from zipfile import ZipFile
 
+import geopandas as gpd
 import numpy as np
 import pytest
 import shapely.geometry
-import geopandas as gpd
 
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
 from openeo_driver.datacube import DriverDataCube
@@ -954,7 +958,8 @@ def test_read_vector_from_feature_collection(api):
 
 class TestVectorCubeLoading:
 
-    def test_basic_feature_collection(self, api):
+    def test_geojson_feature_collection(self, api):
+        """Load vector cube from local feature collection GeoJSON file."""
         path = str(get_path("geojson/FeatureCollection02.json"))
         pg = {"lf": {
             "process_id": "load_uploaded_files",
@@ -1002,6 +1007,7 @@ class TestVectorCubeLoading:
         ),
     ])
     def test_geojson_types(self, api, path, expected_features):
+        """Load vector cube from GeoJSON types"""
         pg = {"lf": {
             "process_id": "load_uploaded_files",
             "arguments": {"paths": [str(get_path(path))], "format": "GeoJSON"},
@@ -1015,6 +1021,7 @@ class TestVectorCubeLoading:
         })
 
     def test_geojson_url(self, api, urllib_mock):
+        """Load vector cube from GeoJSON URL"""
         urllib_mock.get(
             "https://a.test/features.geojson",
             data=get_path("geojson/FeatureCollection02.json").read_bytes()
@@ -1037,6 +1044,63 @@ class TestVectorCubeLoading:
                 {
                     "type": "Feature", "properties": {"id": "second", "pop": 5678},
                     "geometry": {"type": "Polygon", "coordinates": [[[4, 2], [5, 4], [3, 4], [4, 2]]]}
+                },
+            ]
+        })
+
+    def test_shapefile(self, api):
+        """Load vector cube from local shapefile"""
+        path = str(get_path("shapefile/shapefile01.shp"))
+        pg = {"lf": {
+            "process_id": "load_uploaded_files",
+            "arguments": {"paths": [path], "format": "ESRI Shapefile"},
+            "result": True,
+        }}
+        resp = api.check_result(pg)
+        assert resp.headers["Content-Type"] == "application/geo+json"
+        assert resp.json == DictSubSet({
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature", "properties": {"FID": 23, "name": "Lint", "population": 1234},
+                    "geometry": DictSubSet({"type": "Polygon"}),
+                },
+                {
+                    "type": "Feature", "properties": {"FID": 58, "name": "Borsbeek", "population": 5678},
+                    "geometry": DictSubSet({"type": "Polygon"}),
+                },
+            ]
+        })
+
+    def _zip_content(self, paths: Iterable[Path]) -> bytes:
+        """Zip given files to an in-memory ZIP file"""
+        with BytesIO() as bytes_io:
+            with ZipFile(bytes_io, mode="w") as zip_file:
+                for path in paths:
+                    zip_file.writestr(path.name, path.read_bytes())
+            return bytes_io.getvalue()
+
+    def test_shapefile_url(self, api, urllib_mock):
+        """Load vector cube from shapefile (zip) URL"""
+        zip_bytes = self._zip_content(get_path("shapefile").glob("shapefile01.*"))
+        urllib_mock.get(f"https://a.test/geom.shp.zip", data=zip_bytes)
+        pg = {"lf": {
+            "process_id": "load_uploaded_files",
+            "arguments": {"paths": ["https://a.test/geom.shp.zip"], "format": "ESRI Shapefile"},
+            "result": True,
+        }}
+        resp = api.check_result(pg)
+        assert resp.headers["Content-Type"] == "application/geo+json"
+        assert resp.json == DictSubSet({
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature", "properties": {"FID": 23, "name": "Lint", "population": 1234},
+                    "geometry": DictSubSet({"type": "Polygon"}),
+                },
+                {
+                    "type": "Feature", "properties": {"FID": 58, "name": "Borsbeek", "population": 5678},
+                    "geometry": DictSubSet({"type": "Polygon"}),
                 },
             ]
         })
