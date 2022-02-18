@@ -142,7 +142,8 @@ def geojson_to_multipolygon(
         geojson: dict
 ) -> Union[shapely.geometry.MultiPolygon, shapely.geometry.Polygon]:
     """
-    Convert GeoJSON object (dict) to shapely MultiPolygon (or Polygon where possible/allowed).
+    Convert GeoJSON object (dict) to shapely MultiPolygon (or Polygon where possible/allowed; in particular, this
+    means dissolving overlapping polygons into one).
     """
     # TODO: option to also force conversion of Polygon to MultiPolygon?
     if geojson["type"] == "Feature":

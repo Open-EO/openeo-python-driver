@@ -15,7 +15,7 @@ import numpy as np
 import openeo_processes
 import requests
 from dateutil.relativedelta import relativedelta
-from shapely.geometry import shape, mapping, MultiPolygon
+from shapely.geometry import shape, mapping, GeometryCollection, MultiPolygon
 
 import openeo.udf
 from openeo.capabilities import ComparableVersion
@@ -1004,7 +1004,13 @@ def filter_spatial(args: Dict, env: EvalEnv) -> DriverDataCube:
         # TODO: support DelayedVector
         raise NotImplementedError("filter_spatial only supports dict but got {g!r}".format(g=geometries))
 
-    return cube.filter_spatial(geojson_to_multipolygon(geometries))
+    geometries = geojson_to_geometry(geometries)
+
+    if isinstance(geometries, GeometryCollection):
+        polygons = [geom.geoms[0] if isinstance(geom, MultiPolygon) else geom for geom in geometries.geoms]
+        geometries = MultiPolygon(polygons)
+
+    return cube.filter_spatial(geometries)
 
 
 @process
