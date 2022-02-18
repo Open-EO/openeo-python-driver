@@ -24,6 +24,7 @@ from openeo_driver.dummy.dummy_backend import DummyVisitor
 from openeo_driver.errors import ProcessGraphMissingException, ProcessGraphInvalidException
 from openeo_driver.testing import ApiTester, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN, \
     preprocess_regex_check_and_replace, generate_unique_test_process_id, RegexMatcher, DictSubSet
+from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.utils import EvalEnv
 from .data import get_path, TEST_DATA_ROOT, load_json
 
@@ -958,14 +959,20 @@ def test_read_vector_from_feature_collection(api):
 
 class TestVectorCubeLoading:
 
-    def test_geojson_feature_collection(self, api):
+    @pytest.mark.parametrize("add_save_result", [False, True])
+    def test_geojson_feature_collection(self, api, add_save_result):
         """Load vector cube from local feature collection GeoJSON file."""
         path = str(get_path("geojson/FeatureCollection02.json"))
         pg = {"lf": {
             "process_id": "load_uploaded_files",
             "arguments": {"paths": [path], "format": "GeoJSON"},
-            "result": True,
         }}
+        if add_save_result:
+            pg["sr"] = {
+                "process_id": "save_result",
+                "arguments": {"data": {"from_node": "lf"}, "format": "GeoJSON"},
+            }
+        pg["sr" if add_save_result else "lf"]["result"] = True
         resp = api.check_result(pg)
         assert resp.headers["Content-Type"] == "application/geo+json"
         assert resp.json == DictSubSet({
@@ -1140,6 +1147,40 @@ class TestVectorCubeLoading:
                 },
             ]
         })
+
+    @pytest.mark.parametrize(["output_format", "content_type", "data_prefix"], [
+        ("GeoJson", "application/geo+json", b"{"),
+        ("ESRI Shapefile", "application/zip", b"PK\x03\x04"),
+        ("GPKG", "application/geopackage+sqlite3", b"SQLite format 3"),
+    ])
+    def test_vector_save_result(self, api, output_format, content_type, data_prefix, tmp_path):
+        path = str(get_path("geojson/FeatureCollection02.json"))
+        pg = {
+            "lf": {
+                "process_id": "load_uploaded_files",
+                "arguments": {"paths": [path], "format": "GeoJSON"},
+            },
+            "sr": {
+                "process_id": "save_result",
+                "arguments": {"data": {"from_node": "lf"}, "format": output_format,
+                              "options": {"zip_multi_file": True}},
+                "result": True,
+            }
+        }
+        resp = api.check_result(pg)
+        format_info = IOFORMATS.get(output_format)
+        assert resp.headers["Content-Type"] == content_type
+        assert resp.data.startswith(data_prefix)
+
+        download = tmp_path / f"download.{format_info.extension}{'.zip' if 'zip' in content_type else ''}"
+        download.write_bytes(resp.data)
+
+        df = gpd.read_file(download, driver=format_info.fiona_driver)
+        assert list(df.columns) == ["id", "pop", "geometry"]
+        assert list(df["id"]) == ["first", "second"]
+        for geometry, expected in zip(df["geometry"], [(1, 1, 3, 3), (3, 2, 5, 4)]):
+            assert isinstance(geometry, shapely.geometry.Polygon)
+            assert geometry.bounds == expected
 
 
 def test_no_nested_JSONResult(api):

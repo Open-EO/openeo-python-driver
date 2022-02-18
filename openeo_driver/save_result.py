@@ -4,28 +4,34 @@ import pathlib
 import tempfile
 import warnings
 import logging
-from abc import ABC
 from pathlib import Path
 from shutil import copy
 from tempfile import mkstemp
-from typing import Union, Dict
+from typing import Union, Dict, Optional
 from zipfile import ZipFile
 
 import numpy as np
 import pandas as pd
-from flask import send_from_directory, jsonify
+from flask import send_from_directory, jsonify, Response
 from shapely.geometry import GeometryCollection, mapping
 
 from openeo.metadata import CollectionMetadata
-from openeo_driver.datacube import DriverDataCube
-from openeo_driver.errors import OpenEOApiException
+from openeo.util import ensure_dir
+from openeo_driver.datacube import DriverDataCube, DriverVectorCube
+from openeo_driver.errors import OpenEOApiException, FeatureUnsupportedException
+from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.utils import replace_nan_values
 
 _log = logging.getLogger(__name__)
 
-class SaveResult(ABC):
+
+class SaveResult:
     """
-    A class that generates a Flask response.
+    Encapsulation of a processing result (raster data cube, vector cube, array, ...)
+    and how it should be saved (format and additional options).
+
+    To be delivered to the user through a Flask response (synchronous mode) or
+    assets download URLs (batch mode).
     """
 
     def __init__(self, format: str = None, options: dict = None):
@@ -39,26 +45,16 @@ class SaveResult(ABC):
         self.format = format.lower()
         self.options = options or {}
 
-    def create_flask_response(self):
+    def create_flask_response(self) -> Response:
         """
         Returns a Flask compatible response.
 
         :return: A response that can be handled by Flask
         """
-        pass
+        raise NotImplementedError
 
     def get_mimetype(self, default="application/octet-stream"):
-        return {
-            "gtiff": "image/tiff; application=geotiff",
-            "cog": "image/tiff; application=geotiff; profile=cloud-optimized",
-            "netcdf": "application/x-netcdf",
-            "png": "image/png",
-            "json": "application/json",
-            "geojson": "application/geo+json",
-            "covjson": "application/json",
-            "csv": "text/csv",
-            # TODO: support more formats
-        }.get(self.format.lower(), default)
+        return IOFORMATS.get_mimetype(self.format)
 
 
 def get_temp_file(suffix="", prefix="openeo-pydrvr-"):
@@ -83,17 +79,38 @@ class ImageCollectionResult(SaveResult):
 
         :return: STAC assets dictionary: https://github.com/radiantearth/stac-spec/blob/master/item-spec/item-spec.md#assets
         """
-        if "write_assets" in dir(self.cube):
+        if hasattr(self.cube, "write_assets"):
             return self.cube.write_assets(filename=directory, format=self.format, format_options=self.options)
         else:
             filename = self.cube.save_result(filename=directory, format=self.format, format_options=self.options)
             return {filename:{"href":filename}}
 
-    def create_flask_response(self):
+    def create_flask_response(self) -> Response:
         filename = get_temp_file(suffix=".save_result.{e}".format(e=self.format.lower()))
         filename = self.save_result(filename)
         mimetype = self.get_mimetype()
         return send_from_directory(os.path.dirname(filename), os.path.basename(filename), mimetype=mimetype)
+
+
+class VectorCubeResult(SaveResult):
+    # TODO merge implementation with ImageCollectionResult?
+
+    def __init__(self, cube: DriverVectorCube, format: str, options: Optional[dict] = None):
+        super().__init__(format=format, options=options)
+        self.cube = cube
+
+    def write_assets(self, directory: Union[str, Path]) -> dict:
+        return self.cube.write_assets(directory=directory, format=self.format, options=self.options)
+
+    def create_flask_response(self) -> Response:
+        with tempfile.TemporaryDirectory(prefix="openeo-pydrvr-") as tmp_dir:
+            assets = self.write_assets(directory=tmp_dir)
+            if len(assets) != 1:
+                raise FeatureUnsupportedException("Multi-file responses not yet supported")
+            asset = assets.popitem()[1]
+            path: Path = asset["href"]
+            mimetype = asset["type"]
+            return send_from_directory(path.parent, path.name, mimetype=mimetype)
 
 
 class JSONResult(SaveResult):
@@ -127,7 +144,7 @@ class JSONResult(SaveResult):
     def prepare_for_json(self):
         return replace_nan_values(self.get_data())
 
-    def create_flask_response(self):
+    def create_flask_response(self) -> Response:
         return jsonify(self.prepare_for_json())
 
 
@@ -191,7 +208,7 @@ class AggregatePolygonResult(JSONResult):
 
         return {str(Path(filename).name): asset}
 
-    def create_flask_response(self):
+    def create_flask_response(self) -> Response:
         if self.is_format('netcdf', 'ncdf'):
             filename = self.to_netcdf()
             return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
@@ -417,7 +434,7 @@ class MultipleFilesResult(SaveResult):
             for file in self.files:
                 file.unlink()
 
-    def create_flask_response(self):
+    def create_flask_response(self) -> Response:
         from flask import current_app
 
         _, temp_file_name = mkstemp(suffix=".zip", dir=Path.cwd())
@@ -441,6 +458,6 @@ class NullResult(SaveResult):
     def __init__(self):
         super().__init__()
 
-    def create_flask_response(self):
+    def create_flask_response(self) -> Response:
         return jsonify(None)
 

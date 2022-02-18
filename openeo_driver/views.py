@@ -29,7 +29,7 @@ from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, ProcessUnsupportedException, \
     JobNotFinishedException, ProcessGraphInvalidException, InternalException
-from openeo_driver.save_result import SaveResult, get_temp_file
+from openeo_driver.save_result import SaveResult, get_temp_file, VectorCubeResult
 from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.util.logging import RequestCorrelationIdLogging
@@ -590,9 +590,7 @@ def register_views_processing(
             filename = result.save_result(filename=get_temp_file(), format="GTiff", format_options=format_options)
             return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
         elif isinstance(result, DriverVectorCube):
-            path = result.save_result(filename=get_temp_file(), format="GeoJSON", format_options={})
-            # TODO: clean up temp file when done?
-            return send_from_directory(os.path.dirname(path), os.path.basename(path), mimetype="application/geo+json")
+            return VectorCubeResult(result, format="GeoJSON", options={}).create_flask_response()
         elif result is None:
             abort(500, "Process graph evaluation gave no result")
         elif isinstance(result, SaveResult):

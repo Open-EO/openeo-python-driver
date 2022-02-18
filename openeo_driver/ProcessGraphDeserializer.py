@@ -33,7 +33,8 @@ from openeo_driver.errors import ProcessParameterRequiredException, ProcessParam
     FeatureUnsupportedException, OpenEOApiException, ProcessGraphInvalidException, FileTypeInvalidException
 from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE
-from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult, NullResult
+from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult, NullResult, \
+    VectorCubeResult
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
 from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union, geojson_to_multipolygon
@@ -578,15 +579,19 @@ def apply_dimension(args: Dict, env: EvalEnv) -> DriverDataCube:
 
 @process
 def save_result(args: Dict, env: EvalEnv) -> SaveResult:
+    data = extract_arg(args, 'data')
     format = extract_arg(args, 'format')
     options = args.get('options', {})
-    data = extract_arg(args, 'data')
 
+    # TODO: openeo-python-driver and openeo-geopyspark-driver also implement implicit `save_result` style handling
+    #       (in `GET /result` and batch_job.py). Unify this logic?
     if isinstance(data, SaveResult):
         data.set_format(format, options)
         return data
     elif isinstance(data, DriverDataCube):
         return ImageCollectionResult(data, format=format, options=options)
+    elif isinstance(data, DriverVectorCube):
+        return VectorCubeResult(cube=data, format=format, options=options)
     elif isinstance(data, DelayedVector):
         # TODO EP-3981 add vector cube support: keep features from feature collection
         geojsons = (mapping(geometry) for geometry in data.geometries)

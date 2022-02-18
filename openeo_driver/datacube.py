@@ -1,12 +1,16 @@
 import inspect
-from typing import List
+import zipfile
+from pathlib import Path
+from typing import List, Union, Optional
 
 import geopandas as gpd
 
 from openeo import ImageCollection
 from openeo.metadata import CollectionMetadata
+from openeo.util import ensure_dir
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.errors import FeatureUnsupportedException
+from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.utils import EvalEnv
 
 
@@ -143,7 +147,36 @@ class DriverVectorCube:
         # TODO EP-3981: lazy loading like/with DelayedVector
         return cls(data=gpd.read_file(paths[0], driver=driver))
 
-    def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
-        # TODO EP-3981: proper mapping of format to driver
-        self.data.to_file(filename, driver=format)
-        return filename
+    def write_assets(self, directory: Union[str, Path], format: str, options: Optional[dict] = None) -> dict:
+        directory = ensure_dir(directory)
+        format_info = IOFORMATS.get(format)
+        # TODO: check if format can be used for vector data?
+        path = directory / f"vectorcube.{format_info.extension}"
+        self.data.to_file(path, driver=format_info.fiona_driver)
+
+        if not format_info.multi_file:
+            # single file format
+            return {path.name: {
+                "href": path,
+                "title": "Vector cube",
+                "type": format_info.mimetype,
+                "roles": ["data"],
+            }}
+        else:
+            # Multi-file format
+            components = list(directory.glob("vectorcube.*"))
+            if options.get("zip_multi_file"):
+                # TODO: automatically zip shapefile components?
+                zip_path = path.with_suffix(f".{format_info.extension}.zip")
+                with zipfile.ZipFile(zip_path, "w") as zip_file:
+                    for component in components:
+                        zip_file.write(component, arcname=component.name)
+                return {path.name: {
+                    "href": zip_path,
+                    "title": "Vector cube",
+                    "type": "application/zip",
+                    "roles": ["data"],
+                }}
+            else:
+                # TODO: better multi-file support?
+                return {p.name: {"href": p} for p in components}
