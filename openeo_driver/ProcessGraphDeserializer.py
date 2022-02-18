@@ -994,11 +994,18 @@ def filter_bbox(args: Dict, env: EvalEnv) -> DriverDataCube:
     spatial_extent = _extract_bbox_extent(args, "extent", process_id="filter_bbox")
     return cube.filter_bbox(**spatial_extent)
 
+
 @process_registry_100.add_function
 def filter_spatial(args: Dict, env: EvalEnv) -> DriverDataCube:
     cube = extract_arg(args, 'data')
-    geometries = extract_arg(args,'geometries')
-    return cube.filter_spatial(geometries)
+    geometries = extract_arg(args, 'geometries')
+
+    if not isinstance(geometries, dict):
+        # TODO: support DelayedVector
+        raise NotImplementedError("filter_spatial only supports dict but got {g!r}".format(g=geometries))
+
+    return cube.filter_spatial(geojson_to_multipolygon(geometries))
+
 
 @process
 def filter_bands(args: Dict, env: EvalEnv) -> DriverDataCube:
