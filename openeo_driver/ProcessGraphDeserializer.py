@@ -1155,25 +1155,6 @@ def constant(args: dict, env: EvalEnv):
     return args["x"]
 
 
-@non_standard_process(
-    ProcessSpec(id='histogram', description="A histogram groups data into bins and plots the number of members in each bin versus the bin number.")
-    .param(name='data', description='An array of numbers', schema={
-                "type": "array",
-                "items": {
-                    "type": [
-                        "number",
-                        "null"
-                    ]
-                }
-            })
-    .returns(description="A sequence of (bin, count) pairs", schema={
-        "type": "object"
-    })
-)
-def histogram(args, env: EvalEnv):
-    # currently only available as a reducer passed to e.g. aggregate_polygon
-    raise ProcessUnsupportedException('histogram')
-
 
 def apply_process(process_id: str, args: dict, namespace: Union[str, None], env: EvalEnv):
     parent_process = env.get('parent_process')
