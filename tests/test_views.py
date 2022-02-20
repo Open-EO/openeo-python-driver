@@ -361,31 +361,6 @@ class TestGeneral:
         assert "computed sum" in spec["returns"]["description"]
         assert "process_graph" in spec
 
-    def test_processes_non_standard_histogram(self, api):
-        resp = api.get('/processes').assert_status_code(200).json
-        histogram_spec, = [p for p in resp["processes"] if p['id'] == "histogram"]
-        assert "into bins" in histogram_spec["description"]
-        if api.api_version_compare.at_least("1.0.0"):
-            assert histogram_spec["parameters"] == [
-                {
-                    'name': 'data',
-                    'description': 'An array of numbers',
-                    'optional': False,
-                    'schema': {'type': 'array', 'items': {'type': ['number', 'null']}, }
-                }
-            ]
-        else:
-            assert histogram_spec["parameters"] == {
-                'data': {
-                    'description': 'An array of numbers',
-                    'required': True,
-                    'schema': {'type': 'array', 'items': {'type': ['number', 'null']}, }
-                }
-            }
-        assert histogram_spec["returns"] == {
-            'description': 'A sequence of (bin, count) pairs',
-            'schema': {'type': 'object'}
-        }
 
     def test_processes_non_standard_atmospheric_correction(self, api):
         if api.api_version_compare.below("1.0.0"):
