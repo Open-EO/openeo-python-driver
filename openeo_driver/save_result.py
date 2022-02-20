@@ -386,7 +386,8 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
         if(len(paths)==0):
             raise OpenEOApiException(status_code=500, code="EmptyResult", message=f"aggregate_spatial did not generate any output, intermediate output path on the server: {csv_dir}")
         df = pd.concat(map(pd.read_csv, paths))
-        super().__init__(timeseries={date: _flatten_df(df[df.date == date].drop(columns="date")) for date in df.date.unique()},regions=regions,metadata=metadata)
+
+        super().__init__(timeseries={pd.to_datetime(date).tz_convert('UTC').strftime('%Y-%m-%dT%XZ'): _flatten_df(df[df.date == date].drop(columns="date")) for date in df.date.unique()},regions=regions,metadata=metadata)
         self._csv_dir = csv_dir
 
     def to_csv(self, destination=None):
