@@ -1,14 +1,14 @@
 # TODO: rename this module to something in snake case? It doesn't even implement a ProcessGraphDeserializer class.
 
 # pylint: disable=unused-argument
+
+import calendar
 import datetime
 import logging
 import tempfile
 import time
 import warnings
-import calendar
 from pathlib import Path
-from requests.structures import CaseInsensitiveDict
 from typing import Dict, Callable, List, Union, Tuple, Any, Iterable
 
 import geopandas as gpd
@@ -16,12 +16,13 @@ import numpy as np
 import openeo_processes
 import requests
 from dateutil.relativedelta import relativedelta
-from shapely.geometry import shape, mapping, GeometryCollection, MultiPolygon
+from requests.structures import CaseInsensitiveDict
+from shapely.geometry import shape, GeometryCollection, shape, mapping, MultiPolygon
 
 import openeo.udf
 from openeo.capabilities import ComparableVersion
-from openeo.metadata import CollectionMetadata, MetadataException
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphVisitException
+from openeo.metadata import CollectionMetadata, MetadataException
 from openeo.util import load_json, rfc3339
 from openeo_driver import dry_run
 from openeo_driver.backend import UserDefinedProcessMetadata, LoadParameters, Processing, OpenEoBackendImplementation
@@ -30,11 +31,11 @@ from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint
 from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException, \
-    FeatureUnsupportedException, OpenEOApiException, ProcessGraphInvalidException, FileTypeInvalidException
-from openeo_driver.errors import ProcessUnsupportedException
+    FeatureUnsupportedException, OpenEOApiException, ProcessGraphInvalidException, FileTypeInvalidException, \
+    ProcessUnsupportedException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE
-from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult, NullResult, \
-    VectorCubeResult
+from openeo_driver.save_result import JSONResult, SaveResult, AggregatePolygonResult, NullResult, \
+    to_save_result
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
 from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union, geojson_to_multipolygon
@@ -583,24 +584,13 @@ def save_result(args: Dict, env: EvalEnv) -> SaveResult:
     format = extract_arg(args, 'format')
     options = args.get('options', {})
 
-    # TODO: openeo-python-driver and openeo-geopyspark-driver also implement implicit `save_result` style handling
-    #       (in `GET /result` and batch_job.py). Unify this logic?
     if isinstance(data, SaveResult):
+        # TODO: Is this an expected code path? `save_result` should be terminal node in a graph
+        #       so chaining `save_result` calls should not be valid
         data.set_format(format, options)
         return data
-    elif isinstance(data, DriverDataCube):
-        return ImageCollectionResult(data, format=format, options=options)
-    elif isinstance(data, DriverVectorCube):
-        return VectorCubeResult(cube=data, format=format, options=options)
-    elif isinstance(data, DelayedVector):
-        # TODO EP-3981 add vector cube support: keep features from feature collection
-        geojsons = (mapping(geometry) for geometry in data.geometries)
-        return JSONResult(geojsons)
-    elif data is None:
-        return data
     else:
-        # Assume generic JSON result
-        return JSONResult(data, format, options)
+        return to_save_result(data, format=format, options=options)
 
 
 @process

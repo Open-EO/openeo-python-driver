@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 from shutil import copy
 from tempfile import mkstemp
-from typing import Union, Dict, Optional
+from typing import Union, Dict, Optional, Any
 from zipfile import ZipFile
 
 import numpy as np
@@ -18,6 +18,7 @@ from shapely.geometry import GeometryCollection, mapping
 from openeo.metadata import CollectionMetadata
 from openeo.util import ensure_dir
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube
+from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, FeatureUnsupportedException
 from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.utils import replace_nan_values
@@ -34,8 +35,10 @@ class SaveResult:
     assets download URLs (batch mode).
     """
 
-    def __init__(self, format: str = None, options: dict = None):
-        self.format = format and format.lower()
+    DEFAULT_FORMAT = None
+
+    def __init__(self, format: Optional[str] = None, options: Optional[dict] = None):
+        self.format = format or self.DEFAULT_FORMAT
         self.options = options or {}
 
     def is_format(self, *args):
@@ -65,11 +68,16 @@ def get_temp_file(suffix="", prefix="openeo-pydrvr-"):
 
 class ImageCollectionResult(SaveResult):
 
-    def __init__(self, cube: DriverDataCube, format: str, options: dict):
+    DEFAULT_FORMAT = "GTiff"
+
+    def __init__(self, cube: DriverDataCube, format: Optional[str] = None, options: Optional[dict] = None):
         super().__init__(format=format, options=options)
         self.cube = cube
 
+    # TODO: simplify the back and forth between save_result and write_assets?
+
     def save_result(self, filename: str) -> str:
+        # TODO: port to write_assets
         return self.cube.save_result(filename=filename, format=self.format, format_options=self.options)
 
     def write_assets(self, directory:str) -> Dict:
@@ -80,12 +88,14 @@ class ImageCollectionResult(SaveResult):
         :return: STAC assets dictionary: https://github.com/radiantearth/stac-spec/blob/master/item-spec/item-spec.md#assets
         """
         if hasattr(self.cube, "write_assets"):
+            # TODO: code smell: filename=directory?
             return self.cube.write_assets(filename=directory, format=self.format, format_options=self.options)
         else:
             filename = self.cube.save_result(filename=directory, format=self.format, format_options=self.options)
             return {filename:{"href":filename}}
 
     def create_flask_response(self) -> Response:
+        # TODO: clean up temp file
         filename = get_temp_file(suffix=".save_result.{e}".format(e=self.format.lower()))
         filename = self.save_result(filename)
         mimetype = self.get_mimetype()
@@ -95,7 +105,9 @@ class ImageCollectionResult(SaveResult):
 class VectorCubeResult(SaveResult):
     # TODO merge implementation with ImageCollectionResult?
 
-    def __init__(self, cube: DriverVectorCube, format: str, options: Optional[dict] = None):
+    DEFAULT_FORMAT = "GeoJSON"
+
+    def __init__(self, cube: DriverVectorCube, format: Optional[str], options: Optional[dict] = None):
         super().__init__(format=format, options=options)
         self.cube = cube
 
@@ -126,6 +138,7 @@ class JSONResult(SaveResult):
 
         :return: STAC assets dictionary: https://github.com/radiantearth/stac-spec/blob/master/item-spec/item-spec.md#assets
         """
+        # TODO: Hackish: original filename is ignored. Other `write_assets` implementations take a directory directly.
         output_dir = Path(path).parent
         output_file = output_dir / "result.json"
         with open(output_file, 'w') as f:
@@ -183,6 +196,7 @@ class AggregatePolygonResult(JSONResult):
 
         :return: STAC assets dictionary: https://github.com/radiantearth/stac-spec/blob/master/item-spec/item-spec.md#assets
         """
+        # TODO: Hackish: original filename is ignored. Other `write_assets` implementations take a directory directly.
         directory = pathlib.Path(directory).parent
         filename = str(Path(directory)/"timeseries.json")
         asset = {
@@ -461,3 +475,31 @@ class NullResult(SaveResult):
     def create_flask_response(self) -> Response:
         return jsonify(None)
 
+
+def to_save_result(data: Any, format: Optional[str] = None, options: Optional[dict] = None) -> SaveResult:
+    """
+    Convert a process graph result to a SaveResult object
+    """
+    options = options or {}
+    if isinstance(data, SaveResult):
+        return data
+    elif isinstance(data, DriverDataCube):
+        return ImageCollectionResult(data, format=format, options=options)
+    elif isinstance(data, DriverVectorCube):
+        return VectorCubeResult(cube=data, format=format, options=options)
+    elif isinstance(data, DelayedVector):
+        # TODO EP-3981 add vector cube support: keep features from feature collection
+        geojsons = [mapping(geometry) for geometry in data.geometries]
+        return JSONResult(geojsons, format=format, options=options)
+    elif isinstance(data, np.ndarray):
+        return JSONResult(data.tolist())
+    elif isinstance(data, np.generic):
+        # Convert numpy datatype to native Python datatype first
+        return JSONResult(data.item())
+    elif isinstance(data, (list, tuple, dict, str, int, float)):
+        # Generic JSON result
+        return JSONResult(data)
+    elif data is None:
+        return NullResult()
+    else:
+        raise ValueError(f"No save result support for type {type(data)}")

@@ -186,6 +186,7 @@ class DummyDataCube(DriverDataCube):
         return self.metadata.dimension_names()
 
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
+        # TODO: this method should be deprecated (limited to single asset) in favor of write_assets (supports multiple assets)
         with open(filename, "w") as f:
             f.write("{f}:save_result({s!r}".format(f=format, s=self))
         return filename

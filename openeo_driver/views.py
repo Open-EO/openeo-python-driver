@@ -2,9 +2,7 @@ import copy
 import functools
 import json
 import logging
-import os
 import re
-import sys
 import uuid
 from collections import namedtuple, defaultdict
 from typing import Callable, Tuple, List
@@ -12,28 +10,24 @@ from typing import Callable, Tuple, List
 import flask
 import flask_cors
 import numpy as np
-from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, current_app, redirect
+from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, \
+    current_app, redirect
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from openeo.capabilities import ComparableVersion
-from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphVisitException
 from openeo.util import dict_no_none, deep_get, Rfc3339
 from openeo_driver import urlsigning
-from openeo_driver.ProcessGraphDeserializer import ENV_DRY_RUN_TRACER, convert_node
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
     ErrorSummary, OpenEoBackendImplementation, BatchJobs
-from openeo_driver.datacube import DriverDataCube, DriverVectorCube
-from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, ProcessUnsupportedException, \
     JobNotFinishedException, ProcessGraphInvalidException, InternalException
-from openeo_driver.save_result import SaveResult, get_temp_file, VectorCubeResult
+from openeo_driver.save_result import SaveResult, to_save_result
 from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.util.logging import RequestCorrelationIdLogging
-from openeo_driver.utils import replace_nan_values, EvalEnv, smart_bool, get_package_versions
+from openeo_driver.utils import EvalEnv, smart_bool
 
 _log = logging.getLogger(__name__)
 
@@ -583,32 +577,17 @@ def register_views_processing(
         })
         result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)
 
-        # TODO unify all this output handling within SaveResult logic?
-        if isinstance(result, DriverDataCube):
-            format_options = post_data.get('output', {})
-            # TODO: clean up temp file when done?
-            filename = result.save_result(filename=get_temp_file(), format="GTiff", format_options=format_options)
-            return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
-        elif isinstance(result, DriverVectorCube):
-            return VectorCubeResult(result, format="GeoJSON", options={}).create_flask_response()
-        elif result is None:
-            abort(500, "Process graph evaluation gave no result")
-        elif isinstance(result, SaveResult):
-            return result.create_flask_response()
-        elif isinstance(result, DelayedVector):
-            # TODO EP-3981 Deprecate DelayedVector in favor of VectorCube
-            from shapely.geometry import mapping
-            geojsons = (mapping(geometry) for geometry in result.geometries)
-            return jsonify(list(geojsons))
+        if result is None:
+            # TODO: is it still necessary to handle `None` as an error condition?
+            raise InternalException(message="Process graph evaluation gave no result")
         elif isinstance(result, flask.Response):
+            # TODO: handle flask.Response in `to_save_result` too?
             return result
-        elif isinstance(result, np.ndarray):
-            return jsonify(result.tolist())
-        elif isinstance(result, np.generic):
-            # Convert numpy datatype to native Python datatype first
-            return jsonify(result.item())
         else:
-            return jsonify(replace_nan_values(result))
+            if not isinstance(result, SaveResult):
+                # Implicit save result (using default/best effort format and options)
+                result = to_save_result(data=result)
+            return result.create_flask_response()
 
     @blueprint.route('/execute', methods=['POST'])
     @auth_handler.requires_bearer_auth

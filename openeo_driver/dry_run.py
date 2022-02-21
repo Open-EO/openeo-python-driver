@@ -410,6 +410,7 @@ class DryRunDataCube(DriverDataCube):
         return self._process("properties", properties)
 
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
+        # TODO: this method should be deprecated (limited to single asset) in favor of write_assets (supports multiple assets)
         return self._process("save_result", {"format": format, "options": format_options})
 
     def mask(self, mask: 'DryRunDataCube', replacement=None) -> 'DryRunDataCube':
