@@ -663,7 +663,7 @@ def test_resample_filter_spatial(dry_run_env, dry_run_tracer):
 
 
 def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
-    geometry_path = str(get_path("GeometryCollection.geojson"))
+    geometry_path = str(get_path("geojson/GeometryCollection01.json"))
     pg = {
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "vector": {"process_id": "read_vector", "arguments": {"filename": geometry_path}},

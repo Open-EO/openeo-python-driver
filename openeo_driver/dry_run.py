@@ -410,6 +410,7 @@ class DryRunDataCube(DriverDataCube):
         return self._process("properties", properties)
 
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
+        # TODO: this method should be deprecated (limited to single asset) in favor of write_assets (supports multiple assets)
         return self._process("save_result", {"format": format, "options": format_options})
 
     def mask(self, mask: 'DryRunDataCube', replacement=None) -> 'DryRunDataCube':
@@ -439,6 +440,7 @@ class DryRunDataCube(DriverDataCube):
             self, geometries: Union[str, dict, DelayedVector, shapely.geometry.base.BaseGeometry],
             reducer, target_dimension: str = "result"
     ) -> AggregatePolygonResult:
+        # TODO EP-3981 normalize to vector cube instead of GeometryCollection
         geometries, bbox = self._normalize_geometry(geometries)
         cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
         cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
@@ -450,6 +452,7 @@ class DryRunDataCube(DriverDataCube):
         """
         Helper to preprocess geometries (as used in aggregate_spatial and mask_polygon) and apply related filter_bbox
         """
+        # TODO EP-3981 normalize to vector cube instead of GeometryCollection
         if isinstance(geometries, dict):
             return self._normalize_geometry(geojson_to_geometry(geometries))
         elif isinstance(geometries, str):

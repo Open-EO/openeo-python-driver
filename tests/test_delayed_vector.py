@@ -4,12 +4,12 @@ from pyproj import CRS
 
 
 def test_feature_collection_bounds():
-    dv = DelayedVector(str(get_path("FeatureCollection.geojson")))
+    dv = DelayedVector(str(get_path("geojson/FeatureCollection01.json")))
     assert dv.bounds == (4.45, 51.1, 4.52, 51.2)
 
 
 def test_geometry_collection_bounds():
-    dv = DelayedVector(str(get_path("GeometryCollection.geojson")))
+    dv = DelayedVector(str(get_path("geojson/GeometryCollection01.json")))
     assert dv.bounds == (5.05, 51.21, 5.15, 51.3)
 
 def test_geojson_crs_unspecified():

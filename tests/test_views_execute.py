@@ -3,12 +3,16 @@ import json
 import re
 import sys
 import textwrap
+from io import BytesIO
+from pathlib import Path
+from typing import Iterable
 from unittest import mock
+from zipfile import ZipFile
 
+import geopandas as gpd
 import numpy as np
 import pytest
 import shapely.geometry
-import geopandas as gpd
 
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
 from openeo_driver.datacube import DriverDataCube
@@ -20,6 +24,7 @@ from openeo_driver.dummy.dummy_backend import DummyVisitor
 from openeo_driver.errors import ProcessGraphMissingException, ProcessGraphInvalidException
 from openeo_driver.testing import ApiTester, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN, \
     preprocess_regex_check_and_replace, generate_unique_test_process_id, RegexMatcher, DictSubSet
+from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.utils import EvalEnv
 from .data import get_path, TEST_DATA_ROOT, load_json
 
@@ -49,8 +54,10 @@ def api100(client) -> ApiTester:
     data_root = TEST_DATA_ROOT / "pg" / "1.0"
     return ApiTester(api_version="1.0.0", client=client, data_root=data_root)
 
+
 # Major.minor version of current python
 CURRENT_PY3x = f"{sys.version_info.major}.{sys.version_info.minor}"
+
 
 def test_udf_runtimes(api):
     runtimes = api.get('/udf_runtimes').assert_status_code(200).json
@@ -80,6 +87,7 @@ def test_load_collection(api):
             'result': True
         }
     })
+
 
 def test_load_collection_date_shift(api):
     api.check_result({
@@ -524,6 +532,7 @@ def test_execute_mask(api):
     params = dummy_backend.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
     assert params["spatial_extent"] == expected
 
+
 def test_execute_mask_optimized_loading(api):
     api.check_result("mask.json",
                      preprocess=preprocess_check_and_replace('"10"', 'null')
@@ -549,8 +558,6 @@ def test_execute_mask_optimized_loading(api):
     params = dummy_backend.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
     assert params["spatial_extent"] == expected
     assert params["aggregate_spatial_geometries"] == expected_geometry
-
-
 
 
 def test_execute_mask_polygon(api):
@@ -634,8 +641,10 @@ def test_execute_mask_polygon_types(api100, mask, expected):
     args, kwargs = dummy.mask_polygon.call_args
     assert isinstance(kwargs['mask'], expected)
 
+
 def test_aggregate_temporal_period(api100):
     api100.check_result("aggregate_temporal_period_max.json")
+
 
 def test_aggregate_temporal_max(api):
     api.check_result("aggregate_temporal_max.json")
@@ -726,7 +735,7 @@ def test_create_wmts_100(api100):
 
 
 def test_read_vector(api):
-    geometry_filename = str(get_path("GeometryCollection.geojson"))
+    geometry_filename = str(get_path("geojson/GeometryCollection01.json"))
     process_graph = api.load_json(
         "read_vector.json",
         preprocess=preprocess_check_and_replace("PLACEHOLDER", geometry_filename)
@@ -741,7 +750,7 @@ def test_read_vector(api):
 
 
 def test_read_vector_no_load_collection_spatial_extent(api):
-    geometry_filename = str(get_path("GeometryCollection.geojson"))
+    geometry_filename = str(get_path("geojson/GeometryCollection01.json"))
     preprocess1 = preprocess_check_and_replace("PLACEHOLDER", geometry_filename)
     preprocess2 = preprocess_regex_check_and_replace(r'"spatial_extent"\s*:\s*\{.*?\},', replacement='')
     process_graph = api.load_json(
@@ -773,7 +782,7 @@ def test_run_udf_on_vector(api100, udf_code):
     process_graph = {
         "geojson_file": {
             "process_id": "read_vector",
-            "arguments": {"filename": str(get_path("GeometryCollection.geojson"))},
+            "arguments": {"filename": str(get_path("geojson/GeometryCollection01.json"))},
         },
         "udf": {
             "process_id": "run_udf",
@@ -921,7 +930,7 @@ def test_process_reference_as_argument(api100):
 def test_load_collection_without_spatial_extent_incorporates_read_vector_extent(api):
     process_graph = api.load_json(
         "read_vector_spatial_extent.json",
-        preprocess=lambda s: s.replace("PLACEHOLDER", str(get_path("GeometryCollection.geojson")))
+        preprocess=lambda s: s.replace("PLACEHOLDER", str(get_path("geojson/GeometryCollection01.json")))
     )
     resp = api.check_result(process_graph)
     assert b'NaN' not in resp.data
@@ -936,7 +945,7 @@ def test_load_collection_without_spatial_extent_incorporates_read_vector_extent(
 def test_read_vector_from_feature_collection(api):
     process_graph = api.load_json(
         "read_vector_feature_collection.json",
-        preprocess=lambda s: s.replace("PLACEHOLDER", str(get_path("FeatureCollection.geojson")))
+        preprocess=lambda s: s.replace("PLACEHOLDER", str(get_path("geojson/FeatureCollection01.json")))
     )
     resp = api.check_result(process_graph)
     assert b'NaN' not in resp.data
@@ -946,6 +955,232 @@ def test_read_vector_from_feature_collection(api):
     }
     params = dummy_backend.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
     assert params["spatial_extent"] == {"west": 5, "south": 51, "east": 6, "north": 52, "crs": 'EPSG:4326'}
+
+
+class TestVectorCubeLoading:
+
+    @pytest.mark.parametrize("add_save_result", [False, True])
+    def test_geojson_feature_collection(self, api, add_save_result):
+        """Load vector cube from local feature collection GeoJSON file."""
+        path = str(get_path("geojson/FeatureCollection02.json"))
+        pg = {"lf": {
+            "process_id": "load_uploaded_files",
+            "arguments": {"paths": [path], "format": "GeoJSON"},
+        }}
+        if add_save_result:
+            pg["sr"] = {
+                "process_id": "save_result",
+                "arguments": {"data": {"from_node": "lf"}, "format": "GeoJSON"},
+            }
+        pg["sr" if add_save_result else "lf"]["result"] = True
+        resp = api.check_result(pg)
+        assert resp.headers["Content-Type"] == "application/geo+json"
+        assert resp.json == DictSubSet({
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature", "properties": {"id": "first", "pop": 1234},
+                    "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]}
+                },
+                {
+                    "type": "Feature", "properties": {"id": "second", "pop": 5678},
+                    "geometry": {"type": "Polygon", "coordinates": [[[4, 2], [5, 4], [3, 4], [4, 2]]]}
+                },
+            ]
+        })
+
+    @pytest.mark.parametrize(["path", "expected_features"], [
+        (
+                "geojson/Polygon01.json",
+                [DictSubSet({"type": "Feature", "geometry": DictSubSet({"type": "Polygon"})})],
+        ),
+        (
+                "geojson/MultiPolygon01.json",
+                [DictSubSet({"type": "Feature", "geometry": DictSubSet({"type": "MultiPolygon"})})],
+        ),
+        (
+                "geojson/GeometryCollection01.json",
+                [DictSubSet({"type": "Feature", "geometry": DictSubSet({"type": "GeometryCollection"})})],
+        ),
+        (
+                "geojson/Feature01.json",
+                [DictSubSet({"type": "Feature", "geometry": DictSubSet({"type": "Polygon"})})],
+        ),
+        (
+                "geojson/FeatureCollection01.json", [
+                    DictSubSet({"type": "Feature", "geometry": DictSubSet({"type": "Polygon"})}),
+                    DictSubSet({"type": "Feature", "geometry": DictSubSet({"type": "Polygon"})}),
+                ],
+        ),
+    ])
+    def test_geojson_types(self, api, path, expected_features):
+        """Load vector cube from GeoJSON types"""
+        pg = {"lf": {
+            "process_id": "load_uploaded_files",
+            "arguments": {"paths": [str(get_path(path))], "format": "GeoJSON"},
+            "result": True,
+        }}
+        resp = api.check_result(pg)
+        assert resp.headers["Content-Type"] == "application/geo+json"
+        assert resp.json == DictSubSet({
+            "type": "FeatureCollection",
+            "features": expected_features
+        })
+
+    def test_geojson_url(self, api, urllib_mock):
+        """Load vector cube from GeoJSON URL"""
+        urllib_mock.get(
+            "https://a.test/features.geojson",
+            data=get_path("geojson/FeatureCollection02.json").read_bytes()
+        )
+
+        pg = {"lf": {
+            "process_id": "load_uploaded_files",
+            "arguments": {"paths": ["https://a.test/features.geojson"], "format": "GeoJSON"},
+            "result": True,
+        }}
+        resp = api.check_result(pg)
+        assert resp.headers["Content-Type"] == "application/geo+json"
+        assert resp.json == DictSubSet({
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature", "properties": {"id": "first", "pop": 1234},
+                    "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]}
+                },
+                {
+                    "type": "Feature", "properties": {"id": "second", "pop": 5678},
+                    "geometry": {"type": "Polygon", "coordinates": [[[4, 2], [5, 4], [3, 4], [4, 2]]]}
+                },
+            ]
+        })
+
+    @pytest.mark.parametrize(["path", "format"], [
+        ("geojson/mol.json", "GeoJSON"),
+        ("shapefile/mol.shp", "ESRI Shapefile"),
+        ("gpkg/mol.gpkg", "GPKG"),
+    ])
+    def test_local_vector_file(self, api, path, format):
+        """Load vector cube from local vector file"""
+        path = str(get_path(path))
+        pg = {"lf": {
+            "process_id": "load_uploaded_files",
+            "arguments": {"paths": [path], "format": format},
+            "result": True,
+        }}
+        resp = api.check_result(pg)
+        assert resp.headers["Content-Type"] == "application/geo+json"
+        assert resp.json == DictSubSet({
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature", "properties": {"id": 23, "name": "Mol", "class": 4},
+                    "geometry": DictSubSet({"type": "Polygon"}),
+                },
+                {
+                    "type": "Feature", "properties": {"id": 58, "name": "TAP", "class": 5},
+                    "geometry": DictSubSet({"type": "Polygon"}),
+                },
+            ]
+        })
+
+    @pytest.mark.parametrize(["path", "format"], [
+        ("geojson/mol.json", "GeoJSON"),
+        ("gpkg/mol.gpkg", "GPKG"),
+    ])
+    def test_vector_url(self, api, path, format, urllib_mock):
+        """Load vector cube from URL"""
+        path = get_path(path)
+        url = f"https://a.test/{path.name}"
+        urllib_mock.get(url, data=path.read_bytes())
+
+        pg = {"lf": {
+            "process_id": "load_uploaded_files",
+            "arguments": {"paths": [url], "format": format},
+            "result": True,
+        }}
+        resp = api.check_result(pg)
+        assert resp.headers["Content-Type"] == "application/geo+json"
+        assert resp.json == DictSubSet({
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature", "properties": {"id": 23, "name": "Mol", "class": 4},
+                    "geometry": DictSubSet({"type": "Polygon"}),
+                },
+                {
+                    "type": "Feature", "properties": {"id": 58, "name": "TAP", "class": 5},
+                    "geometry": DictSubSet({"type": "Polygon"}),
+                },
+            ]
+        })
+
+    def _zip_content(self, paths: Iterable[Path]) -> bytes:
+        """Zip given files to an in-memory ZIP file"""
+        with BytesIO() as bytes_io:
+            with ZipFile(bytes_io, mode="w") as zip_file:
+                for path in paths:
+                    zip_file.writestr(path.name, path.read_bytes())
+            return bytes_io.getvalue()
+
+    def test_shapefile_url(self, api, urllib_mock):
+        """Load vector cube from shapefile (zip) URL"""
+        zip_bytes = self._zip_content(get_path("shapefile").glob("mol.*"))
+        urllib_mock.get(f"https://a.test/geom.shp.zip", data=zip_bytes)
+        pg = {"lf": {
+            "process_id": "load_uploaded_files",
+            "arguments": {"paths": ["https://a.test/geom.shp.zip"], "format": "ESRI Shapefile"},
+            "result": True,
+        }}
+        resp = api.check_result(pg)
+        assert resp.headers["Content-Type"] == "application/geo+json"
+        assert resp.json == DictSubSet({
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature", "properties": {"id": 23, "name": "Mol", "class": 4},
+                    "geometry": DictSubSet({"type": "Polygon"}),
+                },
+                {
+                    "type": "Feature", "properties": {"id": 58, "name": "TAP", "class": 5},
+                    "geometry": DictSubSet({"type": "Polygon"}),
+                },
+            ]
+        })
+
+    @pytest.mark.parametrize(["output_format", "content_type", "data_prefix"], [
+        ("GeoJson", "application/geo+json", b"{"),
+        ("ESRI Shapefile", "application/zip", b"PK\x03\x04"),
+        ("GPKG", "application/geopackage+sqlite3", b"SQLite format 3"),
+    ])
+    def test_vector_save_result(self, api, output_format, content_type, data_prefix, tmp_path):
+        path = str(get_path("geojson/FeatureCollection02.json"))
+        pg = {
+            "lf": {
+                "process_id": "load_uploaded_files",
+                "arguments": {"paths": [path], "format": "GeoJSON"},
+            },
+            "sr": {
+                "process_id": "save_result",
+                "arguments": {"data": {"from_node": "lf"}, "format": output_format,
+                              "options": {"zip_multi_file": True}},
+                "result": True,
+            }
+        }
+        resp = api.check_result(pg)
+        format_info = IOFORMATS.get(output_format)
+        assert resp.headers["Content-Type"] == content_type
+        assert resp.data.startswith(data_prefix)
+
+        download = tmp_path / f"download.{format_info.extension}{'.zip' if 'zip' in content_type else ''}"
+        download.write_bytes(resp.data)
+
+        df = gpd.read_file(download, driver=format_info.fiona_driver)
+        assert list(df.columns) == ["id", "pop", "geometry"]
+        assert list(df["id"]) == ["first", "second"]
+        for geometry, expected in zip(df["geometry"], [(1, 1, 3, 3), (3, 2, 5, 4)]):
+            assert isinstance(geometry, shapely.geometry.Polygon)
+            assert geometry.bounds == expected
 
 
 def test_no_nested_JSONResult(api):
@@ -967,7 +1202,7 @@ def test_load_disk_data(api):
 def test_mask_with_vector_file(api):
     process_graph = api.load_json(
         "mask_with_vector_file.json",
-        preprocess=lambda s: s.replace("PLACEHOLDER", str(get_path("mask_polygons_3.43_51.00_3.46_51.02.json")))
+        preprocess=lambda s: s.replace("PLACEHOLDER", str(get_path("geojson/MultiPolygon02.json")))
     )
     api.check_result(process_graph)
 
@@ -1755,6 +1990,7 @@ def test_execute_load_collection_custom_cloud_mask(api100):
     assert params.custom_mask == {"method": "mask_scl_dilation"}
     assert params.bands == None
 
+
 def test_execute_load_collection_custom_l1c_cloud_mask(api100):
     api100.check_result({
         "loadcollection1": {
@@ -2011,31 +2247,31 @@ def test_date_shift(api100, date, value, unit, expected):
             "Polygon", (5.09856905615526, 51.21910138452717, 5.111431257271536, 51.23089861521429),
     ),
     (
-            100, "meter", load_json("geojson/polygon01.json"),
+            100, "meter", load_json("geojson/Polygon01.json"),
             "Polygon", (5.0985703229820665, 51.19910120996896, 5.141430817509717, 51.23089799863948),
     ),
     (
-            -500, "meter", load_json("geojson/polygon01.json"),
+            -500, "meter", load_json("geojson/Polygon01.json"),
             "Polygon", (5.1084522374601145, 51.206647698484225, 5.129458164090344, 51.222687097228174),
     ),
     (
-            1, "kilometer", load_json("geojson/polygon01.json"),
+            1, "kilometer", load_json("geojson/Polygon01.json"),
             "Polygon", (5.087874843800581, 51.19113803453279, 5.154275007454256, 51.23894705603116),
     ),
     (
-            100, "meter", load_json("geojson/multipolygon01.json"),
+            100, "meter", load_json("geojson/MultiPolygon01.json"),
             "MultiPolygon", (5.098787598453318, 51.19911380673043, 5.141427521031006, 51.2408707459342),
     ),
     (
-            500, "meter", load_json("geojson/multipolygon01.json"),
+            500, "meter", load_json("geojson/MultiPolygon01.json"),
             "Polygon", (5.092851581512912, 51.19550604834508, 5.147157170251627, 51.244493919231424,)
     ),
     (
-            1000, "meter", load_json("FeatureCollection.geojson"),
+            1000, "meter", load_json("geojson/FeatureCollection01.json"),
             "FeatureCollection", (4.43568898, 51.09100882, 4.53429533, 51.20899105),
     ),
     (
-            1000, "meter", str(get_path("FeatureCollection.geojson")),
+            1000, "meter", str(get_path("geojson/FeatureCollection01.json")),
             "FeatureCollection", (4.43568898, 51.09100882, 4.53429533, 51.20899105),
     ),
 ])

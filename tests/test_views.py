@@ -333,10 +333,12 @@ class TestGeneral:
         response = api100.get('/file_formats')
         resp = response.assert_status_code(200).json
         assert resp == {
-            "input": {"GeoJSON": {"gis_data_types": ["vector"], "parameters": {}}},
-            "output": {
+            "input": DictSubSet({
+                "GeoJSON": {"gis_data_types": ["vector"], "parameters": {}},
+            }),
+            "output": DictSubSet({
                 "GTiff": {"title": "GeoTiff", "gis_data_types": ["raster"], "parameters": {}},
-            }
+            })
         }
 
     @pytest.mark.parametrize("endpoint", [

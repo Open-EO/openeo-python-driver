@@ -1,12 +1,13 @@
 # TODO: rename this module to something in snake case? It doesn't even implement a ProcessGraphDeserializer class.
 
 # pylint: disable=unused-argument
+
+import calendar
 import datetime
 import logging
 import tempfile
 import time
 import warnings
-import calendar
 from pathlib import Path
 from typing import Dict, Callable, List, Union, Tuple, Any, Iterable
 
@@ -15,24 +16,26 @@ import numpy as np
 import openeo_processes
 import requests
 from dateutil.relativedelta import relativedelta
-from shapely.geometry import shape, mapping, GeometryCollection, MultiPolygon
+from requests.structures import CaseInsensitiveDict
+from shapely.geometry import shape, GeometryCollection, shape, mapping, MultiPolygon
 
 import openeo.udf
 from openeo.capabilities import ComparableVersion
-from openeo.metadata import CollectionMetadata, MetadataException
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphVisitException
+from openeo.metadata import CollectionMetadata, MetadataException
 from openeo.util import load_json, rfc3339
 from openeo_driver import dry_run
 from openeo_driver.backend import UserDefinedProcessMetadata, LoadParameters, Processing, OpenEoBackendImplementation
-from openeo_driver.datacube import DriverDataCube
+from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint
 from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException, \
-    FeatureUnsupportedException, OpenEOApiException, ProcessGraphInvalidException
-from openeo_driver.errors import ProcessUnsupportedException
+    FeatureUnsupportedException, OpenEOApiException, ProcessGraphInvalidException, FileTypeInvalidException, \
+    ProcessUnsupportedException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE
-from openeo_driver.save_result import ImageCollectionResult, JSONResult, SaveResult, AggregatePolygonResult, NullResult
+from openeo_driver.save_result import JSONResult, SaveResult, AggregatePolygonResult, NullResult, \
+    to_save_result
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
 from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union, geojson_to_multipolygon
@@ -517,7 +520,9 @@ def vector_buffer(args: Dict, env: EvalEnv) -> dict:
     input_crs = 'epsg:4326'
     buffer_resolution = 3
 
+    # TODO EP-3981 convert `geometry` to vector cube and move buffer logic to there
     if isinstance(geometry, str):
+        # TODO: assumption here that `geometry` is a path/url
         geoms = list(DelayedVector(geometry).geometries)
     elif isinstance(geometry, dict):
         if geometry["type"] == "FeatureCollection":
@@ -575,23 +580,17 @@ def apply_dimension(args: Dict, env: EvalEnv) -> DriverDataCube:
 
 @process
 def save_result(args: Dict, env: EvalEnv) -> SaveResult:
+    data = extract_arg(args, 'data')
     format = extract_arg(args, 'format')
     options = args.get('options', {})
-    data = extract_arg(args, 'data')
 
     if isinstance(data, SaveResult):
+        # TODO: Is this an expected code path? `save_result` should be terminal node in a graph
+        #       so chaining `save_result` calls should not be valid
         data.set_format(format, options)
         return data
-    elif isinstance(data, DriverDataCube):
-        return ImageCollectionResult(data, format=format, options=options)
-    elif isinstance(data, DelayedVector):
-        geojsons = (mapping(geometry) for geometry in data.geometries)
-        return JSONResult(geojsons)
-    elif data is None:
-        return data
     else:
-        # Assume generic JSON result
-        return JSONResult(data, format, options)
+        return to_save_result(data, format=format, options=options)
 
 
 @process
@@ -650,6 +649,7 @@ def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
 
     # Chunks parameter check.
+    # TODO EP-3981 normalize first to vector cube and simplify logic
     if isinstance(chunks, DelayedVector):
         polygons = list(chunks.geometries)
         for p in polygons:
@@ -935,6 +935,7 @@ def mask_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     inside = args.get('inside', False)
     # TODO: avoid reading DelayedVector twice due to dry-run?
     # TODO: the `DelayedVector` case: aren't we ignoring geometries by doing `[0]`?
+    # TODO EP-3981: add VectorCube support? Also see  https://github.com/Open-EO/openeo-processes/issues/323
     polygon = list(mask.geometries)[0] if isinstance(mask, DelayedVector) else geojson_to_multipolygon(mask)
     if polygon.area == 0:
         reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
@@ -1289,8 +1290,27 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         .returns("TODO", schema={"type": "object", "subtype": "vector-cube"})
 )
 def read_vector(args: Dict, env: EvalEnv) -> DelayedVector:
+    # TODO EP-3981: deprecated in favor of load_uploaded_files/load_external? https://github.com/Open-EO/openeo-processes/issues/322
     path = extract_arg(args, 'filename')
     return DelayedVector(path)
+
+
+@process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/load_uploaded_files.json"))
+def load_uploaded_files(args: dict, env: EvalEnv) -> DriverVectorCube:
+    # TODO EP-3981 process name is still under discussion https://github.com/Open-EO/openeo-processes/issues/322
+    # TODO EP-3981 also other return types: raster data cube, array, ...
+    paths = extract_arg(args, 'paths', process_id="load_uploaded_files")
+    format = extract_arg(args, 'format', process_id="load_uploaded_files")
+    options = args.get("options", {})
+
+    input_formats = CaseInsensitiveDict(env.backend_implementation.file_formats()["input"])
+    if format not in input_formats:
+        raise FileTypeInvalidException(type=format, types=", ".join(input_formats.keys()))
+
+    if format.lower() in {"geojson", "esri shapefile", "gpkg"}:
+        return DriverVectorCube.from_fiona(paths, driver=format, options=options)
+    else:
+        raise FeatureUnsupportedException(f"Loading format {format!r} is not supported")
 
 
 @non_standard_process(
@@ -1300,6 +1320,7 @@ def read_vector(args: Dict, env: EvalEnv) -> DelayedVector:
         .returns("TODO", schema={"type": "object", "subtype": "vector-cube"})
 )
 def get_geometries(args: Dict, env: EvalEnv) -> Union[DelayedVector, dict]:
+    # TODO: standardize or deprecate this? EP-3981 https://github.com/Open-EO/openeo-processes/issues/322
     feature_collection = args.get('feature_collection', None)
     path = args.get('filename', None)
     if path is not None:

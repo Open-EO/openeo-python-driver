@@ -186,6 +186,7 @@ class DummyDataCube(DriverDataCube):
         return self.metadata.dimension_names()
 
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
+        # TODO: this method should be deprecated (limited to single asset) in favor of write_assets (supports multiple assets)
         with open(filename, "w") as f:
             f.write("{f}:save_result({s!r}".format(f=format, s=self))
         return filename
@@ -194,6 +195,7 @@ class DummyDataCube(DriverDataCube):
         # TODO: get rid of non-standard "zonal_statistics" (standard process is "aggregate_spatial")
         assert func == 'mean' or func == 'avg'
 
+        # TODO EP-3981 normalize to vector cube and preserve original properties
         def assert_polygon_or_multipolygon(geometry):
             assert isinstance(geometry, Polygon) or isinstance(geometry, MultiPolygon)
 
@@ -511,7 +513,16 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
                 "GeoJSON": {
                     "gis_data_types": ["vector"],
                     "parameters": {},
-                }
+                },
+                "ESRI Shapefile": {
+                    "gis_data_types": ["vector"],
+                    "parameters": {},
+                },
+                "GPKG": {
+                    "title": "OGC GeoPackage",
+                    "gis_data_types": ["raster", "vector"],
+                    "parameters": {},
+                },
             },
             "output": {
                 "GTiff": {
