@@ -18,6 +18,7 @@ import requests
 from dateutil.relativedelta import relativedelta
 from requests.structures import CaseInsensitiveDict
 from shapely.geometry import shape, GeometryCollection, shape, mapping, MultiPolygon
+import shapely.ops
 
 import openeo.udf
 from openeo.capabilities import ComparableVersion
@@ -930,13 +931,25 @@ def mask_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     mask = extract_arg(args, 'mask')
     replacement = args.get('replacement', None)
     inside = args.get('inside', False)
-    # TODO: avoid reading DelayedVector twice due to dry-run?
-    # TODO: the `DelayedVector` case: aren't we ignoring geometries by doing `[0]`?
-    # TODO EP-3981: add VectorCube support? Also see  https://github.com/Open-EO/openeo-processes/issues/323
-    polygon = list(mask.geometries)[0] if isinstance(mask, DelayedVector) else geojson_to_multipolygon(mask)
+
+    # TODO: instead of if-elif-else chain: generically "cast" to VectorCube first (e.g. for wide input
+    #       support: GeoJSON, WKT, ...) and then convert to MultiPolygon?
+    if isinstance(mask, DelayedVector):
+        # TODO: avoid reading DelayedVector twice due to dry-run?
+        # TODO EP-3981 embed DelayedVector in VectorCube implementation
+        polygon = shapely.ops.unary_union(list(mask.geometries))
+    elif isinstance(mask, DriverVectorCube):
+        polygon = mask.to_multipolygon()
+    elif isinstance(mask, dict) and "type" in mask:
+        # Assume GeoJSON
+        polygon = geojson_to_multipolygon(mask)
+    else:
+        reason = f"Unsupported mask type {type(mask)}"
+        raise ProcessParameterInvalidException(parameter="mask", process="mask_polygon", reason=reason)
+
     if polygon.area == 0:
         reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
-        raise ProcessParameterInvalidException(parameter='mask', process='mask', reason=reason)
+        raise ProcessParameterInvalidException(parameter='mask', process='mask_polygon', reason=reason)
     image_collection = extract_arg(args, 'data').mask_polygon(mask=polygon, replacement=replacement, inside=inside)
     return image_collection
 

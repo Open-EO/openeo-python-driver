@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import List, Union, Optional
 
 import geopandas as gpd
+import shapely.geometry
+import shapely.ops
 
 from openeo import ImageCollection
 from openeo.metadata import CollectionMetadata
@@ -85,7 +87,7 @@ class DriverDataCube(ImageCollection):
     def mask(self, mask: 'DriverDataCube', replacement=None) -> 'DriverDataCube':
         self._not_implemented()
 
-    def mask_polygon(self, mask, replacement=None, inside: bool = False) -> 'DriverDataCube':
+    def mask_polygon(self, mask: shapely.geometry.MultiPolygon, replacement=None, inside: bool = False) -> 'DriverDataCube':
         self._not_implemented()
 
     def merge_cubes(self, other: 'DriverDataCube', overlap_resolver) -> 'DriverDataCube':
@@ -180,3 +182,6 @@ class DriverVectorCube:
             else:
                 # TODO: better multi-file support?
                 return {p.name: {"href": p} for p in components}
+
+    def to_multipolygon(self) -> shapely.geometry.MultiPolygon:
+        return shapely.ops.unary_union(self.data.geometry)

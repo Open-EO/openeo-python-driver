@@ -560,7 +560,7 @@ def test_execute_mask_optimized_loading(api):
     assert params["aggregate_spatial_geometries"] == expected_geometry
 
 
-def test_execute_mask_polygon(api):
+def test_mask_polygon(api):
     api.check_result("mask_polygon.json")
     dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
     assert dummy.mask_polygon.call_count == 1
@@ -627,7 +627,7 @@ def test_execute_mask_polygon(api):
             shapely.geometry.MultiPolygon
     ),
 ])
-def test_execute_mask_polygon_types(api100, mask, expected):
+def test_mask_polygon_types(api100, mask, expected):
     pg = {
         "lc1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "mask1": {"process_id": "mask_polygon", "arguments": {
@@ -640,6 +640,27 @@ def test_execute_mask_polygon_types(api100, mask, expected):
     assert dummy.mask_polygon.call_count == 1
     args, kwargs = dummy.mask_polygon.call_args
     assert isinstance(kwargs['mask'], expected)
+
+
+def test_mask_polygon_vector_cube(api100):
+    path = str(get_path("geojson/FeatureCollection02.json"))
+    pg = {
+        "lc1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "lf": {
+            "process_id": "load_uploaded_files",
+            "arguments": {"paths": [path], "format": "GeoJSON"},
+        },
+        "mask": {
+            "process_id": "mask_polygon",
+            "arguments": {"data": {"from_node": "lc1"}, "mask": {"from_node": "lf"}},
+            "result": True
+        }
+    }
+    api100.check_result(pg)
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
+    assert dummy.mask_polygon.call_count == 1
+    args, kwargs = dummy.mask_polygon.call_args
+    assert isinstance(kwargs['mask'], shapely.geometry.MultiPolygon)
 
 
 def test_aggregate_temporal_period(api100):
