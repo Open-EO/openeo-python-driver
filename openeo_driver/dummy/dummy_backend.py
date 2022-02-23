@@ -193,24 +193,30 @@ class DummyDataCube(DriverDataCube):
 
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'AggregatePolygonResult':
         # TODO: get rid of non-standard "zonal_statistics" (standard process is "aggregate_spatial")
-        assert func == 'mean' or func == 'avg'
+        return self.aggregate_spatial(geometries=regions, reducer=func)
+
+    def aggregate_spatial(self, geometries: dict, reducer: dict, target_dimension: str = "result") -> 'AggregatePolygonResult':
+
+        # TODO: support more advanced reducers too
+        assert isinstance(reducer, dict) and len(reducer) == 1
+        reducer = next(iter(reducer.values()))["process_id"]
+        assert reducer == 'mean' or reducer == 'avg'
 
         # TODO EP-3981 normalize to vector cube and preserve original properties
         def assert_polygon_or_multipolygon(geometry):
             assert isinstance(geometry, Polygon) or isinstance(geometry, MultiPolygon)
 
-        if isinstance(regions, str):
-            geometries = [geometry for geometry in DelayedVector(regions).geometries]
-
+        if isinstance(geometries, str):
+            geometries = [geometry for geometry in DelayedVector(geometries).geometries]
             assert len(geometries) > 0
             for geometry in geometries:
                 assert_polygon_or_multipolygon(geometry)
-        elif isinstance(regions, GeometryCollection):
-            assert len(regions) > 0
-            for geometry in regions:
+        elif isinstance(geometries, GeometryCollection):
+            assert len(geometries) > 0
+            for geometry in geometries:
                 assert_polygon_or_multipolygon(geometry)
         else:
-            assert_polygon_or_multipolygon(regions)
+            assert_polygon_or_multipolygon(geometries)
 
         return AggregatePolygonResult(timeseries={
             "2015-07-06T00:00:00": [2.345],

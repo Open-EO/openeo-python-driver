@@ -438,7 +438,7 @@ class DryRunDataCube(DriverDataCube):
 
     def aggregate_spatial(
             self, geometries: Union[str, dict, DelayedVector, shapely.geometry.base.BaseGeometry],
-            reducer, target_dimension: str = "result"
+            reducer: dict, target_dimension: str = "result"
     ) -> AggregatePolygonResult:
         # TODO EP-3981 normalize to vector cube instead of GeometryCollection
         geometries, bbox = self._normalize_geometry(geometries)

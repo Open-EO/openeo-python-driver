@@ -886,22 +886,19 @@ def aggregate_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
 @process_registry_100.add_function
 def aggregate_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
     reduce_pg = extract_deep(args, "reducer", "process_graph")
-    if(len(reduce_pg)==1):
-        return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_spatial', env=env)
-    else:
-        cube = extract_arg(args, 'data')
-        target_dimension = args.get('target_dimension', None)
+    cube = extract_arg(args, 'data')
+    target_dimension = args.get('target_dimension', None)
 
-        geoms = extract_arg(args, 'geometries')
-        if isinstance(geoms, dict):
-            geoms = geojson_to_geometry(geoms)
-        elif isinstance(geoms, DelayedVector):
-            geoms = geoms.path
-        else:
-            raise ProcessParameterInvalidException(
-                parameter="geometries", process="aggregate_spatial", reason=f"Invalid type: {type(geoms)} ({geoms!r})"
-            )
-        return cube.aggregate_spatial(geoms, reduce_pg, target_dimension=target_dimension)
+    geoms = extract_arg(args, 'geometries')
+    if isinstance(geoms, dict):
+        geoms = geojson_to_geometry(geoms)
+    elif isinstance(geoms, DelayedVector):
+        geoms = geoms.path
+    else:
+        raise ProcessParameterInvalidException(
+            parameter="geometries", process="aggregate_spatial", reason=f"Invalid type: {type(geoms)} ({geoms!r})"
+        )
+    return cube.aggregate_spatial(geoms, reduce_pg, target_dimension=target_dimension)
 
 
 @process_registry_040.add_function(name="mask")
@@ -1219,21 +1216,6 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         if target_dimension is not None:
             transformed_collection.rename_dimension(dimension, target_dimension)
         return transformed_collection
-    elif parent_process in ['aggregate_polygon', 'aggregate_spatial']:
-        #TODO it should become possible to remove this code path
-        image_collection = extract_arg(args, 'data', process_id=process_id)
-        polygons = extract_arg_list(parameters, ['polygons', 'geometries'])
-
-        if isinstance(polygons, dict):
-            geometries = geojson_to_geometry(polygons)
-            return image_collection.zonal_statistics(geometries, func=process_id)
-        elif isinstance(polygons, DelayedVector):
-            return image_collection.zonal_statistics(polygons.path, func=process_id)
-        else:
-            raise ProcessParameterInvalidException(
-                parameter="geometries", process=parent_process, reason=f"Invalid type: {type(polygons)} ({polygons!r})"
-            )
-
     elif parent_process == 'aggregate_temporal':
         # TODO EP-3285 this code path is for version <1.0.0, soon to be deprecated
         image_collection = extract_arg(args, 'data', process_id=process_id)
