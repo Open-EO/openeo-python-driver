@@ -1588,5 +1588,43 @@ def load_result(args: dict, env: EvalEnv) -> DriverDataCube:
         return env.backend_implementation.load_result(job_id=job_id, user=user, load_params=load_params, env=env)
 
 
+@process_registry_100.add_simple_function
+def text_begins(data: str, pattern: str, case_sensitive: bool = True) -> Union[bool, None]:
+    if data is None:
+        return None
+    if not case_sensitive:
+        data = data.lower()
+        pattern = pattern.lower()
+    return data.startswith(pattern)
+
+
+@process_registry_100.add_simple_function
+def text_contains(data: str, pattern: str, case_sensitive: bool = True) -> Union[bool, None]:
+    if data is None:
+        return None
+    if not case_sensitive:
+        data = data.lower()
+        pattern = pattern.lower()
+    return pattern in data
+
+
+@process_registry_100.add_simple_function
+def text_ends(data: str, pattern: str, case_sensitive: bool = True) -> Union[bool, None]:
+    if data is None:
+        return None
+    if not case_sensitive:
+        data = data.lower()
+        pattern = pattern.lower()
+    return data.endswith(pattern)
+
+
+@process_registry_100.add_simple_function
+def text_merge(
+        data: List[Union[str, int, float, bool, None]],
+        separator: Union[str, int, float, bool, None] = ""
+) -> str:
+    return str(separator).join(str(d) for d in data)
+
+
 # Finally: register some fallback implementation if possible
 _register_fallback_implementations_by_process_graph(process_registry_100)

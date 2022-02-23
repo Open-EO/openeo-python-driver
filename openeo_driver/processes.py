@@ -7,7 +7,7 @@ from typing import Callable, Dict, List, Tuple, Optional
 
 from openeo_driver.errors import ProcessUnsupportedException
 from openeo_driver.specs import SPECS_ROOT
-from openeo_driver.utils import read_json
+from openeo_driver.utils import read_json, EvalEnv
 
 
 class ProcessParameter:
@@ -176,6 +176,38 @@ class ProcessRegistry:
             spec=spec or self.load_predefined_spec(name or f.__name__),
             namespace=namespace
         )
+        return f
+
+    def add_simple_function(self, f: Callable):
+        """
+        Register a simple function that uses normal arguments instead of `args: dict, env: EvalEnv`:
+        wrap it in a wrapper that automatically extracts these arguments
+        :param f:
+        :return:
+        """
+        process_id = f.__name__
+        # Detect arguments without and with defaults
+        signature = inspect.signature(f)
+        required = []
+        defaults = {}
+        for param in signature.parameters.values():
+            if param.default is inspect.Parameter.empty:
+                required.append(param.name)
+            else:
+                defaults[param.name] = param.default
+
+        # TODO: avoid this local import, e.g. by encapsulating all extrac_ functions in some kind of ProcessArgs object
+        from openeo_driver.ProcessGraphDeserializer import extract_arg
+
+        # TODO: can we generalize this assumption?
+        assert self._argument_names == ["args", "env"]
+
+        def wrapped(args: dict, env: EvalEnv):
+            kwargs = {a: extract_arg(args, a, process_id=process_id) for a in required}
+            kwargs.update({a: args.get(a, d) for a, d in defaults.items()})
+            return f(**kwargs)
+
+        self.add_process(name=process_id, function=wrapped, spec=self.load_predefined_spec(process_id))
         return f
 
     def add_hidden(self, f: Callable, name: str = None, namespace: str = DEFAULT_NAMESPACE):

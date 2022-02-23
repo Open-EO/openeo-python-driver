@@ -1,6 +1,6 @@
 import pytest
 
-from openeo_driver.errors import ProcessUnsupportedException
+from openeo_driver.errors import ProcessUnsupportedException, ProcessParameterRequiredException
 from openeo_driver.processes import ProcessSpec, ProcessRegistry, ProcessRegistryException
 
 
@@ -379,3 +379,18 @@ def test_process_registry_get_specs_namepsaces():
     assert set(p['id'] for p in reg.get_specs("m", namespace="math")) == set()
     assert set(p['id'] for p in reg.get_specs("in", namespace="stats")) == {"min"}
     assert set(p['id'] for p in reg.get_specs("in", namespace="math")) == {"sin"}
+
+
+def test_process_registry_add_simple_function():
+    reg = ProcessRegistry(argument_names=["args", "env"])
+
+    @reg.add_simple_function
+    def add(x: int, y: int = 100):
+        return x + y
+
+    process = reg.get_function("add")
+
+    assert process(args={"x": 2, "y": 3}, env=None) == 5
+    assert process(args={"x": 2}, env=None) == 102
+    with pytest.raises(ProcessParameterRequiredException):
+        _ = process(args={}, env=None)
