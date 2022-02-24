@@ -3,7 +3,7 @@
 [![Status](https://img.shields.io/badge/Status-proof--of--concept-yellow.svg)]() [![Build Status](https://travis-ci.org/Open-EO/openeo-python-driver.svg?branch=master)](https://travis-ci.org/Open-EO/openeo-python-driver)
 
 
-Python version: 3.6 or higher
+Python version: 3.8 or higher
 
 This Python package provides a Flask based REST frontend for openEO backend drivers.
 It implements the general REST request handling of the openEO API and dispatches the real work to a pluggable openEO backend driver (such as the [openEO GeoPySpark driver](https://github.com/Open-EO/openeo-geopyspark-driver)).
