@@ -745,7 +745,7 @@ class TestBatchJobs:
                     budget=4.56,
                 )
             }
-            yield
+            yield dummy_backend.DummyBatchJobs._job_registry
 
     def test_create_job_040(self, api040):
         with self._fresh_job_registry(next_job_id="job-220"):
@@ -809,13 +809,34 @@ class TestBatchJobs:
         assert job_info.job_options == {"driver-memory": "3g", "executor-memory": "5g"}
 
     def test_start_job(self, api):
-        with self._fresh_job_registry(next_job_id="job-267"):
+        with self._fresh_job_registry(next_job_id="job-267") as registry:
             api.post('/jobs', headers=self.AUTH_HEADER, json=api.get_process_graph_dict(
                 {"foo": {"process_id": "foo", "arguments": {}}},
             )).assert_status_code(201)
-            assert dummy_backend.DummyBatchJobs._job_registry[TEST_USER, 'job-267'].status == "created"
+            assert registry[TEST_USER, 'job-267'].status == "created"
             api.post('/jobs/job-267/results', headers=self.AUTH_HEADER, json={}).assert_status_code(202)
-            assert dummy_backend.DummyBatchJobs._job_registry[TEST_USER, 'job-267'].status == "running"
+            assert registry[TEST_USER, 'job-267'].status == "running"
+
+    @pytest.mark.parametrize(["orig_status", "start"], [
+        ("created", True),
+        ("queued", False),
+        ("running", False),
+        ("finished", False),
+        ("error", False),
+        ("canceled", True)
+    ])
+    def test_start_job_existing_status(self, api, orig_status, start):
+        """Only really start jobs that are started (or canceled)"""
+        with self._fresh_job_registry() as registry:
+            registry[TEST_USER, "job-267"] = BatchJobMetadata(
+                id="job-267",
+                status=orig_status,
+                created=datetime(2017, 1, 1, 9, 32, 12)
+            )
+            # Try to start job
+            with mock.patch.object(dummy_backend.DummyBatchJobs, "start_job") as start_job:
+                api.post('/jobs/job-267/results', headers=self.AUTH_HEADER, json={}).assert_status_code(202)
+                assert start_job.call_count == (1 if start else 0)
 
     def test_start_job_invalid(self, api):
         resp = api.post('/jobs/deadbeef-f00/results', headers=self.AUTH_HEADER)
