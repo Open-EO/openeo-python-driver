@@ -720,9 +720,13 @@ class TestBatchJobs:
                 ),
                 (TEST_USER, '53c71345-09b4-46b4-b6b0-03fd6fe1f199'): BatchJobMetadata(
                     id='53c71345-09b4-46b4-b6b0-03fd6fe1f199',
+                    title="Your title here.",
+                    description="Your description here.",
                     status='finished',
+                    progress=100,
                     process={'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
                     created=datetime(2020, 6, 11, 11, 51, 29),
+                    updated=datetime(2020, 6, 11, 11, 55, 15),
                     started=datetime(2020, 6, 11, 11, 55, 9),
                     finished=datetime(2020, 6, 11, 11, 55, 15),
                     memory_time_megabyte=timedelta(seconds=18704944),
@@ -735,7 +739,10 @@ class TestBatchJobs:
                     start_datetime=datetime(1981, 4, 24, 3, 0, 0),
                     end_datetime=datetime(1981, 4, 24, 3, 0, 0),
                     instruments=['MSI'],
-                    epsg=4326
+                    epsg=4326,
+                    plan='some_plan',
+                    costs=1.23,
+                    budget=4.56,
                 )
             }
             yield
@@ -828,9 +835,16 @@ class TestBatchJobs:
         resp = api100.get('/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199', headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).json == {
             'id': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
-            'status': 'finished',
-            'created': "2020-06-11T11:51:29Z",
+            'title': 'Your title here.',
+            'description': 'Your description here.',
             'process': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
+            'status': 'finished',
+            'progress': 100,
+            'created': "2020-06-11T11:51:29Z",
+            'updated': "2020-06-11T11:55:15Z",
+            'plan': 'some_plan',
+            'costs': 1.23,
+            'budget': 4.56,
             'usage': {
                 'cpu': {'value': 1621, 'unit': 'cpu-seconds'},
                 'duration': {'value': 6, 'unit': 'seconds'},
@@ -863,8 +877,15 @@ class TestBatchJobs:
                 },
                 {
                     'id': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
+                    'title': "Your title here.",
+                    'description': "Your description here.",
                     'status': 'finished',
-                    'submitted': "2020-06-11T11:51:29Z"
+                    'progress': 100,
+                    'submitted': "2020-06-11T11:51:29Z",
+                    'updated': "2020-06-11T11:55:15Z",
+                    'plan': 'some_plan',
+                    'costs': 1.23,
+                    'budget': 4.56
                 }
             ],
             "links": []
@@ -882,8 +903,15 @@ class TestBatchJobs:
                 },
                 {
                     'id': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
+                    'title': "Your title here.",
+                    'description': "Your description here.",
                     'status': 'finished',
-                    'created': "2020-06-11T11:51:29Z"
+                    'progress': 100,
+                    'created': "2020-06-11T11:51:29Z",
+                    'updated': "2020-06-11T11:55:15Z",
+                    'plan': 'some_plan',
+                    'costs': 1.23,
+                    'budget': 4.56
                 }
             ],
             "links": []
@@ -1015,7 +1043,10 @@ class TestBatchJobs:
                 ],
                 'properties': {
                     'created': '2020-06-11T11:51:29Z',
+                    'updated': '2020-06-11T11:55:15Z',
                     'datetime': '1981-04-24T03:00:00Z',
+                    'title': "Your title here.",
+                    'description': "Your description here.",
                     'instruments': ['MSI'],
                     'proj:epsg': 4326,
                     'card4l:processing_chain': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},

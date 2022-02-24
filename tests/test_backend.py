@@ -182,16 +182,18 @@ def test_batch_job_metadata_to_api_dict():
 
     assert job.to_api_dict(full=False, api_version=api_version) == {
         "id": "123",
-        "created": "2022-01-18T16:42:00Z",
+        "title": "Untitled01", "description": "Lorem ipsum.",
         "status": "running",
+        "progress": 0.3,
+        "created": "2022-01-18T16:42:00Z",
     }
     assert job.to_api_dict(full=True, api_version=api_version) == {
         "id": "123",
-        "created": "2022-01-18T16:42:00Z",
-        "status": "running",
-        "process": {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}},
         "title": "Untitled01", "description": "Lorem ipsum.",
+        "process": {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}},
+        "status": "running",
         "progress": 0.3,
+        "created": "2022-01-18T16:42:00Z",
         "usage": {
             "cpu": {"value": 1000, "unit": "cpu-seconds"},
             "memory": {"value": 2000, "unit": "mb-seconds"},

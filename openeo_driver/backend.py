@@ -234,9 +234,9 @@ class BatchJobMetadata(NamedTuple):
     description: str = None
     progress: float = None
     updated: datetime = None
-    plan = None
-    costs = None
-    budget = None
+    plan: str = None
+    costs: float = None
+    budget: float = None
     started: datetime = None
     finished: datetime = None
     duration_: timedelta = None
@@ -286,11 +286,9 @@ class BatchJobMetadata(NamedTuple):
         see https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-job
         """
         # Basic/full fields to export
-        fields = ["id", "status", "created"]
+        fields = ["id", "title", "description", "status", "progress", "created", "updated", "plan", "costs", "budget"]
         if full:
-            fields.extend([
-                "title", "description", "process", "progress", "created", "updated", "plan", "costs", "budget",
-            ])
+            fields.extend(["process"])
         result = {f: getattr(self, f) for f in fields}
 
         # Additional cleaning and massaging.
