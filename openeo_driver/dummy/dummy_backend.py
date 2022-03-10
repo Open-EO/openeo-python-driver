@@ -23,7 +23,7 @@ from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, 
 from openeo_driver.save_result import AggregatePolygonResult, AggregatePolygonSpatialResult
 from openeo_driver.users import User
 from openeo_driver.utils import EvalEnv
-from tests.data import get_path
+
 
 DEFAULT_DATETIME = datetime(2020, 4, 23, 16, 20, 27)
 
@@ -231,7 +231,7 @@ class DummyDataCube(DriverDataCube):
             "2015-07-06T00:00:00": [2.345],
             "2015-08-22T00:00:00": [float('nan')]
         }, regions=GeometryCollection()) if self._is_spatio_temporal else AggregatePolygonSpatialResult(
-            csv_dir=get_path("compute_generic_timeseries_from_spatial_datacube"))
+            csv_dir=Path(__file__).parent / "data" / "aggregate_spatial_spatial_cube")
 
 
 class DummyCatalog(CollectionCatalog):

@@ -458,6 +458,7 @@ class AggregatePolygonSpatialResult(SaveResult):
             df = pd.concat(map(pd.read_csv, csv_paths))
             return jsonify(self._band_values_by_geometry(df))
         elif self.is_format("csv"):
+            # TODO: assumption there is only one CSV?
             return send_from_directory(os.path.dirname(csv_paths[0]), os.path.basename(csv_paths[0]))
         else:
             raise FeatureUnsupportedException(f"Unsupported output format {self.format}; supported are: JSON and CSV")
