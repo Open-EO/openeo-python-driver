@@ -20,9 +20,10 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import SourceConstraint
 from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, ProcessGraphNotFoundException, \
     PermissionsInsufficientException
-from openeo_driver.save_result import AggregatePolygonResult
+from openeo_driver.save_result import AggregatePolygonResult, AggregatePolygonSpatialResult
 from openeo_driver.users import User
 from openeo_driver.utils import EvalEnv
+from tests.data import get_path
 
 DEFAULT_DATETIME = datetime(2020, 4, 23, 16, 20, 27)
 
@@ -166,9 +167,15 @@ class DummyDataCube(DriverDataCube):
         for name in [n for n, m in DummyDataCube.__dict__.items() if getattr(m, '_mock_side_effect', False)]:
             setattr(self, name, Mock(side_effect=getattr(self, name)))
 
+        self._is_spatio_temporal = True
+
     @mock_side_effect
     def reduce_dimension(self, reducer, dimension: str, env: EvalEnv) -> 'DummyDataCube':
         self.metadata = self.metadata.reduce_dimension(dimension_name=dimension)
+
+        if dimension == "t":
+            self._is_spatio_temporal = False
+
         return self
 
     @mock_side_effect
@@ -191,11 +198,13 @@ class DummyDataCube(DriverDataCube):
             f.write("{f}:save_result({s!r}".format(f=format, s=self))
         return filename
 
-    def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'AggregatePolygonResult':
+    def zonal_statistics(self, regions, func, scale=1000, interval="day")\
+            -> Union['AggregatePolygonResult', 'AggregatePolygonSpatialResult']:
         # TODO: get rid of non-standard "zonal_statistics" (standard process is "aggregate_spatial")
         return self.aggregate_spatial(geometries=regions, reducer=func)
 
-    def aggregate_spatial(self, geometries: dict, reducer: dict, target_dimension: str = "result") -> 'AggregatePolygonResult':
+    def aggregate_spatial(self, geometries: dict, reducer: dict, target_dimension: str = "result")\
+            -> Union['AggregatePolygonResult', 'AggregatePolygonSpatialResult']:
 
         # TODO: support more advanced reducers too
         assert isinstance(reducer, dict) and len(reducer) == 1
@@ -221,7 +230,8 @@ class DummyDataCube(DriverDataCube):
         return AggregatePolygonResult(timeseries={
             "2015-07-06T00:00:00": [2.345],
             "2015-08-22T00:00:00": [float('nan')]
-        }, regions=GeometryCollection())
+        }, regions=GeometryCollection()) if self._is_spatio_temporal else AggregatePolygonSpatialResult(
+            csv_dir=get_path("compute_generic_timeseries_from_spatial_datacube"))
 
 
 class DummyCatalog(CollectionCatalog):

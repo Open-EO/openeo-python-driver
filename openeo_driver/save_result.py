@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 from shutil import copy
 from tempfile import mkstemp
-from typing import Union, Dict, Optional, Any
+from typing import Union, Dict, List, Optional, Any
 from zipfile import ZipFile
 
 import numpy as np
@@ -50,7 +50,8 @@ class SaveResult:
 
     def create_flask_response(self) -> Response:
         """
-        Returns a Flask compatible response.
+        Returns a Flask compatible response. The view is unaware of the output format; rather, it is derived from the
+        process graph.
 
         :return: A response that can be handled by Flask
         """
@@ -161,7 +162,7 @@ class JSONResult(SaveResult):
         return jsonify(self.prepare_for_json())
 
 
-class AggregatePolygonResult(JSONResult):
+class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV, it's not a JSONResult
     """
     Container for timeseries result of `aggregate_polygon` process (aka "zonal stats")
 
@@ -420,8 +421,7 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
             raise OpenEOApiException(status_code=500, code="EmptyResult", message=f"aggregate_spatial did not generate any output, intermediate output path on the server: {csv_dir}")
         df = pd.concat(map(pd.read_csv, paths))
 
-        #super().__init__(timeseries={pd.to_datetime(date).tz_convert('UTC').strftime('%Y-%m-%dT%XZ'): _flatten_df(df[df.date == date].drop(columns="date")) for date in df.date.unique()},regions=regions,metadata=metadata)
-        super().__init__(timeseries=_flatten_df(df), regions=regions, metadata=metadata)
+        super().__init__(timeseries={pd.to_datetime(date).tz_convert('UTC').strftime('%Y-%m-%dT%XZ'): _flatten_df(df[df.date == date].drop(columns="date")) for date in df.date.unique()},regions=regions,metadata=metadata)
         self._csv_dir = csv_dir
 
     def to_csv(self, destination=None):
@@ -433,6 +433,34 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
             copy(csv_paths[0],destination)
             return destination
 
+
+class AggregatePolygonSpatialResult(SaveResult):
+    """
+    Container for result of `aggregate_polygon` process (aka "zonal stats") for a spatial layer.
+    """
+
+    DEFAULT_FORMAT = "JSON"
+
+    def __init__(self, csv_dir: Union[str, Path], format: Optional[str] = None, options: Optional[dict] = None):
+        super().__init__(format, options)
+        self._csv_dir = Path(csv_dir)
+
+    @staticmethod
+    def _band_values_by_geometry(df: pd.DataFrame) -> List[List[float]]:
+        df.index = df.feature_index
+        df.sort_index(inplace=True)
+        return df.drop(columns="feature_index").values.tolist()
+
+    def create_flask_response(self) -> Response:
+        csv_paths = glob.glob(f"{self._csv_dir}/*.csv")
+
+        if self.is_format("json"):
+            df = pd.concat(map(pd.read_csv, csv_paths))
+            return jsonify(self._band_values_by_geometry(df))
+        elif self.is_format("csv"):
+            return send_from_directory(os.path.dirname(csv_paths[0]), os.path.basename(csv_paths[0]))
+        else:
+            raise FeatureUnsupportedException(f"Unsupported output format {self.format}; supported are: JSON and CSV")
 
 
 class MultipleFilesResult(SaveResult):

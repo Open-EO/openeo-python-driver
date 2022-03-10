@@ -44,7 +44,7 @@ from openeo_driver import filter_properties
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.save_result import AggregatePolygonResult
+from openeo_driver.save_result import AggregatePolygonResult, AggregatePolygonSpatialResult
 from openeo_driver.utils import buffer_point_approx, geojson_to_geometry, to_hashable, EvalEnv
 
 _log = logging.getLogger(__name__)
@@ -439,7 +439,7 @@ class DryRunDataCube(DriverDataCube):
     def aggregate_spatial(
             self, geometries: Union[str, dict, DelayedVector, shapely.geometry.base.BaseGeometry],
             reducer: dict, target_dimension: str = "result"
-    ) -> AggregatePolygonResult:
+    ) -> Union[AggregatePolygonResult, AggregatePolygonSpatialResult]:
         # TODO EP-3981 normalize to vector cube instead of GeometryCollection
         geometries, bbox = self._normalize_geometry(geometries)
         cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
@@ -476,7 +476,7 @@ class DryRunDataCube(DriverDataCube):
     def raster_to_vector(self):
         return AggregatePolygonResult(timeseries={}, regions=None)
 
-    def zonal_statistics(self, regions, func: str) -> AggregatePolygonResult:
+    def zonal_statistics(self, regions, func: str) -> Union[AggregatePolygonResult, AggregatePolygonSpatialResult]:
         return self.aggregate_spatial(geometries=regions, reducer=func)
 
     def resample_cube_spatial(self, target: 'DryRunDataCube', method: str = 'near') -> 'DryRunDataCube':

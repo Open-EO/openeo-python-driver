@@ -689,6 +689,15 @@ def test_execute_aggregate_spatial(api):
     })
 
 
+def test_execute_aggregate_spatial_spatial_cube(api100):
+    resp = api100.check_result("aggregate_spatial_spatial_cube.json")
+
+    assert resp.json == [
+        [4646.262612301313, 4865.926572218383, 5178.517363510712],
+        [4645.719597475695, 4865.467252259935, 5177.803342998465]
+    ]
+
+
 @pytest.mark.parametrize(["geometries", "expected"], [
     ("some text", "Invalid type: <class 'str'> ('some text')"),
     (1234, "Invalid type: <class 'int'> (1234)"),

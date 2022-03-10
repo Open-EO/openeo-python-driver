@@ -1,0 +1,88 @@
+{
+  "collection": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "S2_FAPAR_CLOUDCOVER"
+    }
+  },
+  "reduce_dimension": {
+    "process_id": "reduce_dimension",
+    "arguments": {
+      "data": {
+        "from_node": "collection"
+      },
+      "reducer": {
+        "process_graph": {
+          "mean": {
+            "process_id": "mean",
+            "arguments": {
+              "data": {
+                "from_parameter": "data"
+              }
+            },
+            "result": true
+          }
+        }
+      },
+      "dimension": "t"
+    }
+  },
+  "aggregate_spatial": {
+    "process_id": "aggregate_spatial",
+    "arguments": {
+      "data": {
+        "from_node": "reduce_dimension"
+      },
+      "geometries": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              7.02,
+              51.75
+            ],
+            [
+              7.65,
+              51.74
+            ],
+            [
+              7.65,
+              51.29
+            ],
+            [
+              7.04,
+              51.31
+            ],
+            [
+              7.02,
+              51.75
+            ]
+          ]
+        ]
+      },
+      "reducer": {
+        "process_graph": {
+          "mean": {
+            "arguments": {
+              "data": {
+                "from_parameter": "data"
+              }
+            },
+            "process_id": "mean",
+            "result": true
+          }
+        }
+      }
+    }
+  },
+  "save_result": {
+    "process_id": "save_result",
+    "arguments": {
+      "data": {
+        "from_node": "aggregate_spatial"
+      },
+      "format": "JSON"
+    },
+    "result": true
+  }
+}
