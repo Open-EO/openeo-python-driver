@@ -38,6 +38,7 @@ from typing import List, Union, Tuple
 
 import shapely.geometry.base
 from shapely.geometry import Point, Polygon, MultiPolygon, GeometryCollection
+from shapely.geometry.base import BaseGeometry
 
 from openeo.metadata import CollectionMetadata
 from openeo_driver import filter_properties
@@ -437,8 +438,10 @@ class DryRunDataCube(DriverDataCube):
         return cube._process(operation="mask_polygon", arguments={"mask": mask})
 
     def aggregate_spatial(
-            self, geometries: Union[str, dict, DelayedVector, shapely.geometry.base.BaseGeometry],
-            reducer: dict, target_dimension: str = "result"
+            self,
+            geometries: Union[BaseGeometry, str],
+            reducer: dict,
+            target_dimension: str = "result",
     ) -> Union[AggregatePolygonResult, AggregatePolygonSpatialResult]:
         # TODO EP-3981 normalize to vector cube instead of GeometryCollection
         geometries, bbox = self._normalize_geometry(geometries)

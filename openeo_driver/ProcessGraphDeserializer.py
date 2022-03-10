@@ -899,7 +899,7 @@ def aggregate_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
         raise ProcessParameterInvalidException(
             parameter="geometries", process="aggregate_spatial", reason=f"Invalid type: {type(geoms)} ({geoms!r})"
         )
-    return cube.aggregate_spatial(geoms, reduce_pg, target_dimension=target_dimension)
+    return cube.aggregate_spatial(geometries=geoms, reducer=reduce_pg, target_dimension=target_dimension)
 
 
 @process_registry_040.add_function(name="mask")

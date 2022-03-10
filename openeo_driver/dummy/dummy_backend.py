@@ -8,6 +8,7 @@ from unittest.mock import Mock
 import flask
 from shapely.geometry import Polygon, MultiPolygon
 from shapely.geometry.collection import GeometryCollection
+from shapely.geometry.base import BaseGeometry
 
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.metadata import CollectionMetadata, Band
@@ -203,8 +204,12 @@ class DummyDataCube(DriverDataCube):
         # TODO: get rid of non-standard "zonal_statistics" (standard process is "aggregate_spatial")
         return self.aggregate_spatial(geometries=regions, reducer=func)
 
-    def aggregate_spatial(self, geometries: dict, reducer: dict, target_dimension: str = "result")\
-            -> Union['AggregatePolygonResult', 'AggregatePolygonSpatialResult']:
+    def aggregate_spatial(
+            self,
+            geometries: Union[BaseGeometry, str],
+            reducer: dict,
+            target_dimension: str = "result",
+    ) -> Union[AggregatePolygonResult, AggregatePolygonSpatialResult]:
 
         # TODO: support more advanced reducers too
         assert isinstance(reducer, dict) and len(reducer) == 1

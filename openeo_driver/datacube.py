@@ -5,6 +5,7 @@ from typing import List, Union, Optional
 
 import geopandas as gpd
 import shapely.geometry
+import shapely.geometry.base
 import shapely.ops
 
 from openeo import ImageCollection
@@ -100,7 +101,12 @@ class DriverDataCube(ImageCollection):
                            dimension: str = None, context:dict = None) -> 'DriverDataCube':
         self._not_implemented()
 
-    def aggregate_spatial(self, geometries: dict, reducer: dict, target_dimension: str = "result") -> 'DriverDataCube':
+    def aggregate_spatial(
+            self,
+            geometries: Union[shapely.geometry.base.BaseGeometry, str],
+            reducer: dict,
+            target_dimension: str = "result",
+    ) -> Union["AggregatePolygonResult", "AggregatePolygonSpatialResult"]:
         self._not_implemented()
 
     def zonal_statistics(self, regions, func:str) -> 'DriverDataCube':
