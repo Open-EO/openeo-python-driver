@@ -15,7 +15,7 @@ import pytest
 import shapely.geometry
 
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
-from openeo_driver.datacube import DriverDataCube
+from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import ProcessType
@@ -696,7 +696,7 @@ def test_aggregate_temporal_max_no_dimension(api):
     )
 
 
-def test_execute_aggregate_spatial(api):
+def test_aggregate_spatial(api):
     resp = api.check_result("aggregate_spatial.json")
     assert resp.json == {
         "2015-07-06T00:00:00": [2.345],
@@ -720,11 +720,62 @@ def test_execute_aggregate_spatial_spatial_cube(api100):
     (1234, "Invalid type: <class 'int'> (1234)"),
     (["a", "list"], "Invalid type: <class 'list'> (['a', 'list'])")
 ])
-def test_execute_aggregate_spatial_invalid_geometry(api100, geometries, expected):
+def test_aggregate_spatial_invalid_geometry(api100, geometries, expected):
     pg = api100.load_json("aggregate_spatial.json")
     assert pg["aggregate_spatial"]["arguments"]["geometries"]
     pg["aggregate_spatial"]["arguments"]["geometries"] = geometries
     _ = api100.result(pg).assert_error(400, "ProcessParameterInvalid", expected)
+
+
+def test_aggregate_spatial_vector_cube(api100):
+    path = get_path("geojson/FeatureCollection02.json")
+    pg = {
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "bands": ["B02", "B03", "B04"]}},
+        "lf": {
+            "process_id": "load_uploaded_files",
+            "arguments": {"paths": [str(path)], "format": "GeoJSON"},
+        },
+        "ag": {
+            "process_id": "aggregate_spatial",
+            "arguments": {
+                "data": {"from_node": "lc"},
+                "geometries": {"from_node": "lf"},
+                "reducer": {"process_graph": {
+                    "mean": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}}
+                }
+            },
+            "result": True
+        }
+    }
+    res = api100.check_result(pg)
+
+    params = dummy_backend.last_load_collection_call("S2_FOOBAR")
+    assert params["spatial_extent"] == {"west": 1, "south": 1, "east": 5, "north": 4, "crs": "EPSG:4326"}
+    assert isinstance(params["aggregate_spatial_geometries"], DriverVectorCube)
+
+    assert res.json == DictSubSet({
+        "type": "FeatureCollection",
+        "features": [
+            DictSubSet({
+                "type": "Feature",
+                "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
+                "properties": {
+                    "id": "first", "pop": 1234,
+                    "2015-07-06T00:00:00~B02": 0, "2015-07-06T00:00:00~B03": 1, "2015-07-06T00:00:00~B04": 2,
+                    "2015-08-22T00:00:00~B02": 3, "2015-08-22T00:00:00~B03": 4, "2015-08-22T00:00:00~B04": 5,
+                },
+            }),
+            DictSubSet({
+                "type": "Feature",
+                "geometry": {"type": "Polygon", "coordinates": [[[4, 2], [5, 4], [3, 4], [4, 2]]]},
+                "properties": {
+                    "id": "second", "pop": 5678,
+                    "2015-07-06T00:00:00~B02": 6, "2015-07-06T00:00:00~B03": 7, "2015-07-06T00:00:00~B04": 8,
+                    "2015-08-22T00:00:00~B02": 9, "2015-08-22T00:00:00~B03": 10, "2015-08-22T00:00:00~B04": 11,
+                },
+            }),
+        ]
+    })
 
 
 def test_create_wmts_040(api040):

@@ -427,7 +427,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     params.bands = constraints.get("bands", None)
     params.properties = constraints.get("properties", {})
     params.aggregate_spatial_geometries = constraints.get("aggregate_spatial", {}).get("geometries")
-    if params.aggregate_spatial_geometries == None:
+    if params.aggregate_spatial_geometries is None:
         params.aggregate_spatial_geometries = constraints.get("filter_spatial", {}).get("geometries")
     params.sar_backscatter = constraints.get("sar_backscatter", None)
     params.process_types = process_types
@@ -949,7 +949,10 @@ def aggregate_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
     target_dimension = args.get('target_dimension', None)
 
     geoms = extract_arg(args, 'geometries')
-    if isinstance(geoms, dict):
+    # TODO: convert all cases to DriverVectorCube first and just work with that
+    if isinstance(geoms, DriverVectorCube):
+        geoms = geoms
+    elif isinstance(geoms, dict):
         geoms = geojson_to_geometry(geoms)
     elif isinstance(geoms, DelayedVector):
         geoms = geoms.path
