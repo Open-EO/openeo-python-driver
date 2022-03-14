@@ -427,6 +427,7 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
     def to_csv(self, destination=None):
         csv_paths = glob.glob(self._csv_dir + "/*.csv")
         print(csv_paths)
+        # TODO: assumption there is only one CSV?
         if(destination == None):
             return csv_paths[0]
         else:
@@ -441,9 +442,11 @@ class AggregatePolygonSpatialResult(SaveResult):
 
     DEFAULT_FORMAT = "JSON"
 
-    def __init__(self, csv_dir: Union[str, Path], format: Optional[str] = None, options: Optional[dict] = None):
+    def __init__(self, csv_dir: Union[str, Path], metadata: CollectionMetadata=None, format: Optional[str] = None,
+                 options: Optional[dict] = None):
         super().__init__(format, options)
         self._csv_dir = Path(csv_dir)
+        self._metadata = metadata
 
     @staticmethod
     def _band_values_by_geometry(df: pd.DataFrame) -> List[List[float]]:
@@ -451,17 +454,55 @@ class AggregatePolygonSpatialResult(SaveResult):
         df.sort_index(inplace=True)
         return df.drop(columns="feature_index").values.tolist()
 
-    def create_flask_response(self) -> Response:
-        csv_paths = glob.glob(f"{self._csv_dir}/*.csv")
+    def prepare_for_json(self):
+        df = pd.read_csv(self._csv_path())
+        return self._band_values_by_geometry(df)
 
+    def _csv_path(self):
+        csv_paths = glob.glob(f"{self._csv_dir}/*.csv")
+        # could support multiple files but currently assumes coalesce(1)
+        assert len(csv_paths) == 1, f"expected exactly one CSV file at {self._csv_dir}"
+        return csv_paths[0]
+
+    def create_flask_response(self) -> Response:
         if self.is_format("json"):
-            df = pd.concat(map(pd.read_csv, csv_paths))
-            return jsonify(self._band_values_by_geometry(df))
+            return jsonify(self.prepare_for_json())
         elif self.is_format("csv"):
-            # TODO: assumption there is only one CSV?
-            return send_from_directory(os.path.dirname(csv_paths[0]), os.path.basename(csv_paths[0]))
+            csv_path = self._csv_path()
+            return send_from_directory(os.path.dirname(csv_path), os.path.basename(csv_path))
         else:
             raise FeatureUnsupportedException(f"Unsupported output format {self.format}; supported are: JSON and CSV")
+
+    def write_assets(self, directory: str) -> Dict:
+        # TODO: Hackish: original filename is ignored. Other `write_assets` implementations take a directory directly.
+        directory = pathlib.Path(directory).parent
+
+        asset = {
+            "roles": ["data"]
+        }
+
+        if self.is_format("json"):
+            asset["type"] = "application/json"
+            filename = str(Path(directory) / "timeseries.json")
+
+            import json
+            with open(filename, 'w') as f:
+                json.dump(self.prepare_for_json(), f)
+        elif self.is_format("csv"):
+            filename = str(Path(directory) / "timeseries.csv")
+            asset["type"] = "text/csv"
+
+            copy(self._csv_path(), filename)
+        else:
+            raise FeatureUnsupportedException(f"Unsupported output format {self.format}; supported are: JSON and CSV")
+
+        asset["href"] = filename
+
+        if self._metadata is not None and self._metadata.has_band_dimension():
+            bands = [b._asdict() for b in self._metadata.bands]
+            asset["bands"] = bands
+
+        return {str(Path(filename).name): asset}
 
 
 class MultipleFilesResult(SaveResult):
