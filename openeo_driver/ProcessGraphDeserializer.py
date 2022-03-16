@@ -35,8 +35,8 @@ from openeo_driver.errors import ProcessParameterRequiredException, ProcessParam
     FeatureUnsupportedException, OpenEOApiException, ProcessGraphInvalidException, FileTypeInvalidException, \
     ProcessUnsupportedException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE
-from openeo_driver.save_result import JSONResult, SaveResult, AggregatePolygonResult, NullResult, \
-    to_save_result
+from openeo_driver.save_result import JSONResult,SaveResult,AggregatePolygonResult,NullResult, \
+    to_save_result,AggregatePolygonSpatialResult
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
 from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union, geojson_to_multipolygon
@@ -684,14 +684,66 @@ def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/fit_class_random_forest.json"))
 def fit_class_random_forest(args: dict, env: EvalEnv) -> SaveResult:
-    data_cube = extract_arg(args, 'data')
     predictors = extract_arg(args, 'predictors')
+    if not isinstance(predictors, AggregatePolygonSpatialResult):
+        raise ProcessParameterInvalidException(
+            parameter="predictors", process="fit_class_random_forest",
+            reason="The Predictors parameter should be the result of an aggregate_spatial call."
+            )
     target = extract_arg(args, 'target')
-    training = int(extract_arg(args, 'training'))
+    num_predictors = 0
+    if isinstance(target, dict):
+        if target["type"] == "FeatureCollection":
+            if "features" not in target or not isinstance(target["features"], list):
+                raise ProcessParameterInvalidException(
+                    parameter="target", process="fit_class_random_forest",
+                    reason="The target dict should contain a 'features' key containing an array of features."
+                    )
+            labels = []
+            for feature in target["features"]:
+                if "properties" not in feature or isinstance(feature["properties"], dict):
+                    raise ProcessParameterInvalidException(
+                        parameter="target",process="fit_class_random_forest",
+                        reason="Each feature in target should contain a 'properties' key with a dict as its value."
+                        )
+                if "target" not in feature["properties"] or isinstance(feature["target"], int):
+                    raise ProcessParameterInvalidException(
+                        parameter="target", process="fit_class_random_forest",
+                        reason="The 'properties' field of a feature should contain a 'target' key with an integer as "
+                               "its value."
+                        )
+                labels.append(feature["target"])
+            num_classes = max(labels) + 1
+            num_predictors = len(labels)
+            if min(labels) < 0 or num_classes > len(set(labels)):
+                raise ProcessParameterInvalidException(
+                    parameter="target", process="fit_class_random_forest",
+                    reason="The target labels should be integers going from 0 to num_classes "
+                           "with every integer in this interval occurring at least once."
+                    )
+    else:
+        raise ProcessParameterInvalidException(
+            parameter="target", process="fit_class_random_forest", reason="The target is not a FeatureCollection."
+        )
+    training = extract_arg(args, 'training')
+    if not isinstance(training, float) or training < 0.0 or training > 1.0:
+        raise ProcessParameterInvalidException(
+            parameter="training", process="fit_class_random_forest",
+            reason="The training parameter should be a float between 0 and 1."
+        )
     num_trees = int(extract_arg(args, 'num_trees'))
-    mtry = args.get('mtry', None)
-    return data_cube.fit_class_random_forest(predictors=predictors, target=target,
-                                             training=training, num_trees=num_trees, mtry=mtry)
+    if not isinstance(num_trees, int) or num_trees < 0:
+        raise ProcessParameterInvalidException(
+            parameter="num_trees", process="fit_class_random_forest",
+            reason="The num_trees parameter should be an integer larger than 0."
+        )
+    mtry = args.get('mtry', int(num_predictors / 3))
+    if not isinstance(mtry, int) or mtry < 0:
+        raise ProcessParameterInvalidException(
+            parameter="mtry", process="fit_class_random_forest",
+            reason="The mtry parameter should be an integer larger than 0."
+        )
+    return predictors.fit_class_random_forest(target=target, training=training, num_trees=num_trees, mtry=mtry)
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/predict_random_forest.json"))
