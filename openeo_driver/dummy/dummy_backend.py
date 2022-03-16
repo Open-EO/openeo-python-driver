@@ -168,15 +168,9 @@ class DummyDataCube(DriverDataCube):
         for name in [n for n, m in DummyDataCube.__dict__.items() if getattr(m, '_mock_side_effect', False)]:
             setattr(self, name, Mock(side_effect=getattr(self, name)))
 
-        self._is_spatio_temporal = True
-
     @mock_side_effect
     def reduce_dimension(self, reducer, dimension: str, env: EvalEnv) -> 'DummyDataCube':
         self.metadata = self.metadata.reduce_dimension(dimension_name=dimension)
-
-        if dimension == "t":
-            self._is_spatio_temporal = False
-
         return self
 
     @mock_side_effect
@@ -232,7 +226,7 @@ class DummyDataCube(DriverDataCube):
         else:
             assert_polygon_or_multipolygon(geometries)
 
-        if self._is_spatio_temporal:
+        if self.metadata.has_temporal_dimension():
             return AggregatePolygonResult(timeseries={
                 "2015-07-06T00:00:00": [2.345],
                 "2015-08-22T00:00:00": [float('nan')]
