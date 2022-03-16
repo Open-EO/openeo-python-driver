@@ -712,11 +712,7 @@ def test_execute_aggregate_spatial(api):
 
 def test_execute_aggregate_spatial_spatial_cube(api100):
     resp = api100.check_result("aggregate_spatial_spatial_cube.json")
-
-    assert resp.json == [
-        [4646.262612301313, 4865.926572218383, 5178.517363510712],
-        [4645.719597475695, 4865.467252259935, 5177.803342998465]
-    ]
+    assert resp.json == [[100.0, 100.1], [101.0, 101.1]]
 
 
 @pytest.mark.parametrize(["geometries", "expected"], [
@@ -2356,3 +2352,18 @@ def test_chunk_polygon(api100):
     api100.check_result("chunk_polygon.json")
     params = dummy_backend.last_load_collection_call("S2_FOOBAR")
     assert params["spatial_extent"] == {'west': 1.0, 'south': 5.0, 'east': 12.0, 'north': 16.0, 'crs': 'EPSG:4326'}
+
+
+def test_fit_class_random_forest(api100):
+    res = api100.check_result("fit_class_random_forest.json")
+    assert res.json == DictSubSet({
+        "type": "DummyMlModel",
+        "creation_data": {
+            "process_id": "fit_class_random_forest",
+            "data": [[100.0, 100.1, 100.2, 100.3], [101.0, 101.1, 101.2, 101.3]],
+            "target": DictSubSet({"type": "FeatureCollection"}),
+            "training": 0.5,
+            "num_trees": 200,
+            "mtry": None,
+        }
+    })

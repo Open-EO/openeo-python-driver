@@ -24,10 +24,10 @@ import openeo.udf
 from openeo.capabilities import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphVisitException
 from openeo.metadata import CollectionMetadata, MetadataException
-from openeo.util import load_json, rfc3339
+from openeo.util import load_json, rfc3339, deep_get
 from openeo_driver import dry_run
 from openeo_driver.backend import UserDefinedProcessMetadata, LoadParameters, Processing, OpenEoBackendImplementation
-from openeo_driver.datacube import DriverDataCube, DriverVectorCube
+from openeo_driver.datacube import DriverDataCube, DriverVectorCube, DriverMlModel
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint
@@ -35,8 +35,8 @@ from openeo_driver.errors import ProcessParameterRequiredException, ProcessParam
     FeatureUnsupportedException, OpenEOApiException, ProcessGraphInvalidException, FileTypeInvalidException, \
     ProcessUnsupportedException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE
-from openeo_driver.save_result import JSONResult,SaveResult,AggregatePolygonResult,NullResult, \
-    to_save_result,AggregatePolygonSpatialResult
+from openeo_driver.save_result import JSONResult, SaveResult, AggregatePolygonResult, NullResult, \
+    to_save_result, AggregatePolygonSpatialResult, MlModelResult
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
 from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union, geojson_to_multipolygon
@@ -594,6 +594,13 @@ def save_result(args: Dict, env: EvalEnv) -> SaveResult:
         return to_save_result(data, format=format, options=options)
 
 
+@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/save_ml_model.json"))
+def save_ml_model(args: dict, env: EvalEnv) -> MlModelResult:
+    data: DriverMlModel = extract_arg(args, "data", process_id="save_ml_model")
+    options = args.get("options", {})
+    return MlModelResult(ml_model=data, options=options)
+
+
 @process
 def apply(args: dict, env: EvalEnv) -> DriverDataCube:
     """
@@ -683,66 +690,72 @@ def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/fit_class_random_forest.json"))
-def fit_class_random_forest(args: dict, env: EvalEnv) -> SaveResult:
+def fit_class_random_forest(args: dict, env: EvalEnv) -> DriverMlModel:
+
+    # Keep it simple for dry run
+    if env.get(ENV_DRY_RUN_TRACER):
+        return DriverMlModel()
+
     predictors = extract_arg(args, 'predictors')
     if not isinstance(predictors, AggregatePolygonSpatialResult):
+        # TODO EP-3981 add support for real vector cubes.
         raise ProcessParameterInvalidException(
             parameter="predictors", process="fit_class_random_forest",
-            reason="The Predictors parameter should be the result of an aggregate_spatial call."
+            reason=f"should be non-temporal vector-cube (got `{type(predictors)}`)."
             )
     target = extract_arg(args, 'target')
-    num_predictors = 0
-    if isinstance(target, dict):
-        if target["type"] == "FeatureCollection":
-            if "features" not in target or not isinstance(target["features"], list):
-                raise ProcessParameterInvalidException(
-                    parameter="target", process="fit_class_random_forest",
-                    reason="The target dict should contain a 'features' key containing an array of features."
-                    )
-            labels = []
-            for feature in target["features"]:
-                if "properties" not in feature or isinstance(feature["properties"], dict):
-                    raise ProcessParameterInvalidException(
-                        parameter="target",process="fit_class_random_forest",
-                        reason="Each feature in target should contain a 'properties' key with a dict as its value."
-                        )
-                if "target" not in feature["properties"] or isinstance(feature["target"], int):
-                    raise ProcessParameterInvalidException(
-                        parameter="target", process="fit_class_random_forest",
-                        reason="The 'properties' field of a feature should contain a 'target' key with an integer as "
-                               "its value."
-                        )
-                labels.append(feature["target"])
-            num_classes = max(labels) + 1
-            num_predictors = len(labels)
-            if min(labels) < 0 or num_classes > len(set(labels)):
-                raise ProcessParameterInvalidException(
-                    parameter="target", process="fit_class_random_forest",
-                    reason="The target labels should be integers going from 0 to num_classes "
-                           "with every integer in this interval occurring at least once."
-                    )
-    else:
+    if not (
+            isinstance(target, dict)
+            and target.get("type") == "FeatureCollection"
+            and isinstance(target.get("features"), list)
+    ):
+        # TODO EP-3981 vector cube support
         raise ProcessParameterInvalidException(
-            parameter="target", process="fit_class_random_forest", reason="The target is not a FeatureCollection."
+            parameter="target", process="fit_class_random_forest",
+            reason='only GeoJSON FeatureCollection is currently supported.',
         )
+    labels = []
+    for feature in target["features"]:
+        target_label = deep_get(feature, "properties", "target", default=None)
+        if not isinstance(target_label, int):
+            # TODO: allow string based target labels too?
+            raise ProcessParameterInvalidException(
+                parameter="target", process="fit_class_random_forest",
+                reason="Each feature should have an integer 'target' property."
+            )
+        labels.append(target_label)
+
+    # TODO: is this check actually necessary? And is it necessary here?
+    expected_labels = set(range(max(labels) + 1))
+    if set(labels) != expected_labels:
+        raise ProcessParameterInvalidException(
+            parameter="target", process="fit_class_random_forest",
+            reason="target labels should fully cover range from 0 to (num_classes-1) "
+                   f"but got {set(labels)}."
+        )
+
+    # TODO: get defaults from process spec?
+    # TODO: do parameter checks automatically based on process spec?
     training = extract_arg(args, 'training')
     if not isinstance(training, float) or training < 0.0 or training > 1.0:
         raise ProcessParameterInvalidException(
             parameter="training", process="fit_class_random_forest",
-            reason="The training parameter should be a float between 0 and 1."
+            reason="should be a float between 0 and 1."
         )
-    num_trees = int(extract_arg(args, 'num_trees'))
+    num_trees = args.get("num_trees", 100)
     if not isinstance(num_trees, int) or num_trees < 0:
         raise ProcessParameterInvalidException(
             parameter="num_trees", process="fit_class_random_forest",
-            reason="The num_trees parameter should be an integer larger than 0."
+            reason="should be an integer larger than 0."
         )
-    mtry = args.get('mtry', int(num_predictors / 3))
-    if not isinstance(mtry, int) or mtry < 0:
+    # TODO: will mtry be renamed? https://github.com/Open-EO/openeo-processes/issues/339
+    mtry = args.get('mtry')
+    if not (mtry is None or (isinstance(mtry, int) and mtry > 0)):
         raise ProcessParameterInvalidException(
             parameter="mtry", process="fit_class_random_forest",
-            reason="The mtry parameter should be an integer larger than 0."
+            reason="should be an integer larger than 0."
         )
+    # TODO: seed parameter  https://github.com/Open-EO/openeo-processes/pull/306/commits/2746734057f06823294075aaea0ed621c24a7659
     return predictors.fit_class_random_forest(target=target, training=training, num_trees=num_trees, mtry=mtry)
 
 

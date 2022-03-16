@@ -1,7 +1,7 @@
 import inspect
 import zipfile
 from pathlib import Path
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Dict
 
 import geopandas as gpd
 import shapely.geometry
@@ -11,7 +11,7 @@ import shapely.ops
 from openeo import ImageCollection
 from openeo.metadata import CollectionMetadata
 from openeo.util import ensure_dir
-from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
+from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs, StacAsset
 from openeo_driver.errors import FeatureUnsupportedException
 from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.utils import EvalEnv
@@ -155,7 +155,7 @@ class DriverVectorCube:
         # TODO EP-3981: lazy loading like/with DelayedVector
         return cls(data=gpd.read_file(paths[0], driver=driver))
 
-    def write_assets(self, directory: Union[str, Path], format: str, options: Optional[dict] = None) -> dict:
+    def write_assets(self, directory: Union[str, Path], format: str, options: Optional[dict] = None) -> Dict[str, StacAsset]:
         directory = ensure_dir(directory)
         format_info = IOFORMATS.get(format)
         # TODO: check if format can be used for vector data?
@@ -191,3 +191,10 @@ class DriverVectorCube:
 
     def to_multipolygon(self) -> shapely.geometry.MultiPolygon:
         return shapely.ops.unary_union(self.data.geometry)
+
+
+class DriverMlModel:
+    """Base class for driver-side 'ml-model' data structures"""
+
+    def write_assets(self, directory: Union[str, Path], options: Optional[dict] = None) -> Dict[str, StacAsset]:
+        raise NotImplementedError

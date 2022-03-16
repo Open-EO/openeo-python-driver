@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 from shapely.geometry import GeometryCollection, Polygon
 
-from openeo_driver.save_result import AggregatePolygonResult, SaveResult
-from .data import load_json, json_normalize
+from openeo_driver.save_result import AggregatePolygonResult, SaveResult, AggregatePolygonSpatialResult
+from .data import load_json, json_normalize, get_path
 
 
 def test_is_format():
@@ -99,3 +99,18 @@ def test_aggregate_polygon_result_inconsistent_bands():
 
     with pytest.raises(ValueError):
         result.prepare_for_json()
+
+
+class TestAggregatePolygonSpatialResult:
+
+    def test_load_csv(self):
+        csv_dir = get_path("aggregate_spatial_spatial_cube")
+        regions = GeometryCollection([
+            Polygon([(0, 0), (5, 1), (1, 4)]),
+            Polygon([(6, 1), (1, 7), (9, 9)])
+        ])
+        res = AggregatePolygonSpatialResult(csv_dir=csv_dir, regions=regions)
+        assert res.prepare_for_json() == [
+            [4646.262612301313, 4865.926572218383, 5178.517363510712],
+            [4645.719597475695, 4865.467252259935, 5177.803342998465],
+        ]

@@ -21,3 +21,8 @@ class ResolutionMergeArgs(NamedTuple):
     low_resolution_bands: List[str] = False
     # Additional (non-standard) fine-tuning options
     options: dict = {}
+
+
+# Simple type hint alias (for now) for a STAC Asset object (dictionary with at least a "href" item)
+# https://github.com/radiantearth/stac-spec/blob/master/item-spec/item-spec.md#asset-object
+StacAsset = dict

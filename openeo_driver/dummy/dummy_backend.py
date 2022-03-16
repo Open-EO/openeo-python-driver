@@ -1,4 +1,6 @@
+
 import numbers
+import json
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -16,7 +18,8 @@ from openeo_driver.ProcessGraphDeserializer import ConcreteProcessing
 from openeo_driver.backend import (SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata,
                                    BatchJobs, BatchJobMetadata, OidcProvider, UserDefinedProcesses,
                                    UserDefinedProcessMetadata, LoadParameters)
-from openeo_driver.datacube import DriverDataCube
+from openeo_driver.datacube import DriverDataCube, DriverMlModel
+from openeo_driver.datastructs import StacAsset
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import SourceConstraint
 from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, ProcessGraphNotFoundException, \
@@ -225,6 +228,7 @@ class DummyDataCube(DriverDataCube):
                 assert_polygon_or_multipolygon(geometry)
         else:
             assert_polygon_or_multipolygon(geometries)
+            geometries = [geometries]
 
         if self.metadata.has_temporal_dimension():
             return AggregatePolygonResult(timeseries={
@@ -232,10 +236,39 @@ class DummyDataCube(DriverDataCube):
                 "2015-08-22T00:00:00": [float('nan')]
             }, regions=GeometryCollection())
         else:
-            return AggregatePolygonSpatialResult(
-                csv_dir=Path(__file__).parent / "data" / "aggregate_spatial_spatial_cube",
-                regions=GeometryCollection()
-            )
+            return DummyAggregatePolygonSpatialResult(cube=self, geometries=geometries)
+
+
+class DummyAggregatePolygonSpatialResult(AggregatePolygonSpatialResult):
+    # TODO EP-3981 replace with proper VectorCube implementation
+
+    def __init__(self, cube: DummyDataCube, geometries: Iterable[BaseGeometry]):
+        super().__init__(csv_dir="/dev/null", regions=geometries)
+        bands = len(cube.metadata.bands)
+        # Dummy data: #geometries rows x #bands columns
+        self.data = [[100 + g + 0.1 * b for b in range(bands)] for g in range(len(self._regions))]
+
+    def prepare_for_json(self):
+        return self.data
+
+    def fit_class_random_forest(self, target: dict, training: float, num_trees: int, mtry: int) -> DriverMlModel:
+        # Fake ML training: just store inputs
+        return DummyMlModel(
+            process_id="fit_class_random_forest",
+            data=self.data, target=target, training=training, num_trees=num_trees, mtry=mtry
+        )
+
+
+class DummyMlModel(DriverMlModel):
+
+    def __init__(self, **kwargs):
+        self.creation_data = kwargs
+
+    def write_assets(self, directory: Union[str, Path], options: Optional[dict] = None) -> Dict[str, StacAsset]:
+        path = (Path(directory) / "mlmodel.json")
+        with path.open("w") as f:
+            json.dump({"type": type(self).__name__, "creation_data": self.creation_data}, f)
+        return {path.name: {"href": str(path), "path": str(path)}}
 
 
 class DummyCatalog(CollectionCatalog):

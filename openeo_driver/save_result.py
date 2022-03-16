@@ -1,5 +1,4 @@
 import glob
-import inspect
 import os
 import pathlib
 import tempfile
@@ -17,10 +16,10 @@ from flask import send_from_directory, jsonify, Response
 from shapely.geometry import GeometryCollection, mapping
 
 from openeo.metadata import CollectionMetadata
-from openeo.util import ensure_dir
-from openeo_driver.datacube import DriverDataCube, DriverVectorCube
+from openeo_driver.datacube import DriverDataCube, DriverVectorCube, DriverMlModel
+from openeo_driver.datastructs import StacAsset
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.errors import OpenEOApiException, FeatureUnsupportedException
+from openeo_driver.errors import OpenEOApiException, FeatureUnsupportedException, InternalException
 from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.utils import replace_nan_values
 
@@ -49,6 +48,9 @@ class SaveResult:
         self.format = format.lower()
         self.options = options or {}
 
+    def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
+        raise NotImplementedError
+
     def create_flask_response(self) -> Response:
         """
         Returns a Flask compatible response. The view is unaware of the output format; rather, it is derived from the
@@ -57,6 +59,20 @@ class SaveResult:
         :return: A response that can be handled by Flask
         """
         raise NotImplementedError
+
+    def flask_response_from_write_assets(self) -> Response:
+        """Helper to generate a Flask response from `write_assets` result."""
+        with tempfile.TemporaryDirectory(prefix="openeo-pydrvr-") as tmp_dir:
+            assets = self.write_assets(directory=tmp_dir)
+            if len(assets) == 0:
+                raise InternalException("No assets written")
+            if len(assets) > 1:
+                # TODO support zipping multiple assets
+                raise FeatureUnsupportedException("Multi-file responses not yet supported")
+            asset = assets.popitem()[1]
+            path = Path(asset["href"])
+            mimetype = asset.get("type")
+            return send_from_directory(path.parent, path.name, mimetype=mimetype)
 
     def get_mimetype(self, default="application/octet-stream"):
         return IOFORMATS.get_mimetype(self.format)
@@ -82,7 +98,7 @@ class ImageCollectionResult(SaveResult):
         # TODO: port to write_assets
         return self.cube.save_result(filename=filename, format=self.format, format_options=self.options)
 
-    def write_assets(self, directory:str) -> Dict:
+    def write_assets(self, directory:str) -> Dict[str, StacAsset]:
         """
         Save generated assets into a directory, return asset metadata.
         TODO: can an asset also be a full STAC item? In principle, one openEO job can either generate a full STAC collection, or one STAC item with multiple assets...
@@ -98,6 +114,7 @@ class ImageCollectionResult(SaveResult):
 
     def create_flask_response(self) -> Response:
         # TODO: clean up temp file
+        # TODO: port to write_assets
         filename = get_temp_file(suffix=".save_result.{e}".format(e=self.format.lower()))
         filename = self.save_result(filename)
         mimetype = self.get_mimetype()
@@ -113,18 +130,25 @@ class VectorCubeResult(SaveResult):
         super().__init__(format=format, options=options)
         self.cube = cube
 
-    def write_assets(self, directory: Union[str, Path]) -> dict:
+    def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
         return self.cube.write_assets(directory=directory, format=self.format, options=self.options)
 
     def create_flask_response(self) -> Response:
-        with tempfile.TemporaryDirectory(prefix="openeo-pydrvr-") as tmp_dir:
-            assets = self.write_assets(directory=tmp_dir)
-            if len(assets) != 1:
-                raise FeatureUnsupportedException("Multi-file responses not yet supported")
-            asset = assets.popitem()[1]
-            path: Path = asset["href"]
-            mimetype = asset["type"]
-            return send_from_directory(path.parent, path.name, mimetype=mimetype)
+        return self.flask_response_from_write_assets()
+
+
+class MlModelResult(SaveResult):
+    # TODO merge implementation with ImageCollectionResult?
+
+    def __init__(self, ml_model: DriverMlModel, options: Optional[dict] = None):
+        super().__init__(options=options)
+        self.ml_model = ml_model
+
+    def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
+        return self.ml_model.write_assets(directory=directory, options=self.options)
+
+    def create_flask_response(self) -> Response:
+        return self.flask_response_from_write_assets()
 
 
 class JSONResult(SaveResult):
@@ -133,7 +157,7 @@ class JSONResult(SaveResult):
         super().__init__(format=format, options=options)
         self.data = data
 
-    def write_assets(self, path:str) -> Dict:
+    def write_assets(self, path:str) -> Dict[str, StacAsset]:
         """
         Save generated assets into a directory, return asset metadata.
         TODO: can an asset also be a full STAC item? In principle, one openEO job can either generate a full STAC collection, or one STAC item with multiple assets...
@@ -191,7 +215,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         # By default, keep original (proprietary) result format
         return self.data
 
-    def write_assets(self, directory:str) -> Dict:
+    def write_assets(self, directory:str) -> Dict[str, StacAsset]:
         """
         Save generated assets into a directory, return asset metadata.
         TODO: can an asset also be a full STAC item? In principle, one openEO job can either generate a full STAC collection, or one STAC item with multiple assets...
@@ -440,6 +464,7 @@ class AggregatePolygonSpatialResult(SaveResult):
     """
     Container for result of `aggregate_polygon` process (aka "zonal stats") for a spatial layer.
     """
+    # TODO EP-3981 replace with proper VectorCube implementation
 
     DEFAULT_FORMAT = "JSON"
 
@@ -475,7 +500,7 @@ class AggregatePolygonSpatialResult(SaveResult):
         else:
             raise FeatureUnsupportedException(f"Unsupported output format {self.format}; supported are: JSON and CSV")
 
-    def write_assets(self, directory: str) -> Dict:
+    def write_assets(self, directory: str) -> Dict[str, StacAsset]:
         # TODO: Hackish: original filename is ignored. Other `write_assets` implementations take a directory directly.
         directory = pathlib.Path(directory).parent
 
@@ -506,9 +531,9 @@ class AggregatePolygonSpatialResult(SaveResult):
 
         return {str(Path(filename).name): asset}
 
-    def fit_class_random_forest(self, target, training, num_trees, mtry):
+    def fit_class_random_forest(self, target: dict, training: float, num_trees: int, mtry: int) -> DriverMlModel:
         # TODO: this method belongs eventually under DriverVectorCube
-        raise NotImplementedError("Method not implemented: {m!r}".format(m=inspect.stack()[1].function))
+        raise NotImplementedError
 
 
 class MultipleFilesResult(SaveResult):
