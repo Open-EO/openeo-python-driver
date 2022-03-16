@@ -1,4 +1,5 @@
 import glob
+import inspect
 import os
 import pathlib
 import tempfile
@@ -514,6 +515,9 @@ class AggregatePolygonSpatialResult(SaveResult):
             asset["bands"] = bands
 
         return {str(Path(filename).name): asset}
+
+    def fit_class_random_forest(self, target, training, num_trees, mtry):
+        raise NotImplementedError("Method not implemented: {m!r}".format(m=inspect.stack()[1].function))
 
 
 class MultipleFilesResult(SaveResult):
