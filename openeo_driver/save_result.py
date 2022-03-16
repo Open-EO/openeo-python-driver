@@ -456,7 +456,7 @@ class AggregatePolygonSpatialResult(SaveResult):
         df.sort_index(inplace=True)
         return df.drop(columns="feature_index").values.tolist()
 
-    def get_values_by_geometry(self) -> Dict[List[float]]:
+    def get_values_by_geometry(self) -> Dict[str, List[float]]:
         result = {}
         df = pd.read_csv(self._csv_path())
         df.index = df.feature_index
@@ -517,6 +517,7 @@ class AggregatePolygonSpatialResult(SaveResult):
         return {str(Path(filename).name): asset}
 
     def fit_class_random_forest(self, target, training, num_trees, mtry):
+        # TODO: this method belongs eventually under DriverVectorCube
         raise NotImplementedError("Method not implemented: {m!r}".format(m=inspect.stack()[1].function))
 
 

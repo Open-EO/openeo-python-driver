@@ -232,11 +232,16 @@ class DummyDataCube(DriverDataCube):
         else:
             assert_polygon_or_multipolygon(geometries)
 
-        return AggregatePolygonResult(timeseries={
-            "2015-07-06T00:00:00": [2.345],
-            "2015-08-22T00:00:00": [float('nan')]
-        }, regions=GeometryCollection()) if self._is_spatio_temporal else AggregatePolygonSpatialResult(
-            csv_dir=Path(__file__).parent / "data" / "aggregate_spatial_spatial_cube", regions=GeometryCollection())
+        if self._is_spatio_temporal:
+            return AggregatePolygonResult(timeseries={
+                "2015-07-06T00:00:00": [2.345],
+                "2015-08-22T00:00:00": [float('nan')]
+            }, regions=GeometryCollection())
+        else:
+            return AggregatePolygonSpatialResult(
+                csv_dir=Path(__file__).parent / "data" / "aggregate_spatial_spatial_cube",
+                regions=GeometryCollection()
+            )
 
 
 class DummyCatalog(CollectionCatalog):
