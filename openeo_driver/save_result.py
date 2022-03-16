@@ -455,6 +455,16 @@ class AggregatePolygonSpatialResult(SaveResult):
         df.sort_index(inplace=True)
         return df.drop(columns="feature_index").values.tolist()
 
+    def get_values_by_geometry(self) -> Dict[List[float]]:
+        result = {}
+        df = pd.read_csv(self._csv_path())
+        df.index = df.feature_index
+        df.sort_index(inplace=True)
+        for index, row in df.iterrows():
+            region = self._regions[index]
+            result[region] = row.values.tolist()
+        return result
+
     def prepare_for_json(self):
         df = pd.read_csv(self._csv_path())
         return self._band_values_by_geometry(df)
