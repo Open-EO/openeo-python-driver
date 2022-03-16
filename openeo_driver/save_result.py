@@ -442,10 +442,11 @@ class AggregatePolygonSpatialResult(SaveResult):
 
     DEFAULT_FORMAT = "JSON"
 
-    def __init__(self, csv_dir: Union[str, Path], metadata: CollectionMetadata=None, format: Optional[str] = None,
-                 options: Optional[dict] = None):
+    def __init__(self, csv_dir: Union[str, Path], regions, metadata: CollectionMetadata = None,
+                 format: Optional[str] = None, options: Optional[dict] = None):
         super().__init__(format, options)
         self._csv_dir = Path(csv_dir)
+        self._regions = regions
         self._metadata = metadata
 
     @staticmethod
