@@ -574,8 +574,9 @@ class MultipleFilesResult(SaveResult):
 
 
 class NullResult(SaveResult):
-    def __init__(self):
-        super().__init__()
+
+    def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
+        return {}
 
     def create_flask_response(self) -> Response:
         return jsonify(None)
