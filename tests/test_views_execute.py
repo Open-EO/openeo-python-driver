@@ -2365,5 +2365,6 @@ def test_fit_class_random_forest(api100):
             "training": 0.5,
             "num_trees": 200,
             "mtry": None,
+            "seed": None,
         }
     })

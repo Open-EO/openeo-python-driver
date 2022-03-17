@@ -251,11 +251,14 @@ class DummyAggregatePolygonSpatialResult(AggregatePolygonSpatialResult):
     def prepare_for_json(self):
         return self.data
 
-    def fit_class_random_forest(self, target: dict, training: float, num_trees: int, mtry: int) -> DriverMlModel:
+    def fit_class_random_forest(
+            self, target: dict,
+            training: float, num_trees: int, mtry: Optional[int] = None, seed: Optional[int] = None
+    ) -> DriverMlModel:
         # Fake ML training: just store inputs
         return DummyMlModel(
             process_id="fit_class_random_forest",
-            data=self.data, target=target, training=training, num_trees=num_trees, mtry=mtry
+            data=self.data, target=target, training=training, num_trees=num_trees, mtry=mtry, seed=seed,
         )
 
 

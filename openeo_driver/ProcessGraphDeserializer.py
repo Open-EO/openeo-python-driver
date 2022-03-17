@@ -755,8 +755,16 @@ def fit_class_random_forest(args: dict, env: EvalEnv) -> DriverMlModel:
             parameter="mtry", process="fit_class_random_forest",
             reason="should be an integer larger than 0."
         )
-    # TODO: seed parameter  https://github.com/Open-EO/openeo-processes/pull/306/commits/2746734057f06823294075aaea0ed621c24a7659
-    return predictors.fit_class_random_forest(target=target, training=training, num_trees=num_trees, mtry=mtry)
+    seed = args.get("seed")
+    if not (seed is None or isinstance(seed, int)):
+        raise ProcessParameterInvalidException(
+            parameter="seed", process="fit_class_random_forest", reason="should be an integer"
+        )
+
+    return predictors.fit_class_random_forest(
+        target=target, training=training,
+        num_trees=num_trees, mtry=mtry, seed=seed,
+    )
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/predict_random_forest.json"))
