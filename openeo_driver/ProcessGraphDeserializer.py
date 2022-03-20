@@ -601,6 +601,12 @@ def save_ml_model(args: dict, env: EvalEnv) -> MlModelResult:
     return MlModelResult(ml_model=data, options=options)
 
 
+@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/load_ml_model.json"))
+def load_ml_model(args: dict, env: EvalEnv) -> DriverMlModel:
+    job_id = extract_arg(args, "id")
+    return env.backend_implementation.load_ml_model(job_id)
+
+
 @process
 def apply(args: dict, env: EvalEnv) -> DriverDataCube:
     """

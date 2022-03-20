@@ -21,7 +21,7 @@ import flask
 from openeo.capabilities import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.util import rfc3339, dict_no_none
-from openeo_driver.datacube import DriverDataCube
+from openeo_driver.datacube import DriverDataCube, DriverMlModel
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.dry_run import SourceConstraint
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException, FeatureUnsupportedException
@@ -583,6 +583,9 @@ class OpenEoBackendImplementation:
         raise NotImplementedError
 
     def load_result(self, job_id: str, user: User, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
+        raise NotImplementedError
+
+    def load_ml_model(self, job_id: str) -> DriverMlModel:
         raise NotImplementedError
 
     def visit_process_graph(self, process_graph: dict) -> ProcessGraphVisitor:
