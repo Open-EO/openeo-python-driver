@@ -698,6 +698,8 @@ def register_views_batch_jobs(
         blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
         auth_handler: HttpAuthHandler
 ):
+    stac_item_media_type = "application/geo+json"
+
     @api_endpoint
     @blueprint.route('/jobs', methods=['POST'])
     @auth_handler.requires_bearer_auth
@@ -821,8 +823,8 @@ def register_views_batch_jobs(
                 stac_item_filename = f"{os.path.splitext(filename)[0]}_item.json"
                 links.append({
                     "rel": "item",
-                    "href": url_for('.download_job_result', job_id=job_id, filename=stac_item_filename, _external=True),  # TODO: should this be signed too?
-                    "type": "application/geo+json"
+                    "href": url_for('.download_job_result', job_id=job_id, filename=stac_item_filename, _external=True),
+                    "type": stac_item_media_type
                 })
 
             links.append({
@@ -885,17 +887,21 @@ def register_views_batch_jobs(
 
     def _download_job_asset_stac_item(job_id: str, stac_item_filename: str, user: User) -> flask.Response:
         results = backend_implementation.batch_jobs.get_results(job_id, user.user_id)
-        prefix = stac_item_filename.replace("_item.json", "")
+        base_name = stac_item_filename.replace("_item.json", "")
 
         assets_with_prefix = {
             asset_filename: metadata for asset_filename, metadata in results.items()
-            if asset_filename.startswith(prefix)
+            if asset_filename.startswith(base_name)
         }
 
         if len(assets_with_prefix) != 1:
-            raise AssertionError(f"expected exactly 1 asset with prefix {prefix}")
+            raise AssertionError(f"expected exactly 1 asset with base name {base_name}")
 
         asset_filename, metadata = next(iter(assets_with_prefix.items()))
+
+        # TODO: attach these to job/asset metadata
+        geometry = metadata.get("geometry")
+        bbox = metadata.get("bbox")
 
         properties = {"datetime": metadata.get("datetime")}
         if properties["datetime"] is None:
@@ -912,23 +918,30 @@ def register_views_batch_jobs(
                 if end_datetime:
                     properties["end_datetime"] = end_datetime
 
-        # TODO: get the job's geotiff asset by means of the filename
-        # TODO: return a STAC item with a download_job_result "href" to this asset
         stac_item = {
             "type": "Feature",
             "stac_version": "0.9.0",
-            "id": stac_item_filename,  # TODO
-            "geometry": None,  # FIXME
-            "bbox": None,  # FIXME
+            "id": stac_item_filename,
+            "geometry": geometry,
+            "bbox": bbox,
             "properties": properties,
-            "links": [],  # TODO
+            "links": [{
+                "rel": "self",
+                "href": url_for('.download_job_result', job_id=job_id, filename=stac_item_filename, _external=True),
+                "type": stac_item_media_type
+            }, {
+                "rel": "collection",
+                "href": url_for('.list_job_results', job_id=job_id, _external=True),
+                "type": "application/json"
+            }],
             "assets": {
                 asset_filename: _asset_object(job_id, asset_filename, metadata)
-            }
+            },
+            "collection": job_id
         }
 
         resp = jsonify(stac_item)
-        resp.mimetype = "application/geo+json"
+        resp.mimetype = stac_item_media_type
         return resp
 
     def _asset_object(job_id, filename: str, asset_metadata: dict) -> dict:
