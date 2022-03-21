@@ -2,6 +2,7 @@ import copy
 import functools
 import json
 import logging
+import os.path
 import re
 import uuid
 from collections import namedtuple, defaultdict
@@ -670,6 +671,7 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
     })
     properties["datetime"] = None
 
+    to_datetime = Rfc3339(propagate_none=True).datetime
     start_datetime = to_datetime(job_info.start_datetime)
     end_datetime = to_datetime(job_info.end_datetime)
 
@@ -780,6 +782,26 @@ def register_views_batch_jobs(
             backend_implementation.batch_jobs.start_job(job_id=job_id, user=user)
         return make_response("", 202)
 
+    def _job_result_download_url(job_id, filename) -> str:
+        if smart_bool(current_app.config.get('SIGNED_URL')):
+            signer = urlsigning.Signer.from_config(current_app.config)
+        else:
+            signer = None
+
+        if signer:
+            expires = signer.get_expires()
+            secure_key = signer.sign_job_asset(
+                job_id=job_id, user_id=user.user_id, filename=filename, expires=expires
+            )
+            user_base64 = user_id_b64_encode(user.user_id)
+            return url_for(
+                '.download_job_result_signed',
+                job_id=job_id, user_base64=user_base64, filename=filename, expires=expires, secure_key=secure_key,
+                _external=True
+            )
+        else:
+            return url_for('.download_job_result', job_id=job_id, filename=filename, _external=True)
+
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results', methods=['GET'])
     @auth_handler.requires_bearer_auth
@@ -790,44 +812,19 @@ def register_views_batch_jobs(
 
         results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
 
-        if smart_bool(current_app.config.get('SIGNED_URL')):
-            signer = urlsigning.Signer.from_config(current_app.config)
-        else:
-            signer = None
-
-        def download_url(filename) -> str:
-            if signer:
-                expires = signer.get_expires()
-                secure_key = signer.sign_job_asset(
-                    job_id=job_id, user_id=user.user_id, filename=filename, expires=expires
-                )
-                user_base64 = user_id_b64_encode(user.user_id)
-                return url_for(
-                    '.download_job_result_signed',
-                    job_id=job_id, user_base64=user_base64, filename=filename, expires=expires, secure_key=secure_key,
-                    _external=True
-                )
-            else:
-                return url_for('.download_job_result', job_id=job_id, filename=filename, _external=True)
-
-        def asset_object(filename: str, asset_metadata: dict) -> dict:
-            bands = asset_metadata.get("bands")
-            nodata = asset_metadata.get("nodata")
-
-            return dict_no_none(**{
-                "title": asset_metadata.get("title", filename),  # there has to be title
-                "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or download_url(filename),
-                "type": asset_metadata.get("type",asset_metadata.get("media_type","application/octet-stream")),
-                "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
-                             for band in bands] if bands else None,
-                "file:nodata": ["nan" if nodata!=None and np.isnan(nodata) else nodata],
-                "roles": asset_metadata.get("roles", ["data"])
-            })
-
         if requested_api_version().at_least("1.0.0"):
             links = job_info.links
             if links == None:
                 links = []
+
+            for filename in results.keys():  # TODO: only consider geotiffs?
+                stac_item_filename = f"{os.path.splitext(filename)[0]}_item.json"
+                links.append({
+                    "rel": "item",
+                    "href": url_for('.download_job_result', job_id=job_id, filename=stac_item_filename, _external=True),  # TODO: should this be signed too?
+                    "type": "application/geo+json"
+                })
+
             links.append({
                 "rel": "self",
                 "href": url_for('.list_job_results', job_id=job_id, _external=True),
@@ -844,7 +841,7 @@ def register_views_batch_jobs(
                 "type": "Feature",
                 "properties": _properties_from_job_info(job_info),
                 "assets": {
-                    filename: asset_object(filename, asset_metadata) for filename, asset_metadata in results.items()
+                    filename: _asset_object(job_id, filename, asset_metadata) for filename, asset_metadata in results.items()
                 },
                 "links": links
             }
@@ -866,7 +863,7 @@ def register_views_batch_jobs(
         else:
             result = {
                 "links": [
-                    {"href": download_url(filename)} for filename in results.keys()
+                    {"href": _job_result_download_url(job_id, filename)} for filename in results.keys()
                 ]
             }
 
@@ -886,11 +883,74 @@ def register_views_batch_jobs(
             _log.error(f"Unsupported job result: {result!r}")
             raise InternalException("Unsupported job result")
 
+    def _download_job_asset_stac_item(job_id: str, stac_item_filename: str, user: User) -> flask.Response:
+        results = backend_implementation.batch_jobs.get_results(job_id, user.user_id)
+        prefix = stac_item_filename.replace("_item.json", "")
+
+        assets_with_prefix = {
+            asset_filename: metadata for asset_filename, metadata in results.items()
+            if asset_filename.startswith(prefix)
+        }
+
+        if len(assets_with_prefix) != 1:
+            raise AssertionError(f"expected exactly 1 asset with prefix {prefix}")
+
+        asset_filename, metadata = next(iter(assets_with_prefix.items()))
+
+        properties = {"datetime": metadata.get("datetime")}
+        if properties["datetime"] is None:
+            job_info = backend_implementation.batch_jobs.get_job_info(job_id, user)
+
+            start_datetime = to_datetime(job_info.start_datetime)
+            end_datetime = to_datetime(job_info.end_datetime)
+
+            if start_datetime == end_datetime:
+                properties["datetime"] = start_datetime
+            else:
+                if start_datetime:
+                    properties["start_datetime"] = start_datetime
+                if end_datetime:
+                    properties["end_datetime"] = end_datetime
+
+        # TODO: get the job's geotiff asset by means of the filename
+        # TODO: return a STAC item with a download_job_result "href" to this asset
+        stac_item = {
+            "type": "Feature",
+            "stac_version": "0.9.0",
+            "id": stac_item_filename,  # TODO
+            "geometry": None,  # FIXME
+            "bbox": None,  # FIXME
+            "properties": properties,
+            "links": [],  # TODO
+            "assets": {
+                asset_filename: _asset_object(job_id, asset_filename, metadata)
+            }
+        }
+
+        resp = jsonify(stac_item)
+        resp.mimetype = "application/geo+json"
+        return resp
+
+    def _asset_object(job_id, filename: str, asset_metadata: dict) -> dict:
+        bands = asset_metadata.get("bands")
+        nodata = asset_metadata.get("nodata")
+
+        return dict_no_none(**{
+            "title": asset_metadata.get("title", filename),  # there has to be title
+            "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or _job_result_download_url(job_id, filename),
+            "type": asset_metadata.get("type",asset_metadata.get("media_type","application/octet-stream")),
+            "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
+                         for band in bands] if bands else None,
+            "file:nodata": ["nan" if nodata!=None and np.isnan(nodata) else nodata],
+            "roles": asset_metadata.get("roles", ["data"])
+        })
+
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results/<filename>', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def download_job_result(job_id, filename, user: User):
-        return _download_job_result(job_id=job_id, filename=filename, user_id=user.user_id)
+        return (_download_job_asset_stac_item(job_id, filename, user) if filename.endswith("_item.json")
+                else _download_job_result(job_id=job_id, filename=filename, user_id=user.user_id))
 
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results/<user_base64>/<secure_key>/<filename>', methods=['GET'])
