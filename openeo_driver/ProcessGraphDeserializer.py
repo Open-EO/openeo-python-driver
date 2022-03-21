@@ -51,8 +51,8 @@ process_registry_100 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/
 process_registry_040.add_spec_by_name(
     'array_contains', 'array_element',
     'count', 'first', 'last', 'order', 'rearrange', 'sort',
-    'between', 'eq', 'gt', 'gte', 'if', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
-    'and', 'if', 'not', 'or', 'xor',
+    'between', 'eq', 'gt', 'gte', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
+    'and', 'not', 'or', 'xor',
     'absolute', 'clip', 'divide', 'extrema', 'int', 'max', 'mean',
     'median', 'min', 'mod', 'multiply', 'power', 'product', 'quantiles', 'sd', 'sgn', 'sqrt',
     'subtract', 'sum', 'variance', 'e', 'pi', 'exp', 'ln', 'log',
@@ -90,8 +90,8 @@ def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List
 _OPENEO_PROCESSES_PYTHON_WHITELIST = [
     'array_apply', 'array_contains', 'array_element', 'array_filter', 'array_find', 'array_labels',
     'count', 'first', 'last', 'order', 'rearrange', 'sort',
-    'between', 'eq', 'gt', 'gte', 'if', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
-    'all', 'and', 'any', 'if', 'not', 'or', 'xor',
+    'between', 'eq', 'gt', 'gte', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
+    'all', 'and', 'any', 'not', 'or', 'xor',
     'absolute', 'add', 'clip', 'divide', 'extrema', 'int', 'max', 'mean',
     'median', 'min', 'mod', 'multiply', 'power', 'product', 'quantiles', 'sd', 'sgn', 'sqrt',
     'subtract', 'sum', 'variance', 'e', 'pi', 'exp', 'ln', 'log',
@@ -1698,6 +1698,11 @@ def text_merge(
         separator: Union[str, int, float, bool, None] = ""
 ) -> str:
     return str(separator).join(str(d) for d in data)
+
+
+@process_registry_100.add_simple_function(name="if")
+def if_(value: Union[bool, None], accept, reject=None):
+    return accept if value else reject
 
 
 # Finally: register some fallback implementation if possible

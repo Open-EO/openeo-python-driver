@@ -1634,11 +1634,27 @@ def test_execute_no_cube_1_plus_2(api100):
     ({"med1": {"process_id": "median", "arguments": {"data": [2, 8, 5, 3, 11]}, "result": True}}, 5),
     ({"var1": {"process_id": "variance", "arguments": {"data": [2, 8, 5, 3]}, "result": True}}, 7.0),
     ({"cnt1": {"process_id": "count", "arguments": {"data": [2, 8, None, 3]}, "result": True}}, 3),
+])
+def test_execute_no_cube_just_math(api100, process_graph, expected):
+    assert api100.result(process_graph).assert_status_code(200).json == expected
+
+
+@pytest.mark.parametrize(["process_graph", "expected"], [
+    ({"if1": {"process_id": "if", "arguments": {"value": True, "accept": 2}, "result": True}}, 2),
+    ({"if1": {"process_id": "if", "arguments": {"value": False, "accept": 2, "reject": 3}, "result": True}}, 3),
+    (
+            # Extra effort to check that `if` output is null
+            {
+                "if1": {"process_id": "if", "arguments": {"value": False, "accept": 2}},
+                "isnodata": {"process_id": "is_nodata", "arguments": {"x": {"from_node": "if1"}}, "result": True},
+            },
+            True
+    ),
     # any/all implementation is bit weird at the moment https://github.com/Open-EO/openeo-processes-python/issues/16
     # ({"any1": {"process_id": "any", "arguments": {"data": [False, True, False]}, "result": True}}, True),
     # ({"all1": {"process_id": "all", "arguments": {"data": [False, True, False]}, "result": True}}, False),
 ])
-def test_execute_no_cube_just_math(api100, process_graph, expected):
+def test_execute_no_cube_logic(api100, process_graph, expected):
     assert api100.result(process_graph).assert_status_code(200).json == expected
 
 
@@ -2366,5 +2382,30 @@ def test_fit_class_random_forest(api100):
             "num_trees": 200,
             "mtry": None,
             "seed": None,
+        }
+    })
+
+
+def test_if_merge_cubes(api100):
+    api100.check_result({
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "S2_FOOBAR",
+                "temporal_extent": ["2021-09-01", "2021-09-10"],
+                "spatial_extent": {"west": 3, "south": 51, "east": 3.1, "north": 51.1},
+                "bands": ["B04"],
+            }},
+        "eq1": {"process_id": "eq", "arguments": {"x": 4, "y": 3}},
+        "if1": {
+            "process_id": "if",
+            "arguments": {
+                "value": {"from_node": "eq1"},
+                "accept": {"from_node": "loadcollection1"}, "reject": {"from_node": "loadcollection1"},
+            }},
+        "mergecubes1": {
+            "process_id": "merge_cubes",
+            "arguments": {"cube1": {"from_node": "loadcollection1"}, "cube2": {"from_node": "if1"}},
+            "result": True
         }
     })
