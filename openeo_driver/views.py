@@ -671,7 +671,6 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
     })
     properties["datetime"] = None
 
-    to_datetime = Rfc3339(propagate_none=True).datetime
     start_datetime = to_datetime(job_info.start_datetime)
     end_datetime = to_datetime(job_info.end_datetime)
 
@@ -784,7 +783,7 @@ def register_views_batch_jobs(
             backend_implementation.batch_jobs.start_job(job_id=job_id, user=user)
         return make_response("", 202)
 
-    def _job_result_download_url(job_id, filename) -> str:
+    def _job_result_download_url(job_id, user_id, filename) -> str:
         if smart_bool(current_app.config.get('SIGNED_URL')):
             signer = urlsigning.Signer.from_config(current_app.config)
         else:
@@ -793,9 +792,9 @@ def register_views_batch_jobs(
         if signer:
             expires = signer.get_expires()
             secure_key = signer.sign_job_asset(
-                job_id=job_id, user_id=user.user_id, filename=filename, expires=expires
+                job_id=job_id, user_id=user_id, filename=filename, expires=expires
             )
-            user_base64 = user_id_b64_encode(user.user_id)
+            user_base64 = user_id_b64_encode(user_id)
             return url_for(
                 '.download_job_result_signed',
                 job_id=job_id, user_base64=user_base64, filename=filename, expires=expires, secure_key=secure_key,
@@ -819,14 +818,6 @@ def register_views_batch_jobs(
             if links == None:
                 links = []
 
-            for filename in results.keys():  # TODO: only consider geotiffs?
-                stac_item_filename = f"{os.path.splitext(filename)[0]}_item.json"
-                links.append({
-                    "rel": "item",
-                    "href": url_for('.download_job_result', job_id=job_id, filename=stac_item_filename, _external=True),
-                    "type": stac_item_media_type
-                })
-
             links.append({
                 "rel": "self",
                 "href": url_for('.list_job_results', job_id=job_id, _external=True),
@@ -837,35 +828,67 @@ def register_views_batch_jobs(
                 "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
                 "type": "application/pdf"
             })
-            result = {
-                "stac_version": "0.9.0",
-                "id": job_info.id,
-                "type": "Feature",
-                "properties": _properties_from_job_info(job_info),
-                "assets": {
-                    filename: _asset_object(job_id, filename, asset_metadata) for filename, asset_metadata in results.items()
-                },
-                "links": links
-            }
 
-            geometry = job_info.geometry
-            result["geometry"] = geometry
-            if geometry:
-                result["bbox"] = job_info.bbox
+            assets = {filename: _asset_object(job_id, user.user_id, filename, asset_metadata)
+                      for filename, asset_metadata in results.items()}
 
-            result["stac_extensions"] = [
-                "processing", "card4l-eo", "https://stac-extensions.github.io/file/v1.0.0/schema.json"
-            ]
+            if requested_api_version().at_least("1.1.0"):
+                to_datetime = Rfc3339(propagate_none=True).datetime
 
-            if any("eo:bands" in asset_object for asset_object in result["assets"].values()):
-                result["stac_extensions"].append("eo")
+                for filename in results.keys():
+                    stac_item_filename = f"{os.path.splitext(filename)[0]}_item.json"
+                    links.append({
+                        "rel": "item",
+                        "href": url_for('.download_job_result', job_id=job_id, filename=stac_item_filename, _external=True),
+                        "type": stac_item_media_type
+                    })
 
-            if "proj:epsg" in result["properties"]:
-                result["stac_extensions"].append("projection")
+                result = dict_no_none(**{
+                    "type": "Collection",
+                    "stac_version": "0.9.0",
+                    "id": job_id,
+                    "title": job_info.title,
+                    "description": job_info.description or f"Results for batch job {job_id}",
+                    "license": "proprietary",  # TODO?
+                    "extent": {
+                        "spatial": {
+                            "bbox": [job_info.bbox]
+                        },
+                        "temporal": {
+                            "interval": [[to_datetime(job_info.start_datetime), to_datetime(job_info.end_datetime)]]
+                        }
+                    },
+                    "links": links,
+                    "assets": assets
+                })
+            else:
+                result = {
+                    "type": "Feature",
+                    "stac_version": "0.9.0",
+                    "id": job_info.id,
+                    "properties": _properties_from_job_info(job_info),
+                    "assets": assets,
+                    "links": links
+                }
+
+                geometry = job_info.geometry
+                result["geometry"] = geometry
+                if geometry:
+                    result["bbox"] = job_info.bbox
+
+                result["stac_extensions"] = [
+                    "processing", "card4l-eo", "https://stac-extensions.github.io/file/v1.0.0/schema.json"
+                ]
+
+                if any("eo:bands" in asset_object for asset_object in result["assets"].values()):
+                    result["stac_extensions"].append("eo")
+
+                if "proj:epsg" in result["properties"]:
+                    result["stac_extensions"].append("projection")
         else:
             result = {
                 "links": [
-                    {"href": _job_result_download_url(job_id, filename)} for filename in results.keys()
+                    {"href": _job_result_download_url(job_id, user.user_id, filename)} for filename in results.keys()
                 ]
             }
 
@@ -906,6 +929,7 @@ def register_views_batch_jobs(
         properties = {"datetime": metadata.get("datetime")}
         if properties["datetime"] is None:
             job_info = backend_implementation.batch_jobs.get_job_info(job_id, user)
+            to_datetime = Rfc3339(propagate_none=True).datetime
 
             start_datetime = to_datetime(job_info.start_datetime)
             end_datetime = to_datetime(job_info.end_datetime)
@@ -935,7 +959,7 @@ def register_views_batch_jobs(
                 "type": "application/json"
             }],
             "assets": {
-                asset_filename: _asset_object(job_id, asset_filename, metadata)
+                asset_filename: _asset_object(job_id, user.user_id, asset_filename, metadata)
             },
             "collection": job_id
         }
@@ -944,13 +968,13 @@ def register_views_batch_jobs(
         resp.mimetype = stac_item_media_type
         return resp
 
-    def _asset_object(job_id, filename: str, asset_metadata: dict) -> dict:
+    def _asset_object(job_id, user_id, filename: str, asset_metadata: dict) -> dict:
         bands = asset_metadata.get("bands")
         nodata = asset_metadata.get("nodata")
 
         return dict_no_none(**{
             "title": asset_metadata.get("title", filename),  # there has to be title
-            "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or _job_result_download_url(job_id, filename),
+            "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or _job_result_download_url(job_id, user_id, filename),
             "type": asset_metadata.get("type",asset_metadata.get("media_type","application/octet-stream")),
             "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
                          for band in bands] if bands else None,
