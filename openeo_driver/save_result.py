@@ -145,7 +145,7 @@ class MlModelResult(SaveResult):
         self.ml_model = ml_model
 
     def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
-        return self.ml_model.write_assets(directory=directory, options=self.options)
+        return self.ml_model.write_assets(directory=directory)
 
     def create_flask_response(self) -> Response:
         return self.flask_response_from_write_assets()

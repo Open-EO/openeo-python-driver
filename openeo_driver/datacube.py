@@ -193,5 +193,5 @@ class DriverVectorCube:
 class DriverMlModel:
     """Base class for driver-side 'ml-model' data structures"""
 
-    def write_assets(self, directory: Union[str, Path], options: Optional[dict] = None) -> Dict[str, StacAsset]:
+    def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
         raise NotImplementedError
