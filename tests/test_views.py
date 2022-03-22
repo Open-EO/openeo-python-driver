@@ -21,11 +21,9 @@ from .conftest import TEST_APP_CONFIG
 from .data import TEST_DATA_ROOT
 
 
-
-@pytest.fixture(params=["0.4.0", "1.0.0"])
+@pytest.fixture(params=["0.4.0", "1.0.0", "1.1.0"])
 def api_version(request):
     return request.param
-
 
 
 @pytest.fixture
@@ -41,6 +39,11 @@ def api040(client) -> ApiTester:
 @pytest.fixture
 def api100(client) -> ApiTester:
     return ApiTester(api_version="1.0.0", client=client, data_root=TEST_DATA_ROOT)
+
+
+@pytest.fixture
+def api110(client) -> ApiTester:
+    return ApiTester(api_version="1.1.0", client=client, data_root=TEST_DATA_ROOT)
 
 
 def api_from_backend_implementation(
@@ -1239,6 +1242,58 @@ class TestBatchJobs:
                                     'eo'],
                 'stac_version': '0.9.0',
                 'type': 'Feature'
+            }
+
+    @mock.patch('time.time', mock.MagicMock(return_value=1234))
+    def test_get_job_results_signed_with_expiration_110(self, api110, flask_app):
+        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
+        with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry(next_job_id='job-373'):
+            # TODO: remove temporal coupling between tests
+            dummy_backend.DummyBatchJobs._update_status(
+                job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
+            resp = api110.get('/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results', headers=self.AUTH_HEADER)
+            assert resp.assert_status_code(200).json == {
+                'type': 'Collection',
+                'stac_version': '0.9.0',
+                'id': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
+                'title': 'Your title here.',
+                'description': 'Your description here.',
+                'license': 'proprietary',
+                'extent': {
+                    'spatial': {
+                        'bbox': [[-180, -90, 180, 90]]
+                    },
+                    'temporal': {
+                        'interval': [['1981-04-24T03:00:00Z', '1981-04-24T03:00:00Z']]
+                    }
+                },
+                'links': [
+                    {
+                        'rel': 'self',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results',
+                        'type': 'application/json'
+                    },
+                    {
+                        'rel': 'card4l-document',
+                        'href': 'http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf',
+                        'type': 'application/pdf'
+                    },
+                    {
+                        'rel': 'item',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/output_item.json',
+                        'type': 'application/geo+json'
+                    }
+                ],
+                'assets': {
+                    'output.tiff': {
+                        'title': 'output.tiff',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
+                        'type': 'image/tiff; application=geotiff',
+                        'eo:bands': [{'center_wavelength': 1.23, 'name': 'NDVI'}],
+                        'file:nodata': [123],
+                        'roles': ['data']
+                    }
+                }
             }
 
     def test_get_job_results_invalid_job(self, api):
