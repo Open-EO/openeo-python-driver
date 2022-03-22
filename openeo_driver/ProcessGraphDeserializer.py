@@ -1581,7 +1581,7 @@ def discard_result(args: Dict, env: EvalEnv):
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/mask_scl_dilation.json"))
 def mask_scl_dilation(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
-    if( "mask_scl_dilation" in dir(cube)):
+    if hasattr(cube, "mask_scl_dilation"):
         return cube.mask_scl_dilation()
     else:
         return cube
@@ -1589,7 +1589,7 @@ def mask_scl_dilation(args: Dict, env: EvalEnv):
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/mask_l1c.json"))
 def mask_l1c(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
-    if( "mask_l1c" in dir(cube)):
+    if hasattr(cube, "mask_l1c"):
         return cube.mask_l1c()
     else:
         return cube
