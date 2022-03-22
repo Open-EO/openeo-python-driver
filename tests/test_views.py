@@ -1351,6 +1351,45 @@ class TestBatchJobs:
             resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
         assert resp.assert_error(410, 'ResultLinkExpired')
 
+    @mock.patch('time.time', mock.MagicMock(return_value=1234))
+    def test_download_asset_stac_item(self, flask_app, api110):  # TODO: limit to 1.1.0?
+        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
+        with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry():
+            resp = api110.get("/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/output_item.json",
+                              headers=self.AUTH_HEADER)
+
+        assert resp.assert_status_code(200).json == {
+            'type': 'Feature',
+            'stac_version': '0.9.0',
+            'id': 'output_item.json',
+            'geometry': None,
+            'bbox': None,
+            'properties': {
+                'datetime': '1981-04-24T03:00:00Z'
+            },
+            'links': [{
+                'rel': 'self',
+                'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/output_item.json',
+                'type': 'application/geo+json'
+            }, {
+                'rel': 'collection',
+                'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results',
+                'type': 'application/json'
+            }],
+            'assets': {
+                'output.tiff': {
+                    'title': 'output.tiff',
+                    'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
+                    'type': 'image/tiff; application=geotiff',
+                    'eo:bands': [{'center_wavelength': 1.23, 'name': 'NDVI'}],
+                    'file:nodata': [123],
+                    'roles': ['data']
+                }
+            },
+            'collection': '53c71345-09b4-46b4-b6b0-03fd6fe1f199'
+        }
+        assert resp.headers["Content-Type"] == "application/geo+json"
+
     def test_get_batch_job_logs(self, api):
         with self._fresh_job_registry():
             resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs', headers=self.AUTH_HEADER)
