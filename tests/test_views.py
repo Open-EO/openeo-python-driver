@@ -1255,6 +1255,7 @@ class TestBatchJobs:
             assert resp.assert_status_code(200).json == {
                 'type': 'Collection',
                 'stac_version': '0.9.0',
+                'stac_extensions': ['eo', 'file'],
                 'id': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
                 'title': 'Your title here.',
                 'description': 'Your description here.',
@@ -1361,6 +1362,7 @@ class TestBatchJobs:
         assert resp.assert_status_code(200).json == {
             'type': 'Feature',
             'stac_version': '0.9.0',
+            'stac_extensions': ['eo', 'file'],
             'id': 'output_item.json',
             'geometry': None,
             'bbox': None,

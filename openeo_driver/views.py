@@ -846,6 +846,7 @@ def register_views_batch_jobs(
                 result = dict_no_none(**{
                     "type": "Collection",
                     "stac_version": "0.9.0",
+                    "stac_extensions": ["eo", "file"],
                     "id": job_id,
                     "title": job_info.title,
                     "description": job_info.description or f"Results for batch job {job_id}",
@@ -945,6 +946,7 @@ def register_views_batch_jobs(
         stac_item = {
             "type": "Feature",
             "stac_version": "0.9.0",
+            "stac_extensions": ["eo", "file"],
             "id": stac_item_filename,
             "geometry": geometry,
             "bbox": bbox,
