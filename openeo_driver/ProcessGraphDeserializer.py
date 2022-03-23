@@ -731,15 +731,6 @@ def fit_class_random_forest(args: dict, env: EvalEnv) -> DriverMlModel:
             )
         labels.append(target_label)
 
-    # TODO: is this check actually necessary? And is it necessary here?
-    expected_labels = set(range(max(labels) + 1))
-    if set(labels) != expected_labels:
-        raise ProcessParameterInvalidException(
-            parameter="target", process="fit_class_random_forest",
-            reason="target labels should fully cover range from 0 to (num_classes-1) "
-                   f"but got {set(labels)}."
-        )
-
     # TODO: get defaults from process spec?
     # TODO: do parameter checks automatically based on process spec?
     training = extract_arg(args, 'training')
