@@ -1,7 +1,8 @@
 import logging
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Optional
 from unittest import mock
 
 import flask
@@ -708,9 +709,20 @@ class TestBatchJobs:
 
     @staticmethod
     @contextmanager
-    def _fresh_job_registry(next_job_id="job-1234"):
+    def _fresh_job_registry(next_job_id="job-1234", output_root: Optional[Path] = None, jobs: Optional[dict] = None):
         """Set up a fresh job registry and predefine next job id"""
-        with mock.patch.object(dummy_backend.DummyBatchJobs, 'generate_job_id', return_value=next_job_id):
+
+        with ExitStack() as exit_stack:
+            # Conditional setup of some mock contexts
+            if next_job_id:
+                exit_stack.enter_context(
+                    mock.patch.object(dummy_backend.DummyBatchJobs, 'generate_job_id', return_value=next_job_id)
+                )
+            if output_root:
+                exit_stack.enter_context(
+                    mock.patch.object(dummy_backend.DummyBatchJobs, '_output_root', return_value=output_root)
+                )
+
             dummy_backend.DummyBatchJobs._job_registry = {
                 (TEST_USER, '07024ee9-7847-4b8a-b260-6c879a2b3cdc'): BatchJobMetadata(
                     id='07024ee9-7847-4b8a-b260-6c879a2b3cdc',
@@ -745,6 +757,15 @@ class TestBatchJobs:
                     budget=4.56,
                 )
             }
+            if jobs:
+                for job_id, job_settings in jobs.items():
+                    key = (job_settings.get("user", TEST_USER), job_id)
+                    dummy_backend.DummyBatchJobs._job_registry[key] = BatchJobMetadata(
+                        id=job_id,
+                        status=job_settings.get("status", "running"),
+                        process={'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
+                        created=datetime(2017, 1, 1, 9, 32, 12),
+                    )
             yield dummy_backend.DummyBatchJobs._job_registry
 
     def test_create_job_040(self, api040):
@@ -844,7 +865,8 @@ class TestBatchJobs:
         assert resp.json["message"] == "The batch job 'deadbeef-f00' does not exist."
 
     def test_get_job_info_040(self, api040):
-        resp = api040.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc', headers=self.AUTH_HEADER)
+        with self._fresh_job_registry():
+            resp = api040.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc', headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).json == {
             'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
             'status': 'running',
@@ -874,7 +896,8 @@ class TestBatchJobs:
         }
 
     def test_get_job_info_100(self, api100):
-        resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc', headers=self.AUTH_HEADER)
+        with self._fresh_job_registry():
+            resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc', headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).json == {
             'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
             'status': 'running',
@@ -1093,10 +1116,8 @@ class TestBatchJobs:
                             "nodata":np.nan
                             }
         }
-        with self._fresh_job_registry(next_job_id="job-362"), \
+        with self._fresh_job_registry(jobs={"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}), \
                 mock.patch.object(backend_implementation.batch_jobs, "get_results", return_value=results_data):
-            dummy_backend.DummyBatchJobs._update_status(
-                job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="finished")
             resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
         res = resp.assert_status_code(200).json
         assert res["assets"] == {
@@ -1110,8 +1131,8 @@ class TestBatchJobs:
         }
 
     def test_get_job_results_signed_040(self, api040, flask_app):
-        with mock.patch.dict(flask_app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}), \
-                self._fresh_job_registry(next_job_id='job-370'):
+        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}
+        with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry():
             dummy_backend.DummyBatchJobs._update_status(
                 job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
             resp = api040.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
@@ -1124,8 +1145,8 @@ class TestBatchJobs:
         }
 
     def test_get_job_results_signed_100(self, api100, flask_app):
-        with mock.patch.dict(flask_app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}), \
-                self._fresh_job_registry(next_job_id='job-372'):
+        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}
+        with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry():
             dummy_backend.DummyBatchJobs._update_status(
                 job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
             resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
@@ -1177,7 +1198,7 @@ class TestBatchJobs:
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
     def test_get_job_results_signed_with_expiration_040(self, api040, flask_app):
         app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
-        with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry(next_job_id='job-371'):
+        with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry():
             dummy_backend.DummyBatchJobs._update_status(
                 job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
             resp = api040.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
@@ -1192,7 +1213,7 @@ class TestBatchJobs:
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
     def test_get_job_results_signed_with_expiration_100(self, api100, flask_app):
         app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
-        with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry(next_job_id='job-373'):
+        with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry():
             dummy_backend.DummyBatchJobs._update_status(
                 job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
             resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
@@ -1249,7 +1270,8 @@ class TestBatchJobs:
 
     def test_download_result(self, api, tmp_path):
         output_root = Path(tmp_path)
-        with mock.patch.object(dummy_backend.DummyBatchJobs, '_output_root', return_value=output_root):
+        jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
+        with self._fresh_job_registry(output_root=output_root, jobs=jobs):
             output = output_root / "07024ee9-7847-4b8a-b260-6c879a2b3cdc" / "output.tiff"
             output.parent.mkdir(parents=True)
             with output.open("wb") as f:
@@ -1260,8 +1282,10 @@ class TestBatchJobs:
 
     def test_download_result_signed(self, api, tmp_path, flask_app):
         output_root = Path(tmp_path)
-        with mock.patch.dict(flask_app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}),\
-            mock.patch.object(dummy_backend.DummyBatchJobs, '_output_root', return_value=output_root):
+        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}
+        jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
+        with mock.patch.dict(flask_app.config, app_config), \
+                self._fresh_job_registry(output_root=output_root, jobs=jobs):
             output = output_root / '07024ee9-7847-4b8a-b260-6c879a2b3cdc' / 'output.tiff'
             output.parent.mkdir(parents=True)
             with output.open('wb') as f:
@@ -1271,7 +1295,9 @@ class TestBatchJobs:
         assert resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
 
     def test_download_result_signed_invalid(self, api, flask_app):
-        with mock.patch.dict(flask_app.config, {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}):
+        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}
+        jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
+        with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry(jobs=jobs):
             resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/test123/output.tiff')
         assert resp.assert_error(403, 'CredentialsInvalid')
 
@@ -1279,8 +1305,9 @@ class TestBatchJobs:
     def test_download_result_signed_with_expiration(self, api, tmp_path, flask_app):
         output_root = Path(tmp_path)
         app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
+        jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
         with mock.patch.dict(flask_app.config, app_config), \
-                mock.patch.object(dummy_backend.DummyBatchJobs, '_output_root', return_value=output_root):
+                self._fresh_job_registry(output_root=output_root, jobs=jobs):
             output = output_root / '07024ee9-7847-4b8a-b260-6c879a2b3cdc' / 'output.tiff'
             output.parent.mkdir(parents=True)
             with output.open('wb') as f:
@@ -1292,7 +1319,8 @@ class TestBatchJobs:
     @mock.patch('time.time', mock.MagicMock(return_value=3456))
     def test_download_result_signed_with_expiration_invalid(self, api, tmp_path, flask_app):
         app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
-        with mock.patch.dict(flask_app.config, app_config):
+        jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
+        with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry(jobs=jobs):
             resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
         assert resp.assert_error(410, 'ResultLinkExpired')
 
@@ -1321,17 +1349,17 @@ class TestBatchJobs:
                 }
 
     def test_cancel_job(self, api):
-        with self._fresh_job_registry(next_job_id="job-403"):
+        with self._fresh_job_registry():
             resp = api.delete('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
         assert resp.status_code == 204
 
     def test_cancel_job_invalid(self, api):
-        with self._fresh_job_registry(next_job_id="job-403"):
+        with self._fresh_job_registry():
             resp = api.delete('/jobs/deadbeef-f00/results', headers=self.AUTH_HEADER)
         resp.assert_error(404, "JobNotFound")
 
     def test_delete_job(self, api):
-        with self._fresh_job_registry(next_job_id="job-403"):
+        with self._fresh_job_registry():
             resp = api.delete('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc', headers=self.AUTH_HEADER)
         assert resp.status_code == 204
 
