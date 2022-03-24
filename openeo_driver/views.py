@@ -19,7 +19,7 @@ from openeo.capabilities import ComparableVersion
 from openeo.util import dict_no_none, deep_get, Rfc3339
 from openeo_driver import urlsigning
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
-    ErrorSummary, OpenEoBackendImplementation, BatchJobs
+    ErrorSummary, OpenEoBackendImplementation, BatchJobs, not_implemented, is_not_implemented
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, ProcessUnsupportedException, \
     JobNotFinishedException, ProcessGraphInvalidException, InternalException
@@ -544,7 +544,7 @@ def register_views_processing(
         auth_handler: HttpAuthHandler
 ):
 
-    @api_endpoint()
+    @api_endpoint(hidden=is_not_implemented(backend_implementation.processing.validate))
     @blueprint.route('/validation', methods=["POST"])
     def validation():
         post_data = request.get_json()

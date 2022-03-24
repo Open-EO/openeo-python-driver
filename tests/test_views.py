@@ -11,7 +11,8 @@ import werkzeug.exceptions
 
 from openeo.capabilities import ComparableVersion
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
-from openeo_driver.backend import BatchJobMetadata, UserDefinedProcessMetadata, BatchJobs, OpenEoBackendImplementation
+from openeo_driver.backend import BatchJobMetadata, UserDefinedProcessMetadata, BatchJobs, OpenEoBackendImplementation, \
+    Processing, not_implemented
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
 from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, \
@@ -152,6 +153,19 @@ class TestGeneral:
         assert endpoints["/credentials/basic"] == ["GET"]
         assert endpoints["/credentials/oidc"] == ["GET"]
         assert endpoints["/me"] == ["GET"]
+        assert endpoints["/validation"] == ["POST"]
+
+    def test_capabilities_endpoints_hiding(self):
+        class MyProcessing(Processing):
+            @not_implemented
+            def validate(self, *args, **kwargs):
+                ...
+
+        backend_implementation = DummyBackendImplementation(processing=MyProcessing())
+        api = api_from_backend_implementation(backend_implementation)
+        capabilities = api.get("/").assert_status_code(200).json
+        endpoints = {e["path"]: sorted(e["methods"]) for e in capabilities["endpoints"]}
+        assert "/validation" not in endpoints
 
     def test_capabilities_endpoints_issue_28_v040(self, api040):
         """https://github.com/Open-EO/openeo-python-driver/issues/28"""

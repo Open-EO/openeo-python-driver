@@ -42,6 +42,17 @@ class MicroService:
     """
 
 
+def not_implemented(f: Callable):
+    """Decorator for functions/methods that are not implemented"""
+    f._not_implemented = True
+    return f
+
+
+def is_not_implemented(f: Callable):
+    """Checker for functions/methods that are not implemented"""
+    return hasattr(f, "_not_implemented") and f._not_implemented
+
+
 class ServiceMetadata(NamedTuple):
     """
     Container for service metadata
@@ -458,6 +469,7 @@ class Processing(MicroService):
         """Evaluate given process graph (flat dict format)."""
         raise NotImplementedError
 
+    @not_implemented
     def validate(self, process_graph: dict, env: EvalEnv = None) -> List[dict]:
         """
         Process graph validation
