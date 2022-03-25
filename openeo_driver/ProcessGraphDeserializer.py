@@ -645,13 +645,14 @@ def reduce(args: dict, env: EvalEnv) -> DriverDataCube:
 
 @process_registry_100.add_function
 def reduce_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
+    data_cube: DriverDataCube = extract_arg(args, "data")
     reduce_pg = extract_deep(args, "reducer", "process_graph")
     dimension = extract_arg(args, 'dimension')
-    data_cube = extract_arg(args, 'data')
+    context = args.get("context")
 
     # do check_dimension here for error handling
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce_dimension")
-    return data_cube.reduce_dimension(reducer=reduce_pg, dimension=dimension, env=env)
+    return data_cube.reduce_dimension(reducer=reduce_pg, dimension=dimension, context=context, env=env)
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/chunk_polygon.json"))

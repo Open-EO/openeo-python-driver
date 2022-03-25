@@ -34,7 +34,7 @@ These source constraints can then be fetched from the EvalEnv at `load_collectio
 """
 import logging
 from enum import Enum
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Any
 
 import shapely.geometry.base
 from shapely.geometry import Point, Polygon, MultiPolygon, GeometryCollection
@@ -491,7 +491,7 @@ class DryRunDataCube(DriverDataCube):
             metadata=self.metadata
         )
 
-    def reduce_dimension(self, reducer, dimension: str, env: EvalEnv) -> 'DryRunDataCube':
+    def reduce_dimension(self, reducer, dimension: str, context: Any, env: EvalEnv) -> 'DryRunDataCube':
         dc = self
         if self.metadata.has_temporal_dimension() and self.metadata.temporal_dimension.name == dimension:
             # TODO: reduce is not necessarily global in call cases

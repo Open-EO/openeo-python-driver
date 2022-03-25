@@ -4,7 +4,7 @@ import json
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Union, Tuple, Optional, Iterable
+from typing import List, Dict, Union, Tuple, Optional, Iterable, Any
 from unittest.mock import Mock
 
 import flask
@@ -172,7 +172,7 @@ class DummyDataCube(DriverDataCube):
             setattr(self, name, Mock(side_effect=getattr(self, name)))
 
     @mock_side_effect
-    def reduce_dimension(self, reducer, dimension: str, env: EvalEnv) -> 'DummyDataCube':
+    def reduce_dimension(self, reducer, dimension: str, context: Any, env: EvalEnv) -> 'DummyDataCube':
         self.metadata = self.metadata.reduce_dimension(dimension_name=dimension)
         return self
 

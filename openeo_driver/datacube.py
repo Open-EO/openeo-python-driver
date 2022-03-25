@@ -1,7 +1,7 @@
 import inspect
 import zipfile
 from pathlib import Path
-from typing import List, Union, Optional, Dict
+from typing import List, Union, Optional, Dict, Any
 
 import geopandas as gpd
 import shapely.geometry
@@ -56,7 +56,7 @@ class DriverDataCube(ImageCollection):
     def apply_tiles_spatiotemporal(self, process, context={}) -> 'DriverDataCube':
         self._not_implemented()
 
-    def reduce_dimension(self, reducer, dimension: str, env: EvalEnv) -> 'DriverDataCube':
+    def reduce_dimension(self, reducer, dimension: str, context: Any, env: EvalEnv) -> 'DriverDataCube':
         self._not_implemented()
 
     def chunk_polygon(self, reducer, chunks, mask_value: float, env: EvalEnv, context={}) -> 'DriverDataCube':
