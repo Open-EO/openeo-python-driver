@@ -1402,7 +1402,7 @@ def test_udp_udf_reduce_dimension(api100, udp_registry, set_parameter):
     response = api100.result(pg).assert_status_code(200)
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.reduce_dimension.call_count == 1
-    dummy.reduce_dimension.assert_called_with(reducer=mock.ANY, dimension="bands", env=mock.ANY)
+    dummy.reduce_dimension.assert_called_with(reducer=mock.ANY, dimension="bands", context=None, env=mock.ANY)
     args, kwargs = dummy.reduce_dimension.call_args
     assert "runudf1" in kwargs["reducer"]
     env: EvalEnv = kwargs["env"]
@@ -1452,7 +1452,7 @@ def test_user_defined_process_udp_vs_pdp_priority(api100, udp_registry):
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.ndvi.call_count == 1
     assert dummy.reduce_dimension.call_count == 1
-    dummy.reduce_dimension.assert_called_with(reducer=mock.ANY, dimension="bands", env=mock.ANY)
+    dummy.reduce_dimension.assert_called_with(reducer=mock.ANY, dimension="bands", context=None, env=mock.ANY)
     args, kwargs = dummy.reduce_dimension.call_args
     assert "red" in kwargs["reducer"]
     assert "nir" in kwargs["reducer"]
