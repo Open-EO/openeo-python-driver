@@ -740,13 +740,7 @@ def fit_class_random_forest(args: dict, env: EvalEnv) -> DriverMlModel:
             parameter="num_trees", process="fit_class_random_forest",
             reason="should be an integer larger than 0."
         )
-    # TODO: will mtry be renamed? https://github.com/Open-EO/openeo-processes/issues/339
-    mtry = args.get('mtry')
-    if not (mtry is None or (isinstance(mtry, int) and mtry > 0)):
-        raise ProcessParameterInvalidException(
-            parameter="mtry", process="fit_class_random_forest",
-            reason="should be an integer larger than 0."
-        )
+    max_variables = args.get("max_variables") or args.get('mtry')
     seed = args.get("seed")
     if not (seed is None or isinstance(seed, int)):
         raise ProcessParameterInvalidException(
@@ -754,8 +748,7 @@ def fit_class_random_forest(args: dict, env: EvalEnv) -> DriverMlModel:
         )
 
     return predictors.fit_class_random_forest(
-        target=target,
-        num_trees=num_trees, mtry=mtry, seed=seed,
+        target=target, num_trees=num_trees, max_variables=max_variables, seed=seed,
     )
 
 

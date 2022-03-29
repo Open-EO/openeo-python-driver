@@ -2379,7 +2379,7 @@ def test_fit_class_random_forest(api100):
             "data": [[100.0, 100.1, 100.2, 100.3], [101.0, 101.1, 101.2, 101.3]],
             "target": DictSubSet({"type": "FeatureCollection"}),
             "num_trees": 200,
-            "mtry": None,
+            "max_variables": None,
             "seed": None,
         }
     })
