@@ -715,7 +715,7 @@ def register_views_batch_jobs(
         )
         job_id = job_info.id
         response = make_response("", 201)
-        response.headers['Location'] = url_for('.get_job_info', job_id=job_id)
+        response.headers['Location'] = url_for('.get_job_info', job_id=job_id, _external=True)
         response.headers['OpenEO-Identifier'] = str(job_id)
         return response
 
