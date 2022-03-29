@@ -13,6 +13,7 @@ from typing import Union, List, Tuple, Any
 import pkg_resources
 import pyproj
 import shapely.geometry
+from shapely.geometry.base import CAP_STYLE
 import shapely.ops
 
 from openeo.util import rfc3339
@@ -413,4 +414,4 @@ def buffer_point_approx(point: shapely.geometry.Point, point_crs: str, buffer_di
 
     buffer_distance = right - left
 
-    return point.buffer(buffer_distance)
+    return point.buffer(buffer_distance, cap_style=CAP_STYLE.square)
