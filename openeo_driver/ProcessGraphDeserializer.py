@@ -734,12 +734,6 @@ def fit_class_random_forest(args: dict, env: EvalEnv) -> DriverMlModel:
 
     # TODO: get defaults from process spec?
     # TODO: do parameter checks automatically based on process spec?
-    training = extract_arg(args, 'training')
-    if not isinstance(training, float) or training < 0.0 or training > 1.0:
-        raise ProcessParameterInvalidException(
-            parameter="training", process="fit_class_random_forest",
-            reason="should be a float between 0 and 1."
-        )
     num_trees = args.get("num_trees", 100)
     if not isinstance(num_trees, int) or num_trees < 0:
         raise ProcessParameterInvalidException(
@@ -760,7 +754,7 @@ def fit_class_random_forest(args: dict, env: EvalEnv) -> DriverMlModel:
         )
 
     return predictors.fit_class_random_forest(
-        target=target, training=training,
+        target=target,
         num_trees=num_trees, mtry=mtry, seed=seed,
     )
 

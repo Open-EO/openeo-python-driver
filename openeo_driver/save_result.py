@@ -532,8 +532,7 @@ class AggregatePolygonSpatialResult(SaveResult):
         return {str(Path(filename).name): asset}
 
     def fit_class_random_forest(
-            self, target: dict,
-            training: float, num_trees: int, mtry: Optional[int] = None, seed: Optional[int] = None
+            self, target: dict, num_trees: int, mtry: Optional[int] = None, seed: Optional[int] = None
     ) -> DriverMlModel:
         # TODO: this method belongs eventually under DriverVectorCube
         raise NotImplementedError
