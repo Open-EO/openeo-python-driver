@@ -1,70 +1,16 @@
 import datetime
 import logging
 import logging.config
-import time
-from typing import List, Dict
+from typing import List
 
 import flask
 import gunicorn.app.base
 
 from openeo.util import rfc3339
+from openeo_driver.util.logging import show_log_level
 from openeo_driver.utils import get_package_versions
 
 _log = logging.getLogger(__name__)
-
-
-class UtcLogFormatter(logging.Formatter):
-    """Log formatter that uses UTC instead of local time."""
-    # based on https://docs.python.org/3/howto/logging-cookbook.html#formatting-times-using-utc-gmt-via-configuration
-    converter = time.gmtime
-
-
-def setup_logging(root_level="INFO", loggers: Dict[str, dict] = None, show_loggers: List[str] = None):
-    """
-    Set up logging for flask app
-    """
-    # Based on https://flask.palletsprojects.com/en/2.0.x/logging/
-    config = {
-        'version': 1,
-        'formatters': {
-            'utclogformatter': {
-                '()': UtcLogFormatter,
-                'format': '[%(asctime)s] %(process)s %(levelname)s in %(name)s: %(message)s',
-            }
-        },
-        'handlers': {
-            'wsgi': {
-                'class': 'logging.StreamHandler',
-                'stream': 'ext://flask.logging.wsgi_errors_stream',
-                'formatter': 'utclogformatter'
-            }
-        },
-        'root': {
-            'level': root_level,
-            'handlers': ['wsgi']
-        },
-    }
-
-    # Merge log levels per logger with some defaults
-    loggers_defaults = {
-        "gunicorn": {"level": "INFO"},
-        'openeo': {'level': 'INFO'},
-        'openeo_driver': {'level': 'DEBUG'},
-        'werkzeug': {'level': 'INFO'},
-        'kazoo': {'level': 'WARN'},
-    }
-    config["loggers"] = {**loggers_defaults, **(loggers or {})}
-
-    logging.config.dictConfig(config)
-
-    for name in {"openeo_driver"}.union(show_loggers):
-        show_log_level(logging.getLogger(name))
-
-
-def show_log_level(logger: logging.Logger):
-    """Helper to show threshold log level of a logger."""
-    level = logger.getEffectiveLevel()
-    logger.log(level, 'Logger {n!r}: effective level {t}'.format(n=logger.name, t=logging.getLevelName(level)))
 
 
 def build_backend_deploy_metadata(packages: List[str]) -> dict:
@@ -78,9 +24,7 @@ def run_gunicorn(app: flask.Flask, threads: int, host: str, port: int, on_starte
     """Run Flask app as gunicorn application."""
 
     # TODO move this meta logging out of this function?
-    app.logger.setLevel('DEBUG')
-    app.logger.info('App info logging enabled!')
-    app.logger.debug('App debug logging enabled!')
+    show_log_level(app.logger)
 
     # note the use of 1 worker and multiple threads
     # we were seeing strange py4j errors when executing multiple requests in parallel
@@ -101,8 +45,8 @@ def run_gunicorn(app: flask.Flask, threads: int, host: str, port: int, on_starte
     def when_ready(server) -> None:
         _log.info(f"when_ready: {server}")
 
-        logging.getLogger('gunicorn.error').info('Gunicorn info logging enabled!')
-        logging.getLogger('flask').info('Flask info logging enabled!')
+        show_log_level("gunicorn.error")
+        show_log_level("flask")
 
         on_started()
 

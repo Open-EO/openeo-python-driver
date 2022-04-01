@@ -1,7 +1,101 @@
 import logging
+import logging.config
+import time
 import uuid
+from typing import List, Dict, Optional, Union
 
 import flask
+import pythonjsonlogger.jsonlogger
+
+_log = logging.getLogger(__name__)
+
+
+def get_logging_config(
+        root_handlers: Optional[List[str]] = None,
+        loggers: Optional[Dict[str, dict]] = None,
+        handler_default_level: str = "DEBUG",
+) -> dict:
+    """Construct logging config dict to be loaded with `logging.config.dictConfig`"""
+
+    # Merge log levels per logger with some defaults
+    default_loggers = {
+        "gunicorn": {"level": "INFO"},
+        "openeo": {"level": "INFO"},
+        "openeo_driver": {"level": "INFO"},
+        "werkzeug": {"level": "INFO"},
+        "kazoo": {"level": "WARN"},
+    }
+    loggers = {**default_loggers, **(loggers or {})}
+
+    config = {
+        "version": 1,
+        "root": {
+            "level": "INFO",
+            "handlers": (root_handlers or ["wsgi"]),
+        },
+        "loggers": loggers,
+        "handlers": {
+            "wsgi": {
+                "class": "logging.StreamHandler",
+                "stream": "ext://flask.logging.wsgi_errors_stream",
+                "level": handler_default_level,
+                "formatter": "basic"
+            },
+            "json": {
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stderr",
+                "level": handler_default_level,
+                "filters": ["request_correlation_id"],
+                "formatter": "json",
+            },
+        },
+        "filters": {
+            "request_correlation_id": {
+                "()": RequestCorrelationIdLogging,
+            }
+        },
+        "formatters": {
+            "basic": {
+                "()": UtcFormatter,
+                "format": "[%(asctime)s] %(process)s %(levelname)s in %(name)s: %(message)s",
+            },
+            "json": {
+                "()": pythonjsonlogger.jsonlogger.JsonFormatter,
+                # This fake `format` string is the way to list expected fields in json records
+                "format": "%(created)s %(name)s %(filename)s %(lineno)s %(process)s %(levelname)s %(message)s",
+            },
+        },
+        # Keep existing loggers alive (e.g. werkzeug, gunicorn, ...)
+        "disable_existing_loggers": False,
+    }
+    return config
+
+
+def setup_logging(config: Optional[dict] = None, force=False):
+    if config is None:
+        config = get_logging_config()
+    if not logging.getLogger().handlers or force:
+        logging.config.dictConfig(config)
+
+    _log.log(level=_log.getEffectiveLevel(), msg="setup_logging")
+    for logger_name in config.get("loggers", {}).keys():
+        show_log_level(logger=logger_name)
+    _log.info(f"root handlers: {logging.getLogger().handlers}")
+
+
+def show_log_level(logger: Union[logging.Logger, str]):
+    """Helper to show (effective) threshold log level of a logger."""
+    if isinstance(logger, str):
+        logger = logging.getLogger(logger)
+    level = logger.getEffectiveLevel()
+    msg = f"Effective log level of {logger.name!r}: {logging.getLevelName(level)}"
+    logger.log(level=level, msg=msg)
+
+
+class UtcFormatter(logging.Formatter):
+    """Log formatter that uses UTC instead of local time."""
+    # based on https://docs.python.org/3/howto/logging-cookbook.html#formatting-times-using-utc-gmt-via-configuration
+    converter = time.gmtime
 
 
 class RequestCorrelationIdLogging(logging.Filter):

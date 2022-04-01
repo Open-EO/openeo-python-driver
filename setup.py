@@ -51,6 +51,7 @@ setup(
         'flask-cors',
         'pyproj',
         'python-dateutil',
+        "python-json-logger>=2.0.0",
     ],
     extras_require={
         "dev": tests_require,
