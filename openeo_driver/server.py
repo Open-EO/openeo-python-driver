@@ -5,6 +5,7 @@ from typing import List
 
 import flask
 import gunicorn.app.base
+import gunicorn.glogging
 
 from openeo.util import rfc3339
 from openeo_driver.util.logging import show_log_level
@@ -35,9 +36,8 @@ def run_gunicorn(app: flask.Flask, threads: int, host: str, port: int, on_starte
         'threads': threads,
         'worker_class': 'gthread',
         'timeout': 1000,
-        'loglevel': 'DEBUG',
-        'accesslog': '-',
-        'errorlog': '-'
+        # Override default gunicorn logger class so that gunicorn logging follows our global logging config
+        "logger_class": ConformingGunicornLogger,
     }
 
     _log.info(f"StandaloneApplication options: {options}")
@@ -72,3 +72,29 @@ class StandaloneApplication(gunicorn.app.base.BaseApplication):
 
     def load(self):
         return self.application
+
+
+class ConformingGunicornLogger(gunicorn.glogging.Logger):
+    """
+    Override the default Gunicorn Logger so that it conforms to the global
+    logging config (handlers, formatters, filters, ...).
+
+    Use this class for the "logger_class" option (https://docs.gunicorn.org/en/stable/settings.html#logger-class).
+    It assumes the logging is already set up before the gunicorn application
+    is started (``BaseApplication.run()``) as described in https://docs.gunicorn.org/en/stable/custom.html).
+
+    Based on, inspired by:
+    - https://stackoverflow.com/questions/41087790/how-to-override-gunicorns-logging-config-to-use-a-custom-formatter
+    - https://github.com/benoitc/gunicorn/issues/1572
+    """
+
+    def __init__(self, cfg):
+        if logging.getLogger("gunicorn.access").isEnabledFor(logging.INFO) and not cfg.accesslog:
+            # Although the actual accesslog value is not really used,
+            # access logging will be skipped if it is empty/None:
+            cfg.set("accesslog", "_dummy")
+        super().__init__(cfg=cfg)
+
+    def setup(self, cfg):
+        self.error_log.propagate = True
+        self.access_log.propagate = True
