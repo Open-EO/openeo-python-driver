@@ -153,7 +153,7 @@ class RequestCorrelationIdLogging(logging.Filter):
 
 class UserIdLogging(logging.Filter):
     """
-    Python logging plugin to include a user id automatically in log records.
+    Python logging plugin to include a user id automatically in log records (in Flask context).
     """
 
     FLASK_G_ATTR = "current_user_id"
