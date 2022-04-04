@@ -1,3 +1,4 @@
+import json
 import logging
 from contextlib import contextmanager, ExitStack
 from datetime import datetime, timedelta
@@ -19,15 +20,13 @@ from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_A
     generate_unique_test_process_id, build_basic_http_auth_header, ListSubSet, DictSubSet
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata, build_app
-from .conftest import TEST_APP_CONFIG
+from .conftest import TEST_APP_CONFIG, enhanced_logging
 from .data import TEST_DATA_ROOT
-
 
 
 @pytest.fixture(params=["0.4.0", "1.0.0"])
 def api_version(request):
     return request.param
-
 
 
 @pytest.fixture
@@ -453,6 +452,30 @@ class TestGeneral:
             response.assert_error(403, "PermissionsInsufficient", message="No access for Mark.")
 
 
+@pytest.fixture
+def oidc_provider(requests_mock):
+    oidc_issuer = "https://eoidc.test"
+    user_db = {
+        "j0hn": {"sub": "john"},
+        "4l1c3": {"sub": "Alice"},
+        "b0b": {"sub": "b0b1b08571101437a2"}
+    }
+    oidc_conf = f"{oidc_issuer}/.well-known/openid-configuration"
+    oidc_userinfo_url = f"{oidc_issuer}/userinfo"
+    requests_mock.get(oidc_conf, json={"userinfo_endpoint": oidc_userinfo_url})
+
+    def userinfo(request, context):
+        """Fake OIDC /userinfo endpoint handler"""
+        _, _, token = request.headers["Authorization"].partition("Bearer ")
+        if token in user_db:
+            return user_db[token]
+        else:
+            context.status_code = 401
+            return {"code": "InvalidToken"}
+
+    requests_mock.get(oidc_userinfo_url, json=userinfo)
+
+
 class TestUser:
 
     def test_no_auth(self, api):
@@ -461,28 +484,6 @@ class TestUser:
     def test_basic_auth(self, api):
         response = api.get("/me", headers=TEST_USER_AUTH_HEADER).assert_status_code(200).json
         assert response == {"name": TEST_USER, "user_id": TEST_USER}
-
-    @pytest.fixture
-    def oidc_provider(self, requests_mock):
-        oidc_issuer = "https://eoidc.test"
-        user_db = {
-            "j0hn": {"sub": "john"},
-            "4l1c3": {"sub": "Alice"},
-        }
-        oidc_conf = f"{oidc_issuer}/.well-known/openid-configuration"
-        oidc_userinfo_url = f"{oidc_issuer}/userinfo"
-        requests_mock.get(oidc_conf, json={"userinfo_endpoint": oidc_userinfo_url})
-
-        def userinfo(request, context):
-            """Fake OIDC /userinfo endpoint handler"""
-            _, _, token = request.headers["Authorization"].partition("Bearer ")
-            if token in user_db:
-                return user_db[token]
-            else:
-                context.status_code = 401
-                return {"code": "InvalidToken"}
-
-        requests_mock.get(oidc_userinfo_url, json=userinfo)
 
     def test_oidc_basic(self, api, oidc_provider):
         response = api.get("/me", headers={"Authorization": "Bearer oidc/eoidc/j0hn"}).assert_status_code(200).json
@@ -497,6 +498,22 @@ class TestUser:
     def test_default_plan(self, api, oidc_provider):
         response = api.get("/me", headers={"Authorization": "Bearer oidc/eoidc/4l1c3"}).assert_status_code(200).json
         assert response == DictSubSet({"user_id": "Alice", "default_plan": "alice-plan"})
+
+
+class TestLogging:
+
+    def test_user_id_logging(self, api, oidc_provider):
+        with enhanced_logging(json=True) as logs:
+            # Make request that requires auth (so that we have a user) and fails (so that we have a log to look at)
+            resp = api.post("/result", json={"broken": "yezz"}, headers={"Authorization": "Bearer oidc/eoidc/b0b"})
+            resp.assert_error(400, "ProcessGraphMissing")
+
+        logs = [l for l in logs.getvalue().strip().split("\n")]
+        logs = [json.loads(l) for l in logs]
+        error = next(l for l in logs if "ProcessGraphMissing" in l["message"])
+
+        assert error["user_id"] == "b0b1b085"
+        assert error["req_id"] == "123-456"
 
 
 class TestCollections:

@@ -1,33 +1,57 @@
 import logging
-from unittest import mock
 
 import flask
 
-from openeo_driver.util.logging import RequestCorrelationIdLogging
+from openeo_driver.util.logging import UserIdLogging, RequestCorrelationIdLogging
+from ..conftest import enhanced_logging
 
 
-def test_request_correlation_id_logging(caplog):
-    caplog.set_level(logging.INFO)
-    caplog.handler.addFilter(RequestCorrelationIdLogging())
-    caplog.handler.setFormatter(logging.Formatter("[%(req_id)s] %(message)s"))
+def test_filter_request_correlation_id_logging():
+    with enhanced_logging(format="[%(req_id)s] %(message)s") as logs:
+        app = flask.Flask(__name__)
+        log = logging.getLogger(__name__)
 
-    app = flask.Flask(__name__)
-    log = logging.getLogger(__name__)
+        log.info("Setting up app")
 
-    log.info("Setting up app")
+        @app.before_request
+        def before_request():
+            RequestCorrelationIdLogging.before_request()
 
-    @app.before_request
-    def before_request():
-        RequestCorrelationIdLogging.before_request()
+        @app.route("/hello")
+        def hello():
+            log.warning("Watch out!")
+            return "Hello world"
 
-    @app.route("/hello")
-    def hello():
-        log.warning("Watch out!")
-        return "Hello world"
-
-    with mock.patch.object(RequestCorrelationIdLogging, "_build_request_id", return_value="1234-5678"):
         with app.test_client() as client:
             client.get("/hello")
 
-    assert "[no-request] Setting up ap" in caplog.text
-    assert "[1234-5678] Watch out!" in caplog.text
+    logs = [l for l in logs.getvalue().split("\n")]
+    assert "[no-request] Setting up app" in logs
+    assert "[123-456] Watch out!" in logs
+
+
+def test_filter_user_id_logging():
+    with enhanced_logging(format="[%(user_id)s] %(message)s") as logs:
+        app = flask.Flask(__name__)
+        log = logging.getLogger(__name__)
+
+        log.info("Setting up app")
+
+        @app.route("/public")
+        def public():
+            log.info("public stuff")
+            return "Hello world"
+
+        @app.route("/private")
+        def private():
+            UserIdLogging.set_user_id("john")
+            log.info("private stuff")
+            return "Hello John"
+
+        with app.test_client() as client:
+            client.get("/public")
+            client.get("/private")
+            client.get("/public")
+
+    logs = [l for l in logs.getvalue().split("\n") if "stuff" in l]
+    assert logs == ["[None] public stuff", "[john] private stuff", "[None] public stuff"]

@@ -45,14 +45,16 @@ def get_logging_config(
                 "class": "logging.StreamHandler",
                 "stream": "ext://sys.stderr",
                 "level": handler_default_level,
-                "filters": ["request_correlation_id"],
+                "filters": [
+                    "add_request_correlation_id",
+                    "add_user_id",
+                ],
                 "formatter": "json",
             },
         },
         "filters": {
-            "request_correlation_id": {
-                "()": RequestCorrelationIdLogging,
-            }
+            "add_request_correlation_id": {"()": RequestCorrelationIdLogging},
+            "add_user_id": {"()": UserIdLogging},
         },
         "formatters": {
             "basic": {
@@ -62,7 +64,7 @@ def get_logging_config(
             "json": {
                 "()": pythonjsonlogger.jsonlogger.JsonFormatter,
                 # This fake `format` string is the way to list expected fields in json records
-                "format": "%(created)s %(name)s %(filename)s %(lineno)s %(process)s %(levelname)s %(message)s",
+                "format": "%(message)s %(levelname)s %(name)s %(created)s %(filename)s %(lineno)s %(process)s",
             },
         },
         # Keep existing loggers alive (e.g. werkzeug, gunicorn, ...)
@@ -146,4 +148,30 @@ class RequestCorrelationIdLogging(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         """Filter a log record (logging.Filter API)."""
         setattr(record, self.LOG_RECORD_ATTR, self.get_request_id())
+        return True
+
+
+class UserIdLogging(logging.Filter):
+    """
+    Python logging plugin to include a user id automatically in log records.
+    """
+
+    FLASK_G_ATTR = "current_user_id"
+    LOG_RECORD_ATTR = "user_id"
+
+    @classmethod
+    def set_user_id(cls, user_id: str):
+        """Store user id in Flask request global `g`."""
+        _log.info(f"{cls} storing user id {user_id} on {flask.g}")
+        setattr(flask.g, cls.FLASK_G_ATTR, user_id)
+
+    @classmethod
+    def get_user_id(cls) -> Union[str, None]:
+        """Get user id as stored in Flask request global `g`."""
+        if flask._app_ctx_stack.top:
+            return flask.g.get(cls.FLASK_G_ATTR, None)
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Filter a log record (logging.Filter API)."""
+        setattr(record, self.LOG_RECORD_ATTR, self.get_user_id())
         return True

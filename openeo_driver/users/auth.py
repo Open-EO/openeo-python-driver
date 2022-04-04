@@ -18,6 +18,7 @@ from openeo_driver.users import User
 from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.errors import AuthenticationRequiredException, \
     AuthenticationSchemeInvalidException, TokenInvalidException, CredentialsInvalidException, OpenEOApiException
+from openeo_driver.util.logging import UserIdLogging
 from openeo_driver.utils import TtlCache
 
 _log = logging.getLogger(__name__)
@@ -76,6 +77,9 @@ class HttpAuthHandler:
         def decorated(*args, **kwargs):
             # Try to load user info from request (failure will raise appropriate exception).
             user = self.get_user_from_bearer_token(request)
+            # TODO: is first 8 chars of user id enough?
+            # TODO: use events/signals instead of hardcoded coupling (e.g. https://flask.palletsprojects.com/en/2.1.x/signals/)
+            UserIdLogging.set_user_id(user.user_id[:8])
             if self._user_access_validation:
                 user = self._user_access_validation(user, request)
             # If handler function expects a `user` argument: pass the user object
