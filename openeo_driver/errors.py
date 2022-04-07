@@ -28,7 +28,7 @@ where necessary or useful.
 import json
 import re
 import textwrap
-from typing import List, Set
+from typing import List, Set, Optional
 
 from openeo_driver.specs import SPECS_ROOT
 from openeo_driver.util.logging import RequestCorrelationIdLogging
@@ -55,7 +55,14 @@ class OpenEOApiException(Exception):
     _tags = ["General"]
     url = None
 
-    def __init__(self, message=None, code=None, status_code=None, id=None, url=None):
+    def __init__(
+            self,
+            message: Optional[str] = None,
+            code: Optional[str] = None,
+            status_code: Optional[int] = None,
+            id: Optional[str] = None,
+            url: Optional[str] = None,
+    ):
         super().__init__(message or self.message)
         self.message = message or self.message
         # (Standardized) textual openEO error code
