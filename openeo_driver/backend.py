@@ -215,9 +215,6 @@ class CollectionCatalog(AbstractCollectionCatalog):
         except KeyError:
             raise CollectionNotFoundException(collection_id)
 
-    def get_collection_with_common_name(self, common_name: str):
-        return list(filter(lambda c: c.get("common_name") == common_name, self._catalog.values()))
-
     def load_collection(self, collection_id: str, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
         raise NotImplementedError
 
