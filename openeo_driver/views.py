@@ -2,6 +2,7 @@ import copy
 import functools
 import json
 import logging
+import pathlib
 import re
 import uuid
 from collections import namedtuple, defaultdict
@@ -447,6 +448,16 @@ def register_views_general(
         # Clients might request this for version discovery. Avoid polluting (error) logs by explicitly handling this.
         error = OpenEOApiException(status_code=404, code="NotFound", message="Not a well-known openEO URI")
         return make_response(jsonify(error.to_dict()), error.status_code)
+
+    @blueprint.route('/CHANGELOG', methods=['GET'])
+    def changelog():
+        changelog = backend_implementation.changelog()
+        if isinstance(changelog, pathlib.Path) and changelog.exists():
+            return flask.send_file(changelog, mimetype="text/plain")
+        elif isinstance(changelog, str):
+            return make_response((changelog, {"Content-Type": "text/plain"}))
+        else:
+            return changelog
 
     @blueprint.route('/_debug/echo', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'])
     def debug_echo():

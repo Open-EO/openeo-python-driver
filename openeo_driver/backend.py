@@ -624,3 +624,6 @@ class OpenEoBackendImplementation:
     def postprocess_capabilities(self, capabilities: dict) -> dict:
         """Postprocess the capabilities document"""
         return capabilities
+
+    def changelog(self) -> Union[str, Path]:
+        return "No changelog"
