@@ -9,6 +9,7 @@ import pythonjsonlogger.jsonlogger
 
 from openeo_driver.backend import UserDefinedProcesses
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
+from openeo_driver.server import build_backend_deploy_metadata
 from openeo_driver.testing import UrllibMocker
 from openeo_driver.util.logging import UserIdLogging, RequestCorrelationIdLogging
 from openeo_driver.views import build_app
@@ -27,7 +28,10 @@ def udp_registry(backend_implementation) -> UserDefinedProcesses:
 TEST_APP_CONFIG = dict(
     OPENEO_TITLE="openEO Unit Test Dummy Backend",
     TESTING=True,
-    SERVER_NAME='oeo.net'
+    SERVER_NAME='oeo.net',
+    OPENEO_BACKEND_DEPLOY_METADATA=build_backend_deploy_metadata(
+        packages=["openeo", "openeo_driver"]
+    ),
 )
 
 

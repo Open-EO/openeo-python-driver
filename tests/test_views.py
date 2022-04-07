@@ -17,7 +17,7 @@ from openeo_driver.backend import BatchJobMetadata, UserDefinedProcessMetadata, 
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
 from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, \
-    generate_unique_test_process_id, build_basic_http_auth_header, ListSubSet, DictSubSet
+    generate_unique_test_process_id, build_basic_http_auth_header, ListSubSet, DictSubSet, RegexMatcher
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata, build_app
 from .conftest import TEST_APP_CONFIG, enhanced_logging
@@ -209,6 +209,14 @@ class TestGeneral:
         endpoints = {e["path"] for e in capabilities["endpoints"]}
         assert "/credentials/oidc" not in endpoints
         api100.get("/credentials/oidc").assert_error(404, "NotFound")
+
+    def test_capabilities_processing_software(self, api100):
+        capabilities = api100.get('/').assert_status_code(200).json
+        assert capabilities["processing:software"] == {
+            "openeo": RegexMatcher(r"0.\d+\.\d+"),
+            "openeo_driver": RegexMatcher(r"0.\d+\.\d+"),
+        }
+        assert any("stac-extensions.github.io/processing" in e for e in capabilities.get("stac_extensions", []))
 
     def test_conformance(self, api100):
         res = api100.get('/conformance').assert_status_code(200).json

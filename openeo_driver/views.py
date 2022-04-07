@@ -20,7 +20,7 @@ from openeo.capabilities import ComparableVersion
 from openeo.util import dict_no_none, deep_get, Rfc3339
 from openeo_driver import urlsigning
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
-    ErrorSummary, OpenEoBackendImplementation, BatchJobs, not_implemented, is_not_implemented
+    ErrorSummary, OpenEoBackendImplementation, BatchJobs, is_not_implemented
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, ProcessUnsupportedException, \
     JobNotFinishedException, ProcessGraphInvalidException, InternalException
@@ -365,6 +365,9 @@ def register_views_general(
         deploy_metadata = app_config.get('OPENEO_BACKEND_DEPLOY_METADATA') or {}
 
         capabilities = {
+            "stac_extensions": [
+                "https://stac-extensions.github.io/processing/v1.0.0/schema.json",
+            ],
             "version": api_version,  # Deprecated pre-0.4.0 API version field
             "api_version": api_version,  # API version field since 0.4.0
             "backend_version": app_config.get('OPENEO_BACKEND_VERSION', '0.0.1'),
@@ -375,7 +378,9 @@ def register_views_general(
             "production": API_VERSIONS[g.request_version].production,
             "endpoints": endpoints,
             "billing": backend_implementation.capabilities_billing(),
+            # TODO: deprecate custom _backend_deploy_metadata
             "_backend_deploy_metadata": deploy_metadata,
+            "processing:software": deploy_metadata.get("versions", {}),
             "links": [
                 {
                     "rel": "version-history",
