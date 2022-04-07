@@ -45,8 +45,9 @@ API_VERSIONS = {
     "1.0": ApiVersionInfo(version="1.0.0", supported=True, wellknown=True, production=True),
     "1.0.1": ApiVersionInfo(version="1.0.1", supported=True, wellknown=False, production=True),
     "1.1.0": ApiVersionInfo(version="1.1.0", supported=True, wellknown=False, production=False),
+    "1.1": ApiVersionInfo(version="1.1.0", supported=True, wellknown=True, production=True),
 }
-DEFAULT_VERSION = '1.0.0'
+DEFAULT_VERSION = '1.1.0'
 
 _log.info("API Versions: {v}".format(v=API_VERSIONS))
 _log.info("Default API Version: {v}".format(v=DEFAULT_VERSION))
