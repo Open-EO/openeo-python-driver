@@ -2,7 +2,7 @@
 Small general utilities and helper functions
 """
 import datetime
-
+import importlib.metadata
 import json
 import time
 import typing
@@ -10,9 +10,9 @@ from math import isnan
 from pathlib import Path
 from typing import Union, List, Tuple, Any
 
-import pkg_resources
 import pyproj
 import shapely.geometry
+from shapely.geometry.base import CAP_STYLE
 import shapely.ops
 
 from openeo.util import rfc3339
@@ -359,8 +359,8 @@ def get_package_versions(packages: List[str], na_value="n/a") -> dict:
     version_info = {}
     for package in packages:
         try:
-            version_info[package] = str(pkg_resources.get_distribution(package))
-        except pkg_resources.DistributionNotFound:
+            version_info[package] = importlib.metadata.version(distribution_name=package)
+        except importlib.metadata.PackageNotFoundError:
             version_info[package] = na_value
     return version_info
 
@@ -413,4 +413,4 @@ def buffer_point_approx(point: shapely.geometry.Point, point_crs: str, buffer_di
 
     buffer_distance = right - left
 
-    return point.buffer(buffer_distance)
+    return point.buffer(buffer_distance, cap_style=CAP_STYLE.square)

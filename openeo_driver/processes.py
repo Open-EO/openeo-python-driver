@@ -178,14 +178,19 @@ class ProcessRegistry:
         )
         return f
 
-    def add_simple_function(self, f: Callable):
+    def add_simple_function(self, f: Callable = None, name: str = None):
         """
         Register a simple function that uses normal arguments instead of `args: dict, env: EvalEnv`:
         wrap it in a wrapper that automatically extracts these arguments
         :param f:
+        :param name: process_id (when guessing from `f.__name__` doesn't work)
         :return:
         """
-        process_id = f.__name__
+        if f is None:
+            # Called as parameterized decorator
+            return functools.partial(self.add_simple_function, name=name)
+
+        process_id = name or f.__name__
         # Detect arguments without and with defaults
         signature = inspect.signature(f)
         required = []

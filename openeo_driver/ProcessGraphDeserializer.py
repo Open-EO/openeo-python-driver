@@ -51,8 +51,8 @@ process_registry_100 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/
 process_registry_040.add_spec_by_name(
     'array_contains', 'array_element',
     'count', 'first', 'last', 'order', 'rearrange', 'sort',
-    'between', 'eq', 'gt', 'gte', 'if', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
-    'and', 'if', 'not', 'or', 'xor',
+    'between', 'eq', 'gt', 'gte', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
+    'and', 'not', 'or', 'xor',
     'absolute', 'clip', 'divide', 'extrema', 'int', 'max', 'mean',
     'median', 'min', 'mod', 'multiply', 'power', 'product', 'quantiles', 'sd', 'sgn', 'sqrt',
     'subtract', 'sum', 'variance', 'e', 'pi', 'exp', 'ln', 'log',
@@ -90,8 +90,8 @@ def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List
 _OPENEO_PROCESSES_PYTHON_WHITELIST = [
     'array_apply', 'array_contains', 'array_element', 'array_filter', 'array_find', 'array_labels',
     'count', 'first', 'last', 'order', 'rearrange', 'sort',
-    'between', 'eq', 'gt', 'gte', 'if', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
-    'all', 'and', 'any', 'if', 'not', 'or', 'xor',
+    'between', 'eq', 'gt', 'gte', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
+    'all', 'and', 'any', 'not', 'or', 'xor',
     'absolute', 'add', 'clip', 'divide', 'extrema', 'int', 'max', 'mean',
     'median', 'min', 'mod', 'multiply', 'power', 'product', 'quantiles', 'sd', 'sgn', 'sqrt',
     'subtract', 'sum', 'variance', 'e', 'pi', 'exp', 'ln', 'log',
@@ -645,13 +645,14 @@ def reduce(args: dict, env: EvalEnv) -> DriverDataCube:
 
 @process_registry_100.add_function
 def reduce_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
+    data_cube: DriverDataCube = extract_arg(args, "data")
     reduce_pg = extract_deep(args, "reducer", "process_graph")
     dimension = extract_arg(args, 'dimension')
-    data_cube = extract_arg(args, 'data')
+    context = args.get("context")
 
     # do check_dimension here for error handling
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce_dimension")
-    return data_cube.reduce_dimension(reducer=reduce_pg, dimension=dimension, env=env)
+    return data_cube.reduce_dimension(reducer=reduce_pg, dimension=dimension, context=context, env=env)
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/chunk_polygon.json"))
@@ -731,36 +732,15 @@ def fit_class_random_forest(args: dict, env: EvalEnv) -> DriverMlModel:
             )
         labels.append(target_label)
 
-    # TODO: is this check actually necessary? And is it necessary here?
-    expected_labels = set(range(max(labels) + 1))
-    if set(labels) != expected_labels:
-        raise ProcessParameterInvalidException(
-            parameter="target", process="fit_class_random_forest",
-            reason="target labels should fully cover range from 0 to (num_classes-1) "
-                   f"but got {set(labels)}."
-        )
-
     # TODO: get defaults from process spec?
     # TODO: do parameter checks automatically based on process spec?
-    training = extract_arg(args, 'training')
-    if not isinstance(training, float) or training < 0.0 or training > 1.0:
-        raise ProcessParameterInvalidException(
-            parameter="training", process="fit_class_random_forest",
-            reason="should be a float between 0 and 1."
-        )
     num_trees = args.get("num_trees", 100)
     if not isinstance(num_trees, int) or num_trees < 0:
         raise ProcessParameterInvalidException(
             parameter="num_trees", process="fit_class_random_forest",
             reason="should be an integer larger than 0."
         )
-    # TODO: will mtry be renamed? https://github.com/Open-EO/openeo-processes/issues/339
-    mtry = args.get('mtry')
-    if not (mtry is None or (isinstance(mtry, int) and mtry > 0)):
-        raise ProcessParameterInvalidException(
-            parameter="mtry", process="fit_class_random_forest",
-            reason="should be an integer larger than 0."
-        )
+    max_variables = args.get("max_variables") or args.get('mtry')
     seed = args.get("seed")
     if not (seed is None or isinstance(seed, int)):
         raise ProcessParameterInvalidException(
@@ -768,8 +748,7 @@ def fit_class_random_forest(args: dict, env: EvalEnv) -> DriverMlModel:
         )
 
     return predictors.fit_class_random_forest(
-        target=target, training=training,
-        num_trees=num_trees, mtry=mtry, seed=seed,
+        target=target, num_trees=num_trees, max_variables=max_variables, seed=seed,
     )
 
 
@@ -1590,7 +1569,7 @@ def discard_result(args: Dict, env: EvalEnv):
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/mask_scl_dilation.json"))
 def mask_scl_dilation(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
-    if( "mask_scl_dilation" in dir(cube)):
+    if hasattr(cube, "mask_scl_dilation"):
         return cube.mask_scl_dilation()
     else:
         return cube
@@ -1598,7 +1577,7 @@ def mask_scl_dilation(args: Dict, env: EvalEnv):
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/mask_l1c.json"))
 def mask_l1c(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
-    if( "mask_l1c" in dir(cube)):
+    if hasattr(cube, "mask_l1c"):
         return cube.mask_l1c()
     else:
         return cube
@@ -1698,6 +1677,11 @@ def text_merge(
         separator: Union[str, int, float, bool, None] = ""
 ) -> str:
     return str(separator).join(str(d) for d in data)
+
+
+@process_registry_100.add_simple_function(name="if")
+def if_(value: Union[bool, None], accept, reject=None):
+    return accept if value else reject
 
 
 # Finally: register some fallback implementation if possible

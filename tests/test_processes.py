@@ -394,3 +394,19 @@ def test_process_registry_add_simple_function():
     assert process(args={"x": 2}, env=None) == 102
     with pytest.raises(ProcessParameterRequiredException):
         _ = process(args={}, env=None)
+
+
+def test_process_registry_add_simple_function_with_name():
+    reg = ProcessRegistry(argument_names=["args", "env"])
+
+    @reg.add_simple_function(name="if")
+    def if_(value, accept, reject=None):
+        return accept if value else reject
+
+    process = reg.get_function("if")
+
+    assert process(args={"value": True, "accept": 3}, env=None) == 3
+    assert process(args={"value": False, "accept": 3}, env=None) is None
+    assert process(args={"value": False, "accept": 3, "reject": 5}, env=None) == 5
+    with pytest.raises(ProcessParameterRequiredException):
+        _ = process(args={}, env=None)

@@ -1,9 +1,17 @@
+import contextlib
+import io
+import logging
+from unittest import mock
+
 import flask
 import pytest
+import pythonjsonlogger.jsonlogger
 
 from openeo_driver.backend import UserDefinedProcesses
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
+from openeo_driver.server import build_backend_deploy_metadata
 from openeo_driver.testing import UrllibMocker
+from openeo_driver.util.logging import UserIdLogging, RequestCorrelationIdLogging
 from openeo_driver.views import build_app
 
 
@@ -20,7 +28,10 @@ def udp_registry(backend_implementation) -> UserDefinedProcesses:
 TEST_APP_CONFIG = dict(
     OPENEO_TITLE="openEO Unit Test Dummy Backend",
     TESTING=True,
-    SERVER_NAME='oeo.net'
+    SERVER_NAME='oeo.net',
+    OPENEO_BACKEND_DEPLOY_METADATA=build_backend_deploy_metadata(
+        packages=["openeo", "openeo_driver"]
+    ),
 )
 
 
@@ -43,3 +54,32 @@ def client(flask_app):
 def urllib_mock() -> UrllibMocker:
     with UrllibMocker().patch() as mocker:
         yield mocker
+
+
+@contextlib.contextmanager
+def enhanced_logging(
+        level=logging.INFO, json=False, format=None,
+        request_ids=("123-456", "234-567", "345-678", "456-789", "567-890")
+):
+    """Set up logging with additional injection of request id, user id, ...."""
+    root_logger = logging.getLogger()
+    orig_root_level = root_logger.level
+
+    out = io.StringIO()
+    handler = logging.StreamHandler(out)
+    handler.setLevel(level)
+    if json:
+        formatter = pythonjsonlogger.jsonlogger.JsonFormatter(format)
+    else:
+        formatter = logging.Formatter(format)
+    handler.setFormatter(formatter)
+    handler.addFilter(RequestCorrelationIdLogging())
+    handler.addFilter(UserIdLogging())
+    root_logger.addHandler(handler)
+    root_logger.setLevel(level)
+    try:
+        with mock.patch.object(RequestCorrelationIdLogging, "_build_request_id", side_effect=request_ids):
+            yield out
+    finally:
+        root_logger.removeHandler(handler)
+        root_logger.setLevel(orig_root_level)

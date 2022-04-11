@@ -145,7 +145,7 @@ class MlModelResult(SaveResult):
         self.ml_model = ml_model
 
     def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
-        return self.ml_model.write_assets(directory=directory, options=self.options)
+        return self.ml_model.write_assets(directory=directory)
 
     def create_flask_response(self) -> Response:
         return self.flask_response_from_write_assets()
@@ -532,8 +532,11 @@ class AggregatePolygonSpatialResult(SaveResult):
         return {str(Path(filename).name): asset}
 
     def fit_class_random_forest(
-            self, target: dict,
-            training: float, num_trees: int, mtry: Optional[int] = None, seed: Optional[int] = None
+            self,
+            target: dict,
+            num_trees: int = 100,
+            max_variables: Optional[Union[int, str]] = None,
+            seed: Optional[int] = None
     ) -> DriverMlModel:
         # TODO: this method belongs eventually under DriverVectorCube
         raise NotImplementedError

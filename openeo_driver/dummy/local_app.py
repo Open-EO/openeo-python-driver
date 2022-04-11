@@ -5,40 +5,27 @@ Script to start a local server. This script can serve as the entry-point for doi
 import logging
 import os
 import sys
-from logging.config import dictConfig
 
 import openeo_driver
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
-from openeo_driver.server import show_log_level, run_gunicorn
+from openeo_driver.server import run_gunicorn
+from openeo_driver.util.logging import get_logging_config, setup_logging, show_log_level
 from openeo_driver.views import build_app
-
-dictConfig({
-    'version': 1,
-    'formatters': {'default': {
-        'format': '[%(asctime)s] %(process)s %(levelname)s in %(name)s: %(message)s',
-    }},
-    'handlers': {'wsgi': {
-        'class': 'logging.StreamHandler',
-        'stream': 'ext://flask.logging.wsgi_errors_stream',
-        'formatter': 'default'
-    }},
-    'root': {
-        'level': 'INFO',
-        'handlers': ['wsgi']
-    },
-    'loggers': {
-        "gunicorn": {"level": "INFO"},
-        'werkzeug': {'level': 'DEBUG'},
-        'flask': {'level': 'DEBUG'},
-        'openeo': {'level': 'DEBUG'},
-        'openeo_driver': {'level': 'DEBUG'},
-        'kazoo': {'level': 'WARN'},
-    }
-})
 
 _log = logging.getLogger('openeo-dummy-local')
 
 if __name__ == '__main__':
+    setup_logging(get_logging_config(
+        # root_handlers=["json"],
+        loggers={
+            "openeo": {"level": "DEBUG"},
+            "openeo_driver": {"level": "DEBUG"},
+            "flask": {"level": "DEBUG"},
+            "werkzeug": {"level": "DEBUG"},
+            "kazoo": {"level": "WARN"},
+            "gunicorn": {"level": "INFO"},
+        },
+    ))
     _log.info(repr({"pid": os.getpid(), "interpreter": sys.executable, "version": sys.version, "argv": sys.argv}))
 
     app = build_app(backend_implementation=DummyBackendImplementation())
@@ -47,9 +34,6 @@ if __name__ == '__main__':
         OPENEO_DESCRIPTION="Local openEO API using dummy backend",
         OPENEO_BACKEND_VERSION=openeo_driver.__version__,
     )
-
-    show_log_level(logging.getLogger('openeo'))
-    show_log_level(logging.getLogger('openeo_driver'))
     show_log_level(app.logger)
 
     run_gunicorn(

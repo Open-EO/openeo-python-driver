@@ -4,7 +4,7 @@ import pytest
 
 from openeo.capabilities import ComparableVersion
 from openeo_driver.backend import CollectionCatalog, LoadParameters, UserDefinedProcessMetadata, ServiceMetadata, \
-    BatchJobMetadata
+    BatchJobMetadata, not_implemented, is_not_implemented
 from openeo_driver.errors import CollectionNotFoundException
 
 
@@ -200,3 +200,15 @@ def test_batch_job_metadata_to_api_dict():
             "duration": {"value": 1200, "unit": "seconds"},
         }
     }
+
+
+def test_not_implemented():
+    def foo(x):
+        return x
+
+    @not_implemented
+    def bar(x):
+        ...
+
+    assert is_not_implemented(foo) is False
+    assert is_not_implemented(bar) is True

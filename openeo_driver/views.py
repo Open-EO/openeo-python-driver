@@ -3,6 +3,7 @@ import functools
 import json
 import logging
 import os.path
+import pathlib
 import re
 import uuid
 from collections import namedtuple, defaultdict
@@ -20,7 +21,7 @@ from openeo.capabilities import ComparableVersion
 from openeo.util import dict_no_none, deep_get, Rfc3339
 from openeo_driver import urlsigning
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
-    ErrorSummary, OpenEoBackendImplementation, BatchJobs
+    ErrorSummary, OpenEoBackendImplementation, BatchJobs, is_not_implemented
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, ProcessUnsupportedException, \
     JobNotFinishedException, ProcessGraphInvalidException, InternalException
@@ -45,8 +46,9 @@ API_VERSIONS = {
     "1.0": ApiVersionInfo(version="1.0.0", supported=True, wellknown=True, production=True),
     "1.0.1": ApiVersionInfo(version="1.0.1", supported=True, wellknown=False, production=True),
     "1.1.0": ApiVersionInfo(version="1.1.0", supported=True, wellknown=False, production=False),
+    "1.1": ApiVersionInfo(version="1.1.0", supported=True, wellknown=True, production=True),
 }
-DEFAULT_VERSION = '1.0.0'
+DEFAULT_VERSION = '1.1.0'
 
 _log.info("API Versions: {v}".format(v=API_VERSIONS))
 _log.info("Default API Version: {v}".format(v=DEFAULT_VERSION))
@@ -365,6 +367,9 @@ def register_views_general(
         deploy_metadata = app_config.get('OPENEO_BACKEND_DEPLOY_METADATA') or {}
 
         capabilities = {
+            "stac_extensions": [
+                "https://stac-extensions.github.io/processing/v1.0.0/schema.json",
+            ],
             "version": api_version,  # Deprecated pre-0.4.0 API version field
             "api_version": api_version,  # API version field since 0.4.0
             "backend_version": app_config.get('OPENEO_BACKEND_VERSION', '0.0.1'),
@@ -375,7 +380,9 @@ def register_views_general(
             "production": API_VERSIONS[g.request_version].production,
             "endpoints": endpoints,
             "billing": backend_implementation.capabilities_billing(),
+            # TODO: deprecate custom _backend_deploy_metadata
             "_backend_deploy_metadata": deploy_metadata,
+            "processing:software": deploy_metadata.get("versions", {}),
             "links": [
                 {
                     "rel": "version-history",
@@ -448,6 +455,16 @@ def register_views_general(
         # Clients might request this for version discovery. Avoid polluting (error) logs by explicitly handling this.
         error = OpenEOApiException(status_code=404, code="NotFound", message="Not a well-known openEO URI")
         return make_response(jsonify(error.to_dict()), error.status_code)
+
+    @blueprint.route('/CHANGELOG', methods=['GET'])
+    def changelog():
+        changelog = backend_implementation.changelog()
+        if isinstance(changelog, pathlib.Path) and changelog.exists():
+            return flask.send_file(changelog, mimetype="text/plain")
+        elif isinstance(changelog, str):
+            return make_response((changelog, {"Content-Type": "text/plain"}))
+        else:
+            return changelog
 
     @blueprint.route('/_debug/echo', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'])
     def debug_echo():
@@ -545,7 +562,7 @@ def register_views_processing(
         auth_handler: HttpAuthHandler
 ):
 
-    @api_endpoint()
+    @api_endpoint(hidden=is_not_implemented(backend_implementation.processing.validate))
     @blueprint.route('/validation', methods=["POST"])
     def validation():
         post_data = request.get_json()
@@ -718,7 +735,7 @@ def register_views_batch_jobs(
         )
         job_id = job_info.id
         response = make_response("", 201)
-        response.headers['Location'] = url_for('.get_job_info', job_id=job_id)
+        response.headers['Location'] = url_for('.get_job_info', job_id=job_id, _external=True)
         response.headers['OpenEO-Identifier'] = str(job_id)
         return response
 

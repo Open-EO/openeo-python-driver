@@ -4,7 +4,7 @@ import json
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Union, Tuple, Optional, Iterable
+from typing import List, Dict, Union, Tuple, Optional, Iterable, Any
 from unittest.mock import Mock
 
 import flask
@@ -17,7 +17,7 @@ from openeo.metadata import CollectionMetadata, Band
 from openeo_driver.ProcessGraphDeserializer import ConcreteProcessing
 from openeo_driver.backend import (SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata,
                                    BatchJobs, BatchJobMetadata, OidcProvider, UserDefinedProcesses,
-                                   UserDefinedProcessMetadata, LoadParameters)
+                                   UserDefinedProcessMetadata, LoadParameters, Processing)
 from openeo_driver.datacube import DriverDataCube, DriverMlModel
 from openeo_driver.datastructs import StacAsset
 from openeo_driver.delayed_vector import DelayedVector
@@ -172,7 +172,7 @@ class DummyDataCube(DriverDataCube):
             setattr(self, name, Mock(side_effect=getattr(self, name)))
 
     @mock_side_effect
-    def reduce_dimension(self, reducer, dimension: str, env: EvalEnv) -> 'DummyDataCube':
+    def reduce_dimension(self, reducer, dimension: str, context: Any, env: EvalEnv) -> 'DummyDataCube':
         self.metadata = self.metadata.reduce_dimension(dimension_name=dimension)
         return self
 
@@ -252,13 +252,16 @@ class DummyAggregatePolygonSpatialResult(AggregatePolygonSpatialResult):
         return self.data
 
     def fit_class_random_forest(
-            self, target: dict,
-            training: float, num_trees: int, mtry: Optional[int] = None, seed: Optional[int] = None
+            self,
+            target: dict,
+            num_trees: int = 100,
+            max_variables: Optional[Union[int, str]] = None,
+            seed: Optional[int] = None
     ) -> DriverMlModel:
         # Fake ML training: just store inputs
         return DummyMlModel(
             process_id="fit_class_random_forest",
-            data=self.data, target=target, training=training, num_trees=num_trees, mtry=mtry, seed=seed,
+            data=self.data, target=target, num_trees=num_trees, max_variables=max_variables, seed=seed,
         )
 
 
@@ -515,13 +518,13 @@ class DummyUserDefinedProcesses(UserDefinedProcesses):
 
 
 class DummyBackendImplementation(OpenEoBackendImplementation):
-    def __init__(self):
+    def __init__(self, processing: Optional[Processing] = None):
         super(DummyBackendImplementation, self).__init__(
             secondary_services=DummySecondaryServices(),
             catalog=DummyCatalog(),
             batch_jobs=DummyBatchJobs(),
             user_defined_processes=DummyUserDefinedProcesses(),
-            processing=DummyProcessing(),
+            processing=processing or DummyProcessing(),
         )
 
     def oidc_providers(self) -> List[OidcProvider]:

@@ -42,6 +42,17 @@ class MicroService:
     """
 
 
+def not_implemented(f: Callable):
+    """Decorator for functions/methods that are not implemented"""
+    f._not_implemented = True
+    return f
+
+
+def is_not_implemented(f: Callable):
+    """Checker for functions/methods that are not implemented"""
+    return hasattr(f, "_not_implemented") and f._not_implemented
+
+
 class ServiceMetadata(NamedTuple):
     """
     Container for service metadata
@@ -203,9 +214,6 @@ class CollectionCatalog(AbstractCollectionCatalog):
             return self._catalog[collection_id]
         except KeyError:
             raise CollectionNotFoundException(collection_id)
-
-    def get_collection_with_common_name(self, common_name: str):
-        return list(filter(lambda c: c.get("common_name") == common_name, self._catalog.values()))
 
     def load_collection(self, collection_id: str, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
         raise NotImplementedError
@@ -458,6 +466,7 @@ class Processing(MicroService):
         """Evaluate given process graph (flat dict format)."""
         raise NotImplementedError
 
+    @not_implemented
     def validate(self, process_graph: dict, env: EvalEnv = None) -> List[dict]:
         """
         Process graph validation
@@ -612,3 +621,6 @@ class OpenEoBackendImplementation:
     def postprocess_capabilities(self, capabilities: dict) -> dict:
         """Postprocess the capabilities document"""
         return capabilities
+
+    def changelog(self) -> Union[str, Path]:
+        return "No changelog"

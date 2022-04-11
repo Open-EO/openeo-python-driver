@@ -339,8 +339,8 @@ def test_extract_namedtuple_fields_from_dict():
 def test_get_package_versions_basic():
     versions = get_package_versions(["flask", "requests"])
     assert versions == {
-        "flask": RegexMatcher(r"Flask \d+\.\d+\.\d+"),
-        "requests": RegexMatcher(r"requests \d+\.\d+\.\d+"),
+        "flask": RegexMatcher(r"\d+\.\d+\.\d+"),
+        "requests": RegexMatcher(r"\d+\.\d+\.\d+"),
     }
 
 
