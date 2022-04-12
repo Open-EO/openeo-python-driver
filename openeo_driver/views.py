@@ -852,13 +852,15 @@ def register_views_batch_jobs(
             if requested_api_version().at_least("1.1.0"):
                 to_datetime = Rfc3339(propagate_none=True).datetime
 
-                for filename in results.keys():
-                    stac_item_filename = f"{os.path.splitext(filename)[0]}_item.json"
-                    links.append({
-                        "rel": "item",
-                        "href": url_for('.download_job_result', job_id=job_id, filename=stac_item_filename, _external=True),
-                        "type": stac_item_media_type
-                    })
+                for filename, metadata in results.items():
+                    if "data" in metadata.get("roles", []) and "geotiff" in metadata.get("type", ""):
+                        stac_item_filename = f"{os.path.splitext(filename)[0]}_item.json"
+                        links.append({
+                            "rel": "item",
+                            "href": url_for('.download_job_result', job_id=job_id, filename=stac_item_filename,
+                                            _external=True),
+                            "type": stac_item_media_type
+                        })
 
                 result = dict_no_none(**{
                     "type": "Collection",
