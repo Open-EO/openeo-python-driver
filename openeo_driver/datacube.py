@@ -1,4 +1,5 @@
 import inspect
+import typing
 import zipfile
 from pathlib import Path
 from typing import List, Union, Optional, Dict, Any
@@ -192,6 +193,9 @@ class DriverVectorCube:
 
 class DriverMlModel:
     """Base class for driver-side 'ml-model' data structures"""
+
+    def get_model_metadata(self, directory: Union[str, Path]) -> Dict[str, typing.Any]:
+        raise NotImplementedError
 
     def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
         raise NotImplementedError
