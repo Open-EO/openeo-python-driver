@@ -926,7 +926,7 @@ def register_views_batch_jobs(
             _log.error(f"Unsupported job result: {result!r}")
             raise InternalException("Unsupported job result")
 
-    @api_endpoint
+    @api_endpoint(version=ComparableVersion("1.1.0").or_higher)
     @blueprint.route('/jobs/<job_id>/results/items/<item_id>', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def get_job_result_item(job_id: str, item_id: str, user: User) -> flask.Response:

@@ -1425,7 +1425,7 @@ class TestBatchJobs:
         assert resp.assert_error(410, 'ResultLinkExpired')
 
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
-    def test_get_job_result_item(self, flask_app, api110):  # TODO: limit to 1.1.0?
+    def test_get_job_result_item(self, flask_app, api110):
         app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
         with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry():
             resp = api110.get("/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.tiff",
