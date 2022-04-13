@@ -1022,12 +1022,38 @@ def register_views_batch_jobs(
             "roles": asset_metadata.get("roles", ["data"])
         })
 
+    def _download_ml_model_metadata(job_id: str, file_name: str, user: User) -> flask.Response:
+        results = backend_implementation.batch_jobs.get_results(job_id, user.user_id)
+        ml_model_metadata: dict = results.get(file_name, None)
+        if ml_model_metadata is None:
+            return jsonify({})
+        try:
+            model_path = pathlib.Path(ml_model_metadata["assets"]["model"]["href"]).name
+            ml_model_metadata["assets"]["model"]["href"] = url_for('.download_job_result', job_id=job_id,
+                                                                   filename=model_path, _external=True)
+        except KeyError:
+            pass
+
+        stac_item = {
+            "type": "Feature",
+            "stac_version": "0.9.0",
+            "collection": job_id,
+        }
+        stac_item.update(ml_model_metadata)
+        resp = jsonify(stac_item)
+        resp.mimetype = stac_item_media_type
+        return resp
+
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results/<filename>', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def download_job_result(job_id, filename, user: User):
-        return (_download_job_asset_stac_item(job_id, filename, user) if filename.endswith("_item.json")
-                else _download_job_result(job_id=job_id, filename=filename, user_id=user.user_id))
+        if filename == "ml_model_metadata.json":
+            return _download_ml_model_metadata(job_id, filename, user)
+        elif filename.endswith("_item.json"):
+            return _download_job_asset_stac_item(job_id, filename, user)
+        else:
+            return _download_job_result(job_id=job_id, filename=filename, user_id=user.user_id)
 
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results/<user_base64>/<secure_key>/<filename>', methods=['GET'])
