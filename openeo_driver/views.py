@@ -2,7 +2,6 @@ import copy
 import functools
 import json
 import logging
-import os.path
 import pathlib
 import re
 import uuid
@@ -854,10 +853,9 @@ def register_views_batch_jobs(
 
                 for filename, metadata in results.items():
                     if "data" in metadata.get("roles", []) and "geotiff" in metadata.get("type", ""):
-                        stac_item_filename = f"{os.path.splitext(filename)[0]}_item.json"
                         links.append({
                             "rel": "item",
-                            "href": url_for('.download_job_result', job_id=job_id, filename=stac_item_filename,
+                            "href": url_for('.get_job_result_item', job_id=job_id, item_id=filename,
                                             _external=True),
                             "type": stac_item_media_type
                         })
@@ -928,21 +926,22 @@ def register_views_batch_jobs(
             _log.error(f"Unsupported job result: {result!r}")
             raise InternalException("Unsupported job result")
 
-    def _download_job_asset_stac_item(job_id: str, stac_item_filename: str, user: User) -> flask.Response:
+    @api_endpoint
+    @blueprint.route('/jobs/<job_id>/results/items/<item_id>', methods=['GET'])
+    @auth_handler.requires_bearer_auth
+    def get_job_result_item(job_id: str, item_id: str, user: User) -> flask.Response:
         results = backend_implementation.batch_jobs.get_results(job_id, user.user_id)
-        base_name = stac_item_filename.replace("_item.json", "")
 
-        assets_with_prefix = {
+        assets_for_item_id = {
             asset_filename: metadata for asset_filename, metadata in results.items()
-            if asset_filename.startswith(base_name)
+            if asset_filename.startswith(item_id)
         }
 
-        if len(assets_with_prefix) != 1:
-            raise AssertionError(f"expected exactly 1 asset with base name {base_name}")
+        if len(assets_for_item_id) != 1:
+            raise AssertionError(f"expected exactly 1 asset with file name {item_id}")
 
-        asset_filename, metadata = next(iter(assets_with_prefix.items()))
+        asset_filename, metadata = next(iter(assets_for_item_id.items()))
 
-        # TODO: attach these to job/asset metadata
         geometry = metadata.get("geometry")
         bbox = metadata.get("bbox")
 
@@ -966,17 +965,17 @@ def register_views_batch_jobs(
             "type": "Feature",
             "stac_version": "0.9.0",
             "stac_extensions": ["eo", "file"],
-            "id": stac_item_filename,
+            "id": item_id,
             "geometry": geometry,
             "bbox": bbox,
             "properties": properties,
             "links": [{
                 "rel": "self",
-                "href": url_for('.download_job_result', job_id=job_id, filename=stac_item_filename, _external=True),
+                "href": url_for('.get_job_result_item', job_id=job_id, item_id=item_id),
                 "type": stac_item_media_type
             }, {
                 "rel": "collection",
-                "href": url_for('.list_job_results', job_id=job_id, _external=True),
+                "href": url_for('.list_job_results', job_id=job_id),
                 "type": "application/json"
             }],
             "assets": {
@@ -1004,14 +1003,13 @@ def register_views_batch_jobs(
         })
 
     @api_endpoint
-    @blueprint.route('/jobs/<job_id>/results/<filename>', methods=['GET'])
+    @blueprint.route('/jobs/<job_id>/results/assets/<filename>', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def download_job_result(job_id, filename, user: User):
-        return (_download_job_asset_stac_item(job_id, filename, user) if filename.endswith("_item.json")
-                else _download_job_result(job_id=job_id, filename=filename, user_id=user.user_id))
+        return _download_job_result(job_id=job_id, filename=filename, user_id=user.user_id)
 
     @api_endpoint
-    @blueprint.route('/jobs/<job_id>/results/<user_base64>/<secure_key>/<filename>', methods=['GET'])
+    @blueprint.route('/jobs/<job_id>/results/assets/<user_base64>/<secure_key>/<filename>', methods=['GET'])
     def download_job_result_signed(job_id, user_base64, secure_key, filename):
         expires = request.args.get('expires')
         signer = urlsigning.Signer.from_config(current_app.config)
