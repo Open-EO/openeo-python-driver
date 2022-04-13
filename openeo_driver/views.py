@@ -851,6 +851,7 @@ def register_views_batch_jobs(
 
             if requested_api_version().at_least("1.1.0"):
                 to_datetime = Rfc3339(propagate_none=True).datetime
+                ml_model_metadata = None
 
                 for filename, metadata in results.items():
                     if "data" in metadata.get("roles", []) and "geotiff" in metadata.get("type", ""):
@@ -861,6 +862,8 @@ def register_views_batch_jobs(
                                             _external=True),
                             "type": stac_item_media_type
                         })
+                    elif filename == "ml_model_metadata.json":
+                        ml_model_metadata = metadata  # Currently, there is only one ml_model per batch job.
 
                 result = dict_no_none(**{
                     "type": "Collection",
@@ -881,6 +884,16 @@ def register_views_batch_jobs(
                     "links": links,
                     "assets": assets
                 })
+                if ml_model_metadata is not None:
+                    result["stac_extensions"].extend(ml_model_metadata.get("stac_extensions", []))
+                    if "summaries" not in result.keys() or "properties" not in ml_model_metadata.keys():
+                        result["summaries"] = {}
+                    ml_model_properties = ml_model_metadata["properties"]
+                    result["summaries"].update({
+                        "ml-model:learning_approach": ml_model_properties.get("ml-model:learning_approach", []),
+                        "ml-model:prediction_type": ml_model_properties.get("ml-model:prediction_type", []),
+                        "ml-model:architecture": ml_model_properties.get("ml-model:architecture", []),
+                    })
             else:
                 result = {
                     "type": "Feature",
