@@ -1503,6 +1503,47 @@ class TestBatchJobs:
         }
         assert resp.headers["Content-Type"] == "application/geo+json"
 
+    @mock.patch('time.time', mock.MagicMock(return_value=1234))
+    def test_download_ml_model_metadata(self, flask_app, api110):
+        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
+        with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry():
+            resp = api110.get("/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/ml_model_metadata.json",
+                              headers=self.AUTH_HEADER)
+        random_id = resp.assert_status_code(200).json['id']
+        assert resp.assert_status_code(200).json == {
+            'id': random_id,
+            'type': 'Feature',
+            'stac_version': '1.0.0',
+            'stac_extensions': ['https://stac-extensions.github.io/ml-model/v1.0.0/schema.json'],
+            'assets': {
+                'model': {
+                    'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/randomforest.model',
+                    'roles': ['ml-model:checkpoint'],
+                    'title': 'org.apache.spark.mllib.tree.model.RandomForestModel',
+                    'type': 'application/octet-stream'
+                }
+            },
+            'bbox': [-179.999, -89.999, 179.999, 89.999],
+            'collection': 'collection-id',
+            'geometry': {
+                'coordinates': [[[-179.999, -89.999], [179.999, -89.999], [179.999, 89.999], [-179.999, 89.999],
+                                 [-179.999, -89.999]]],
+                'type': 'Polygon'
+            },
+            'links': [],
+            'properties': {
+                'datetime': None,
+                'end_datetime': '9999-12-31T23:59:59Z',
+                'ml-model:architecture': 'random-forest',
+                'ml-model:learning_approach': 'supervised',
+                'ml-model:prediction_type': 'classification',
+                'ml-model:training-os': 'linux',
+                'ml-model:training-processor-type': 'cpu',
+                'ml-model:type': 'ml-model',
+                'start_datetime': '1970-01-01T00:00:00Z'
+            },
+        }
+
     def test_get_batch_job_logs(self, api):
         with self._fresh_job_registry():
             resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs', headers=self.AUTH_HEADER)
