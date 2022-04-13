@@ -990,6 +990,12 @@ def register_views_batch_jobs(
         return resp
 
     def _asset_object(job_id, user_id, filename: str, asset_metadata: dict) -> dict:
+        if filename == "ml_model_metadata.json":
+            return dict_no_none(**{
+                    "rel": "item",
+                    "href": url_for('.download_job_result', job_id=job_id, filename=filename, _external=True),
+                    "type": "application/json"
+            })
         bands = asset_metadata.get("bands")
         nodata = asset_metadata.get("nodata")
 
