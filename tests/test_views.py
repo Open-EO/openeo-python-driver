@@ -1346,7 +1346,7 @@ class TestBatchJobs:
                     },
                     {
                         'rel': 'item',
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.tiff',
+                        'href': '/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.tiff',
                         'type': 'application/geo+json'
                     }
                 ],
@@ -1443,11 +1443,11 @@ class TestBatchJobs:
             },
             'links': [{
                 'rel': 'self',
-                'href': '/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.tiff',
+                'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.tiff',
                 'type': 'application/geo+json'
             }, {
                 'rel': 'collection',
-                'href': '/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results',
+                'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results',
                 'type': 'application/json'
             }],
             'assets': {

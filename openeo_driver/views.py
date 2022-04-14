@@ -855,8 +855,7 @@ def register_views_batch_jobs(
                     if "data" in metadata.get("roles", []) and "geotiff" in metadata.get("type", ""):
                         links.append({
                             "rel": "item",
-                            "href": url_for('.get_job_result_item', job_id=job_id, item_id=filename,
-                                            _external=True),
+                            "href": url_for('.get_job_result_item', job_id=job_id, item_id=filename),
                             "type": stac_item_media_type
                         })
 
@@ -971,11 +970,11 @@ def register_views_batch_jobs(
             "properties": properties,
             "links": [{
                 "rel": "self",
-                "href": url_for('.get_job_result_item', job_id=job_id, item_id=item_id),
+                "href": url_for('.get_job_result_item', job_id=job_id, item_id=item_id, _external=True),
                 "type": stac_item_media_type
             }, {
                 "rel": "collection",
-                "href": url_for('.list_job_results', job_id=job_id),
+                "href": url_for('.list_job_results', job_id=job_id, _external=True),
                 "type": "application/json"
             }],
             "assets": {
