@@ -257,6 +257,7 @@ class BatchJobMetadata(NamedTuple):
     instruments: List[str] = None
     epsg: int = None
     links: List[Dict] = None
+    usage: Dict = None
 
     @property
     def duration(self) -> Union[timedelta, None]:
@@ -304,7 +305,7 @@ class BatchJobMetadata(NamedTuple):
         result["updated"] = rfc3339.datetime(self.updated) if self.updated else None
 
         if full:
-            usage = {}
+            usage = self.usage or {}
             if self.cpu_time:
                 usage["cpu"] = {"value": int(round(self.cpu_time.total_seconds())), "unit": "cpu-seconds"}
             if self.duration:
