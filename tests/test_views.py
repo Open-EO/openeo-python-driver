@@ -1076,6 +1076,11 @@ class TestBatchJobs:
                         "type": "application/json"
                     },
                     {
+                        "rel": "canonical",
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results",
+                        "type": "application/json"
+                    },
+                    {
                         "rel": "card4l-document",
                         "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
                         "type": "application/pdf"
@@ -1123,6 +1128,11 @@ class TestBatchJobs:
                 'links': [
                     {
                         "rel": "self",
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results",
+                        "type": "application/json"
+                    },
+                    {
+                        "rel": "canonical",
                         "href": "http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results",
                         "type": "application/json"
                     },
@@ -1220,6 +1230,11 @@ class TestBatchJobs:
                         'type': 'application/json'
                     },
                     {
+                        'rel': 'canonical',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/05cb8b78f20c68a5aa9eb05249928d24',
+                        'type': 'application/json'
+                    },
+                    {
                         'rel': 'card4l-document',
                         'href': 'http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf',
                         'type': 'application/pdf'
@@ -1287,6 +1302,11 @@ class TestBatchJobs:
                         'type': 'application/json'
                     },
                     {
+                        'rel': 'canonical',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/9fea29cd94195399cc4d902388a3c32c?expires=2234',
+                        'type': 'application/json'
+                    },
+                    {
                         'rel': 'card4l-document',
                         'href': 'http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf',
                         'type': 'application/pdf'
@@ -1313,13 +1333,12 @@ class TestBatchJobs:
     def test_get_job_results_signed_with_expiration_110(self, api110, flask_app):
         app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
         with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry(next_job_id='job-373'):
-            # TODO: remove temporal coupling between tests
             dummy_backend.DummyBatchJobs._update_status(
                 job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
             resp = api110.get('/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results', headers=self.AUTH_HEADER)
             assert resp.assert_status_code(200).json == {
                 'type': 'Collection',
-                'stac_version': '0.9.0',
+                'stac_version': '1.0.0',
                 'stac_extensions': ['eo', 'file'],
                 'id': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
                 'title': 'Your title here.',
@@ -1340,13 +1359,18 @@ class TestBatchJobs:
                         'type': 'application/json'
                     },
                     {
+                        'rel': 'canonical',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/TXIuVGVzdA%3D%3D/748b8c91160fbb6e137c91d7d33b0c4a?expires=2234',
+                        'type': 'application/json'
+                    },
+                    {
                         'rel': 'card4l-document',
                         'href': 'http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf',
                         'type': 'application/pdf'
                     },
                     {
                         'rel': 'item',
-                        'href': '/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.tiff',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
                         'type': 'application/geo+json'
                     }
                 ],

@@ -437,8 +437,8 @@ class DummyBatchJobs(BatchJobs):
         self._job_registry[(user_id, job_id)] = job_info
         return job_info
 
-    def get_job_info(self, job_id: str, user: User) -> BatchJobMetadata:
-        return self._get_job_info(job_id=job_id, user_id=user.user_id)
+    def get_job_info(self, job_id: str, user_id: str) -> BatchJobMetadata:
+        return self._get_job_info(job_id=job_id, user_id=user_id)
 
     def _get_job_info(self, job_id: str, user_id: str) -> BatchJobMetadata:
         try:
@@ -599,7 +599,7 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
         _register_load_collection_call(glob_pattern, load_params)
         return DummyDataCube()
 
-    def load_result(self, job_id: str, user: User, load_params: LoadParameters, env: EvalEnv) -> DummyDataCube:
+    def load_result(self, job_id: str, user_id: str, load_params: LoadParameters, env: EvalEnv) -> DummyDataCube:
         _register_load_collection_call(job_id, load_params)
         return DummyDataCube()
 

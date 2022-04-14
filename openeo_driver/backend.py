@@ -344,7 +344,7 @@ class BatchJobs(MicroService):
         # TODO: why return a full BatchJobMetadata? only job id is used
         raise NotImplementedError
 
-    def get_job_info(self, job_id: str, user: User) -> BatchJobMetadata:
+    def get_job_info(self, job_id: str, user_id: str) -> BatchJobMetadata:
         """
         Get details about a batch job
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-job
@@ -592,7 +592,7 @@ class OpenEoBackendImplementation:
         # TODO: rename this to "load_uploaded_files" like in official openeo processes
         raise NotImplementedError
 
-    def load_result(self, job_id: str, user: User, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
+    def load_result(self, job_id: str, user_id: str, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
         raise NotImplementedError
 
     def load_ml_model(self, job_id: str) -> DriverMlModel:

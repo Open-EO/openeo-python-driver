@@ -772,7 +772,7 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs/<job_id>', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def get_job_info(job_id, user: User):
-        job_info: BatchJobMetadata = backend_implementation.batch_jobs.get_job_info(job_id, user)
+        job_info: BatchJobMetadata = backend_implementation.batch_jobs.get_job_info(job_id, user.user_id)
         return jsonify(job_info.to_api_dict(full=True, api_version=requested_api_version()))
 
     @api_endpoint()
@@ -794,7 +794,7 @@ def register_views_batch_jobs(
     @auth_handler.requires_bearer_auth
     def queue_job(job_id, user: User):
         """Add a batch job to the procsessing queue."""
-        job_info = backend_implementation.batch_jobs.get_job_info(job_id, user)
+        job_info = backend_implementation.batch_jobs.get_job_info(job_id, user.user_id)
         if job_info.status in {"created", "canceled"}:
             backend_implementation.batch_jobs.start_job(job_id=job_id, user=user)
         return make_response("", 202)
@@ -823,45 +823,92 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs/<job_id>/results', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def list_job_results(job_id, user: User):
-        job_info = backend_implementation.batch_jobs.get_job_info(job_id, user)
+        return _list_job_results(job_id, user.user_id)
+
+    @api_endpoint
+    @blueprint.route('/jobs/<job_id>/results/<user_base64>/<secure_key>', methods=['GET'])
+    def list_job_results_signed(job_id, user_base64, secure_key):
+        expires = request.args.get('expires')
+        signer = urlsigning.Signer.from_config(current_app.config)
+        user_id = user_id_b64_decode(user_base64)
+        signer.verify_job_results(signature=secure_key, job_id=job_id, user_id=user_id, expires=expires)
+        return _list_job_results(job_id, user_id)
+
+    def _list_job_results(job_id, user_id):
+        job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
         if job_info.status != "finished":
             raise JobNotFinishedException()
 
-        results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user.user_id)
+        results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user_id)
 
         if requested_api_version().at_least("1.0.0"):
+            def job_results_canonical_url() -> str:
+                if not smart_bool(current_app.config.get('SIGNED_URL')):
+                    return url_for('.list_job_results', job_id=job_id, _external=True)
+
+                signer = urlsigning.Signer.from_config(current_app.config)
+
+                expires = signer.get_expires()
+                secure_key = signer.sign_job_results(
+                    job_id=job_id, user_id=user_id, expires=expires
+                )
+                user_base64 = user_id_b64_encode(user_id)
+                return url_for(
+                    '.list_job_results_signed',
+                    job_id=job_id, user_base64=user_base64, expires=expires, secure_key=secure_key, _external=True
+                )
+
             links = job_info.links
-            if links == None:
+            if links is None:
                 links = []
 
-            links.append({
+            links.extend([{
                 "rel": "self",
                 "href": url_for('.list_job_results', job_id=job_id, _external=True),  # MUST be absolute
                 "type": "application/json"
-            })
-            links.append({
+            }, {
+                "rel": "canonical",
+                "href": job_results_canonical_url(),
+                "type": "application/json"
+            }, {
                 "rel": "card4l-document",
                 "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
                 "type": "application/pdf"
-            })
+            }])
 
-            assets = {filename: _asset_object(job_id, user.user_id, filename, asset_metadata)
+            assets = {filename: _asset_object(job_id, user_id, filename, asset_metadata)
                       for filename, asset_metadata in results.items()}
 
             if requested_api_version().at_least("1.1.0"):
                 to_datetime = Rfc3339(propagate_none=True).datetime
 
+                def job_result_item_url(item_id) -> str:
+                    if not smart_bool(current_app.config.get('SIGNED_URL')):
+                        return url_for('.get_job_result_item', job_id=job_id, item_id=item_id, _external=True)
+
+                    signer = urlsigning.Signer.from_config(current_app.config)
+
+                    expires = signer.get_expires()
+                    secure_key = signer.sign_job_item(
+                        job_id=job_id, user_id=user_id, item_id=item_id, expires=expires
+                    )
+                    user_base64 = user_id_b64_encode(user_id)
+                    return url_for(
+                        '.get_job_result_item_signed',
+                        job_id=job_id, user_base64=user_base64, secure_key=secure_key, item_id=item_id, expires=expires,
+                        _external=True)
+
                 for filename, metadata in results.items():
                     if "data" in metadata.get("roles", []) and "geotiff" in metadata.get("type", ""):
                         links.append({
                             "rel": "item",
-                            "href": url_for('.get_job_result_item', job_id=job_id, item_id=filename),
+                            "href": job_result_item_url(item_id=filename),
                             "type": stac_item_media_type
                         })
 
                 result = dict_no_none(**{
                     "type": "Collection",
-                    "stac_version": "0.9.0",
+                    "stac_version": "1.0.0",
                     "stac_extensions": ["eo", "file"],
                     "id": job_id,
                     "title": job_info.title,
@@ -905,7 +952,7 @@ def register_views_batch_jobs(
         else:
             result = {
                 "links": [
-                    {"href": _job_result_download_url(job_id, user.user_id, filename)} for filename in results.keys()
+                    {"href": _job_result_download_url(job_id, user_id, filename)} for filename in results.keys()
                 ]
             }
 
@@ -925,11 +972,23 @@ def register_views_batch_jobs(
             _log.error(f"Unsupported job result: {result!r}")
             raise InternalException("Unsupported job result")
 
+    @api_endpoint
+    @blueprint.route('/jobs/<job_id>/results/items/<user_base64>/<secure_key>/<item_id>', methods=['GET'])
+    def get_job_result_item_signed(job_id, user_base64, secure_key, item_id):
+        expires = request.args.get('expires')
+        signer = urlsigning.Signer.from_config(current_app.config)
+        user_id = user_id_b64_decode(user_base64)
+        signer.verify_job_item(signature=secure_key, job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
+        return _get_job_result_item(job_id, item_id, user_id)
+
     @api_endpoint(version=ComparableVersion("1.1.0").or_higher)
     @blueprint.route('/jobs/<job_id>/results/items/<item_id>', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def get_job_result_item(job_id: str, item_id: str, user: User) -> flask.Response:
-        results = backend_implementation.batch_jobs.get_results(job_id, user.user_id)
+        return _get_job_result_item(job_id, item_id, user.user_id)
+
+    def _get_job_result_item(job_id, item_id, user_id):
+        results = backend_implementation.batch_jobs.get_results(job_id, user_id)
 
         assets_for_item_id = {
             asset_filename: metadata for asset_filename, metadata in results.items()
@@ -946,7 +1005,7 @@ def register_views_batch_jobs(
 
         properties = {"datetime": metadata.get("datetime")}
         if properties["datetime"] is None:
-            job_info = backend_implementation.batch_jobs.get_job_info(job_id, user)
+            job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
             to_datetime = Rfc3339(propagate_none=True).datetime
 
             start_datetime = to_datetime(job_info.start_datetime)
@@ -979,7 +1038,7 @@ def register_views_batch_jobs(
                 "type": "application/json"
             }],
             "assets": {
-                asset_filename: _asset_object(job_id, user.user_id, asset_filename, metadata)
+                asset_filename: _asset_object(job_id, user_id, asset_filename, metadata)
             },
             "collection": job_id
         }

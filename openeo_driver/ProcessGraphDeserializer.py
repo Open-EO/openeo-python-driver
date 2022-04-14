@@ -1638,7 +1638,8 @@ def load_result(args: dict, env: EvalEnv) -> DriverDataCube:
         source_id = dry_run.DataSource.load_result(job_id).get_source_id()
         load_params = _extract_load_parameters(env, source_id=source_id)
 
-        return env.backend_implementation.load_result(job_id=job_id, user=user, load_params=load_params, env=env)
+        return env.backend_implementation.load_result(job_id=job_id, user_id=user.user_id, load_params=load_params,
+                                                      env=env)
 
 
 @process_registry_100.add_simple_function
