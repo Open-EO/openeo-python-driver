@@ -893,14 +893,15 @@ def register_views_batch_jobs(
                 })
                 if ml_model_metadata is not None:
                     result["stac_extensions"].extend(ml_model_metadata.get("stac_extensions", []))
-                    if "summaries" not in result.keys() or "properties" not in ml_model_metadata.keys():
+                    if "summaries" not in result.keys():
                         result["summaries"] = {}
-                    ml_model_properties = ml_model_metadata["properties"]
-                    result["summaries"].update({
-                        "ml-model:learning_approach": ml_model_properties.get("ml-model:learning_approach", []),
-                        "ml-model:prediction_type": ml_model_properties.get("ml-model:prediction_type", []),
-                        "ml-model:architecture": ml_model_properties.get("ml-model:architecture", []),
-                    })
+                    if "properties" in ml_model_metadata.keys():
+                        ml_model_properties = ml_model_metadata["properties"]
+                        result["summaries"].update({
+                            "ml-model:learning_approach": ml_model_properties.get("ml-model:learning_approach", []),
+                            "ml-model:prediction_type": ml_model_properties.get("ml-model:prediction_type", []),
+                            "ml-model:architecture": ml_model_properties.get("ml-model:architecture", []),
+                        })
             else:
                 result = {
                     "type": "Feature",
