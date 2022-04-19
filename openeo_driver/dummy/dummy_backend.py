@@ -467,6 +467,7 @@ class DummyBatchJobs(BatchJobs):
             raise JobNotFinishedException
         return {
             "output.tiff": {
+                "asset": True,
                 "output_dir": str(self._output_root() / job_id),
                 "type": "image/tiff; application=geotiff",
                 "roles": ["data"],
@@ -474,7 +475,12 @@ class DummyBatchJobs(BatchJobs):
                 "nodata": 123,
                 "instruments": "MSI"
             },
+            "randomforest.model": {
+                "asset": True,
+                "href": str(job_id / Path("randomforest.model")),
+            },
             "ml_model_metadata.json": {
+                "ml_model_metadata": True,
                 "stac_version": "1.0.0",
                 "stac_extensions": [
                     "https://stac-extensions.github.io/ml-model/v1.0.0/schema.json"

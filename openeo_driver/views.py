@@ -847,7 +847,7 @@ def register_views_batch_jobs(
             })
 
             assets = {filename: _asset_object(job_id, user.user_id, filename, asset_metadata)
-                      for filename, asset_metadata in results.items()}
+                      for filename, asset_metadata in results.items() if asset_metadata.get('asset', False)}
 
             if requested_api_version().at_least("1.1.0"):
                 to_datetime = Rfc3339(propagate_none=True).datetime
@@ -862,8 +862,15 @@ def register_views_batch_jobs(
                                             _external=True),
                             "type": stac_item_media_type
                         })
-                    elif filename == "ml_model_metadata.json":
-                        ml_model_metadata = metadata  # Currently, there is only one ml_model per batch job.
+                    elif metadata.get('ml_model_metadata', False):
+                        # TODO: Currently we only support one ml_model per batch job.
+                        ml_model_metadata = metadata
+                        links.append({
+                                "rel": "item",
+                                "href": url_for('.download_job_result', job_id=job_id, filename=filename,
+                                                _external=True),
+                                "type": "application/json"
+                        })
 
                 result = dict_no_none(**{
                     "type": "Collection",
@@ -1003,24 +1010,24 @@ def register_views_batch_jobs(
         return resp
 
     def _asset_object(job_id, user_id, filename: str, asset_metadata: dict) -> dict:
-        if filename == "ml_model_metadata.json":
-            return dict_no_none(**{
-                    "rel": "item",
-                    "href": url_for('.download_job_result', job_id=job_id, filename=filename, _external=True),
-                    "type": "application/json"
-            })
+        result_dict = dict_no_none(**{
+            "title": asset_metadata.get("title", filename),
+            "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or _job_result_download_url(job_id, user_id, filename),
+            "type": asset_metadata.get("type", asset_metadata.get("media_type","application/octet-stream")),
+            "roles": asset_metadata.get("roles", ["data"])
+        })
+        if filename.endswith(".model"):
+            # Machine learning models.
+            return result_dict
         bands = asset_metadata.get("bands")
         nodata = asset_metadata.get("nodata")
 
-        return dict_no_none(**{
-            "title": asset_metadata.get("title", filename),  # there has to be title
-            "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or _job_result_download_url(job_id, user_id, filename),
-            "type": asset_metadata.get("type",asset_metadata.get("media_type","application/octet-stream")),
+        result_dict.update(dict_no_none(**{
             "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
                          for band in bands] if bands else None,
             "file:nodata": ["nan" if nodata!=None and np.isnan(nodata) else nodata],
-            "roles": asset_metadata.get("roles", ["data"])
-        })
+        }))
+        return result_dict
 
     def _download_ml_model_metadata(job_id: str, file_name: str, user: User) -> flask.Response:
         results = backend_implementation.batch_jobs.get_results(job_id, user.user_id)
@@ -1039,6 +1046,7 @@ def register_views_batch_jobs(
             "stac_version": "0.9.0",
             "collection": job_id,
         }
+        ml_model_metadata.pop('ml_model_metadata', None)
         stac_item.update(ml_model_metadata)
         resp = jsonify(stac_item)
         resp.mimetype = stac_item_media_type

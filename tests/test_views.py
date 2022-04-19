@@ -1046,6 +1046,9 @@ class TestBatchJobs:
                     "href": "http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/output.tiff"
                 },
                 {
+                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/randomforest.model'
+                },
+                {
                     "href": "http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/ml_model_metadata.json"
                 }
             ]
@@ -1069,10 +1072,11 @@ class TestBatchJobs:
                         }],
                         'file:nodata':[123]
                     },
-                    'ml_model_metadata.json': {
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/ml_model_metadata.json',
-                        'rel': 'item',
-                        'type': 'application/json'
+                    'randomforest.model': {
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/randomforest.model',
+                        'roles': ['data'],
+                        'title': 'randomforest.model',
+                        'type': 'application/octet-stream'
                     },
                 },
                 'geometry': None,
@@ -1121,10 +1125,11 @@ class TestBatchJobs:
                         }],
                         'file:nodata': [123]
                     },
-                    'ml_model_metadata.json': {
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/ml_model_metadata.json',
-                        'rel': 'item',
-                        'type': 'application/json'
+                    'randomforest.model': {
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/randomforest.model',
+                        'roles': ['data'],
+                        'title': 'randomforest.model',
+                        'type': 'application/octet-stream'
                     },
                 },
                 'geometry': {
@@ -1172,6 +1177,7 @@ class TestBatchJobs:
 
         results_data = {
             "output.tiff": {BatchJobs.ASSET_PUBLIC_HREF: "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349",
+                            "asset": True,
                             "type":"application/tiff",
                             "nodata":np.nan
                             }
@@ -1202,6 +1208,9 @@ class TestBatchJobs:
                     'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff'
                 },
                 {
+                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model'
+                },
+                {
                     'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/272d7aa46727ee3f11a7211d5be953e4/ml_model_metadata.json'
                 }
             ]
@@ -1226,10 +1235,11 @@ class TestBatchJobs:
                         }],
                         'file:nodata': [123]
                     },
-                    'ml_model_metadata.json': {
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/ml_model_metadata.json',
-                        'rel': 'item',
-                        'type': 'application/json'
+                    'randomforest.model': {
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model',
+                        'roles': ['data'],
+                        'title': 'randomforest.model',
+                        'type': 'application/octet-stream'
                     },
                 },
                 'geometry': None,
@@ -1276,6 +1286,9 @@ class TestBatchJobs:
                     'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234'
                 },
                 {
+                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/22b76413158c59acaccc74e74841a473/randomforest.model?expires=2234'
+                },
+                {
                     'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/a23629392982e57e7312e34de4bdba95/ml_model_metadata.json?expires=2234'
                 }
             ]
@@ -1301,10 +1314,11 @@ class TestBatchJobs:
                         }],
                         'file:nodata': [123]
                     },
-                    'ml_model_metadata.json': {
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/ml_model_metadata.json',
-                        'rel': 'item',
-                        'type': 'application/json'
+                    'randomforest.model': {
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/22b76413158c59acaccc74e74841a473/randomforest.model?expires=2234',
+                        'roles': ['data'],
+                        'title': 'randomforest.model',
+                        'type': 'application/octet-stream'
                     },
                 },
                 'geometry': None,
@@ -1377,7 +1391,12 @@ class TestBatchJobs:
                         'rel': 'item',
                         'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/output_item.json',
                         'type': 'application/geo+json'
-                    }
+                    },
+                    {
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/ml_model_metadata.json',
+                        'rel': 'item',
+                        'type': 'application/json'
+                    },
                 ],
                 'summaries': {
                     'ml-model:architecture': 'random-forest',
@@ -1393,11 +1412,12 @@ class TestBatchJobs:
                         'file:nodata': [123],
                         'roles': ['data']
                     },
-                    'ml_model_metadata.json': {
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/ml_model_metadata.json',
-                        'rel': 'item',
-                        'type': 'application/json'
-                    },
+                    'randomforest.model': {
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/TXIuVGVzdA%3D%3D/18fd2346c52945c0caba7b13246f5a63/randomforest.model?expires=2234',
+                        'roles': ['data'],
+                        'title': 'randomforest.model',
+                        'type': 'application/octet-stream'
+                    }
                 }
             }
 
