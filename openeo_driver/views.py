@@ -1036,7 +1036,7 @@ def register_views_batch_jobs(
         results = backend_implementation.batch_jobs.get_results(job_id, user.user_id)
         ml_model_metadata: dict = results.get(file_name, None)
         if ml_model_metadata is None:
-            return jsonify({})
+            raise FilePathInvalidException(f"{file_name!r} not in {list(results.keys())}")
         try:
             model_path = pathlib.Path(ml_model_metadata["assets"]["model"]["href"]).name
             ml_model_metadata["assets"]["model"]["href"] = url_for('.download_job_result', job_id=job_id,
