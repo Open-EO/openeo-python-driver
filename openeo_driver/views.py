@@ -965,7 +965,9 @@ def register_views_batch_jobs(
             raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
         result = results[filename]
         if "output_dir" in result:
-            return send_from_directory(result["output_dir"], filename, mimetype=result.get("type"))
+            resp = send_from_directory(result["output_dir"], filename, mimetype=result.get("type"))
+            resp.headers['Accept-Ranges'] = 'bytes'
+            return resp
         elif "json_response" in result:
             return jsonify(result["json_response"])
         else:

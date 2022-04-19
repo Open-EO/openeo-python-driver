@@ -1440,6 +1440,27 @@ class TestBatchJobs:
         assert resp.assert_status_code(200).data == b'tiffdata'
         assert resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
 
+    @mock.patch('time.time', mock.MagicMock(return_value=1234))
+    def test_download_result_signed_with_expiration_supports_range_request(self, api, tmp_path, flask_app):
+        output_root = Path(tmp_path)
+        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
+        jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
+        with mock.patch.dict(flask_app.config, app_config), \
+                self._fresh_job_registry(output_root=output_root, jobs=jobs):
+            output = output_root / '07024ee9-7847-4b8a-b260-6c879a2b3cdc' / 'output.tiff'
+            output.parent.mkdir(parents=True)
+            with output.open('wb') as f:
+                f.write(b'tiffdata')
+
+            head_resp = api.head('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
+            assert head_resp.assert_status_code(200).data == b''
+            assert head_resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
+            assert head_resp.headers['Accept-Ranges'] == 'bytes'
+
+            get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
+                               headers={'Range': "bytes=0-3"})
+            assert get_resp.assert_status_code(206).data == b'tiff'
+
     @mock.patch('time.time', mock.MagicMock(return_value=3456))
     def test_download_result_signed_with_expiration_invalid(self, api, tmp_path, flask_app):
         app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
