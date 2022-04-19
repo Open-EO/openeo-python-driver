@@ -19,6 +19,8 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from openeo.capabilities import ComparableVersion
 from openeo.util import dict_no_none, deep_get, Rfc3339
+
+from datacube import DriverMlModel
 from openeo_driver import urlsigning
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
     ErrorSummary, OpenEoBackendImplementation, BatchJobs, is_not_implemented
@@ -1057,7 +1059,7 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs/<job_id>/results/<filename>', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def download_job_result(job_id, filename, user: User):
-        if filename == "ml_model_metadata.json":
+        if filename == DriverMlModel.METADATA_FILE_NAME:
             return _download_ml_model_metadata(job_id, filename, user)
         elif filename.endswith("_item.json"):
             return _download_job_asset_stac_item(job_id, filename, user)
