@@ -606,10 +606,7 @@ def load_ml_model(args: dict, env: EvalEnv) -> DriverMlModel:
     from urllib.parse import urlparse
     model_id = extract_arg(args, "id")
     if model_id.startswith('http'):
-        now = datetime.datetime.now()
-        now_hourly_truncated = now - datetime.timedelta(minutes=now.minute, seconds=now.second, microseconds=now.microsecond)
-        hourly_id = hash(model_id + str(now_hourly_truncated))
-        download_directory = "/data/projects/OpenEO/download_%s" % hourly_id
+        download_directory = tempfile.mkdtemp()
         dest_path = Path(download_directory + "/" + str(urlparse(model_id).path.split("/")[-1]))
         with open(dest_path, 'wb') as f:
             f.write(requests.get(model_id).content)
