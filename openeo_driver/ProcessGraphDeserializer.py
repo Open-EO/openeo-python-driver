@@ -603,8 +603,18 @@ def save_ml_model(args: dict, env: EvalEnv) -> MlModelResult:
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/load_ml_model.json"))
 def load_ml_model(args: dict, env: EvalEnv) -> DriverMlModel:
-    job_id = extract_arg(args, "id")
-    return env.backend_implementation.load_ml_model(job_id)
+    from urllib.parse import urlparse
+    model_id = extract_arg(args, "id")
+    if model_id.startswith('http'):
+        now = datetime.datetime.now()
+        now_hourly_truncated = now - datetime.timedelta(minutes=now.minute, seconds=now.second, microseconds=now.microsecond)
+        hourly_id = hash(model_id + str(now_hourly_truncated))
+        download_directory = "/data/projects/OpenEO/download_%s" % hourly_id
+        dest_path = Path(download_directory + "/" + str(urlparse(model_id).path.split("/")[-1]))
+        with open(dest_path, 'wb') as f:
+            f.write(requests.get(model_id).content)
+        return env.backend_implementation.load_ml_model(job_id=None, dest_path=dest_path)
+    return env.backend_implementation.load_ml_model(job_id=model_id, dest_path=None)
 
 
 @process

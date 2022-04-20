@@ -595,7 +595,7 @@ class OpenEoBackendImplementation:
     def load_result(self, job_id: str, user_id: str, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
         raise NotImplementedError
 
-    def load_ml_model(self, job_id: str) -> DriverMlModel:
+    def load_ml_model(self, job_id: str, dest_path: Path) -> DriverMlModel:
         raise NotImplementedError
 
     def visit_process_graph(self, process_graph: dict) -> ProcessGraphVisitor:
