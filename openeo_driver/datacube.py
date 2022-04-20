@@ -186,14 +186,20 @@ class DriverVectorCube:
         # TODO: avoid copy?
         df = self._geometries.copy(deep=True)
         if self._cube is not None:
+            assert self._cube.dims[0] == self.DIM_GEOMETRIES
             # TODO: better way to combine cube with geometries
             # Flatten multiple (non-geometry) dimensions from cube to new properties in geopandas dataframe
-            stacked = self._cube.stack(prop=self._cube.dims[1:])
-            log.info(f"Flattened cube component of vector cube to {stacked.shape[1]} properties")
-            for p in stacked.indexes["prop"]:
-                name = "~".join(str(x) for x in p)
-                # TODO: avoid column collisions?
-                df[name] = stacked.sel(prop=p)
+            prefix = self._cube.attrs.get("prefix", "cube")
+            if self._cube.dims[1:]:
+                stacked = self._cube.stack(prop=self._cube.dims[1:])
+                log.info(f"Flattened cube component of vector cube to {stacked.shape[1]} properties")
+                for p in stacked.indexes["prop"]:
+                    name = "~".join(str(x) for x in [prefix] + list(p))
+                    # TODO: avoid column collisions?
+                    df[name] = stacked.sel(prop=p)
+            else:
+                df[prefix] = self._cube
+
         return df
 
     def to_geojson(self):

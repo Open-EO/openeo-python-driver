@@ -233,7 +233,9 @@ class DummyDataCube(DriverDataCube):
                 coords[self.metadata.band_dimension.name] = self.metadata.band_names
             shape = [len(coords[d]) for d in dims]
             data = numpy.arange(numpy.prod(shape)).reshape(shape)
-            cube = xarray.DataArray(data=data, dims=dims, coords=coords, name="aggregate_spatial")
+            cube = xarray.DataArray(
+                data=data, dims=dims, coords=coords, name="aggregate_spatial", attrs={"prefix": "agg"}
+            )
             return geometries.with_cube(cube=cube)
         elif isinstance(geometries, str):
             geometries = [geometry for geometry in DelayedVector(geometries).geometries]

@@ -727,7 +727,7 @@ def test_aggregate_spatial_invalid_geometry(api100, geometries, expected):
     _ = api100.result(pg).assert_error(400, "ProcessParameterInvalid", expected)
 
 
-def test_aggregate_spatial_vector_cube(api100):
+def test_aggregate_spatial_vector_cube_basic(api100):
     path = get_path("geojson/FeatureCollection02.json")
     pg = {
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "bands": ["B02", "B03", "B04"]}},
@@ -761,8 +761,12 @@ def test_aggregate_spatial_vector_cube(api100):
                 "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
                 "properties": {
                     "id": "first", "pop": 1234,
-                    "2015-07-06T00:00:00~B02": 0, "2015-07-06T00:00:00~B03": 1, "2015-07-06T00:00:00~B04": 2,
-                    "2015-08-22T00:00:00~B02": 3, "2015-08-22T00:00:00~B03": 4, "2015-08-22T00:00:00~B04": 5,
+                    "agg~2015-07-06T00:00:00~B02": 0,
+                    "agg~2015-07-06T00:00:00~B03": 1,
+                    "agg~2015-07-06T00:00:00~B04": 2,
+                    "agg~2015-08-22T00:00:00~B02": 3,
+                    "agg~2015-08-22T00:00:00~B03": 4,
+                    "agg~2015-08-22T00:00:00~B04": 5,
                 },
             }),
             DictSubSet({
@@ -770,9 +774,128 @@ def test_aggregate_spatial_vector_cube(api100):
                 "geometry": {"type": "Polygon", "coordinates": [[[4, 2], [5, 4], [3, 4], [4, 2]]]},
                 "properties": {
                     "id": "second", "pop": 5678,
-                    "2015-07-06T00:00:00~B02": 6, "2015-07-06T00:00:00~B03": 7, "2015-07-06T00:00:00~B04": 8,
-                    "2015-08-22T00:00:00~B02": 9, "2015-08-22T00:00:00~B03": 10, "2015-08-22T00:00:00~B04": 11,
+                    "agg~2015-07-06T00:00:00~B02": 6,
+                    "agg~2015-07-06T00:00:00~B03": 7,
+                    "agg~2015-07-06T00:00:00~B04": 8,
+                    "agg~2015-08-22T00:00:00~B02": 9,
+                    "agg~2015-08-22T00:00:00~B03": 10,
+                    "agg~2015-08-22T00:00:00~B04": 11,
                 },
+            }),
+        ]
+    })
+
+
+@pytest.mark.parametrize(["info", "preprocess_pg", "aggregate_data", "p1_properties", "p2_properties"], [
+    (
+            "time-and-bands",
+            {},
+            "lc",
+            {
+                "id": "first", "pop": 1234,
+                "agg~2015-07-06T00:00:00~B02": 0, "agg~2015-07-06T00:00:00~B03": 1, "agg~2015-07-06T00:00:00~B04": 2,
+                "agg~2015-08-22T00:00:00~B02": 3, "agg~2015-08-22T00:00:00~B03": 4, "agg~2015-08-22T00:00:00~B04": 5,
+            },
+            {
+                "id": "second", "pop": 5678,
+                "agg~2015-07-06T00:00:00~B02": 6, "agg~2015-07-06T00:00:00~B03": 7, "agg~2015-07-06T00:00:00~B04": 8,
+                "agg~2015-08-22T00:00:00~B02": 9, "agg~2015-08-22T00:00:00~B03": 10, "agg~2015-08-22T00:00:00~B04": 11,
+            },
+    ),
+    (
+            "no-time",
+            {
+                "r": {"process_id": "reduce_dimension", "arguments": {
+                    "data": {"from_node": "lc"},
+                    "dimension": "t",
+                    "reducer": {"process_graph": {"mean": {
+                        "process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True,
+                    }}},
+                }},
+            },
+            "r",
+            {"id": "first", "pop": 1234, "agg~B02": 0, "agg~B03": 1, "agg~B04": 2},
+            {"id": "second", "pop": 5678, "agg~B02": 3, "agg~B03": 4, "agg~B04": 5},
+    ),
+    (
+            "no-bands",
+            {
+                "r": {"process_id": "reduce_dimension", "arguments": {
+                    "data": {"from_node": "lc"},
+                    "dimension": "bands",
+                    "reducer": {"process_graph": {"mean": {
+                        "process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True,
+                    }}},
+                }}
+            },
+            "r",
+            {"id": "first", "pop": 1234, "agg~2015-07-06T00:00:00": 0, "agg~2015-08-22T00:00:00": 1},
+            {"id": "second", "pop": 5678, "agg~2015-07-06T00:00:00": 2, "agg~2015-08-22T00:00:00": 3},
+    ),
+    (
+            "no-time-nor-bands",
+            {
+                "r1": {"process_id": "reduce_dimension", "arguments": {
+                    "data": {"from_node": "lc"},
+                    "dimension": "t",
+                    "reducer": {"process_graph": {"mean": {
+                        "process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True,
+                    }}},
+                }},
+                "r2": {"process_id": "reduce_dimension", "arguments": {
+                    "data": {"from_node": "r1"},
+                    "dimension": "bands",
+                    "reducer": {"process_graph": {"mean": {
+                        "process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True,
+                    }}},
+                }},
+            },
+            "r2",
+            {"id": "first", "pop": 1234, "agg": 0},
+            {"id": "second", "pop": 5678, "agg": 1},
+    ),
+])
+def test_aggregate_spatial_vector_cube_dimensions(
+        api100, info, preprocess_pg, aggregate_data, p1_properties, p2_properties
+):
+    path = get_path("geojson/FeatureCollection02.json")
+    pg = {
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "bands": ["B02", "B03", "B04"]}},
+        "lf": {
+            "process_id": "load_uploaded_files",
+            "arguments": {"paths": [str(path)], "format": "GeoJSON"},
+        },
+        "ag": {
+            "process_id": "aggregate_spatial",
+            "arguments": {
+                "data": {"from_node": aggregate_data},
+                "geometries": {"from_node": "lf"},
+                "reducer": {"process_graph": {
+                    "mean": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}}
+                }
+            },
+            "result": True
+        }
+    }
+    pg.update(preprocess_pg)
+    res = api100.check_result(pg)
+
+    params = dummy_backend.last_load_collection_call("S2_FOOBAR")
+    assert params["spatial_extent"] == {"west": 1, "south": 1, "east": 5, "north": 4, "crs": "EPSG:4326"}
+    assert isinstance(params["aggregate_spatial_geometries"], DriverVectorCube)
+
+    assert res.json == DictSubSet({
+        "type": "FeatureCollection",
+        "features": [
+            DictSubSet({
+                "type": "Feature",
+                "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
+                "properties": p1_properties,
+            }),
+            DictSubSet({
+                "type": "Feature",
+                "geometry": {"type": "Polygon", "coordinates": [[[4, 2], [5, 4], [3, 4], [4, 2]]]},
+                "properties": p2_properties,
             }),
         ]
     })
