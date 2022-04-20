@@ -199,7 +199,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
 
     """
 
-    # TODO EP-3981 port this to proper vector cube support
+    # TODO #71 #114 EP-3981 port this to proper vector cube support
 
     def __init__(self, timeseries: dict, regions: GeometryCollection, metadata:CollectionMetadata=None):
         super().__init__(data=timeseries)
@@ -429,11 +429,10 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         }
 
 
-
 class AggregatePolygonResultCSV(AggregatePolygonResult):
+    # TODO #71 #114 EP-3981 port this to proper vector cube support
 
-
-    def __init__(self, csv_dir, regions: GeometryCollection, metadata:CollectionMetadata=None):
+    def __init__(self, csv_dir, regions: GeometryCollection, metadata: CollectionMetadata = None):
 
         def _flatten_df(df):
             df.index = df.feature_index
@@ -464,7 +463,7 @@ class AggregatePolygonSpatialResult(SaveResult):
     """
     Container for result of `aggregate_polygon` process (aka "zonal stats") for a spatial layer.
     """
-    # TODO EP-3981 replace with proper VectorCube implementation
+    # TODO #71 #114 EP-3981 replace with proper VectorCube implementation
 
     DEFAULT_FORMAT = "JSON"
 
@@ -597,7 +596,7 @@ def to_save_result(data: Any, format: Optional[str] = None, options: Optional[di
     elif isinstance(data, DriverVectorCube):
         return VectorCubeResult(cube=data, format=format, options=options)
     elif isinstance(data, DelayedVector):
-        # TODO EP-3981 add vector cube support: keep features from feature collection
+        # TODO #114 EP-3981 add vector cube support: keep features from feature collection
         geojsons = [mapping(geometry) for geometry in data.geometries]
         return JSONResult(geojsons, format=format, options=options)
     elif isinstance(data, np.ndarray):

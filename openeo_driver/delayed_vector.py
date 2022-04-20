@@ -199,6 +199,7 @@ class DelayedVector:
 
     @staticmethod
     def _as_geometry_collection(feature_collection: Dict) -> Dict:
+        # TODO #71 #114 Deprecate/avoid usage of GeometryCollection
         geometries = (feature['geometry'] for feature in feature_collection['features'])
 
         return {

@@ -156,7 +156,7 @@ class DriverVectorCube:
     DIM_GEOMETRIES = "geometries"
 
     def __init__(self, geometries: gpd.GeoDataFrame, cube: Optional[xarray.DataArray] = None):
-        # TODO EP-3981: consider other data containers (xarray) and lazy loading?
+        # TODO #114 EP-3981: lazy loading (like DelayedVector)?
         if cube is not None:
             if cube.dims[0] != self.DIM_GEOMETRIES:
                 log.error(f"First cube dim should be {self.DIM_GEOMETRIES!r} but got dims {cube.dims!r}")
@@ -176,9 +176,9 @@ class DriverVectorCube:
     def from_fiona(cls, paths: List[str], driver: str, options: dict):
         """Factory to load vector cube data using fiona/GeoPandas."""
         if len(paths) != 1:
-            # TODO EP-3981: support multiple paths
+            # TODO #114 EP-3981: support multiple paths
             raise FeatureUnsupportedException(message="Loading a vector cube from multiple files is not supported")
-        # TODO EP-3981: lazy loading like/with DelayedVector
+        # TODO #114 EP-3981: lazy loading like/with DelayedVector
         return cls(geometries=gpd.read_file(paths[0], driver=driver))
 
     def _as_geopandas_df(self) -> gpd.GeoDataFrame:

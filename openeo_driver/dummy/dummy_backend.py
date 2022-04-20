@@ -219,7 +219,7 @@ class DummyDataCube(DriverDataCube):
             for g in geometries:
                 assert isinstance(g, Polygon) or isinstance(g, MultiPolygon)
 
-        # TODO EP-3981 normalize to vector cube and preserve original properties
+        # TODO #114 EP-3981 normalize to vector cube and preserve original properties
         if isinstance(geometries, DriverVectorCube):
             # Build dummy aggregation data cube
             dims = (DriverVectorCube.DIM_GEOMETRIES,)
@@ -239,7 +239,7 @@ class DummyDataCube(DriverDataCube):
             geometries = [geometry for geometry in DelayedVector(geometries).geometries]
             assert_polygon_sequence(geometries)
         elif isinstance(geometries, GeometryCollection):
-            # TODO EP-3981: GeometryCollection is deprecated
+            # TODO #71 #114 EP-3981: GeometryCollection is deprecated
             assert_polygon_sequence(geometries)
         elif isinstance(geometries, BaseGeometry):
             assert_polygon_sequence([geometries])
@@ -256,7 +256,7 @@ class DummyDataCube(DriverDataCube):
 
 
 class DummyAggregatePolygonSpatialResult(AggregatePolygonSpatialResult):
-    # TODO EP-3981 replace with proper VectorCube implementation
+    # TODO #114 EP-3981 replace with proper VectorCube implementation
 
     def __init__(self, cube: DummyDataCube, geometries: Iterable[BaseGeometry]):
         super().__init__(csv_dir="/dev/null", regions=geometries)
