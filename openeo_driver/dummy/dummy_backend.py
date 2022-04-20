@@ -197,11 +197,6 @@ class DummyDataCube(DriverDataCube):
             f.write("{f}:save_result({s!r}".format(f=format, s=self))
         return filename
 
-    def zonal_statistics(self, regions, func, scale=1000, interval="day")\
-            -> Union['AggregatePolygonResult', 'AggregatePolygonSpatialResult']:
-        # TODO: get rid of non-standard "zonal_statistics" (standard process is "aggregate_spatial")
-        return self.aggregate_spatial(geometries=regions, reducer=func)
-
     def aggregate_spatial(
             self,
             geometries: Union[BaseGeometry, str, DriverVectorCube],

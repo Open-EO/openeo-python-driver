@@ -114,8 +114,6 @@ class DriverDataCube(ImageCollection):
     ) -> Union["AggregatePolygonResult", "AggregatePolygonSpatialResult", "DriverVectorCube"]:
         self._not_implemented()
 
-    def zonal_statistics(self, regions, func:str) -> 'DriverDataCube':
-        self._not_implemented()
 
     def timeseries(self, x, y, srs="EPSG:4326") -> dict:
         # TODO #47: remove this non-standard process

@@ -482,8 +482,6 @@ class DryRunDataCube(DriverDataCube):
     def raster_to_vector(self):
         return AggregatePolygonResult(timeseries={}, regions=None)
 
-    def zonal_statistics(self, regions, func: str) -> Union[AggregatePolygonResult, AggregatePolygonSpatialResult]:
-        return self.aggregate_spatial(geometries=regions, reducer=func)
 
     def resample_cube_spatial(self, target: 'DryRunDataCube', method: str = 'near') -> 'DryRunDataCube':
         cube = self._process("process_type", [ProcessType.FOCAL_SPACE])
