@@ -42,7 +42,7 @@ from shapely.geometry.base import BaseGeometry
 
 from openeo.metadata import CollectionMetadata
 from openeo_driver import filter_properties
-from openeo_driver.datacube import DriverDataCube
+from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.save_result import AggregatePolygonResult, AggregatePolygonSpatialResult
@@ -439,11 +439,11 @@ class DryRunDataCube(DriverDataCube):
 
     def aggregate_spatial(
             self,
-            geometries: Union[BaseGeometry, str],
+            geometries: Union[BaseGeometry, str, DriverVectorCube],
             reducer: dict,
             target_dimension: str = "result",
     ) -> Union[AggregatePolygonResult, AggregatePolygonSpatialResult]:
-        # TODO EP-3981 normalize to vector cube instead of GeometryCollection
+        # TODO #71 #114 EP-3981 normalize to vector cube instead of GeometryCollection
         geometries, bbox = self._normalize_geometry(geometries)
         cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
         cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
@@ -451,12 +451,15 @@ class DryRunDataCube(DriverDataCube):
             geometries = GeometryCollection([geometries])
         return AggregatePolygonResult(timeseries={}, regions=geometries)
 
-    def _normalize_geometry(self, geometries):
+    def _normalize_geometry(self, geometries) -> Tuple[Union[DriverVectorCube, DelayedVector, BaseGeometry], dict]:
         """
-        Helper to preprocess geometries (as used in aggregate_spatial and mask_polygon) and apply related filter_bbox
+        Helper to preprocess geometries (as used in aggregate_spatial and mask_polygon)
+        and extract bbox (e.g. for filter_bbox)
         """
-        # TODO EP-3981 normalize to vector cube instead of GeometryCollection
-        if isinstance(geometries, dict):
+        # TODO #71 #114 EP-3981 normalize to vector cube instead of GeometryCollection
+        if isinstance(geometries, DriverVectorCube):
+            bbox = geometries.get_bounding_box()
+        elif isinstance(geometries, dict):
             return self._normalize_geometry(geojson_to_geometry(geometries))
         elif isinstance(geometries, str):
             return self._normalize_geometry(DelayedVector(geometries))
@@ -475,7 +478,7 @@ class DryRunDataCube(DriverDataCube):
         bbox = dict(west=bbox[0], south=bbox[1], east=bbox[2], north=bbox[3], crs="EPSG:4326")
         return geometries, bbox
 
-    # TODO: this is a workaround until vectorcube is fully upgraded
+    # TODO: #114 this is a workaround until vectorcube is fully upgraded
     def raster_to_vector(self):
         return AggregatePolygonResult(timeseries={}, regions=None)
 
@@ -501,6 +504,7 @@ class DryRunDataCube(DriverDataCube):
 
     def chunk_polygon(self, reducer, chunks: MultiPolygon, mask_value: float, env: EvalEnv, context={}) -> 'DryRunDataCube':
         polygons: List[Polygon] = chunks.geoms
+        # TODO #71 #114 Deprecate/avoid usage of GeometryCollection
         geometries, bbox = self._normalize_geometry(GeometryCollection(polygons))
         cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
         return cube._process("chunk_polygon", arguments={"geometries": geometries})

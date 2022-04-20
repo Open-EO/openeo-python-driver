@@ -148,6 +148,7 @@ class LoadParameters(dict):
     global_extent = dict_item(default={})
     bands = dict_item(default=None)
     properties = dict_item(default={})
+    # TODO: rename this to filter_spatial_geometries (because it is used for load_collection-time filtering)?
     aggregate_spatial_geometries = dict_item(default=None)
     sar_backscatter: Union[SarBackscatterArgs, None] = dict_item(default=None)
     process_types = dict_item(default=set())

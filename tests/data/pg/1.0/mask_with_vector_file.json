@@ -4,10 +4,10 @@
     "arguments": {
       "id": "S2_FOOBAR",
       "bands": [
-        "1",
-        "2",
-        "3",
-        "4"
+        "B02",
+        "B03",
+        "B04",
+        "B08"
       ]
     },
     "result": false

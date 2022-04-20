@@ -427,7 +427,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     params.bands = constraints.get("bands", None)
     params.properties = constraints.get("properties", {})
     params.aggregate_spatial_geometries = constraints.get("aggregate_spatial", {}).get("geometries")
-    if params.aggregate_spatial_geometries == None:
+    if params.aggregate_spatial_geometries is None:
         params.aggregate_spatial_geometries = constraints.get("filter_spatial", {}).get("geometries")
     params.sar_backscatter = constraints.get("sar_backscatter", None)
     params.process_types = process_types
@@ -521,7 +521,7 @@ def vector_buffer(args: Dict, env: EvalEnv) -> dict:
     input_crs = 'epsg:4326'
     buffer_resolution = 3
 
-    # TODO EP-3981 convert `geometry` to vector cube and move buffer logic to there
+    # TODO #114 EP-3981 convert `geometry` to vector cube and move buffer logic to there
     if isinstance(geometry, str):
         # TODO: assumption here that `geometry` is a path/url
         geoms = list(DelayedVector(geometry).geometries)
@@ -664,7 +664,7 @@ def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
 
     # Chunks parameter check.
-    # TODO EP-3981 normalize first to vector cube and simplify logic
+    # TODO #114 EP-3981 normalize first to vector cube and simplify logic
     if isinstance(chunks, DelayedVector):
         polygons = list(chunks.geometries)
         for p in polygons:
@@ -705,7 +705,7 @@ def fit_class_random_forest(args: dict, env: EvalEnv) -> DriverMlModel:
 
     predictors = extract_arg(args, 'predictors')
     if not isinstance(predictors, AggregatePolygonSpatialResult):
-        # TODO EP-3981 add support for real vector cubes.
+        # TODO #114 EP-3981 add support for real vector cubes.
         raise ProcessParameterInvalidException(
             parameter="predictors", process="fit_class_random_forest",
             reason=f"should be non-temporal vector-cube (got `{type(predictors)}`)."
@@ -716,7 +716,7 @@ def fit_class_random_forest(args: dict, env: EvalEnv) -> DriverMlModel:
             and target.get("type") == "FeatureCollection"
             and isinstance(target.get("features"), list)
     ):
-        # TODO EP-3981 vector cube support
+        # TODO #114 EP-3981 vector cube support
         raise ProcessParameterInvalidException(
             parameter="target", process="fit_class_random_forest",
             reason='only GeoJSON FeatureCollection is currently supported.',
@@ -949,7 +949,10 @@ def aggregate_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
     target_dimension = args.get('target_dimension', None)
 
     geoms = extract_arg(args, 'geometries')
-    if isinstance(geoms, dict):
+    # TODO #114: convert all cases to DriverVectorCube first and just work with that
+    if isinstance(geoms, DriverVectorCube):
+        geoms = geoms
+    elif isinstance(geoms, dict):
         geoms = geojson_to_geometry(geoms)
     elif isinstance(geoms, DelayedVector):
         geoms = geoms.path
@@ -990,11 +993,11 @@ def mask_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     replacement = args.get('replacement', None)
     inside = args.get('inside', False)
 
-    # TODO: instead of if-elif-else chain: generically "cast" to VectorCube first (e.g. for wide input
+    # TODO #114: instead of if-elif-else chain: generically "cast" to VectorCube first (e.g. for wide input
     #       support: GeoJSON, WKT, ...) and then convert to MultiPolygon?
     if isinstance(mask, DelayedVector):
         # TODO: avoid reading DelayedVector twice due to dry-run?
-        # TODO EP-3981 embed DelayedVector in VectorCube implementation
+        # TODO #114 EP-3981 embed DelayedVector in VectorCube implementation
         polygon = shapely.ops.unary_union(list(mask.geometries))
     elif isinstance(mask, DriverVectorCube):
         polygon = mask.to_multipolygon()
@@ -1070,7 +1073,7 @@ def filter_spatial(args: Dict, env: EvalEnv) -> DriverDataCube:
     geometries = extract_arg(args, 'geometries')
 
     if not isinstance(geometries, dict):
-        # TODO: support DelayedVector
+        # TODO #114: support DriverDataCube
         raise NotImplementedError("filter_spatial only supports dict but got {g!r}".format(g=geometries))
 
     geometries = geojson_to_geometry(geometries)
@@ -1170,6 +1173,7 @@ def run_udf(args: dict, env: EvalEnv):
     if dry_run_tracer and isinstance(data, AggregatePolygonResult):
         return JSONResult({})
 
+    # TODO #114 add support for DriverVectorCube
     if isinstance(data, AggregatePolygonResult):
         pass
     if isinstance(data, (DelayedVector, dict)):
@@ -1343,15 +1347,15 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         .returns("TODO", schema={"type": "object", "subtype": "vector-cube"})
 )
 def read_vector(args: Dict, env: EvalEnv) -> DelayedVector:
-    # TODO EP-3981: deprecated in favor of load_uploaded_files/load_external? https://github.com/Open-EO/openeo-processes/issues/322
+    # TODO #114 EP-3981: deprecated in favor of load_uploaded_files/load_external? https://github.com/Open-EO/openeo-processes/issues/322
     path = extract_arg(args, 'filename')
     return DelayedVector(path)
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/load_uploaded_files.json"))
 def load_uploaded_files(args: dict, env: EvalEnv) -> DriverVectorCube:
-    # TODO EP-3981 process name is still under discussion https://github.com/Open-EO/openeo-processes/issues/322
-    # TODO EP-3981 also other return types: raster data cube, array, ...
+    # TODO #114 EP-3981 process name is still under discussion https://github.com/Open-EO/openeo-processes/issues/322
+    # TODO also other return types: raster data cube, array, ...
     paths = extract_arg(args, 'paths', process_id="load_uploaded_files")
     format = extract_arg(args, 'format', process_id="load_uploaded_files")
     options = args.get("options", {})
@@ -1373,7 +1377,7 @@ def load_uploaded_files(args: dict, env: EvalEnv) -> DriverVectorCube:
         .returns("TODO", schema={"type": "object", "subtype": "vector-cube"})
 )
 def get_geometries(args: Dict, env: EvalEnv) -> Union[DelayedVector, dict]:
-    # TODO: standardize or deprecate this? EP-3981 https://github.com/Open-EO/openeo-processes/issues/322
+    # TODO: standardize or deprecate this? #114 EP-3981 https://github.com/Open-EO/openeo-processes/issues/322
     feature_collection = args.get('feature_collection', None)
     path = args.get('filename', None)
     if path is not None:
