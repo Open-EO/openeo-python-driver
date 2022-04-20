@@ -154,8 +154,18 @@ class DriverVectorCube:
     These components are "joined" on the GeoPandas dataframe's index and DataArray first dimension
     """
     DIM_GEOMETRIES = "geometries"
+    FLATTEN_PREFIX = "vc"
 
-    def __init__(self, geometries: gpd.GeoDataFrame, cube: Optional[xarray.DataArray] = None):
+    def __init__(
+            self, geometries: gpd.GeoDataFrame, cube: Optional[xarray.DataArray] = None,
+            flatten_prefix: str = FLATTEN_PREFIX
+    ):
+        """
+
+        :param geometries:
+        :param cube:
+        :param flatten_prefix: prefix for column/field/property names when flattening the cube
+        """
         # TODO #114 EP-3981: lazy loading (like DelayedVector)?
         if cube is not None:
             if cube.dims[0] != self.DIM_GEOMETRIES:
@@ -166,11 +176,12 @@ class DriverVectorCube:
                 raise VectorCubeError("Incompatible vector cube components")
         self._geometries = geometries
         self._cube = cube
+        self._flatten_prefix = flatten_prefix
 
-    def with_cube(self, cube: xarray.DataArray) -> "DriverVectorCube":
+    def with_cube(self, cube: xarray.DataArray, flatten_prefix: str = FLATTEN_PREFIX) -> "DriverVectorCube":
         """Create new vector cube with same geometries but new cube"""
         log.info(f"Creating vector cube with new cube {cube.name!r}")
-        return DriverVectorCube(geometries=self._geometries, cube=cube)
+        return DriverVectorCube(geometries=self._geometries, cube=cube, flatten_prefix=flatten_prefix)
 
     @classmethod
     def from_fiona(cls, paths: List[str], driver: str, options: dict):
@@ -189,23 +200,24 @@ class DriverVectorCube:
             assert self._cube.dims[0] == self.DIM_GEOMETRIES
             # TODO: better way to combine cube with geometries
             # Flatten multiple (non-geometry) dimensions from cube to new properties in geopandas dataframe
-            prefix = self._cube.attrs.get("prefix", "cube")
             if self._cube.dims[1:]:
                 stacked = self._cube.stack(prop=self._cube.dims[1:])
                 log.info(f"Flattened cube component of vector cube to {stacked.shape[1]} properties")
                 for p in stacked.indexes["prop"]:
-                    name = "~".join(str(x) for x in [prefix] + list(p))
+                    name = "~".join(str(x) for x in [self._flatten_prefix] + list(p))
                     # TODO: avoid column collisions?
                     df[name] = stacked.sel(prop=p)
             else:
-                df[prefix] = self._cube
+                df[self._flatten_prefix] = self._cube
 
         return df
 
     def to_geojson(self):
         return shapely.geometry.mapping(self._as_geopandas_df())
 
-    def write_assets(self, directory: Union[str, Path], format: str, options: Optional[dict] = None) -> Dict[str, StacAsset]:
+    def write_assets(
+            self, directory: Union[str, Path], format: str, options: Optional[dict] = None
+    ) -> Dict[str, StacAsset]:
         directory = ensure_dir(directory)
         format_info = IOFORMATS.get(format)
         # TODO: check if format can be used for vector data?
@@ -243,13 +255,16 @@ class DriverVectorCube:
         return shapely.ops.unary_union(self._geometries.geometry)
 
     def get_bounding_box(self) -> Tuple[float, float, float, float]:
-        return self._geometries.total_bounds
+        return tuple(self._geometries.total_bounds)
 
     def get_geometries(self) -> Sequence[shapely.geometry.base.BaseGeometry]:
         return self._geometries.geometry
 
-    def get_geometries_index(self) -> pd.Index:
-        return self._geometries.index
+    def get_xarray_cube_basics(self) -> Tuple[tuple, dict]:
+        """Get initial dims/coords for xarray DataArray construction"""
+        dims = (self.DIM_GEOMETRIES,)
+        coords = {self.DIM_GEOMETRIES: self._geometries.index.to_list()}
+        return dims, coords
 
 
 class DriverMlModel:

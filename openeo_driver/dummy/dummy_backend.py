@@ -222,9 +222,7 @@ class DummyDataCube(DriverDataCube):
         # TODO #114 EP-3981 normalize to vector cube and preserve original properties
         if isinstance(geometries, DriverVectorCube):
             # Build dummy aggregation data cube
-            dims = (DriverVectorCube.DIM_GEOMETRIES,)
-            # TODO: use something else than the geopandas dataframe's index?
-            coords = {DriverVectorCube.DIM_GEOMETRIES: geometries.get_geometries_index().to_list()}
+            dims, coords = geometries.get_xarray_cube_basics()
             if self.metadata.has_temporal_dimension():
                 dims += (self.metadata.temporal_dimension.name,)
                 coords[self.metadata.temporal_dimension.name] = ["2015-07-06T00:00:00", "2015-08-22T00:00:00"]
@@ -233,10 +231,8 @@ class DummyDataCube(DriverDataCube):
                 coords[self.metadata.band_dimension.name] = self.metadata.band_names
             shape = [len(coords[d]) for d in dims]
             data = numpy.arange(numpy.prod(shape)).reshape(shape)
-            cube = xarray.DataArray(
-                data=data, dims=dims, coords=coords, name="aggregate_spatial", attrs={"prefix": "agg"}
-            )
-            return geometries.with_cube(cube=cube)
+            cube = xarray.DataArray(data=data, dims=dims, coords=coords, name="aggregate_spatial")
+            return geometries.with_cube(cube=cube, flatten_prefix="agg")
         elif isinstance(geometries, str):
             geometries = [geometry for geometry in DelayedVector(geometries).geometries]
             assert_polygon_sequence(geometries)
