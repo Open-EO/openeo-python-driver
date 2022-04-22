@@ -60,6 +60,13 @@ class TestDriverVectorCube:
             ]
         })
 
+    def test_to_wkt(self, gdf):
+        vc = DriverVectorCube(gdf)
+        assert vc.to_wkt() == (
+            ['POLYGON ((1 1, 3 1, 2 3, 1 1))', 'POLYGON ((4 2, 5 4, 3 4, 4 2))'],
+            'EPSG:4326',
+        )
+
     def test_with_cube_to_geojson(self, gdf):
         vc1 = DriverVectorCube(gdf)
         dims, coords = vc1.get_xarray_cube_basics()
@@ -96,4 +103,76 @@ class TestDriverVectorCube:
                     "properties": {"id": "second", "pop": 5678, "bandz~red": 3, "bandz~green": 4},
                 }),
             ]
+        })
+
+    @pytest.mark.parametrize(["geojson", "expected"], [
+        (
+                {"type": "Polygon", "coordinates": [[(1, 1), (3, 1), (2, 3), (1, 1)]]},
+                [
+                    DictSubSet({
+                        "type": "Feature",
+                        "geometry": {"type": "Polygon", "coordinates": (((1, 1), (3, 1), (2, 3), (1, 1),),)},
+                        "properties": {},
+                    }),
+                ],
+        ),
+        (
+                {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                [
+                    DictSubSet({
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [(((1, 1), (3, 1), (2, 3), (1, 1),),)]},
+                        "properties": {},
+                    }),
+                ],
+        ),
+        (
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                    "properties": {"id": "12_3"},
+                },
+                [
+                    DictSubSet({
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [(((1, 1), (3, 1), (2, 3), (1, 1),),)]},
+                        "properties": {"id": "12_3"},
+                    }),
+                ],
+        ),
+        (
+                {
+                    "type": "FeatureCollection",
+                    "features": [
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "Polygon", "coordinates": [[(1, 1), (3, 1), (2, 3), (1, 1)]]},
+                            "properties": {"id": 1},
+                        },
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                            "properties": {"id": 2},
+                        },
+                    ],
+                },
+                [
+                    DictSubSet({
+                        "type": "Feature",
+                        "geometry": {"type": "Polygon", "coordinates": (((1, 1), (3, 1), (2, 3), (1, 1),),)},
+                        "properties": {"id": 1},
+                    }),
+                    DictSubSet({
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [(((1, 1), (3, 1), (2, 3), (1, 1),),)]},
+                        "properties": {"id": 2},
+                    }),
+                ],
+        ),
+    ])
+    def test_from_geojson(self, geojson, expected):
+        vc = DriverVectorCube.from_geojson(geojson)
+        assert vc.to_geojson() == DictSubSet({
+            "type": "FeatureCollection",
+            "features": expected,
         })

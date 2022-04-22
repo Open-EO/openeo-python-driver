@@ -182,13 +182,29 @@ class DriverVectorCube:
         return DriverVectorCube(geometries=self._geometries, cube=cube, flatten_prefix=flatten_prefix)
 
     @classmethod
-    def from_fiona(cls, paths: List[str], driver: str, options: dict):
+    def from_fiona(cls, paths: List[str], driver: str, options: dict) -> "DriverVectorCube":
         """Factory to load vector cube data using fiona/GeoPandas."""
         if len(paths) != 1:
             # TODO #114 EP-3981: support multiple paths
             raise FeatureUnsupportedException(message="Loading a vector cube from multiple files is not supported")
         # TODO #114 EP-3981: lazy loading like/with DelayedVector
         return cls(geometries=gpd.read_file(paths[0], driver=driver))
+
+    @classmethod
+    def from_geojson(cls, geojson: dict) -> "DriverVectorCube":
+        """Construct vector cube from GeoJson dict structure"""
+        # TODO support more geojson types?
+        if geojson["type"] in {"Polygon", "MultiPolygon"}:
+            features = [{"type": "Feature", "geometry": geojson, "properties": {}}]
+        elif geojson["type"] in {"Feature"}:
+            features = [geojson]
+        elif geojson["type"] in {"FeatureCollection"}:
+            features = geojson
+        else:
+            raise FeatureUnsupportedException(
+                f"Can not construct DriverVectorCube from {geojson.get('type', type(geojson))!r}"
+            )
+        return cls(geometries=gpd.GeoDataFrame.from_features(features))
 
     def _as_geopandas_df(self) -> gpd.GeoDataFrame:
         """Join geometries and cube as a geopandas dataframe"""
@@ -212,6 +228,11 @@ class DriverVectorCube:
 
     def to_geojson(self):
         return shapely.geometry.mapping(self._as_geopandas_df())
+
+    def to_wkt(self) -> Tuple[List[str], str]:
+        wkts = [str(g) for g in self._geometries.geometry]
+        crs = self._geometries.crs.to_string() if self._geometries.crs else "EPSG:4326"
+        return wkts, crs
 
     def write_assets(
             self, directory: Union[str, Path], format: str, options: Optional[dict] = None
