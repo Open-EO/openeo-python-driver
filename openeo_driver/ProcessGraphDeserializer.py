@@ -946,6 +946,7 @@ def aggregate_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
 def aggregate_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
     reduce_pg = extract_deep(args, "reducer", "process_graph")
     cube = extract_arg(args, 'data')
+    # TODO: drop `target_dimension`? see https://github.com/Open-EO/openeo-processes/issues/366
     target_dimension = args.get('target_dimension', None)
 
     geoms = extract_arg(args, 'geometries')
@@ -1362,6 +1363,23 @@ def load_uploaded_files(args: dict, env: EvalEnv) -> DriverVectorCube:
         return DriverVectorCube.from_fiona(paths, driver=format, options=options)
     else:
         raise FeatureUnsupportedException(f"Loading format {format!r} is not supported")
+
+
+@non_standard_process(
+    ProcessSpec(
+        id="to_vector_cube",
+        description="[EXPERIMENTAL:] Converts given data (e.g. GeoJson object) to a vector cube."
+    )
+    .param('data', description="GeoJson object.", schema={"type": "object", "subtype": "geojson"})
+    .returns("vector-cube", schema={"type": "object", "subtype": "vector-cube"})
+)
+def to_vector_cube(args: Dict, env: EvalEnv):
+    # TODO: standardization of something like this? https://github.com/Open-EO/openeo-processes/issues/346
+    data = extract_arg(args, "data", process_id="to_vector_cube")
+    if isinstance(data, dict) and data.get("type") in {"Polygon", "MultiPolygon", "Feature", "FeatureCollection"}:
+        return DriverVectorCube.from_geojson(data)
+    # TODO: support more inputs: string with geojson, string with WKT, list of WKT, string with URL to GeoJSON, ...
+    raise FeatureUnsupportedException(f"Converting {type(data)} to vector cube is not supported")
 
 
 @non_standard_process(

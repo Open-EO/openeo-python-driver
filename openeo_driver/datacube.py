@@ -112,6 +112,7 @@ class DriverDataCube(ImageCollection):
             reducer: dict,
             target_dimension: str = "result",
     ) -> Union["AggregatePolygonResult", "AggregatePolygonSpatialResult", "DriverVectorCube"]:
+        # TODO: drop `target_dimension`? see https://github.com/Open-EO/openeo-processes/issues/366
         self._not_implemented()
 
 
