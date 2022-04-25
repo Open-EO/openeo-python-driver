@@ -1047,14 +1047,18 @@ def register_views_batch_jobs(
         except KeyError:
             # Only change the href of a model if it actually exists.
             pass
-
         stac_item = {
+            "stac_version": ml_model_metadata.get("stac_version", "0.9.0"),
+            "stac_extensions": ml_model_metadata.get("stac_extensions", []),
             "type": "Feature",
-            "stac_version": "0.9.0",
+            "id": ml_model_metadata.get("id"),
             "collection": job_id,
+            "bbox": ml_model_metadata.get("bbox", []),
+            "geometry": ml_model_metadata.get("geometry", {}),
+            'properties': ml_model_metadata.get("properties", {}),
+            'links': ml_model_metadata.get("links", []),
+            'assets': ml_model_metadata.get("assets", {})
         }
-        ml_model_metadata.pop('ml_model_metadata', None)
-        stac_item.update(ml_model_metadata)
         resp = jsonify(stac_item)
         resp.mimetype = stac_item_media_type
         return resp
