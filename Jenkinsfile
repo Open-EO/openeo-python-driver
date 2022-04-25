@@ -12,7 +12,7 @@ pythonPipeline {
   package_name = 'openeo_driver'
   wipeout_workspace = true
   python_version = ["3.8"]
-  downstream_job = 'openEO/openeo-integrationtests'
+  downstream_job = 'openEO/openeo-integrationtests-baremetal'
   wheel_repo = 'python-openeo'
   extras_require = 'dev'
   upload_dev_wheels = false

@@ -128,7 +128,7 @@ def smart_bool(value):
 
 def geojson_to_geometry(geojson: dict) -> shapely.geometry.base.BaseGeometry:
     """Convert GeoJSON object to shapely geometry object"""
-    # TODO EP-3981 standardize on using (FeatureCollection like) vector cubes  instead of GeometryCollection?
+    # TODO #71 #114 EP-3981 standardize on using (FeatureCollection like) vector cubes  instead of GeometryCollection?
     if geojson["type"] == "FeatureCollection":
         geojson = {
             'type': 'GeometryCollection',
@@ -147,6 +147,7 @@ def geojson_to_multipolygon(
     means dissolving overlapping polygons into one).
     """
     # TODO: option to also force conversion of Polygon to MultiPolygon?
+    # TODO: #71 #114 migrate/centralize all this kind of logic to vector cubes
     if geojson["type"] == "Feature":
         geojson = geojson["geometry"]
 

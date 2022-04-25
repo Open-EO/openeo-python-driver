@@ -148,6 +148,7 @@ class LoadParameters(dict):
     global_extent = dict_item(default={})
     bands = dict_item(default=None)
     properties = dict_item(default={})
+    # TODO: rename this to filter_spatial_geometries (because it is used for load_collection-time filtering)?
     aggregate_spatial_geometries = dict_item(default=None)
     sar_backscatter: Union[SarBackscatterArgs, None] = dict_item(default=None)
     process_types = dict_item(default=set())
@@ -257,6 +258,7 @@ class BatchJobMetadata(NamedTuple):
     instruments: List[str] = None
     epsg: int = None
     links: List[Dict] = None
+    usage: Dict = None
 
     @property
     def duration(self) -> Union[timedelta, None]:
@@ -304,7 +306,7 @@ class BatchJobMetadata(NamedTuple):
         result["updated"] = rfc3339.datetime(self.updated) if self.updated else None
 
         if full:
-            usage = {}
+            usage = self.usage or {}
             if self.cpu_time:
                 usage["cpu"] = {"value": int(round(self.cpu_time.total_seconds())), "unit": "cpu-seconds"}
             if self.duration:
@@ -343,7 +345,7 @@ class BatchJobs(MicroService):
         # TODO: why return a full BatchJobMetadata? only job id is used
         raise NotImplementedError
 
-    def get_job_info(self, job_id: str, user: User) -> BatchJobMetadata:
+    def get_job_info(self, job_id: str, user_id: str) -> BatchJobMetadata:
         """
         Get details about a batch job
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-job
@@ -591,7 +593,7 @@ class OpenEoBackendImplementation:
         # TODO: rename this to "load_uploaded_files" like in official openeo processes
         raise NotImplementedError
 
-    def load_result(self, job_id: str, user: User, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
+    def load_result(self, job_id: str, user_id: str, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
         raise NotImplementedError
 
     def load_ml_model(self, job_id: str) -> DriverMlModel:

@@ -1043,13 +1043,13 @@ class TestBatchJobs:
         assert resp.assert_status_code(200).json == {
             "links": [
                 {
-                    "href": "http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/output.tiff"
+                    "href": "http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff"
                 },
                 {
-                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/randomforest.model'
+                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/randomforest.model'
                 },
                 {
-                    "href": "http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/ml_model_metadata.json"
+                    "href": "http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/ml_model_metadata.json"
                 }
             ]
         }
@@ -1064,7 +1064,7 @@ class TestBatchJobs:
                     'output.tiff': {
                         'roles': ['data'],
                         'title': 'output.tiff',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/output.tiff',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff',
                         'type': 'image/tiff; application=geotiff',
                         'eo:bands': [{
                             'name': "NDVI",
@@ -1084,6 +1084,11 @@ class TestBatchJobs:
                 'links': [
                     {
                         "rel": "self",
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results",
+                        "type": "application/json"
+                    },
+                    {
+                        "rel": "canonical",
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results",
                         "type": "application/json"
                     },
@@ -1117,7 +1122,7 @@ class TestBatchJobs:
                     'output.tiff': {
                         'roles': ['data'],
                         'title': 'output.tiff',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/output.tiff',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.tiff',
                         'type': 'image/tiff; application=geotiff',
                         'eo:bands': [{
                             'name': "NDVI",
@@ -1141,6 +1146,11 @@ class TestBatchJobs:
                 'links': [
                     {
                         "rel": "self",
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results",
+                        "type": "application/json"
+                    },
+                    {
+                        "rel": "canonical",
                         "href": "http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results",
                         "type": "application/json"
                     },
@@ -1205,13 +1215,13 @@ class TestBatchJobs:
         assert resp.assert_status_code(200).json == {
             'links': [
                 {
-                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff'
+                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff'
                 },
                 {
-                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model'
+                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model'
                 },
                 {
-                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/272d7aa46727ee3f11a7211d5be953e4/ml_model_metadata.json'
+                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/272d7aa46727ee3f11a7211d5be953e4/ml_model_metadata.json'
                 }
             ]
         }
@@ -1227,7 +1237,7 @@ class TestBatchJobs:
                     'output.tiff': {
                         'roles': ['data'],
                         'title': 'output.tiff',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff',
                         'type': 'image/tiff; application=geotiff',
                         'eo:bands': [{
                             'name': 'NDVI',
@@ -1248,6 +1258,11 @@ class TestBatchJobs:
                     {
                         'rel': 'self',
                         'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results',
+                        'type': 'application/json'
+                    },
+                    {
+                        'rel': 'canonical',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/05cb8b78f20c68a5aa9eb05249928d24',
                         'type': 'application/json'
                     },
                     {
@@ -1283,13 +1298,13 @@ class TestBatchJobs:
         assert resp.assert_status_code(200).json == {
             'links': [
                 {
-                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234'
+                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234'
                 },
                 {
-                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/22b76413158c59acaccc74e74841a473/randomforest.model?expires=2234'
+                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/22b76413158c59acaccc74e74841a473/randomforest.model?expires=2234'
                 },
                 {
-                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/a23629392982e57e7312e34de4bdba95/ml_model_metadata.json?expires=2234'
+                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/a23629392982e57e7312e34de4bdba95/ml_model_metadata.json?expires=2234'
                 }
             ]
         }
@@ -1306,7 +1321,7 @@ class TestBatchJobs:
                     'output.tiff': {
                         'roles': ['data'],
                         'title': 'output.tiff',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
                         'type': 'image/tiff; application=geotiff',
                         'eo:bands': [{
                             'name': 'NDVI',
@@ -1327,6 +1342,11 @@ class TestBatchJobs:
                     {
                         'rel': 'self',
                         'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results',
+                        'type': 'application/json'
+                    },
+                    {
+                        'rel': 'canonical',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/9fea29cd94195399cc4d902388a3c32c?expires=2234',
                         'type': 'application/json'
                     },
                     {
@@ -1356,13 +1376,12 @@ class TestBatchJobs:
     def test_get_job_results_signed_with_expiration_110(self, api110, flask_app):
         app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
         with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry(next_job_id='job-373'):
-            # TODO: remove temporal coupling between tests
             dummy_backend.DummyBatchJobs._update_status(
                 job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
             resp = api110.get('/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results', headers=self.AUTH_HEADER)
             assert resp.assert_status_code(200).json == {
                 'type': 'Collection',
-                'stac_version': '0.9.0',
+                'stac_version': '1.0.0',
                 'stac_extensions': ['eo', 'file', 'https://stac-extensions.github.io/ml-model/v1.0.0/schema.json'],
                 'id': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
                 'title': 'Your title here.',
@@ -1383,13 +1402,18 @@ class TestBatchJobs:
                         'type': 'application/json'
                     },
                     {
+                        'rel': 'canonical',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/TXIuVGVzdA%3D%3D/748b8c91160fbb6e137c91d7d33b0c4a?expires=2234',
+                        'type': 'application/json'
+                    },
+                    {
                         'rel': 'card4l-document',
                         'href': 'http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf',
                         'type': 'application/pdf'
                     },
                     {
                         'rel': 'item',
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/output_item.json',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
                         'type': 'application/geo+json'
                     },
                     {
@@ -1406,7 +1430,7 @@ class TestBatchJobs:
                 'assets': {
                     'output.tiff': {
                         'title': 'output.tiff',
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
                         'type': 'image/tiff; application=geotiff',
                         'eo:bands': [{'center_wavelength': 1.23, 'name': 'NDVI'}],
                         'file:nodata': [123],
@@ -1425,7 +1449,7 @@ class TestBatchJobs:
         api.get('/jobs/deadbeef-f00/results', headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
 
     def test_download_result_invalid_job(self, api):
-        api.get('/jobs/deadbeef-f00/results/some_file', headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
+        api.get('/jobs/deadbeef-f00/results/assets/some_file', headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
 
     def test_download_result(self, api, tmp_path):
         output_root = Path(tmp_path)
@@ -1435,7 +1459,7 @@ class TestBatchJobs:
             output.parent.mkdir(parents=True)
             with output.open("wb") as f:
                 f.write(b"tiffdata")
-            resp = api.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/output.tiff", headers=self.AUTH_HEADER)
+            resp = api.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff", headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).data == b"tiffdata"
         assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
 
@@ -1449,7 +1473,7 @@ class TestBatchJobs:
             output.parent.mkdir(parents=True)
             with output.open('wb') as f:
                 f.write(b'tiffdata')
-            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff')
+            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff')
         assert resp.assert_status_code(200).data == b'tiffdata'
         assert resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
 
@@ -1457,7 +1481,7 @@ class TestBatchJobs:
         app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}
         jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
         with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry(jobs=jobs):
-            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/test123/output.tiff')
+            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/test123/output.tiff')
         assert resp.assert_error(403, 'CredentialsInvalid')
 
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
@@ -1471,30 +1495,51 @@ class TestBatchJobs:
             output.parent.mkdir(parents=True)
             with output.open('wb') as f:
                 f.write(b'tiffdata')
-            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
+            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
         assert resp.assert_status_code(200).data == b'tiffdata'
         assert resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
+
+    @mock.patch('time.time', mock.MagicMock(return_value=1234))
+    def test_download_result_signed_with_expiration_supports_range_request(self, api, tmp_path, flask_app):
+        output_root = Path(tmp_path)
+        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
+        jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
+        with mock.patch.dict(flask_app.config, app_config), \
+                self._fresh_job_registry(output_root=output_root, jobs=jobs):
+            output = output_root / '07024ee9-7847-4b8a-b260-6c879a2b3cdc' / 'output.tiff'
+            output.parent.mkdir(parents=True)
+            with output.open('wb') as f:
+                f.write(b'tiffdata')
+
+            head_resp = api.head('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
+            assert head_resp.assert_status_code(200).data == b''
+            assert head_resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
+            assert head_resp.headers['Accept-Ranges'] == 'bytes'
+
+            get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
+                               headers={'Range': "bytes=0-3"})
+            assert get_resp.assert_status_code(206).data == b'tiff'
 
     @mock.patch('time.time', mock.MagicMock(return_value=3456))
     def test_download_result_signed_with_expiration_invalid(self, api, tmp_path, flask_app):
         app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
         jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
         with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry(jobs=jobs):
-            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
+            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
         assert resp.assert_error(410, 'ResultLinkExpired')
 
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
-    def test_download_asset_stac_item(self, flask_app, api110):  # TODO: limit to 1.1.0?
+    def test_get_job_result_item(self, flask_app, api110):
         app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
         with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry():
-            resp = api110.get("/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/output_item.json",
+            resp = api110.get("/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.tiff",
                               headers=self.AUTH_HEADER)
 
         assert resp.assert_status_code(200).json == {
             'type': 'Feature',
             'stac_version': '0.9.0',
             'stac_extensions': ['eo', 'file'],
-            'id': 'output_item.json',
+            'id': 'output.tiff',
             'geometry': None,
             'bbox': None,
             'properties': {
@@ -1502,7 +1547,7 @@ class TestBatchJobs:
             },
             'links': [{
                 'rel': 'self',
-                'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/output_item.json',
+                'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.tiff',
                 'type': 'application/geo+json'
             }, {
                 'rel': 'collection',
@@ -1512,7 +1557,7 @@ class TestBatchJobs:
             'assets': {
                 'output.tiff': {
                     'title': 'output.tiff',
-                    'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
+                    'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
                     'type': 'image/tiff; application=geotiff',
                     'eo:bands': [{'center_wavelength': 1.23, 'name': 'NDVI'}],
                     'file:nodata': [123],

@@ -1,16 +1,17 @@
-
-import numbers
 import json
+import numbers
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Union, Tuple, Optional, Iterable, Any
+from typing import List, Dict, Union, Tuple, Optional, Iterable, Any, Sequence
 from unittest.mock import Mock
 
 import flask
+import numpy
+import xarray
 from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 from shapely.geometry.collection import GeometryCollection
-from shapely.geometry.base import BaseGeometry
 
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.metadata import CollectionMetadata, Band
@@ -18,7 +19,7 @@ from openeo_driver.ProcessGraphDeserializer import ConcreteProcessing
 from openeo_driver.backend import (SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata,
                                    BatchJobs, BatchJobMetadata, OidcProvider, UserDefinedProcesses,
                                    UserDefinedProcessMetadata, LoadParameters, Processing)
-from openeo_driver.datacube import DriverDataCube, DriverMlModel
+from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCube
 from openeo_driver.datastructs import StacAsset
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import SourceConstraint
@@ -196,51 +197,59 @@ class DummyDataCube(DriverDataCube):
             f.write("{f}:save_result({s!r}".format(f=format, s=self))
         return filename
 
-    def zonal_statistics(self, regions, func, scale=1000, interval="day")\
-            -> Union['AggregatePolygonResult', 'AggregatePolygonSpatialResult']:
-        # TODO: get rid of non-standard "zonal_statistics" (standard process is "aggregate_spatial")
-        return self.aggregate_spatial(geometries=regions, reducer=func)
-
     def aggregate_spatial(
             self,
-            geometries: Union[BaseGeometry, str],
+            geometries: Union[BaseGeometry, str, DriverVectorCube],
             reducer: dict,
             target_dimension: str = "result",
-    ) -> Union[AggregatePolygonResult, AggregatePolygonSpatialResult]:
+    ) -> Union[AggregatePolygonResult, AggregatePolygonSpatialResult, DriverVectorCube]:
 
         # TODO: support more advanced reducers too
         assert isinstance(reducer, dict) and len(reducer) == 1
         reducer = next(iter(reducer.values()))["process_id"]
         assert reducer == 'mean' or reducer == 'avg'
 
-        # TODO EP-3981 normalize to vector cube and preserve original properties
-        def assert_polygon_or_multipolygon(geometry):
-            assert isinstance(geometry, Polygon) or isinstance(geometry, MultiPolygon)
+        def assert_polygon_sequence(geometries: Union[Sequence, BaseMultipartGeometry]):
+            assert len(geometries) > 0
+            for g in geometries:
+                assert isinstance(g, Polygon) or isinstance(g, MultiPolygon)
 
-        if isinstance(geometries, str):
+        # TODO #114 EP-3981 normalize to vector cube and preserve original properties
+        if isinstance(geometries, DriverVectorCube):
+            # Build dummy aggregation data cube
+            dims, coords = geometries.get_xarray_cube_basics()
+            if self.metadata.has_temporal_dimension():
+                dims += (self.metadata.temporal_dimension.name,)
+                coords[self.metadata.temporal_dimension.name] = ["2015-07-06T00:00:00", "2015-08-22T00:00:00"]
+            if self.metadata.has_band_dimension():
+                dims += (self.metadata.band_dimension.name,)
+                coords[self.metadata.band_dimension.name] = self.metadata.band_names
+            shape = [len(coords[d]) for d in dims]
+            data = numpy.arange(numpy.prod(shape)).reshape(shape)
+            cube = xarray.DataArray(data=data, dims=dims, coords=coords, name="aggregate_spatial")
+            return geometries.with_cube(cube=cube, flatten_prefix="agg")
+        elif isinstance(geometries, str):
             geometries = [geometry for geometry in DelayedVector(geometries).geometries]
-            assert len(geometries) > 0
-            for geometry in geometries:
-                assert_polygon_or_multipolygon(geometry)
+            assert_polygon_sequence(geometries)
         elif isinstance(geometries, GeometryCollection):
-            assert len(geometries) > 0
-            for geometry in geometries:
-                assert_polygon_or_multipolygon(geometry)
+            # TODO #71 #114 EP-3981: GeometryCollection is deprecated
+            assert_polygon_sequence(geometries)
+        elif isinstance(geometries, BaseGeometry):
+            assert_polygon_sequence([geometries])
         else:
-            assert_polygon_or_multipolygon(geometries)
-            geometries = [geometries]
+            assert_polygon_sequence(geometries)
 
         if self.metadata.has_temporal_dimension():
             return AggregatePolygonResult(timeseries={
                 "2015-07-06T00:00:00": [2.345],
                 "2015-08-22T00:00:00": [float('nan')]
-            }, regions=GeometryCollection())
+            }, regions=geometries)
         else:
             return DummyAggregatePolygonSpatialResult(cube=self, geometries=geometries)
 
 
 class DummyAggregatePolygonSpatialResult(AggregatePolygonSpatialResult):
-    # TODO EP-3981 replace with proper VectorCube implementation
+    # TODO #114 EP-3981 replace with proper VectorCube implementation
 
     def __init__(self, cube: DummyDataCube, geometries: Iterable[BaseGeometry]):
         super().__init__(csv_dir="/dev/null", regions=geometries)
@@ -397,9 +406,10 @@ class DummyCatalog(CollectionCatalog):
         if collection_id in _collections:
             return _collections[collection_id]
 
-        image_collection = DummyDataCube(
-            metadata=CollectionMetadata(metadata=self.get_collection_metadata(collection_id))
-        )
+        metadata = CollectionMetadata(metadata=self.get_collection_metadata(collection_id))
+        if load_params.bands:
+            metadata = metadata.filter_bands(load_params.bands)
+        image_collection = DummyDataCube(metadata=metadata)
 
         _collections[collection_id] = image_collection
         return image_collection
@@ -437,8 +447,8 @@ class DummyBatchJobs(BatchJobs):
         self._job_registry[(user_id, job_id)] = job_info
         return job_info
 
-    def get_job_info(self, job_id: str, user: User) -> BatchJobMetadata:
-        return self._get_job_info(job_id=job_id, user_id=user.user_id)
+    def get_job_info(self, job_id: str, user_id: str) -> BatchJobMetadata:
+        return self._get_job_info(job_id=job_id, user_id=user_id)
 
     def _get_job_info(self, job_id: str, user_id: str) -> BatchJobMetadata:
         try:
@@ -668,7 +678,7 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
         _register_load_collection_call(glob_pattern, load_params)
         return DummyDataCube()
 
-    def load_result(self, job_id: str, user: User, load_params: LoadParameters, env: EvalEnv) -> DummyDataCube:
+    def load_result(self, job_id: str, user_id: str, load_params: LoadParameters, env: EvalEnv) -> DummyDataCube:
         _register_load_collection_call(job_id, load_params)
         return DummyDataCube()
 
