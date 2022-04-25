@@ -477,10 +477,11 @@ class DummyBatchJobs(BatchJobs):
             },
             "randomforest.model": {
                 "asset": True,
-                "href": str(job_id / Path("randomforest.model")),
+                "href": str(Path(job_id) / "randomforest.model"),
             },
-            "ml_model_metadata.json": {
+            DriverMlModel.METADATA_FILE_NAME: {
                 "ml_model_metadata": True,
+                "asset": False,
                 "stac_version": "1.0.0",
                 "stac_extensions": [
                     "https://stac-extensions.github.io/ml-model/v1.0.0/schema.json"
@@ -535,7 +536,7 @@ class DummyBatchJobs(BatchJobs):
                 'links': [],
                 'assets': {
                     'model': {
-                        "href": str(job_id / Path("randomforest.model")),
+                        "href": str(Path(job_id) / "randomforest.model"),
                         "type": "application/octet-stream",
                         "title": "org.apache.spark.mllib.tree.model.RandomForestModel",
                         "roles": ["ml-model:checkpoint"]

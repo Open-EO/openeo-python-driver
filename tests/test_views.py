@@ -1399,9 +1399,9 @@ class TestBatchJobs:
                     },
                 ],
                 'summaries': {
-                    'ml-model:architecture': 'random-forest',
-                    'ml-model:learning_approach': 'supervised',
-                    'ml-model:prediction_type': 'classification'
+                    'ml-model:architecture': ['random-forest'],
+                    'ml-model:learning_approach': ['supervised'],
+                    'ml-model:prediction_type': ['classification']
                 },
                 'assets': {
                     'output.tiff': {

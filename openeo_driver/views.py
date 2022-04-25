@@ -899,10 +899,13 @@ def register_views_batch_jobs(
                         result["summaries"] = {}
                     if "properties" in ml_model_metadata.keys():
                         ml_model_properties = ml_model_metadata["properties"]
+                        learning_approach = ml_model_properties.get("ml-model:learning_approach", None)
+                        prediction_type = ml_model_properties.get("ml-model:prediction_type", None)
+                        architecture = ml_model_properties.get("ml-model:architecture", None)
                         result["summaries"].update({
-                            "ml-model:learning_approach": ml_model_properties.get("ml-model:learning_approach", []),
-                            "ml-model:prediction_type": ml_model_properties.get("ml-model:prediction_type", []),
-                            "ml-model:architecture": ml_model_properties.get("ml-model:architecture", []),
+                            "ml-model:learning_approach": [learning_approach] if learning_approach is not None else [],
+                            "ml-model:prediction_type": [prediction_type] if prediction_type is not None else [],
+                            "ml-model:architecture": [architecture] if architecture is not None else [],
                         })
             else:
                 result = {
@@ -1013,7 +1016,7 @@ def register_views_batch_jobs(
         return resp
 
     def _asset_object(job_id, user_id, filename: str, asset_metadata: dict) -> dict:
-        result_dict = dict_no_none(**{
+        result_dict = dict_no_none({
             "title": asset_metadata.get("title", filename),
             "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or _job_result_download_url(job_id, user_id, filename),
             "type": asset_metadata.get("type", asset_metadata.get("media_type","application/octet-stream")),
@@ -1042,6 +1045,7 @@ def register_views_batch_jobs(
             ml_model_metadata["assets"]["model"]["href"] = url_for('.download_job_result', job_id=job_id,
                                                                    filename=model_path, _external=True)
         except KeyError:
+            # Only change the href of a model if it actually exists.
             pass
 
         stac_item = {
