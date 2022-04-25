@@ -849,7 +849,7 @@ def register_views_batch_jobs(
             })
 
             assets = {filename: _asset_object(job_id, user.user_id, filename, asset_metadata)
-                      for filename, asset_metadata in results.items() if asset_metadata.get('asset', False)}
+                      for filename, asset_metadata in results.items() if asset_metadata.get('asset', True)}
 
             if requested_api_version().at_least("1.1.0"):
                 to_datetime = Rfc3339(propagate_none=True).datetime
