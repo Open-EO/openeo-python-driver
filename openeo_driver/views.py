@@ -19,10 +19,10 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from openeo.capabilities import ComparableVersion
 from openeo.util import dict_no_none, deep_get, Rfc3339
 
-from datacube import DriverMlModel
 from openeo_driver import urlsigning
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
     ErrorSummary, OpenEoBackendImplementation, BatchJobs, is_not_implemented
+from openeo_driver.datacube import DriverMlModel
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, ProcessUnsupportedException, \
     JobNotFinishedException, ProcessGraphInvalidException, InternalException
