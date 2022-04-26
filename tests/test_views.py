@@ -1044,6 +1044,12 @@ class TestBatchJobs:
             "links": [
                 {
                     "href": "http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff"
+                },
+                {
+                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/randomforest.model'
+                },
+                {
+                    "href": "http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/ml_model_metadata.json"
                 }
             ]
         }
@@ -1065,7 +1071,13 @@ class TestBatchJobs:
                             'center_wavelength': 1.23
                         }],
                         'file:nodata':[123]
-                    }
+                    },
+                    'randomforest.model': {
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/randomforest.model',
+                        'roles': ['data'],
+                        'title': 'randomforest.model',
+                        'type': 'application/octet-stream'
+                    },
                 },
                 'geometry': None,
                 'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
@@ -1117,7 +1129,13 @@ class TestBatchJobs:
                             'center_wavelength': 1.23
                         }],
                         'file:nodata': [123]
-                    }
+                    },
+                    'randomforest.model': {
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/randomforest.model',
+                        'roles': ['data'],
+                        'title': 'randomforest.model',
+                        'type': 'application/octet-stream'
+                    },
                 },
                 'geometry': {
                     "type": "Polygon",
@@ -1169,6 +1187,7 @@ class TestBatchJobs:
 
         results_data = {
             "output.tiff": {BatchJobs.ASSET_PUBLIC_HREF: "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349",
+                            "asset": True,
                             "type":"application/tiff",
                             "nodata":np.nan
                             }
@@ -1197,6 +1216,12 @@ class TestBatchJobs:
             'links': [
                 {
                     'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff'
+                },
+                {
+                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model'
+                },
+                {
+                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/272d7aa46727ee3f11a7211d5be953e4/ml_model_metadata.json'
                 }
             ]
         }
@@ -1219,7 +1244,13 @@ class TestBatchJobs:
                             'center_wavelength': 1.23
                         }],
                         'file:nodata': [123]
-                    }
+                    },
+                    'randomforest.model': {
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model',
+                        'roles': ['data'],
+                        'title': 'randomforest.model',
+                        'type': 'application/octet-stream'
+                    },
                 },
                 'geometry': None,
                 'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
@@ -1268,6 +1299,12 @@ class TestBatchJobs:
             'links': [
                 {
                     'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234'
+                },
+                {
+                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/22b76413158c59acaccc74e74841a473/randomforest.model?expires=2234'
+                },
+                {
+                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/a23629392982e57e7312e34de4bdba95/ml_model_metadata.json?expires=2234'
                 }
             ]
         }
@@ -1291,7 +1328,13 @@ class TestBatchJobs:
                             'center_wavelength': 1.23
                         }],
                         'file:nodata': [123]
-                    }
+                    },
+                    'randomforest.model': {
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/22b76413158c59acaccc74e74841a473/randomforest.model?expires=2234',
+                        'roles': ['data'],
+                        'title': 'randomforest.model',
+                        'type': 'application/octet-stream'
+                    },
                 },
                 'geometry': None,
                 'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
@@ -1339,7 +1382,7 @@ class TestBatchJobs:
             assert resp.assert_status_code(200).json == {
                 'type': 'Collection',
                 'stac_version': '1.0.0',
-                'stac_extensions': ['eo', 'file'],
+                'stac_extensions': ['eo', 'file', 'https://stac-extensions.github.io/ml-model/v1.0.0/schema.json'],
                 'id': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
                 'title': 'Your title here.',
                 'description': 'Your description here.',
@@ -1372,8 +1415,17 @@ class TestBatchJobs:
                         'rel': 'item',
                         'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
                         'type': 'application/geo+json'
-                    }
+                    },
+                    {
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA%3D%3D/30fac5af7fe96123c923e94c2732f9aa/ml_model_metadata.json?expires=2234',                        'rel': 'item',
+                        'type': 'application/json'
+                    },
                 ],
+                'summaries': {
+                    'ml-model:architecture': ['random-forest'],
+                    'ml-model:learning_approach': ['supervised'],
+                    'ml-model:prediction_type': ['classification']
+                },
                 'assets': {
                     'output.tiff': {
                         'title': 'output.tiff',
@@ -1382,6 +1434,12 @@ class TestBatchJobs:
                         'eo:bands': [{'center_wavelength': 1.23, 'name': 'NDVI'}],
                         'file:nodata': [123],
                         'roles': ['data']
+                    },
+                    'randomforest.model': {
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA%3D%3D/18fd2346c52945c0caba7b13246f5a63/randomforest.model?expires=2234',
+                        'roles': ['data'],
+                        'title': 'randomforest.model',
+                        'type': 'application/octet-stream'
                     }
                 }
             }
@@ -1508,6 +1566,47 @@ class TestBatchJobs:
             'collection': '53c71345-09b4-46b4-b6b0-03fd6fe1f199'
         }
         assert resp.headers["Content-Type"] == "application/geo+json"
+
+    @mock.patch('time.time', mock.MagicMock(return_value=1234))
+    def test_download_ml_model_metadata(self, flask_app, api110):
+        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
+        with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry():
+            resp = api110.get("/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/ml_model_metadata.json",
+                              headers=self.AUTH_HEADER)
+        random_id = resp.assert_status_code(200).json['id']
+        assert resp.assert_status_code(200).json == {
+            'id': random_id,
+            'type': 'Feature',
+            'stac_version': '1.0.0',
+            'stac_extensions': ['https://stac-extensions.github.io/ml-model/v1.0.0/schema.json'],
+            'assets': {
+                'model': {
+                    'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/randomforest.model',
+                    'roles': ['ml-model:checkpoint'],
+                    'title': 'org.apache.spark.mllib.tree.model.RandomForestModel',
+                    'type': 'application/octet-stream'
+                }
+            },
+            'bbox': [-179.999, -89.999, 179.999, 89.999],
+            'collection': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
+            'geometry': {
+                'coordinates': [[[-179.999, -89.999], [179.999, -89.999], [179.999, 89.999], [-179.999, 89.999],
+                                 [-179.999, -89.999]]],
+                'type': 'Polygon'
+            },
+            'links': [],
+            'properties': {
+                'datetime': None,
+                'end_datetime': '9999-12-31T23:59:59Z',
+                'ml-model:architecture': 'random-forest',
+                'ml-model:learning_approach': 'supervised',
+                'ml-model:prediction_type': 'classification',
+                'ml-model:training-os': 'linux',
+                'ml-model:training-processor-type': 'cpu',
+                'ml-model:type': 'ml-model',
+                'start_datetime': '1970-01-01T00:00:00Z'
+            },
+        }
 
     def test_get_batch_job_logs(self, api):
         with self._fresh_job_registry():

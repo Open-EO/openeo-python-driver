@@ -477,12 +477,81 @@ class DummyBatchJobs(BatchJobs):
             raise JobNotFinishedException
         return {
             "output.tiff": {
+                "asset": True,
                 "output_dir": str(self._output_root() / job_id),
                 "type": "image/tiff; application=geotiff",
                 "roles": ["data"],
                 "bands": [Band(name="NDVI", common_name="NDVI", wavelength_um=1.23)],
                 "nodata": 123,
                 "instruments": "MSI"
+            },
+            "randomforest.model": {
+                "asset": True,
+                "href": str(Path(job_id) / "randomforest.model"),
+            },
+            DriverMlModel.METADATA_FILE_NAME: {
+                "ml_model_metadata": True,
+                "asset": False,
+                "stac_version": "1.0.0",
+                "stac_extensions": [
+                    "https://stac-extensions.github.io/ml-model/v1.0.0/schema.json"
+                ],
+                "type": "Feature",
+                "id": str(uuid.uuid4()),
+                "collection": "collection-id",
+                "bbox": [
+                    -179.999,
+                    -89.999,
+                    179.999,
+                    89.999
+                ],
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [
+                                -179.999,
+                                -89.999
+                            ],
+                            [
+                                179.999,
+                                -89.999
+                            ],
+                            [
+                                179.999,
+                                89.999
+                            ],
+                            [
+                                -179.999,
+                                89.999
+                            ],
+                            [
+                                -179.999,
+                                -89.999
+                            ]
+                        ]
+                    ]
+                },
+                'properties': {
+                    "datetime": None,
+                    "start_datetime": "1970-01-01T00:00:00Z",
+                    "end_datetime": "9999-12-31T23:59:59Z",
+                    "ml-model:type": "ml-model",
+                    "ml-model:learning_approach": "supervised",
+                    "ml-model:prediction_type": "classification",
+                    "ml-model:architecture": "random-forest",
+                    "ml-model:training-processor-type": "cpu",
+                    "ml-model:training-os": "linux",
+                },
+                'links': [],
+                'assets': {
+                    'model': {
+                        "href": str(Path(job_id) / "randomforest.model"),
+                        "type": "application/octet-stream",
+                        "title": "org.apache.spark.mllib.tree.model.RandomForestModel",
+                        "roles": ["ml-model:checkpoint"]
+                    }
+                }
             }
         }
 

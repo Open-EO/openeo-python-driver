@@ -18,6 +18,8 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from openeo.capabilities import ComparableVersion
 from openeo.util import dict_no_none, deep_get, Rfc3339
+
+from datacube import DriverMlModel
 from openeo_driver import urlsigning
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
     ErrorSummary, OpenEoBackendImplementation, BatchJobs, is_not_implemented
@@ -877,10 +879,11 @@ def register_views_batch_jobs(
             }])
 
             assets = {filename: _asset_object(job_id, user_id, filename, asset_metadata)
-                      for filename, asset_metadata in results.items()}
+                      for filename, asset_metadata in results.items() if asset_metadata.get('asset', True)}
 
             if requested_api_version().at_least("1.1.0"):
                 to_datetime = Rfc3339(propagate_none=True).datetime
+                ml_model_metadata = None
 
                 def job_result_item_url(item_id) -> str:
                     if not smart_bool(current_app.config.get('SIGNED_URL')):
@@ -905,6 +908,14 @@ def register_views_batch_jobs(
                             "href": job_result_item_url(item_id=filename),
                             "type": stac_item_media_type
                         })
+                    elif metadata.get('ml_model_metadata', False):
+                        # TODO: Currently we only support one ml_model per batch job.
+                        ml_model_metadata = metadata
+                        links.append({
+                                "rel": "item",
+                                "href": job_result_item_url(item_id=filename),
+                                "type": "application/json"
+                        })
 
                 result = dict_no_none(**{
                     "type": "Collection",
@@ -925,6 +936,20 @@ def register_views_batch_jobs(
                     "links": links,
                     "assets": assets
                 })
+                if ml_model_metadata is not None:
+                    result["stac_extensions"].extend(ml_model_metadata.get("stac_extensions", []))
+                    if "summaries" not in result.keys():
+                        result["summaries"] = {}
+                    if "properties" in ml_model_metadata.keys():
+                        ml_model_properties = ml_model_metadata["properties"]
+                        learning_approach = ml_model_properties.get("ml-model:learning_approach", None)
+                        prediction_type = ml_model_properties.get("ml-model:prediction_type", None)
+                        architecture = ml_model_properties.get("ml-model:architecture", None)
+                        result["summaries"].update({
+                            "ml-model:learning_approach": [learning_approach] if learning_approach is not None else [],
+                            "ml-model:prediction_type": [prediction_type] if prediction_type is not None else [],
+                            "ml-model:architecture": [architecture] if architecture is not None else [],
+                        })
             else:
                 result = {
                     "type": "Feature",
@@ -990,6 +1015,9 @@ def register_views_batch_jobs(
         return _get_job_result_item(job_id, item_id, user.user_id)
 
     def _get_job_result_item(job_id, item_id, user_id):
+        if item_id == DriverMlModel.METADATA_FILE_NAME:
+            return _download_ml_model_metadata(job_id, item_id, user_id)
+
         results = backend_implementation.batch_jobs.get_results(job_id, user_id)
 
         assets_for_item_id = {
@@ -1049,19 +1077,50 @@ def register_views_batch_jobs(
         resp.mimetype = stac_item_media_type
         return resp
 
+    def _download_ml_model_metadata(job_id: str, file_name: str, user_id) -> flask.Response:
+        results = backend_implementation.batch_jobs.get_results(job_id, user_id)
+        ml_model_metadata: dict = results.get(file_name, None)
+        if ml_model_metadata is None:
+            raise FilePathInvalidException(f"{file_name!r} not in {list(results.keys())}")
+        if deep_get(ml_model_metadata, "assets", "model", "href", default=None) is not None:
+            model_path = pathlib.Path(ml_model_metadata["assets"]["model"]["href"]).name
+            ml_model_metadata["assets"]["model"]["href"] = url_for('.download_job_result', job_id=job_id,
+                                                                   filename=model_path, _external=True)
+        stac_item = {
+            "stac_version": ml_model_metadata.get("stac_version", "0.9.0"),
+            "stac_extensions": ml_model_metadata.get("stac_extensions", []),
+            "type": "Feature",
+            "id": ml_model_metadata.get("id"),
+            "collection": job_id,
+            "bbox": ml_model_metadata.get("bbox", []),
+            "geometry": ml_model_metadata.get("geometry", {}),
+            'properties': ml_model_metadata.get("properties", {}),
+            'links': ml_model_metadata.get("links", []),
+            'assets': ml_model_metadata.get("assets", {})
+        }
+        resp = jsonify(stac_item)
+        resp.mimetype = stac_item_media_type
+        return resp
+
     def _asset_object(job_id, user_id, filename: str, asset_metadata: dict) -> dict:
+        result_dict = dict_no_none({
+            "title": asset_metadata.get("title", filename),
+            "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or _job_result_download_url(job_id, user_id, filename),
+            "type": asset_metadata.get("type", asset_metadata.get("media_type","application/octet-stream")),
+            "roles": asset_metadata.get("roles", ["data"])
+        })
+        if filename.endswith(".model"):
+            # Machine learning models.
+            return result_dict
         bands = asset_metadata.get("bands")
         nodata = asset_metadata.get("nodata")
 
-        return dict_no_none(**{
-            "title": asset_metadata.get("title", filename),  # there has to be title
-            "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or _job_result_download_url(job_id, user_id, filename),
-            "type": asset_metadata.get("type",asset_metadata.get("media_type","application/octet-stream")),
+        result_dict.update(dict_no_none(**{
             "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
                          for band in bands] if bands else None,
             "file:nodata": ["nan" if nodata!=None and np.isnan(nodata) else nodata],
-            "roles": asset_metadata.get("roles", ["data"])
-        })
+        }))
+        return result_dict
 
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results/assets/<filename>', methods=['GET'])
