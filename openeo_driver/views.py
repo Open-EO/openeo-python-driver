@@ -879,7 +879,7 @@ def register_views_batch_jobs(
             }])
 
             assets = {filename: _asset_object(job_id, user_id, filename, asset_metadata)
-                      for filename, asset_metadata in results.items()} if asset_metadata.get('asset', True)}
+                      for filename, asset_metadata in results.items() if asset_metadata.get('asset', True)}
 
             if requested_api_version().at_least("1.1.0"):
                 to_datetime = Rfc3339(propagate_none=True).datetime
@@ -913,8 +913,7 @@ def register_views_batch_jobs(
                         ml_model_metadata = metadata
                         links.append({
                                 "rel": "item",
-                                "href": url_for('.download_job_result', job_id=job_id, filename=filename,
-                                                _external=True),
+                                "href": job_result_item_url(item_id=filename),
                                 "type": "application/json"
                         })
 
@@ -1016,6 +1015,9 @@ def register_views_batch_jobs(
         return _get_job_result_item(job_id, item_id, user.user_id)
 
     def _get_job_result_item(job_id, item_id, user_id):
+        if item_id == DriverMlModel.METADATA_FILE_NAME:
+            return _download_ml_model_metadata(job_id, item_id, user_id)
+
         results = backend_implementation.batch_jobs.get_results(job_id, user_id)
 
         assets_for_item_id = {
@@ -1075,28 +1077,8 @@ def register_views_batch_jobs(
         resp.mimetype = stac_item_media_type
         return resp
 
-    def _asset_object(job_id, user_id, filename: str, asset_metadata: dict) -> dict:
-        result_dict = dict_no_none({
-            "title": asset_metadata.get("title", filename),
-            "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or _job_result_download_url(job_id, user_id, filename),
-            "type": asset_metadata.get("type", asset_metadata.get("media_type","application/octet-stream")),
-            "roles": asset_metadata.get("roles", ["data"])
-        })
-        if filename.endswith(".model"):
-            # Machine learning models.
-            return result_dict
-        bands = asset_metadata.get("bands")
-        nodata = asset_metadata.get("nodata")
-
-        result_dict.update(dict_no_none(**{
-            "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
-                         for band in bands] if bands else None,
-            "file:nodata": ["nan" if nodata!=None and np.isnan(nodata) else nodata],
-        }))
-        return result_dict
-
-    def _download_ml_model_metadata(job_id: str, file_name: str, user: User) -> flask.Response:
-        results = backend_implementation.batch_jobs.get_results(job_id, user.user_id)
+    def _download_ml_model_metadata(job_id: str, file_name: str, user_id) -> flask.Response:
+        results = backend_implementation.batch_jobs.get_results(job_id, user_id)
         ml_model_metadata: dict = results.get(file_name, None)
         if ml_model_metadata is None:
             raise FilePathInvalidException(f"{file_name!r} not in {list(results.keys())}")
@@ -1120,16 +1102,31 @@ def register_views_batch_jobs(
         resp.mimetype = stac_item_media_type
         return resp
 
+    def _asset_object(job_id, user_id, filename: str, asset_metadata: dict) -> dict:
+        result_dict = dict_no_none({
+            "title": asset_metadata.get("title", filename),
+            "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or _job_result_download_url(job_id, user_id, filename),
+            "type": asset_metadata.get("type", asset_metadata.get("media_type","application/octet-stream")),
+            "roles": asset_metadata.get("roles", ["data"])
+        })
+        if filename.endswith(".model"):
+            # Machine learning models.
+            return result_dict
+        bands = asset_metadata.get("bands")
+        nodata = asset_metadata.get("nodata")
+
+        result_dict.update(dict_no_none(**{
+            "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
+                         for band in bands] if bands else None,
+            "file:nodata": ["nan" if nodata!=None and np.isnan(nodata) else nodata],
+        }))
+        return result_dict
+
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results/assets/<filename>', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def download_job_result(job_id, filename, user: User):
-        if filename == DriverMlModel.METADATA_FILE_NAME:
-            return _download_ml_model_metadata(job_id, filename, user)
-        elif filename.endswith("_item.json"):
-            return _download_job_asset_stac_item(job_id, filename, user)
-        else:
-            return _download_job_result(job_id=job_id, filename=filename, user_id=user.user_id)
+        return _download_job_result(job_id=job_id, filename=filename, user_id=user.user_id)
 
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results/assets/<user_base64>/<secure_key>/<filename>', methods=['GET'])
