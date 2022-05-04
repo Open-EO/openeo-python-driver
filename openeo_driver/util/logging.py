@@ -1,5 +1,6 @@
 import logging
 import logging.config
+import threading
 import time
 import uuid
 from typing import List, Dict, Optional, Union
@@ -85,7 +86,7 @@ def get_logging_config(
     return config
 
 
-def setup_logging(config: Optional[dict] = None, force=False, capture_warnings=True):
+def setup_logging(config: Optional[dict] = None, force=False, capture_warnings=True, capture_threading_exceptions=True):
     if capture_warnings is not None:
         logging.captureWarnings(capture=capture_warnings)
 
@@ -99,6 +100,13 @@ def setup_logging(config: Optional[dict] = None, force=False, capture_warnings=T
         show_log_level(logger=logger_name)
     _log.info(f"root handlers: {logging.getLogger().handlers}")
 
+    if capture_threading_exceptions:
+        if hasattr(threading, "excepthook"):
+            # From Python 3.8
+            threading.excepthook = _threading_excepthook
+        else:
+            _log.warning("No support for capturing threading exceptions")
+
 
 def show_log_level(logger: Union[logging.Logger, str]):
     """Helper to show (effective) threshold log level of a logger."""
@@ -107,6 +115,15 @@ def show_log_level(logger: Union[logging.Logger, str]):
     level = logger.getEffectiveLevel()
     msg = f"Effective log level of {logger.name!r}: {logging.getLevelName(level)}"
     logger.log(level=level, msg=msg)
+
+
+def _threading_excepthook(args):
+    # Based on threading.excepthook default implementation
+    if args.thread is not None:
+        name = args.thread.name
+    else:
+        name = threading.get_ident()
+    _log.error(f"Exception {args.exc_type} in thread {name}", exc_info=True)
 
 
 class UtcFormatter(logging.Formatter):
