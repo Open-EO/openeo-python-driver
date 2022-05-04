@@ -19,6 +19,7 @@ from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
 from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, \
     generate_unique_test_process_id, build_basic_http_auth_header, ListSubSet, DictSubSet, RegexMatcher
 from openeo_driver.users.auth import HttpAuthHandler
+from openeo_driver.util.logging import LOGGING_CONTEXT_FLASK
 from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata, build_app
 from .conftest import TEST_APP_CONFIG, enhanced_logging
 from .data import TEST_DATA_ROOT
