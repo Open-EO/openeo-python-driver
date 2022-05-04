@@ -33,6 +33,8 @@ def get_logging_config(
             "FlaskRequestCorrelationIdLogging",
             "FlaskUserIdLogging",
         ]
+    elif context == "batchjob":
+        json_filters = ["BatchJobLoggingFilter"]
     else:
         json_filters = []
 
@@ -61,6 +63,7 @@ def get_logging_config(
         "filters": {
             "FlaskRequestCorrelationIdLogging": {"()": FlaskRequestCorrelationIdLogging},
             "FlaskUserIdLogging": {"()": FlaskUserIdLogging},
+            "BatchJobLoggingFilter": {"()": BatchJobLoggingFilter},
         },
         "formatters": {
             "basic": {
@@ -157,6 +160,11 @@ class FlaskRequestCorrelationIdLogging(logging.Filter):
         return True
 
 
+def user_id_trim(user_id: str) -> str:
+    """Trim user id (to reduce logging volume and for a touch of obfuscation)."""
+    return user_id[:8]
+
+
 class FlaskUserIdLogging(logging.Filter):
     """
     Python logging plugin to include a user id automatically in log records in Flask context.
@@ -180,4 +188,28 @@ class FlaskUserIdLogging(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         """Filter a log record (logging.Filter API)."""
         setattr(record, self.LOG_RECORD_ATTR, self.get_user_id())
+        return True
+
+
+class BatchJobLoggingFilter(logging.Filter):
+    """
+    Python logging plugin to inject data (such as user id and batch job id) in a batch job context.
+    Internally stores/manages data as global class data, assuming the data is specific
+    for the current (batch job) process and does not change once set.
+    """
+
+    data = {}
+
+    @classmethod
+    def set(cls, field: str, value: str):
+        cls.data[field] = value
+
+    @classmethod
+    def reset(cls):
+        cls.data = {}
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Filter a log record (logging.Filter API)."""
+        for field, value in self.data.items():
+            setattr(record, field, value)
         return True

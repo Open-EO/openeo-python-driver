@@ -1,13 +1,14 @@
+import json
 import logging
 
 import flask
 
-from openeo_driver.util.logging import FlaskUserIdLogging, FlaskRequestCorrelationIdLogging
+from openeo_driver.util.logging import FlaskUserIdLogging, FlaskRequestCorrelationIdLogging, BatchJobLoggingFilter
 from ..conftest import enhanced_logging
 
 
-def test_filter_request_correlation_id_logging():
-    with enhanced_logging(format="[%(req_id)s] %(message)s") as logs:
+def test_filter_flask_request_correlation_id_logging():
+    with enhanced_logging(format="[%(req_id)s] %(message)s", context="flask") as logs:
         app = flask.Flask(__name__)
         log = logging.getLogger(__name__)
 
@@ -30,8 +31,8 @@ def test_filter_request_correlation_id_logging():
     assert "[123-456] Watch out!" in logs
 
 
-def test_filter_user_id_logging():
-    with enhanced_logging(format="[%(user_id)s] %(message)s") as logs:
+def test_filter_flask_user_id_logging():
+    with enhanced_logging(format="[%(user_id)s] %(message)s", context="flask") as logs:
         app = flask.Flask(__name__)
         log = logging.getLogger(__name__)
 
@@ -55,3 +56,20 @@ def test_filter_user_id_logging():
 
     logs = [l for l in logs.getvalue().split("\n") if "stuff" in l]
     assert logs == ["[None] public stuff", "[john] private stuff", "[None] public stuff"]
+
+
+def test_filter_batch_job_logging():
+    with enhanced_logging(json=True, context="batch_job") as logs:
+        BatchJobLoggingFilter.reset()
+        log = logging.getLogger(__name__)
+
+        log.info("Some set up")
+        BatchJobLoggingFilter.set("user_id", "j0hnD03")
+        BatchJobLoggingFilter.set("job_id", "job-42")
+        log.info("Doing the work")
+
+    logs = [json.loads(l) for l in logs.getvalue().strip().split("\n")]
+    assert logs == [
+        {"message": "Some set up"},
+        {"message": "Doing the work", "user_id": "j0hnD03", "job_id": "job-42"},
+    ]
