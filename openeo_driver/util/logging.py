@@ -85,7 +85,10 @@ def get_logging_config(
     return config
 
 
-def setup_logging(config: Optional[dict] = None, force=False):
+def setup_logging(config: Optional[dict] = None, force=False, capture_warnings=True):
+    if capture_warnings is not None:
+        logging.captureWarnings(capture=capture_warnings)
+
     if config is None:
         config = get_logging_config()
     if not logging.getLogger().handlers or force:
