@@ -9,12 +9,15 @@ import pythonjsonlogger.jsonlogger
 
 _log = logging.getLogger(__name__)
 
+LOGGING_CONTEXT_FLASK = "flask"
+LOGGING_CONTEXT_BATCH_JOB = "batch_job"
+
 
 def get_logging_config(
         root_handlers: Optional[List[str]] = None,
         loggers: Optional[Dict[str, dict]] = None,
         handler_default_level: str = "DEBUG",
-        context: str = "flask",
+        context: str = LOGGING_CONTEXT_FLASK,
 ) -> dict:
     """Construct logging config dict to be loaded with `logging.config.dictConfig`"""
 
@@ -28,12 +31,12 @@ def get_logging_config(
     }
     loggers = {**default_loggers, **(loggers or {})}
 
-    if context == "flask":
+    if context == LOGGING_CONTEXT_FLASK:
         json_filters = [
             "FlaskRequestCorrelationIdLogging",
             "FlaskUserIdLogging",
         ]
-    elif context == "batchjob":
+    elif context == LOGGING_CONTEXT_BATCH_JOB:
         json_filters = ["BatchJobLoggingFilter"]
     else:
         json_filters = []

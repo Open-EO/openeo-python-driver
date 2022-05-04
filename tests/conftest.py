@@ -11,7 +11,8 @@ from openeo_driver.backend import UserDefinedProcesses
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
 from openeo_driver.server import build_backend_deploy_metadata
 from openeo_driver.testing import UrllibMocker
-from openeo_driver.util.logging import FlaskUserIdLogging, FlaskRequestCorrelationIdLogging, BatchJobLoggingFilter
+from openeo_driver.util.logging import FlaskUserIdLogging, FlaskRequestCorrelationIdLogging, BatchJobLoggingFilter, \
+    LOGGING_CONTEXT_FLASK, LOGGING_CONTEXT_BATCH_JOB
 from openeo_driver.views import build_app
 
 
@@ -60,7 +61,7 @@ def urllib_mock() -> UrllibMocker:
 def enhanced_logging(
         level=logging.INFO, json=False, format=None,
         request_ids=("123-456", "234-567", "345-678", "456-789", "567-890"),
-        context="flask",
+        context=LOGGING_CONTEXT_FLASK,
 ):
     """Set up logging with additional injection of request id, user id, ...."""
     root_logger = logging.getLogger()
@@ -74,10 +75,10 @@ def enhanced_logging(
     else:
         formatter = logging.Formatter(format)
     handler.setFormatter(formatter)
-    if context == "flask":
+    if context == LOGGING_CONTEXT_FLASK:
         handler.addFilter(FlaskRequestCorrelationIdLogging())
         handler.addFilter(FlaskUserIdLogging())
-    elif context == "batch_job":
+    elif context == LOGGING_CONTEXT_BATCH_JOB:
         handler.addFilter(BatchJobLoggingFilter())
     root_logger.addHandler(handler)
     root_logger.setLevel(level)

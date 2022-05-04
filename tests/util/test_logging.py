@@ -3,12 +3,13 @@ import logging
 
 import flask
 
-from openeo_driver.util.logging import FlaskUserIdLogging, FlaskRequestCorrelationIdLogging, BatchJobLoggingFilter
+from openeo_driver.util.logging import FlaskUserIdLogging, FlaskRequestCorrelationIdLogging, BatchJobLoggingFilter, \
+    LOGGING_CONTEXT_FLASK, LOGGING_CONTEXT_BATCH_JOB
 from ..conftest import enhanced_logging
 
 
 def test_filter_flask_request_correlation_id_logging():
-    with enhanced_logging(format="[%(req_id)s] %(message)s", context="flask") as logs:
+    with enhanced_logging(format="[%(req_id)s] %(message)s", context=LOGGING_CONTEXT_FLASK) as logs:
         app = flask.Flask(__name__)
         log = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ def test_filter_flask_request_correlation_id_logging():
 
 
 def test_filter_flask_user_id_logging():
-    with enhanced_logging(format="[%(user_id)s] %(message)s", context="flask") as logs:
+    with enhanced_logging(format="[%(user_id)s] %(message)s", context=LOGGING_CONTEXT_FLASK) as logs:
         app = flask.Flask(__name__)
         log = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ def test_filter_flask_user_id_logging():
 
 
 def test_filter_batch_job_logging():
-    with enhanced_logging(json=True, context="batch_job") as logs:
+    with enhanced_logging(json=True, context=LOGGING_CONTEXT_BATCH_JOB) as logs:
         BatchJobLoggingFilter.reset()
         log = logging.getLogger(__name__)
 

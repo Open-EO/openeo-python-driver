@@ -519,7 +519,7 @@ class TestUser:
 class TestLogging:
 
     def test_user_id_logging(self, api, oidc_provider):
-        with enhanced_logging(json=True, context="flask") as logs:
+        with enhanced_logging(json=True, context=LOGGING_CONTEXT_FLASK) as logs:
             # Make request that requires auth (so that we have a user) and fails (so that we have a log to look at)
             resp = api.post("/result", json={"broken": "yezz"}, headers={"Authorization": "Bearer oidc/eoidc/b0b"})
             resp.assert_error(400, "ProcessGraphMissing")
