@@ -757,6 +757,11 @@ def predict_random_forest(args: dict, env: EvalEnv) -> SaveResult:
     pass
 
 
+@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/predict_catboost.json"))
+def predict_catboost(args: dict, env: EvalEnv) -> SaveResult:
+    pass
+
+
 @process
 def add_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')

@@ -1,7 +1,7 @@
 {
-    "id": "predict_random_forest",
-    "summary": "Predict values from a Random Forest model",
-    "description": "Applies a Random Forest machine learning model to an array and predicts a value for it.",
+    "id": "predict_catboost",
+    "summary": "Predict values from a Catboost model",
+    "description": "Applies a Catboost machine learning model to an array and predicts a value for it.",
     "categories": [
         "machine learning",
         "reducer"
@@ -23,7 +23,7 @@
         },
         {
             "name": "model",
-            "description": "A model object that can be trained with the processes ``fit_regr_random_forest()`` (regression) and ``fit_class_random_forest()`` (classification).",
+            "description": "A model object that can be trained with the processes ``fit_regr_catboost()`` (regression) and ``fit_class_catboost()`` (classification).",
             "schema": {
                 "type": "object",
                 "subtype": "ml-model"
@@ -31,7 +31,7 @@
         }
     ],
     "returns": {
-        "description": "The predicted value. Returns `null` if any of the given values in the array is a no-data value.",
+        "description": "The predicted value.",
         "schema": {
             "type": [
                 "number",
