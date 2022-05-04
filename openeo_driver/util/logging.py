@@ -14,6 +14,7 @@ def get_logging_config(
         root_handlers: Optional[List[str]] = None,
         loggers: Optional[Dict[str, dict]] = None,
         handler_default_level: str = "DEBUG",
+        context: str = "flask",
 ) -> dict:
     """Construct logging config dict to be loaded with `logging.config.dictConfig`"""
 
@@ -26,6 +27,14 @@ def get_logging_config(
         "kazoo": {"level": "WARN"},
     }
     loggers = {**default_loggers, **(loggers or {})}
+
+    if context == "flask":
+        json_filters = [
+            "FlaskRequestCorrelationIdLogging",
+            "FlaskUserIdLogging",
+        ]
+    else:
+        json_filters = []
 
     config = {
         "version": 1,
@@ -45,16 +54,13 @@ def get_logging_config(
                 "class": "logging.StreamHandler",
                 "stream": "ext://sys.stderr",
                 "level": handler_default_level,
-                "filters": [
-                    "add_flask_request_correlation_id",
-                    "add_flask_user_id",
-                ],
+                "filters": json_filters,
                 "formatter": "json",
             },
         },
         "filters": {
-            "add_flask_request_correlation_id": {"()": FlaskRequestCorrelationIdLogging},
-            "add_flask_user_id": {"()": FlaskUserIdLogging},
+            "FlaskRequestCorrelationIdLogging": {"()": FlaskRequestCorrelationIdLogging},
+            "FlaskUserIdLogging": {"()": FlaskUserIdLogging},
         },
         "formatters": {
             "basic": {
