@@ -29,7 +29,7 @@ from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingExceptio
 from openeo_driver.save_result import SaveResult, to_save_result
 from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
 from openeo_driver.users.auth import HttpAuthHandler
-from openeo_driver.util.logging import RequestCorrelationIdLogging
+from openeo_driver.util.logging import FlaskRequestCorrelationIdLogging
 from openeo_driver.utils import EvalEnv, smart_bool
 
 _log = logging.getLogger(__name__)
@@ -141,7 +141,7 @@ def build_app(
     @app.before_request
     def _before_request():
 
-        RequestCorrelationIdLogging.before_request()
+        FlaskRequestCorrelationIdLogging.before_request()
 
         # Log some info about request
         data = request.data

@@ -46,15 +46,15 @@ def get_logging_config(
                 "stream": "ext://sys.stderr",
                 "level": handler_default_level,
                 "filters": [
-                    "add_request_correlation_id",
-                    "add_user_id",
+                    "add_flask_request_correlation_id",
+                    "add_flask_user_id",
                 ],
                 "formatter": "json",
             },
         },
         "filters": {
-            "add_request_correlation_id": {"()": RequestCorrelationIdLogging},
-            "add_user_id": {"()": UserIdLogging},
+            "add_flask_request_correlation_id": {"()": FlaskRequestCorrelationIdLogging},
+            "add_flask_user_id": {"()": FlaskUserIdLogging},
         },
         "formatters": {
             "basic": {
@@ -100,7 +100,7 @@ class UtcFormatter(logging.Formatter):
     converter = time.gmtime
 
 
-class RequestCorrelationIdLogging(logging.Filter):
+class FlaskRequestCorrelationIdLogging(logging.Filter):
     """
     Python logging plugin to include a Flask request correlation id
     automatically in log records.
@@ -151,9 +151,9 @@ class RequestCorrelationIdLogging(logging.Filter):
         return True
 
 
-class UserIdLogging(logging.Filter):
+class FlaskUserIdLogging(logging.Filter):
     """
-    Python logging plugin to include a user id automatically in log records (in Flask context).
+    Python logging plugin to include a user id automatically in log records in Flask context.
     """
 
     FLASK_G_ATTR = "current_user_id"

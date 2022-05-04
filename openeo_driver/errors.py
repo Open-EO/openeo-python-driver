@@ -31,7 +31,7 @@ import textwrap
 from typing import List, Set, Optional
 
 from openeo_driver.specs import SPECS_ROOT
-from openeo_driver.util.logging import RequestCorrelationIdLogging
+from openeo_driver.util.logging import FlaskRequestCorrelationIdLogging
 
 
 class OpenEOApiException(Exception):
@@ -70,7 +70,7 @@ class OpenEOApiException(Exception):
         # HTTP status code
         self.status_code = status_code or self.status_code
         # Use request correlation id as error id to simplify post-mortem analysis.
-        self.id = id or RequestCorrelationIdLogging.get_request_id()
+        self.id = id or FlaskRequestCorrelationIdLogging.get_request_id()
         self.url = url or self.url
 
     def to_dict(self):

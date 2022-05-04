@@ -8,7 +8,7 @@ import pytest
 
 import openeo_driver.errors
 from openeo_driver.errors import OpenEOApiException, OpenEOApiErrorSpecHelper
-from openeo_driver.util.logging import RequestCorrelationIdLogging
+from openeo_driver.util.logging import FlaskRequestCorrelationIdLogging
 
 
 def get_defined_exceptions(mod=openeo_driver.errors) -> Dict[str, List[Type[OpenEOApiException]]]:
@@ -90,7 +90,7 @@ def test_flask_request_id_as_api_error_id():
 
     @app.before_request
     def before_request():
-        RequestCorrelationIdLogging.before_request()
+        FlaskRequestCorrelationIdLogging.before_request()
 
     @app.errorhandler(OpenEOApiException)
     def handle_openeoapi_exception(error: OpenEOApiException):
@@ -100,7 +100,7 @@ def test_flask_request_id_as_api_error_id():
     def hello():
         raise OpenEOApiException("No hello for you!")
 
-    with mock.patch.object(RequestCorrelationIdLogging, "_build_request_id", return_value="1234-5678-91011"):
+    with mock.patch.object(FlaskRequestCorrelationIdLogging, "_build_request_id", return_value="1234-5678-91011"):
         with app.test_client() as client:
             resp = client.get("/hello")
 

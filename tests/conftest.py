@@ -11,7 +11,7 @@ from openeo_driver.backend import UserDefinedProcesses
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
 from openeo_driver.server import build_backend_deploy_metadata
 from openeo_driver.testing import UrllibMocker
-from openeo_driver.util.logging import UserIdLogging, RequestCorrelationIdLogging
+from openeo_driver.util.logging import FlaskUserIdLogging, FlaskRequestCorrelationIdLogging
 from openeo_driver.views import build_app
 
 
@@ -73,12 +73,12 @@ def enhanced_logging(
     else:
         formatter = logging.Formatter(format)
     handler.setFormatter(formatter)
-    handler.addFilter(RequestCorrelationIdLogging())
-    handler.addFilter(UserIdLogging())
+    handler.addFilter(FlaskRequestCorrelationIdLogging())
+    handler.addFilter(FlaskUserIdLogging())
     root_logger.addHandler(handler)
     root_logger.setLevel(level)
     try:
-        with mock.patch.object(RequestCorrelationIdLogging, "_build_request_id", side_effect=request_ids):
+        with mock.patch.object(FlaskRequestCorrelationIdLogging, "_build_request_id", side_effect=request_ids):
             yield out
     finally:
         root_logger.removeHandler(handler)

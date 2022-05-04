@@ -2,7 +2,7 @@ import logging
 
 import flask
 
-from openeo_driver.util.logging import UserIdLogging, RequestCorrelationIdLogging
+from openeo_driver.util.logging import FlaskUserIdLogging, FlaskRequestCorrelationIdLogging
 from ..conftest import enhanced_logging
 
 
@@ -15,7 +15,7 @@ def test_filter_request_correlation_id_logging():
 
         @app.before_request
         def before_request():
-            RequestCorrelationIdLogging.before_request()
+            FlaskRequestCorrelationIdLogging.before_request()
 
         @app.route("/hello")
         def hello():
@@ -44,7 +44,7 @@ def test_filter_user_id_logging():
 
         @app.route("/private")
         def private():
-            UserIdLogging.set_user_id("john")
+            FlaskUserIdLogging.set_user_id("john")
             log.info("private stuff")
             return "Hello John"
 
