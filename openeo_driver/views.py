@@ -1082,10 +1082,11 @@ def register_views_batch_jobs(
         ml_model_metadata: dict = results.get(file_name, None)
         if ml_model_metadata is None:
             raise FilePathInvalidException(f"{file_name!r} not in {list(results.keys())}")
-        if deep_get(ml_model_metadata, "assets", "model", "href", default=None) is not None:
-            model_path = pathlib.Path(ml_model_metadata["assets"]["model"]["href"]).name
-            ml_model_metadata["assets"]["model"]["href"] = url_for('.download_job_result', job_id=job_id,
-                                                                   filename=model_path, _external=True)
+        assets = deep_get(ml_model_metadata, "assets", default={})
+        for asset in assets.values():
+            if not asset["href"].startswith("http"):
+                asset_file_name = pathlib.Path(asset["href"]).name
+                asset["href"] = url_for('.download_job_result', job_id=job_id, item_id=asset_file_name, _external=True)
         stac_item = {
             "stac_version": ml_model_metadata.get("stac_version", "0.9.0"),
             "stac_extensions": ml_model_metadata.get("stac_extensions", []),
