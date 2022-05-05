@@ -183,9 +183,11 @@ class FlaskRequestCorrelationIdLogging(logging.Filter):
         return True
 
 
-def user_id_trim(user_id: str) -> str:
-    """Trim user id (to reduce logging volume and for a touch of obfuscation)."""
-    return user_id[:8]
+def user_id_trim(user_id: str, size=8) -> str:
+    """Trim user id (to reduce logging volume and for a touch of user_id obfuscation)."""
+    if len(user_id) > size:
+        user_id = user_id[:8] + '...'
+    return user_id
 
 
 class FlaskUserIdLogging(logging.Filter):

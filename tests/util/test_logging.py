@@ -4,7 +4,7 @@ import logging
 import flask
 
 from openeo_driver.util.logging import FlaskUserIdLogging, FlaskRequestCorrelationIdLogging, BatchJobLoggingFilter, \
-    LOGGING_CONTEXT_FLASK, LOGGING_CONTEXT_BATCH_JOB
+    LOGGING_CONTEXT_FLASK, LOGGING_CONTEXT_BATCH_JOB, user_id_trim
 from ..conftest import enhanced_logging
 
 
@@ -74,3 +74,8 @@ def test_filter_batch_job_logging():
         {"message": "Some set up"},
         {"message": "Doing the work", "user_id": "j0hnD03", "job_id": "job-42"},
     ]
+
+
+def test_user_id_trim():
+    assert user_id_trim("pol") == "pol"
+    assert user_id_trim("536e61f6fb8489946ab99ed3a028") == "536e61f6..."
