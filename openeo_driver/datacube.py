@@ -297,6 +297,3 @@ class DriverMlModel:
 
     def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
         raise NotImplementedError
-
-    def save_ml_model(self, directory: str) -> Dict:
-        return self.write_assets(directory)
