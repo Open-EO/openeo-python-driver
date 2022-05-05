@@ -529,7 +529,7 @@ class TestLogging:
         logs = [json.loads(l) for l in logs]
         error = next(l for l in logs if "ProcessGraphMissing" in l["message"])
 
-        assert error["user_id"] == "b0b1b085"
+        assert error["user_id"] == "b0b1b085..."
         assert error["req_id"] == "123-456"
 
 
