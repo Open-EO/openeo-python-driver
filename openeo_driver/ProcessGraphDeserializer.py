@@ -1591,7 +1591,9 @@ def discard_result(args: Dict, env: EvalEnv):
 def mask_scl_dilation(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
     if hasattr(cube, "mask_scl_dilation"):
-        return cube.mask_scl_dilation(**args)
+        the_args = args.copy()
+        del the_args["data"]
+        return cube.mask_scl_dilation(**the_args)
     else:
         return cube
 

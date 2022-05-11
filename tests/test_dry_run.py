@@ -598,7 +598,7 @@ def test_aggregate_spatial_apply_dimension(dry_run_env, dry_run_tracer):
         "spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
         "process_type": [ProcessType.GLOBAL_TIME],
         "bands": ["B04", "B08", "B11", "SCL"],
-        "custom_cloud_mask": {"method": "mask_scl_dilation"},
+        "custom_cloud_mask": {"method": "mask_scl_dilation", 'scl_band_name': 'SCL'},
         "aggregate_spatial": {"geometries": shapely.geometry.shape(polygon)},
         "temporal_extent": ("2018-11-01", "2020-02-01")
     }
