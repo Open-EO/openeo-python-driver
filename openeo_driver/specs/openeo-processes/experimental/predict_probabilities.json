@@ -1,7 +1,7 @@
 {
-    "id": "predict_catboost_probabilities",
-    "summary": "Predict class probabilities from a Catboost model",
-    "description": "Applies a Catboost machine learning model to an array and predicts a probability for each class.",
+    "id": "predict_probabilities",
+    "summary": "Predict class probabilities from a machine learning model",
+    "description": "Applies a machine learning model to an array and predicts a probability for each class.",
     "categories": [
         "machine learning",
         "reducer"
@@ -23,7 +23,7 @@
         },
         {
             "name": "model",
-            "description": "A model object that can be trained with the processes ``fit_regr_catboost()`` (regression) and ``fit_class_catboost()`` (classification).",
+            "description": "A model object that can be trained with the processes ``fit_regr_<model_name>()`` (regression) and ``fit_class_<model_name>()`` (classification).",
             "schema": {
                 "type": "object",
                 "subtype": "ml-model"
