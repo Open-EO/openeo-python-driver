@@ -576,8 +576,8 @@ class DryRunDataCube(DriverDataCube):
             ._process("log_metadata_link", arguments={"rel": "elevation-model", "href": dem_doi}) \
             ._process("log_metadata_link", arguments={"rel": "water-vapor", "href": wvp_doi})
 
-    def mask_scl_dilation(self) -> 'DriverDataCube':
-        return self._process("custom_cloud_mask", arguments={"method": "mask_scl_dilation"})
+    def mask_scl_dilation(self, **kwargs) -> 'DriverDataCube':
+        return self._process("custom_cloud_mask", arguments={**{"method":"mask_scl_dilation"},**kwargs})
 
     def mask_l1c(self) -> 'DriverDataCube':
         return self._process("custom_cloud_mask", arguments={"method": "mask_l1c"})
