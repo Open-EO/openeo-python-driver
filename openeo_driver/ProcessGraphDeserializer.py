@@ -887,6 +887,11 @@ def _period_to_intervals(start, end, period):
         start_dates = pd.date_range(start - offset, end, freq='MS', closed='left')
         end_dates = pd.date_range(start_dates[0] + timedelta(weeks=3), end + offset, freq='MS', closed='left')
         intervals = zip(start_dates, end_dates)
+    elif "year" == period:
+        offset = timedelta(weeks=52)
+        start_dates = pd.date_range(start - offset, end, freq='A-DEC', closed='left') + timedelta(days=1)
+        end_dates = pd.date_range(start , end+offset, freq='A-DEC', closed='left') + timedelta(days=1)
+        intervals = zip(start_dates, end_dates)
     elif "day" == period:
         offset = timedelta(days=1)
         start_dates = pd.date_range(start - offset, end, freq='D', closed='left')
