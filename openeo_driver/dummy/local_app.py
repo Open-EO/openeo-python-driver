@@ -16,7 +16,7 @@ _log = logging.getLogger('openeo-dummy-local')
 
 if __name__ == '__main__':
     setup_logging(get_logging_config(
-        # root_handlers=["json"],
+        # root_handlers=["stderr_json"],
         loggers={
             "openeo": {"level": "DEBUG"},
             "openeo_driver": {"level": "DEBUG"},

@@ -13,6 +13,9 @@ _log = logging.getLogger(__name__)
 LOGGING_CONTEXT_FLASK = "flask"
 LOGGING_CONTEXT_BATCH_JOB = "batch_job"
 
+# This fake `format` string is the JsonFormatter way to list expected fields in json records
+JSON_LOGGER_DEFAULT_FORMAT = "%(message)s %(levelname)s %(name)s %(created)s %(filename)s %(lineno)s %(process)s"
+
 
 def get_logging_config(
         root_handlers: Optional[List[str]] = None,
@@ -56,7 +59,15 @@ def get_logging_config(
                 "level": handler_default_level,
                 "formatter": "basic"
             },
+            # TODO: remove this legacy, deprecated handler
             "json": {
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stderr",
+                "level": handler_default_level,
+                "filters": json_filters,
+                "formatter": "json",
+            },
+            "stderr_json": {
                 "class": "logging.StreamHandler",
                 "stream": "ext://sys.stderr",
                 "level": handler_default_level,
@@ -77,7 +88,7 @@ def get_logging_config(
             "json": {
                 "()": pythonjsonlogger.jsonlogger.JsonFormatter,
                 # This fake `format` string is the way to list expected fields in json records
-                "format": "%(message)s %(levelname)s %(name)s %(created)s %(filename)s %(lineno)s %(process)s",
+                "format": JSON_LOGGER_DEFAULT_FORMAT,
             },
         },
         # Keep existing loggers alive (e.g. werkzeug, gunicorn, ...)
