@@ -1,5 +1,6 @@
 import logging
 import logging.config
+import sys
 import threading
 import time
 import uuid
@@ -97,7 +98,13 @@ def get_logging_config(
     return config
 
 
-def setup_logging(config: Optional[dict] = None, force=False, capture_warnings=True, capture_threading_exceptions=True):
+def setup_logging(
+        config: Optional[dict] = None,
+        force=False,
+        capture_warnings=True,
+        capture_threading_exceptions=True,
+        capture_unhandled_exceptions=True,
+):
     if capture_warnings is not None:
         logging.captureWarnings(capture=capture_warnings)
 
@@ -118,6 +125,10 @@ def setup_logging(config: Optional[dict] = None, force=False, capture_warnings=T
         else:
             _log.warning("No support for capturing threading exceptions")
 
+    if capture_unhandled_exceptions:
+        _log.info(f"Overriding sys.excepthook with {_sys_excepthook} (was {sys.excepthook})")
+        sys.excepthook = _sys_excepthook
+
 
 def show_log_level(logger: Union[logging.Logger, str]):
     """Helper to show (effective) threshold log level of a logger."""
@@ -134,7 +145,11 @@ def _threading_excepthook(args):
         name = args.thread.name
     else:
         name = threading.get_ident()
-    _log.error(f"Exception {args.exc_type} in thread {name}", exc_info=True)
+    _log.error(f"Exception {args.exc_type.__name__} in thread {name}: {args.exc_value!r}", exc_info=True)
+
+
+def _sys_excepthook(exc_type, exc_value, traceback):
+    _log.error(f"Unhandled {exc_type.__name__} exception: {exc_value!r}", exc_info=(exc_type, exc_value, traceback))
 
 
 class UtcFormatter(logging.Formatter):

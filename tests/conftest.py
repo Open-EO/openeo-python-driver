@@ -15,6 +15,8 @@ from openeo_driver.util.logging import FlaskUserIdLogging, FlaskRequestCorrelati
     LOGGING_CONTEXT_FLASK, LOGGING_CONTEXT_BATCH_JOB
 from openeo_driver.views import build_app
 
+pytest_plugins = "pytester"
+
 
 @pytest.fixture(scope="module")
 def backend_implementation() -> DummyBackendImplementation:

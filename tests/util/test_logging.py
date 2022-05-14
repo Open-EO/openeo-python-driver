@@ -1,7 +1,10 @@
 import json
 import logging
+import traceback
+from typing import List
 
 import flask
+import pytest
 
 from openeo_driver.util.logging import FlaskUserIdLogging, FlaskRequestCorrelationIdLogging, BatchJobLoggingFilter, \
     LOGGING_CONTEXT_FLASK, LOGGING_CONTEXT_BATCH_JOB, user_id_trim
@@ -79,3 +82,106 @@ def test_filter_batch_job_logging():
 def test_user_id_trim():
     assert user_id_trim("pol") == "pol"
     assert user_id_trim("536e61f6fb8489946ab99ed3a028") == "536e61f6..."
+
+
+def _decode_json_lines(lines: List[str]) -> List[dict]:
+    result = []
+    for line in lines:
+        try:
+            result.append(json.loads(line))
+        except json.JSONDecodeError:
+            pass
+    return result
+
+
+def test_setup_logging_capture_warnings(pytester):
+    pytester.makepyfile(main="""
+        import logging
+        import warnings
+        from openeo_driver.util.logging import get_logging_config, setup_logging
+        
+        _log = logging.getLogger(__name__)
+        
+        def main():
+            setup_logging(
+                get_logging_config(root_handlers=["stderr_json"]),
+                capture_warnings=True,
+            )
+            warnings.warn("Attention please")
+            _log.info("That's all")
+
+        if __name__ == "__main__":
+            main()
+    """)
+    result = pytester.runpython("main.py")
+
+    records = _decode_json_lines(result.errlines)
+    assert any(
+        r["levelname"] == "WARNING" and "UserWarning: Attention please" in r["message"]
+        for r in records
+    )
+    assert any(r["levelname"] == "INFO" and "That's all" in r["message"] for r in records)
+
+
+def test_setup_logging_capture_threading_exceptions(pytester):
+    pytester.makepyfile(main="""
+        import logging
+        import threading
+        from openeo_driver.util.logging import get_logging_config, setup_logging
+        
+        _log = logging.getLogger(__name__)
+        
+        def work():
+            return 4 / 0
+        
+        def main():
+            setup_logging(
+                get_logging_config(root_handlers=["stderr_json"]),
+                capture_threading_exceptions=True,
+            )
+            
+            thread = threading.Thread(target=work)
+            thread.start()
+            thread.join()
+            _log.info("That's all")
+
+        if __name__ == "__main__":
+            main()
+    """)
+    result = pytester.runpython("main.py")
+
+    records = _decode_json_lines(result.errlines)
+    assert any(
+        r["levelname"] == "ERROR" and "ZeroDivisionError in thread" in r["message"]
+        for r in records
+    )
+    assert any(r["levelname"] == "INFO" and "That's all" in r["message"] for r in records)
+
+
+@pytest.mark.skipif(
+    any("pydevd.py" in f.filename for f in traceback.extract_stack()[:5]),
+    reason="When running test in PyDev debugger, pydev catches the exceptions we want to leave uncaught."
+)
+def test_setup_logging_capture_unhandled_exceptions(pytester):
+    pytester.makepyfile(main="""
+        import logging
+        import threading
+        from openeo_driver.util.logging import get_logging_config, setup_logging
+        
+        def main():
+            setup_logging(
+                get_logging_config(root_handlers=["stderr_json"]),
+                capture_unhandled_exceptions=True,
+            )
+            x = 4 / 0
+
+        if __name__ == "__main__":
+            main()
+    """)
+    result = pytester.runpython("main.py")
+
+    records = _decode_json_lines(result.errlines)
+    assert any(
+        r["levelname"] == "ERROR" and "Unhandled ZeroDivisionError exception" in r["message"]
+        for r in records
+    )
