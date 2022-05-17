@@ -560,6 +560,11 @@ def apply_neighborhood(args: dict, env: EvalEnv) -> DriverDataCube:
     # TODO: pass context?
     context = args.get('context', {})
     data_cube = extract_arg(args, 'data')
+    if not isinstance(data_cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="apply_neighborhood",
+            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
+        )
     return data_cube.apply_neighborhood(process=process, size=size, overlap=overlap, env=env)
 
 @process
@@ -569,6 +574,11 @@ def apply_dimension(args: Dict, env: EvalEnv) -> DriverDataCube:
     target_dimension = args.get('target_dimension',None)
     data_cube = extract_arg(args, 'data')
     context = args.get('context',None)
+    if not isinstance(data_cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="apply_dimension",
+            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
+        )
 
     # do check_dimension here for error handling
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="apply_dimension")
@@ -597,6 +607,10 @@ def save_result(args: Dict, env: EvalEnv) -> SaveResult:
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/save_ml_model.json"))
 def save_ml_model(args: dict, env: EvalEnv) -> MlModelResult:
     data: DriverMlModel = extract_arg(args, "data", process_id="save_ml_model")
+    if not isinstance(data, DriverMlModel):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="save_ml_model", reason=f"Invalid data type {type(data)!r} expected raster-cube."
+        )
     options = args.get("options", {})
     return MlModelResult(ml_model=data, options=options)
 
@@ -631,6 +645,10 @@ def reduce(args: dict, env: EvalEnv) -> DriverDataCube:
     dimension = extract_arg(args, 'dimension')
     binary = smart_bool(args.get('binary', False))
     data_cube = extract_arg(args, 'data')
+    if not isinstance(data_cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="reduce", reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
+        )
 
     # TODO: avoid special case handling for run_udf?
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce")
@@ -649,6 +667,11 @@ def reduce_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
     reduce_pg = extract_deep(args, "reducer", "process_graph")
     dimension = extract_arg(args, 'dimension')
     context = args.get("context")
+    if not isinstance(data_cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="reduce_dimension",
+            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
+        )
 
     # do check_dimension here for error handling
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce_dimension")
@@ -662,6 +685,11 @@ def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     chunks = extract_arg(args, 'chunks')
     mask_value = args.get('mask_value', None)
     data_cube = extract_arg(args, 'data')
+    if not isinstance(data_cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="chunk_polygon",
+            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
+        )
 
     # Chunks parameter check.
     # TODO #114 EP-3981 normalize first to vector cube and simplify logic
@@ -765,6 +793,11 @@ def predict_catboost(args: dict, env: EvalEnv) -> SaveResult:
 @process
 def add_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
+    if not isinstance(data_cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="add_dimension",
+            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
+        )
     return data_cube.add_dimension(
         name=extract_arg(args, 'name'),
         label=extract_arg_list(args, ['label', 'value']),
@@ -775,22 +808,42 @@ def add_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
 @process_registry_100.add_function
 def drop_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
+    if not isinstance(data_cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="drop_dimension",
+            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
+        )
     return data_cube.drop_dimension(name=extract_arg(args, 'name'))
 
 
 @process_registry_100.add_function
 def dimension_labels(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
+    if not isinstance(data_cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="dimension_labels",
+            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
+        )
     return data_cube.dimension_labels(dimension=extract_arg(args, 'dimension'))
 
 @process_registry_100.add_function
 def rename_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
+    if not isinstance(data_cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="rename_dimension",
+            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
+        )
     return data_cube.rename_dimension(source=extract_arg(args, 'source'),target=extract_arg(args, 'target'))
 
 @process_registry_100.add_function
 def rename_labels(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
+    if not isinstance(data_cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="rename_labels",
+            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
+        )
     return data_cube.rename_labels(
         dimension=extract_arg(args, 'dimension'),
         target=extract_arg(args, 'target'),
@@ -837,6 +890,11 @@ def _check_dimension(cube: DriverDataCube, dim: str, process: str):
 @process
 def aggregate_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
+    if not isinstance(data_cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="aggregate_temporal",
+            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
+        )
 
     reduce_pg = extract_deep(args, "reducer", "process_graph")
     context = args.get('context', None)
@@ -850,6 +908,11 @@ def aggregate_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
 @process_registry_100.add_function
 def aggregate_temporal_period(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube = extract_arg(args, 'data')
+    if not isinstance(data_cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="aggregate_temporal_period",
+            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
+        )
 
     reduce_pg = extract_deep(args, "reducer", "process_graph")
 
@@ -957,6 +1020,11 @@ def aggregate_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
 def aggregate_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
     reduce_pg = extract_deep(args, "reducer", "process_graph")
     cube = extract_arg(args, 'data')
+    if not isinstance(cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="aggregate_spatial",
+            reason=f"Invalid data type {type(cube)!r} expected raster-cube."
+        )
     # TODO: drop `target_dimension`? see https://github.com/Open-EO/openeo-processes/issues/366
     target_dimension = args.get('target_dimension', None)
 
@@ -994,6 +1062,10 @@ def mask_04(args: dict, env: EvalEnv) -> DriverDataCube:
 @process_registry_100.add_function
 def mask(args: dict, env: EvalEnv) -> DriverDataCube:
     cube = extract_arg(args, 'data')
+    if not isinstance(cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="mask", reason=f"Invalid data type {type(cube)!r} expected raster-cube."
+        )
     mask = extract_arg(args, 'mask')
     replacement = args.get('replacement', None)
     return cube.mask(mask=mask, replacement=replacement)
@@ -1054,6 +1126,11 @@ def _extract_temporal_extent(args: dict, field="extent", process_id="filter_temp
 @process
 def filter_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
     cube = extract_arg(args, 'data')
+    if not isinstance(cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="filter_temporal",
+            reason=f"Invalid data type {type(cube)!r} expected raster-cube."
+        )
     extent = _extract_temporal_extent(args, field="extent", process_id="filter_temporal")
     return cube.filter_temporal(start=extent[0], end=extent[1])
 
@@ -1078,6 +1155,10 @@ def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox", h
 @process
 def filter_bbox(args: Dict, env: EvalEnv) -> DriverDataCube:
     cube = extract_arg(args, 'data')
+    if not isinstance(cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="filter_bbox", reason=f"Invalid data type {type(cube)!r} expected raster-cube."
+        )
     spatial_extent = _extract_bbox_extent(args, "extent", process_id="filter_bbox")
     return cube.filter_bbox(**spatial_extent)
 
@@ -1086,7 +1167,10 @@ def filter_bbox(args: Dict, env: EvalEnv) -> DriverDataCube:
 def filter_spatial(args: Dict, env: EvalEnv) -> DriverDataCube:
     cube = extract_arg(args, 'data')
     geometries = extract_arg(args, 'geometries')
-
+    if not isinstance(cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="filter_spatial", reason=f"Invalid data type {type(cube)!r} expected raster-cube."
+        )
     if not isinstance(geometries, dict):
         # TODO #114: support DriverDataCube
         raise NotImplementedError("filter_spatial only supports dict but got {g!r}".format(g=geometries))
@@ -1103,6 +1187,10 @@ def filter_spatial(args: Dict, env: EvalEnv) -> DriverDataCube:
 @process
 def filter_bands(args: Dict, env: EvalEnv) -> DriverDataCube:
     cube = extract_arg(args, 'data')
+    if not isinstance(cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="filter_bands", reason=f"Invalid data type {type(cube)!r} expected raster-cube."
+        )
     bands = extract_arg(args, "bands", process_id="filter_bands")
     return cube.filter_bands(bands=bands)
 
@@ -1113,6 +1201,11 @@ def apply_kernel(args: Dict, env: EvalEnv) -> DriverDataCube:
     kernel = np.asarray(extract_arg(args, 'kernel'))
     factor = args.get('factor', 1.0)
     border = args.get('border', 0)
+    if not isinstance(image_collection, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="apply_kernel",
+            reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
+        )
     if border == "0":
         # R-client sends `0` border as a string
         border = 0
@@ -1123,7 +1216,11 @@ def apply_kernel(args: Dict, env: EvalEnv) -> DriverDataCube:
 @process
 def ndvi(args: dict, env: EvalEnv) -> DriverDataCube:
     image_collection = extract_arg(args, 'data')
-
+    if not isinstance(image_collection, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="ndvi",
+            reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
+        )
     if ComparableVersion("1.0.0").or_higher(env["version"]):
         red = args.get("red")
         nir = args.get("nir")
@@ -1141,6 +1238,11 @@ def resample_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
     projection = args.get('projection', None)
     method = args.get('method', 'near')
     align = args.get('align', 'lower-left')
+    if not isinstance(image_collection, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="resample_spatial",
+            reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
+        )
     return image_collection.resample_spatial(resolution=resolution, projection=projection, method=method, align=align)
 
 
@@ -1149,6 +1251,11 @@ def resample_cube_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
     image_collection = extract_arg(args, 'data')
     target_image_collection = extract_arg(args, 'target')
     method = args.get('method', 'near')
+    if not isinstance(image_collection, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="resample_cube_spatial",
+            reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
+        )
     return image_collection.resample_cube_spatial(target=target_image_collection, method=method)
 
 
@@ -1157,6 +1264,12 @@ def merge_cubes(args: dict, env: EvalEnv) -> DriverDataCube:
     cube1 = extract_arg(args, 'cube1')
     cube2 = extract_arg(args, 'cube2')
     overlap_resolver = args.get('overlap_resolver')
+    for cube, param_str in [(cube1, "cube1"), (cube2, "cube2")]:
+        if not isinstance(cube, DriverDataCube):
+            raise ProcessParameterInvalidException(
+                parameter=param_str, process="merge_cubes",
+                reason=f"Invalid data type {type(cube)!r} expected raster-cube."
+            )
     # TODO raise check if cubes overlap and raise exception if resolver is missing
     resolver_process = None
     if overlap_resolver:
@@ -1202,7 +1315,7 @@ def run_udf(args: dict, env: EvalEnv):
         )
     else:
         raise ProcessParameterInvalidException(
-            parameter='data', process='run_udf', reason=f"Invalid data type {type(data)!r}")
+            parameter='data', process='run_udf', reason=f"Invalid data type {type(data)!r} expected raster-cube.")
 
     result_data = openeo.udf.run_udf_code(udf, data)
 
@@ -1228,6 +1341,11 @@ def linear_scale_range(args: dict, env: EvalEnv) -> DriverDataCube:
     inputMax = extract_arg(args, "inputMax")
     outputMax = args.get("outputMax", 1.0)
     outputMin = args.get("outputMin", 0.0)
+    if not isinstance(image_collection, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="linear_scale_range",
+            reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
+        )
 
     return image_collection.linear_scale_range(inputMin, inputMax, outputMin, outputMax)
 
@@ -1256,6 +1374,11 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
     if parent_process == "apply":
         # TODO EP-3404 this code path is for version <1.0.0, soon to be deprecated
         image_collection = extract_arg_list(args, ['x', 'data'])
+        if not isinstance(image_collection, DriverDataCube):
+            raise ProcessParameterInvalidException(
+                parameter="[x, data]", process="apply_process",
+                reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
+            )
         if process_id == "run_udf":
             udf, runtime = _get_udf(args, env=env)
             # TODO replace non-standard apply_tiles with standard "reduce_dimension" https://github.com/Open-EO/openeo-python-client/issues/140
@@ -1266,6 +1389,11 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
     elif parent_process in ["reduce", "reduce_dimension", "reduce_dimension_binary"]:
         # TODO EP-3285 this code path is for version <1.0.0, soon to be deprecated
         image_collection = extract_arg(args, 'data', process_id=process_id)
+        if not isinstance(image_collection, DriverDataCube):
+            raise ProcessParameterInvalidException(
+                parameter="data", process="apply_process",
+                reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
+            )
         dimension = extract_arg(parameters, 'dimension')
         binary = parameters.get('binary', False) or parent_process == "reduce_dimension_binary"
         dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
@@ -1283,6 +1411,11 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
     elif parent_process == 'apply_dimension':
         # TODO EP-3285 this code path is for version <1.0.0, soon to be deprecated
         image_collection = extract_arg(args, 'data', process_id=process_id)
+        if not isinstance(image_collection, DriverDataCube):
+            raise ProcessParameterInvalidException(
+                parameter="data", process="apply_process",
+                reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
+            )
         dimension = parameters.get('dimension', None) # By default, applies the the process on all pixel values (as apply does).
         target_dimension = parameters.get('target_dimension', None)
         dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
@@ -1303,6 +1436,11 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
     elif parent_process == 'aggregate_temporal':
         # TODO EP-3285 this code path is for version <1.0.0, soon to be deprecated
         image_collection = extract_arg(args, 'data', process_id=process_id)
+        if not isinstance(image_collection, DriverDataCube):
+            raise ProcessParameterInvalidException(
+                parameter="data", process="apply_process",
+                reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
+            )
         intervals = extract_arg(parameters, 'intervals')
         labels = extract_arg(parameters, 'labels')
         dimension = parameters.get('dimension', None)
@@ -1420,6 +1558,11 @@ def get_geometries(args: Dict, env: EvalEnv) -> Union[DelayedVector, dict]:
 )
 def raster_to_vector(args: Dict, env: EvalEnv):
     image_collection = extract_arg(args, 'data')
+    if not isinstance(image_collection, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="raster_to_vector",
+            reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
+        )
     return image_collection.raster_to_vector()
 
 
@@ -1566,6 +1709,11 @@ def atmospheric_correction(args: Dict, env: EvalEnv) -> object:
     aot = args.get('aot',None)
     cwv = args.get('cwv',None)
     appendDebugBands = args.get('appendDebugBands',None)
+    if not isinstance(image_collection, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="atmospheric_correction",
+            reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
+        )
     return image_collection.atmospheric_correction(method,elevation_model, missionId, sza, vza, raa, gnd, aot, cwv, appendDebugBands)
 
 
@@ -1576,6 +1724,11 @@ def sar_backscatter(args: Dict, env: EvalEnv):
         args, keys=["coefficient", "elevation_model", "mask", "contributing_area", "local_incidence_angle",
                     "ellipsoid_incidence_angle", "noise_removal", "options"]
     )
+    if not isinstance(cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="sar_backscatter",
+            reason=f"Invalid data type {type(cube)!r} expected raster-cube."
+        )
     return cube.sar_backscatter(SarBackscatterArgs(**kwargs))
 
 
@@ -1583,6 +1736,11 @@ def sar_backscatter(args: Dict, env: EvalEnv):
 def resolution_merge(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
     kwargs = extract_args_subset(args, keys=["method", "high_resolution_bands", "low_resolution_bands", "options"])
+    if not isinstance(cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="resolution_merge",
+            reason=f"Invalid data type {type(cube)!r} expected raster-cube."
+        )
     return cube.resolution_merge(ResolutionMergeArgs(**kwargs))
 
 
@@ -1599,6 +1757,11 @@ def discard_result(args: Dict, env: EvalEnv):
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/mask_scl_dilation.json"))
 def mask_scl_dilation(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
+    if not isinstance(cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="mask_scl_dilation",
+            reason=f"Invalid data type {type(cube)!r} expected raster-cube."
+        )
     if hasattr(cube, "mask_scl_dilation"):
         the_args = args.copy()
         del the_args["data"]
@@ -1609,6 +1772,11 @@ def mask_scl_dilation(args: Dict, env: EvalEnv):
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/mask_l1c.json"))
 def mask_l1c(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
+    if not isinstance(cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="mask_l1c",
+            reason=f"Invalid data type {type(cube)!r} expected raster-cube."
+        )
     if hasattr(cube, "mask_l1c"):
         return cube.mask_l1c()
     else:
