@@ -1656,14 +1656,16 @@ def test_user_defined_process_udp_vs_pdp_priority(api100, udp_registry):
 
 
 def test_execute_03_style_filter_bbox(api):
-    res = api.result({"filterbbox1": {
+    res = api.result({
+    "loadcollection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+    "filterbbox1": {
         "process_id": "filter_bbox",
         "arguments": {
-            "data": 123,
+            "data": {"from_node": "loadcollection1"},
             "west": 4.6511, "east": 4.6806, "north": 51.20859, "south": 51.18997, "crs": "epsg:4326"
         },
-        "result": True
-    }})
+        "result": True}
+    })
     res.assert_error(
         status_code=400, error_code="ProcessParameterRequired",
         message="Process 'filter_bbox' parameter 'extent' is required"
@@ -1671,10 +1673,12 @@ def test_execute_03_style_filter_bbox(api):
 
 
 def test_execute_03_style_filter_temporal(api):
-    res = api.result({"filtertemporal1": {
+    res = api.result({
+    "loadcollection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+    "filtertemporal1": {
         "process_id": "filter_temporal",
         "arguments": {
-            "data": 123,
+            "data": {"from_node": "loadcollection1"},
             "from": "2019-10-28", "to": "2019-10-28"
         },
         "result": True
