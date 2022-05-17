@@ -912,8 +912,9 @@ def _period_to_intervals(start, end, period):
     else:
         raise ProcessParameterInvalidException('period', 'aggregate_temporal_period',
                                                'No support for a period of type: ' + str(period))
-    intervals = [i for i in intervals if i[0] < end ]
-    return list(intervals)
+    intervals = list([i for i in intervals if i[0] < end ])
+    _log.info(f"aggregate_temporal_period input: [{start},{end}] - {period} intervals: {intervals}")
+    return intervals
 
 
 def _get_time_dim_or_default(args, data_cube, process_id =  "aggregate_temporal"):
