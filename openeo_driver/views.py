@@ -6,7 +6,7 @@ import pathlib
 import re
 import uuid
 from collections import namedtuple, defaultdict
-from typing import Callable, Tuple, List
+from typing import Callable, Tuple, List, Optional
 
 import flask
 import flask_cors
@@ -245,6 +245,7 @@ def register_error_handlers(app: flask.Flask, backend_implementation: OpenEoBack
 
     @app.errorhandler(HTTPException)
     def handle_http_exceptions(error: HTTPException):
+        """Error handler for werkzeug HTTPException"""
         # Convert to OpenEOApiException based handling
         return handle_openeoapi_exception(OpenEOApiException(
             message=str(error),
@@ -253,39 +254,28 @@ def register_error_handlers(app: flask.Flask, backend_implementation: OpenEoBack
         ))
 
     @app.errorhandler(OpenEOApiException)
-    def handle_openeoapi_exception(error: OpenEOApiException):
+    def handle_openeoapi_exception(error: OpenEOApiException, log_message: Optional[str] = None):
+        """Error handler for OpenEOApiException"""
+        _log.error(log_message or repr(error), exc_info=True)
         error_dict = error.to_dict()
-        _log.error(repr(error), exc_info=True)
         return jsonify(error_dict), error.status_code
 
     @app.errorhandler(Exception)
     def handle_error(error: Exception):
-        # TODO: convert to OpenEOApiException based handling
+        """Generic error handler"""
+        # TODO: is it possible to eliminate this custom summarize_exception/ErrorSummary handling?
         error = backend_implementation.summarize_exception(error)
-
         if isinstance(error, ErrorSummary):
-            return _error_response(error, 400, error.summary) if error.is_client_error \
-                else _error_response(error, 500, error.summary)
+            log_message = repr(error.exception)
+            if error.is_client_error:
+                api_error = OpenEOApiException(message=error.summary, code="BadRequest", status_code=400)
+            else:
+                api_error = InternalException(message=error.summary)
+        else:
+            log_message = repr(error)
+            api_error = InternalException(message=repr(error))
 
-        return _error_response(error, 500)
-
-
-def _error_response(error: Exception, status_code: int, summary: str = None):
-    # TODO: convert to OpenEOApiException based handling
-    error_json = {
-        "message": summary if summary else str(error)
-    }
-    if isinstance(error, ErrorSummary):
-        exception = error.exception
-    else:
-        exception = error
-
-    current_app.logger.error(exception, exc_info=True)
-
-    response = jsonify(error_json)
-    response.status_code = status_code
-    return response
-
+        return handle_openeoapi_exception(api_error, log_message=log_message)
 
 def response_204_no_content():
     return make_response('', 204, {"Content-Type": "application/json"})
@@ -479,7 +469,12 @@ def register_views_general(
         })
 
     @blueprint.route('/_debug/error', methods=["GET", "POST"])
-    def debug_error():
+    @blueprint.route('/_debug/error/basic/<v>', methods=["GET", "POST"])
+    def debug_error_basic(v: str = None):
+        if v == "NotImplementedError":
+            raise NotImplementedError
+        elif v == "ErrorSummary":
+            raise ErrorSummary(exception=ValueError(-123), is_client_error=False, summary="No negatives please.")
         raise Exception("Computer says no.")
 
     @blueprint.route('/_debug/error/api', methods=["GET", "POST"])

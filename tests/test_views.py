@@ -290,14 +290,53 @@ class TestGeneral:
 
     def test_error_handling_generic(self, api, caplog):
         caplog.set_level(logging.WARNING)
-        resp = api.get("/_debug/error")
-        assert (resp.status_code, resp.json) == (500, {"message": "Computer says no."})
+        with mock.patch("uuid.uuid4", return_value="t3st"):
+            resp = api.get("/_debug/error")
+        assert (resp.status_code, resp.json) == (500, {
+            "code": "Internal",
+            "message": "Server error: Exception('Computer says no.')",
+            "id": "t3st",
+        })
         assert caplog.record_tuples == [
             (
-                "openeo_driver.views",
+                "openeo_driver.views.error",
                 logging.ERROR,
-                'Computer says no.',
+                "Exception('Computer says no.')",
             ),
+        ]
+
+    def test_error_handling_not_implemented_error(self, api, caplog):
+        caplog.set_level(logging.WARNING)
+        with mock.patch("uuid.uuid4", return_value="t3st"):
+            resp = api.get("/_debug/error/basic/NotImplementedError")
+        assert (resp.status_code, resp.json) == (500, {
+            "code": "Internal",
+            "message": "Server error: NotImplementedError()",
+            "id": "t3st",
+        })
+        assert caplog.record_tuples == [
+            (
+                "openeo_driver.views.error",
+                logging.ERROR,
+                "NotImplementedError()",
+            )
+        ]
+
+    def test_error_handling_error_summary(self, api, caplog):
+        caplog.set_level(logging.WARNING)
+        with mock.patch("uuid.uuid4", return_value="t3st"):
+            resp = api.get("/_debug/error/basic/ErrorSummary")
+        assert (resp.status_code, resp.json) == (500, {
+            "code": "Internal",
+            "message": "Server error: No negatives please.",
+            "id": "t3st",
+        })
+        assert caplog.record_tuples == [
+            (
+                "openeo_driver.views.error",
+                logging.ERROR,
+                "ValueError(-123)",
+            )
         ]
 
     @pytest.mark.parametrize(["url", "error_status", "error_code", "error_message"], [

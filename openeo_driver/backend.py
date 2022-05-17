@@ -478,8 +478,9 @@ class Processing(MicroService):
         raise NotImplementedError
 
 
-class ErrorSummary:
+class ErrorSummary(Exception):
     # TODO: this is specific for openeo-geopyspark-driver: can we avoid defining it in openeo-python-driver?
+    #       For example by allowing to inject custom error handlers
     def __init__(self, exception: Exception, is_client_error: bool, summary: str = None):
         self.exception = exception
         self.is_client_error = is_client_error
