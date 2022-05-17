@@ -275,9 +275,7 @@ def _error_response(error: Exception, status_code: int, summary: str = None):
     error_json = {
         "message": summary if summary else str(error)
     }
-    if type(error) is HTTPException and type(error.response) is dict:
-        error_json = error.response
-    if type(error) is ErrorSummary:
+    if isinstance(error, ErrorSummary):
         exception = error.exception
     else:
         exception = error
