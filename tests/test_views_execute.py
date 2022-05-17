@@ -190,6 +190,29 @@ def test_execute_filter_bbox(api):
     assert params["spatial_extent"] == {"west": 3, "east": 5, "south": 50, "north": 51, "crs": "EPSG:4326", }
 
 
+def test_execute_filter_bbox_integer_crs(api):
+    api.check_result({
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2_FAPAR_CLOUDCOVER'}
+        },
+        'filterbbox1': {
+            'process_id': 'filter_bbox',
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'extent': {
+                    "west": 3, "east": 5,
+                    "south": 50, "north": 51,
+                    "crs": 4326,
+                }
+            },
+            'result': True
+        },
+    })
+    params = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    assert params["spatial_extent"] == {"west": 3, "east": 5, "south": 50, "north": 51, "crs": "EPSG:4326", }
+
+
 def test_execute_filter_bands(api):
     api.check_result({
         'loadcollection1': {

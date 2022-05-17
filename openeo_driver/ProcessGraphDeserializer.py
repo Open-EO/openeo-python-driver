@@ -1068,7 +1068,10 @@ def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox", h
             k: extract_arg(extent, name=k, process_id=process_id)
             for k in ["west", "south", "east", "north"]
         }
-        d["crs"] = extent.get("crs") or "EPSG:4326"
+        crs = extent.get("crs") or "EPSG:4326"
+        if isinstance(crs, int):
+            crs = "EPSG:{crs}".format(crs=crs)
+        d["crs"] = crs
     return d
 
 
