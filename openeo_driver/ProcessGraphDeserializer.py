@@ -636,31 +636,6 @@ def apply(args: dict, env: EvalEnv) -> DriverDataCube:
         return _evaluate_sub_process_graph(args, 'process', parent_process='apply', env=env)
 
 
-@process_registry_040.add_function
-def reduce(args: dict, env: EvalEnv) -> DriverDataCube:
-    """
-    https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#reduce
-    """
-    reduce_pg = extract_deep(args, "reducer", ["process_graph", "callback"])
-    dimension = extract_arg(args, 'dimension')
-    binary = smart_bool(args.get('binary', False))
-    data_cube = extract_arg(args, 'data')
-    if not isinstance(data_cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="reduce", reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
-        )
-
-    # TODO: avoid special case handling for run_udf?
-    dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce")
-    if dimension == band_dim:
-        if not binary and len(reduce_pg) == 1 and next(iter(reduce_pg.values())).get('process_id') == 'run_udf':
-            return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce', env=env)
-        visitor = env.backend_implementation.visit_process_graph(reduce_pg)
-        return data_cube.reduce_bands(visitor)
-    else:
-        return _evaluate_sub_process_graph(args, 'reducer', parent_process='reduce', env=env)
-
-
 @process_registry_100.add_function
 def reduce_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube: DriverDataCube = extract_arg(args, "data")
@@ -1386,28 +1361,6 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         else:
             # TODO : add support for `apply` with non-trivial child process graphs #EP-3404
             return image_collection.apply(process_id, args)
-    elif parent_process in ["reduce", "reduce_dimension", "reduce_dimension_binary"]:
-        # TODO EP-3285 this code path is for version <1.0.0, soon to be deprecated
-        image_collection = extract_arg(args, 'data', process_id=process_id)
-        if not isinstance(image_collection, DriverDataCube):
-            raise ProcessParameterInvalidException(
-                parameter="data", process="apply_process",
-                reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
-            )
-        dimension = extract_arg(parameters, 'dimension')
-        binary = parameters.get('binary', False) or parent_process == "reduce_dimension_binary"
-        dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
-        if 'run_udf' == process_id and not binary:
-            udf, runtime = _get_udf(args, env=env)
-            context = args.get("context", {})
-            if dimension == temporal_dim:
-                # EP-2760 a special case of reduce where only a single udf based callback is provided. The more generic case is not yet supported.
-                return image_collection.apply_tiles_spatiotemporal(udf,context)
-            elif dimension == band_dim:
-                # TODO replace non-standard apply_tiles with standard "reduce_dimension" https://github.com/Open-EO/openeo-python-client/issues/140
-                return image_collection.apply_tiles(udf,context,runtime)
-
-        return image_collection.reduce(process_id, dimension)
     elif parent_process == 'apply_dimension':
         # TODO EP-3285 this code path is for version <1.0.0, soon to be deprecated
         image_collection = extract_arg(args, 'data', process_id=process_id)

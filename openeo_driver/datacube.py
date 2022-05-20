@@ -77,10 +77,6 @@ class DriverDataCube(ImageCollection):
     def dimension_labels(self, dimension: str) -> 'DriverDataCube':
         self._not_implemented()
 
-    def reduce(self, reducer: str, dimension: str) -> 'DriverDataCube':
-        # TODO #47: remove  this deprecated 0.4-style method
-        self._not_implemented()
-
     def rename_dimension(self, source: str, target: str) -> 'DriverDataCube':
         self._not_implemented()
 
