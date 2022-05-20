@@ -24,7 +24,7 @@ import openeo.udf
 from openeo.capabilities import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphVisitException
 from openeo.metadata import CollectionMetadata, MetadataException
-from openeo.util import load_json, rfc3339, deep_get
+from openeo.util import load_json, rfc3339, deep_get, str_truncate
 from openeo_driver import dry_run
 from openeo_driver.backend import UserDefinedProcessMetadata, LoadParameters, Processing, OpenEoBackendImplementation
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube, DriverMlModel
@@ -1292,7 +1292,9 @@ def run_udf(args: dict, env: EvalEnv):
         raise ProcessParameterInvalidException(
             parameter='data', process='run_udf', reason=f"Invalid data type {type(data)!r} expected raster-cube.")
 
+    _log.info(f"[run_udf] Running UDF {str_truncate(udf, width=256)!r} on {data!r}")
     result_data = openeo.udf.run_udf_code(udf, data)
+    _log.info(f"[run_udf] UDF resulted in {result_data!r}")
 
     result_collections = result_data.get_feature_collection_list()
     if result_collections != None and len(result_collections) > 0:
@@ -1519,7 +1521,7 @@ def raster_to_vector(args: Dict, env: EvalEnv):
     return image_collection.raster_to_vector()
 
 
-def _get_udf(args, env: EvalEnv):
+def _get_udf(args, env: EvalEnv) -> Tuple[str, str]:
     udf = extract_arg(args, "udf")
     runtime = extract_arg(args, "runtime")
     version = args.get("version", None)
