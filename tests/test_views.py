@@ -448,7 +448,7 @@ class TestGeneral:
     def test_processes_040_vs_100(self, api040, api100):
         pids040 = {p['id'] for p in api040.get("/processes").assert_status_code(200).json["processes"]}
         pids100 = {p['id'] for p in api100.get("/processes").assert_status_code(200).json["processes"]}
-        expected_only_040 = {'reduce', 'aggregate_polygon'}
+        expected_only_040 = {'aggregate_polygon'}
         expected_only_100 = {'reduce_dimension', 'aggregate_spatial', 'mask_polygon', 'add'}
         for pid in expected_only_040:
             assert pid in pids040
