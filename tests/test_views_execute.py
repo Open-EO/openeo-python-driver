@@ -1,5 +1,6 @@
 
 import json
+import math
 import re
 import sys
 import textwrap
@@ -1835,6 +1836,8 @@ def test_execute_no_cube_1_plus_2(api100):
     ({"med1": {"process_id": "median", "arguments": {"data": [2, 8, 5, 3, 11]}, "result": True}}, 5),
     ({"var1": {"process_id": "variance", "arguments": {"data": [2, 8, 5, 3]}, "result": True}}, 7.0),
     ({"cnt1": {"process_id": "count", "arguments": {"data": [2, 8, None, 3]}, "result": True}}, 3),
+    ({"pi1": {"process_id": "pi", "arguments": {}, "result": True}}, math.pi),
+    ({"e1": {"process_id": "e", "arguments": {}, "result": True}}, math.e),
 ])
 def test_execute_no_cube_just_math(api100, process_graph, expected):
     assert api100.result(process_graph).assert_status_code(200).json == expected

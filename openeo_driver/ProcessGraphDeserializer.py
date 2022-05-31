@@ -5,6 +5,7 @@
 import calendar
 import datetime
 import logging
+import math
 import tempfile
 import time
 import warnings
@@ -81,6 +82,11 @@ def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List
             wrapped = wrap(proc)
             spec = process_registry.load_predefined_spec(pid)
             process_registry.add_process(name=pid, function=wrapped, spec=spec)
+        elif pid in _openeo_processes_extra:
+            proc = _openeo_processes_extra[pid]
+            wrapped = wrap(proc)
+            spec = process_registry.load_predefined_spec(pid)
+            process_registry.add_process(name=pid, function=wrapped, spec=spec)
         else:
             # TODO: this warning is triggered before logging is set up usually
             _log.warning("Adding process {p!r} without implementation".format(p=pid))
@@ -99,6 +105,11 @@ _OPENEO_PROCESSES_PYTHON_WHITELIST = [
     'arccos', 'arcosh', 'arcsin', 'arctan', 'arctan2', 'arsinh', 'artanh', 'cos', 'cosh', 'sin', 'sinh', 'tan', 'tanh',
     'all', 'any', 'count', 'first', 'last', 'max', 'mean', 'median', 'min', 'product', 'sd', 'sum', 'variance'
 ]
+
+_openeo_processes_extra = {
+    "pi": lambda: math.pi,
+    "e": lambda: math.e,
+}
 
 _add_standard_processes(process_registry_100, _OPENEO_PROCESSES_PYTHON_WHITELIST)
 
