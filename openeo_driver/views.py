@@ -588,6 +588,7 @@ def register_views_processing(
             'correlation_id': str(uuid.uuid4()),
         })
         result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)
+        _log.info(f"`POST /result`: {type(result)}")
 
         if result is None:
             # TODO: is it still necessary to handle `None` as an error condition?
@@ -728,6 +729,7 @@ def register_views_batch_jobs(
             job_options=job_options,
         )
         job_id = job_info.id
+        _log.info(f"`POST /jobs` created batch job {job_id}")
         response = make_response("", 201)
         response.headers['Location'] = url_for('.get_job_info', job_id=job_id, _external=True)
         response.headers['OpenEO-Identifier'] = str(job_id)
@@ -791,7 +793,10 @@ def register_views_batch_jobs(
         """Add a batch job to the procsessing queue."""
         job_info = backend_implementation.batch_jobs.get_job_info(job_id, user.user_id)
         if job_info.status in {"created", "canceled"}:
+            _log.info(f"`POST /jobs/{job_id}/results`: starting job (from status {job_info.status}")
             backend_implementation.batch_jobs.start_job(job_id=job_id, user=user)
+        else:
+            _log.info(f"`POST /jobs/{job_id}/results`: not (re)starting job (status {job_info.status}")
         return make_response("", 202)
 
     def _job_result_download_url(job_id, user_id, filename) -> str:
