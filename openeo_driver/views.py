@@ -1,4 +1,5 @@
 import copy
+import datetime
 import functools
 import json
 import logging
@@ -30,6 +31,7 @@ from openeo_driver.save_result import SaveResult, to_save_result
 from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.util.logging import FlaskRequestCorrelationIdLogging
+from openeo_driver.util.view_helpers import cache_control
 from openeo_driver.utils import EvalEnv, smart_bool
 
 _log = logging.getLogger(__name__)
@@ -345,6 +347,7 @@ def register_views_general(
         auth_handler: HttpAuthHandler
 ):
     @blueprint.route('/')
+    @backend_implementation.cache_control
     def index():
         app_config = current_app.config
 
@@ -406,7 +409,13 @@ def register_views_general(
         return jsonify(capabilities)
 
     @blueprint.route('/conformance')
+    @backend_implementation.cache_control
     def conformance():
+        """
+        Lists all conformance classes specified in OGC standards that the server conforms to.
+
+        see https://api.openeo.org/#operation/conformance
+        """
         return jsonify({"conformsTo": [
             # TODO: expand/manage conformance classes?
             "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core"
@@ -424,17 +433,20 @@ def register_views_general(
 
     @api_endpoint(version=ComparableVersion("1.0.0").accept_lower)
     @blueprint.route('/output_formats')
+    @backend_implementation.cache_control
     def output_formats():
         # TODO deprecated endpoint, remove it when v0.4 API support is not necessary anymore
         return jsonify(backend_implementation.file_formats()["output"])
 
     @api_endpoint(version=ComparableVersion("1.0.0").or_higher)
     @blueprint.route('/file_formats')
+    @backend_implementation.cache_control
     def file_formats():
         return jsonify(backend_implementation.file_formats())
 
     @api_endpoint
     @blueprint.route('/udf_runtimes')
+    @backend_implementation.cache_control
     def udf_runtimes():
         runtimes = backend_implementation.udf_runtimes.get_udf_runtimes()
         return jsonify(runtimes)
@@ -446,6 +458,7 @@ def register_views_general(
         return make_response(jsonify(error.to_dict()), error.status_code)
 
     @blueprint.route('/CHANGELOG', methods=['GET'])
+    @backend_implementation.cache_control
     def changelog():
         changelog = backend_implementation.changelog()
         if isinstance(changelog, pathlib.Path) and changelog.exists():
@@ -508,6 +521,7 @@ def register_views_auth(
         @api_endpoint
         @blueprint.route("/credentials/oidc", methods=["GET"])
         @auth_handler.public
+        @backend_implementation.cache_control
         def credentials_oidc():
             providers = backend_implementation.oidc_providers()
             if requested_api_version().at_least("1.0.0"):
@@ -611,6 +625,7 @@ def register_views_processing(
 
     @api_endpoint
     @blueprint.route('/processes', methods=['GET'])
+    # @backend_implementation.cache_control  # TODO: view uses request.args
     def processes():
         # TODO: this `qname` feature is non-standard. Is this necessary for some reason?
         substring = request.args.get('qname')
@@ -620,6 +635,7 @@ def register_views_processing(
 
     @api_endpoint
     @blueprint.route('/processes/<namespace>', methods=['GET'])
+    # @backend_implementation.cache_control  # TODO: view uses request.args
     def processes_from_namespace(namespace):
         # TODO: this endpoint is in draft at the moment
         #       see https://github.com/Open-EO/openeo-api/issues/310, https://github.com/Open-EO/openeo-api/pull/348
@@ -648,6 +664,7 @@ def register_views_processing(
 
     @api_endpoint
     @blueprint.route('/processes/<namespace>/<process_id>', methods=['GET'])
+    @backend_implementation.cache_control
     def processes_details(namespace, process_id):
         # TODO: this endpoint is in draft at the moment
         #       see https://github.com/Open-EO/openeo-api/issues/310, https://github.com/Open-EO/openeo-api/pull/348
@@ -1478,6 +1495,7 @@ def register_views_catalog(
 ):
     @api_endpoint
     @blueprint.route('/collections', methods=['GET'])
+    @backend_implementation.cache_control
     def collections():
         metadata = [
             _normalize_collection_metadata(metadata=m, api_version=requested_api_version(), full=False)
@@ -1490,6 +1508,7 @@ def register_views_catalog(
 
     @api_endpoint
     @blueprint.route('/collections/<collection_id>', methods=['GET'])
+    @backend_implementation.cache_control
     def collection_by_id(collection_id):
         metadata = backend_implementation.catalog.get_collection_metadata(collection_id=collection_id)
         metadata = _normalize_collection_metadata(metadata=metadata, api_version=requested_api_version(), full=True)

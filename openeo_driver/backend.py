@@ -18,6 +18,7 @@ from typing import List, Union, NamedTuple, Dict, Optional, Callable, Iterable
 
 import flask
 
+import openeo_driver.util.view_helpers
 from openeo.capabilities import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.util import rfc3339, dict_no_none
@@ -574,6 +575,11 @@ class OpenEoBackendImplementation:
         self.user_files = None  # TODO: implement user file storage microservice
         self.processing = processing
         self.udf_runtimes = UdfRuntimes()
+
+        # Overridable cache control header injecting decorator for static, public view functions
+        self.cache_control = openeo_driver.util.view_helpers.cache_control(
+            max_age=timedelta(minutes=15), public=True,
+        )
 
     def health_check(self) -> Union[str, dict, flask.Response]:
         return "OK"

@@ -163,6 +163,11 @@ class TestGeneral:
         assert endpoints["/me"] == ["GET"]
         assert endpoints["/validation"] == ["POST"]
 
+    def test_capabilities_caching(self, api):
+        headers = api.get('/').assert_status_code(200).headers
+        assert headers["Cache-Control"] == "max-age=900, public"
+        assert "Expires" in headers
+
     def test_capabilities_endpoints_hiding(self):
         class MyProcessing(Processing):
             @not_implemented
@@ -410,6 +415,7 @@ class TestGeneral:
                 "GTiff": {"title": "GeoTiff", "gis_data_types": ["raster"], "parameters": {}},
             })
         }
+        assert response.headers["Cache-Control"] == "max-age=900, public"
 
     @pytest.mark.parametrize("endpoint", [
         "/processes",
@@ -432,7 +438,6 @@ class TestGeneral:
         assert set(p["name"] for p in spec["parameters"]) == {"x", "y"}
         assert "computed sum" in spec["returns"]["description"]
         assert "process_graph" in spec
-
 
     def test_processes_non_standard_atmospheric_correction(self, api):
         if api.api_version_compare.below("1.0.0"):
@@ -740,6 +745,10 @@ class TestCollections:
             assert 'extent' in collection
             assert 'links' in collection
 
+    def test_collections_caching(self, api):
+        resp = api.get('/collections').assert_status_code(200)
+        assert resp.headers["Cache-Control"] == "max-age=900, public"
+
     def test_strip_private_fields(self, api):
         assert '_private' in dummy_backend.DummyCatalog().get_collection_metadata("S2_FOOBAR")
         # All metadata
@@ -789,6 +798,14 @@ class TestCollections:
                 'spatial': [2.5, 49.5, 6.2, 51.5],
                 'temporal': ['2019-01-01T00:00:00Z', None]
             }
+
+    def test_collections_detail_caching(self, api):
+        resp = api.get('/collections/S2_FOOBAR').assert_status_code(200)
+        assert resp.headers["Cache-Control"] == "max-age=900, public"
+
+    def test_collections_detail_invalid_caching(self, api):
+        resp = api.get('/collections/FOOBOO').assert_error(404, "CollectionNotFound")
+        assert "Cache-Control" not in resp.headers
 
 
 class TestBatchJobs:
