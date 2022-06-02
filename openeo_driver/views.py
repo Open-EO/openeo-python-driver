@@ -625,17 +625,15 @@ def register_views_processing(
 
     @api_endpoint
     @blueprint.route('/processes', methods=['GET'])
-    # @backend_implementation.cache_control  # TODO: view uses request.args
+    @backend_implementation.cache_control
     def processes():
-        # TODO: this `qname` feature is non-standard. Is this necessary for some reason?
-        substring = request.args.get('qname')
         process_registry = backend_implementation.processing.get_process_registry(api_version=requested_api_version())
-        processes = process_registry.get_specs(substring)
+        processes = process_registry.get_specs()
         return jsonify({'processes': processes, 'links': []})
 
     @api_endpoint
     @blueprint.route('/processes/<namespace>', methods=['GET'])
-    # @backend_implementation.cache_control  # TODO: view uses request.args
+    @backend_implementation.cache_control
     def processes_from_namespace(namespace):
         # TODO: this endpoint is in draft at the moment
         #       see https://github.com/Open-EO/openeo-api/issues/310, https://github.com/Open-EO/openeo-api/pull/348
