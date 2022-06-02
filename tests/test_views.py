@@ -78,6 +78,7 @@ class TestGeneral:
             "1.0.0": {'api_version': '1.0.0', 'production': True, 'url': 'http://oeo.net/openeo/1.0/'},
             "1.1.0": {'api_version': '1.1.0', 'production': True, 'url': 'http://oeo.net/openeo/1.1/'},
         }
+        assert resp.headers["Cache-Control"] == "max-age=900, public"
 
     def test_versioned_well_known_openeo(self, api):
         api.get('/.well-known/openeo').assert_error(404, "NotFound")

@@ -160,6 +160,7 @@ def build_app(
 
     # Note: /.well-known/openeo should be available directly under domain, without version prefix.
     @app.route('/.well-known/openeo', methods=['GET'])
+    @backend_implementation.cache_control
     def well_known_openeo():
         return jsonify({
             'versions': [
