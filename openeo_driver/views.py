@@ -423,7 +423,7 @@ def register_views_general(
 
     @blueprint.route('/health')
     def health():
-        response = backend_implementation.health_check()
+        response = backend_implementation.health_check(options=request.args)
         if isinstance(response, str):
             # Legacy style
             response = jsonify({"health": response})

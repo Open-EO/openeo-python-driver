@@ -581,7 +581,7 @@ class OpenEoBackendImplementation:
             max_age=timedelta(minutes=15), public=True,
         )
 
-    def health_check(self) -> Union[str, dict, flask.Response]:
+    def health_check(self, options: Optional[dict] = None) -> Union[str, dict, flask.Response]:
         return "OK"
 
     def oidc_providers(self) -> List[OidcProvider]:

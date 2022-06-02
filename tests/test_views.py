@@ -91,7 +91,7 @@ class TestGeneral:
         for url in [v["url"] for v in resp.json["versions"]]:
             assert url.startswith(expected)
 
-    @pytest.mark.parametrize(["url","expected_version"], [
+    @pytest.mark.parametrize(["url", "expected_version"], [
         ("/openeo/0.4/", "0.4.2"),
         ("/openeo/1.0/", "1.0.0"),
         ("/openeo/1.0.0/", "1.0.0"),
@@ -366,7 +366,7 @@ class TestGeneral:
             ),
         ]
 
-    def test_health_legacy(self, api):
+    def test_health_basic(self, api):
         resp = api.get('/health').assert_status_code(200).json
         assert resp == {"health": "OK"}
 
@@ -382,6 +382,21 @@ class TestGeneral:
                 '{"code": "meh"}', 500, {"Content-type": "application/json"}
             ))
             api.get('/health').assert_error(500, "meh")
+
+    def test_health_dynamic(self, api, backend_implementation):
+        def health(options: Optional[dict] = None):
+            return {
+                "status": "OK",
+                "color": (options or {}).get("color", "green"),
+            }
+
+        with mock.patch.object(backend_implementation, "health_check", new=health):
+            resp = api.get('/health').assert_status_code(200).json
+            assert resp == {"status": "OK", "color": "green"}
+            resp = api.get('/health?color=blue').assert_status_code(200).json
+            assert resp == {"status": "OK", "color": "blue"}
+            resp = api.get('/health?shape=square&color=red').assert_status_code(200).json
+            assert resp == {"status": "OK", "color": "red"}
 
     def test_credentials_oidc_040(self, api040):
         resp = api040.get('/credentials/oidc').assert_status_code(303)
