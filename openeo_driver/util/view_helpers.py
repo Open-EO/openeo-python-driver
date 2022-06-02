@@ -30,7 +30,7 @@ def cache_control(
         if 200 <= response.status_code < 300:
             for key, value in settings.items():
                 setattr(response.cache_control, key, value)
-            if settings.get("max_age"):
+            if max_age is not None:
                 response.expires = _utcnow() + datetime.timedelta(seconds=max_age)
         return response
 
