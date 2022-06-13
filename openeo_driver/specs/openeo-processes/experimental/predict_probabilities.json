@@ -1,0 +1,45 @@
+{
+    "id": "predict_probabilities",
+    "summary": "Predict class probabilities from a machine learning model",
+    "description": "Applies a machine learning model to an array and predicts a probability for each class.",
+    "categories": [
+        "machine learning",
+        "reducer"
+    ],
+    "experimental": true,
+    "parameters": [
+        {
+            "name": "data",
+            "description": "An array of numbers.",
+            "schema": {
+                "type": "array",
+                "items": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "model",
+            "description": "A model object that can be trained with the processes ``fit_regr_<model_name>()`` (regression) and ``fit_class_<model_name>()`` (classification).",
+            "schema": {
+                "type": "object",
+                "subtype": "ml-model"
+            }
+        }
+    ],
+    "returns": {
+        "description": "A probability for each class",
+        "schema": {
+            "type": "array",
+            "items": {
+                "type": [
+                    "number",
+                    "null"
+                ]
+            }
+        }
+    }
+}
