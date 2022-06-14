@@ -1,18 +1,22 @@
+import json
+import logging
+import os
 import tempfile
+from datetime import datetime, timedelta
+from typing import Iterable, List, Dict
+from urllib.parse import urlparse
 
 import fiona
 import geopandas as gpd
 import pyproj
+import requests
 from shapely.geometry import shape
 from shapely.geometry.base import BaseGeometry
-from urllib.parse import urlparse
-import requests
-from datetime import datetime, timedelta
-import os
-import json
-from typing import Iterable, List, Dict
 
+from openeo_driver.errors import OpenEOApiException
 from openeo_driver.utils import reproject_bounding_box
+
+_log = logging.getLogger(__name__)
 
 
 class DelayedVector:
@@ -43,6 +47,23 @@ class DelayedVector:
     def __eq__(self, other):
         return isinstance(other, type(self)) and self.path == other.path
 
+    def _load_geojson_url(self, url: str) -> dict:
+        _log.info(f"Loading GeoJSON from {url!r}")
+        resp = requests.get(url)
+        content_type = resp.headers.get("content-type")
+        content_length = resp.headers.get("content-length")
+        _log.info(
+            f"GeoJSON response: status:{resp.status_code!r}"
+            f" content-type:{content_type!r} content-length:{content_length!r}"
+        )
+        resp.raise_for_status()
+        try:
+            return resp.json()
+        except json.JSONDecodeError as e:
+            message = f"Failed to parse GeoJSON from URL {url!r} (content-type={content_type!r}, content-length={content_length!r}): {e!r}"
+            # TODO: use generic client error? https://github.com/Open-EO/openeo-api/issues/456
+            raise OpenEOApiException(status_code=400, message=message)
+
     @property
     def crs(self) -> pyproj.CRS:
         if self._crs is None:
@@ -51,7 +72,7 @@ class DelayedVector:
                     local_shp_file = self._download_shapefile(self.path)
                     self._crs = DelayedVector._read_shapefile_crs(local_shp_file)
                 else:  # it's GeoJSON
-                    geojson = requests.get(self.path).json()
+                    geojson = self._load_geojson_url(url=self.path)
                     # FIXME: can be cached
                     self._crs = DelayedVector._read_geojson_crs(geojson)
             else:  # it's a file on disk
@@ -70,7 +91,7 @@ class DelayedVector:
                 local_shp_file = self._download_shapefile(self.path)
                 geometries = DelayedVector._read_shapefile_geometries(local_shp_file)
             else:  # it's GeoJSON
-                geojson = requests.get(self.path).json()
+                geojson = self._load_geojson_url(url=self.path)
                 geometries = DelayedVector._read_geojson_geometries(geojson)
         else:  # it's a file on disk
             if self.path.endswith(".shp"):
@@ -111,7 +132,7 @@ class DelayedVector:
                 local_shp_file = self._download_shapefile(self.path)
                 bounds = DelayedVector._read_shapefile_bounds(local_shp_file)
             else:  # it's GeoJSON
-                geojson = requests.get(self.path).json()
+                geojson = self._load_geojson_url(url=self.path)
                 # FIXME: can be cached
                 bounds = DelayedVector._read_geojson_bounds(geojson)
         else:  # it's a file on disk
