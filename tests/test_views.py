@@ -61,6 +61,18 @@ def api_from_backend_implementation(
     return api
 
 
+def mock_uuid4(value: str = "abc123"):
+    class UUIDMock():
+        def __str__(self):
+            return value
+
+        @property
+        def hex(self):
+            return value
+
+    return mock.patch("uuid.uuid4", new=UUIDMock)
+
+
 class TestGeneral:
     """
     General tests (capabilities, collections, processes)
@@ -296,12 +308,12 @@ class TestGeneral:
 
     def test_error_handling_generic(self, api, caplog):
         caplog.set_level(logging.WARNING)
-        with mock.patch("uuid.uuid4", return_value="t3st"):
+        with mock_uuid4(value="t3st"):
             resp = api.get("/_debug/error")
         assert (resp.status_code, resp.json) == (500, {
             "code": "Internal",
             "message": "Server error: Exception('Computer says no.')",
-            "id": "t3st",
+            "id": "r-t3st",
         })
         assert caplog.record_tuples == [
             (
@@ -313,12 +325,12 @@ class TestGeneral:
 
     def test_error_handling_not_implemented_error(self, api, caplog):
         caplog.set_level(logging.WARNING)
-        with mock.patch("uuid.uuid4", return_value="t3st"):
+        with mock_uuid4(value="t3st"):
             resp = api.get("/_debug/error/basic/NotImplementedError")
         assert (resp.status_code, resp.json) == (500, {
             "code": "Internal",
             "message": "Server error: NotImplementedError()",
-            "id": "t3st",
+            "id": "r-t3st",
         })
         assert caplog.record_tuples == [
             (
@@ -330,12 +342,12 @@ class TestGeneral:
 
     def test_error_handling_error_summary(self, api, caplog):
         caplog.set_level(logging.WARNING)
-        with mock.patch("uuid.uuid4", return_value="t3st"):
+        with mock_uuid4(value="t3st"):
             resp = api.get("/_debug/error/basic/ErrorSummary")
         assert (resp.status_code, resp.json) == (500, {
             "code": "Internal",
             "message": "Server error: No negatives please.",
-            "id": "t3st",
+            "id": "r-t3st",
         })
         assert caplog.record_tuples == [
             (
@@ -355,15 +367,15 @@ class TestGeneral:
     ])
     def test_error_handling_api_error(self, api, caplog, url, error_status, error_code, error_message):
         caplog.set_level(logging.WARNING)
-        with mock.patch("uuid.uuid4", return_value="t3st"):
+        with mock_uuid4(value="t3st"):
             resp = api.get(url)
         assert resp.status_code == error_status
-        assert resp.json == {"code": error_code, "message": error_message, "id": "t3st"}
+        assert resp.json == {"code": error_code, "message": error_message, "id": "r-t3st"}
         assert caplog.record_tuples == [
             (
                 "openeo_driver.views.error",
                 logging.ERROR,
-                f"OpenEOApiException(status_code={error_status}, code={error_code!r}, message={error_message!r}, id='t3st')",
+                f"OpenEOApiException(status_code={error_status}, code={error_code!r}, message={error_message!r}, id='r-t3st')",
             ),
         ]
 

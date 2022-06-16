@@ -6,7 +6,6 @@ import contextlib
 import json
 import re
 import urllib.request
-import uuid
 from pathlib import Path
 from typing import Union, Callable, Pattern, Dict, Tuple
 from unittest import mock
@@ -17,6 +16,7 @@ from werkzeug.datastructures import Headers
 
 from openeo.capabilities import ComparableVersion
 from openeo_driver.users.auth import HttpAuthHandler
+from openeo_driver.utils import generate_uuid
 
 TEST_USER = "Mr.Test"
 TEST_USER_BEARER_TOKEN = "basic//" + HttpAuthHandler.build_basic_access_token(user_id=TEST_USER)
@@ -349,7 +349,7 @@ class ListSubSet:
 def generate_unique_test_process_id():
     # Because the process registries are global variables we can not mock easily
     # we'll add new test processes with a (random) unique name.
-    return "_test_process_{u}".format(u=uuid.uuid4())
+    return generate_uuid(prefix="_test_process")
 
 
 def build_basic_http_auth_header(username: str, password: str) -> str:

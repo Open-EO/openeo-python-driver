@@ -1,3 +1,4 @@
+import re
 import typing
 
 import pytest
@@ -6,7 +7,7 @@ import shapely.geometry
 from openeo_driver.testing import RegexMatcher
 from openeo_driver.utils import smart_bool, EvalEnv, to_hashable, bands_union, temporal_extent_union, \
     spatial_extent_union, dict_item, reproject_bounding_box, geojson_to_multipolygon, \
-    extract_namedtuple_fields_from_dict, get_package_versions, TtlCache
+    extract_namedtuple_fields_from_dict, get_package_versions, TtlCache, generate_uuid
 
 
 def test_smart_bool():
@@ -406,3 +407,7 @@ class TestTtlCache:
         assert not cache.contains("foo")
         assert cache.get("foo") is None
 
+
+def test_generate_uuid():
+    assert re.match("^[0-9a-f]{32}$", generate_uuid())
+    assert re.match("^j-[0-9a-f]{32}$", generate_uuid("j"))

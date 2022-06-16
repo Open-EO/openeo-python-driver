@@ -1,11 +1,9 @@
 import copy
-import datetime
 import functools
 import json
 import logging
 import pathlib
 import re
-import uuid
 from collections import namedtuple, defaultdict
 from typing import Callable, Tuple, List, Optional
 
@@ -19,7 +17,6 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from openeo.capabilities import ComparableVersion
 from openeo.util import dict_no_none, deep_get, Rfc3339
-
 from openeo_driver import urlsigning
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
     ErrorSummary, OpenEoBackendImplementation, BatchJobs, is_not_implemented
@@ -31,8 +28,7 @@ from openeo_driver.save_result import SaveResult, to_save_result
 from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.util.logging import FlaskRequestCorrelationIdLogging
-from openeo_driver.util.view_helpers import cache_control
-from openeo_driver.utils import EvalEnv, smart_bool
+from openeo_driver.utils import EvalEnv, smart_bool, generate_uuid
 
 _log = logging.getLogger(__name__)
 
@@ -600,7 +596,7 @@ def register_views_processing(
             'pyramid_levels': 'highest',
             'user': user,
             'require_bounds': True,
-            'correlation_id': str(uuid.uuid4()),
+            'correlation_id': generate_uuid(prefix="c"),
         })
         result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)
         _log.info(f"`POST /result`: {type(result)}")

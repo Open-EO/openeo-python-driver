@@ -6,14 +6,15 @@ import importlib.metadata
 import json
 import time
 import typing
+import uuid
 from math import isnan
 from pathlib import Path
-from typing import Union, List, Tuple, Any
+from typing import Union, List, Tuple, Any, Optional
 
 import pyproj
 import shapely.geometry
-from shapely.geometry.base import CAP_STYLE
 import shapely.ops
+from shapely.geometry.base import CAP_STYLE
 
 from openeo.util import rfc3339
 
@@ -415,3 +416,14 @@ def buffer_point_approx(point: shapely.geometry.Point, point_crs: str, buffer_di
     buffer_distance = right - left
 
     return point.buffer(buffer_distance, cap_style=CAP_STYLE.square)
+
+
+def generate_uuid(prefix: Optional[str] = None) -> str:
+    """
+    Generate a random, unique identifier, to be used as job id, request id
+    correlation id, error id, ...
+    """
+    id = uuid.uuid4().hex
+    if prefix:
+        id = f"{prefix}-{id}"
+    return id

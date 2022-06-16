@@ -3,11 +3,12 @@ import logging.config
 import sys
 import threading
 import time
-import uuid
 from typing import List, Dict, Optional, Union
 
 import flask
 import pythonjsonlogger.jsonlogger
+
+from openeo_driver.utils import generate_uuid
 
 _log = logging.getLogger(__name__)
 
@@ -188,7 +189,7 @@ class FlaskRequestCorrelationIdLogging(logging.Filter):
     def _build_request_id(cls) -> str:
         """Generate/extract request correlation id."""
         # TODO: get correlation id "from upstream/context" (e.g. nginx headers)
-        return str(uuid.uuid4())
+        return generate_uuid(prefix="r")
 
     @classmethod
     def before_request(cls):
