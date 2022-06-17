@@ -4,6 +4,7 @@ Small general utilities and helper functions
 import datetime
 import importlib.metadata
 import json
+import logging
 import time
 import typing
 import uuid
@@ -18,6 +19,7 @@ from shapely.geometry.base import CAP_STYLE
 
 from openeo.util import rfc3339
 
+_log = logging.getLogger(__name__)
 
 class EvalEnv:
     """
@@ -137,7 +139,12 @@ def geojson_to_geometry(geojson: dict) -> shapely.geometry.base.BaseGeometry:
         }
     elif geojson["type"] == "Feature":
         geojson = geojson["geometry"]
-    return shapely.geometry.shape(geojson)
+    try:
+        return shapely.geometry.shape(geojson)
+    except Exception as e:
+        _log.error(e,exc_info=True)
+        _log.error(f"Invalid geojson: {json.dumps(geojson)}")
+        raise ValueError(f"Invalid geojson object, the shapely library generated this error: {str(e)}. When trying to parse your geojson.")
 
 
 def geojson_to_multipolygon(
