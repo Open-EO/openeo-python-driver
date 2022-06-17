@@ -106,5 +106,5 @@ def test_aggregate_polygon_result_inconsistent_bands(tmp_path):
     result = AggregatePolygonResult(timeseries, regions=regions)
     result.set_format("netcdf")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(Exception):
         filename = result.to_netcdf(tmp_path / 'timeseries_xarray_invalid.nc')
