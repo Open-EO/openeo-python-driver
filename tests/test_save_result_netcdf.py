@@ -10,8 +10,8 @@ from openeo.metadata import CollectionMetadata
 
 def test_aggregate_polygon_result_basic(tmp_path):
     timeseries = {
-        "2019-11-11T01:11:11Z": [[7, 8, 9], [10, 11, 12]],
-        "2019-10-15T08:15:45Z": [[1, 2, 3], [4, 5, 6]],
+        "2019-11-11T01:11:11Z": [[], [10, 11, 12]],
+        "2019-10-15T08:15:45Z": [[1, 2, 3], [4, np.nan, 6]],
     }
     regions = GeometryCollection([
         Polygon([(0, 0), (5, 1), (1, 4)]),
@@ -37,11 +37,11 @@ def test_aggregate_polygon_result_basic(tmp_path):
 
     timeseries_ds = xr.open_dataset(filename)
     print(timeseries_ds)
-    assert_array_equal(timeseries_ds.band_0.coords['t'].data, np.asarray([ np.datetime64('2019-10-15T08:15:45'),np.datetime64('2019-11-11T01:11:11')]))
-    timeseries_ds.band_0.sel(feature=1)
-    timeseries_ds.band_0.sel( t='2019-10-16')
+    assert_array_equal(timeseries_ds.red.coords['t'].data, np.asarray([ np.datetime64('2019-10-15T08:15:45'),np.datetime64('2019-11-11T01:11:11')]))
+    timeseries_ds.red.sel(feature=1)
+    timeseries_ds.red.sel( t='2019-10-16')
     print(timeseries_ds)
-    assert_array_equal( 4, timeseries_ds.band_0.sel(feature=1).sel( t="2019-10-15T08:15:45Z").data)
+    assert_array_equal( 4, timeseries_ds.red.sel(feature=1).sel( t="2019-10-15T08:15:45Z").data)
 
 
 def test_aggregate_polygon_result_nan_values(tmp_path):

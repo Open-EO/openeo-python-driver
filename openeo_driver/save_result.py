@@ -264,11 +264,17 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         import pandas as pd
 
         #xarray breaks with timezone aware dates: https://github.com/pydata/xarray/issues/1490
+        band_names = [f"band_{band}" for band in range(averages_by_feature.shape[2])] if len(averages_by_feature.shape) > 2 else ["band_0"]
+
+        if self._metadata is not None and self._metadata.has_band_dimension():
+            band_names = self._metadata.band_names
+
         time_index = pd.to_datetime(timestamps,utc=False).tz_convert(None)
         if len(averages_by_feature.shape) == 3:
             array_definition = {'t': time_index}
             for band in range(averages_by_feature.shape[2]):
-                array_definition['band_%s'%str(band)] =  (('feature', 't'), averages_by_feature[:, :, band])
+                data = averages_by_feature[:, :, band]
+                array_definition[band_names[band]] =  (('feature', 't'), data)
             the_array = xr.Dataset(array_definition)
         else:
             the_array = xr.Dataset({
@@ -297,8 +303,13 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         lons = [p.x for p in points]
         feature_ids = ['feature_%s'% str(i) for i in range(len(self._regions))]
 
+        if self._metadata is not None and self._metadata.has_band_dimension():
+            bandcount = len(self._metadata.bands)
+        else:
+            bandcount = 2
+        fill_value = np.full((bandcount),fill_value=np.nan)
         values = self.data.values()
-        cleaned_values = [[bands if len(bands)>0 else [np.nan,np.nan] for bands in feature_bands ] for feature_bands in values]
+        cleaned_values =  [[bands if len(bands)>0 else fill_value for bands in feature_bands ] for feature_bands in values]
         time_feature_bands_array = np.array(list(cleaned_values))
         #time_feature_bands_array[time_feature_bands_array == []] = [np.nan, np.nan]
         assert len(feature_ids) == time_feature_bands_array.shape[1]
