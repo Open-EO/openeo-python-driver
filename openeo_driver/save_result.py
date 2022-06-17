@@ -312,7 +312,12 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
             filename = get_temp_file(suffix=".netcdf")
         else:
             filename = destination
-        array.to_netcdf(filename,encoding=encoding)
+        try:
+            array.to_netcdf(filename,encoding=encoding)
+        except Exception as e:
+            _log.error(e,exc_info=True)
+            _log.error(f"Writing failed for this array: {str(array)}")
+            raise OpenEOApiException(f"Failed to write aggregated timeseries to netCDF file at {destination} due to {str(e)}. Check the logging for more info.")
         return filename
 
     def to_csv(self, destination=None):
