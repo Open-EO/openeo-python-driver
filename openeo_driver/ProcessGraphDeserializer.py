@@ -529,20 +529,39 @@ def vector_buffer(args: Dict, env: EvalEnv) -> dict:
     geometry = extract_arg(args, 'geometry')
     distance = extract_arg(args, 'distance')
     unit = extract_arg(args, 'unit')
-    input_crs = 'epsg:4326'
+    input_crs = output_crs = 'epsg:4326'
     buffer_resolution = 3
 
     # TODO #114 EP-3981 convert `geometry` to vector cube and move buffer logic to there
     if isinstance(geometry, str):
+        df = gpd.read_file(geometry)
         # TODO: assumption here that `geometry` is a path/url
         geoms = list(DelayedVector(geometry).geometries)
-    elif isinstance(geometry, dict):
-        if geometry["type"] == "FeatureCollection":
+    elif isinstance(geometry, dict) and "type" in geometry:
+        geometry_type = geometry["type"]
+        if geometry_type == "FeatureCollection":
             geoms = [shape(feat["geometry"]) for feat in geometry["features"]]
-        elif geometry["type"] == "GeometryCollection":
+        elif geometry_type == "GeometryCollection":
             geoms = [shape(geom) for geom in geometry["geometries"]]
-        else:
+        elif geometry_type in {"Polygon", "MultiPolygon", "Point", "MultiPoint", "LineString"}:
             geoms = [shape(geometry)]
+        else:
+            raise ProcessParameterInvalidException(
+                parameter="geometry", process="vector_buffer", reason=f"Invalid geometry type {geometry_type}."
+            )
+
+        if "crs" in geometry:
+            _log.warning("Handling GeoJSON dict with (non-standard) crs field")
+            try:
+                crs_name = geometry["crs"]["properties"]["name"]
+                assert crs_name.startswith("urn:ogc:def:crs:EPSG")
+                epsg_code = int(crs_name.split(":")[-1])
+                input_crs = f"epsg:{epsg_code}"
+            except Exception:
+                _log.error("Failed to parse input geometry CRS", exc_info=True)
+                raise ProcessParameterInvalidException(
+                    parameter="geometry", process="vector_buffer", reason=f"Failed to parse input geometry CRS."
+                )
     else:
         raise ProcessParameterInvalidException(
             parameter="geometry", process="vector_buffer", reason="The input geometry cannot be parsed"
@@ -559,7 +578,7 @@ def vector_buffer(args: Dict, env: EvalEnv) -> dict:
 
     epsg_utmzone = auto_utm_epsg_for_geometry(geoms.geometry[0])
 
-    poly_buff_latlon = geoms.to_crs(epsg_utmzone).buffer(distance, resolution=buffer_resolution).to_crs(input_crs)
+    poly_buff_latlon = geoms.to_crs(epsg_utmzone).buffer(distance, resolution=buffer_resolution).to_crs(output_crs)
     return mapping(poly_buff_latlon[0]) if len(poly_buff_latlon) == 1 else mapping(poly_buff_latlon)
 
 

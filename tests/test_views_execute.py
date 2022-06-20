@@ -2561,6 +2561,26 @@ def test_vector_buffer(api100, buf, unit, repr_geom, expected_type, bounds):
     assert res_gs.total_bounds == pytest.approx(bounds, 0.001)
 
 
+@pytest.mark.parametrize(["distance", "unit", "expected"], [
+    (-10, "meter", [5.5972, 50.8468, 5.6046, 50.8524]),
+    (+10, "meter", [5.5970, 50.8467, 5.6049, 50.8526]),
+    (1, "kilometer", [5.5860, 50.8395, 5.6163, 50.8596]),
+])
+def test_vector_buffer_non_epsg4326(api100, distance, unit, expected):
+    geometry = load_json("geojson/FeatureCollection03.json")
+    pg = {
+        "vectorbuffer1": {
+            "process_id": "vector_buffer",
+            "arguments": {"geometry": geometry, "distance": distance, "unit": unit},
+            "result": True,
+        }
+    }
+    res = api100.result(pg).assert_status_code(200).json
+    assert res["type"] == "FeatureCollection"
+    res_gs = gpd.GeoSeries([shapely.geometry.shape(feat["geometry"]) for feat in res["features"]])
+    assert res_gs.total_bounds == pytest.approx(expected, 0.0001)
+
+
 def test_load_result(api100):
     api100.check_result("load_result.json")
     params = dummy_backend.last_load_collection_call("99a605a0-1a10-4ba9-abc1-6898544e25fc")
