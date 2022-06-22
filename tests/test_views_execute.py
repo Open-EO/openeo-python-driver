@@ -68,8 +68,8 @@ def test_udf_runtimes(api):
             "type": "language",
             "default": "3",
             "versions": DictSubSet({
-                "3": {"libraries": DictSubSet({"numpy": {"version": RegexMatcher("\d+\.\d+\.\d+")}})},
-                CURRENT_PY3x: {"libraries": DictSubSet({"numpy": {"version": RegexMatcher("\d+\.\d+\.\d+")}})},
+                "3": {"libraries": DictSubSet({"numpy": {"version": RegexMatcher(r"\d+\.\d+\.\d+")}})},
+                CURRENT_PY3x: {"libraries": DictSubSet({"numpy": {"version": RegexMatcher(r"\d+\.\d+\.\d+")}})},
             })
         })
     })

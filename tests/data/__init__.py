@@ -1,5 +1,5 @@
 import json
-from collections import Callable
+from typing import Callable
 
 from pathlib import Path
 
