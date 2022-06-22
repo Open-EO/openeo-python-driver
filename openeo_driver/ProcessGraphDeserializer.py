@@ -15,6 +15,7 @@ from typing import Dict, Callable, List, Union, Tuple, Any, Iterable
 import geopandas as gpd
 import numpy as np
 import openeo_processes
+import pyproj
 import requests
 from dateutil.relativedelta import relativedelta
 from requests.structures import CaseInsensitiveDict
@@ -554,11 +555,9 @@ def vector_buffer(args: Dict, env: EvalEnv) -> dict:
             _log.warning("Handling GeoJSON dict with (non-standard) crs field")
             try:
                 crs_name = geometry["crs"]["properties"]["name"]
-                assert crs_name.startswith("urn:ogc:def:crs:EPSG")
-                epsg_code = int(crs_name.split(":")[-1])
-                input_crs = f"epsg:{epsg_code}"
+                input_crs = pyproj.crs.CRS.from_string(crs_name)
             except Exception:
-                _log.error("Failed to parse input geometry CRS", exc_info=True)
+                _log.error(f"Failed to parse input geometry CRS {crs_name!r}", exc_info=True)
                 raise ProcessParameterInvalidException(
                     parameter="geometry", process="vector_buffer", reason=f"Failed to parse input geometry CRS."
                 )
