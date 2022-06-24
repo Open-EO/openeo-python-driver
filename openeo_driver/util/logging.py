@@ -228,7 +228,7 @@ class FlaskUserIdLogging(logging.Filter):
     @classmethod
     def set_user_id(cls, user_id: str):
         """Store user id in Flask request global `g`."""
-        _log.debug(f"{cls} storing user id {user_id} on {flask.g}")
+        _log.debug(f"{cls} storing user id {user_id!r} on {flask.g}")
         setattr(flask.g, cls.FLASK_G_ATTR, user_id)
 
     @classmethod

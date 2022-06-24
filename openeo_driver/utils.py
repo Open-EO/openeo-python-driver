@@ -364,7 +364,7 @@ def extract_namedtuple_fields_from_dict(
 
 
 def get_package_versions(packages: List[str], na_value="n/a") -> dict:
-    """Get (installed) version number of each package (where possible)."""
+    """Get (installed) version number of each Python package (where possible)."""
     version_info = {}
     for package in packages:
         try:
