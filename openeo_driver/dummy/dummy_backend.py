@@ -634,7 +634,7 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
             ),
             OidcProvider(
                 id="egi-dev",
-                issuer="https://aai-dev.egi.eu/oidc/",
+                issuer="https://aai-dev.egi.eu/auth/realms/egi",
                 scopes=[
                     "openid", "email",
                     "eduperson_entitlement",
