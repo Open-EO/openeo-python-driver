@@ -1840,7 +1840,7 @@ def test_execute_no_cube_1_plus_2(api100):
     ({"e1": {"process_id": "e", "arguments": {}, "result": True}}, math.e),
 ])
 def test_execute_no_cube_just_math(api100, process_graph, expected):
-    assert api100.result(process_graph).assert_status_code(200).json == expected
+    assert api100.result(process_graph).assert_status_code(200).json == pytest.approx(expected,0.0001)
 
 
 @pytest.mark.parametrize(["process_graph", "expected"], [
