@@ -10,6 +10,7 @@ Also see https://github.com/Open-EO/openeo-python-driver/issues/8
 """
 
 import abc
+import json
 import logging
 import sys
 from datetime import datetime, timedelta
@@ -163,7 +164,7 @@ class LoadParameters(dict):
         return LoadParameters(super().copy())
 
     def __hash__(self) -> int:
-        return hash(frozenset(self.items()))
+        return hash(json.dumps(self, sort_keys=True))
 
 
 
