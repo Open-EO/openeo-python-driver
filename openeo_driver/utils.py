@@ -86,6 +86,9 @@ class EvalEnv:
     def __str__(self):
         return str(self.as_dict())
 
+    def __hash__(self) -> int:
+        return hash(json.dumps(self.as_dict(), sort_keys=True))
+
     @property
     def backend_implementation(self) -> 'OpenEoBackendImplementation':
         return self["backend_implementation"]
@@ -417,6 +420,7 @@ def buffer_point_approx(point: shapely.geometry.Point, point_crs: str, buffer_di
             always_xy=True
         )
 
+    #this is too approximate in a lot of cases, better to use utm zones?
     left, _ = reproject_point(0.0, 0.0)
     right, _ = reproject_point(buffer_distance_in_meters, 0.0)
 

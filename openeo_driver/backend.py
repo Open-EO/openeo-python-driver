@@ -162,6 +162,10 @@ class LoadParameters(dict):
     def copy(self) -> "LoadParameters":
         return LoadParameters(super().copy())
 
+    def __hash__(self) -> int:
+        return hash(frozenset(self.items()))
+
+
 
 class AbstractCollectionCatalog(MicroService, metaclass=abc.ABCMeta):
 
