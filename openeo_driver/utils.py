@@ -8,6 +8,7 @@ import logging
 import time
 import typing
 import uuid
+from enum import Enum
 from json import JSONEncoder
 from math import isnan
 from pathlib import Path
@@ -25,6 +26,9 @@ _log = logging.getLogger(__name__)
 
 
 class EvalEnvEncoder(JSONEncoder):
+    """
+    A custom json encoder in support of the __hash__ function. Does not aim to provide a completely representative json encoding.
+    """
     def default(self, o):
         try:
             iterable = iter(o)
@@ -45,6 +49,8 @@ class EvalEnvEncoder(JSONEncoder):
         if isinstance(o,User):
             return o.user_id
 
+        if isinstance(o, Enum):
+            return o.value
 
             # Let the base class default method raise the TypeError
         return JSONEncoder.default(self, o)
