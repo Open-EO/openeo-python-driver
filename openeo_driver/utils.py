@@ -8,6 +8,7 @@ import logging
 import time
 import typing
 import uuid
+from json import JSONEncoder
 from math import isnan
 from pathlib import Path
 from typing import Union, List, Tuple, Any, Optional
@@ -15,11 +16,35 @@ from typing import Union, List, Tuple, Any, Optional
 import pyproj
 import shapely.geometry
 import shapely.ops
-from shapely.geometry.base import CAP_STYLE
+from shapely.geometry import mapping
+from shapely.geometry.base import CAP_STYLE, BaseGeometry
 
 from openeo.util import rfc3339
 
 _log = logging.getLogger(__name__)
+
+
+class EvalEnvEncoder(JSONEncoder):
+    def default(self, o):
+        try:
+            iterable = iter(o)
+        except TypeError:
+            pass
+        else:
+            return list(iterable)
+
+        if isinstance(o,BaseGeometry):
+            return mapping(o)
+
+        from openeo_driver.backend import OpenEoBackendImplementation
+        from openeo_driver.dry_run import DryRunDataTracer
+        if isinstance(o,OpenEoBackendImplementation) or isinstance(o,DryRunDataTracer):
+            return str(o.__class__.__name__)
+
+
+            # Let the base class default method raise the TypeError
+        return JSONEncoder.default(self, o)
+
 
 class EvalEnv:
     """
@@ -87,7 +112,7 @@ class EvalEnv:
         return str(self.as_dict())
 
     def __hash__(self) -> int:
-        return hash(json.dumps(self.as_dict(), sort_keys=True))
+        return hash(json.dumps(self.as_dict(), sort_keys=True, cls=EvalEnvEncoder))
 
     @property
     def backend_implementation(self) -> 'OpenEoBackendImplementation':
