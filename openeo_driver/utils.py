@@ -45,6 +45,10 @@ class EvalEnvEncoder(JSONEncoder):
         if isinstance(o,OpenEoBackendImplementation) or isinstance(o,DryRunDataTracer):
             return str(o.__class__.__name__)
 
+        from openeo_driver.datacube import DriverDataCube
+        if isinstance(o,DriverDataCube):
+            return str(o)
+
         from openeo_driver.users import User
         if isinstance(o,User):
             return o.user_id
