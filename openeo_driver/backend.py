@@ -30,7 +30,8 @@ from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupported
 from openeo_driver.processes import ProcessRegistry
 from openeo_driver.users import User
 from openeo_driver.users.oidc import OidcProvider
-from openeo_driver.utils import read_json, dict_item, EvalEnv, extract_namedtuple_fields_from_dict, get_package_versions
+from openeo_driver.utils import read_json, dict_item, EvalEnv, extract_namedtuple_fields_from_dict, \
+    get_package_versions, EvalEnvEncoder
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +165,7 @@ class LoadParameters(dict):
         return LoadParameters(super().copy())
 
     def __hash__(self) -> int:
-        return hash(json.dumps(self, sort_keys=True))
+        return hash(json.dumps(self, sort_keys=True,cls=EvalEnvEncoder))
 
 
 
