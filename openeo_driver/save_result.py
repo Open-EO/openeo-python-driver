@@ -303,12 +303,15 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         lons = [p.x for p in points]
         feature_ids = ['feature_%s'% str(i) for i in range(len(self._regions))]
 
+        values = self.data.values()
         if self._metadata is not None and self._metadata.has_band_dimension():
             bandcount = len(self._metadata.bands)
         else:
-            bandcount = 2
+            bandcount = max([max([len(bands)  for bands in feature_bands]) for feature_bands in values])
+            if bandcount == 0:
+                bandcount = 1
         fill_value = np.full((bandcount),fill_value=np.nan)
-        values = self.data.values()
+
         cleaned_values =  [[bands if len(bands)>0 else fill_value for bands in feature_bands ] for feature_bands in values]
         time_feature_bands_array = np.array(list(cleaned_values))
         #time_feature_bands_array[time_feature_bands_array == []] = [np.nan, np.nan]
@@ -450,16 +453,18 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
 
     def __init__(self, csv_dir, regions: GeometryCollection, metadata: CollectionMetadata = None):
 
-        def _flatten_df(df):
-            df.index = df.feature_index
-            df.sort_index(inplace=True)
-            return df.drop(columns="feature_index").values.tolist()
-
         paths = list(glob.glob(os.path.join(csv_dir, "*.csv")))
         _log.info(f"Parsing intermediate timeseries results: {paths}")
         if(len(paths)==0):
             raise OpenEOApiException(status_code=500, code="EmptyResult", message=f"aggregate_spatial did not generate any output, intermediate output path on the server: {csv_dir}")
         df = pd.concat(map(pd.read_csv, paths))
+        features = df.feature_index.unique()
+        features.sort()
+
+        def _flatten_df(df):
+            df=df.reindex(features)
+            return df.drop(columns="feature_index").values.tolist()
+
 
         super().__init__(timeseries={pd.to_datetime(date).tz_convert('UTC').strftime('%Y-%m-%dT%XZ'): _flatten_df(df[df.date == date].drop(columns="date")) for date in df.date.unique()},regions=regions,metadata=metadata)
         self._csv_dir = csv_dir
