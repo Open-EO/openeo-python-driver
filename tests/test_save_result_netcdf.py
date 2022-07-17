@@ -1,8 +1,10 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 import xarray as xr
-from numpy.testing import assert_array_equal
-from openeo_driver.save_result import AggregatePolygonResult
+from numpy.testing import assert_array_equal, assert_allclose
+from openeo_driver.save_result import AggregatePolygonResult, AggregatePolygonResultCSV
 from shapely.geometry import GeometryCollection, Polygon
 
 from openeo.metadata import CollectionMetadata
@@ -108,3 +110,37 @@ def test_aggregate_polygon_result_inconsistent_bands(tmp_path):
 
     with pytest.raises(Exception):
         filename = result.to_netcdf(tmp_path / 'timeseries_xarray_invalid.nc')
+
+
+def test_aggregate_polygon_result_CSV(tmp_path):
+
+    regions = GeometryCollection([
+        Polygon([(0, 0), (5, 1), (1, 4)]),
+        Polygon([(6, 1), (1, 7), (9, 9)])
+    ])
+
+    metadata = CollectionMetadata({
+        "cube:dimensions": {
+            "x": {"type": "spatial"},
+            "b": {"type": "bands", "values": ["red", "green","blue"]}
+        }
+    })
+
+    result = AggregatePolygonResultCSV(csv_dir=Path(__file__).parent / "data" /"aggregate_spatial_spacetime_cube", regions=regions, metadata=metadata)
+    result.set_format("netcdf")
+
+    assets = result.write_assets(tmp_path)
+    theAsset = assets.popitem()[1]
+    filename = theAsset['href']
+
+    assert 'application/x-netcdf' == theAsset['type']
+    assert ["red", "green", "blue"] == [b['name'] for b in theAsset['bands']]
+
+    timeseries_ds = xr.open_dataset(filename)
+    print(timeseries_ds)
+
+    assert_array_equal(timeseries_ds.red.coords['t'].data, np.asarray([ np.datetime64('2017-09-05T00:00:00'),np.datetime64('2017-09-06T00:00:00')]))
+
+    timeseries_ds.red.sel( t='2017-09-05')
+
+    assert_allclose( timeseries_ds.red.sel(feature=1).sel( t='2017-09-06').data,4645.719597)

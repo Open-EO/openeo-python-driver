@@ -462,6 +462,7 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
         features.sort()
 
         def _flatten_df(df):
+            df.index = df.feature_index
             df=df.reindex(features)
             return df.drop(columns="feature_index").values.tolist()
 
