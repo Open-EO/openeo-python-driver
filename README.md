@@ -25,14 +25,12 @@ It implements the general REST request handling of the openEO API and dispatches
         
             pip install -e .[dev] --extra-index-url https://artifactory.vgt.vito.be/api/pypi/python-openeo/simple
 
-## Running locally
+## Running local dummy service
 
-For development, you can run the service using Flask:
+For development, you can run a dummy service using Flask:
 
-    export FLASK_APP=openeo_driver.views
+    export FLASK_APP=openeo_driver.dummy.local_app
     export FLASK_DEBUG=1 
     flask run
 
-For production, a gunicorn server script is available:
-
-    python openeo_driver/server.py
+Now, visit http://127.0.0.1:5000/openeo/1.1.0/

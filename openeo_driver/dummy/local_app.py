@@ -14,6 +14,19 @@ from openeo_driver.views import build_app
 
 _log = logging.getLogger('openeo-dummy-local')
 
+
+def create_app():
+    # "create_app" factory for Flask Application discovery
+    # see https://flask.palletsprojects.com/en/2.1.x/cli/#application-discovery
+    app = build_app(backend_implementation=DummyBackendImplementation())
+    app.config.from_mapping(
+        OPENEO_TITLE="Local Dummy Backend",
+        OPENEO_DESCRIPTION="Local openEO API using dummy backend",
+        OPENEO_BACKEND_VERSION=openeo_driver.__version__,
+    )
+    return app
+
+
 if __name__ == '__main__':
     setup_logging(get_logging_config(
         # root_handlers=["stderr_json"],
@@ -28,12 +41,7 @@ if __name__ == '__main__':
     ))
     _log.info(repr({"pid": os.getpid(), "interpreter": sys.executable, "version": sys.version, "argv": sys.argv}))
 
-    app = build_app(backend_implementation=DummyBackendImplementation())
-    app.config.from_mapping(
-        OPENEO_TITLE="Local Dummy Backend",
-        OPENEO_DESCRIPTION="Local openEO API using dummy backend",
-        OPENEO_BACKEND_VERSION=openeo_driver.__version__,
-    )
+    app = create_app()
     show_log_level(app.logger)
 
     run_gunicorn(
