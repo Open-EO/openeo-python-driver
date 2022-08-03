@@ -56,6 +56,10 @@ class EvalEnvEncoder(JSONEncoder):
         if isinstance(o, Enum):
             return o.value
 
+        from openeo_driver.delayed_vector import DelayedVector
+        if isinstance(o, DelayedVector):
+            return o.path
+
             # Let the base class default method raise the TypeError
         return JSONEncoder.default(self, o)
 
