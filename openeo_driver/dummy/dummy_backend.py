@@ -610,7 +610,6 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
             OidcProvider(id="testprovider", issuer="https://oidc.test", scopes=["openid"], title="Test"),
             OidcProvider(
                 id="eoidc", issuer="https://eoidc.test", scopes=["openid"], title="e-OIDC",
-                default_client={"id": "badcafef00d"},
                 default_clients=[{
                     "id": "badcafef00d",
                     "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"]

@@ -10,7 +10,6 @@ class OidcProvider(NamedTuple):
     title: str
     scopes: List[str] = ["openid"]
     description: str = None
-    default_client: dict = None  # TODO: remove this legacy experimental field
     default_clients: List[dict] = None
 
     @classmethod
@@ -20,7 +19,7 @@ class OidcProvider(NamedTuple):
 
     def prepare_for_json(self) -> dict:
         d = self._asdict()
-        for omit_when_none in ["description", "default_client", "default_clients"]:
+        for omit_when_none in ["description", "default_clients"]:
             if d[omit_when_none] is None:
                 d.pop(omit_when_none)
         return d
