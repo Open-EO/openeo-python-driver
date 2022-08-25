@@ -633,7 +633,7 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
             ),
             # TODO: remove old EGI provider (issuer https://aai.egi.eu/oidc/)
             OidcProvider(
-                id="egi-old",
+                id="egi-legacy",
                 issuer="https://aai.egi.eu/oidc/",
                 scopes=[
                     "openid", "email",
