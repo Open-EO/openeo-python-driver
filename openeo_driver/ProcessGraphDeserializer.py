@@ -41,6 +41,7 @@ from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESP
 from openeo_driver.save_result import JSONResult, SaveResult, AggregatePolygonResult, NullResult, \
     to_save_result, AggregatePolygonSpatialResult, MlModelResult
 from openeo_driver.specs import SPECS_ROOT, read_spec
+from openeo_driver.util.date_math import month_shift
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
 from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union, geojson_to_multipolygon
 
@@ -942,10 +943,11 @@ def aggregate_temporal_period(args: dict, env: EvalEnv) -> DriverDataCube:
                                         context=context)
 
 
-def _period_to_intervals(start, end, period):
+def _period_to_intervals(start, end, period) -> List[Tuple[pd.Timestamp, pd.Timestamp]]:
     from datetime import datetime, timedelta
     start = pd.to_datetime(start)
     end = pd.to_datetime(end)
+
     # TODO: "hour" support?
     if "day" == period:
         offset = timedelta(days=1)
@@ -968,12 +970,18 @@ def _period_to_intervals(start, end, period):
         intervals = (first_dekad_month + second_dekad_month + third_dekad_month)
         intervals.sort(key=lambda t: t[0])
     elif "month" == period:
-        offset = timedelta(weeks=4)
-        start_dates = pd.date_range(start - offset, end, freq='MS', closed='left')
-        end_dates = pd.date_range(start_dates[0] + timedelta(weeks=3), end + offset, freq='MS', closed='left')
-        intervals = zip(start_dates, end_dates)
-    # TODO: "season" support
-    # TODO: "tropical-season" support
+        periods = pd.period_range(start, end, freq="M")
+        intervals = [(p.to_timestamp(), month_shift(p.to_timestamp(), months=1)) for p in periods]
+    elif "season" == period:
+        # Shift start to season start months (Mar=3, Jun=6, Sep=9, Dec=12)
+        season_start = month_shift(start, months=-(start.month % 3))
+        periods = pd.period_range(season_start, end, freq="3M")
+        intervals = [(p.to_timestamp(), month_shift(p.to_timestamp(), months=3)) for p in periods]
+    elif "tropical-season" == period:
+        # Shift start to season start months (May=5, Nov=11)
+        season_start = month_shift(start, months=-((start.month - 5) % 6))
+        periods = pd.period_range(season_start, end, freq="6M")
+        intervals = [(p.to_timestamp(), month_shift(p.to_timestamp(), months=6)) for p in periods]
     elif "year" == period:
         offset = timedelta(weeks=52)
         start_dates = pd.date_range(start - offset, end, freq='A-DEC', closed='left') + timedelta(days=1)
