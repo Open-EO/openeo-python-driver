@@ -1,12 +1,10 @@
 import inspect
-import typing
 import logging
 import zipfile
 from pathlib import Path
 from typing import List, Union, Optional, Dict, Any, Tuple, Sequence
 
 import geopandas as gpd
-import pandas as pd
 import shapely.geometry
 import shapely.geometry.base
 import shapely.ops

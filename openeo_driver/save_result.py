@@ -261,7 +261,6 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
 
     def create_point_timeseries_xarray(self, feature_ids, timestamps,lats,lons,averages_by_feature):
         import xarray as xr
-        import pandas as pd
 
         #xarray breaks with timezone aware dates: https://github.com/pydata/xarray/issues/1490
         band_names = [f"band_{band}" for band in range(averages_by_feature.shape[2])] if len(averages_by_feature.shape) > 2 else ["band_0"]

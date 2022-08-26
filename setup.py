@@ -45,6 +45,7 @@ setup(
         'gunicorn>=20.0.1',
         'numpy==1.22.4',#fixed version, align with tensorflow!
         'shapely',
+        'pandas',
         'geopandas~=0.7.0',
         'xarray~=0.16.2',
         'netCDF4~=1.5.4',

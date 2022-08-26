@@ -12,6 +12,7 @@ import warnings
 from pathlib import Path
 from typing import Dict, Callable, List, Union, Tuple, Any, Iterable
 
+import pandas as pd
 import geopandas as gpd
 import numpy as np
 import openeo_processes
@@ -943,7 +944,6 @@ def aggregate_temporal_period(args: dict, env: EvalEnv) -> DriverDataCube:
 
 def _period_to_intervals(start, end, period):
     from datetime import datetime, timedelta
-    import pandas as pd
     start = pd.to_datetime(start)
     end = pd.to_datetime(end)
     # TODO: "hour" support?
