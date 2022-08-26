@@ -946,43 +946,45 @@ def _period_to_intervals(start, end, period):
     import pandas as pd
     start = pd.to_datetime(start)
     end = pd.to_datetime(end)
-    intervals = []
-    if "week" == period:
-        offset = timedelta(weeks=1)
-        start_dates = pd.date_range(start - offset, end, freq='W', closed='left')
-        end_dates = pd.date_range(start, end + offset, freq='W', closed='left')
-        intervals = zip(start_dates, end_dates)
-    elif "month" == period:
-        offset = timedelta(weeks=4)
-        start_dates = pd.date_range(start - offset, end, freq='MS', closed='left')
-        end_dates = pd.date_range(start_dates[0] + timedelta(weeks=3), end + offset, freq='MS', closed='left')
-        intervals = zip(start_dates, end_dates)
-    elif "year" == period:
-        offset = timedelta(weeks=52)
-        start_dates = pd.date_range(start - offset, end, freq='A-DEC', closed='left') + timedelta(days=1)
-        end_dates = pd.date_range(start , end+offset, freq='A-DEC', closed='left') + timedelta(days=1)
-        intervals = zip(start_dates, end_dates)
-    elif "day" == period:
+    # TODO: "hour" support?
+    if "day" == period:
         offset = timedelta(days=1)
         start_dates = pd.date_range(start - offset, end, freq='D', closed='left')
         end_dates = pd.date_range(start, end + offset, freq='D', closed='left')
+        intervals = zip(start_dates, end_dates)
+    elif "week" == period:
+        offset = timedelta(weeks=1)
+        start_dates = pd.date_range(start - offset, end, freq='W', closed='left')
+        end_dates = pd.date_range(start, end + offset, freq='W', closed='left')
         intervals = zip(start_dates, end_dates)
     elif "dekad" == period:
         offset = timedelta(days=10)
         start_dates = pd.date_range(start - offset, end, freq='MS', closed='left')
         ten_days = pd.Timedelta(days=10)
-        first_dekad_month = [(date,date+ten_days) for date in start_dates]
-        second_dekad_month = [(date + ten_days, date + ten_days+ten_days ) for date in start_dates]
-        end_month = [ date + pd.Timedelta(days=calendar.monthrange(date.year,date.month)[1]) for date in start_dates]
-
-        third_dekad_month = list(zip([ date + ten_days+ten_days  for date in start_dates],end_month))
+        first_dekad_month = [(date, date + ten_days) for date in start_dates]
+        second_dekad_month = [(date + ten_days, date + ten_days + ten_days) for date in start_dates]
+        end_month = [date + pd.Timedelta(days=calendar.monthrange(date.year, date.month)[1]) for date in start_dates]
+        third_dekad_month = list(zip([date + ten_days + ten_days for date in start_dates], end_month))
         intervals = (first_dekad_month + second_dekad_month + third_dekad_month)
-        intervals.sort( key = lambda t:t[0])
-
+        intervals.sort(key=lambda t: t[0])
+    elif "month" == period:
+        offset = timedelta(weeks=4)
+        start_dates = pd.date_range(start - offset, end, freq='MS', closed='left')
+        end_dates = pd.date_range(start_dates[0] + timedelta(weeks=3), end + offset, freq='MS', closed='left')
+        intervals = zip(start_dates, end_dates)
+    # TODO: "season" support
+    # TODO: "tropical-season" support
+    elif "year" == period:
+        offset = timedelta(weeks=52)
+        start_dates = pd.date_range(start - offset, end, freq='A-DEC', closed='left') + timedelta(days=1)
+        end_dates = pd.date_range(start, end + offset, freq='A-DEC', closed='left') + timedelta(days=1)
+        intervals = zip(start_dates, end_dates)
+    # TODO: "decade" support?
+    # TODO: "decade-ad" support?
     else:
         raise ProcessParameterInvalidException('period', 'aggregate_temporal_period',
                                                'No support for a period of type: ' + str(period))
-    intervals = list([i for i in intervals if i[0] < end ])
+    intervals = list([i for i in intervals if i[0] < end])
     _log.info(f"aggregate_temporal_period input: [{start},{end}] - {period} intervals: {intervals}")
     return intervals
 
