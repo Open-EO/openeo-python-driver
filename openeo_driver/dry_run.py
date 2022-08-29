@@ -237,10 +237,19 @@ class DryRunDataTracer:
         # TODO: metadata?
         return DryRunDataCube(traces=[trace], data_tracer=self)
 
-    def load_result(self, job_id: str) -> 'DryRunDataCube':
+    def load_result(self, job_id: str, arguments: dict) -> 'DryRunDataCube':
         trace = DataSource.load_result(job_id=job_id)
         self.add_trace(trace)
-        return DryRunDataCube(traces=[trace], data_tracer=self)
+
+        cube = DryRunDataCube(traces=[trace], data_tracer=self)
+        if "temporal_extent" in arguments:
+            cube = cube.filter_temporal(*arguments["temporal_extent"])
+        if "spatial_extent" in arguments:
+            cube = cube.filter_bbox(**arguments["spatial_extent"])
+        if "bands" in arguments:
+            cube = cube.filter_bands(arguments["bands"])
+
+        return cube
 
     def get_trace_leaves(self) -> List[DataTraceBase]:
         """Get all nodes in the tree of traces that are not parent of another trace."""

@@ -1841,17 +1841,29 @@ def array_create(args: dict, env: EvalEnv) -> list:
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/load_result.json"))
 def load_result(args: dict, env: EvalEnv) -> DriverDataCube:
     job_id = extract_arg(args, "id")
-    user = env["user"]
+    user = env.get("user")
+
+    arguments = {}
+    if args.get("temporal_extent"):
+        arguments["temporal_extent"] = _extract_temporal_extent(
+            args, field="temporal_extent", process_id="load_result"
+        )
+    if args.get("spatial_extent"):
+        arguments["spatial_extent"] = _extract_bbox_extent(
+            args, field="spatial_extent", process_id="load_result", handle_geojson=True
+        )
+    if args.get("bands"):
+        arguments["bands"] = extract_arg(args, "bands", process_id="load_result")
 
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
-        return dry_run_tracer.load_result(job_id)
+        return dry_run_tracer.load_result(job_id, arguments)
     else:
         source_id = dry_run.DataSource.load_result(job_id).get_source_id()
         load_params = _extract_load_parameters(env, source_id=source_id)
 
-        return env.backend_implementation.load_result(job_id=job_id, user_id=user.user_id, load_params=load_params,
-                                                      env=env)
+        return env.backend_implementation.load_result(job_id=job_id, user_id=user.user_id if user is not None else None,
+                                                      load_params=load_params, env=env)
 
 
 @process_registry_100.add_simple_function

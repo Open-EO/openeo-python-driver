@@ -686,7 +686,8 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
         _register_load_collection_call(glob_pattern, load_params)
         return DummyDataCube()
 
-    def load_result(self, job_id: str, user_id: str, load_params: LoadParameters, env: EvalEnv) -> DummyDataCube:
+    def load_result(self, job_id: str, user_id: Optional[str], load_params: LoadParameters,
+                    env: EvalEnv) -> DummyDataCube:
         _register_load_collection_call(job_id, load_params)
         return DummyDataCube()
 

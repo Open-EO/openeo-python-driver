@@ -1121,3 +1121,34 @@ def test_evaluate_drop_dimension(dry_run_env, dry_run_tracer, dimension_name, ex
     }
     cube = evaluate(pg, env=dry_run_env)
     assert cube.metadata.dimension_names() == expected
+
+
+def test_load_result_constraints(dry_run_env, dry_run_tracer):
+    pg = {
+        "loadresult1": {
+            "process_id": "load_result",
+            "arguments": {
+                "id": "https://oeo.net/openeo/1.1/jobs/j-f1ce01ef51d1481abaab7ceceb19c650/results",
+                "spatial_extent": {"west": 0, "south": 50, "east": 5, "north": 55},
+                "temporal_extent": ("2020-01-01", "2020-02-02"),
+                "bands": ["VV", "VH"]
+            },
+            "result": True
+        }
+    }
+
+    evaluate(pg, env=dry_run_env)
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+
+    assert source_constraints == [
+        (
+            ('load_result', ('https://oeo.net/openeo/1.1/jobs/j-f1ce01ef51d1481abaab7ceceb19c650/results',)),
+            {
+                'bands': ['VV', 'VH'],
+                'spatial_extent': {
+                    'crs': 'EPSG:4326', 'east': 5, 'north': 55, 'south': 50, 'west': 0,
+                },
+                'temporal_extent': ('2020-01-01', '2020-02-02')
+            }
+        )
+    ]

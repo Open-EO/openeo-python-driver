@@ -606,7 +606,8 @@ class OpenEoBackendImplementation:
         # TODO: rename this to "load_uploaded_files" like in official openeo processes
         raise NotImplementedError
 
-    def load_result(self, job_id: str, user_id: str, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
+    def load_result(self, job_id: str, user_id: Optional[str], load_params: LoadParameters,
+                    env: EvalEnv) -> DriverDataCube:
         raise NotImplementedError
 
     def load_ml_model(self, job_id: str) -> DriverMlModel:
