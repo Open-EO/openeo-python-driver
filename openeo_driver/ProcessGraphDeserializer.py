@@ -1487,11 +1487,26 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
 
 @non_standard_process(
     ProcessSpec("read_vector", description="Reads vector data from a file or a URL.")
-        .param('filename', description="filename or http url of a vector file", schema={"type": "string"})
+        .param(
+            "filename",
+            description="Vector file reference: a HTTP(S) URL or a file path.",
+            schema=[
+                {
+                    "description": "Public URL to a vector file.",
+                    "type": "string", "subtype": "uri",
+                    "pattern": "^https?://",
+                },
+                {
+                    "description": "File path (resolvable back-end-side) to a vector file.",
+                    "type": "string", "subtype": "file-path",
+                    "pattern": "^[^\r\n\\:'\"]+$",
+                },
+            ])
         .returns("TODO", schema={"type": "object", "subtype": "vector-cube"})
 )
 def read_vector(args: Dict, env: EvalEnv) -> DelayedVector:
     # TODO #114 EP-3981: deprecated in favor of load_uploaded_files/load_external? https://github.com/Open-EO/openeo-processes/issues/322
+    # TODO: better argument name than `filename`?
     path = extract_arg(args, 'filename')
     return DelayedVector(path)
 
