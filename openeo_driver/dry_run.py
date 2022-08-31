@@ -40,11 +40,12 @@ import shapely.geometry.base
 from shapely.geometry import Point, Polygon, MultiPolygon, GeometryCollection
 from shapely.geometry.base import BaseGeometry
 
-from openeo.metadata import CollectionMetadata
+from openeo.metadata import CollectionMetadata, DimensionAlreadyExistsException
 from openeo_driver import filter_properties
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
+from openeo_driver.errors import OpenEOApiException
 from openeo_driver.save_result import AggregatePolygonResult, AggregatePolygonSpatialResult
 from openeo_driver.utils import buffer_point_approx, geojson_to_geometry, to_hashable, EvalEnv
 
@@ -517,7 +518,12 @@ class DryRunDataCube(DriverDataCube):
         return cube._process("chunk_polygon", arguments={"geometries": geometries})
 
     def add_dimension(self, name: str, label, type: str = "other") -> 'DryRunDataCube':
-        return self._process_metadata(self.metadata.add_dimension(name=name, label=label, type=type))
+        try:
+            return self._process_metadata(self.metadata.add_dimension(name=name, label=label, type=type))
+        except DimensionAlreadyExistsException:
+            raise OpenEOApiException(
+                code="DimensionExists", status_code=400, message=f"A dimension with name {name} already exists."
+            )
 
     def drop_dimension(self, name: str) -> 'DryRunDataCube':
         return self._process("drop_dimension", {"name": name}, metadata=self.metadata.drop_dimension(name=name))

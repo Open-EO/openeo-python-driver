@@ -2095,6 +2095,22 @@ def test_add_dimension_type_argument(api100, arguments, expected):
     dummy.add_dimension.assert_called_with(name="foo", label="bar", type=expected)
 
 
+def test_add_dimension_duplicate(api100):
+    res = api100.result({
+        "l": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "a1": {
+            "process_id": "add_dimension",
+            "arguments": {"data": {"from_node": "l"}, "name": "bandz", "label": "bar", "type": "bands"},
+        },
+        "a2": {
+            "process_id": "add_dimension",
+            "arguments": {"data": {"from_node": "a1"}, "name": "bandz", "label": "bar", "type": "bands"},
+            "result": True,
+        },
+    })
+    res.assert_error(400, "DimensionExists")
+
+
 @pytest.mark.parametrize(["format", "expected"], [
     ("GTiff", "image/tiff; application=geotiff"),
     ("NetCDF", "application/x-netcdf"),
