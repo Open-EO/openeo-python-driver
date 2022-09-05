@@ -28,6 +28,10 @@ class OidcProvider(NamedTuple):
     def discovery_url(self):
         return self.issuer.rstrip("/") + '/.well-known/openid-configuration'
 
-    def get_issuer(self):
+    def get_issuer(self) -> str:
         """Get normalized version of issuer (for comparison/mapping situations)"""
-        return self.issuer.rstrip("/").lower()
+        return normalize_issuer_url(self.issuer)
+
+
+def normalize_issuer_url(url: str) -> str:
+    return url.rstrip("/").lower()

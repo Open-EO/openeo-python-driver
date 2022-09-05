@@ -1,6 +1,6 @@
 import pytest
 
-from openeo_driver.users.oidc import OidcProvider
+from openeo_driver.users.oidc import OidcProvider, normalize_issuer_url
 
 
 def test_oidc_provider_from_dict_empty():
@@ -54,3 +54,10 @@ def test_oidc_provider_get_issuer():
     assert OidcProvider("d", "https://oidc.test/foo", "t").get_issuer() == "https://oidc.test/foo"
     assert OidcProvider("d", "https://oidc.test/foo/", "t").get_issuer() == "https://oidc.test/foo"
     assert OidcProvider("d", "https://oidc.test/foo//", "t").get_issuer() == "https://oidc.test/foo"
+
+
+def test_normalize_issuer_url():
+    assert normalize_issuer_url("https://example.com/oidc/") == "https://example.com/oidc"
+    assert normalize_issuer_url("https://example.com/oidc//") == "https://example.com/oidc"
+    assert normalize_issuer_url("https://example.com/OidC/") == "https://example.com/oidc"
+    assert normalize_issuer_url("https://example.com/OidC/foo//") == "https://example.com/oidc/foo"
