@@ -8,6 +8,7 @@ import logging
 import time
 import typing
 import uuid
+from deprecated import deprecated
 from enum import Enum
 from json import JSONEncoder
 from math import isnan
@@ -472,7 +473,12 @@ def buffer_point_approx(point: shapely.geometry.Point, point_crs: str, buffer_di
     return point.buffer(buffer_distance, cap_style=CAP_STYLE.square)
 
 
+@deprecated(reason="call generate_unique_id instead")
 def generate_uuid(prefix: Optional[str] = None) -> str:
+    return generate_unique_id(prefix)
+
+
+def generate_unique_id(prefix: Optional[str] = None) -> str:
     """
     Generate a random, unique identifier, to be used as job id, request id
     correlation id, error id, ...

@@ -53,6 +53,7 @@ setup(
         'pyproj',
         'python-dateutil',
         "python-json-logger>=2.0.0",
+        'deprecated>=1.2.12',
     ],
     extras_require={
         "dev": tests_require,

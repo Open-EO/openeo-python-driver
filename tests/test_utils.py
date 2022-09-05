@@ -7,7 +7,7 @@ import shapely.geometry
 from openeo_driver.testing import RegexMatcher
 from openeo_driver.utils import smart_bool, EvalEnv, to_hashable, bands_union, temporal_extent_union, \
     spatial_extent_union, dict_item, reproject_bounding_box, geojson_to_multipolygon, \
-    extract_namedtuple_fields_from_dict, get_package_versions, TtlCache, generate_uuid
+    extract_namedtuple_fields_from_dict, get_package_versions, TtlCache, generate_unique_id
 
 
 def test_smart_bool():
@@ -409,5 +409,5 @@ class TestTtlCache:
 
 
 def test_generate_uuid():
-    assert re.match("^[0-9a-f]{32}$", generate_uuid())
-    assert re.match("^j-[0-9a-f]{32}$", generate_uuid("j"))
+    assert re.match("^[0-9a-f]{32}$", generate_unique_id())
+    assert re.match("^j-[0-9a-f]{32}$", generate_unique_id("j"))

@@ -28,7 +28,7 @@ from openeo_driver.save_result import SaveResult, to_save_result
 from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.util.logging import FlaskRequestCorrelationIdLogging
-from openeo_driver.utils import EvalEnv, smart_bool, generate_uuid
+from openeo_driver.utils import EvalEnv, smart_bool, generate_unique_id
 
 _log = logging.getLogger(__name__)
 
@@ -596,7 +596,7 @@ def register_views_processing(
             'pyramid_levels': 'highest',
             'user': user,
             'require_bounds': True,
-            'correlation_id': generate_uuid(prefix="c"),
+            'correlation_id': generate_unique_id(prefix="c"),
         })
         result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)
         _log.info(f"`POST /result`: {type(result)}")

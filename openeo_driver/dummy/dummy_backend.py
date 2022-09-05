@@ -26,7 +26,7 @@ from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, 
     PermissionsInsufficientException
 from openeo_driver.save_result import AggregatePolygonResult, AggregatePolygonSpatialResult
 from openeo_driver.users import User
-from openeo_driver.utils import EvalEnv, generate_uuid
+from openeo_driver.utils import EvalEnv, generate_unique_id
 
 DEFAULT_DATETIME = datetime(2020, 4, 23, 16, 20, 27)
 
@@ -431,7 +431,7 @@ class DummyBatchJobs(BatchJobs):
     _custom_job_logs = {}
 
     def generate_job_id(self):
-        return generate_uuid(prefix="j")
+        return generate_unique_id(prefix="j")
 
     def create_job(
             self, user_id: str, process: dict, api_version: str,
@@ -495,7 +495,7 @@ class DummyBatchJobs(BatchJobs):
                     "https://stac-extensions.github.io/ml-model/v1.0.0/schema.json"
                 ],
                 "type": "Feature",
-                "id": generate_uuid(prefix="ml"),
+                "id": generate_unique_id(prefix="ml"),
                 "collection": "collection-id",
                 "bbox": [
                     -179.999,
