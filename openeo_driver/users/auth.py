@@ -184,7 +184,7 @@ class HttpAuthHandler:
             raise OidcProviderUnavailableException
 
         if 500 <= resp.status_code < 600:
-            _log.error(f"OIDC provider server error on request {url!r}", exc_info=True)
+            _log.error(f"OIDC provider server error on request {url!r}: {resp!r}")
             raise OidcProviderUnavailableException
         if raise_for_status:
             resp.raise_for_status()
