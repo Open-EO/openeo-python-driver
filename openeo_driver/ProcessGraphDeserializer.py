@@ -947,6 +947,10 @@ def _period_to_intervals(start, end, period) -> List[Tuple[pd.Timestamp, pd.Time
     from datetime import datetime, timedelta
     start = pd.to_datetime(start)
     end = pd.to_datetime(end)
+    if start.tzinfo:
+        start = start.tz_convert(None)
+    if end.tzinfo:
+        end = end.tz_convert(None)
 
     # TODO: "hour" support?
     if "day" == period:
@@ -992,7 +996,7 @@ def _period_to_intervals(start, end, period) -> List[Tuple[pd.Timestamp, pd.Time
     else:
         raise ProcessParameterInvalidException('period', 'aggregate_temporal_period',
                                                'No support for a period of type: ' + str(period))
-    intervals = list([i for i in intervals if i[0] < end])
+    intervals = [i for i in intervals if i[0] < end]
     _log.info(f"aggregate_temporal_period input: [{start},{end}] - {period} intervals: {intervals}")
     return intervals
 

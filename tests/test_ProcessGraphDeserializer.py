@@ -96,6 +96,15 @@ def test_period_to_intervals_monthly_2(start, end, expected):
     assert [(s.isoformat(), e.isoformat()) for (s, e) in intervals] == list(zip(expected[:-1], expected[1:]))
 
 
+def test_period_to_intervals_monthly_tz():
+    intervals = _period_to_intervals("2021-06-01T00:00:00+0000", "2021-08-02T00:00:00+0000", "month")
+    assert [(s.isoformat(), e.isoformat()) for (s, e) in intervals] == [
+        ('2021-06-01T00:00:00', '2021-07-01T00:00:00'),
+        ('2021-07-01T00:00:00', '2021-08-01T00:00:00'),
+        ('2021-08-01T00:00:00', '2021-09-01T00:00:00')
+    ]
+
+
 def test_period_to_intervals_yearly():
     intervals = _period_to_intervals("2018-06-08", "2021-08-24", "year")
     print(list(intervals))
