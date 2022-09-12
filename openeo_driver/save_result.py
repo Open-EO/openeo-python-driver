@@ -624,6 +624,8 @@ def to_save_result(data: Any, format: Optional[str] = None, options: Optional[di
         # TODO #114 EP-3981 add vector cube support: keep features from feature collection
         geojsons = [mapping(geometry) for geometry in data.geometries]
         return JSONResult(geojsons, format=format, options=options)
+    elif isinstance(data, DriverMlModel):
+        return MlModelResult(ml_model = data)
     elif isinstance(data, np.ndarray):
         return JSONResult(data.tolist())
     elif isinstance(data, np.generic):
