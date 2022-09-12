@@ -1,8 +1,10 @@
 import logging
 import logging.config
+import os
 import sys
 import threading
 import time
+from pathlib import Path
 from typing import List, Dict, Optional, Union
 
 import flask
@@ -47,6 +49,10 @@ def get_logging_config(
     else:
         json_filters = []
 
+    log_dirs = os.environ.get("LOG_DIRS")
+    log_dir = log_dirs.split(",")[0] if log_dirs is not None else "."
+    log_file = Path(log_dir) / "openeo_python.log"
+
     config = {
         "version": 1,
         "root": {
@@ -72,6 +78,13 @@ def get_logging_config(
             "stderr_json": {
                 "class": "logging.StreamHandler",
                 "stream": "ext://sys.stderr",
+                "level": handler_default_level,
+                "filters": json_filters,
+                "formatter": "json",
+            },
+            "file_json": {
+                "class": "logging.FileHandler",
+                "filename": log_file,
                 "level": handler_default_level,
                 "filters": json_filters,
                 "formatter": "json",
