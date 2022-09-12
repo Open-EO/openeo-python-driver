@@ -12,6 +12,7 @@ from zipfile import ZipFile
 
 import numpy as np
 import pandas as pd
+import typing
 from flask import send_from_directory, jsonify, Response
 from shapely.geometry import GeometryCollection, mapping
 
@@ -146,6 +147,9 @@ class MlModelResult(SaveResult):
 
     def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
         return self.ml_model.write_assets(directory=directory)
+
+    def get_model_metadata(self, directory: Union[str, Path]) -> Dict[str, typing.Any]:
+        return self.ml_model.get_model_metadata(directory=directory)
 
     def create_flask_response(self) -> Response:
         return self.flask_response_from_write_assets()
