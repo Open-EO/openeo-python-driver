@@ -18,6 +18,8 @@ LOGGING_CONTEXT_FLASK = "flask"
 LOGGING_CONTEXT_BATCH_JOB = "batch_job"
 
 # This fake `format` string is the JsonFormatter way to list expected fields in json records
+# Note: JsonFormatter will output `extra` properties like 'job_id' even if they're not included in
+# its `format` string (https://github.com/madzak/python-json-logger/issues/97)
 JSON_LOGGER_DEFAULT_FORMAT = "%(message)s %(levelname)s %(name)s %(created)s %(filename)s %(lineno)s %(process)s"
 
 
