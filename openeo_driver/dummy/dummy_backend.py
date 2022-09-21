@@ -207,10 +207,14 @@ class DummyDataCube(DriverDataCube):
         reducer = next(iter(reducer.values()))["process_id"]
         assert reducer == 'mean' or reducer == 'avg'
 
-        def assert_polygon_sequence(geometries: Union[Sequence, BaseMultipartGeometry]):
-            assert len(geometries) > 0
+        def assert_polygon_sequence(geometries: Union[Sequence, BaseMultipartGeometry]) -> int:
+            n_geometries = len(geometries)
+
+            assert n_geometries > 0
             for g in geometries:
                 assert isinstance(g, Polygon) or isinstance(g, MultiPolygon)
+
+            return n_geometries
 
         # TODO #114 EP-3981 normalize to vector cube and preserve original properties
         if isinstance(geometries, DriverVectorCube):
@@ -228,19 +232,19 @@ class DummyDataCube(DriverDataCube):
             return geometries.with_cube(cube=cube, flatten_prefix="agg")
         elif isinstance(geometries, str):
             geometries = [geometry for geometry in DelayedVector(geometries).geometries]
-            assert_polygon_sequence(geometries)
+            n_geometries = assert_polygon_sequence(geometries)
         elif isinstance(geometries, GeometryCollection):
             # TODO #71 #114 EP-3981: GeometryCollection is deprecated
-            assert_polygon_sequence(geometries)
+            n_geometries = assert_polygon_sequence(geometries)
         elif isinstance(geometries, BaseGeometry):
-            assert_polygon_sequence([geometries])
+            n_geometries = assert_polygon_sequence([geometries])
         else:
-            assert_polygon_sequence(geometries)
+            n_geometries = assert_polygon_sequence(geometries)
 
         if self.metadata.has_temporal_dimension():
             return AggregatePolygonResult(timeseries={
-                "2015-07-06T00:00:00": [[2.345]],
-                "2015-08-22T00:00:00": [[float('nan')]]
+                "2015-07-06T00:00:00": [[2.345]] * n_geometries,
+                "2015-08-22T00:00:00": [[float('nan')]] * n_geometries
             }, regions=geometries)
         else:
             return DummyAggregatePolygonSpatialResult(cube=self, geometries=geometries)
