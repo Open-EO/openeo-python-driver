@@ -239,8 +239,8 @@ class DummyDataCube(DriverDataCube):
 
         if self.metadata.has_temporal_dimension():
             return AggregatePolygonResult(timeseries={
-                "2015-07-06T00:00:00": [2.345],
-                "2015-08-22T00:00:00": [float('nan')]
+                "2015-07-06T00:00:00": [[2.345]],
+                "2015-08-22T00:00:00": [[float('nan')]]
             }, regions=geometries)
         else:
             return DummyAggregatePolygonSpatialResult(cube=self, geometries=geometries)
