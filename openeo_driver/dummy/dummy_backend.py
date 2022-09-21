@@ -222,7 +222,7 @@ class DummyDataCube(DriverDataCube):
             dims, coords = geometries.get_xarray_cube_basics()
             if self.metadata.has_temporal_dimension():
                 dims += (self.metadata.temporal_dimension.name,)
-                coords[self.metadata.temporal_dimension.name] = ["2015-07-06T00:00:00", "2015-08-22T00:00:00"]
+                coords[self.metadata.temporal_dimension.name] = ["2015-07-06T00:00:00Z", "2015-08-22T00:00:00Z"]
             if self.metadata.has_band_dimension():
                 dims += (self.metadata.band_dimension.name,)
                 coords[self.metadata.band_dimension.name] = self.metadata.band_names
@@ -243,8 +243,8 @@ class DummyDataCube(DriverDataCube):
 
         if self.metadata.has_temporal_dimension():
             return AggregatePolygonResult(timeseries={
-                "2015-07-06T00:00:00": [[2.345]] * n_geometries,
-                "2015-08-22T00:00:00": [[float('nan')]] * n_geometries
+                "2015-07-06T00:00:00Z": [[2.345]] * n_geometries,
+                "2015-08-22T00:00:00Z": [[float('nan')]] * n_geometries
             }, regions=geometries)
         else:
             return DummyAggregatePolygonSpatialResult(cube=self, geometries=geometries)

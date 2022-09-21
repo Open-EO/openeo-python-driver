@@ -723,8 +723,8 @@ def test_aggregate_temporal_max_no_dimension(api):
 def test_aggregate_spatial(api):
     resp = api.check_result("aggregate_spatial.json")
     assert resp.json == {
-        "2015-07-06T00:00:00": [[2.345]],
-        "2015-08-22T00:00:00": [[None]]
+        "2015-07-06T00:00:00Z": [[2.345]],
+        "2015-08-22T00:00:00Z": [[None]]
     }
     params = dummy_backend.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
     assert params["spatial_extent"] == {"west": 7.02, "south": 51.29, "east": 7.65, "north": 51.75, "crs": 'EPSG:4326'}
@@ -785,12 +785,12 @@ def test_aggregate_spatial_vector_cube_basic(api100):
                 "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
                 "properties": {
                     "id": "first", "pop": 1234,
-                    "agg~2015-07-06T00:00:00~B02": 0,
-                    "agg~2015-07-06T00:00:00~B03": 1,
-                    "agg~2015-07-06T00:00:00~B04": 2,
-                    "agg~2015-08-22T00:00:00~B02": 3,
-                    "agg~2015-08-22T00:00:00~B03": 4,
-                    "agg~2015-08-22T00:00:00~B04": 5,
+                    "agg~2015-07-06T00:00:00Z~B02": 0,
+                    "agg~2015-07-06T00:00:00Z~B03": 1,
+                    "agg~2015-07-06T00:00:00Z~B04": 2,
+                    "agg~2015-08-22T00:00:00Z~B02": 3,
+                    "agg~2015-08-22T00:00:00Z~B03": 4,
+                    "agg~2015-08-22T00:00:00Z~B04": 5,
                 },
             }),
             DictSubSet({
@@ -798,12 +798,12 @@ def test_aggregate_spatial_vector_cube_basic(api100):
                 "geometry": {"type": "Polygon", "coordinates": [[[4, 2], [5, 4], [3, 4], [4, 2]]]},
                 "properties": {
                     "id": "second", "pop": 5678,
-                    "agg~2015-07-06T00:00:00~B02": 6,
-                    "agg~2015-07-06T00:00:00~B03": 7,
-                    "agg~2015-07-06T00:00:00~B04": 8,
-                    "agg~2015-08-22T00:00:00~B02": 9,
-                    "agg~2015-08-22T00:00:00~B03": 10,
-                    "agg~2015-08-22T00:00:00~B04": 11,
+                    "agg~2015-07-06T00:00:00Z~B02": 6,
+                    "agg~2015-07-06T00:00:00Z~B03": 7,
+                    "agg~2015-07-06T00:00:00Z~B04": 8,
+                    "agg~2015-08-22T00:00:00Z~B02": 9,
+                    "agg~2015-08-22T00:00:00Z~B03": 10,
+                    "agg~2015-08-22T00:00:00Z~B04": 11,
                 },
             }),
         ]
@@ -817,13 +817,13 @@ def test_aggregate_spatial_vector_cube_basic(api100):
             "lc",
             {
                 "id": "first", "pop": 1234,
-                "agg~2015-07-06T00:00:00~B02": 0, "agg~2015-07-06T00:00:00~B03": 1, "agg~2015-07-06T00:00:00~B04": 2,
-                "agg~2015-08-22T00:00:00~B02": 3, "agg~2015-08-22T00:00:00~B03": 4, "agg~2015-08-22T00:00:00~B04": 5,
+                "agg~2015-07-06T00:00:00Z~B02": 0, "agg~2015-07-06T00:00:00Z~B03": 1, "agg~2015-07-06T00:00:00Z~B04": 2,
+                "agg~2015-08-22T00:00:00Z~B02": 3, "agg~2015-08-22T00:00:00Z~B03": 4, "agg~2015-08-22T00:00:00Z~B04": 5,
             },
             {
                 "id": "second", "pop": 5678,
-                "agg~2015-07-06T00:00:00~B02": 6, "agg~2015-07-06T00:00:00~B03": 7, "agg~2015-07-06T00:00:00~B04": 8,
-                "agg~2015-08-22T00:00:00~B02": 9, "agg~2015-08-22T00:00:00~B03": 10, "agg~2015-08-22T00:00:00~B04": 11,
+                "agg~2015-07-06T00:00:00Z~B02": 6, "agg~2015-07-06T00:00:00Z~B03": 7, "agg~2015-07-06T00:00:00Z~B04": 8,
+                "agg~2015-08-22T00:00:00Z~B02": 9, "agg~2015-08-22T00:00:00Z~B03": 10, "agg~2015-08-22T00:00:00Z~B04": 11,
             },
     ),
     (
@@ -853,8 +853,8 @@ def test_aggregate_spatial_vector_cube_basic(api100):
                 }}
             },
             "r",
-            {"id": "first", "pop": 1234, "agg~2015-07-06T00:00:00": 0, "agg~2015-08-22T00:00:00": 1},
-            {"id": "second", "pop": 5678, "agg~2015-07-06T00:00:00": 2, "agg~2015-08-22T00:00:00": 3},
+            {"id": "first", "pop": 1234, "agg~2015-07-06T00:00:00Z": 0, "agg~2015-08-22T00:00:00Z": 1},
+            {"id": "second", "pop": 5678, "agg~2015-07-06T00:00:00Z": 2, "agg~2015-08-22T00:00:00Z": 3},
     ),
     (
             "no-time-nor-bands",
@@ -966,7 +966,7 @@ def test_read_vector(api):
     )
     resp = api.check_result(process_graph)
     assert b'NaN' not in resp.data
-    assert resp.json == {"2015-07-06T00:00:00": [[2.345], [2.345]], "2015-08-22T00:00:00": [[None], [None]]}
+    assert resp.json == {"2015-07-06T00:00:00Z": [[2.345], [2.345]], "2015-08-22T00:00:00Z": [[None], [None]]}
     params = dummy_backend.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
     assert params["spatial_extent"] == {"west": 5, "south": 51, "east": 6, "north": 52, "crs": 'EPSG:4326'}
     assert params["temporal_extent"] == ('2017-11-21', '2017-12-21')
@@ -982,7 +982,7 @@ def test_read_vector_no_load_collection_spatial_extent(api):
     )
     resp = api.check_result(process_graph)
     assert b'NaN' not in resp.data
-    assert resp.json == {"2015-07-06T00:00:00": [[2.345], [2.345]], "2015-08-22T00:00:00": [[None], [None]]}
+    assert resp.json == {"2015-07-06T00:00:00Z": [[2.345], [2.345]], "2015-08-22T00:00:00Z": [[None], [None]]}
     params = dummy_backend.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
     assert params["spatial_extent"] == {"west": 5.05, "south": 51.21, "east": 5.15, "north": 51.3, "crs": 'EPSG:4326'}
     assert params["temporal_extent"] == ('2017-11-21', '2017-12-21')
@@ -1052,7 +1052,7 @@ def test_run_udf_on_json(api100, udf_code):
         preprocess=lambda s: s.replace('"PLACEHOLDER_UDF"', repr(udf_code))
     )
     resp = api100.check_result(process_graph)
-    assert resp.json == {'len': 2, 'keys': ['2015-07-06T00:00:00', '2015-08-22T00:00:00'], 'values': [[[2.345]], [[None]]]}
+    assert resp.json == {'len': 2, 'keys': ['2015-07-06T00:00:00Z', '2015-08-22T00:00:00Z'], 'values': [[[2.345]], [[None]]]}
 
 
 @pytest.mark.parametrize("udf_code", [
@@ -1159,8 +1159,8 @@ def test_load_collection_without_spatial_extent_incorporates_read_vector_extent(
     resp = api.check_result(process_graph)
     assert b'NaN' not in resp.data
     assert resp.json == {
-        "2015-07-06T00:00:00": [[2.345], [2.345]],
-        "2015-08-22T00:00:00": [[None], [None]]
+        "2015-07-06T00:00:00Z": [[2.345], [2.345]],
+        "2015-08-22T00:00:00Z": [[None], [None]]
     }
     params = dummy_backend.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
     assert params["spatial_extent"] == {"west": 5.05, "south": 51.21, "east": 5.15, "north": 51.3, "crs": 'EPSG:4326'}
@@ -1174,8 +1174,8 @@ def test_read_vector_from_feature_collection(api):
     resp = api.check_result(process_graph)
     assert b'NaN' not in resp.data
     assert resp.json == {
-        "2015-07-06T00:00:00": [[2.345], [2.345]],
-        "2015-08-22T00:00:00": [[None], [None]]
+        "2015-07-06T00:00:00Z": [[2.345], [2.345]],
+        "2015-08-22T00:00:00Z": [[None], [None]]
     }
     params = dummy_backend.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
     assert params["spatial_extent"] == {"west": 5, "south": 51, "east": 6, "north": 52, "crs": 'EPSG:4326'}
