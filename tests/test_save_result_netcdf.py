@@ -30,7 +30,7 @@ def test_aggregate_polygon_result_basic(tmp_path):
     result = AggregatePolygonResult(timeseries, regions=regions, metadata=metadata)
     result.set_format("netcdf")
 
-    assets = result.write_assets(tmp_path)
+    assets = result.write_assets(tmp_path / "ignored")
     theAsset = assets.popitem()[1]
     filename = theAsset['href']
 
@@ -129,7 +129,7 @@ def test_aggregate_polygon_result_CSV(tmp_path):
     result = AggregatePolygonResultCSV(csv_dir=Path(__file__).parent / "data" /"aggregate_spatial_spacetime_cube", regions=regions, metadata=metadata)
     result.set_format("netcdf")
 
-    assets = result.write_assets(tmp_path)
+    assets = result.write_assets(tmp_path / "ignored")
     theAsset = assets.popitem()[1]
     filename = theAsset['href']
 
