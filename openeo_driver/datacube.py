@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Union, Optional, Dict, Any, Tuple, Sequence
 
 import geopandas as gpd
+import pyproj
 import shapely.geometry
 import shapely.geometry.base
 import shapely.ops
@@ -184,6 +185,7 @@ class DriverVectorCube:
             # TODO #114 EP-3981: support multiple paths
             raise FeatureUnsupportedException(message="Loading a vector cube from multiple files is not supported")
         # TODO #114 EP-3981: lazy loading like/with DelayedVector
+        # note for GeoJSON: will consider Feature.id as well as Feature.properties.id
         return cls(geometries=gpd.read_file(paths[0], driver=driver))
 
     @classmethod
@@ -225,10 +227,12 @@ class DriverVectorCube:
     def to_geojson(self):
         return shapely.geometry.mapping(self._as_geopandas_df())
 
-    def to_wkt(self) -> Tuple[List[str], str]:
+    def to_wkt(self) -> List[str]:
         wkts = [str(g) for g in self._geometries.geometry]
-        crs = self._geometries.crs.to_string() if self._geometries.crs else "EPSG:4326"
-        return wkts, crs
+        return wkts
+
+    def get_crs(self) -> pyproj.CRS:
+        return self._geometries.crs or pyproj.CRS.from_epsg(4326)
 
     def write_assets(
             self, directory: Union[str, Path], format: str, options: Optional[dict] = None
@@ -274,6 +278,9 @@ class DriverVectorCube:
 
     def get_geometries(self) -> Sequence[shapely.geometry.base.BaseGeometry]:
         return self._geometries.geometry
+
+    def get_ids(self) -> Optional[Sequence]:
+        return self._geometries.get("id")
 
     def get_xarray_cube_basics(self) -> Tuple[tuple, dict]:
         """Get initial dims/coords for xarray DataArray construction"""

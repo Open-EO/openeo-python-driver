@@ -1,7 +1,11 @@
+import json
+
+import geopandas as gpd
 import numpy as np
 import pytest
 from shapely.geometry import GeometryCollection, Polygon
 
+from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.save_result import AggregatePolygonResult, SaveResult, AggregatePolygonSpatialResult
 from .data import load_json, json_normalize, get_path
 
@@ -28,6 +32,23 @@ def test_aggregate_polygon_result_basic():
 
     data = result.get_data()
     assert json_normalize(data) == load_json("aggregate_polygon_result_basic_covjson.json")
+
+
+def test_aggregate_polygon_covjson_result_vector_cube():
+    timeseries = {
+        "2019-10-15T08:15:45Z": [[1, 2, 3], [4, 5, 6]],
+        "2019-11-11T01:11:11Z": [[7, 8, 9], [10, 11, 12]],
+    }
+
+    gdf = gpd.read_file(str(get_path("geojson/FeatureCollection02.json")))
+    regions = DriverVectorCube(gdf)
+
+    result = AggregatePolygonResult(timeseries, regions=regions)
+    result.set_format("covjson")
+
+    data = result.get_data()
+
+    assert json_normalize(data) == load_json("aggregate_polygon_covjson_result_vector_cube.json")
 
 
 def test_aggregate_polygon_result_nan_values():

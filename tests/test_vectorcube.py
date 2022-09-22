@@ -1,4 +1,5 @@
 import geopandas as gpd
+import pyproj
 import pytest
 import xarray
 from shapely.geometry import Polygon, MultiPolygon
@@ -63,9 +64,12 @@ class TestDriverVectorCube:
     def test_to_wkt(self, gdf):
         vc = DriverVectorCube(gdf)
         assert vc.to_wkt() == (
-            ['POLYGON ((1 1, 3 1, 2 3, 1 1))', 'POLYGON ((4 2, 5 4, 3 4, 4 2))'],
-            'EPSG:4326',
+            ['POLYGON ((1 1, 3 1, 2 3, 1 1))', 'POLYGON ((4 2, 5 4, 3 4, 4 2))']
         )
+
+    def test_get_crs(self, gdf):
+        vc = DriverVectorCube(gdf)
+        assert vc.get_crs() == pyproj.CRS.from_epsg(4326)
 
     def test_with_cube_to_geojson(self, gdf):
         vc1 = DriverVectorCube(gdf)

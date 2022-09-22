@@ -751,8 +751,12 @@ def test_aggregate_spatial_invalid_geometry(api100, geometries, expected):
     _ = api100.result(pg).assert_error(400, "ProcessParameterInvalid", expected)
 
 
-def test_aggregate_spatial_vector_cube_basic(api100):
-    path = get_path("geojson/FeatureCollection02.json")
+@pytest.mark.parametrize(["feature_collection_test_path"], [
+    ["geojson/FeatureCollection02.json"],
+    ["geojson/FeatureCollection05.json"]
+])
+def test_aggregate_spatial_vector_cube_basic(api100, feature_collection_test_path):
+    path = get_path(feature_collection_test_path)
     pg = {
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "bands": ["B02", "B03", "B04"]}},
         "lf": {
