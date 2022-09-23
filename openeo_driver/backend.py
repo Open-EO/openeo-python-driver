@@ -161,6 +161,8 @@ class LoadParameters(dict):
     target_resolution = dict_item(default=None)
     backend_provider = dict_item(default=None)
 
+    # TODO: these objects are part of the cache key for load_collection's lru_cache so mutating them will cause both
+    #  unwanted cache hits and unwanted cache misses; can we make them immutable like EvalEnv?
     def copy(self) -> "LoadParameters":
         return LoadParameters(super().copy())
 
