@@ -26,45 +26,6 @@ from openeo.util import rfc3339
 _log = logging.getLogger(__name__)
 
 
-class EvalEnvEncoder(JSONEncoder):
-    """
-    A custom json encoder in support of the __hash__ function. Does not aim to provide a completely representative json encoding.
-    """
-    def default(self, o):
-        try:
-            iterable = iter(o)
-        except TypeError:
-            pass
-        else:
-            return list(iterable)
-
-        if isinstance(o,BaseGeometry):
-            return mapping(o)
-
-        from openeo_driver.backend import OpenEoBackendImplementation
-        from openeo_driver.dry_run import DryRunDataTracer
-        if isinstance(o,OpenEoBackendImplementation) or isinstance(o,DryRunDataTracer):
-            return str(o.__class__.__name__)
-
-        from openeo_driver.datacube import DriverDataCube
-        if isinstance(o,DriverDataCube):
-            return str(o)
-
-        from openeo_driver.users import User
-        if isinstance(o,User):
-            return o.user_id
-
-        if isinstance(o, Enum):
-            return o.value
-
-        from openeo_driver.delayed_vector import DelayedVector
-        if isinstance(o, DelayedVector):
-            return o.path
-
-            # Let the base class default method raise the TypeError
-        return JSONEncoder.default(self, o)
-
-
 class EvalEnv:
     """
     Process graph evaluation environment: key-value container for keeping track
@@ -131,7 +92,10 @@ class EvalEnv:
         return str(self.as_dict())
 
     def __hash__(self) -> int:
-        return hash(json.dumps(self.as_dict(), sort_keys=True, cls=EvalEnvEncoder))
+        return 0  # poorly hashable but load_collection's lru_cache is small anyway
+
+    def __eq__(self, other) -> bool:
+        return isinstance(other, EvalEnv) and self.as_dict() == other.as_dict()
 
     @property
     def backend_implementation(self) -> 'OpenEoBackendImplementation':

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Union, Optional, Dict, Any, Tuple, Sequence
 
 import geopandas as gpd
+import numpy as np
 import pyproj
 import shapely.geometry
 import shapely.geometry.base
@@ -287,6 +288,10 @@ class DriverVectorCube:
         dims = (self.DIM_GEOMETRIES,)
         coords = {self.DIM_GEOMETRIES: self._geometries.index.to_list()}
         return dims, coords
+
+    def __eq__(self, other):
+        return (isinstance(other, DriverVectorCube)
+                and np.array_equal(self._as_geopandas_df().values, other._as_geopandas_df().values))
 
 
 class DriverMlModel:
