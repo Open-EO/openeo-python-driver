@@ -9,7 +9,7 @@ import hashlib
 import logging
 from typing import Callable, Tuple, List, Dict, Optional
 
-from flask import request, Request
+import flask
 import requests
 import requests.exceptions
 
@@ -40,7 +40,7 @@ class HttpAuthHandler:
     def __init__(
             self,
             oidc_providers: List[OidcProvider],
-            user_access_validation: Optional[Callable[[User, Request], User]] = None
+            user_access_validation: Optional[Callable[[User, flask.Request], User]] = None
     ):
         self._oidc_providers: Dict[str, OidcProvider] = {p.id: p for p in oidc_providers}
         self._user_access_validation = user_access_validation
@@ -60,7 +60,7 @@ class HttpAuthHandler:
         @functools.wraps(f)
         def decorated(*args, **kwargs):
             # Try to authenticate user from HTTP basic auth headers (failure will raise appropriate exception).
-            self.authenticate_basic(request)
+            self.authenticate_basic(flask.request)
             # TODO: optionally pass access_token and user_id from authentication result?
             return f(*args, **kwargs)
 
@@ -76,12 +76,12 @@ class HttpAuthHandler:
         @functools.wraps(f)
         def decorated(*args, **kwargs):
             # Try to load user info from request (failure will raise appropriate exception).
-            user = self.get_user_from_bearer_token(request)
+            user = self.get_user_from_bearer_token(flask.request)
             # TODO: is first 8 chars of user id enough?
             # TODO: use events/signals instead of hardcoded coupling (e.g. https://flask.palletsprojects.com/en/2.1.x/signals/)
             FlaskUserIdLogging.set_user_id(user_id_trim(user.user_id))
             if self._user_access_validation:
-                user = self._user_access_validation(user, request)
+                user = self._user_access_validation(user, flask.request)
             # If handler function expects a `user` argument: pass the user object
             if 'user' in f.__code__.co_varnames:
                 kwargs['user'] = user
@@ -89,7 +89,7 @@ class HttpAuthHandler:
 
         return decorated
 
-    def get_auth_token(self, request: Request, type="Bearer") -> str:
+    def get_auth_token(self, request: flask.Request, type="Bearer") -> str:
         """Get bearer/basic token from Authorization header in request"""
         if "Authorization" not in request.headers:
             raise AuthenticationRequiredException
@@ -100,7 +100,7 @@ class HttpAuthHandler:
             raise AuthenticationSchemeInvalidException
         return auth_code
 
-    def get_user_from_bearer_token(self, request: Request) -> User:
+    def get_user_from_bearer_token(self, request: flask.Request) -> User:
         """Get User object from bearer token of request."""
         bearer = self.get_auth_token(request, "Bearer")
         # Support for 0.4-style basic auth
@@ -121,7 +121,7 @@ class HttpAuthHandler:
             _log.warning("Invalid bearer token {b!r}".format(b=bearer))
             raise TokenInvalidException
 
-    def parse_basic_auth_header(self, request: Request) -> Tuple[str, str]:
+    def parse_basic_auth_header(self, request: flask.Request) -> Tuple[str, str]:
         """
         Parse user and password from request with Basic HTTP authorization header.
 
@@ -134,7 +134,7 @@ class HttpAuthHandler:
             raise TokenInvalidException
         return username, password
 
-    def authenticate_basic(self, request: Request) -> Tuple[str, str]:
+    def authenticate_basic(self, request: flask.Request) -> Tuple[str, str]:
         """
         Basic authentication:
         parse a request with Basic HTTP authorization, authenticate user and return access token
