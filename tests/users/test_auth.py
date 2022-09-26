@@ -261,6 +261,43 @@ def test_bearer_auth_oidc_inspect(app, requests_mock, oidc_provider):
         assert internal_auth_data["access_token"] == oidc_access_token
 
 
+def test_bearer_auth_oidc_caching(app, requests_mock, oidc_provider):
+    def userinfo(request, context):
+        """Fake OIDC /userinfo endpoint handler"""
+        _, _, token = request.headers["Authorization"].partition("Bearer ")
+        user_id = token.split(".")[1]
+        return json.dumps({"sub": user_id})
+
+    userinfo = requests_mock.get(oidc_provider.issuer + "/userinfo", text=userinfo)
+
+    def set_time(time):
+        # TODO reusable time mocking
+        app.config["auth_handler"]._cache._clock = lambda: time
+
+    with app.test_client() as client:
+        # Note: user id is "hidden" in access token
+        headers = {"Authorization": f"Bearer oidc/{oidc_provider.id}/rmxje3uhs.oidcuser.o94h4oe"}
+        headers_other = {"Authorization": f"Bearer oidc/{oidc_provider.id}/trwe35.otheruser.fg34fsf"}
+
+        set_time(10)
+        resp = client.get("/personal/hello", headers=headers)
+        assert (resp.status_code, resp.data) == (200, b"hello oidcuser")
+        assert userinfo.call_count == 1
+        resp = client.get("/personal/hello", headers=headers_other)
+        assert (resp.status_code, resp.data) == (200, b"hello otheruser")
+        assert userinfo.call_count == 2
+
+        set_time(100)
+        resp = client.get("/personal/hello", headers=headers)
+        assert (resp.status_code, resp.data) == (200, b"hello oidcuser")
+        assert userinfo.call_count == 2
+
+        set_time(10000)
+        resp = client.get("/personal/hello", headers=headers)
+        assert (resp.status_code, resp.data) == (200, b"hello oidcuser")
+        assert userinfo.call_count == 3
+
+
 def test_userinfo_url_caching(app, requests_mock, oidc_provider):
     oidc_discovery_url = oidc_provider.issuer + "/.well-known/openid-configuration"
     oidc_userinfo_url = oidc_provider.issuer + "/userinfo"
@@ -268,6 +305,7 @@ def test_userinfo_url_caching(app, requests_mock, oidc_provider):
     requests_mock.get(oidc_provider.issuer + "/userinfo", json={"sub": "foo"})
 
     def set_time(time):
+        # TODO reusable time mocking
         app.config["auth_handler"]._cache._clock = lambda: time
 
     with app.test_client() as client:

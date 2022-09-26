@@ -103,6 +103,15 @@ class HttpAuthHandler:
     def get_user_from_bearer_token(self, request: flask.Request) -> User:
         """Get User object from bearer token of request."""
         bearer = self.get_auth_token(request, "Bearer")
+
+        cache_key = ("bearer", bearer)
+        if not self._cache.contains(cache_key):
+            user = self._get_user_from_bearer_token(bearer=bearer)
+            self._cache.set(cache_key, value=user, ttl=15 * 60)
+        return self._cache.get(cache_key)
+
+    def _get_user_from_bearer_token(self, bearer: str) -> User:
+        """Get User object from bearer token of request."""
         # Support for 0.4-style basic auth
         if bearer.startswith(self._BASIC_ACCESS_TOKEN_PREFIX):
             return self.resolve_basic_access_token(access_token=bearer)
