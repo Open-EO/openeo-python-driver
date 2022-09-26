@@ -144,6 +144,9 @@ class SecondaryServices(MicroService):
 
 
 class LoadParameters(dict):
+    # TODO: these objects are part of the cache key for load_collection's lru_cache so mutating them will cause both
+    #  unwanted cache hits and unwanted cache misses; can we make them immutable like EvalEnv? #140
+
     """Container for load_collection related parameters and optimization hints"""
     # Some attributes pointing to dict items for more explicit tracing where parameters are set and read.
     temporal_extent = dict_item(default=(None, None))
@@ -159,10 +162,7 @@ class LoadParameters(dict):
     data_mask = dict_item(default={})
     target_crs = dict_item(default=None)
     target_resolution = dict_item(default=None)
-    backend_provider = dict_item(default=None)
 
-    # TODO: these objects are part of the cache key for load_collection's lru_cache so mutating them will cause both
-    #  unwanted cache hits and unwanted cache misses; can we make them immutable like EvalEnv?
     def copy(self) -> "LoadParameters":
         return LoadParameters(super().copy())
 
