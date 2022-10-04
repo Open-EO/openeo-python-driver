@@ -1385,7 +1385,8 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
     parent_process = env.get('parent_process')
     parameters = env.collect_parameters()
 
-    if process_id == "mask" and args.get("replacement", None) is None:
+    if process_id == "mask" and args.get("replacement", None) is None \
+            and smart_bool(env.get("data_mask_optimization", True)):
         mask_node = args.get("mask", None)
         # evaluate the mask
         _log.debug(f"data_mask: convert_node(mask_node): {mask_node}")
