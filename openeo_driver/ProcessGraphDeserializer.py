@@ -1056,7 +1056,7 @@ def aggregate_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
     if isinstance(geoms, DriverVectorCube):
         geoms = geoms
     elif isinstance(geoms, dict):
-        geoms = geojson_to_geometry(geoms)
+        geoms = DriverVectorCube.from_geojson(geoms)
     elif isinstance(geoms, DelayedVector):
         geoms = geoms.path
     else:
