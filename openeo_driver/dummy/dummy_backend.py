@@ -227,8 +227,16 @@ class DummyDataCube(DriverDataCube):
                 dims += (self.metadata.band_dimension.name,)
                 coords[self.metadata.band_dimension.name] = self.metadata.band_names
             shape = [len(coords[d]) for d in dims]
-            data = numpy.arange(numpy.prod(shape)).reshape(shape)
-            cube = xarray.DataArray(data=data, dims=dims, coords=coords, name="aggregate_spatial")
+            data = numpy.arange(numpy.prod(shape), dtype="float")
+            # Start with some more interesting values (e.g. to test NaN/null/None handling)
+            data[0] = 2.345
+            data[1] = float("nan")
+            cube = xarray.DataArray(
+                data=data.reshape(shape),
+                dims=dims,
+                coords=coords,
+                name="aggregate_spatial",
+            )
             return geometries.with_cube(cube=cube, flatten_prefix="agg")
         elif isinstance(geometries, str):
             geometries = [geometry for geometry in DelayedVector(geometries).geometries]
@@ -273,6 +281,25 @@ class DummyAggregatePolygonSpatialResult(AggregatePolygonSpatialResult):
         return DummyMlModel(
             process_id="fit_class_random_forest",
             data=self.data, target=target, num_trees=num_trees, max_variables=max_variables, seed=seed,
+        )
+
+
+class DummyVectorCube(DriverVectorCube):
+    def fit_class_random_forest(
+        self,
+        target: DriverVectorCube,
+        num_trees: int = 100,
+        max_variables: Optional[Union[int, str]] = None,
+        seed: Optional[int] = None,
+    ) -> "DriverMlModel":
+        return DummyMlModel(
+            process_id="fit_class_random_forest",
+            # TODO: handle `to_geojson` in `DummyMlModel.write_assets` instead of here?
+            data=self.to_geojson(),
+            target=target,
+            num_trees=num_trees,
+            max_variables=max_variables,
+            seed=seed,
         )
 
 
@@ -600,6 +627,9 @@ class DummyUserDefinedProcesses(UserDefinedProcesses):
 
 
 class DummyBackendImplementation(OpenEoBackendImplementation):
+
+    vector_cube_cls = DummyVectorCube
+
     def __init__(self, processing: Optional[Processing] = None):
         super(DummyBackendImplementation, self).__init__(
             secondary_services=DummySecondaryServices(),

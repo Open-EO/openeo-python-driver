@@ -177,7 +177,9 @@ class DriverVectorCube:
     def with_cube(self, cube: xarray.DataArray, flatten_prefix: str = FLATTEN_PREFIX) -> "DriverVectorCube":
         """Create new vector cube with same geometries but new cube"""
         log.info(f"Creating vector cube with new cube {cube.name!r}")
-        return DriverVectorCube(geometries=self._geometries, cube=cube, flatten_prefix=flatten_prefix)
+        return type(self)(
+            geometries=self._geometries, cube=cube, flatten_prefix=flatten_prefix
+        )
 
     @classmethod
     def from_fiona(cls, paths: List[str], driver: str, options: dict) -> "DriverVectorCube":
@@ -225,7 +227,8 @@ class DriverVectorCube:
 
         return df
 
-    def to_geojson(self):
+    def to_geojson(self) -> dict:
+        """Export as GeoJSON FeatureCollection."""
         return shapely.geometry.mapping(self._as_geopandas_df())
 
     def to_wkt(self) -> List[str]:
@@ -242,6 +245,14 @@ class DriverVectorCube:
         format_info = IOFORMATS.get(format)
         # TODO: check if format can be used for vector data?
         path = directory / f"vectorcube.{format_info.extension}"
+
+        if format_info.format == "JSON":
+            # TODO: eliminate this legacy format?
+            log.warning(
+                f"Exporting vector cube {self} to legacy, non-standard JSON format"
+            )
+            return self.to_legacy_save_result().write_assets(directory)
+
         self._as_geopandas_df().to_file(path, driver=format_info.fiona_driver)
 
         if not format_info.multi_file:
@@ -274,6 +285,36 @@ class DriverVectorCube:
     def to_multipolygon(self) -> shapely.geometry.MultiPolygon:
         return shapely.ops.unary_union(self._geometries.geometry)
 
+    def to_legacy_save_result(self) -> Union["AggregatePolygonResult", "JSONResult"]:
+        """
+        Export to legacy AggregatePolygonResult/JSONResult objects.
+        Provided as temporary adaption layer while migrating to real vector cubes.
+        """
+        # TODO: eliminate these legacy, non-standard formats?
+        from openeo_driver.save_result import AggregatePolygonResult, JSONResult
+
+        cube = self._cube
+        # TODO: more flexible temporal/band dimension detection?
+        if cube.dims == (self.DIM_GEOMETRIES, "t"):
+            # Add single band dimension
+            cube = cube.expand_dims({"bands": ["band"]}, axis=-1)
+        if cube.dims == (self.DIM_GEOMETRIES, "t", "bands"):
+            cube = cube.transpose("t", self.DIM_GEOMETRIES, "bands")
+            timeseries = {
+                t.item(): t_slice.values.tolist()
+                for t, t_slice in zip(cube.coords["t"], cube)
+            }
+            return AggregatePolygonResult(timeseries=timeseries, regions=self)
+        elif cube.dims == (self.DIM_GEOMETRIES, "bands"):
+            # This covers the legacy `AggregatePolygonSpatialResult` code path,
+            # but as AggregatePolygonSpatialResult's constructor expects a folder of CSV file(s),
+            # we keep it simple here with a basic JSONResult result.
+            cube = cube.transpose(self.DIM_GEOMETRIES, "bands")
+            return JSONResult(data=cube.values.tolist())
+        raise ValueError(
+            f"Unsupported cube configuration {cube.dims} for _write_legacy_aggregate_polygon_result_json"
+        )
+
     def get_bounding_box(self) -> Tuple[float, float, float, float]:
         return tuple(self._geometries.total_bounds)
 
@@ -292,6 +333,15 @@ class DriverVectorCube:
     def __eq__(self, other):
         return (isinstance(other, DriverVectorCube)
                 and np.array_equal(self._as_geopandas_df().values, other._as_geopandas_df().values))
+
+    def fit_class_random_forest(
+        self,
+        target: "DriverVectorCube",
+        num_trees: int = 100,
+        max_variables: Optional[Union[int, str]] = None,
+        seed: Optional[int] = None,
+    ) -> "DriverMlModel":
+        raise NotImplementedError
 
 
 class DriverMlModel:

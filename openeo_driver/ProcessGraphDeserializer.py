@@ -740,32 +740,26 @@ def fit_class_random_forest(args: dict, env: EvalEnv) -> DriverMlModel:
         return DriverMlModel()
 
     predictors = extract_arg(args, 'predictors')
-    if not isinstance(predictors, AggregatePolygonSpatialResult):
-        # TODO #114 EP-3981 add support for real vector cubes.
+    if not isinstance(predictors, (AggregatePolygonSpatialResult, DriverVectorCube)):
+        # TODO #114 EP-3981 drop AggregatePolygonSpatialResult support.
         raise ProcessParameterInvalidException(
-            parameter="predictors", process="fit_class_random_forest",
-            reason=f"should be non-temporal vector-cube (got `{type(predictors)}`)."
-            )
-    target = extract_arg(args, 'target')
-    if not (
-            isinstance(target, dict)
-            and target.get("type") == "FeatureCollection"
-            and isinstance(target.get("features"), list)
-    ):
-        # TODO #114 EP-3981 vector cube support
-        raise ProcessParameterInvalidException(
-            parameter="target", process="fit_class_random_forest",
-            reason='only GeoJSON FeatureCollection is currently supported.',
+            parameter="predictors",
+            process="fit_class_random_forest",
+            reason=f"should be non-temporal vector-cube, but got {type(predictors)}.",
         )
-    if any(
-        # TODO: allow string based target labels too?
-        not isinstance(deep_get(f, "properties", "target", default=None), int)
-        for f in target.get("features", [])
-    ):
+
+    target = extract_arg(args, "target")
+    if isinstance(target, DriverVectorCube):
+        pass
+    elif isinstance(target, dict) and target.get("type") == "FeatureCollection":
+        # TODO: convert to vector cube, e.g.:
+        # target = env.backend_implementation.vector_cube_cls.from_geojson(target)
+        pass
+    else:
         raise ProcessParameterInvalidException(
             parameter="target",
             process="fit_class_random_forest",
-            reason="Each feature (from target feature collection) should have an integer 'target' property.",
+            reason=f"expected feature collection or vector-cube value, but got {type(target)}.",
         )
 
     # TODO: get defaults from process spec?
@@ -1056,7 +1050,8 @@ def aggregate_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
     if isinstance(geoms, DriverVectorCube):
         geoms = geoms
     elif isinstance(geoms, dict):
-        geoms = geojson_to_geometry(geoms)
+        # Automatically convert inline GeoJSON to a vector cube #114/#141
+        geoms = env.backend_implementation.vector_cube_cls.from_geojson(geoms)
     elif isinstance(geoms, DelayedVector):
         geoms = geoms.path
     else:
@@ -1321,6 +1316,12 @@ def run_udf(args: dict, env: EvalEnv):
     # TODO #114 add support for DriverVectorCube
     if isinstance(data, AggregatePolygonResult):
         pass
+    if isinstance(data, DriverVectorCube):
+        # TODO: this is temporary stopgap measure, converting to old-style save results to stay backward compatible.
+        #       Better have proper DriverVectorCube support in run_udf?
+        #       How does that fit in UdfData and UDF function signatures?
+        data = data.to_legacy_save_result()
+
     if isinstance(data, (DelayedVector, dict)):
         if isinstance(data, dict):
             data = DelayedVector.from_json_dict(data)
@@ -1338,7 +1339,10 @@ def run_udf(args: dict, env: EvalEnv):
         )
     else:
         raise ProcessParameterInvalidException(
-            parameter='data', process='run_udf', reason=f"Invalid data type {type(data)!r} expected raster-cube.")
+            parameter="data",
+            process="run_udf",
+            reason=f"Unsupported data type {type(data)}.",
+        )
 
     _log.info(f"[run_udf] Running UDF {str_truncate(udf, width=256)!r} on {data!r}")
     result_data = openeo.udf.run_udf_code(udf, data)
@@ -1550,7 +1554,7 @@ def to_vector_cube(args: Dict, env: EvalEnv):
     # TODO: standardization of something like this? https://github.com/Open-EO/openeo-processes/issues/346
     data = extract_arg(args, "data", process_id="to_vector_cube")
     if isinstance(data, dict) and data.get("type") in {"Polygon", "MultiPolygon", "Feature", "FeatureCollection"}:
-        return DriverVectorCube.from_geojson(data)
+        return env.backend_implementation.vector_cube_cls.from_geojson(data)
     # TODO: support more inputs: string with geojson, string with WKT, list of WKT, string with URL to GeoJSON, ...
     raise FeatureUnsupportedException(f"Converting {type(data)} to vector cube is not supported")
 
