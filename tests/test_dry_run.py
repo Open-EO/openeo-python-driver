@@ -5,9 +5,11 @@ from openeo.internal.graph_building import PGNode
 from openeo.rest.datacube import DataCube
 from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER, _extract_load_parameters, \
     ENV_SOURCE_CONSTRAINTS, custom_process_from_process_graph, process_registry_100
+from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer, DataSource, DataTrace, ProcessType
+from openeo_driver.testing import DictSubSet
 from openeo_driver.utils import EvalEnv
 from tests.data import get_path, load_json
 
@@ -526,67 +528,148 @@ def test_aggregate_spatial_only(dry_run_env, dry_run_tracer):
     assert src == ("load_collection", ("S2_FOOBAR", ()))
     assert constraints == {
         "spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
-        "aggregate_spatial": {"geometries": shapely.geometry.shape(polygon)},
+        "aggregate_spatial": {"geometries": DriverVectorCube.from_geojson(polygon)},
     }
     geometries, = dry_run_tracer.get_geometries()
-    assert isinstance(geometries, shapely.geometry.Polygon)
-    assert shapely.geometry.mapping(geometries) == {
-        "type": "Polygon",
-        "coordinates": (((0.0, 0.0), (3.0, 5.0), (8.0, 2.0), (0.0, 0.0)),)
-    }
+    assert isinstance(geometries, DriverVectorCube)
+    assert geometries.to_geojson() == DictSubSet(
+        type="FeatureCollection",
+        features=[
+            DictSubSet(
+                geometry={
+                    "type": "Polygon",
+                    "coordinates": (((0.0, 0.0), (3.0, 5.0), (8.0, 2.0), (0.0, 0.0)),),
+                }
+            ),
+        ],
+    )
 
 
 def test_aggregate_spatial_apply_dimension(dry_run_env, dry_run_tracer):
     polygon = {"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]}
-    pg = {'loadcollection1': {'process_id': 'load_collection', 'arguments': {'bands': ['B04', 'B08', 'B11', 'SCL'],
-                                                                             'id': 'S2_FOOBAR',
-                                                                             'spatial_extent': None,
-                                                                             'temporal_extent': ['2018-11-01',
-                                                                                                 '2020-02-01']}},
-          'maskscldilation1': {'process_id': 'mask_scl_dilation',
-                               'arguments': {'data': {'from_node': 'loadcollection1'}, 'scl_band_name': 'SCL'}},
-          'aggregatetemporalperiod1': {'process_id': 'aggregate_temporal_period',
-                                       'arguments': {'data': {'from_node': 'maskscldilation1'}, 'period': 'month',
-                                                     'reducer': {'process_graph': {'mean1': {'process_id': 'mean',
-                                                                                             'arguments': {'data': {
-                                                                                                 'from_parameter': 'data'}},
-                                                                                             'result': True}}}}},
-          'applydimension1': {'process_id': 'apply_dimension',
-                              'arguments': {'data': {'from_node': 'aggregatetemporalperiod1'}, 'dimension': 't',
-                                            'process': {'process_graph': {
-                                                'arrayinterpolatelinear1': {'process_id': 'array_interpolate_linear',
-                                                                            'arguments': {
-                                                                                'data': {'from_parameter': 'data'}},
-                                                                            'result': True}}}}},
-          'filtertemporal1': {'process_id': 'filter_temporal', 'arguments': {'data': {'from_node': 'applydimension1'},
-                                                                             'extent': ['2019-01-01', '2020-01-01']}},
-          'applydimension2': {'process_id': 'apply_dimension',
-                              'arguments': {'data': {'from_node': 'filtertemporal1'}, 'dimension': 'bands', 'process': {
-                                  'process_graph': {'arrayelement1': {'process_id': 'array_element',
-                                                                      'arguments': {'data': {'from_parameter': 'data'},
-                                                                                    'index': 1}},
-                                                    'arrayelement2': {'process_id': 'array_element',
-                                                                      'arguments': {'data': {'from_parameter': 'data'},
-                                                                                    'index': 0}},
-                                                    'normalizeddifference1': {'process_id': 'normalized_difference',
-                                                                              'arguments': {
-                                                                                  'x': {'from_node': 'arrayelement1'},
-                                                                                  'y': {'from_node': 'arrayelement2'}}},
-                                                    'arraymodify1': {'process_id': 'array_modify',
-                                                                     'arguments': {'data': {'from_parameter': 'data'},
-                                                                                   'index': 0, 'values': {
-                                                                             'from_node': 'normalizeddifference1'}},
-                                                                     'result': True}}}}},
-          'renamelabels1': {'process_id': 'rename_labels',
-                            'arguments': {'data': {'from_node': 'applydimension2'}, 'dimension': 'bands',
-                                          'target': ['NDVI', 'B04', 'B08']}},
-          'aggregatespatial1': {'process_id': 'aggregate_spatial',
-                                'arguments': {'data': {'from_node': 'renamelabels1'}, 'geometries': polygon,
-                                              'reducer': {'process_graph': {'mean2': {'process_id': 'mean',
-                                                                                      'arguments': {'data': {
-                                                                                          'from_parameter': 'data'}},
-                                                                                      'result': True}}}},
-                                'result': True}}
+    pg = {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {
+                "bands": ["B04", "B08", "B11", "SCL"],
+                "id": "S2_FOOBAR",
+                "spatial_extent": None,
+                "temporal_extent": ["2018-11-01", "2020-02-01"],
+            },
+        },
+        "maskscldilation1": {
+            "process_id": "mask_scl_dilation",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "scl_band_name": "SCL",
+            },
+        },
+        "aggregatetemporalperiod1": {
+            "process_id": "aggregate_temporal_period",
+            "arguments": {
+                "data": {"from_node": "maskscldilation1"},
+                "period": "month",
+                "reducer": {
+                    "process_graph": {
+                        "mean1": {
+                            "process_id": "mean",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        }
+                    }
+                },
+            },
+        },
+        "applydimension1": {
+            "process_id": "apply_dimension",
+            "arguments": {
+                "data": {"from_node": "aggregatetemporalperiod1"},
+                "dimension": "t",
+                "process": {
+                    "process_graph": {
+                        "arrayinterpolatelinear1": {
+                            "process_id": "array_interpolate_linear",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        }
+                    }
+                },
+            },
+        },
+        "filtertemporal1": {
+            "process_id": "filter_temporal",
+            "arguments": {
+                "data": {"from_node": "applydimension1"},
+                "extent": ["2019-01-01", "2020-01-01"],
+            },
+        },
+        "applydimension2": {
+            "process_id": "apply_dimension",
+            "arguments": {
+                "data": {"from_node": "filtertemporal1"},
+                "dimension": "bands",
+                "process": {
+                    "process_graph": {
+                        "arrayelement1": {
+                            "process_id": "array_element",
+                            "arguments": {
+                                "data": {"from_parameter": "data"},
+                                "index": 1,
+                            },
+                        },
+                        "arrayelement2": {
+                            "process_id": "array_element",
+                            "arguments": {
+                                "data": {"from_parameter": "data"},
+                                "index": 0,
+                            },
+                        },
+                        "normalizeddifference1": {
+                            "process_id": "normalized_difference",
+                            "arguments": {
+                                "x": {"from_node": "arrayelement1"},
+                                "y": {"from_node": "arrayelement2"},
+                            },
+                        },
+                        "arraymodify1": {
+                            "process_id": "array_modify",
+                            "arguments": {
+                                "data": {"from_parameter": "data"},
+                                "index": 0,
+                                "values": {"from_node": "normalizeddifference1"},
+                            },
+                            "result": True,
+                        },
+                    }
+                },
+            },
+        },
+        "renamelabels1": {
+            "process_id": "rename_labels",
+            "arguments": {
+                "data": {"from_node": "applydimension2"},
+                "dimension": "bands",
+                "target": ["NDVI", "B04", "B08"],
+            },
+        },
+        "aggregatespatial1": {
+            "process_id": "aggregate_spatial",
+            "arguments": {
+                "data": {"from_node": "renamelabels1"},
+                "geometries": polygon,
+                "reducer": {
+                    "process_graph": {
+                        "mean2": {
+                            "process_id": "mean",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        }
+                    }
+                },
+            },
+            "result": True,
+        },
+    }
 
     cube = evaluate(pg, env=dry_run_env)
 
@@ -599,15 +682,22 @@ def test_aggregate_spatial_apply_dimension(dry_run_env, dry_run_tracer):
         "process_type": [ProcessType.GLOBAL_TIME],
         "bands": ["B04", "B08", "B11", "SCL"],
         "custom_cloud_mask": {"method": "mask_scl_dilation", 'scl_band_name': 'SCL'},
-        "aggregate_spatial": {"geometries": shapely.geometry.shape(polygon)},
+        "aggregate_spatial": {"geometries": DriverVectorCube.from_geojson(polygon)},
         "temporal_extent": ("2018-11-01", "2020-02-01")
     }
     geometries, = dry_run_tracer.get_geometries()
-    assert isinstance(geometries, shapely.geometry.Polygon)
-    assert shapely.geometry.mapping(geometries) == {
-        "type": "Polygon",
-        "coordinates": (((0.0, 0.0), (3.0, 5.0), (8.0, 2.0), (0.0, 0.0)),)
-    }
+    assert isinstance(geometries, DriverVectorCube)
+    assert geometries.to_geojson() == DictSubSet(
+        type="FeatureCollection",
+        features=[
+            DictSubSet(
+                geometry={
+                    "type": "Polygon",
+                    "coordinates": (((0.0, 0.0), (3.0, 5.0), (8.0, 2.0), (0.0, 0.0)),),
+                }
+            ),
+        ],
+    )
 
 
 def test_aggregate_spatial_and_filter_bbox(dry_run_env, dry_run_tracer):
@@ -626,14 +716,21 @@ def test_aggregate_spatial_and_filter_bbox(dry_run_env, dry_run_tracer):
     assert src == ("load_collection", ("S2_FOOBAR", ()))
     assert constraints == {
         "spatial_extent": bbox,
-        "aggregate_spatial": {"geometries": shapely.geometry.shape(polygon)},
+        "aggregate_spatial": {"geometries": DriverVectorCube.from_geojson(polygon)},
     }
     geometries, = dry_run_tracer.get_geometries()
-    assert isinstance(geometries, shapely.geometry.Polygon)
-    assert shapely.geometry.mapping(geometries) == {
-        "type": "Polygon",
-        "coordinates": (((0.0, 0.0), (3.0, 5.0), (8.0, 2.0), (0.0, 0.0)),)
-    }
+    assert isinstance(geometries, DriverVectorCube)
+    assert geometries.to_geojson() == DictSubSet(
+        type="FeatureCollection",
+        features=[
+            DictSubSet(
+                geometry={
+                    "type": "Polygon",
+                    "coordinates": (((0.0, 0.0), (3.0, 5.0), (8.0, 2.0), (0.0, 0.0)),),
+                }
+            ),
+        ],
+    )
 
 
 def test_resample_filter_spatial(dry_run_env, dry_run_tracer):
@@ -697,31 +794,34 @@ def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
     assert isinstance(geometries, DelayedVector)
 
 
-def test_aggregate_spatial_get_geometries_feature_collection(dry_run_env, dry_run_tracer):
+def test_aggregate_spatial_get_geometries_feature_collection(
+    dry_run_env, dry_run_tracer
+):
     pg = {
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
-        "vector": {"process_id": "get_geometries", "arguments": {"feature_collection": {
-            "type": "FeatureCollection",
-            "name": "fields",
-            "crs": {
-                "type": "name",
-                "properties": {
-                    "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+        "vector": {
+            "process_id": "get_geometries",
+            "arguments": {
+                "feature_collection": {
+                    "type": "FeatureCollection",
+                    "name": "fields",
+                    "crs": {
+                        "type": "name",
+                        "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"},
+                    },
+                    "features": [
+                        {
+                            "type": "Feature",
+                            "geometry": {
+                                "type": "Polygon",
+                                "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]],
+                            },
+                            "properties": {"CODE_OBJ": "0000000000000001"},
+                        }
+                    ],
                 }
             },
-            "features": [
-                {
-                    "type": "Feature",
-                    "geometry": {
-                        "type": "Polygon",
-                        "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]
-                    },
-                    "properties": {
-                        "CODE_OBJ": "0000000000000001"
-                    }
-                }
-            ]
-        }}},
+        },
         "agg": {
             "process_id": "aggregate_spatial",
             "arguments": {
@@ -744,19 +844,28 @@ def test_aggregate_spatial_get_geometries_feature_collection(dry_run_env, dry_ru
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
     assert src == ("load_collection", ("S2_FOOBAR", ()))
-    expected_geometry_collection = shapely.geometry.GeometryCollection(
-        [shapely.geometry.shape({"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]})]
+
+    expected_geometry_collection = DriverVectorCube.from_geojson(
+        pg["vector"]["arguments"]["feature_collection"]
     )
     assert constraints == {
-        "spatial_extent": {'west': 0.0, 'south': 0.0, 'east': 8.0, 'north': 5.0, 'crs': 'EPSG:4326'},
-        "aggregate_spatial": {"geometries": expected_geometry_collection}
+        "spatial_extent": {
+            "west": 0.0,
+            "south": 0.0,
+            "east": 8.0,
+            "north": 5.0,
+            "crs": "EPSG:4326",
+        },
+        "aggregate_spatial": {"geometries": expected_geometry_collection},
     }
-    geometries, = dry_run_tracer.get_geometries()
-    assert isinstance(geometries, shapely.geometry.GeometryCollection)
+    (geometries,) = dry_run_tracer.get_geometries()
+    assert isinstance(geometries, DriverVectorCube)
 
 
-@pytest.mark.parametrize(["arguments", "expected"], [
-    (
+@pytest.mark.parametrize(
+    ["arguments", "expected"],
+    [
+        (
             {},
             SarBackscatterArgs(coefficient="gamma0-terrain", elevation_model=None, mask=False, contributing_area=False,
                                local_incidence_angle=False, ellipsoid_incidence_angle=False, noise_removal=True,

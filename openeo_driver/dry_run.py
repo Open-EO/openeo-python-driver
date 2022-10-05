@@ -350,8 +350,10 @@ class DryRunDataTracer:
         return source_constraints
 
     def get_geometries(
-            self, operation="aggregate_spatial"
-    ) -> List[Union[shapely.geometry.base.BaseGeometry, DelayedVector]]:
+        self, operation="aggregate_spatial"
+    ) -> List[
+        Union[shapely.geometry.base.BaseGeometry, DelayedVector, DriverVectorCube]
+    ]:
         """Get geometries (polygons or DelayedVector), as used by aggregate_spatial"""
         geometries_by_id = {}
         for leaf in self.get_trace_leaves():
