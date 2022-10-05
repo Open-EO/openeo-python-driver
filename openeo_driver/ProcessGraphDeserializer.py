@@ -1511,7 +1511,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
                     "pattern": "^[^\r\n\\:'\"]+$",
                 },
             ])
-        .returns("TODO", schema={"type": "object", "subtype": "vector-cube"})
+        .returns("GeoJSON-style feature collection", schema={"type": "object", "subtype": "geojson"})
 )
 def read_vector(args: Dict, env: EvalEnv) -> DelayedVector:
     # TODO #114 EP-3981: deprecated in favor of load_uploaded_files/load_external? https://github.com/Open-EO/openeo-processes/issues/322
