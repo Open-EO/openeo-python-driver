@@ -227,6 +227,8 @@ class ApiTester:
         Build dict containing process graph (e.g. to POST, or to expect in metadata),
         according to API version
         """
+        if "process_graph" in process_graph:
+            process_graph = process_graph["process_graph"]
         if ComparableVersion("1.0.0").or_higher(self.api_version):
             data = {"process": {'process_graph': process_graph}}
         else:
