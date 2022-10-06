@@ -42,7 +42,7 @@ TEST_APP_CONFIG = dict(
 def flask_app(backend_implementation) -> flask.Flask:
     app = build_app(
         backend_implementation=backend_implementation,
-        # error_handling=False
+        # error_handling=False,
     )
     app.config.from_mapping(TEST_APP_CONFIG)
     return app

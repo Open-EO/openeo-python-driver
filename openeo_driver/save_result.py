@@ -161,7 +161,7 @@ class JSONResult(SaveResult):
         super().__init__(format=format, options=options)
         self.data = data
 
-    def write_assets(self, path:str) -> Dict[str, StacAsset]:
+    def write_assets(self, path: Union[str, Path]) -> Dict[str, StacAsset]:
         """
         Save generated assets into a directory, return asset metadata.
         TODO: can an asset also be a full STAC item? In principle, one openEO job can either generate a full STAC collection, or one STAC item with multiple assets...
@@ -220,7 +220,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         # By default, keep original (proprietary) result format
         return self.data
 
-    def write_assets(self, directory: str) -> Dict[str, StacAsset]:
+    def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
         """
         Save generated assets into a directory, return asset metadata.
         TODO: can an asset also be a full STAC item? In principle, one openEO job can either generate a full STAC collection, or one STAC item with multiple assets...

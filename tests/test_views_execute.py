@@ -734,17 +734,33 @@ def test_aggregate_spatial(api):
         "2015-07-06T00:00:00Z": [[2.345]],
         "2015-08-22T00:00:00Z": [[None]]
     }
-    params = dummy_backend.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
-    assert params["spatial_extent"] == {"west": 7.02, "south": 51.29, "east": 7.65, "north": 51.75, "crs": 'EPSG:4326'}
-    assert params["aggregate_spatial_geometries"] == shapely.geometry.shape({
-        "type": "Polygon",
-        "coordinates": [[[7.02, 51.75], [7.65, 51.74], [7.65, 51.29], [7.04, 51.31], [7.02, 51.75]]]
-    })
+    params = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    assert params["spatial_extent"] == {
+        "west": 7.02,
+        "south": 51.29,
+        "east": 7.65,
+        "north": 51.75,
+        "crs": "EPSG:4326",
+    }
+    assert params["aggregate_spatial_geometries"] == DriverVectorCube.from_geojson(
+        {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [7.02, 51.75],
+                    [7.65, 51.74],
+                    [7.65, 51.29],
+                    [7.04, 51.31],
+                    [7.02, 51.75],
+                ]
+            ],
+        }
+    )
 
 
 def test_execute_aggregate_spatial_spatial_cube(api100):
     resp = api100.check_result("aggregate_spatial_spatial_cube.json")
-    assert resp.json == [[100.0, 100.1], [101.0, 101.1]]
+    assert resp.json == [[2.345, None], [2.0, 3.0]]
 
 
 @pytest.mark.parametrize(["geometries", "expected"], [
@@ -789,37 +805,51 @@ def test_aggregate_spatial_vector_cube_basic(api100, feature_collection_test_pat
     assert params["spatial_extent"] == {"west": 1, "south": 1, "east": 5, "north": 4, "crs": "EPSG:4326"}
     assert isinstance(params["aggregate_spatial_geometries"], DriverVectorCube)
 
-    assert res.json == DictSubSet({
-        "type": "FeatureCollection",
-        "features": [
-            DictSubSet({
-                "type": "Feature",
-                "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
-                "properties": {
-                    "id": "first", "pop": 1234,
-                    "agg~2015-07-06T00:00:00Z~B02": 0,
-                    "agg~2015-07-06T00:00:00Z~B03": 1,
-                    "agg~2015-07-06T00:00:00Z~B04": 2,
-                    "agg~2015-08-22T00:00:00Z~B02": 3,
-                    "agg~2015-08-22T00:00:00Z~B03": 4,
-                    "agg~2015-08-22T00:00:00Z~B04": 5,
-                },
-            }),
-            DictSubSet({
-                "type": "Feature",
-                "geometry": {"type": "Polygon", "coordinates": [[[4, 2], [5, 4], [3, 4], [4, 2]]]},
-                "properties": {
-                    "id": "second", "pop": 5678,
-                    "agg~2015-07-06T00:00:00Z~B02": 6,
-                    "agg~2015-07-06T00:00:00Z~B03": 7,
-                    "agg~2015-07-06T00:00:00Z~B04": 8,
-                    "agg~2015-08-22T00:00:00Z~B02": 9,
-                    "agg~2015-08-22T00:00:00Z~B03": 10,
-                    "agg~2015-08-22T00:00:00Z~B04": 11,
-                },
-            }),
-        ]
-    })
+    assert res.json == DictSubSet(
+        {
+            "type": "FeatureCollection",
+            "features": [
+                DictSubSet(
+                    {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Polygon",
+                            "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]],
+                        },
+                        "properties": {
+                            "id": "first",
+                            "pop": 1234,
+                            "agg~2015-07-06T00:00:00Z~B02": 2.345,
+                            "agg~2015-07-06T00:00:00Z~B03": None,
+                            "agg~2015-07-06T00:00:00Z~B04": 2.0,
+                            "agg~2015-08-22T00:00:00Z~B02": 3.0,
+                            "agg~2015-08-22T00:00:00Z~B03": 4.0,
+                            "agg~2015-08-22T00:00:00Z~B04": 5.0,
+                        },
+                    }
+                ),
+                DictSubSet(
+                    {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Polygon",
+                            "coordinates": [[[4, 2], [5, 4], [3, 4], [4, 2]]],
+                        },
+                        "properties": {
+                            "id": "second",
+                            "pop": 5678,
+                            "agg~2015-07-06T00:00:00Z~B02": 6.0,
+                            "agg~2015-07-06T00:00:00Z~B03": 7.0,
+                            "agg~2015-07-06T00:00:00Z~B04": 8.0,
+                            "agg~2015-08-22T00:00:00Z~B02": 9.0,
+                            "agg~2015-08-22T00:00:00Z~B03": 10.0,
+                            "agg~2015-08-22T00:00:00Z~B04": 11.0,
+                        },
+                    }
+                ),
+            ],
+        }
+    )
 
 
 @pytest.mark.parametrize(["info", "preprocess_pg", "aggregate_data", "p1_properties", "p2_properties"], [
@@ -828,9 +858,14 @@ def test_aggregate_spatial_vector_cube_basic(api100, feature_collection_test_pat
             {},
             "lc",
             {
-                "id": "first", "pop": 1234,
-                "agg~2015-07-06T00:00:00Z~B02": 0, "agg~2015-07-06T00:00:00Z~B03": 1, "agg~2015-07-06T00:00:00Z~B04": 2,
-                "agg~2015-08-22T00:00:00Z~B02": 3, "agg~2015-08-22T00:00:00Z~B03": 4, "agg~2015-08-22T00:00:00Z~B04": 5,
+                "id": "first",
+                "pop": 1234,
+                "agg~2015-07-06T00:00:00Z~B02": 2.345,
+                "agg~2015-07-06T00:00:00Z~B03": None,
+                "agg~2015-07-06T00:00:00Z~B04": 2,
+                "agg~2015-08-22T00:00:00Z~B02": 3,
+                "agg~2015-08-22T00:00:00Z~B03": 4,
+                "agg~2015-08-22T00:00:00Z~B04": 5,
             },
             {
                 "id": "second", "pop": 5678,
@@ -850,7 +885,13 @@ def test_aggregate_spatial_vector_cube_basic(api100, feature_collection_test_pat
                 }},
             },
             "r",
-            {"id": "first", "pop": 1234, "agg~B02": 0, "agg~B03": 1, "agg~B04": 2},
+            {
+                "id": "first",
+                "pop": 1234,
+                "agg~B02": 2.345,
+                "agg~B03": None,
+                "agg~B04": 2,
+            },
             {"id": "second", "pop": 5678, "agg~B02": 3, "agg~B03": 4, "agg~B04": 5},
     ),
     (
@@ -865,10 +906,20 @@ def test_aggregate_spatial_vector_cube_basic(api100, feature_collection_test_pat
                 }}
             },
             "r",
-            {"id": "first", "pop": 1234, "agg~2015-07-06T00:00:00Z": 0, "agg~2015-08-22T00:00:00Z": 1},
-            {"id": "second", "pop": 5678, "agg~2015-07-06T00:00:00Z": 2, "agg~2015-08-22T00:00:00Z": 3},
-    ),
-    (
+            {
+                "id": "first",
+                "pop": 1234,
+                "agg~2015-07-06T00:00:00Z": 2.345,
+                "agg~2015-08-22T00:00:00Z": None,
+            },
+            {
+                "id": "second",
+                "pop": 5678,
+                "agg~2015-07-06T00:00:00Z": 2,
+                "agg~2015-08-22T00:00:00Z": 3,
+            },
+        ),
+        (
             "no-time-nor-bands",
             {
                 "r1": {"process_id": "reduce_dimension", "arguments": {
@@ -887,8 +938,8 @@ def test_aggregate_spatial_vector_cube_basic(api100, feature_collection_test_pat
                 }},
             },
             "r2",
-            {"id": "first", "pop": 1234, "agg": 0},
-            {"id": "second", "pop": 5678, "agg": 1},
+            {"id": "first", "pop": 1234, "agg": 2.345},
+            {"id": "second", "pop": 5678, "agg": None},
     ),
 ])
 def test_aggregate_spatial_vector_cube_dimensions(

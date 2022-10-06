@@ -243,6 +243,11 @@ class DriverVectorCube:
         format_info = IOFORMATS.get(format)
         # TODO: check if format can be used for vector data?
         path = directory / f"vectorcube.{format_info.extension}"
+
+        if format_info.format == "JSON":
+            # TODO: eliminate this legacy format?
+            return self._write_legacy_aggregate_polygon_result_json(directory=directory)
+
         self._as_geopandas_df().to_file(path, driver=format_info.fiona_driver)
 
         if not format_info.multi_file:
@@ -274,6 +279,41 @@ class DriverVectorCube:
 
     def to_multipolygon(self) -> shapely.geometry.MultiPolygon:
         return shapely.ops.unary_union(self._geometries.geometry)
+
+    def _write_legacy_aggregate_polygon_result_json(
+        self, directory: Path
+    ) -> Dict[str, StacAsset]:
+        """Export to legacy AggregatePolygonResult JSON format"""
+        # TODO: eliminate this legacy, non-standard format?
+        from openeo_driver.save_result import AggregatePolygonResult, JSONResult
+
+        def write_spatiotemporal(cube: xarray.DataArray) -> Dict[str, StacAsset]:
+            """Export to legacy AggregatePolygonResult JSON format"""
+            cube = cube.transpose("t", self.DIM_GEOMETRIES, "bands")
+            timeseries = {
+                t.item(): t_slice.values.tolist()
+                for t, t_slice in zip(cube.coords["t"], cube)
+            }
+            result = AggregatePolygonResult(timeseries=timeseries, regions=self)
+            return result.write_assets(directory=directory / "ignored")
+
+        def write_spatial(cube: xarray.DataArray) -> Dict[str, StacAsset]:
+            cube = cube.transpose(self.DIM_GEOMETRIES, "bands")
+            result = JSONResult(data=cube.values.tolist())
+            return result.write_assets(directory / "ignored")
+
+        cube = self._cube
+        # TODO: more flexible temporal/band dimension detection?
+        if cube.dims == (self.DIM_GEOMETRIES, "t"):
+            return write_spatiotemporal(cube.expand_dims({"bands": ["band"]}, axis=-1))
+        elif cube.dims == (self.DIM_GEOMETRIES, "t", "bands"):
+            return write_spatiotemporal(cube)
+        elif cube.dims == (self.DIM_GEOMETRIES, "bands"):
+            return write_spatial(cube)
+        else:
+            raise ValueError(
+                f"Unsupported cube configuration {cube.dims} for _write_legacy_aggregate_polygon_result_json"
+            )
 
     def get_bounding_box(self) -> Tuple[float, float, float, float]:
         return tuple(self._geometries.total_bounds)

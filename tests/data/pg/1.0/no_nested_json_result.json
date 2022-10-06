@@ -67,7 +67,7 @@
         "result": true,
         "process_id": "save_result",
         "arguments": {
-          "format": "GTIFF",
+          "format": "GeoJSON",
           "data": {
             "from_node": "aggregatespatial1"
           },
