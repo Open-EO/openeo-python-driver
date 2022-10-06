@@ -537,24 +537,28 @@ def test_execute_mask(api):
     api.check_result("mask.json")
     assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").mask.call_count == 1
 
-    expected = {
+    expected_spatial_extent = {
         "west": 7.02,
         "south": 51.2,
         "east": 7.65,
         "north": 51.7,
-        "crs": 'EPSG:4326',
+        "crs": "EPSG:4326",
     }
-    expected_geometry = shapely.geometry.shape({
-        "type": "Polygon",
-        "coordinates": [[[7.02, 51.7], [7.65, 51.7], [7.65, 51.2], [7.04, 51.3], [7.02, 51.7]]]
-    })
+    expected_geometry = DriverVectorCube.from_geojson(
+        {
+            "type": "Polygon",
+            "coordinates": [
+                [[7.02, 51.7], [7.65, 51.7], [7.65, 51.2], [7.04, 51.3], [7.02, 51.7]],
+            ],
+        }
+    )
 
     params = dummy_backend.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
-    assert params["spatial_extent"] == expected
+    assert params["spatial_extent"] == expected_spatial_extent
     assert params["aggregate_spatial_geometries"] == expected_geometry
 
     params = dummy_backend.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
-    assert params["spatial_extent"] == expected
+    assert params["spatial_extent"] == expected_spatial_extent
 
 
 def test_execute_mask_optimized_loading(api):
@@ -563,24 +567,28 @@ def test_execute_mask_optimized_loading(api):
                      )
     assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").mask.call_count == 1
 
-    expected = {
+    expected_spatial_extent = {
         "west": 7.02,
         "south": 51.2,
         "east": 7.65,
         "north": 51.7,
-        "crs": 'EPSG:4326',
+        "crs": "EPSG:4326",
     }
-    expected_geometry = shapely.geometry.shape({
-        "type": "Polygon",
-        "coordinates": [[[7.02, 51.7], [7.65, 51.7], [7.65, 51.2], [7.04, 51.3], [7.02, 51.7]]]
-    })
+    expected_geometry = DriverVectorCube.from_geojson(
+        {
+            "type": "Polygon",
+            "coordinates": [
+                [[7.02, 51.7], [7.65, 51.7], [7.65, 51.2], [7.04, 51.3], [7.02, 51.7]],
+            ],
+        }
+    )
 
     params = dummy_backend.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
-    assert params["spatial_extent"] == expected
+    assert params["spatial_extent"] == expected_spatial_extent
     assert isinstance(params.data_mask, DriverDataCube)
 
     params = dummy_backend.last_load_collection_call('PROBAV_L3_S10_TOC_NDVI_333M_V2')
-    assert params["spatial_extent"] == expected
+    assert params["spatial_extent"] == expected_spatial_extent
     assert params["aggregate_spatial_geometries"] == expected_geometry
 
 
