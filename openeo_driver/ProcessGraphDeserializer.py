@@ -1321,6 +1321,10 @@ def run_udf(args: dict, env: EvalEnv):
     # TODO #114 add support for DriverVectorCube
     if isinstance(data, AggregatePolygonResult):
         pass
+    if isinstance(data, DriverVectorCube):
+        # TODO: this is temporary adaption to old style save results. Better have proper DriverVectorCube support in run_udf?
+        data = data.to_legacy_save_result()
+
     if isinstance(data, (DelayedVector, dict)):
         if isinstance(data, dict):
             data = DelayedVector.from_json_dict(data)
@@ -1338,7 +1342,10 @@ def run_udf(args: dict, env: EvalEnv):
         )
     else:
         raise ProcessParameterInvalidException(
-            parameter='data', process='run_udf', reason=f"Invalid data type {type(data)!r} expected raster-cube.")
+            parameter="data",
+            process="run_udf",
+            reason=f"Unsupported data type {type(data)}.",
+        )
 
     _log.info(f"[run_udf] Running UDF {str_truncate(udf, width=256)!r} on {data!r}")
     result_data = openeo.udf.run_udf_code(udf, data)

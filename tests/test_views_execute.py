@@ -1115,7 +1115,11 @@ def test_run_udf_on_json(api100, udf_code):
         preprocess=lambda s: s.replace('"PLACEHOLDER_UDF"', repr(udf_code))
     )
     resp = api100.check_result(process_graph)
-    assert resp.json == {'len': 2, 'keys': ['2015-07-06T00:00:00Z', '2015-08-22T00:00:00Z'], 'values': [[[2.345]], [[None]]]}
+    assert resp.json == {
+        "len": 2,
+        "keys": ["2015-07-06T00:00:00Z", "2015-08-22T00:00:00Z"],
+        "values": [[[2.345, None]], [[2.0, 3.0]]],
+    }
 
 
 @pytest.mark.parametrize("udf_code", [
