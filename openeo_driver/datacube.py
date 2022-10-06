@@ -312,7 +312,7 @@ class DriverVectorCube:
     ) -> Dict[str, StacAsset]:
         """Export to legacy AggregatePolygonResult JSON format"""
         # TODO: eliminate this legacy, non-standard format?
-        return self.to_legacy_save_result().write_assets(directory=directory)
+        return self.to_legacy_save_result().write_assets(directory)
 
     def get_bounding_box(self) -> Tuple[float, float, float, float]:
         return tuple(self._geometries.total_bounds)
