@@ -228,6 +228,7 @@ class DummyDataCube(DriverDataCube):
                 coords[self.metadata.band_dimension.name] = self.metadata.band_names
             shape = [len(coords[d]) for d in dims]
             data = numpy.arange(numpy.prod(shape), dtype="float")
+            # Start with some more interesting values (e.g. to test NaN/null/None handling)
             data[0] = 2.345
             data[1] = float("nan")
             cube = xarray.DataArray(

@@ -1322,7 +1322,9 @@ def run_udf(args: dict, env: EvalEnv):
     if isinstance(data, AggregatePolygonResult):
         pass
     if isinstance(data, DriverVectorCube):
-        # TODO: this is temporary adaption to old style save results. Better have proper DriverVectorCube support in run_udf?
+        # TODO: this is temporary stopgap measure, converting to old-style save results to stay backward compatible.
+        #       Better have proper DriverVectorCube support in run_udf?
+        #       How does that fit in UdfData and UDF function signatures?
         data = data.to_legacy_save_result()
 
     if isinstance(data, (DelayedVector, dict)):
