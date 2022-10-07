@@ -504,6 +504,7 @@ class ErrorSummary(Exception):
 
 class UdfRuntimes(MicroService):
     # Python libraries to list
+    # TODO: move listing of non-generic libs to openeo-geopyspark-driver
     python_libraries = [
         "openeo",
         "openeo_driver",
@@ -516,6 +517,8 @@ class UdfRuntimes(MicroService):
         "shapely",
         "pyproj",
         "rasterio",
+        "tensorflow",
+        "pytorch",
     ]
 
     def __init__(self):
