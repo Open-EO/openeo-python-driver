@@ -177,7 +177,9 @@ class DriverVectorCube:
     def with_cube(self, cube: xarray.DataArray, flatten_prefix: str = FLATTEN_PREFIX) -> "DriverVectorCube":
         """Create new vector cube with same geometries but new cube"""
         log.info(f"Creating vector cube with new cube {cube.name!r}")
-        return DriverVectorCube(geometries=self._geometries, cube=cube, flatten_prefix=flatten_prefix)
+        return type(self)(
+            geometries=self._geometries, cube=cube, flatten_prefix=flatten_prefix
+        )
 
     @classmethod
     def from_fiona(cls, paths: List[str], driver: str, options: dict) -> "DriverVectorCube":
@@ -332,6 +334,15 @@ class DriverVectorCube:
     def __eq__(self, other):
         return (isinstance(other, DriverVectorCube)
                 and np.array_equal(self._as_geopandas_df().values, other._as_geopandas_df().values))
+
+    def fit_class_random_forest(
+        self,
+        target: "DriverVectorCube",
+        num_trees: int = 100,
+        max_variables: Optional[Union[int, str]] = None,
+        seed: Optional[int] = None,
+    ) -> "DriverMlModel":
+        raise NotImplementedError
 
 
 class DriverMlModel:

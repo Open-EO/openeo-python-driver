@@ -284,6 +284,25 @@ class DummyAggregatePolygonSpatialResult(AggregatePolygonSpatialResult):
         )
 
 
+class DummyVectorCube(DriverVectorCube):
+    def fit_class_random_forest(
+        self,
+        target: DriverVectorCube,
+        num_trees: int = 100,
+        max_variables: Optional[Union[int, str]] = None,
+        seed: Optional[int] = None,
+    ) -> "DriverMlModel":
+        return DummyMlModel(
+            process_id="fit_class_random_forest",
+            # TODO: handle `to_geojson` in `DummyMlModel.write_assets` instead of here?
+            data=self.to_geojson(),
+            target=target.to_geojson(),
+            num_trees=num_trees,
+            max_variables=max_variables,
+            seed=seed,
+        )
+
+
 class DummyMlModel(DriverMlModel):
 
     def __init__(self, **kwargs):
@@ -608,6 +627,9 @@ class DummyUserDefinedProcesses(UserDefinedProcesses):
 
 
 class DummyBackendImplementation(OpenEoBackendImplementation):
+
+    DriverVectorCube = DummyVectorCube
+
     def __init__(self, processing: Optional[Processing] = None):
         super(DummyBackendImplementation, self).__init__(
             secondary_services=DummySecondaryServices(),

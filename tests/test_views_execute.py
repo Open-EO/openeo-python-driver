@@ -2699,17 +2699,84 @@ def test_chunk_polygon(api100):
 
 def test_fit_class_random_forest(api100):
     res = api100.check_result("fit_class_random_forest.json")
-    assert res.json == DictSubSet({
-        "type": "DummyMlModel",
-        "creation_data": {
-            "process_id": "fit_class_random_forest",
-            "data": [[100.0, 100.1, 100.2, 100.3], [101.0, 101.1, 101.2, 101.3]],
-            "target": DictSubSet({"type": "FeatureCollection"}),
-            "num_trees": 200,
-            "max_variables": None,
-            "seed": None,
+
+    geom1 = {
+        "type": "Polygon",
+        "coordinates": [[[3.0, 5.0], [4.0, 5.0], [4.0, 6.0], [3.0, 6.0], [3.0, 5.0]]],
+    }
+    geom2 = {
+        "type": "Polygon",
+        "coordinates": [[[8.0, 1.0], [9.0, 1.0], [9.0, 2.0], [8.0, 2.0], [8.0, 1.0]]],
+    }
+    assert res.json == DictSubSet(
+        {
+            "type": "DummyMlModel",
+            "creation_data": {
+                "process_id": "fit_class_random_forest",
+                "data": DictSubSet(
+                    {
+                        "type": "FeatureCollection",
+                        "features": [
+                            DictSubSet(
+                                {
+                                    "type": "Feature",
+                                    "id": "0",
+                                    "geometry": geom1,
+                                    "properties": {
+                                        "agg~B02": 2.345,
+                                        "agg~B03": None,
+                                        "agg~B04": 2.0,
+                                        "agg~B08": 3.0,
+                                        "target": 0,
+                                    },
+                                }
+                            ),
+                            DictSubSet(
+                                {
+                                    "type": "Feature",
+                                    "id": "1",
+                                    "geometry": geom2,
+                                    "properties": {
+                                        "agg~B02": 4.0,
+                                        "agg~B03": 5.0,
+                                        "agg~B04": 6.0,
+                                        "agg~B08": 7.0,
+                                        "target": 1,
+                                    },
+                                }
+                            ),
+                        ],
+                    }
+                ),
+                "target": DictSubSet(
+                    {
+                        "type": "FeatureCollection",
+                        "features": [
+                            DictSubSet(
+                                {
+                                    "type": "Feature",
+                                    "id": "0",
+                                    "geometry": geom1,
+                                    "properties": {"target": 0},
+                                }
+                            ),
+                            DictSubSet(
+                                {
+                                    "type": "Feature",
+                                    "id": "1",
+                                    "geometry": geom2,
+                                    "properties": {"target": 1},
+                                }
+                            ),
+                        ],
+                    }
+                ),
+                "max_variables": None,
+                "num_trees": 200,
+                "seed": None,
+            },
         }
-    })
+    )
 
 
 def test_if_merge_cubes(api100):

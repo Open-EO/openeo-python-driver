@@ -23,7 +23,7 @@ import openeo_driver.util.view_helpers
 from openeo.capabilities import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.util import rfc3339, dict_no_none
-from openeo_driver.datacube import DriverDataCube, DriverMlModel
+from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.dry_run import SourceConstraint
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException, FeatureUnsupportedException
@@ -569,6 +569,9 @@ class OpenEoBackendImplementation:
     """
     enable_basic_auth = True
     enable_oidc_auth = True
+
+    # Overridable vector cube implementation
+    DriverVectorCube = DriverVectorCube
 
     def __init__(
             self,
