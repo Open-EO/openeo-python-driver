@@ -757,16 +757,16 @@ def fit_class_random_forest(args: dict, env: EvalEnv) -> DriverMlModel:
             parameter="target", process="fit_class_random_forest",
             reason='only GeoJSON FeatureCollection is currently supported.',
         )
-    labels = []
-    for feature in target["features"]:
-        target_label = deep_get(feature, "properties", "target", default=None)
-        if not isinstance(target_label, int):
-            # TODO: allow string based target labels too?
-            raise ProcessParameterInvalidException(
-                parameter="target", process="fit_class_random_forest",
-                reason="Each feature should have an integer 'target' property."
-            )
-        labels.append(target_label)
+    if any(
+        # TODO: allow string based target labels too?
+        not isinstance(deep_get(f, "properties", "target", default=None), int)
+        for f in target.get("features", [])
+    ):
+        raise ProcessParameterInvalidException(
+            parameter="target",
+            process="fit_class_random_forest",
+            reason="Each feature (from target feature collection) should have an integer 'target' property.",
+        )
 
     # TODO: get defaults from process spec?
     # TODO: do parameter checks automatically based on process spec?
