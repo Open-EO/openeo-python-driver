@@ -99,7 +99,7 @@ class ImageCollectionResult(SaveResult):
         # TODO: port to write_assets
         return self.cube.save_result(filename=filename, format=self.format, format_options=self.options)
 
-    def write_assets(self, directory:str) -> Dict[str, StacAsset]:
+    def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
         """
         Save generated assets into a directory, return asset metadata.
         TODO: can an asset also be a full STAC item? In principle, one openEO job can either generate a full STAC collection, or one STAC item with multiple assets...
@@ -161,15 +161,16 @@ class JSONResult(SaveResult):
         super().__init__(format=format, options=options)
         self.data = data
 
-    def write_assets(self, path:str) -> Dict[str, StacAsset]:
+    def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
         """
         Save generated assets into a directory, return asset metadata.
         TODO: can an asset also be a full STAC item? In principle, one openEO job can either generate a full STAC collection, or one STAC item with multiple assets...
 
         :return: STAC assets dictionary: https://github.com/radiantearth/stac-spec/blob/master/item-spec/item-spec.md#assets
         """
-        # TODO: Hackish: original filename is ignored. Other `write_assets` implementations take a directory directly.
-        output_dir = Path(path).parent
+        # TODO: There is something wrong here: arg is called `directory`,
+        #       but implementation and actual usage handles it as a file path (take parent to get directory)
+        output_dir = Path(directory).parent
         output_file = output_dir / "result.json"
         with open(output_file, 'w') as f:
             import json
@@ -220,14 +221,15 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         # By default, keep original (proprietary) result format
         return self.data
 
-    def write_assets(self, directory: str) -> Dict[str, StacAsset]:
+    def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
         """
         Save generated assets into a directory, return asset metadata.
         TODO: can an asset also be a full STAC item? In principle, one openEO job can either generate a full STAC collection, or one STAC item with multiple assets...
 
         :return: STAC assets dictionary: https://github.com/radiantearth/stac-spec/blob/master/item-spec/item-spec.md#assets
         """
-        # TODO: Hackish: original filename is ignored. Other `write_assets` implementations take a directory directly.
+        # TODO: There is something wrong here: arg is called `directory`,
+        #       but implementation and actual usage handles it as a file path (take parent to get directory)
         directory = pathlib.Path(directory).parent
         filename = str(Path(directory)/"timeseries.json")
         asset = {
@@ -537,8 +539,9 @@ class AggregatePolygonSpatialResult(SaveResult):
         else:
             raise FeatureUnsupportedException(f"Unsupported output format {self.format}; supported are: JSON and CSV")
 
-    def write_assets(self, directory: str) -> Dict[str, StacAsset]:
-        # TODO: Hackish: original filename is ignored. Other `write_assets` implementations take a directory directly.
+    def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
+        # TODO: There is something wrong here: arg is called `directory`,
+        #       but implementation and actual usage handles it as a file path (take parent to get directory)
         directory = pathlib.Path(directory).parent
 
         asset = {
