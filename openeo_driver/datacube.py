@@ -199,6 +199,10 @@ class DriverVectorCube:
             features = [{"type": "Feature", "geometry": geojson, "properties": {}}]
         elif geojson["type"] in {"Feature"}:
             features = [geojson]
+        elif geojson["type"] in {"GeometryCollection"}:
+            #TODO GeometryCollection is offically unsupported
+            log.error("Input GeoJSON of deprecated type 'GeometryCollection', please use a FeatureCollection or another type of Multi geometry.")
+            features = [{"type": "Feature", "geometry": g, "properties": {}} for g in geojson["geometries"]]
         elif geojson["type"] in {"FeatureCollection"}:
             features = geojson
         else:
