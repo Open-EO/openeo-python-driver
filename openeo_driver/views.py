@@ -1131,6 +1131,13 @@ def register_views_batch_jobs(
                          for band in bands] if bands else None,
             "file:nodata": ["nan" if nodata!=None and np.isnan(nodata) else nodata],
         }))
+
+        if "output_dir" in asset_metadata:
+            the_file = pathlib.Path(asset_metadata["output_dir"]) / filename
+            if the_file.exists():
+                size_in_bytes = the_file.stat().st_size
+                result_dict["file:size"] = size_in_bytes
+
         return result_dict
 
     @api_endpoint
