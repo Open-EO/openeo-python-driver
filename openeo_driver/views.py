@@ -1118,7 +1118,9 @@ def register_views_batch_jobs(
             "title": asset_metadata.get("title", filename),
             "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or _job_result_download_url(job_id, user_id, filename),
             "type": asset_metadata.get("type", asset_metadata.get("media_type","application/octet-stream")),
-            "roles": asset_metadata.get("roles", ["data"])
+            "roles": asset_metadata.get("roles", ["data"]),
+            "raster:bands": asset_metadata.get("raster:bands", None),
+            "file:size": asset_metadata.get("file:size", None)
         })
         if filename.endswith(".model"):
             # Machine learning models.
@@ -1132,7 +1134,7 @@ def register_views_batch_jobs(
             "file:nodata": ["nan" if nodata!=None and np.isnan(nodata) else nodata],
         }))
 
-        if "output_dir" in asset_metadata:
+        if "file:size" not in result_dict and "output_dir" in asset_metadata:
             the_file = pathlib.Path(asset_metadata["output_dir"]) / filename
             if the_file.exists():
                 size_in_bytes = the_file.stat().st_size

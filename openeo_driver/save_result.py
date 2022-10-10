@@ -214,6 +214,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
             warnings.warn("AggregatePolygonResult: GeometryCollection or DriverVectorCube expected but got {t}".format(t=type(regions)))
         self._regions = regions
         self._metadata = metadata
+        self.raster_bands = None
 
     def get_data(self):
         if self.is_format('covjson', 'coveragejson'):
@@ -252,6 +253,15 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         if self._metadata is not None and self._metadata.has_band_dimension():
             bands = [b._asdict() for b in self._metadata.bands]
             asset["bands"] = bands
+
+        the_file = pathlib.Path(filename)
+        if the_file.exists():
+            size_in_bytes = the_file.stat().st_size
+            asset["file:size"] = size_in_bytes
+
+        if self.raster_bands is not None:
+            asset["raster:bands"] = self.raster_bands
+
 
         return {str(Path(filename).name): asset}
 
@@ -487,6 +497,20 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
 
         super().__init__(timeseries={pd.to_datetime(date).tz_convert('UTC').strftime('%Y-%m-%dT%XZ'): _flatten_df(df[df.date == date].drop(columns="date")) for date in df.date.unique()},regions=regions,metadata=metadata)
         self._csv_dir = csv_dir
+
+        bands = df.columns[2:].values
+
+        def stats(band):
+            series = df[band]
+            stats = {}
+            stats["mean"] = series.mean()
+            stats["minimum"] = series.min()
+            stats["maximum"] = series.max()
+            stats["stddev"] = series.std()
+            stats["valid_percent"] = 100.0 * len(series.dropna()) / len(series)
+            return {"statistics":stats}
+
+        self.raster_bands = [stats(b) for b in bands]
 
     def to_csv(self, destination=None):
         csv_paths = glob.glob(self._csv_dir + "/*.csv")
