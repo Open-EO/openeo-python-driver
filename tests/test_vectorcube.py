@@ -131,6 +131,33 @@ class TestDriverVectorCube:
                 ],
         ),
         (
+                {"type": "Point", "coordinates": [1, 1]},
+                [
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "Point", "coordinates": (1, 1)},
+                            "properties": {},
+                        }
+                    ),
+                ],
+            ),
+            (
+                {"type": "MultiPoint", "coordinates": [[1, 1], [2, 3]]},
+                [
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "geometry": {
+                                "type": "MultiPoint",
+                                "coordinates": ((1, 1), (2, 3)),
+                            },
+                            "properties": {},
+                        }
+                    ),
+                ],
+            ),
+            (
                 {
                     "type": "Feature",
                     "geometry": {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
@@ -172,8 +199,44 @@ class TestDriverVectorCube:
                         "properties": {"id": 2},
                     }),
                 ],
-        ),
-    ])
+            ),
+            (
+                {
+                    "type": "GeometryCollection",
+                    "geometries": [
+                        {
+                            "type": "Polygon",
+                            "coordinates": [[(1, 1), (3, 1), (2, 3), (1, 1)]],
+                        },
+                        {
+                            "type": "MultiPolygon",
+                            "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]],
+                        },
+                    ],
+                },
+                [
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "geometry": {
+                                "type": "Polygon",
+                                "coordinates": (((1, 1), (3, 1), (2, 3), (1, 1)),),
+                            },
+                        }
+                    ),
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "geometry": {
+                                "type": "MultiPolygon",
+                                "coordinates": [(((1, 1), (3, 1), (2, 3), (1, 1)),)],
+                            },
+                        }
+                    ),
+                ],
+            ),
+        ],
+    )
     def test_from_geojson(self, geojson, expected):
         vc = DriverVectorCube.from_geojson(geojson)
         assert vc.to_geojson() == DictSubSet({
