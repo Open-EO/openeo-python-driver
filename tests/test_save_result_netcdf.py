@@ -138,9 +138,9 @@ def test_aggregate_polygon_result_CSV(tmp_path):
     assert 'raster:bands' in theAsset
     assert 'file:size' in theAsset
 
-    assert 'mean' in theAsset['raster:bands'][0]
-    assert 'minimum' in theAsset['raster:bands'][0]
-    assert 100.0 == theAsset['raster:bands'][0]['valid_percent']
+    assert 'mean' in theAsset['raster:bands'][0]["statistics"]
+    assert 'minimum' in theAsset['raster:bands'][0]["statistics"]
+    assert 100.0 == theAsset['raster:bands'][0]["statistics"]['valid_percent']
 
     timeseries_ds = xr.open_dataset(filename)
     print(timeseries_ds)
