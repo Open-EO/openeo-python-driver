@@ -1550,7 +1550,7 @@ def register_views_user_files(
     @api_endpoint
     @blueprint.route('/files/<path>', methods=['GET'])
     @auth_handler.requires_bearer_auth
-    def fildes_download(path, user: User):
+    def files_download(path, user: User):
         # TODO EP-3538
         raise FeatureUnsupportedException()
 
