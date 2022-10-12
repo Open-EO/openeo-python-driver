@@ -322,6 +322,12 @@ class DriverVectorCube:
     def get_bounding_box(self) -> Tuple[float, float, float, float]:
         return tuple(self._geometries.total_bounds)
 
+    def get_bounding_box_geometry(self) -> shapely.geometry.Polygon:
+        return shapely.geometry.Polygon.from_bounds(*self.get_bounding_box())
+
+    def get_bounding_box_geojson(self) -> dict:
+        return shapely.geometry.mapping(self.get_bounding_box_geometry())
+
     def get_geometries(self) -> Sequence[shapely.geometry.base.BaseGeometry]:
         return self._geometries.geometry
 

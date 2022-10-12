@@ -243,3 +243,14 @@ class TestDriverVectorCube:
             "type": "FeatureCollection",
             "features": expected,
         })
+
+    def test_get_bounding_box(self, gdf):
+        vc = DriverVectorCube(gdf)
+        assert vc.get_bounding_box() == (1, 1, 5, 4)
+        assert vc.get_bounding_box_geometry() == Polygon.from_bounds(1, 1, 5, 4)
+        assert vc.get_bounding_box_geojson() == {
+            "type": "Polygon",
+            "coordinates": (
+                ((1.0, 1.0), (1.0, 4.0), (5.0, 4.0), (5.0, 1.0), (1.0, 1.0)),
+            ),
+        }
