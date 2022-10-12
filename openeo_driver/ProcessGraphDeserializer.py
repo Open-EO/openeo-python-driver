@@ -1050,8 +1050,15 @@ def aggregate_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
     if isinstance(geoms, DriverVectorCube):
         geoms = geoms
     elif isinstance(geoms, dict):
-        # Automatically convert inline GeoJSON to a vector cube #114/#141
-        geoms = env.backend_implementation.vector_cube_cls.from_geojson(geoms)
+        if geoms.get("type") == "Point":
+            # TODO #114 migrate Point handling to DriverVectorCube too
+            geoms = geojson_to_geometry(geoms)
+        elif geoms.get("type") == "GeometryCollection" and any(g.get("type") == "Point" for g in geoms.get("geometries", [])):
+            # TODO #114 migrate Point handling to DriverVectorCube too
+            geoms = geojson_to_geometry(geoms)
+        else:
+            # Automatically convert inline GeoJSON to a vector cube #114/#141
+            geoms = env.backend_implementation.vector_cube_cls.from_geojson(geoms)
     elif isinstance(geoms, DelayedVector):
         geoms = geoms.path
     else:
