@@ -18,6 +18,7 @@ from openeo.util import ensure_dir
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs, StacAsset
 from openeo_driver.errors import FeatureUnsupportedException, InternalException
 from openeo_driver.util.ioformats import IOFORMATS
+from openeo_driver.util.utm import area_in_square_meters
 from openeo_driver.utils import EvalEnv
 
 log = logging.getLogger(__name__)
@@ -320,6 +321,7 @@ class DriverVectorCube:
         )
 
     def get_bounding_box(self) -> Tuple[float, float, float, float]:
+        # TODO: cache bounding box?
         return tuple(self._geometries.total_bounds)
 
     def get_bounding_box_geometry(self) -> shapely.geometry.Polygon:
@@ -327,6 +329,12 @@ class DriverVectorCube:
 
     def get_bounding_box_geojson(self) -> dict:
         return shapely.geometry.mapping(self.get_bounding_box_geometry())
+
+    def get_bounding_box_area(self) -> float:
+        """Bounding box area in square meters"""
+        return area_in_square_meters(
+            self.get_bounding_box_geometry(), crs=self.get_crs()
+        )
 
     def get_geometries(self) -> Sequence[shapely.geometry.base.BaseGeometry]:
         return self._geometries.geometry

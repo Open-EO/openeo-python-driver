@@ -55,7 +55,7 @@ def auto_utm_crs_for_geometry(geometry: BaseGeometry, crs: str) -> str:
     return 'epsg:' + str(epsg)
 
 
-def geometry_to_crs(geometry, crs_from, crs_to):
+def geometry_to_crs(geometry: BaseGeometry, crs_from, crs_to):
     # Skip if CRS definitions are exactly the same
     if crs_from == crs_to:
         return geometry
@@ -71,7 +71,7 @@ def geometry_to_crs(geometry, crs_from, crs_to):
     return shapely.ops.transform(project, geometry)
 
 
-def area_in_square_meters(geometry, crs: Union[str, pyproj.CRS]):
+def area_in_square_meters(geometry: BaseGeometry, crs: Union[str, pyproj.CRS]):
     if isinstance(crs, str):
         crs = "+init=" + crs  # TODO: this is deprecated
 
