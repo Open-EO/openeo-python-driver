@@ -507,8 +507,10 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
             stats["minimum"] = series.min()
             stats["maximum"] = series.max()
             stats["stddev"] = series.std()
-            stats["valid_percent"] = 100.0 * len(series.dropna()) / len(series)
-            return {"statistics":stats}
+            stats["valid_percent"] = (
+                (100.0 * len(series.dropna()) / len(series)) if len(series) else None
+            )
+            return {"statistics": stats}
 
         self.raster_bands = [stats(b) for b in bands]
 
