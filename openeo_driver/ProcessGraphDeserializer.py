@@ -451,6 +451,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
         _log.debug(f"extracted data_mask {params.data_mask}")
     params.target_crs = constraints.get("resample", {}).get("target_crs",None)
     params.target_resolution = constraints.get("resample", {}).get("resolution", None)
+    params.resample_method = constraints.get("resample", {}).get("method", "near")
     return params
 
 

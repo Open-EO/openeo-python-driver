@@ -162,6 +162,7 @@ class LoadParameters(dict):
     data_mask = dict_item(default={})
     target_crs = dict_item(default=None)
     target_resolution = dict_item(default=None)
+    resample_method = dict_item(default="near")
 
     def copy(self) -> "LoadParameters":
         return LoadParameters(super().copy())

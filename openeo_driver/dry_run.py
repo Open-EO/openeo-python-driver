@@ -303,17 +303,20 @@ class DryRunDataTracer:
                     args = resampling_op.get_arguments_by_operation("resample_cube_spatial")
                     if args:
                         target = args[0]["target"]
+                        method = args[0]["method"]
                         metadata: CollectionMetadata = target.metadata
                         spatial_dim = metadata.spatial_dimensions[0]
                         resolutions = [dim.step for dim in metadata.spatial_dimensions if dim.step is not None]
-                        constraints["resample"] = {"target_crs": spatial_dim.crs, "resolution": resolutions}
+                        if len(resolutions) > 0 and spatial_dim.crs is not None:
+                            constraints["resample"] = {"target_crs": spatial_dim.crs, "resolution": resolutions, "method": method}
                     args = resampling_op.get_arguments_by_operation("resample_spatial")
                     if args:
                         resolution = args[0]["resolution"]
                         if not isinstance(resolution,list):
                             resolution = [resolution,resolution]
                         projection = args[0]["projection"]
-                        constraints["resample"] = {"target_crs": projection, "resolution": resolution, "method": args[0]["method"]}
+                        method = args[0].get("method","near")
+                        constraints["resample"] = {"target_crs": projection, "resolution": resolution, "method": method}
 
             for op in [
                 "temporal_extent", "spatial_extent", "_weak_spatial_extent", "bands", "aggregate_spatial",
