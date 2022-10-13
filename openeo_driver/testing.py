@@ -246,7 +246,10 @@ class ApiTester:
         path="/result",
         preprocess: Callable = None,
     ) -> ApiResponse:
-        """Post a process_graph (as dict or by filename) and get response."""
+        """
+        Post a process_graph (as dict, by filename or as DataCube),
+        and get response.
+        """
         if isinstance(process_graph, str):
             # Assume it is a file name
             process_graph = self.load_json(process_graph, preprocess=preprocess)
@@ -263,7 +266,10 @@ class ApiTester:
         path="/result",
         preprocess: Callable = None,
     ) -> ApiResponse:
-        """Post a process_graph (as dict or by filename), get response and do basic checks."""
+        """
+        Post a process_graph (as dict, by filename or as DataCube),
+        get response and do basic checks (e.g. 200 status).
+        """
         response = self.result(process_graph=process_graph, path=path, preprocess=preprocess)
         return response.assert_status_code(200).assert_content()
 
