@@ -1105,7 +1105,7 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
             "process_id": "resample_cube_spatial",
             "arguments": {
                 "data": {"from_node": "loadcollection2"},
-                "method": "near",
+                "method": "average",
                 "target": {"from_node": "adddimension1"}
             }
         },
@@ -1164,7 +1164,7 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
             {
                 'bands': ['ndvi'],
                 'process_type': [ProcessType.FOCAL_SPACE],
-                'resample': {'resolution': [10, 10], 'target_crs': 'AUTO:42001'},
+                'resample': {'method': 'average','resolution': [10, 10], 'target_crs': 'AUTO:42001'},
                 'spatial_extent': {
                     'crs': 'EPSG:32631', 'east': 642140.0, 'north': 5677450.0, 'south': 5676170.0, 'west': 640860.0,
                 },
