@@ -3,7 +3,7 @@ import numpy.testing
 import pyproj
 import pytest
 import xarray
-from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry import Polygon, MultiPolygon, Point
 
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.testing import DictSubSet
@@ -245,6 +245,69 @@ class TestDriverVectorCube:
             "type": "FeatureCollection",
             "features": expected,
         })
+
+    @pytest.mark.parametrize(
+        ["geometry", "expected"],
+        [
+            (
+                Point(1.2, 3.4),
+                [
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "Point", "coordinates": (1.2, 3.4)},
+                        }
+                    ),
+                ],
+            ),
+            (
+                Polygon([(1, 1), (2, 3), (4, 1), (1, 1)]),
+                [
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "geometry": {
+                                "type": "Polygon",
+                                "coordinates": (
+                                    ((1.0, 1.0), (2.0, 3.0), (4.0, 1.0), (1.0, 1.0)),
+                                ),
+                            },
+                        }
+                    ),
+                ],
+            ),
+            (
+                [Point(1.2, 3.4), Polygon([(1, 1), (2, 3), (4, 1), (1, 1)])],
+                [
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "Point", "coordinates": (1.2, 3.4)},
+                        }
+                    ),
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "geometry": {
+                                "type": "Polygon",
+                                "coordinates": (
+                                    ((1.0, 1.0), (2.0, 3.0), (4.0, 1.0), (1.0, 1.0)),
+                                ),
+                            },
+                        }
+                    ),
+                ],
+            ),
+        ],
+    )
+    def test_from_geometry(self, geometry, expected):
+        vc = DriverVectorCube.from_geometry(geometry)
+        assert vc.to_geojson() == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": expected,
+            }
+        )
 
     def test_get_bounding_box(self, gdf):
         vc = DriverVectorCube(gdf)

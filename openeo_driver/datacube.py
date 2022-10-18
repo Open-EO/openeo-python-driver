@@ -212,6 +212,19 @@ class DriverVectorCube:
             )
         return cls(geometries=gpd.GeoDataFrame.from_features(features))
 
+    @classmethod
+    def from_geometry(
+        cls,
+        geometry: Union[
+            shapely.geometry.base.BaseGeometry,
+            Sequence[shapely.geometry.base.BaseGeometry],
+        ],
+    ):
+        """Construct vector cube from a shapely geometry (list)"""
+        if isinstance(geometry, shapely.geometry.base.BaseGeometry):
+            geometry = [geometry]
+        return cls(geometries=gpd.GeoDataFrame(geometry=geometry))
+
     def _as_geopandas_df(self) -> gpd.GeoDataFrame:
         """Join geometries and cube as a geopandas dataframe"""
         # TODO: avoid copy?
