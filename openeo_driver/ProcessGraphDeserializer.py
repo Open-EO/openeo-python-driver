@@ -1052,24 +1052,8 @@ def aggregate_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
         geoms = geoms
     elif isinstance(geoms, dict):
         try:
-            if (
-                # Don't convert point geometries to DriverVectorCube
-                # TODO #114 migrate Point handling to DriverVectorCube too
-                geoms["type"] == "Point"
-                or (geoms["type"] == "Feature" and geoms["geometry"]["type"] == "Point")
-                or (
-                    geoms["type"] == "FeatureCollection"
-                    and any(f["geometry"]["type"] == "Point" for f in geoms["features"])
-                )
-                or (
-                    geoms["type"] == "GeometryCollection"
-                    and any(g["type"] == "Point" for g in geoms["geometries"])
-                )
-            ):
-                geoms = geojson_to_geometry(geoms)
-            else:
-                # Automatically convert inline GeoJSON to a vector cube #114/#141
-                geoms = env.backend_implementation.vector_cube_cls.from_geojson(geoms)
+            # Automatically convert inline GeoJSON to a vector cube #114/#141
+            geoms = env.backend_implementation.vector_cube_cls.from_geojson(geoms)
         except Exception as e:
             _log.error(
                 f"Failed to parse inline GeoJSON geometries in aggregate_spatial: {e!r}",

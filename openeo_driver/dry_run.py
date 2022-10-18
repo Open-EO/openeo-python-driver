@@ -463,6 +463,7 @@ class DryRunDataCube(DriverDataCube):
         cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
         cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
         if isinstance(geometries, (Polygon, MultiPolygon)):
+            # TODO #71 normalize to feature collection instead of deprecated geometry collection
             geometries = GeometryCollection([geometries])
         return AggregatePolygonResult(timeseries={}, regions=geometries)
 
