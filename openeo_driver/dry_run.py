@@ -483,8 +483,10 @@ class DryRunDataCube(DriverDataCube):
             bbox = geometries.bounds
         elif isinstance(geometries, shapely.geometry.base.BaseGeometry):
             if isinstance(geometries, Point):
+                # TODO: use proper distance for collection resolution instead of using a default distance?
                 geometries = buffer_point_approx(geometries, "EPSG:4326")
             elif isinstance(geometries, GeometryCollection):
+                # TODO: use proper distance for collection resolution instead of using a default distance?
                 geometries = GeometryCollection([buffer_point_approx(geom, "EPSG:4326") if isinstance(geom, Point)
                                                  else geom for geom in geometries.geoms])
 

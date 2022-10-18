@@ -417,6 +417,10 @@ class TtlCache:
 
 
 def buffer_point_approx(point: shapely.geometry.Point, point_crs: str, buffer_distance_in_meters=10.0) -> shapely.geometry.Polygon:
+    # TODO: default buffer distance of 10m assumes certain resolution (e.g. sentinel2 pixels)
+    # TODO way to set buffer distance directly from collection resolution metadata?
+    # TODO: often, a lot of points have to be buffered, with this per-point implementation a lot of
+    #       the exact same preparation is done repetitively
     src_proj = pyproj.Proj("EPSG:3857")
     dst_proj = pyproj.Proj(point_crs)
 
@@ -434,7 +438,7 @@ def buffer_point_approx(point: shapely.geometry.Point, point_crs: str, buffer_di
 
     buffer_distance = right - left
 
-    return point.buffer(buffer_distance, cap_style=CAP_STYLE.square)
+    return point.buffer(buffer_distance, resolution=2, cap_style=CAP_STYLE.square)
 
 
 @deprecated(reason="call generate_unique_id instead")
