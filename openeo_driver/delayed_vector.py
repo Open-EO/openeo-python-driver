@@ -14,7 +14,7 @@ from shapely.geometry import shape
 from shapely.geometry.base import BaseGeometry
 
 from openeo_driver.errors import OpenEOApiException
-from openeo_driver.utils import reproject_bounding_box
+from openeo_driver.util.geometry import reproject_bounding_box
 
 _log = logging.getLogger(__name__)
 

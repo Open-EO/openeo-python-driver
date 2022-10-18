@@ -42,8 +42,13 @@ from openeo_driver.save_result import JSONResult, SaveResult, AggregatePolygonRe
     to_save_result, AggregatePolygonSpatialResult, MlModelResult
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.util.date_math import month_shift
+from openeo_driver.util.geometry import (
+    geojson_to_geometry,
+    geojson_to_multipolygon,
+    spatial_extent_union,
+)
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
-from openeo_driver.utils import smart_bool, EvalEnv, geojson_to_geometry, spatial_extent_union, geojson_to_multipolygon
+from openeo_driver.utils import smart_bool, EvalEnv
 
 _log = logging.getLogger(__name__)
 

@@ -47,7 +47,8 @@ from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.save_result import AggregatePolygonResult, AggregatePolygonSpatialResult
-from openeo_driver.utils import buffer_point_approx, geojson_to_geometry, to_hashable, EvalEnv
+from openeo_driver.util.geometry import geojson_to_geometry, buffer_point_approx
+from openeo_driver.utils import to_hashable, EvalEnv
 
 _log = logging.getLogger(__name__)
 
