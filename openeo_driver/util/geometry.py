@@ -1,6 +1,7 @@
 import json
 import logging
-from typing import Union, Tuple, Optional
+from pathlib import Path
+from typing import Union, Tuple, Optional, Sequence, List
 
 import pyproj
 import shapely.geometry
@@ -216,3 +217,56 @@ class GeometryBufferer:
                 f"transform_meters_to_crs: large latitude delta: ({lon0},{lat0})-({lon1},{lat1})"
             )
         return abs(lon1 - lon0)
+
+
+def as_geojson_feature(
+    geometry: Union[dict, BaseGeometry, Path], properties: Union[dict, None] = None
+) -> dict:
+    """
+    Helper to construct a GeoJSON-style Feature dictionary from a shapely geometry,
+    an GeoJSON-style geometry or featurre dictionary
+
+    :param geometry: a shapely geometry, a geometry as GeoJSON-style dict, a feature as GeoJSON-style dict, a path to a GeoJSON file
+    :param properties:
+    :return: GeoJSON-style Feature dict
+    """
+    # TODO: support loading WKT string?
+    if isinstance(geometry, Path):
+        # Assume GeoJSON file
+        geometry = json.loads(geometry.read_text(encoding="utf-8"))
+    elif not isinstance(geometry, dict):
+        geometry = shapely.geometry.mapping(geometry)
+    assert "type" in geometry
+    if geometry["type"] == "Feature":
+        properties = properties or geometry["properties"]
+        geometry = geometry["geometry"]
+    assert geometry["type"] in [
+        "Point",
+        "MultiPoint",
+        "LineString",
+        "MultiLineString",
+        "Polygon",
+        "MultiPolygon",
+        "GeometryCollection",
+    ]
+    return {"type": "Feature", "geometry": geometry, "properties": properties}
+
+
+def as_geojson_feature_collection(
+    *features: Union[dict, BaseGeometry, Path, List[Union[dict, BaseGeometry, Path]]]
+) -> dict:
+    """
+    Helper to construct a GeoJSON-style FeatureCollection from feature like objects
+    :param features: zero, one or more of a shapely geometry, a geometry as GeoJSON-style dict, a feature as GeoJSON-style dict, a path to a GeoJSON file
+
+    :return: GeoJSON-style FeatureCollection dict
+    """
+    # TODO: some way of setting properties for all/each feature?
+    # TODO: support a single arg with `"type": "FeatureCollection"`?
+    if len(features) == 1 and isinstance(features[0], list):
+        # Support providing multiple features as a single list (instead of *args)
+        features = features[0]
+    return {
+        "type": "FeatureCollection",
+        "features": [as_geojson_feature(f) for f in features],
+    }

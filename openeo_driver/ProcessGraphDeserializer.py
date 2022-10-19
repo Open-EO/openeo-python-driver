@@ -1172,8 +1172,15 @@ def filter_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
 
 def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox", handle_geojson=False) -> dict:
     extent = extract_arg(args, name=field, process_id=process_id)
-    if handle_geojson and extent.get("type") in ["Polygon", "GeometryCollection", "Feature", "FeatureCollection"]:
-        w, s, e, n = shape(extent).bounds
+    if handle_geojson and extent.get("type") in [
+        "Polygon",
+        "MultiPolygon",
+        "GeometryCollection",
+        "Feature",
+        "FeatureCollection",
+    ]:
+        w, s, e, n = DriverVectorCube.from_geojson(extent).get_bounding_box()
+        # TODO: support (non-standard) CRS field in GeoJSON?
         d = {"west": w, "south": s, "east": e, "north": n, "crs": "EPSG:4326"}
     else:
         d = {

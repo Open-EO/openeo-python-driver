@@ -22,9 +22,24 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import ProcessType
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyVisitor
-from openeo_driver.errors import ProcessGraphMissingException, ProcessGraphInvalidException
-from openeo_driver.testing import ApiTester, preprocess_check_and_replace, TEST_USER, TEST_USER_BEARER_TOKEN, \
-    preprocess_regex_check_and_replace, generate_unique_test_process_id, RegexMatcher, DictSubSet
+from openeo_driver.errors import (
+    ProcessGraphMissingException,
+    ProcessGraphInvalidException,
+)
+from openeo_driver.testing import (
+    ApiTester,
+    preprocess_check_and_replace,
+    TEST_USER,
+    TEST_USER_BEARER_TOKEN,
+    preprocess_regex_check_and_replace,
+    generate_unique_test_process_id,
+    RegexMatcher,
+    DictSubSet,
+)
+from openeo_driver.util.geometry import (
+    as_geojson_feature,
+    as_geojson_feature_collection,
+)
 from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.utils import EvalEnv
 from .data import get_path, TEST_DATA_ROOT, load_json
@@ -267,23 +282,90 @@ def test_load_collection_filter(api):
     assert params["featureflags"] == {'experimental': True}
 
 
-def test_load_collection_spatial_extent_geojson(api):
-    api.check_result({
-        'collection': {
-            'process_id': 'load_collection',
-            'arguments': {
-                'id': 'S2_FAPAR_CLOUDCOVER',
-                'spatial_extent': {
-                    "type": "Polygon",
-                    "coordinates": [[[7.0, 46.1], [7.3, 46.0], [7.6, 46.3], [7.2, 46.6], [7.0, 46.1]]]},
-                'temporal_extent': ['2018-01-01', '2018-12-31']
+@pytest.mark.parametrize(
+    ["spatial_extent", "expected"],
+    [
+        (
+            load_json("geojson/Polygon01.json"),
+            {
+                "west": 5.1,
+                "south": 51.2,
+                "east": 5.14,
+                "north": 51.23,
+                "crs": "EPSG:4326",
             },
-            'result': True
+        ),
+        (
+            load_json("geojson/MultiPolygon01.json"),
+            {
+                "west": 5.1,
+                "south": 51.2,
+                "east": 5.14,
+                "north": 51.24,
+                "crs": "EPSG:4326",
+            },
+        ),
+        (
+            load_json("geojson/Feature01.json"),
+            {"west": 1.0, "south": 1.0, "east": 3.0, "north": 3.0, "crs": "EPSG:4326"},
+        ),
+        (
+            load_json("geojson/Feature03-null-properties.json"),
+            {"west": 1.0, "south": 1.0, "east": 3.0, "north": 3.0, "crs": "EPSG:4326"},
+        ),
+        (
+            as_geojson_feature(shapely.geometry.Polygon.from_bounds(11, 22, 33, 44)),
+            {"west": 11, "south": 22, "east": 33, "north": 44, "crs": "EPSG:4326"},
+        ),
+        (
+            load_json("geojson/FeatureCollection01.json"),
+            {
+                "west": 4.45,
+                "south": 51.1,
+                "east": 4.52,
+                "north": 51.2,
+                "crs": "EPSG:4326",
+            },
+        ),
+        (
+            as_geojson_feature_collection(
+                as_geojson_feature(
+                    shapely.geometry.Polygon.from_bounds(11, 22, 33, 44),
+                    properties=None,
+                ),
+                as_geojson_feature(
+                    shapely.geometry.Polygon.from_bounds(22, 33, 44, 55),
+                    properties={"color": "red"},
+                ),
+            ),
+            {"west": 11, "south": 22, "east": 44, "north": 55, "crs": "EPSG:4326"},
+        ),
+        (
+            as_geojson_feature_collection(
+                shapely.geometry.Point(2, 3),
+                shapely.geometry.Point(4, 5),
+            ),
+            {"west": 2, "south": 3, "east": 4, "north": 5, "crs": "EPSG:4326"},
+        ),
+    ],
+)
+def test_load_collection_spatial_extent_geojson(api, spatial_extent, expected):
+    api.check_result(
+        {
+            "collection": {
+                "process_id": "load_collection",
+                "arguments": {
+                    "id": "S2_FAPAR_CLOUDCOVER",
+                    "spatial_extent": spatial_extent,
+                    "temporal_extent": ["2018-01-01", "2018-12-31"],
+                },
+                "result": True,
+            }
         }
-    })
+    )
     params = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
-    assert params["temporal_extent"] == ('2018-01-01', '2018-12-31')
-    assert params["spatial_extent"] == {"west": 7.0, "south": 46.0, "east": 7.6, "north": 46.6, "crs": "EPSG:4326"}
+    assert params["temporal_extent"] == ("2018-01-01", "2018-12-31")
+    assert params["spatial_extent"] == expected
 
 
 def test_execute_apply_unary_040(api040):

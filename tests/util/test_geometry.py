@@ -12,7 +12,12 @@ from openeo_driver.util.geometry import (
     reproject_bounding_box,
     spatial_extent_union,
     GeometryBufferer,
+    as_geojson_feature,
+    as_geojson_feature_collection,
 )
+
+
+from ..data import get_path
 
 EARTH_CIRCUMFERENCE_KM = 40075.017
 
@@ -308,3 +313,245 @@ class TestGeometryBufferer:
             ],
             atol=0.01,
         )
+
+
+class TestAsGeoJsonFeatureCollection:
+    def test_as_geojson_feature_point(self):
+        feature = as_geojson_feature(Point(1, 2))
+        assert feature == {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": (1.0, 2.0)},
+            "properties": None,
+        }
+
+    def test_as_geojson_feature_point_with_properties(self):
+        feature = as_geojson_feature(Point(1, 2), properties={"color": "red"})
+        assert feature == {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": (1.0, 2.0)},
+            "properties": {"color": "red"},
+        }
+
+    def test_as_geojson_feature_dict(self):
+        feature = as_geojson_feature({"type": "Point", "coordinates": (1.0, 2.0)})
+        assert feature == {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": (1.0, 2.0)},
+            "properties": None,
+        }
+
+    def test_as_geojson_feature_dict_with_properties(self):
+        feature = as_geojson_feature(
+            {"type": "Point", "coordinates": (1.0, 2.0)}, properties={"color": "red"}
+        )
+        assert feature == {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": (1.0, 2.0)},
+            "properties": {"color": "red"},
+        }
+
+    def test_as_geojson_feature_path(self):
+        feature = as_geojson_feature(get_path("geojson/Polygon01.json"))
+        assert feature == {
+            "type": "Feature",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [5.1, 51.22],
+                        [5.11, 51.23],
+                        [5.14, 51.21],
+                        [5.12, 51.2],
+                        [5.1, 51.22],
+                    ]
+                ],
+                "type": "Polygon",
+            },
+            "properties": None,
+        }
+
+    def test_as_geojson_feature_from_feature(self):
+        feature = as_geojson_feature(
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": (1.0, 2.0)},
+                "properties": None,
+            }
+        )
+        assert feature == {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": (1.0, 2.0)},
+            "properties": None,
+        }
+
+    def test_as_geojson_feature_from_feature_with_properties(self):
+        feature = as_geojson_feature(
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": (1.0, 2.0)},
+                "properties": {"color": "red", "size": 4},
+            },
+        )
+        assert feature == {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": (1.0, 2.0)},
+            "properties": {"color": "red", "size": 4},
+        }
+
+    def test_as_geojson_feature_from_feature_with_properties_override(self):
+        feature = as_geojson_feature(
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": (1.0, 2.0)},
+                "properties": {"color": "red", "size": 4},
+            },
+            properties={"color": "GREEN!", "shape": "circle"},
+        )
+        assert feature == {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": (1.0, 2.0)},
+            "properties": {"color": "GREEN!", "shape": "circle"},
+        }
+
+    def test_as_geojson_feature_collection_simple_point(self):
+        feature_collection = as_geojson_feature_collection(Point(1, 2))
+        assert feature_collection == {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": (1.0, 2.0)},
+                    "properties": None,
+                }
+            ],
+        }
+
+    def test_as_geojson_feature_collection_multiple(self):
+        feature_collection = as_geojson_feature_collection(
+            Point(1, 2), Polygon.from_bounds(1, 2, 3, 4), Point(5, 6)
+        )
+        assert feature_collection == {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": (1.0, 2.0)},
+                    "properties": None,
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": (
+                            (
+                                (1.0, 2.0),
+                                (1.0, 4.0),
+                                (3.0, 4.0),
+                                (3.0, 2.0),
+                                (1.0, 2.0),
+                            ),
+                        ),
+                    },
+                    "properties": None,
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": (5.0, 6.0)},
+                    "properties": None,
+                },
+            ],
+        }
+
+    def test_as_geojson_feature_collection_multiple_as_list(self):
+        feature_collection = as_geojson_feature_collection(
+            [Point(1, 2), Polygon.from_bounds(1, 2, 3, 4), Point(5, 6)]
+        )
+        assert feature_collection == {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": (1.0, 2.0)},
+                    "properties": None,
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": (
+                            (
+                                (1.0, 2.0),
+                                (1.0, 4.0),
+                                (3.0, 4.0),
+                                (3.0, 2.0),
+                                (1.0, 2.0),
+                            ),
+                        ),
+                    },
+                    "properties": None,
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": (5.0, 6.0)},
+                    "properties": None,
+                },
+            ],
+        }
+
+    def test_as_geojson_feature_collection_mix(self):
+        feature_collection = as_geojson_feature_collection(
+            {"type": "Point", "coordinates": (1.0, 2.0)},
+            Polygon.from_bounds(1, 2, 3, 4),
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": (5.0, 6.0)},
+                "properties": None,
+            },
+            get_path("geojson/Polygon01.json"),
+        )
+        assert feature_collection == {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": (1.0, 2.0)},
+                    "properties": None,
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": (
+                            (
+                                (1.0, 2.0),
+                                (1.0, 4.0),
+                                (3.0, 4.0),
+                                (3.0, 2.0),
+                                (1.0, 2.0),
+                            ),
+                        ),
+                    },
+                    "properties": None,
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": (5.0, 6.0)},
+                    "properties": None,
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "coordinates": [
+                            [
+                                [5.1, 51.22],
+                                [5.11, 51.23],
+                                [5.14, 51.21],
+                                [5.12, 51.2],
+                                [5.1, 51.22],
+                            ]
+                        ],
+                        "type": "Polygon",
+                    },
+                    "properties": None,
+                },
+            ],
+        }
