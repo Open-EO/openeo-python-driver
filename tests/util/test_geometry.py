@@ -206,19 +206,39 @@ class TestGeometryBufferer:
         point = Point(2, 3)
         polygon = bufferer.buffer(point)
         assert isinstance(polygon, Polygon)
-        expected = (
-            "POLYGON ((3 3, 2.7 2.3, 2 2, 1.3 2.3, 1 3, 1.3 3.7, 2 4, 2.7 3.7, 3 3))"
+        assert_allclose(
+            polygon.exterior.coords,
+            [
+                (3, 3),
+                (2.7, 2.3),
+                (2, 2),
+                (1.3, 2.3),
+                (1, 3),
+                (1.3, 3.7),
+                (2, 4),
+                (2.7, 3.7),
+                (3, 3),
+            ],
+            atol=0.01,
         )
-
-        assert to_wkt(polygon, rounding_precision=2) == expected
 
     @pytest.mark.parametrize(
         ["resolution", "expected"],
         [
-            (1, "POLYGON ((8 8, 5 5, 2 8, 5 11, 8 8))"),
+            (1, [(8, 8), (5, 5), (2, 8), (5, 11), (8, 8)]),
             (
                 2,
-                "POLYGON ((8 8, 7.1 5.9, 5 5, 2.9 5.9, 2 8, 2.9 10, 5 11, 7.1 10, 8 8))",
+                [
+                    (8.0, 8.0),
+                    (7.12, 5.88),
+                    (5.0, 5.0),
+                    (2.88, 5.88),
+                    (2.0, 8.0),
+                    (2.88, 10.12),
+                    (5.0, 11.0),
+                    (7.12, 10.12),
+                    (8.0, 8.0),
+                ],
             ),
         ],
     )
@@ -227,7 +247,7 @@ class TestGeometryBufferer:
         point = Point(5, 8)
         polygon = bufferer.buffer(point)
         assert isinstance(polygon, Polygon)
-        assert to_wkt(polygon, rounding_precision=2) == expected
+        assert_allclose(polygon.exterior.coords, expected, atol=0.01)
 
     @pytest.mark.parametrize(
         ["distance", "expected"],
@@ -272,5 +292,19 @@ class TestGeometryBufferer:
         point = Point(4, 51)
         polygon = bufferer.buffer(point)
         assert isinstance(polygon, Polygon)
-        expected = "POLYGON ((4.009 51, 4.006 50.99, 4 50.99, 3.994 50.99, 3.991 51, 3.994 51.01, 4 51.01, 4.006 51.01, 4.009 51))"
-        assert to_wkt(polygon, rounding_precision=4) == expected
+
+        assert_allclose(
+            polygon.exterior.coords,
+            [
+                (4.009, 51),
+                (4.006, 50.99),
+                (4, 50.99),
+                (3.994, 50.99),
+                (3.991, 51),
+                (3.994, 51.01),
+                (4, 51.01),
+                (4.006, 51.01),
+                (4.009, 51),
+            ],
+            atol=0.01,
+        )
