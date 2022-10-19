@@ -46,8 +46,11 @@ from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException
-from openeo_driver.save_result import AggregatePolygonResult, AggregatePolygonSpatialResult
-from openeo_driver.util.geometry import geojson_to_geometry, buffer_point_approx
+from openeo_driver.save_result import (
+    AggregatePolygonResult,
+    AggregatePolygonSpatialResult,
+)
+from openeo_driver.util.geometry import geojson_to_geometry, GeometryBufferer
 from openeo_driver.utils import to_hashable, EvalEnv
 
 _log = logging.getLogger(__name__)
@@ -475,6 +478,7 @@ class DryRunDataCube(DriverDataCube):
         """
         # TODO #71 #114 EP-3981 normalize to vector cube instead of GeometryCollection
         if isinstance(geometries, DriverVectorCube):
+            # TODO #114 #141 Open-EO/openeo-geopyspark-driver#239: buffer point geometries (if any)?
             bbox = geometries.get_bounding_box()
         elif isinstance(geometries, dict):
             return self._normalize_geometry(geojson_to_geometry(geometries))
@@ -483,14 +487,19 @@ class DryRunDataCube(DriverDataCube):
         elif isinstance(geometries, DelayedVector):
             bbox = geometries.bounds
         elif isinstance(geometries, shapely.geometry.base.BaseGeometry):
+            # TODO: buffer distance of 10m assumes certain resolution (e.g. sentinel2 pixels)
+            # TODO: use proper distance for collection resolution instead of using a default distance?
+            bufferer = GeometryBufferer.from_meter_for_crs(distance=10, crs="EPGS:4326")
             if isinstance(geometries, Point):
-                # TODO: use proper distance for collection resolution instead of using a default distance?
-                geometries = buffer_point_approx(geometries, "EPSG:4326")
+                geometries = bufferer.buffer(geometries)
             elif isinstance(geometries, GeometryCollection):
-                # TODO: use proper distance for collection resolution instead of using a default distance?
-                geometries = GeometryCollection([buffer_point_approx(geom, "EPSG:4326") if isinstance(geom, Point)
-                                                 else geom for geom in geometries.geoms])
-
+                # TODO #71 deprecate using GeometryCollection as feature collections
+                geometries = GeometryCollection(
+                    [
+                        bufferer.buffer(g) if isinstance(g, Point) else g
+                        for g in geometries.geoms
+                    ]
+                )
             bbox = geometries.bounds
         else:
             raise ValueError(geometries)

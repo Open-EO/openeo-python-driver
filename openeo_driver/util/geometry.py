@@ -1,12 +1,15 @@
 import json
+import json
 import logging
-from typing import Union
+from typing import Union, Tuple, Optional
 
 import pyproj
 import shapely.geometry
 import shapely.ops
 from shapely.geometry import MultiPolygon, Point, Polygon
-from shapely.geometry.base import CAP_STYLE, BaseGeometry
+from shapely.geometry.base import BaseGeometry
+
+from openeo_driver.util.utm import auto_utm_epsg
 
 _log = logging.getLogger(__name__)
 
@@ -115,20 +118,102 @@ def spatial_extent_union(*bboxes: dict, default_crs="EPSG:4326") -> dict:
 def buffer_point_approx(
     point: Point, point_crs: str, buffer_distance_in_meters=10.0
 ) -> Polygon:
+    """
+    Deprecated: when doing buffering on a lot of points, first build a `GeometryBufferer` object
+    and use its `.buffer()` method instead
+    """
     # TODO: default buffer distance of 10m assumes certain resolution (e.g. sentinel2 pixels)
     # TODO way to set buffer distance directly from collection resolution metadata?
-    # TODO: often, a lot of points have to be buffered, with this per-point implementation a lot of
-    #       the exact same preparation is done repetitively
-    src_proj = pyproj.Proj("EPSG:3857")
-    dst_proj = pyproj.Proj(point_crs)
+    bufferer = GeometryBufferer.from_meter_for_crs(
+        distance=buffer_distance_in_meters, crs=point_crs
+    )
+    return bufferer.buffer(point)
 
-    def reproject_point(x, y):
-        return pyproj.transform(src_proj, dst_proj, x, y, always_xy=True)
 
-    # this is too approximate in a lot of cases, better to use utm zones?
-    left, _ = reproject_point(0.0, 0.0)
-    right, _ = reproject_point(buffer_distance_in_meters, 0.0)
+class GeometryBufferer:
+    """
+    Geometry buffering helper.
 
-    buffer_distance = right - left
+    For example, for buffering 100m when working with lonlat geometries:
+    >>> bufferer = GeometryBufferer.from_meter_for_crs(distance=100, crs="EPSG:4326")
+    >>> buffered_geometry = bufferer.buffer(geometry)
 
-    return point.buffer(buffer_distance, resolution=2, cap_style=CAP_STYLE.square)
+    """
+
+    __slots__ = ["distance", "resolution"]
+
+    def __init__(self, distance: float, resolution=2):
+        self.distance = distance
+        self.resolution = resolution
+
+    def buffer(self, geometry: BaseGeometry):
+        return geometry.buffer(distance=self.distance, resolution=self.resolution)
+
+    @classmethod
+    def from_meter_for_crs(
+        cls,
+        distance: float = 1.0,
+        crs: str = "EPSG:4326",
+        loi: Tuple[float, float] = (0, 0),
+        loi_crs: Optional[str] = None,
+        resolution=2,
+    ) -> "GeometryBufferer":
+        """
+        Build bufferer for buffering given distance in meter of geometries in given CRS.
+
+        :param crs: the target CRS to express the distance in (as easting)
+        :param distance: distance in meter
+        :param loi: location of interest where the distance will be used for buffering
+            (e.g. lon-lat coordinates of center of AOI).
+            Latitude is for example important to give a better approximation of the transformed distance.
+        :param loi_crs: CRS used for the `loi` coordinates (target `crs` will be used by default)
+        """
+        distance = cls.transform_meter_to_crs(
+            crs=crs, distance=distance, loi=loi, loi_crs=loi_crs
+        )
+        return cls(distance=distance, resolution=resolution)
+
+    @staticmethod
+    def transform_meter_to_crs(
+        distance: float = 1.0,
+        crs: str = "EPSG:4326",
+        loi: Tuple[float, float] = (0, 0),
+        loi_crs: Optional[str] = None,
+    ) -> float:
+        """
+        (Approximate) reproject a distance in meter to a different CRS.
+
+        :param crs: the target CRS to express the distance in (as easting)
+        :param distance: distance in meter
+        :param loi: location of interest where the distance will be used for buffering
+            (e.g. lon-lat coordinates of center of AOI).
+            Latitude is for example important to give a better approximation of the transformed distance.
+        :param loi_crs: CRS used for the `loi` coordinates (target `crs` will be used by default)
+
+        :return: distance in target CRS (easting)
+        """
+        proj_target = pyproj.Proj(crs)
+        proj_operation = pyproj.Proj(loi_crs or crs)
+
+        # Determine UTM zone and projection for location of operation
+        operation_loc_lonlat = pyproj.Transformer.from_proj(
+            proj_from=proj_operation, proj_to=pyproj.Proj("EPSG:4326"), always_xy=True
+        ).transform(*loi)
+        utm_zone = auto_utm_epsg(*operation_loc_lonlat)
+        proj_utm = pyproj.Proj(f"EPSG:{utm_zone}")
+
+        # Transform location of operation to UTM
+        x_utm, y_utm = pyproj.Transformer.from_proj(
+            proj_from=proj_operation, proj_to=proj_utm, always_xy=True
+        ).transform(*loi)
+        # Transform distance from UTM to target CRS
+        utm2crs = pyproj.Transformer.from_proj(proj_utm, proj_target, always_xy=True)
+        lon0, lat0 = utm2crs.transform(x_utm, y_utm)
+        lon1, lat1 = utm2crs.transform(x_utm + distance, y_utm)
+        # TODO: check/incorporate lat0 and lat1?
+        # TODO: take average, or max of longitude delta and latitude delta?
+        if abs(lat1 - lat0) > 1e-3 * abs(lon1 - lon0):
+            _log.warning(
+                f"transform_meters_to_crs: large latitude delta: ({lon0},{lat0})-({lon1},{lat1})"
+            )
+        return abs(lon1 - lon0)

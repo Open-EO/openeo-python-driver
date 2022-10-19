@@ -1,16 +1,20 @@
-import re
-import typing
+import math
 
 import pytest
 import shapely.geometry
+from numpy.testing import assert_allclose
+from shapely.geometry import Point, Polygon
+from shapely.geometry.base import BaseGeometry
+from shapely.geos import WKTWriter
 
-from openeo_driver.testing import RegexMatcher
 from openeo_driver.util.geometry import (
-    geojson_to_geometry,
     geojson_to_multipolygon,
     reproject_bounding_box,
     spatial_extent_union,
+    GeometryBufferer,
 )
+
+EARTH_CIRCUMFERENCE_KM = 40075.017
 
 
 def test_geojson_to_multipolygon():
@@ -189,3 +193,84 @@ def test_spatial_extent_union_mixed_crs():
         "north": 51.2310228422003,
         "crs": "EPSG:4326",
     }
+
+
+def to_wkt(geometry: BaseGeometry, rounding_precision=2):
+    wkt_writer = WKTWriter(shapely.geos.lgeos, rounding_precision=rounding_precision)
+    return wkt_writer.write(geometry)
+
+
+class TestGeometryBufferer:
+    def test_basic_point(self):
+        bufferer = GeometryBufferer(distance=1)
+        point = Point(2, 3)
+        polygon = bufferer.buffer(point)
+        assert isinstance(polygon, Polygon)
+        expected = (
+            "POLYGON ((3 3, 2.7 2.3, 2 2, 1.3 2.3, 1 3, 1.3 3.7, 2 4, 2.7 3.7, 3 3))"
+        )
+
+        assert to_wkt(polygon, rounding_precision=2) == expected
+
+    @pytest.mark.parametrize(
+        ["resolution", "expected"],
+        [
+            (1, "POLYGON ((8 8, 5 5, 2 8, 5 11, 8 8))"),
+            (
+                2,
+                "POLYGON ((8 8, 7.1 5.9, 5 5, 2.9 5.9, 2 8, 2.9 10, 5 11, 7.1 10, 8 8))",
+            ),
+        ],
+    )
+    def test_resolution(self, resolution, expected):
+        bufferer = GeometryBufferer(distance=3, resolution=resolution)
+        point = Point(5, 8)
+        polygon = bufferer.buffer(point)
+        assert isinstance(polygon, Polygon)
+        assert to_wkt(polygon, rounding_precision=2) == expected
+
+    @pytest.mark.parametrize(
+        ["distance", "expected"],
+        [
+            (0, 0),
+            (1, 360 / (EARTH_CIRCUMFERENCE_KM * 1000)),
+            (1000, 360 / EARTH_CIRCUMFERENCE_KM),
+        ],
+    )
+    def test_transform_meters_to_lonlat_default(self, distance, expected):
+        distance = GeometryBufferer.transform_meter_to_crs(
+            distance=distance, crs="EPSG:4326"
+        )
+        assert_allclose(distance, expected, rtol=1e-3)
+
+    @pytest.mark.parametrize(
+        ["latitude", "expected"],
+        [
+            (0, 360 / EARTH_CIRCUMFERENCE_KM),
+            # Rough back-of-envelope calculation for circumference at latitude
+            (52, 360 / (EARTH_CIRCUMFERENCE_KM * math.cos(52 * math.pi / 180))),
+            (75, 360 / (EARTH_CIRCUMFERENCE_KM * math.cos(75 * math.pi / 180))),
+        ],
+    )
+    def test_transform_meters_to_lonlat_latitude_correction(self, latitude, expected):
+        distance = GeometryBufferer.transform_meter_to_crs(
+            distance=1000, crs="EPSG:4326", loi=(3, latitude)
+        )
+        assert_allclose(distance, expected, rtol=1e-2)
+
+    def test_transform_meters_to_utm_roundtrip(self):
+        distance = GeometryBufferer.transform_meter_to_crs(
+            distance=1000,
+            crs="epsg:32631",
+            loi=(4, 52),
+            loi_crs="EPSG:4326",
+        )
+        assert_allclose(distance, 1000, rtol=1e-6)
+
+    def test_from_meter_for_crs(self):
+        bufferer = GeometryBufferer.from_meter_for_crs(distance=1000, crs="EPSG:4326")
+        point = Point(4, 51)
+        polygon = bufferer.buffer(point)
+        assert isinstance(polygon, Polygon)
+        expected = "POLYGON ((4.009 51, 4.006 50.99, 4 50.99, 3.994 50.99, 3.991 51, 3.994 51.01, 4 51.01, 4.006 51.01, 4.009 51))"
+        assert to_wkt(polygon, rounding_precision=4) == expected
