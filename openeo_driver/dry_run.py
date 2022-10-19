@@ -489,7 +489,7 @@ class DryRunDataCube(DriverDataCube):
         elif isinstance(geometries, shapely.geometry.base.BaseGeometry):
             # TODO: buffer distance of 10m assumes certain resolution (e.g. sentinel2 pixels)
             # TODO: use proper distance for collection resolution instead of using a default distance?
-            bufferer = GeometryBufferer.from_meter_for_crs(distance=10, crs="EPGS:4326")
+            bufferer = GeometryBufferer.from_meter_for_crs(distance=10, crs="EPSG:4326")
             if isinstance(geometries, Point):
                 geometries = bufferer.buffer(geometries)
             elif isinstance(geometries, GeometryCollection):
