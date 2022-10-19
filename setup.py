@@ -46,7 +46,7 @@ setup(
         'numpy==1.22.4',#fixed version, align with tensorflow!
         'shapely',
         'pandas',
-        'geopandas>=0.11.0',
+        'geopandas>=0.11.0',  # 0.11.0 fixes https://github.com/geopandas/geopandas/pull/2243
         'xarray~=0.16.2',
         'netCDF4~=1.5.4',
         'flask-cors',
