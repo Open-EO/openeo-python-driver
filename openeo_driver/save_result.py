@@ -496,6 +496,8 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
         df = pd.concat(map(pd.read_csv, paths))
         features = df.feature_index.unique()
         features.sort()
+        if str(features.dtype) == 'int64':
+            features = np.arange(0,features.max()+1)
 
         def _flatten_df(df):
             df.index = df.feature_index

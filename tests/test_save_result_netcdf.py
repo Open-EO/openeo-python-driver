@@ -116,6 +116,7 @@ def test_aggregate_polygon_result_CSV(tmp_path):
 
     regions = GeometryCollection([
         Polygon([(0, 0), (5, 1), (1, 4)]),
+        Polygon([(6, 1), (1, 7), (9, 9)]),
         Polygon([(6, 1), (1, 7), (9, 9)])
     ])
 
@@ -149,4 +150,4 @@ def test_aggregate_polygon_result_CSV(tmp_path):
 
     timeseries_ds.red.sel( t='2017-09-05')
 
-    assert_allclose( timeseries_ds.red.sel(feature=1).sel( t='2017-09-06').data,4645.719597)
+    assert_allclose( timeseries_ds.red.sel(feature=2).sel( t='2017-09-06').data,4645.719597)

@@ -1,14 +1,22 @@
 import json
+from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
 import pytest
 from shapely.geometry import GeometryCollection, Polygon
 
+from openeo.metadata import CollectionMetadata
 from openeo_driver.datacube import DriverVectorCube
-from openeo_driver.save_result import AggregatePolygonResult, SaveResult, AggregatePolygonSpatialResult
+from openeo_driver.save_result import AggregatePolygonResult, SaveResult, AggregatePolygonSpatialResult, \
+    AggregatePolygonResultCSV
 from .data import load_json, json_normalize, get_path
 
+
+regions = GeometryCollection([
+        Polygon([(0, 0), (5, 1), (1, 4)]),
+        Polygon([(6, 1), (1, 7), (9, 9)])
+    ])
 
 def test_is_format():
     r = SaveResult("GTiff")
@@ -22,10 +30,7 @@ def test_aggregate_polygon_result_basic():
         "2019-10-15T08:15:45Z": [[1, 2, 3], [4, 5, 6]],
         "2019-11-11T01:11:11Z": [[7, 8, 9], [10, 11, 12]],
     }
-    regions = GeometryCollection([
-        Polygon([(0, 0), (5, 1), (1, 4)]),
-        Polygon([(6, 1), (1, 7), (9, 9)])
-    ])
+
 
     result = AggregatePolygonResult(timeseries, regions=regions)
     result.set_format("covjson")
@@ -56,10 +61,7 @@ def test_aggregate_polygon_result_nan_values():
         "2019-10-15T08:15:45Z": [[1, 2, 3], [4, np.nan, 6]],
         "2019-11-11T01:11:11Z": [[7, 8, 9], [np.nan, np.nan, np.nan]],
     }
-    regions = GeometryCollection([
-        Polygon([(0, 0), (5, 1), (1, 4)]),
-        Polygon([(6, 1), (1, 7), (9, 9)])
-    ])
+
 
     result = AggregatePolygonResult(timeseries, regions=regions)
     result.set_format("covjson")
@@ -78,10 +80,7 @@ def test_aggregate_polygon_result_empty_ts_data():
         "2019-04-01T12:34:56Z": [[], [7, 8]],
         "2019-05-01T12:34:56Z": [[9, 10], [11, 12]],
     }
-    regions = GeometryCollection([
-        Polygon([(0, 0), (5, 1), (1, 4)]),
-        Polygon([(6, 1), (1, 7), (9, 9)])
-    ])
+
 
     result = AggregatePolygonResult(timeseries, regions=regions)
     result.set_format("covjson")
@@ -105,15 +104,14 @@ def test_aggregate_polygon_result_empty_ts_data():
     }
 
 
+
+
 def test_aggregate_polygon_result_inconsistent_bands():
     timeseries = {
         "2019-01-01T12:34:56Z": [[1, 2], [3, 4, 5]],
         "2019-02-01T12:34:56Z": [[6], []],
     }
-    regions = GeometryCollection([
-        Polygon([(0, 0), (5, 1), (1, 4)]),
-        Polygon([(6, 1), (1, 7), (9, 9)])
-    ])
+
 
     result = AggregatePolygonResult(timeseries, regions=regions)
     result.set_format("covjson")
@@ -121,6 +119,45 @@ def test_aggregate_polygon_result_inconsistent_bands():
     with pytest.raises(ValueError):
         result.prepare_for_json()
 
+
+def test_aggregate_polygon_result_CSV(tmp_path):
+
+
+    metadata = CollectionMetadata({
+        "cube:dimensions": {
+            "x": {"type": "spatial"},
+            "b": {"type": "bands", "values": ["red", "green","blue"]}
+        }
+    })
+
+    regions_with_nonexistant = GeometryCollection([
+        Polygon([(0, 0), (5, 1), (1, 4)]),
+        Polygon([(6, 1), (1, 7), (9, 9)]),
+        Polygon([(6, 1), (1, 7), (9, 9)])
+    ])
+
+
+    result = AggregatePolygonResultCSV(csv_dir=Path(__file__).parent / "data" /"aggregate_spatial_spacetime_cube", regions=regions_with_nonexistant, metadata=metadata)
+    result.set_format("json")
+
+    assets = result.write_assets(tmp_path / "ignored")
+    theAsset = assets.popitem()[1]
+    filename = theAsset['href']
+
+    assert 'application/json' == theAsset['type']
+    assert ["red", "green", "blue"] == [b['name'] for b in theAsset['bands']]
+    assert 'raster:bands' in theAsset
+    assert 'file:size' in theAsset
+
+    assert 'mean' in theAsset['raster:bands'][0]["statistics"]
+    assert 'minimum' in theAsset['raster:bands'][0]["statistics"]
+    assert 100.0 == theAsset['raster:bands'][0]["statistics"]['valid_percent']
+
+    expected = {'2017-09-05T00:00:00Z': [[4646.262612301313, 4865.926572218383, 5178.517363510712], [None, None, None], [4645.719597475695, 4865.467252259935, 5177.803342998465]], '2017-09-06T00:00:00Z': [[None, None, None], [None, None, None], [4645.719597475695, 4865.467252259935, 5177.803342998465]]}
+    with open(filename) as f:
+
+        timeseries_ds = json.load(f)
+        assert expected == timeseries_ds
 
 class TestAggregatePolygonSpatialResult:
 
