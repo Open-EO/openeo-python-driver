@@ -17,6 +17,7 @@ from openeo.metadata import CollectionMetadata
 from openeo.util import ensure_dir
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs, StacAsset
 from openeo_driver.errors import FeatureUnsupportedException, InternalException
+from openeo_driver.util.geometry import GeometryBufferer
 from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.util.utm import area_in_square_meters
 from openeo_driver.utils import EvalEnv
@@ -375,6 +376,26 @@ class DriverVectorCube:
         seed: Optional[int] = None,
     ) -> "DriverMlModel":
         raise NotImplementedError
+
+    def buffer_points(self, distance: float = 10) -> "DriverVectorCube":
+        """
+        Buffer point geometries
+
+        :param distance: distance in meter
+        :return: new DriverVectorCube
+        """
+        # TODO: also cover MultiPoints?
+        # TODO: do we also need buffering of line geometries?
+        bufferer = GeometryBufferer.from_meter_for_crs(
+            distance=distance, crs=self.get_crs()
+        )
+
+        return DriverVectorCube.from_geometry(
+            [
+                bufferer.buffer(g) if isinstance(g, shapely.geometry.Point) else g
+                for g in self.get_geometries()
+            ]
+        )
 
 
 class DriverMlModel:

@@ -476,10 +476,12 @@ class DryRunDataCube(DriverDataCube):
         Helper to preprocess geometries (as used in aggregate_spatial and mask_polygon)
         and extract bbox (e.g. for filter_bbox)
         """
+        _log.debug(f"_normalize_geometry with {type(geometries)}")
         # TODO #71 #114 EP-3981 normalize to vector cube instead of GeometryCollection
         if isinstance(geometries, DriverVectorCube):
-            # TODO #114 #141 Open-EO/openeo-geopyspark-driver#239: buffer point geometries (if any)?
-            bbox = geometries.get_bounding_box()
+            # TODO: buffer distance of 10m assumes certain resolution (e.g. sentinel2 pixels)
+            # TODO: use proper distance for collection resolution instead of using a default distance?
+            bbox = geometries.buffer_points(distance=10).get_bounding_box()
         elif isinstance(geometries, dict):
             return self._normalize_geometry(geojson_to_geometry(geometries))
         elif isinstance(geometries, str):
@@ -487,6 +489,7 @@ class DryRunDataCube(DriverDataCube):
         elif isinstance(geometries, DelayedVector):
             bbox = geometries.bounds
         elif isinstance(geometries, shapely.geometry.base.BaseGeometry):
+            _log.warning("_normalize_geometry: TODO are we still reaching this code?")
             # TODO: buffer distance of 10m assumes certain resolution (e.g. sentinel2 pixels)
             # TODO: use proper distance for collection resolution instead of using a default distance?
             bufferer = GeometryBufferer.from_meter_for_crs(distance=10, crs="EPSG:4326")
