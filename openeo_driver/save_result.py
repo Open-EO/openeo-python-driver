@@ -279,7 +279,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
             return send_from_directory(
                 os.path.dirname(filename),
                 os.path.basename(filename),
-                mimetypes=IOFORMATS.get_mimetype(self.format),
+                mimetype=IOFORMATS.get_mimetype(self.format),
             )
 
         return super().create_flask_response()
