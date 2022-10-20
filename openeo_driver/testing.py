@@ -7,9 +7,12 @@ import json
 import re
 import urllib.request
 from pathlib import Path
-from typing import Union, Callable, Pattern, Dict, Tuple
+from typing import Union, Callable, Pattern, Dict, Tuple, Optional, Any
 from unittest import mock
 
+import pytest
+import shapely.geometry.base
+import shapely.wkt
 from flask import Response
 from flask.testing import FlaskClient
 from werkzeug.datastructures import Headers
@@ -17,6 +20,10 @@ from werkzeug.datastructures import Headers
 import openeo
 from openeo.capabilities import ComparableVersion
 from openeo_driver.users.auth import HttpAuthHandler
+from openeo_driver.util.geometry import (
+    as_geojson_feature,
+    as_geojson_feature_collection,
+)
 from openeo_driver.utils import generate_unique_id
 
 TEST_USER = "Mr.Test"
@@ -419,3 +426,63 @@ class UrllibMocker:
         with mock.patch("urllib.request.HTTPHandler.http_open", new=self._http_open), \
                 mock.patch("urllib.request.HTTPSHandler.https_open", new=self._http_open):
             yield self
+
+
+def approxify(x: Any, rel: Optional = None, abs: Optional[float] = None) -> Any:
+    """
+    Test helper to approximately check (nested) dict/list/tuple constructs containing floats/ints,
+    (using `pytest.approx`).
+
+    >>> assert {"foo": [10.001, 2.3001]} == approxify({"foo": [10, 2.3]}, abs=0.1)
+    """
+    if isinstance(x, dict):
+        return {k: approxify(v, rel=rel, abs=abs) for k, v in x.items()}
+    elif isinstance(x, (list, tuple)):
+        return type(x)(approxify(v, rel=rel, abs=abs) for v in x)
+    elif isinstance(x, str):
+        return x
+    elif isinstance(x, (float, int)):
+        return pytest.approx(x, rel=rel, abs=abs)
+    elif x is None:
+        return x
+    else:
+        # TODO: support more types
+        raise ValueError(x)
+
+
+class ApproxGeometry:
+    """Helper to compactly and approximately compare geometries."""
+
+    __slots__ = ["geometry", "rel", "abs"]
+
+    def __init__(
+        self,
+        geometry: shapely.geometry.base.BaseGeometry,
+        rel: Optional[float] = None,
+        abs: Optional[float] = None,
+    ):
+        self.geometry = geometry
+        self.rel = rel
+        self.abs = abs
+
+    @classmethod
+    def from_wkt(
+        cls,
+        wkt: str,
+        rel: Optional[float] = None,
+        abs: Optional[float] = None,
+    ) -> "ApproxGeometry":
+        return cls(shapely.wkt.loads(wkt), rel=rel, abs=abs)
+
+    def to_geojson(self) -> dict:
+        result = shapely.geometry.mapping(self.geometry)
+        return approxify(result, rel=self.rel, abs=self.abs)
+
+    def to_geojson_feature(self, properties: Optional[dict] = None) -> dict:
+        result = as_geojson_feature(self.geometry, properties=properties)
+        result = approxify(result, rel=self.rel, abs=self.abs)
+        return result
+
+    def to_geojson_feature_collection(self) -> dict:
+        result = as_geojson_feature_collection(self.geometry)
+        return approxify(result, rel=self.rel, abs=self.abs)

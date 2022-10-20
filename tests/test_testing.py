@@ -1,9 +1,18 @@
+import urllib.error
+import urllib.request
+
 import flask
 import pytest
-import urllib.request
-import urllib.error
-from openeo_driver.testing import preprocess_check_and_replace, IgnoreOrder, ApiTester, RegexMatcher, DictSubSet, \
-    ListSubSet
+
+from openeo_driver.testing import (
+    preprocess_check_and_replace,
+    IgnoreOrder,
+    ApiTester,
+    RegexMatcher,
+    DictSubSet,
+    ListSubSet,
+    approxify,
+)
 
 
 def test_api_tester_url():
@@ -139,3 +148,36 @@ def test_urllib_mock(urllib_mock):
 
     with pytest.raises(urllib.error.HTTPError, match="404: Not Found"):
         urllib.request.urlopen("http://a.test/bar")
+
+
+def test_approxify_basic():
+    assert {"a": 1.2345} == approxify({"a": 1.2345})
+    assert {"a": 1.2345} != approxify({"a": 1.23466666})
+    assert {"a": 1.2345, "b": "foo"} == approxify({"a": 1.2345, "b": "foo"})
+    assert {"a": 1.2345, "b": "foo"} != approxify({"a": 1.2345})
+    assert {"a": 1000.0, "b": "foo"} == approxify({"a": 1000.0001, "b": "foo"})
+    assert {"a": 1000.0, "b": "foo"} != approxify({"a": 1000.01, "b": "foo"})
+    assert {"a": [10.00001, 2.299999]} == approxify({"a": [10, 2.3]})
+    assert {"a": [10.00001, 2.299999]} == approxify({"a": [10, 2.3]})
+    assert [{"a": [10.00001, 2.299999]}, ([4.9999999, 6], -123.000001)] == approxify(
+        [{"a": [10, 2.3]}, ([5, 6], -123)],
+    )
+    assert [
+        {"a": [10.00001, 2.299999, 6666]},
+        ([4.9999999, 6], -123.000001),
+    ] != approxify(
+        [{"a": [10, 2.3]}, ([5, 6], -123)],
+    )
+
+
+def test_approxify_tolerance_abs():
+    assert {"a": [10.1, 2.2]} == approxify({"a": [10, 2.3]}, abs=0.1)
+    assert {"a": [10.1, 2.2]} != approxify({"a": [10, 2.3]}, abs=0.09)
+    assert {"a": [10.1, 2.2]} != approxify({"a": [10, 2.3]}, abs=0.001)
+    assert {"a": [10.001, 2.299]} == approxify({"a": [10, 2.3]}, abs=0.001)
+
+
+def test_approxify_tolerance_rel():
+    assert {"a": [10.1, 2.0]} != approxify({"a": [10, 2.3]}, rel=0.1)
+    assert {"a": [10.1, 2.1]} == approxify({"a": [10, 2.3]}, rel=0.1)
+    assert {"a": [10.1, 2.1]} != approxify({"a": [10, 2.3]}, rel=0.01)

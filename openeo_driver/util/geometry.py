@@ -220,14 +220,15 @@ class GeometryBufferer:
 
 
 def as_geojson_feature(
-    geometry: Union[dict, BaseGeometry, Path], properties: Union[dict, None] = None
+    geometry: Union[dict, BaseGeometry, Path],
+    properties: Union[dict, None] = None,
 ) -> dict:
     """
     Helper to construct a GeoJSON-style Feature dictionary from a shapely geometry,
-    an GeoJSON-style geometry or featurre dictionary
+    a GeoJSON-style geometry/feature dictionary, a path to a GeoJSON file, ...
 
     :param geometry: a shapely geometry, a geometry as GeoJSON-style dict, a feature as GeoJSON-style dict, a path to a GeoJSON file
-    :param properties:
+    :param properties: properties to set on the feature
     :return: GeoJSON-style Feature dict
     """
     # TODO: support loading WKT string?
@@ -240,6 +241,7 @@ def as_geojson_feature(
     if geometry["type"] == "Feature":
         properties = properties or geometry["properties"]
         geometry = geometry["geometry"]
+    assert isinstance(geometry, dict)
     assert geometry["type"] in [
         "Point",
         "MultiPoint",

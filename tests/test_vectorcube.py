@@ -6,7 +6,8 @@ import xarray
 from shapely.geometry import Polygon, MultiPolygon, Point
 
 from openeo_driver.datacube import DriverVectorCube
-from openeo_driver.testing import DictSubSet
+from openeo_driver.testing import DictSubSet, ApproxGeometry
+from openeo_driver.util.geometry import as_geojson_feature_collection
 
 from .data import get_path
 
@@ -328,3 +329,28 @@ class TestDriverVectorCube:
         #       is roughly 2.3 km * 2.3 km = 5.29 km2,
         #       but current implementation gives result that is quite a bit larger than that
         numpy.testing.assert_allclose(area, 8e6, rtol=0.1)
+
+    def test_buffer_points(self):
+        geometry = as_geojson_feature_collection(
+            Point(2, 3), Polygon.from_bounds(5, 8, 13, 21)
+        )
+        vc = DriverVectorCube.from_geojson(geometry)
+        buffered = vc.buffer_points(distance=1000)
+        assert buffered.to_geojson() == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    DictSubSet(
+                        ApproxGeometry.from_wkt(
+                            "POLYGON ((2.009 3, 2.006 2.994, 2 2.991, 1.994 2.994, 1.991 3, 1.994 3.006, 2 3.009, 2.006 3.006, 2.009 3))",
+                            abs=0.001,
+                        ).to_geojson_feature(properties={})
+                    ),
+                    DictSubSet(
+                        ApproxGeometry(
+                            Polygon.from_bounds(5, 8, 13, 21), abs=0.000001
+                        ).to_geojson_feature(properties={})
+                    ),
+                ],
+            }
+        )

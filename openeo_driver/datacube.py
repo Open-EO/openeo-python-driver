@@ -386,6 +386,7 @@ class DriverVectorCube:
         """
         # TODO: also cover MultiPoints?
         # TODO: do we also need buffering of line geometries?
+        # TODO: preserve original properties?
         bufferer = GeometryBufferer.from_meter_for_crs(
             distance=distance, crs=self.get_crs()
         )

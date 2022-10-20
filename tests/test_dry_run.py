@@ -9,7 +9,8 @@ from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer, DataSource, DataTrace, ProcessType
-from openeo_driver.testing import DictSubSet
+from openeo_driver.testing import DictSubSet, approxify
+from openeo_driver.util.geometry import as_geojson_feature_collection
 from openeo_driver.utils import EvalEnv
 from tests.data import get_path, load_json
 
@@ -530,7 +531,7 @@ def test_aggregate_spatial_only(dry_run_env, dry_run_tracer):
         "spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
         "aggregate_spatial": {"geometries": DriverVectorCube.from_geojson(polygon)},
     }
-    geometries, = dry_run_tracer.get_geometries()
+    (geometries,) = dry_run_tracer.get_geometries()
     assert isinstance(geometries, DriverVectorCube)
     assert geometries.to_geojson() == DictSubSet(
         type="FeatureCollection",
@@ -543,6 +544,96 @@ def test_aggregate_spatial_only(dry_run_env, dry_run_tracer):
             ),
         ],
     )
+
+
+@pytest.mark.parametrize(
+    ["geometries", "expected"],
+    [
+        (
+            {"type": "Point", "coordinates": (2, 3)},
+            approxify(
+                {
+                    "west": 1.99991,
+                    "south": 2.99991,
+                    "east": 2.0000897,
+                    "north": 3.0000897,
+                    "crs": "EPSG:4326",
+                }
+            ),
+        ),
+        (
+            as_geojson_feature_collection(
+                shapely.geometry.Point(2, 3),
+                shapely.geometry.Point(4, 5),
+            ),
+            approxify(
+                {
+                    "west": 1.99991,
+                    "south": 2.99991,
+                    "east": 4.0000897,
+                    "north": 5.0000897,
+                    "crs": "EPSG:4326",
+                }
+            ),
+        ),
+        (
+            {"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]},
+            {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
+        ),
+        (
+            as_geojson_feature_collection(
+                shapely.geometry.Polygon.from_bounds(2, 3, 5, 8),
+                shapely.geometry.Polygon.from_bounds(3, 5, 8, 13),
+            ),
+            {"west": 2.0, "south": 3.0, "east": 8.0, "north": 13.0, "crs": "EPSG:4326"},
+        ),
+        (
+            as_geojson_feature_collection(
+                shapely.geometry.Point(2, 3),
+                shapely.geometry.Polygon.from_bounds(3, 5, 8, 13),
+            ),
+            approxify(
+                {
+                    "west": 1.99991,
+                    "south": 2.99991,
+                    "east": 8,
+                    "north": 13,
+                    "crs": "EPSG:4326",
+                }
+            ),
+        ),
+    ],
+)
+def test_aggregate_spatial_extent_handling_and_buffering(
+    dry_run_env, dry_run_tracer, geometries, expected
+):
+    pg = {
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "agg": {
+            "process_id": "aggregate_spatial",
+            "arguments": {
+                "data": {"from_node": "lc"},
+                "geometries": geometries,
+                "reducer": {
+                    "process_graph": {
+                        "mean": {
+                            "process_id": "mean",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        }
+                    }
+                },
+            },
+            "result": True,
+        },
+    }
+    _ = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints[0]
+    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert constraints["spatial_extent"] == expected
 
 
 def test_aggregate_spatial_apply_dimension(dry_run_env, dry_run_tracer):
