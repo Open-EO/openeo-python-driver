@@ -153,9 +153,9 @@ class GeometryBufferer:
     def from_meter_for_crs(
         cls,
         distance: float = 1.0,
-        crs: str = "EPSG:4326",
+        crs: Union[str, pyproj.CRS] = "EPSG:4326",
         loi: Tuple[float, float] = (0, 0),
-        loi_crs: Optional[str] = None,
+        loi_crs: Union[str, pyproj.CRS, None] = None,
         resolution=2,
     ) -> "GeometryBufferer":
         """
@@ -176,9 +176,9 @@ class GeometryBufferer:
     @staticmethod
     def transform_meter_to_crs(
         distance: float = 1.0,
-        crs: str = "EPSG:4326",
+        crs: Union[str, pyproj.CRS] = "EPSG:4326",
         loi: Tuple[float, float] = (0, 0),
-        loi_crs: Optional[str] = None,
+        loi_crs: Union[str, pyproj.CRS, None] = None,
     ) -> float:
         """
         (Approximate) reproject a distance in meter to a different CRS.

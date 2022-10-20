@@ -1,5 +1,6 @@
 import math
 
+import pyproj
 import pytest
 import shapely.geometry
 from numpy.testing import assert_allclose
@@ -267,6 +268,15 @@ class TestGeometryBufferer:
             distance=distance, crs="EPSG:4326"
         )
         assert_allclose(distance, expected, rtol=1e-3)
+
+    def test_transform_meters_to_pyproj_crs(self):
+        distance = GeometryBufferer.transform_meter_to_crs(
+            distance=1000,
+            crs=pyproj.CRS.from_epsg(32631),
+            loi=(3, 0),
+            loi_crs=pyproj.CRS.from_epsg(4326),
+        )
+        assert_allclose(distance, 1000, rtol=1e-3)
 
     @pytest.mark.parametrize(
         ["latitude", "expected"],
