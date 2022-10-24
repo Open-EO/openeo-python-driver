@@ -457,6 +457,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     params.target_crs = constraints.get("resample", {}).get("target_crs",None)
     params.target_resolution = constraints.get("resample", {}).get("resolution", None)
     params.resample_method = constraints.get("resample", {}).get("method", "near")
+    params.pixel_buffer = constraints.get("pixel_buffer", {}).get("buffer_size", None)
     return params
 
 

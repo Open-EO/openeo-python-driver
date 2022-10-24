@@ -1143,6 +1143,39 @@ def test_sources_are_subject_to_correct_constraints(dry_run_env, dry_run_tracer)
     }
 
 
+def test_pixel_buffer(dry_run_env, dry_run_tracer):
+    pg = {
+        'loadcollection1': {'process_id': 'load_collection',
+                            'arguments': {'bands': ['VV', 'VH'], 'id': 'S2_FOOBAR',
+                                          'spatial_extent': {'west': 11.465226, 'east': 11.465435, 'south': 46.343118,
+                                                             'north': 46.343281, 'crs': 'EPSG:4326'},
+                                          'temporal_extent': ['2018-01-01', '2018-01-01']}},
+        'apply_kernel': {'process_id': 'apply_kernel',
+                            'arguments': {'kernel': [[1.0,1.0],[1.0,1.0]],
+                                          'data': {'from_node': 'loadcollection1'}},
+                         'result':True
+                         }
+
+    }
+    cube = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+
+    src, constraints = source_constraints[0]
+    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert constraints == {
+        "temporal_extent": ('2018-01-01', '2018-01-01'),
+        "spatial_extent": {'west': 11.465226, 'east': 11.465435, 'south': 46.343118, 'north': 46.343281,
+                           'crs': 'EPSG:4326'},
+        'bands': ['VV', 'VH'],
+        'pixel_buffer': {'buffer_size': [1.0,1.0]},
+        'process_type': [ ProcessType.FOCAL_SPACE],
+    }
+
+
+
+
 def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
     """based on use case of https://jira.vito.be/browse/EP-3747"""
     pg = {

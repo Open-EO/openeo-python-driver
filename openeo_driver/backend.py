@@ -163,6 +163,7 @@ class LoadParameters(dict):
     target_crs = dict_item(default=None)
     target_resolution = dict_item(default=None)
     resample_method = dict_item(default="near")
+    pixel_buffer = dict_item(default=None)
 
     def copy(self) -> "LoadParameters":
         return LoadParameters(super().copy())

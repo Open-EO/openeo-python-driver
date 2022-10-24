@@ -36,6 +36,7 @@ import logging
 from enum import Enum
 from typing import List, Union, Tuple, Any
 
+import numpy
 import shapely.geometry.base
 from shapely.geometry import Point, Polygon, MultiPolygon, GeometryCollection
 from shapely.geometry.base import BaseGeometry
@@ -257,7 +258,10 @@ class DryRunDataTracer:
         return cube
 
     def get_trace_leaves(self) -> List[DataTraceBase]:
-        """Get all nodes in the tree of traces that are not parent of another trace."""
+        """
+        Get all nodes in the tree of traces that are not parent of another trace.
+        In openEO this could be for instance a save_result process that ends the workflow.
+        """
         leaves = []
 
         def get_leaves(tree: DataTraceBase) -> List[DataTraceBase]:
@@ -290,6 +294,13 @@ class DryRunDataTracer:
         source_constraints = []
         for leaf in self.get_trace_leaves():
             constraints = {}
+            pixel_buffer_op = leaf.get_operation_closest_to_source(["pixel_buffer"])
+            if pixel_buffer_op:
+                args = pixel_buffer_op.get_arguments_by_operation("pixel_buffer")
+                if args:
+                    buffer_size = args[0]["buffer_size"]
+                    constraints["pixel_buffer"] = {"buffer_size":buffer_size}
+
             resampling_op = leaf.get_operation_closest_to_source(["resample_cube_spatial", "resample_spatial"])
             if resampling_op:
                 resample_valid = True
@@ -566,8 +577,10 @@ class DryRunDataCube(DriverDataCube):
             arguments={"resolution": resolution, "projection": projection, "method": method, "align": align}
         )
 
-    def apply_kernel(self, kernel: list, factor=1, border=0, replace_invalid=0) -> 'DriverDataCube':
-        return self._process("apply_kernel", arguments={"kernel": kernel})
+    def apply_kernel(self, kernel: numpy.ndarray, factor=1, border=0, replace_invalid=0) -> 'DriverDataCube':
+        cube = self._process("process_type", [ProcessType.FOCAL_SPACE])
+        cube = cube._process("pixel_buffer", arguments={"buffer_size":[x/2.0 for x in kernel.shape]})
+        return cube._process("apply_kernel", arguments={"kernel": kernel})
 
     def apply_dimension(self, process, dimension: str, target_dimension: str = None, context:dict = None, env: EvalEnv=None) -> 'DriverDataCube':
         cube = self
