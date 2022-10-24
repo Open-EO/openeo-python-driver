@@ -15,11 +15,6 @@ from typing import Any, List, Optional, Tuple, Union
 from deprecated import deprecated
 from openeo.util import rfc3339
 
-# TODO: get rid of this import for backward compatibility
-from openeo_driver.util.geometry import geojson_to_geometry, geojson_to_multipolygon, reproject_bounding_box, \
-    spatial_extent_union
-
-
 
 _log = logging.getLogger(__name__)
 
