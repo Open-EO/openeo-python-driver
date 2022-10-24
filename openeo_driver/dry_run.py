@@ -481,6 +481,7 @@ class DryRunDataCube(DriverDataCube):
         if isinstance(geometries, DriverVectorCube):
             # TODO: buffer distance of 10m assumes certain resolution (e.g. sentinel2 pixels)
             # TODO: use proper distance for collection resolution instead of using a default distance?
+            # TODO: or eliminate need for buffering in the first place? https://github.com/Open-EO/openeo-python-driver/issues/148
             bbox = geometries.buffer_points(distance=10).get_bounding_box()
         elif isinstance(geometries, dict):
             return self._normalize_geometry(geojson_to_geometry(geometries))
@@ -492,6 +493,7 @@ class DryRunDataCube(DriverDataCube):
             _log.warning("_normalize_geometry: TODO are we still reaching this code?")
             # TODO: buffer distance of 10m assumes certain resolution (e.g. sentinel2 pixels)
             # TODO: use proper distance for collection resolution instead of using a default distance?
+            # TODO: or eliminate need for buffering in the first place? https://github.com/Open-EO/openeo-python-driver/issues/148
             bufferer = GeometryBufferer.from_meter_for_crs(distance=10, crs="EPSG:4326")
             if isinstance(geometries, Point):
                 geometries = bufferer.buffer(geometries)

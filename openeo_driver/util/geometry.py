@@ -115,21 +115,6 @@ def spatial_extent_union(*bboxes: dict, default_crs="EPSG:4326") -> dict:
     return bbox
 
 
-def buffer_point_approx(
-    point: Point, point_crs: str, buffer_distance_in_meters=10.0
-) -> Polygon:
-    """
-    Deprecated: when doing buffering on a lot of points, first build a `GeometryBufferer` object
-    and use its `.buffer()` method instead
-    """
-    # TODO: default buffer distance of 10m assumes certain resolution (e.g. sentinel2 pixels)
-    # TODO way to set buffer distance directly from collection resolution metadata?
-    bufferer = GeometryBufferer.from_meter_for_crs(
-        distance=buffer_distance_in_meters, crs=point_crs
-    )
-    return bufferer.buffer(point)
-
-
 class GeometryBufferer:
     """
     Geometry buffering helper.

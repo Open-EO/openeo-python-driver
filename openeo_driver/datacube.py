@@ -348,6 +348,7 @@ class DriverVectorCube:
 
     def get_bounding_box_area(self) -> float:
         """Bounding box area in square meters"""
+        # TODO: also method to calculate covered area (instead of whole bbox)?
         return area_in_square_meters(
             self.get_bounding_box_geometry(), crs=self.get_crs()
         )
