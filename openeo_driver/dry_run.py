@@ -308,7 +308,7 @@ class DryRunDataTracer:
                 # under the condition that no operations occur in between that may be affected
                 for op in [
                     "apply_kernel", "reduce_dimension", "apply", "apply_dimension",
-                    "apply_neighborhood", "reduce_dimension_binary"
+                    "apply_neighborhood", "reduce_dimension_binary", "mask"
                 ]:
                     args = resampling_op.get_arguments_by_operation(op)
                     if args:
@@ -648,6 +648,7 @@ class DryRunDataCube(DriverDataCube):
     reduce = _nop
     reduce_bands = _nop
     aggregate_temporal = _nop
+    aggregate_temporal_period = _nop
     rename_labels = _nop
     rename_dimension = _nop
     ndvi = _nop
