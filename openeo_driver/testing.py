@@ -250,7 +250,7 @@ class ApiTester:
 
     def result(
         self,
-        process_graph: Union[dict, str, openeo.DataCube],
+        process_graph: Union[dict, str, openeo.DataCube, openeo.processes.ProcessBuilderBase],
         path="/result",
         preprocess: Callable = None,
     ) -> ApiResponse:
@@ -272,7 +272,7 @@ class ApiTester:
 
     def check_result(
         self,
-        process_graph: Union[dict, str, openeo.DataCube],
+        process_graph: Union[dict, str, openeo.DataCube, openeo.processes.ProcessBuilderBase],
         path="/result",
         preprocess: Callable = None,
     ) -> ApiResponse:
