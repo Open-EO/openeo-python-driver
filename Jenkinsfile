@@ -1,8 +1,8 @@
 #!/usr/bin/env groovy
 
 /*
-    This Jenkinsfile is used to provide snapshot builds using the VITO CI system. Travis is used to provide publicly accessible test results.
-    This Jenkinsfile uses the Jenkins shared library. (ssh://git@git.vito.local:7999/biggeo/jenkinslib.git)
+    This Jenkinsfile is used to provide snapshot builds using the VITO CI system.
+    This Jenkinsfile uses the internal "biggeo/jenkinslib.git" library.
     Information about the pythonPipeline method can be found in pythonPipeline.groovy
 */
 

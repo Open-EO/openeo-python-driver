@@ -1,6 +1,6 @@
 # openEO Python Driver
 
-[![Status](https://img.shields.io/badge/Status-proof--of--concept-yellow.svg)]() [![Build Status](https://travis-ci.org/Open-EO/openeo-python-driver.svg?branch=master)](https://travis-ci.org/Open-EO/openeo-python-driver)
+[![Status](https://img.shields.io/badge/Status-proof--of--concept-yellow.svg)]()
 
 
 Python version: 3.8 or higher
