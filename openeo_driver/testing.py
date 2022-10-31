@@ -18,6 +18,7 @@ from flask.testing import FlaskClient
 from werkzeug.datastructures import Headers
 
 import openeo
+import openeo.processes
 from openeo.capabilities import ComparableVersion
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.util.geometry import (
@@ -260,7 +261,9 @@ class ApiTester:
         if isinstance(process_graph, str):
             # Assume it is a file name
             process_graph = self.load_json(process_graph, preprocess=preprocess)
-        elif isinstance(process_graph, openeo.DataCube):
+        elif isinstance(
+            process_graph, (openeo.DataCube, openeo.processes.ProcessBuilderBase)
+        ):
             process_graph = process_graph.flat_graph()
         data = self.get_process_graph_dict(process_graph)
         self.set_auth_bearer_token()

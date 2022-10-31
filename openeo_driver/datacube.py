@@ -1,3 +1,4 @@
+import abc
 import inspect
 import logging
 import zipfile
@@ -409,3 +410,20 @@ class DriverMlModel:
 
     def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
         raise NotImplementedError
+
+
+class SupportsRunUdf(metaclass=abc.ABCMeta):
+    """
+    Interface for cube/result classes that (partially) support `run_udf`
+    """
+
+    @abc.abstractmethod
+    def supports_udf(self, udf: str, runtime: str = "Python") -> bool:
+        """Check if UDF code is supported."""
+        return False
+
+    @abc.abstractmethod
+    def run_udf(
+        self, udf: str, runtime: str = "Python", context: Optional[dict] = None
+    ):
+        ...

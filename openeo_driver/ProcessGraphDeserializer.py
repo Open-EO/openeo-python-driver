@@ -29,8 +29,18 @@ from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGr
 from openeo.metadata import CollectionMetadata, MetadataException
 from openeo.util import load_json, rfc3339, deep_get, str_truncate
 from openeo_driver import dry_run
-from openeo_driver.backend import UserDefinedProcessMetadata, LoadParameters, Processing, OpenEoBackendImplementation
-from openeo_driver.datacube import DriverDataCube, DriverVectorCube, DriverMlModel
+from openeo_driver.backend import (
+    UserDefinedProcessMetadata,
+    LoadParameters,
+    Processing,
+    OpenEoBackendImplementation,
+)
+from openeo_driver.datacube import (
+    DriverDataCube,
+    DriverVectorCube,
+    DriverMlModel,
+    SupportsRunUdf,
+)
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint
@@ -1337,6 +1347,10 @@ def run_udf(args: dict, env: EvalEnv):
     # TODO: would it be useful to let user hook into dry-run phase of run_udf (e.g. hint about result type/structure)?
     if dry_run_tracer and isinstance(data, AggregatePolygonResult):
         return JSONResult({})
+
+    if isinstance(data, SupportsRunUdf) and data.supports_udf(udf=udf, runtime=runtime):
+        _log.info(f"run_udf: data of type {type(data)} has direct run_udf support")
+        return data.run_udf(udf=udf, runtime=runtime, context=context)
 
     # TODO #114 add support for DriverVectorCube
     if isinstance(data, AggregatePolygonResult):

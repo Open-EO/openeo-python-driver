@@ -486,6 +486,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
 
 class AggregatePolygonResultCSV(AggregatePolygonResult):
     # TODO #71 #114 EP-3981 port this to proper vector cube support
+    # TODO: this is a openeo-geopyspark-driver related/specific implementation, move it over there?
 
     def __init__(self, csv_dir, regions: GeometryCollection, metadata: CollectionMetadata = None):
 
@@ -560,7 +561,7 @@ class AggregatePolygonSpatialResult(SaveResult):
         df = pd.read_csv(self._csv_path())
         return self._band_values_by_geometry(df)
 
-    def _csv_path(self):
+    def _csv_path(self) -> str:
         csv_paths = glob.glob(f"{self._csv_dir}/*.csv")
         # could support multiple files but currently assumes coalesce(1)
         assert len(csv_paths) == 1, f"expected exactly one CSV file at {self._csv_dir}"
