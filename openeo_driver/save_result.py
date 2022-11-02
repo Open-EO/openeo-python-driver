@@ -337,7 +337,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         lats = [p.y for p in points]
         lons = [p.x for p in points]
 
-        values = self.data.values()
+        values = self.get_data().values()
         if self._metadata is not None and self._metadata.has_band_dimension():
             bandcount = len(self._metadata.bands)
         else:
@@ -353,7 +353,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         #if len(time_feature_bands_array.shape) == 3:
         #    nb_bands = time_feature_bands_array.shape[2]
         feature_time_bands_array = np.swapaxes(time_feature_bands_array,0,1)
-        array = self._create_point_timeseries_xarray(feature_ids, list(self.data.keys()), lats, lons, feature_time_bands_array)
+        array = self._create_point_timeseries_xarray(feature_ids, list(self.get_data().keys()), lats, lons, feature_time_bands_array)
         comp = dict(zlib=True, complevel=5)
         encoding = {var: comp for var in array.data_vars}
         if destination is None:
@@ -368,11 +368,11 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         return filename
 
     def to_csv(self, destination=None):
-        nb_bands = max([len(item) for sublist in self.data.values() for item in sublist])
+        nb_bands = max([len(item) for sublist in self.get_data().values() for item in sublist])
 
         date_band_dict = {}
 
-        for date, polygon_results in self.data.items():
+        for date, polygon_results in self.get_data().items():
             if nb_bands > 1:
                 for i in range(0, nb_bands):
                     date_band = date + '__' + str(i + 1).zfill(2)
@@ -401,11 +401,11 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
             polygons = [mapping(g)["coordinates"] for g in self._regions.get_geometries()]
 
         # TODO make sure timestamps are ISO8601 (https://covjson.org/spec/#temporal-reference-systems)
-        timestamps = sorted(self.data.keys())
+        timestamps = sorted(self.get_data().keys())
 
         # Count bands in timestamp data
         # TODO get band count and names from metadata
-        band_counts = set(len(polygon_data) for ts_data in self.data.values() for polygon_data in ts_data)
+        band_counts = set(len(polygon_data) for ts_data in self.get_data().values() for polygon_data in ts_data)
         band_counts.discard(0)
         if len(band_counts) != 1:
             raise ValueError("Multiple band counts in data: {c}".format(c=band_counts))
@@ -415,7 +415,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         actual_timestamps = []
         param_values = [[] for _ in range(band_count)]
         for ts in timestamps:
-            ts_data = self.data[ts]
+            ts_data = self.get_data()[ts]
             if len(ts_data) != len(polygons):
                 warnings.warn("Expected {e} polygon results, but got {g}".format(e=len(polygons), g=len(ts_data)))
                 continue
@@ -489,41 +489,49 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
     # TODO: this is a openeo-geopyspark-driver related/specific implementation, move it over there?
 
     def __init__(self, csv_dir, regions: GeometryCollection, metadata: CollectionMetadata = None):
-
-        paths = list(glob.glob(os.path.join(csv_dir, "*.csv")))
-        _log.info(f"Parsing intermediate timeseries results: {paths}")
-        if(len(paths)==0):
-            raise OpenEOApiException(status_code=500, code="EmptyResult", message=f"aggregate_spatial did not generate any output, intermediate output path on the server: {csv_dir}")
-        df = pd.concat(map(pd.read_csv, paths))
-        features = df.feature_index.unique()
-        features.sort()
-        if str(features.dtype) == 'int64':
-            features = np.arange(0,features.max()+1)
-
-        def _flatten_df(df):
-            df.index = df.feature_index
-            df=df.reindex(features)
-            return df.drop(columns="feature_index").values.tolist()
-
-
-        super().__init__(timeseries={pd.to_datetime(date).tz_convert('UTC').strftime('%Y-%m-%dT%XZ'): _flatten_df(df[df.date == date].drop(columns="date")) for date in df.date.unique()},regions=regions,metadata=metadata)
         self._csv_dir = csv_dir
+        self._regions = regions
+        self._metadata = metadata
+        self.data = None
 
-        bands = df.columns[2:].values
+    def get_data(self):
+        if self.data is None:
+            paths = list(glob.glob(os.path.join(self._csv_dir, "*.csv")))
+            _log.info(f"Parsing intermediate timeseries results: {paths}")
+            if len(paths) == 0:
+                raise OpenEOApiException(status_code = 500, code = "EmptyResult",
+                    message = f"aggregate_spatial did not generate any output, intermediate output path on the server: {self._csv_dir}")
+            df = pd.concat(map(pd.read_csv, paths))
+            features = df.feature_index.unique()
+            features.sort()
+            if str(features.dtype) == 'int64':
+                features = np.arange(0, features.max() + 1)
 
-        def stats(band):
-            series = df[band]
-            stats = {}
-            stats["mean"] = series.mean()
-            stats["minimum"] = series.min()
-            stats["maximum"] = series.max()
-            stats["stddev"] = series.std()
-            stats["valid_percent"] = (
-                (100.0 * len(series.dropna()) / len(series)) if len(series) else None
-            )
-            return {"statistics": stats}
+            def _flatten_df(df):
+                df.index = df.feature_index
+                df = df.reindex(features)
+                return df.drop(columns = "feature_index").values.tolist()
 
-        self.raster_bands = [stats(b) for b in bands]
+            super().__init__(timeseries = {pd.to_datetime(date).tz_convert('UTC').strftime('%Y-%m-%dT%XZ'): _flatten_df(
+                df[df.date == date].drop(columns = "date")) for date in df.date.unique()}, regions = self._regions,
+                metadata = self._metadata)
+
+            # Compute stats.
+            bands = df.columns[2:].values
+            def stats(band):
+                series = df[band]
+                stats = {}
+                stats["mean"] = series.mean()
+                stats["minimum"] = series.min()
+                stats["maximum"] = series.max()
+                stats["stddev"] = series.std()
+                stats["valid_percent"] = ((100.0 * len(series.dropna()) / len(series)) if len(series) else None)
+                return {"statistics": stats}
+            self.raster_bands = [stats(b) for b in bands]
+
+        if self.is_format('covjson', 'coveragejson'):
+            return self.to_covjson()
+        return self.data
 
     def to_csv(self, destination=None):
         csv_paths = glob.glob(self._csv_dir + "/*.csv")
