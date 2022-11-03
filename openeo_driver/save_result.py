@@ -393,6 +393,8 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         """
         Convert internal timeseries structure to Coverage JSON structured dict
         """
+        if self.data is None:
+            return {}
 
         if isinstance(self._regions, GeometryCollection):
             # Convert GeometryCollection to list of GeoJSON Polygon coordinate arrays
@@ -401,11 +403,11 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
             polygons = [mapping(g)["coordinates"] for g in self._regions.get_geometries()]
 
         # TODO make sure timestamps are ISO8601 (https://covjson.org/spec/#temporal-reference-systems)
-        timestamps = sorted(self.get_data().keys())
+        timestamps = sorted(self.data.keys())
 
         # Count bands in timestamp data
         # TODO get band count and names from metadata
-        band_counts = set(len(polygon_data) for ts_data in self.get_data().values() for polygon_data in ts_data)
+        band_counts = set(len(polygon_data) for ts_data in self.data.values() for polygon_data in ts_data)
         band_counts.discard(0)
         if len(band_counts) != 1:
             raise ValueError("Multiple band counts in data: {c}".format(c=band_counts))
@@ -415,7 +417,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         actual_timestamps = []
         param_values = [[] for _ in range(band_count)]
         for ts in timestamps:
-            ts_data = self.get_data()[ts]
+            ts_data = self.data[ts]
             if len(ts_data) != len(polygons):
                 warnings.warn("Expected {e} polygon results, but got {g}".format(e=len(polygons), g=len(ts_data)))
                 continue
