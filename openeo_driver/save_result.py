@@ -495,6 +495,7 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
         self._regions = regions
         self._metadata = metadata
         self.data = None
+        self.raster_bands = None
 
     def get_data(self):
         if self.data is None:
