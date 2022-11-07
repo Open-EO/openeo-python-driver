@@ -491,11 +491,8 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
     # TODO: this is a openeo-geopyspark-driver related/specific implementation, move it over there?
 
     def __init__(self, csv_dir, regions: GeometryCollection, metadata: CollectionMetadata = None):
+        super().__init__(timeseries=None, regions=regions, metadata=metadata)
         self._csv_dir = csv_dir
-        self._regions = regions
-        self._metadata = metadata
-        self.format = "json"
-        self.data = None
         self.raster_bands = None
 
     def get_data(self):
