@@ -494,6 +494,7 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
         self._csv_dir = csv_dir
         self._regions = regions
         self._metadata = metadata
+        self.format = "json"
         self.data = None
         self.raster_bands = None
 
