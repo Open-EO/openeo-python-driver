@@ -513,9 +513,14 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
                 df = df.reindex(features)
                 return df.drop(columns = "feature_index").values.tolist()
 
-            super().__init__(timeseries = {pd.to_datetime(date).tz_convert('UTC').strftime('%Y-%m-%dT%XZ'): _flatten_df(
-                df[df.date == date].drop(columns = "date")) for date in df.date.unique()}, regions = self._regions,
-                metadata = self._metadata)
+            self.data = {
+                pd.to_datetime(date)
+                .tz_convert("UTC")
+                .strftime("%Y-%m-%dT%XZ"): _flatten_df(
+                    df[df.date == date].drop(columns="date")
+                )
+                for date in df.date.unique()
+            }
 
             # Compute stats.
             bands = df.columns[2:].values
