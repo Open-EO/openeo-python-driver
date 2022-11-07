@@ -143,10 +143,10 @@ def test_reproject_bounding_box():
         bbox, from_crs="EPSG:32631", to_crs="EPSG:4326"
     )
     assert reprojected == {
-        "west": 5.016118467277098,
-        "south": 51.217660146353246,
-        "east": 5.036548264535997,
-        "north": 51.22699369149726,
+        "west": pytest.approx(5.016118467277098),
+        "south": pytest.approx(51.217660146353246),
+        "east": pytest.approx(5.036548264535997),
+        "north": pytest.approx(51.22699369149726),
         "crs": "EPSG:4326",
     }
 
