@@ -138,8 +138,8 @@ def build_app(
 
     @app.before_request
     def _before_request():
-
         FlaskRequestCorrelationIdLogging.before_request()
+        backend_implementation.set_request_id(FlaskRequestCorrelationIdLogging.get_request_id())
 
         # Log some info about request
         data = request.data
@@ -150,6 +150,11 @@ def build_app(
         _log.info("Handling {method} {url} with data {data}".format(
             method=request.method, url=request.url, data=data
         ))
+
+    @app.after_request
+    def _after_request(response):
+        backend_implementation.after_request()
+        return response
 
     if error_handling:
         register_error_handlers(app=app, backend_implementation=backend_implementation)

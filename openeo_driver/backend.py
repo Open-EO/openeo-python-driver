@@ -649,3 +649,9 @@ class OpenEoBackendImplementation:
 
     def changelog(self) -> Union[str, Path]:
         return "No changelog"
+
+    def set_request_id(self, request_id: str):
+        pass
+
+    def after_request(self):
+        pass
