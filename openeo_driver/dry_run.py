@@ -321,6 +321,7 @@ class DryRunDataTracer:
                         method = args[0]["method"]
                         metadata: CollectionMetadata = target.metadata
                         spatial_dim = metadata.spatial_dimensions[0]
+                        # TODO: derive resolution from openeo:gsd instead (see openeo-geopyspark-driver)
                         resolutions = [dim.step for dim in metadata.spatial_dimensions if dim.step is not None]
                         if len(resolutions) > 0 and spatial_dim.crs is not None:
                             constraints["resample"] = {"target_crs": spatial_dim.crs, "resolution": resolutions, "method": method}
