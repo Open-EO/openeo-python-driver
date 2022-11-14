@@ -58,7 +58,8 @@ _log = logging.getLogger(__name__)
 
 source_constraint_blockers = {
     'bands': [
-        'sar_backscatter', 'atmospheric_correction', 'mask_scl_dilation', 'resolution_merge', 'custom_cloud_mask'
+        'sar_backscatter', 'atmospheric_correction', 'mask_scl_dilation', 'resolution_merge', 'custom_cloud_mask',
+        'apply_neighborhood', 'reduce_dimension', 'merge_cubes'
     ],
     'spatial_extent': [],
     'temporal_extent': [],
