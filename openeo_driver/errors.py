@@ -389,6 +389,7 @@ class JobNotFoundException(OpenEOApiException):
 
     def __init__(self, job_id: str):
         super().__init__(message=self.message.format(identifier=job_id))
+        self.job_id = job_id
 
 
 class BillingPlanInvalidException(OpenEOApiException):
