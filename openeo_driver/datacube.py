@@ -192,7 +192,19 @@ class DriverVectorCube:
             raise FeatureUnsupportedException(message="Loading a vector cube from multiple files is not supported")
         # TODO #114 EP-3981: lazy loading like/with DelayedVector
         # note for GeoJSON: will consider Feature.id as well as Feature.properties.id
-        return cls(geometries=gpd.read_file(paths[0], driver=driver))
+        if "parquet"  == driver:
+            location = paths[0]
+            if location.startswith("http"):
+                import requests, io
+                resp = requests.get(
+                    location,
+                    stream=True
+                )
+                resp.raw.decode_content = True
+                location = io.BytesIO(resp.raw.read())
+            cls(geometries=gpd.read_parquet(location))
+        else:
+            return cls(geometries=gpd.read_file(paths[0], driver=driver))
 
     @classmethod
     def from_geojson(cls, geojson: dict) -> "DriverVectorCube":
