@@ -59,8 +59,10 @@ def last_load_collection_call(collection_id: str) -> LoadParameters:
     return _load_collection_calls[collection_id][-1]
 
 
-def reset():
+def reset(backend=None):
     # TODO: can we eliminate reset now?
+    if backend is not None:
+        backend.catalog._load_collection_cached.cache_clear()
     global _collections, _load_collection_calls
     _collections = {}
     _load_collection_calls = {}

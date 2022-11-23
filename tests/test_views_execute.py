@@ -51,22 +51,23 @@ def api_version(request):
 
 
 @pytest.fixture
-def api(api_version, client) -> ApiTester:
-    dummy_backend.reset()
+def api(api_version, client, backend_implementation) -> ApiTester:
+    dummy_backend.reset(backend_implementation)
+
     data_root = TEST_DATA_ROOT / "pg" / (".".join(api_version.split(".")[:2]))
     return ApiTester(api_version=api_version, client=client, data_root=data_root)
 
 
 @pytest.fixture
-def api040(client) -> ApiTester:
-    dummy_backend.reset()
+def api040(client,backend_implementation) -> ApiTester:
+    dummy_backend.reset(backend_implementation)
     data_root = TEST_DATA_ROOT / "pg" / "0.4"
     return ApiTester(api_version="0.4.0", client=client, data_root=data_root)
 
 
 @pytest.fixture
-def api100(client) -> ApiTester:
-    dummy_backend.reset()
+def api100(client,backend_implementation) -> ApiTester:
+    dummy_backend.reset(backend_implementation)
     data_root = TEST_DATA_ROOT / "pg" / "1.0"
     return ApiTester(api_version="1.0.0", client=client, data_root=data_root)
 
