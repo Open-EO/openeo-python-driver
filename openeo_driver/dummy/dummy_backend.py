@@ -1,6 +1,7 @@
 import json
 import numbers
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import List, Dict, Union, Tuple, Optional, Iterable, Any, Sequence
 from unittest.mock import Mock
@@ -26,7 +27,7 @@ from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, 
     PermissionsInsufficientException
 from openeo_driver.save_result import AggregatePolygonResult, AggregatePolygonSpatialResult
 from openeo_driver.users import User
-from openeo_driver.utils import EvalEnv, generate_unique_id
+from openeo_driver.utils import EvalEnv, generate_unique_id, WhiteListEvalEnv
 
 DEFAULT_DATETIME = datetime(2020, 4, 23, 16, 20, 27)
 
@@ -430,7 +431,12 @@ class DummyCatalog(CollectionCatalog):
     def __init__(self):
         super().__init__(all_metadata=self._COLLECTIONS)
 
+
     def load_collection(self, collection_id: str, load_params: LoadParameters, env: EvalEnv) -> DummyDataCube:
+        return self._load_collection_cached(collection_id,load_params,WhiteListEvalEnv(env,[]))
+
+    @lru_cache(maxsize=20)
+    def _load_collection_cached(self, collection_id: str, load_params: LoadParameters, env:EvalEnv) -> DummyDataCube:
         _register_load_collection_call(collection_id, load_params)
         if collection_id in _collections:
             return _collections[collection_id]

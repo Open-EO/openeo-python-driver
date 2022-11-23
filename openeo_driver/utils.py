@@ -94,6 +94,25 @@ class EvalEnv:
     def backend_implementation(self) -> 'OpenEoBackendImplementation':
         return self["backend_implementation"]
 
+class WhiteListEvalEnv(EvalEnv):
+    """
+    This copies white-listed values from an evalenv. Trying to retrieve non-whitelisted values results in a clear error,
+    to indicate to implementors that an illegal value got extracted from the env.
+    """
+
+    def __init__(self, values: EvalEnv, whitelist):
+        super().__init__({k: values[k] for k in whitelist if k in values}, None)
+        self.whitelist = whitelist
+
+    def __getitem__(self, key: str) -> Any:
+        if key not in self.whitelist:
+            raise KeyError(f"Your key: {key} was not in the whitelist {self.whitelist}. This error needs to be fixed in the backend.")
+        return super().__getitem__(key)
+
+    def get(self, key: str, default=None) -> Any:
+        if key not in self.whitelist:
+            raise KeyError(f"Your key: {key} was not in the whitelist {self.whitelist}. This error needs to be fixed in the backend.")
+        return super().get(key, default)
 
 def replace_nan_values(o):
     """

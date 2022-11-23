@@ -171,6 +171,17 @@ class LoadParameters(dict):
     def __hash__(self) -> int:
         return 0  # poorly hashable but load_collection's lru_cache is small anyway
 
+    def _copy_for_eq(self):
+        copy = super().copy()
+        #load_collection with or without data mask should return an 'equivalent' result
+        copy["data_mask"] = {}
+        return copy
+
+    def __eq__(self, o: object) -> bool:
+        if not isinstance(o,LoadParameters):
+            return False
+        return self._copy_for_eq().__eq__(o._copy_for_eq())
+
 
 class AbstractCollectionCatalog(MicroService, metaclass=abc.ABCMeta):
 

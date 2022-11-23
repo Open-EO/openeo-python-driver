@@ -673,6 +673,135 @@ def test_execute_mask_optimized_loading(api):
     assert params["spatial_extent"] == expected_spatial_extent
     assert params["aggregate_spatial_geometries"] == expected_geometry
 
+def test_execute_mask_same_source(api):
+    api.check_result({
+      "process_graph": {
+        "loadcollection1": {
+          "arguments": {
+            "bands": [
+              "B02",
+              "B03"
+            ],
+            "id": "S2_FOOBAR",
+            "properties": {
+              "polarization": {
+                "process_graph": {
+                  "eq1": {
+                    "arguments": {
+                      "x": {
+                        "from_parameter": "value"
+                      },
+                      "y": "DV"
+                    },
+                    "process_id": "eq",
+                    "result": True
+                  }
+                }
+              }
+            },
+            "spatial_extent": {
+              "crs": "epsg:4326",
+              "east": -73.90597343,
+              "north": 4.724080996,
+              "south": 4.68986451,
+              "west": -74.0681076
+            },
+            "temporal_extent": [
+              "2021-06-01",
+              "2021-09-01"
+            ]
+          },
+          "process_id": "load_collection"
+        },
+        "mask1": {
+          "arguments": {
+            "data": {
+              "from_node": "renamelabels1"
+            },
+            "mask": {
+              "from_node": "reducedimension1"
+            }
+          },
+          "process_id": "mask"
+        },
+        "reducedimension1": {
+          "arguments": {
+            "data": {
+              "from_node": "renamelabels1"
+            },
+            "dimension": "bands",
+            "reducer": {
+              "process_graph": {
+                "arrayelement1": {
+                  "arguments": {
+                    "data": {
+                      "from_parameter": "data"
+                    },
+                    "index": 2
+                  },
+                  "process_id": "array_element"
+                },
+                "eq2": {
+                  "arguments": {
+                    "x": {
+                      "from_node": "arrayelement1"
+                    },
+                    "y": 2
+                  },
+                  "process_id": "eq",
+                  "result": True
+                }
+              }
+            }
+          },
+          "process_id": "reduce_dimension"
+        },
+        "renamelabels1": {
+          "arguments": {
+            "data": {
+              "from_node": "sarbackscatter1"
+            },
+            "dimension": "bands",
+            "target": [
+              "VH",
+              "VV",
+              "mask",
+              "incidence_angle"
+            ]
+          },
+          "process_id": "rename_labels"
+        },
+        "sarbackscatter1": {
+          "arguments": {
+            "coefficient": "gamma0-terrain",
+            "contributing_area": False,
+            "data": {
+              "from_node": "loadcollection1"
+            },
+            "elevation_model": "COPERNICUS_30",
+            "ellipsoid_incidence_angle": False,
+            "local_incidence_angle": False,
+            "mask": True,
+            "noise_removal": True
+          },
+          "process_id": "sar_backscatter"
+        },
+        "saveresult1": {
+          "arguments": {
+            "data": {
+              "from_node": "mask1"
+            },
+            "format": "netCDF",
+            "options": {}
+          },
+          "process_id": "save_result",
+          "result": True
+        }
+      }
+    })
+    load_collections = dummy_backend.all_load_collection_calls("S2_FOOBAR")
+    assert len(load_collections) == 1
+    assert dummy_backend.get_collection("S2_FOOBAR").mask.call_count == 1
 
 def test_mask_polygon(api):
     api.check_result("mask_polygon.json")

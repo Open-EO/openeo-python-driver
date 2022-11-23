@@ -15,6 +15,7 @@ from openeo_driver.utils import (
     get_package_versions,
     TtlCache,
     generate_unique_id,
+    WhiteListEvalEnv,
 )
 
 
@@ -116,6 +117,20 @@ def test_eval_stack_parameters():
     assert s2.collect_parameters() == {"color": "red", "size": 3}
     assert s3.collect_parameters() == {"color": "red", "size": 3}
     assert s4.collect_parameters() == {"color": "green", "size": 3, "height": 88}
+
+
+def test_eval_whitelist():
+    s1 = EvalEnv()
+    s2 = s1.push({"foo": "bar", "xev": "lol"})
+    s3 = WhiteListEvalEnv(s2, ["xev"])
+    assert s3["xev"] == "lol"
+    assert s3.get("xev") == "lol"
+    assert s2.get("foo") == "bar"
+
+    with pytest.raises(KeyError, match='.*Your key: foo.*'):
+        bla = s3["foo"]
+    with pytest.raises(KeyError):
+        bla = s3.get("foo",None)
 
 
 @pytest.mark.parametrize(["obj", "result"], [
