@@ -202,7 +202,7 @@ class DriverVectorCube:
                 )
                 resp.raw.decode_content = True
                 location = io.BytesIO(resp.raw.read())
-            cls(geometries=gpd.read_parquet(location))
+            return cls(geometries=gpd.read_parquet(location))
         else:
             return cls(geometries=gpd.read_file(paths[0], driver=driver))
 
