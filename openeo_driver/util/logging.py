@@ -84,6 +84,13 @@ def get_logging_config(
                 "filters": json_filters,
                 "formatter": "json",
             },
+            "stdout_json": {
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stdout",
+                "level": handler_default_level,
+                "filters": json_filters,
+                "formatter": "json",
+            },
             "file_json": {
                 "class": "logging.FileHandler",
                 "filename": log_file,
