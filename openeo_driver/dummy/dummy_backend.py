@@ -175,18 +175,15 @@ class DummyDataCube(DriverDataCube):
 
     @mock_side_effect
     def reduce_dimension(self, reducer, dimension: str, context: Any, env: EvalEnv) -> 'DummyDataCube':
-        self.metadata = self.metadata.reduce_dimension(dimension_name=dimension)
-        return self
+        return DummyDataCube(self.metadata.reduce_dimension(dimension_name=dimension))
 
     @mock_side_effect
     def add_dimension(self, name: str, label, type: str = "other") -> 'DummyDataCube':
-        self.metadata = self.metadata.add_dimension(name=name, label=label, type=type)
-        return self
+        return DummyDataCube(self.metadata.add_dimension(name=name, label=label, type=type))
 
     @mock_side_effect
     def drop_dimension(self, name: str) -> 'DriverDataCube':
-        self.metadata = self.metadata.drop_dimension(name=name)
-        return self
+        return DummyDataCube(self.metadata.drop_dimension(name=name))
 
     @mock_side_effect
     def dimension_labels(self, dimension: str) -> 'DriverDataCube':
@@ -194,8 +191,13 @@ class DummyDataCube(DriverDataCube):
 
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
         # TODO: this method should be deprecated (limited to single asset) in favor of write_assets (supports multiple assets)
-        with open(filename, "w") as f:
-            f.write("{f}:save_result({s!r}".format(f=format, s=self))
+        if "JSON" == format.upper():
+            import json
+            with open(filename, "w") as f:
+                json.dump(self.metadata.as_dict(),f,indent=2)
+        else:
+            with open(filename, "w") as f:
+                f.write("{f}:save_result({s!r}".format(f=format, s=self))
         return filename
 
     def aggregate_spatial(
@@ -347,6 +349,101 @@ class DummyCatalog(CollectionCatalog):
             'links': [],
         },
         {
+            'id': 'ESA_WORLDCOVER_10M_2020_V1',
+            'license': 'free',
+            "extent": {
+                "spatial": {
+                    "bbox": [
+                        [2.5, 49.5, 6.2, 51.5]
+                    ]
+                },
+                "temporal": {
+                    "interval": [
+                        ["2019-01-01", None]
+                    ]
+                }
+            },
+            'cube:dimensions': {
+                "x": {"type": "spatial", "extent": [2.5, 6.2], "step": 10, "reference_system": "AUTO:42001"},
+                "y": {"type": "spatial", "extent": [49.5, 51.5], "step": 10, "reference_system": "AUTO:42001"},
+                "t": {"type": "temporal", "extent": ["2019-01-01", None]},
+                "bands": {"type": "bands", "values": ["MAP"]},
+            },
+            'summaries': {
+                "eo:bands": [
+                    {"name": "MAP", "common_name": "blue"}
+                ]
+            },
+            'links': [],
+            '_private': {'password': 'dragon'}
+        },
+        {
+            'id': 'SENTINEL1_GRD',
+            'license': 'free',
+            "extent": {
+                "spatial": {
+                    "bbox": [
+                        [2.5, 49.5, 6.2, 51.5]
+                    ]
+                },
+                "temporal": {
+                    "interval": [
+                        ["2019-01-01", None]
+                    ]
+                }
+            },
+            'cube:dimensions': {
+                "x": {"type": "spatial", "extent": [2.5, 6.2], "step": 10, "reference_system": "AUTO:42001"},
+                "y": {"type": "spatial", "extent": [49.5, 51.5], "step": 10, "reference_system": "AUTO:42001"},
+                "t": {"type": "temporal", "extent": ["2019-01-01", None]},
+                "bands": {"type": "bands", "values": ["VV","VH"]},
+            },
+            'summaries': {
+                "eo:bands": [
+                    {"name": "VV", "common_name": "blue"},
+                    {"name": "VH", "common_name": "blue"}
+                ]
+            },
+            'links': [],
+            '_private': {'password': 'dragon'}
+        },
+        {
+            'id': 'SENTINEL2_L2A_SENTINELHUB',
+            'license': 'free',
+            "extent": {
+                "spatial": {
+                    "bbox": [
+                        [2.5, 49.5, 6.2, 51.5]
+                    ]
+                },
+                "temporal": {
+                    "interval": [
+                        ["2019-01-01", None]
+                    ]
+                }
+            },
+            'cube:dimensions': {
+                "x": {"type": "spatial", "extent": [2.5, 6.2], "step": 10, "reference_system": "AUTO:42001"},
+                "y": {"type": "spatial", "extent": [49.5, 51.5], "step": 10, "reference_system": "AUTO:42001"},
+                "t": {"type": "temporal", "extent": ["2019-01-01", None]},
+                "bands": {"type": "bands", "values": ["B02", "B03", "B04", "B08", "CLP", "SCL","sunAzimuthAngles","sunZenithAngles"]},
+            },
+            'summaries': {
+                "eo:bands": [
+                    {"name": "B02", "common_name": "blue"},
+                    {"name": "B03", "common_name": "green"},
+                    {"name": "B04", "common_name": "red"},
+                    {"name": "B08", "common_name": "nir"},
+                    {"name": "CLP", "common_name": "nir"},
+                    {"name": "SCL", "common_name": "nir"},
+                    {"name": "sunAzimuthAngles", "common_name": "nir"},
+                    {"name": "sunZenithAngles", "common_name": "nir"},
+                ]
+            },
+            'links': [],
+            '_private': {'password': 'dragon'}
+        },
+        {
             'id': 'S2_FOOBAR',
             'license': 'free',
             "extent": {
@@ -440,8 +537,6 @@ class DummyCatalog(CollectionCatalog):
     @lru_cache(maxsize=20)
     def _load_collection_cached(self, collection_id: str, load_params: LoadParameters, env:EvalEnv) -> DummyDataCube:
         _register_load_collection_call(collection_id, load_params)
-        if collection_id in _collections:
-            return _collections[collection_id]
 
         metadata = CollectionMetadata(metadata=self.get_collection_metadata(collection_id))
         if load_params.bands:

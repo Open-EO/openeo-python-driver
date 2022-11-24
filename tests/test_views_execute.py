@@ -804,6 +804,13 @@ def test_execute_mask_same_source(api):
     assert len(load_collections) == 1
     assert dummy_backend.get_collection("S2_FOOBAR").mask.call_count == 1
 
+def test_complex_graph(api):
+    api.check_result("complex_graph.json")
+    load_collections = dummy_backend.all_load_collection_calls("SENTINEL1_GRD")
+    load_collections_s2 = dummy_backend.all_load_collection_calls("SENTINEL2_L2A_SENTINELHUB")
+    assert len(load_collections) == 1
+    assert len(load_collections_s2) == 2
+
 def test_mask_polygon(api):
     api.check_result("mask_polygon.json")
     dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
@@ -2327,24 +2334,36 @@ def test_execute_EP3509_issue38_leaking_band_filter(api, pg, ndvi_expected, mask
 
 def test_reduce_add_reduce_dim(api100):
     """Test reduce_dimension -> add_dimension -> reduce_dimension"""
-    api100.check_result("reduce_add_reduce_dimension.json")
+    content = api100.check_result("reduce_add_reduce_dimension.json")
     dummy = dummy_backend.get_collection("S2_FOOBAR")
-    assert dummy.reduce_dimension.call_count == 2
-    assert dummy.add_dimension.call_count == 1
+
+    assert dummy.reduce_dimension.call_count == 1
+
+    dims = content.json["cube:dimensions"]
+    names = [k for k in dims]
+    assert names == ["x", "y", "t"]
 
 
 def test_reduce_drop_dimension(api100):
-    api100.check_result({
+    content = api100.check_result({
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "drop": {
             "process_id": "drop_dimension",
             "arguments": {"data": {"from_node": "lc"}, "name": "bands"},
-            "result": True,
+            "result": False,
         },
+        "save": {
+            "process_id": "save_result",
+            "arguments": {"data": {"from_node": "drop"}, "format": "JSON"},
+            "result": True,
+        }
     })
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.drop_dimension.call_count == 1
-    assert dummy.metadata.dimension_names() == ["x", "y", "t"]
+    dims = content.json["cube:dimensions"]
+    names = [k for k in dims]
+
+    assert names == ["x", "y", "t"]
 
 
 def test_reduce_dimension_labels(api100):
