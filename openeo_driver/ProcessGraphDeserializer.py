@@ -340,10 +340,15 @@ def evaluate(
 def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
     if isinstance(processGraph, dict):
         if 'process_id' in processGraph:
-            return apply_process(
-                process_id=processGraph['process_id'], args=processGraph.get('arguments', {}),
-                namespace=processGraph.get("namespace", None), env=env
-            )
+            caching_flag = smart_bool(env.get("node_caching", True))
+            if caching_flag and "result_cache" in processGraph:
+                _log.debug("Reusing an already evaluated subgraph")
+
+            process_result = apply_process(process_id=processGraph['process_id'], args=processGraph.get('arguments', {}),
+                                    namespace=processGraph.get("namespace", None), env=env)
+            if caching_flag:
+                processGraph["result_cache"] = process_result
+            return process_result
         elif 'node' in processGraph:
             return convert_node(processGraph['node'], env=env)
         elif 'callback' in processGraph or 'process_graph' in processGraph:
