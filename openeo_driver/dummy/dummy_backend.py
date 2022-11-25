@@ -189,12 +189,16 @@ class DummyDataCube(DriverDataCube):
     def dimension_labels(self, dimension: str) -> 'DriverDataCube':
         return self.metadata.dimension_names()
 
+    def _metadata_to_dict(self):
+        dimensions = {d.name: {"type": d.type} for d in self.metadata._dimensions}
+        return {"cube:dimensions": dimensions}
+
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
         # TODO: this method should be deprecated (limited to single asset) in favor of write_assets (supports multiple assets)
         if "JSON" == format.upper():
             import json
             with open(filename, "w") as f:
-                json.dump(self.metadata.as_dict(),f,indent=2)
+                json.dump(self._metadata_to_dict(),f,indent=2)
         else:
             with open(filename, "w") as f:
                 f.write("{f}:save_result({s!r}".format(f=format, s=self))
