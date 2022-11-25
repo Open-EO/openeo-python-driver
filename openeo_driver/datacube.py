@@ -34,6 +34,12 @@ class DriverDataCube(ImageCollection):
     def __init__(self, metadata: CollectionMetadata = None):
         self.metadata = CollectionMetadata.get_or_create(metadata)
 
+    def __eq__(self, o: object) -> bool:
+        if o.__class__ == self.__class__:
+            if o.metadata == self.metadata:
+                return True
+        return False
+
     def _not_implemented(self):
         """Helper to raise a NotImplemented exception containing method name"""
         raise NotImplementedError("DataCube method not implemented: {m!r}".format(m=inspect.stack()[1].function))
