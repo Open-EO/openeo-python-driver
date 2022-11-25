@@ -340,13 +340,14 @@ def evaluate(
 def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
     if isinstance(processGraph, dict):
         if 'process_id' in processGraph:
-            caching_flag = smart_bool(env.get("node_caching", False))
+            process_id = processGraph['process_id']
+            caching_flag = smart_bool(env.get("node_caching", False)) and process_id != "load_collection"
             cached = None
             if caching_flag and "result_cache" in processGraph:
                 cached =  processGraph["result_cache"]
 
-            process_result = apply_process(process_id=processGraph['process_id'], args=processGraph.get('arguments', {}),
-                                    namespace=processGraph.get("namespace", None), env=env)
+            process_result = apply_process(process_id=process_id, args=processGraph.get('arguments', {}),
+                                           namespace=processGraph.get("namespace", None), env=env)
             if caching_flag:
                 if cached is not None:
                     comparison = cached == process_result
