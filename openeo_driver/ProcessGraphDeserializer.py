@@ -451,6 +451,15 @@ def extract_arg_enum(args: dict, name: str, enum_values: Union[set, list, tuple]
 
 
 def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
+    """
+    This is a side effect method that also removes source constraints from the list, which needs to happen in the right order!!
+    Args:
+        env:
+        source_id:
+
+    Returns:
+
+    """
     source_constraints: List[SourceConstraint] = env[ENV_SOURCE_CONSTRAINTS]
     global_extent = None
     process_types = set()
@@ -466,6 +475,8 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
             process_types |= set(constraint["process_type"])
 
     _, constraints = filtered_constraints.pop(0)
+    source_constraints.remove((source_id,constraints))
+
     params = LoadParameters()
     params.temporal_extent = constraints.get("temporal_extent", ["1970-01-01", "2070-01-01"])
     params.spatial_extent = constraints.get("spatial_extent", {})
