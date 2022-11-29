@@ -82,7 +82,7 @@ from moto import mock_s3
 
 @pytest.fixture(scope='function')
 def aws_credentials():
-    """Mocked AWS Credentials for moto."""
+    """Mocked AWS Credentials and related environment variables for moto/boto3."""
     os.environ['AWS_ACCESS_KEY_ID'] = 'testing'
     os.environ['AWS_SECRET_ACCESS_KEY'] = 'testing'
     os.environ['AWS_SECURITY_TOKEN'] = 'testing'
@@ -105,7 +105,6 @@ def mock_s3_client(aws_credentials):
 
 
 def create_s3_bucket(s3_resource, bucket_name):
-    # TODO: setup fixture with fake bucketname in ConfigParams().s3_bucket_name?
     bucket = s3_resource.Bucket(bucket_name)
     bucket.create(CreateBucketConfiguration={'LocationConstraint': TEST_AWS_REGION_NAME})
     return bucket

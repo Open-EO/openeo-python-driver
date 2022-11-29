@@ -22,6 +22,7 @@ tests_require = [
     'pylint>=2.5.0',
     'astroid>=2.4.0',
     'openeo_udf>=1.0.0rc3',
+    'moto',
 ]
 
 setup(
@@ -54,6 +55,7 @@ setup(
         'python-dateutil',
         "python-json-logger>=2.0.0",
         'deprecated>=1.2.12',
+        'boto3[s3]>=1.26.17',
     ],
     extras_require={
         "dev": tests_require,
