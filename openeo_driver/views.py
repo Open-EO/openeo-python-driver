@@ -2,11 +2,14 @@ import copy
 import functools
 import json
 import logging
+import os
 import pathlib
 import re
+import requests
 from collections import namedtuple, defaultdict
 from typing import Callable, Tuple, List, Optional
 
+import boto3
 import flask
 import flask_cors
 import numpy as np
@@ -52,6 +55,9 @@ DEFAULT_VERSION = '1.1.0'
 _log.info("API Versions: {v}".format(v=API_VERSIONS))
 _log.info("Default API Version: {v}".format(v=DEFAULT_VERSION))
 
+
+# TODO: maybe STREAM_CHUNK_SIZE_DEFAULT belongs in flask_defaults.py?
+STREAM_CHUNK_SIZE_DEFAULT = 10 * 1024
 
 class OpenEoApiApp(Flask):
 
@@ -722,6 +728,18 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
     return properties
 
 
+def s3_client() -> boto3.client:
+    """Create an S3 client to access object storage on Swift."""
+    aws_access_key_id = os.environ.get("AWS_ACCESS_KEY_ID")
+    aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY")
+    swift_url = os.environ.get("SWIFT_URL")
+    s3_client = boto3.client("s3",
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        endpoint_url=swift_url)
+    return s3_client
+
+
 def register_views_batch_jobs(
         blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
         auth_handler: HttpAuthHandler
@@ -999,20 +1017,35 @@ def register_views_batch_jobs(
         # TODO "OpenEO-Costs" header?
         return jsonify(result)
 
+    # TODO: Issue #232, TBD: refactor download functionality? more abstract, just stream blocks of bytes from S3 or from a directory.
     def _download_job_result(job_id: str, filename: str, user_id: str) -> flask.Response:
         results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user_id)
         if filename not in results.keys():
             raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
         result = results[filename]
+
         if "output_dir" in result:
-            resp = send_from_directory(result["output_dir"], filename, mimetype=result.get("type"))
-            resp.headers['Accept-Ranges'] = 'bytes'
+            out_dir_url = result["output_dir"]
+            if out_dir_url.startswith("s3://"):
+                s3_instance = s3_client()
+                # TODO: Would be nice if we could use the s3:// URL directly without splitting into bucket and key.
+                bucket, folder = out_dir_url[5:].split("/", 1)
+                key = f"{folder}/{filename}"
+                obj = s3_instance.get_object(Bucket=bucket, Key=key)
+                body = obj["Body"].read()
+                resp = flask.Response( response = body, status=200, mimetype=result.get("type"))
+            else:
+                # TODO: for issue #232: replace send_from_directory with a streaming http response to download from the S3 object storage. 
+                resp = send_from_directory(result["output_dir"], filename, mimetype=result.get("type"))
+                # TODO: can the S3 side also work with 'Accept-Ranges'?
+                resp.headers['Accept-Ranges'] = 'bytes'
             return resp
         elif "json_response" in result:
             return jsonify(result["json_response"])
         else:
             _log.error(f"Unsupported job result: {result!r}")
             raise InternalException("Unsupported job result")
+
 
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results/items/<user_base64>/<secure_key>/<item_id>', methods=['GET'])

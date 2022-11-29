@@ -73,6 +73,43 @@ def mock_uuid4(value: str = "abc123"):
     return mock.patch("uuid.uuid4", new=UUIDMock)
 
 
+
+TEST_AWS_REGION_NAME = 'eu-central-1'
+import os
+import boto3
+from moto import mock_s3
+
+@pytest.fixture(scope='function')
+def aws_credentials():
+    """Mocked AWS Credentials for moto."""
+    os.environ['AWS_ACCESS_KEY_ID'] = 'testing'
+    os.environ['AWS_SECRET_ACCESS_KEY'] = 'testing'
+    os.environ['AWS_SECURITY_TOKEN'] = 'testing'
+    os.environ['AWS_SESSION_TOKEN'] = 'testing'
+    os.environ['AWS_DEFAULT_REGION'] = TEST_AWS_REGION_NAME
+    os.environ['AWS_REGION'] = TEST_AWS_REGION_NAME
+    os.environ['SWIFT_BUCKET'] = "openeo-test-bucket"
+
+
+@pytest.fixture(scope='function')
+def mock_s3_resource(aws_credentials):
+    with mock_s3():
+        yield boto3.resource("s3", region_name=TEST_AWS_REGION_NAME)
+
+
+@pytest.fixture(scope='function')
+def mock_s3_client(aws_credentials):
+    with mock_s3():
+        yield boto3.s3_client("s3", region_name=TEST_AWS_REGION_NAME)
+
+
+def create_s3_bucket(s3_resource, bucket_name):
+    # TODO: setup fixture with fake bucketname in ConfigParams().s3_bucket_name?
+    bucket = s3_resource.Bucket(bucket_name)
+    bucket.create(CreateBucketConfiguration={'LocationConstraint': TEST_AWS_REGION_NAME})
+    return bucket
+
+
 class TestGeneral:
     """
     General tests (capabilities, collections, processes)
@@ -1545,6 +1582,27 @@ class TestBatchJobs:
                 f.write(b"tiffdata")
             resp = api.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff", headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).data == b"tiffdata"
+        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
+
+    def test_download_result_with_s3_object_storage(self, api, mock_s3_resource):
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
+        s3_bucket_name = "openeo-test-bucket"
+        output_root = f"s3://{s3_bucket_name}"
+        file_path = f"{job_id}/output.tiff"
+
+        # pretend we have a large file so we would need to stream the download in chunks.
+        # At least twice the size of the STREAM_CHUNK_SIZE_DEFAULT should trigger streaming.
+        from openeo_driver.views import STREAM_CHUNK_SIZE_DEFAULT
+        large_tiff_data = b"tiffdata" * (STREAM_CHUNK_SIZE_DEFAULT // 4)
+
+        # TODO: issue #232: Should we set up a mock S3 and put the output.tiff there? But it will be the geopyspark backend that actually handles that.
+        jobs = {job_id: {"status": "finished"}}
+        with self._fresh_job_registry(output_root=output_root, jobs=jobs):
+            # TODO: Maybe we should move creation of the bucket to _fresh_job_registry?
+            s3_bucket = create_s3_bucket(mock_s3_resource, s3_bucket_name)
+            s3_bucket.put_object(Key=file_path, Body=large_tiff_data)
+            resp = api.get(f"/jobs/{job_id}/results/assets/output.tiff", headers=self.AUTH_HEADER)
+        assert resp.assert_status_code(200).data == large_tiff_data
         assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
 
     def test_download_result_signed(self, api, tmp_path, flask_app):
