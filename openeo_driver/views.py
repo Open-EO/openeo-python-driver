@@ -1031,13 +1031,16 @@ def register_views_batch_jobs(
                 # TODO: Would be nice if we could use the s3:// URL directly without splitting into bucket and key.
                 bucket, folder = out_dir_url[5:].split("/", 1)
                 key = f"{folder}/{filename}"
-                obj = s3_instance.get_object(Bucket=bucket, Key=key)
-                body = obj["Body"].read()
-                resp = flask.Response( response = body, status=200, mimetype=result.get("type"))
+                s3_file_object = s3_instance.get_object(Bucket=bucket, Key=key)
+                body = s3_file_object["Body"]
+                resp = flask.Response(
+                    response=body.iter_chunks(STREAM_CHUNK_SIZE_DEFAULT), 
+                    status=200,
+                    mimetype=result.get("type")
+                )
             else:
-                # TODO: for issue #232: replace send_from_directory with a streaming http response to download from the S3 object storage. 
                 resp = send_from_directory(result["output_dir"], filename, mimetype=result.get("type"))
-                # TODO: can the S3 side also work with 'Accept-Ranges'?
+                # TODO: does the S3 side also support 'Accept-Ranges'? Does it need it?
                 resp.headers['Accept-Ranges'] = 'bytes'
             return resp
         elif "json_response" in result:
@@ -1045,7 +1048,6 @@ def register_views_batch_jobs(
         else:
             _log.error(f"Unsupported job result: {result!r}")
             raise InternalException("Unsupported job result")
-
 
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results/items/<user_base64>/<secure_key>/<item_id>', methods=['GET'])

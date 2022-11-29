@@ -20,7 +20,8 @@ from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_A
     generate_unique_test_process_id, build_basic_http_auth_header, ListSubSet, DictSubSet, RegexMatcher
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.util.logging import LOGGING_CONTEXT_FLASK
-from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata, build_app
+from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata, build_app, STREAM_CHUNK_SIZE_DEFAULT
+
 from .conftest import TEST_APP_CONFIG, enhanced_logging
 from .data import TEST_DATA_ROOT
 
@@ -1590,18 +1591,17 @@ class TestBatchJobs:
         output_root = f"s3://{s3_bucket_name}"
         file_path = f"{job_id}/output.tiff"
 
-        # pretend we have a large file so we would need to stream the download in chunks.
-        # At least twice the size of the STREAM_CHUNK_SIZE_DEFAULT should trigger streaming.
-        from openeo_driver.views import STREAM_CHUNK_SIZE_DEFAULT
-        large_tiff_data = b"tiffdata" * (STREAM_CHUNK_SIZE_DEFAULT // 4)
+        # Simulate that we have a large file so we would need to stream the download in chunks.
+        # A size that is at least one byte larger than the STREAM_CHUNK_SIZE_DEFAULT should trigger streaming.
+        # We should still receive the entire file contents in streaming mode.
+        large_tiff_data = b"tiffdata" * STREAM_CHUNK_SIZE_DEFAULT
 
-        # TODO: issue #232: Should we set up a mock S3 and put the output.tiff there? But it will be the geopyspark backend that actually handles that.
         jobs = {job_id: {"status": "finished"}}
         with self._fresh_job_registry(output_root=output_root, jobs=jobs):
-            # TODO: Maybe we should move creation of the bucket to _fresh_job_registry?
             s3_bucket = create_s3_bucket(mock_s3_resource, s3_bucket_name)
             s3_bucket.put_object(Key=file_path, Body=large_tiff_data)
             resp = api.get(f"/jobs/{job_id}/results/assets/output.tiff", headers=self.AUTH_HEADER)
+
         assert resp.assert_status_code(200).data == large_tiff_data
         assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
 
