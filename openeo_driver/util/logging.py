@@ -28,14 +28,13 @@ def get_logging_config(
         loggers: Optional[Dict[str, dict]] = None,
         handler_default_level: str = "DEBUG",
         context: str = LOGGING_CONTEXT_FLASK,
+        root_level: str = "INFO",
 ) -> dict:
     """Construct logging config dict to be loaded with `logging.config.dictConfig`"""
 
     # Merge log levels per logger with some defaults
     default_loggers = {
         "gunicorn": {"level": "INFO"},
-        "openeo": {"level": "INFO"},
-        "openeo_driver": {"level": "INFO"},
         "werkzeug": {"level": "INFO"},
         "kazoo": {"level": "WARN"},
     }
@@ -58,7 +57,7 @@ def get_logging_config(
     config = {
         "version": 1,
         "root": {
-            "level": "INFO",
+            "level": root_level,
             "handlers": (root_handlers or ["wsgi"]),
         },
         "loggers": loggers,
