@@ -22,6 +22,7 @@ tests_require = [
     'pylint>=2.5.0',
     'astroid>=2.4.0',
     'openeo_udf>=1.0.0rc3',
+    "time-machine",
 ]
 
 setup(
@@ -40,7 +41,7 @@ setup(
         'flask',
         'werkzeug>=1.0.1',
         "requests>=2.28.0",
-        'openeo>=0.13.1a1.dev',
+        'openeo>=0.13.1a2.dev',
         'openeo_processes==0.0.4',  # 0.0.4 is special build/release, also see https://github.com/Open-EO/openeo-python-driver/issues/152
         'gunicorn>=20.0.1',
         'numpy>=1.22.0',

@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import logging.config
 import os
@@ -5,7 +6,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import List, Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import flask
 import pythonjsonlogger.jsonlogger
@@ -288,3 +289,15 @@ class BatchJobLoggingFilter(logging.Filter):
         for field, value in self.data.items():
             setattr(record, field, value)
         return True
+
+
+@contextlib.contextmanager
+def just_log_exceptions(logger: logging.Logger = _log, name: Optional[str] = "untitled"):
+    """
+    Context manager to catch any exception (if any) and just log them.
+    """
+    # TODO: allow setting the log level?
+    try:
+        yield
+    except Exception as e:
+        logger.error(f"In context {name!r}: caught {e!r}", exc_info=True)
