@@ -10,6 +10,7 @@ from typing import List, Dict, Optional, Union
 import flask
 import pythonjsonlogger.jsonlogger
 
+import openeo.udf.debug
 from openeo_driver.utils import generate_unique_id
 
 _log = logging.getLogger(__name__)
@@ -37,6 +38,7 @@ def get_logging_config(
         "gunicorn": {"level": "INFO"},
         "werkzeug": {"level": "INFO"},
         "kazoo": {"level": "WARN"},
+        openeo.udf.debug._user_log.name: {"level": "DEBUG"},  # TODO: don't access protected member _user_log
     }
     loggers = {**default_loggers, **(loggers or {})}
 
