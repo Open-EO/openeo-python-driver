@@ -6,7 +6,9 @@ from pathlib import Path
 from typing import Optional
 from unittest import mock
 
+import boto3
 import flask
+from moto import mock_s3
 import pytest
 import werkzeug.exceptions
 
@@ -24,7 +26,6 @@ from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata
 
 from .conftest import TEST_APP_CONFIG, enhanced_logging
 from .data import TEST_DATA_ROOT
-
 
 @pytest.fixture(params=["0.4.0", "1.0.0", "1.1.0"])
 def api_version(request):
@@ -74,34 +75,24 @@ def mock_uuid4(value: str = "abc123"):
     return mock.patch("uuid.uuid4", new=UUIDMock)
 
 
-
 TEST_AWS_REGION_NAME = 'eu-central-1'
-import os
-import boto3
-from moto import mock_s3
 
 @pytest.fixture(scope='function')
-def aws_credentials():
+def aws_credentials(monkeypatch):
     """Mocked AWS Credentials and related environment variables for moto/boto3."""
-    os.environ['AWS_ACCESS_KEY_ID'] = 'testing'
-    os.environ['AWS_SECRET_ACCESS_KEY'] = 'testing'
-    os.environ['AWS_SECURITY_TOKEN'] = 'testing'
-    os.environ['AWS_SESSION_TOKEN'] = 'testing'
-    os.environ['AWS_DEFAULT_REGION'] = TEST_AWS_REGION_NAME
-    os.environ['AWS_REGION'] = TEST_AWS_REGION_NAME
-    os.environ['SWIFT_BUCKET'] = "openeo-test-bucket"
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+    monkeypatch.setenv("AWS_SECURITY_TOKEN", "testing")
+    monkeypatch.setenv("AWS_SESSION_TOKEN", "testing")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", TEST_AWS_REGION_NAME)
+    monkeypatch.setenv("AWS_REGION", TEST_AWS_REGION_NAME)
+    monkeypatch.setenv("SWIFT_BUCKET", "openeo-test-bucket")
 
 
 @pytest.fixture(scope='function')
 def mock_s3_resource(aws_credentials):
     with mock_s3():
         yield boto3.resource("s3", region_name=TEST_AWS_REGION_NAME)
-
-
-@pytest.fixture(scope='function')
-def mock_s3_client(aws_credentials):
-    with mock_s3():
-        yield boto3.s3_client("s3", region_name=TEST_AWS_REGION_NAME)
 
 
 def create_s3_bucket(s3_resource, bucket_name):

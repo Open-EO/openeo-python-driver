@@ -5,11 +5,9 @@ import logging
 import os
 import pathlib
 import re
-import requests
 from collections import namedtuple, defaultdict
 from typing import Callable, Tuple, List, Optional
 
-import boto3
 import flask
 import flask_cors
 import numpy as np
@@ -728,8 +726,15 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
     return properties
 
 
-def s3_client() -> boto3.client:
+def _s3_client():
     """Create an S3 client to access object storage on Swift."""
+
+    # Keep this import inside the method so we kan keep installing boto3 as optional,
+    # because we don't always use objects storage.
+    # We want to avoid unnecessary dependencies. (And dependencies  of dependencies!)
+    import boto3
+
+    # TODO: Get these credentials/secrets from VITO TAP vault instead of os.environ
     aws_access_key_id = os.environ.get("AWS_ACCESS_KEY_ID")
     aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY")
     swift_url = os.environ.get("SWIFT_URL")
@@ -1023,15 +1028,16 @@ def register_views_batch_jobs(
         if filename not in results.keys():
             raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
         result = results[filename]
-
         if "output_dir" in result:
             out_dir_url = result["output_dir"]
             if out_dir_url.startswith("s3://"):
-                s3_instance = s3_client()
                 # TODO: Would be nice if we could use the s3:// URL directly without splitting into bucket and key.
+                # Ignoring the "s3://" at the start makes it easier to split into the bucket and the rest.
                 bucket, folder = out_dir_url[5:].split("/", 1)
                 key = f"{folder}/{filename}"
+                s3_instance = _s3_client()
                 s3_file_object = s3_instance.get_object(Bucket=bucket, Key=key)
+
                 body = s3_file_object["Body"]
                 resp = flask.Response(
                     response=body.iter_chunks(STREAM_CHUNK_SIZE_DEFAULT), 
