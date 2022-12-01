@@ -1034,7 +1034,7 @@ def register_views_batch_jobs(
                 # TODO: Would be nice if we could use the s3:// URL directly without splitting into bucket and key.
                 # Ignoring the "s3://" at the start makes it easier to split into the bucket and the rest.
                 bucket, folder = out_dir_url[5:].split("/", 1)
-                key = f"{folder}/{filename}"
+                key = f"/{folder}/{filename}"
                 s3_instance = _s3_client()
                 s3_file_object = s3_instance.get_object(Bucket=bucket, Key=key)
 

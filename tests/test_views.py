@@ -1578,8 +1578,8 @@ class TestBatchJobs:
     def test_download_result_with_s3_object_storage(self, api, mock_s3_resource):
         job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
         s3_bucket_name = "openeo-test-bucket"
-        output_root = f"s3://{s3_bucket_name}"
-        file_path = f"{job_id}/output.tiff"
+        output_root = f"s3://{s3_bucket_name}/some-data-dir"
+        s3_key = f"/some-data-dir/{job_id}/output.tiff"
 
         # Simulate that we have a large file so we would need to stream the download in chunks.
         # A size that is at least one byte larger than the STREAM_CHUNK_SIZE_DEFAULT should trigger streaming.
@@ -1589,7 +1589,7 @@ class TestBatchJobs:
         jobs = {job_id: {"status": "finished"}}
         with self._fresh_job_registry(output_root=output_root, jobs=jobs):
             s3_bucket = create_s3_bucket(mock_s3_resource, s3_bucket_name)
-            s3_bucket.put_object(Key=file_path, Body=large_tiff_data)
+            s3_bucket.put_object(Key=s3_key, Body=large_tiff_data)
             resp = api.get(f"/jobs/{job_id}/results/assets/output.tiff", headers=self.AUTH_HEADER)
 
         assert resp.assert_status_code(200).data == large_tiff_data
