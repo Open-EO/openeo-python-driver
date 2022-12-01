@@ -87,6 +87,18 @@ def test_user_defined_process_metadata_from_dict_extra():
     assert udp.description == "Enhance the image with the foo process."
 
 
+def test_service_metadata_from_dict_essentials():
+    service = ServiceMetadata.from_dict(
+        {"id": "badcafe", "url": "https://oeo.test/srv/f00b67", "type": "WMTS"}
+    )
+    assert service.id == "badcafe"
+    assert service.url == "https://oeo.test/srv/f00b67"
+    assert service.type == "WMTS"
+    assert service.enabled is True
+    assert service.process is None
+    assert service.attributes is None
+    assert service.configuration is None
+
 def test_service_metadata_from_dict_basic():
     service = ServiceMetadata.from_dict({
         "id": "badcafe", "process": {"id": "ndvi", "process_graph": {}},
