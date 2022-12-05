@@ -65,12 +65,12 @@ class ServiceMetadata(NamedTuple):
 
     # Required fields (no default)
     id: str
-    process: dict  # TODO: also encapsulate this "process graph with metadata" struct (instead of free-form dict)?
     url: str
     type: str
-    enabled: bool
-    attributes: dict
-    configuration: dict
+    process: dict = None  # TODO: also encapsulate this "process graph with metadata" struct (instead of free-form dict)?
+    enabled: bool = True  # TODO: required or with default True? https://github.com/Open-EO/openeo-api/issues/473
+    attributes: dict = None
+    configuration: dict = None
 
     # Optional fields (with default)
     title: str = None

@@ -6,8 +6,16 @@ from typing import List
 import flask
 import pytest
 
-from openeo_driver.util.logging import FlaskUserIdLogging, FlaskRequestCorrelationIdLogging, BatchJobLoggingFilter, \
-    LOGGING_CONTEXT_FLASK, LOGGING_CONTEXT_BATCH_JOB, user_id_trim
+from openeo_driver.util.logging import (
+    LOGGING_CONTEXT_BATCH_JOB,
+    LOGGING_CONTEXT_FLASK,
+    BatchJobLoggingFilter,
+    FlaskRequestCorrelationIdLogging,
+    FlaskUserIdLogging,
+    just_log_exceptions,
+    user_id_trim,
+)
+
 from ..conftest import enhanced_logging
 
 
@@ -185,3 +193,28 @@ def test_setup_logging_capture_unhandled_exceptions(pytester):
         r["levelname"] == "ERROR" and "Unhandled ZeroDivisionError exception" in r["message"]
         for r in records
     )
+
+
+def test_just_log_exceptions_default(caplog):
+    with just_log_exceptions():
+        x = 4 / 0
+
+    expected = (
+        "openeo_driver.util.logging",
+        logging.ERROR,
+        "In context 'untitled': caught ZeroDivisionError('division by zero')",
+    )
+    assert caplog.record_tuples == [expected]
+
+
+def test_just_log_exceptions_custom(caplog):
+    log = logging.getLogger("foo.dothetest")
+    with just_log_exceptions(name="mathzz", logger=log):
+        x = 4 / 0
+
+    expected = (
+        "foo.dothetest",
+        logging.ERROR,
+        "In context 'mathzz': caught ZeroDivisionError('division by zero')",
+    )
+    assert caplog.record_tuples == [expected]
