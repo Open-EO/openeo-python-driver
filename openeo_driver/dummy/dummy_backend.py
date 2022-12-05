@@ -772,17 +772,6 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
                 ],
                 title="EGI Check-in",
             ),
-            # TODO: remove old EGI provider (issuer https://aai.egi.eu/oidc/)
-            OidcProvider(
-                id="egi-legacy",
-                issuer="https://aai.egi.eu/oidc/",
-                scopes=[
-                    "openid", "email",
-                    "eduperson_entitlement",
-                    "eduperson_scoped_affiliation",
-                ],
-                title="EGI Check-in (legacy)",
-            ),
             OidcProvider(
                 id="egi-dev",
                 issuer="https://aai-dev.egi.eu/auth/realms/egi",
