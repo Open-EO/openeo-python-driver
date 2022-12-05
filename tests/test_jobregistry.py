@@ -51,27 +51,20 @@ class TestElasticJobRegistry:
     def test_access_token_caching(self, requests_mock, oidc_mock, ejr):
         requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=[])
 
-        def get_token_request_count():
-            return sum(
-                1
-                for r in requests_mock.request_history
-                if r.method == "POST" and r.url == oidc_mock.token_endpoint
-            )
-
         with time_machine.travel("2020-01-02 12:00:00+00"):
             result = ejr.list_user_jobs(user_id="john")
             assert result == []
-            assert get_token_request_count() == 1
+            assert len(oidc_mock.get_request_history(url="/token")) == 1
 
         with time_machine.travel("2020-01-02 12:01:00+00"):
             result = ejr.list_user_jobs(user_id="john")
             assert result == []
-            assert get_token_request_count() == 1
+            assert len(oidc_mock.get_request_history(url="/token")) == 1
 
         with time_machine.travel("2020-01-03 12:00:00+00"):
             result = ejr.list_user_jobs(user_id="john")
             assert result == []
-            assert get_token_request_count() == 2
+            assert len(oidc_mock.get_request_history(url="/token")) == 2
 
     def test_create_job(self, requests_mock, oidc_mock, ejr):
         def post_jobs(request, context):
