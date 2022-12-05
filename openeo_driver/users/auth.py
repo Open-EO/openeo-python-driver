@@ -19,7 +19,7 @@ from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.errors import AuthenticationRequiredException, \
     AuthenticationSchemeInvalidException, TokenInvalidException, CredentialsInvalidException, OpenEOApiException
 from openeo_driver.util.logging import FlaskUserIdLogging, user_id_trim
-from openeo_driver.utils import TtlCache
+from openeo_driver.util.caching import TtlCache
 
 _log = logging.getLogger(__name__)
 

@@ -5,7 +5,6 @@ import datetime
 import importlib.metadata
 import json
 import logging
-import time
 import typing
 import uuid
 from math import isnan
@@ -201,9 +200,12 @@ def temporal_extent_union(
 
 class dict_item:
     """
+    "Descriptor" trick to easily add attribute-style access
+    to standard dictionary items (with optional default values).
+
     Create an attribute in a custom dict subclass that accesses
     the dict value keyed by the attribute's name:
-    
+
         >>> class UserInfo(dict):
         >>>     name = dict_item()
         >>>     age = dict_item()
@@ -221,7 +223,7 @@ class dict_item:
     `dict_item` allows to easily create/prototype dict-based data structures
     that have some predefined (but possibly missing) fields as attributes.
     This makes the data structure more self-documenting than a regular dict
-    and helps avoiding key typo's (e.g. through code completion features in your
+    and helps to avoid key typo's (e.g. through code completion features in your
     editor or IDE).
 
     `dict_item` also allows to specify a default value which will be returned
@@ -304,38 +306,6 @@ def get_package_versions(packages: List[str], na_value="n/a") -> dict:
         except importlib.metadata.PackageNotFoundError:
             version_info[package] = na_value
     return version_info
-
-
-class TtlCache:
-    """
-    Simple memory cache with expiry
-    """
-
-    def __init__(self, default_ttl: int = 60, _clock: typing.Callable[[], float] = time.time):
-        self._cache = {}
-        self.default_ttl = default_ttl
-        self._clock = _clock
-
-    def set(self, key, value, ttl: int = None):
-        """Add item to cache"""
-        self._cache[key] = (value, self._clock() + (ttl or self.default_ttl))
-
-    def contains(self, key) -> bool:
-        """Check whether cache contains item under given key"""
-        if key in self._cache:
-            value, expiration = self._cache[key]
-            if self._clock() <= expiration:
-                return True
-            del self._cache[key]
-        return False
-
-    def get(self, key, default=None):
-        """Get item from cache and if not available: return default value."""
-        return self._cache[key][0] if self.contains(key) else default
-
-    def flush(self):
-        self._cache = {}
-
 
 
 @deprecated(reason="call generate_unique_id instead")

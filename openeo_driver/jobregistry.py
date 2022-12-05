@@ -14,6 +14,7 @@ from openeo.rest.auth.oidc import (
 )
 from openeo.rest.connection import url_join
 from openeo.util import TimingLogger, rfc3339
+from openeo_driver.util.caching import TtlCache
 from openeo_driver.utils import generate_unique_id
 
 _log = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ class ElasticJobRegistry:
         self._backend_id = backend_id
         self._api_url = api_url
         self._authenticator = None
+        self._cache = TtlCache(default_ttl=60 * 60)
 
     def authenticate_oidc_client_credentials(
         self, oidc_issuer: str, client_id: str, client_secret: str
@@ -83,7 +85,6 @@ class ElasticJobRegistry:
     def _get_access_token(self) -> str:
         if not self._authenticator:
             raise RuntimeError("No authentication set up")
-        # TODO: cache access token certain time
         with TimingLogger(
             title=f"Requesting OIDC access_token ({self._authenticator.__class__.__name__})",
             logger=self._log.info,
@@ -94,7 +95,12 @@ class ElasticJobRegistry:
     def _do_request(self, method: str, path: str, json: Union[dict, list]):
         """Do an HTTP request to Elastic Job Tracker service."""
         with TimingLogger(logger=self._log.info, title=f"Request `{method} {path}`"):
-            access_token = self._get_access_token()
+            access_token = self._cache.get_or_call(
+                key="api_access_token",
+                callback=self._get_access_token,
+                # TODO: finetune/optimize caching TTL?
+                ttl=60 * 60,
+            )
             headers = {
                 "User-Agent": f"openeo_driver/{self.__class__.__name__}/{openeo_driver._version.__version__}/{self._backend_id}",
                 "Authorization": f"Bearer {access_token}",
