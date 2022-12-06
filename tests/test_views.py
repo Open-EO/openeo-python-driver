@@ -6,7 +6,9 @@ from pathlib import Path
 from typing import Optional
 from unittest import mock
 
+import boto3
 import flask
+from moto import mock_s3
 import pytest
 import werkzeug.exceptions
 
@@ -20,10 +22,10 @@ from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_A
     generate_unique_test_process_id, build_basic_http_auth_header, ListSubSet, DictSubSet, RegexMatcher
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.util.logging import LOGGING_CONTEXT_FLASK
-from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata, build_app
+from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata, build_app, STREAM_CHUNK_SIZE_DEFAULT
+
 from .conftest import TEST_APP_CONFIG, enhanced_logging
 from .data import TEST_DATA_ROOT
-
 
 @pytest.fixture(params=["0.4.0", "1.0.0", "1.1.0"])
 def api_version(request):
@@ -71,6 +73,32 @@ def mock_uuid4(value: str = "abc123"):
             return value
 
     return mock.patch("uuid.uuid4", new=UUIDMock)
+
+
+TEST_AWS_REGION_NAME = 'eu-central-1'
+
+@pytest.fixture(scope='function')
+def aws_credentials(monkeypatch):
+    """Mocked AWS Credentials and related environment variables for moto/boto3."""
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+    monkeypatch.setenv("AWS_SECURITY_TOKEN", "testing")
+    monkeypatch.setenv("AWS_SESSION_TOKEN", "testing")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", TEST_AWS_REGION_NAME)
+    monkeypatch.setenv("AWS_REGION", TEST_AWS_REGION_NAME)
+    monkeypatch.setenv("SWIFT_BUCKET", "openeo-test-bucket")
+
+
+@pytest.fixture(scope='function')
+def mock_s3_resource(aws_credentials):
+    with mock_s3():
+        yield boto3.resource("s3", region_name=TEST_AWS_REGION_NAME)
+
+
+def create_s3_bucket(s3_resource, bucket_name):
+    bucket = s3_resource.Bucket(bucket_name)
+    bucket.create(CreateBucketConfiguration={'LocationConstraint': TEST_AWS_REGION_NAME})
+    return bucket
 
 
 class TestGeneral:
@@ -1545,6 +1573,26 @@ class TestBatchJobs:
                 f.write(b"tiffdata")
             resp = api.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff", headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).data == b"tiffdata"
+        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
+
+    def test_download_result_with_s3_object_storage(self, api, mock_s3_resource):
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
+        s3_bucket_name = "openeo-test-bucket"
+        output_root = f"s3://{s3_bucket_name}/some-data-dir"
+        s3_key = f"/some-data-dir/{job_id}/output.tiff"
+
+        # Simulate that we have a large file so we would need to stream the download in chunks.
+        # A size that is at least one byte larger than the STREAM_CHUNK_SIZE_DEFAULT should trigger streaming.
+        # We should still receive the entire file contents in streaming mode.
+        large_tiff_data = b"tiffdata" * STREAM_CHUNK_SIZE_DEFAULT
+
+        jobs = {job_id: {"status": "finished"}}
+        with self._fresh_job_registry(output_root=output_root, jobs=jobs):
+            s3_bucket = create_s3_bucket(mock_s3_resource, s3_bucket_name)
+            s3_bucket.put_object(Key=s3_key, Body=large_tiff_data)
+            resp = api.get(f"/jobs/{job_id}/results/assets/output.tiff", headers=self.AUTH_HEADER)
+
+        assert resp.assert_status_code(200).data == large_tiff_data
         assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
 
     def test_download_result_signed(self, api, tmp_path, flask_app):

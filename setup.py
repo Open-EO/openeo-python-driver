@@ -22,7 +22,9 @@ tests_require = [
     'pylint>=2.5.0',
     'astroid>=2.4.0',
     'openeo_udf>=1.0.0rc3',
-    "time-machine",
+    'boto3[s3]>=1.26.17',
+    'moto>=4.0.10',
+    'time-machine',
 ]
 
 setup(
@@ -58,6 +60,7 @@ setup(
     ],
     extras_require={
         "dev": tests_require,
+        "s3": ["boto3[s3]>=1.26.17"],
     },
     classifiers=[
         'Programming Language :: Python :: 3',

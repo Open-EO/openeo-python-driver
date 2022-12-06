@@ -2,6 +2,7 @@ import copy
 import functools
 import json
 import logging
+import os
 import pathlib
 import re
 from collections import namedtuple, defaultdict
@@ -52,6 +53,9 @@ DEFAULT_VERSION = '1.1.0'
 _log.info("API Versions: {v}".format(v=API_VERSIONS))
 _log.info("Default API Version: {v}".format(v=DEFAULT_VERSION))
 
+
+# TODO: maybe STREAM_CHUNK_SIZE_DEFAULT belongs in flask_defaults.py?
+STREAM_CHUNK_SIZE_DEFAULT = 10 * 1024
 
 class OpenEoApiApp(Flask):
 
@@ -722,6 +726,25 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
     return properties
 
 
+def _s3_client():
+    """Create an S3 client to access object storage on Swift."""
+
+    # Keep this import inside the method so we kan keep installing boto3 as optional,
+    # because we don't always use objects storage.
+    # We want to avoid unnecessary dependencies. (And dependencies  of dependencies!)
+    import boto3
+
+    # TODO: Get these credentials/secrets from VITO TAP vault instead of os.environ
+    aws_access_key_id = os.environ.get("AWS_ACCESS_KEY_ID")
+    aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY")
+    swift_url = os.environ.get("SWIFT_URL")
+    s3_client = boto3.client("s3",
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        endpoint_url=swift_url)
+    return s3_client
+
+
 def register_views_batch_jobs(
         blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
         auth_handler: HttpAuthHandler
@@ -999,14 +1022,32 @@ def register_views_batch_jobs(
         # TODO "OpenEO-Costs" header?
         return jsonify(result)
 
+    # TODO: Issue #232, TBD: refactor download functionality? more abstract, just stream blocks of bytes from S3 or from a directory.
     def _download_job_result(job_id: str, filename: str, user_id: str) -> flask.Response:
         results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user_id)
         if filename not in results.keys():
             raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
         result = results[filename]
         if "output_dir" in result:
-            resp = send_from_directory(result["output_dir"], filename, mimetype=result.get("type"))
-            resp.headers['Accept-Ranges'] = 'bytes'
+            out_dir_url = result["output_dir"]
+            if out_dir_url.startswith("s3://"):
+                # TODO: Would be nice if we could use the s3:// URL directly without splitting into bucket and key.
+                # Ignoring the "s3://" at the start makes it easier to split into the bucket and the rest.
+                bucket, folder = out_dir_url[5:].split("/", 1)
+                key = f"/{folder}/{filename}"
+                s3_instance = _s3_client()
+                s3_file_object = s3_instance.get_object(Bucket=bucket, Key=key)
+
+                body = s3_file_object["Body"]
+                resp = flask.Response(
+                    response=body.iter_chunks(STREAM_CHUNK_SIZE_DEFAULT), 
+                    status=200,
+                    mimetype=result.get("type")
+                )
+            else:
+                resp = send_from_directory(result["output_dir"], filename, mimetype=result.get("type"))
+                # TODO: does the S3 side also support 'Accept-Ranges'? Does it need it?
+                resp.headers['Accept-Ranges'] = 'bytes'
             return resp
         elif "json_response" in result:
             return jsonify(result["json_response"])

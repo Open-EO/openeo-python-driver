@@ -605,8 +605,8 @@ class DummyBatchJobs(BatchJobs):
     def start_job(self, job_id: str, user: User):
         self._update_status(job_id=job_id, user_id=user.user_id, status="running")
 
-    def _output_root(self) -> Path:
-        return Path("/data/jobs")
+    def _output_root(self) -> str:
+        return "/data/jobs"
 
     def get_results(self, job_id: str, user_id: str) -> Dict[str, dict]:
         if self._get_job_info(job_id=job_id, user_id=user_id).status != "finished":
@@ -614,7 +614,7 @@ class DummyBatchJobs(BatchJobs):
         return {
             "output.tiff": {
                 "asset": True,
-                "output_dir": str(self._output_root() / job_id),
+                "output_dir": f"{self._output_root()}/{job_id}",
                 "type": "image/tiff; application=geotiff",
                 "roles": ["data"],
                 "bands": [Band(name="NDVI", common_name="NDVI", wavelength_um=1.23)],
