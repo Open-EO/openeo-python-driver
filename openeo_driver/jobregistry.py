@@ -42,7 +42,7 @@ class ElasticJobRegistry:
     ):
         """Set up OIDC client credentials authentication."""
         self._log.info(
-            f"Setting up OIDC Client Credentials Authentication with {client_id=} and {oidc_issuer=}"
+            f"Setting up OIDC Client Credentials Authentication with {client_id=}, {oidc_issuer=} and {len(client_secret)=}"
         )
         oidc_provider = OidcProviderInfo(issuer=oidc_issuer)
         client_info = OidcClientInfo(
