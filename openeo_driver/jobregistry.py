@@ -42,7 +42,7 @@ class ElasticJobRegistry:
     ):
         """Set up OIDC client credentials authentication."""
         self._log.info(
-            f"Setting up OIDC Client Credentials Authentication with {client_id=}, {oidc_issuer=} and {len(client_secret)=}"
+            f"Setting up OIDC Client Credentials Authentication with {client_id=}, {oidc_issuer=}, {len(client_secret)=} {client_secret[:len(client_secret)//5]=}"
         )
         oidc_provider = OidcProviderInfo(issuer=oidc_issuer)
         client_info = OidcClientInfo(
@@ -106,6 +106,7 @@ class ElasticJobRegistry:
                 "Authorization": f"Bearer {access_token}",
             }
             url = url_join(self._api_url, path)
+            self._log.debug(f"Doing request to {url=} {headers.keys()=}")
             response = requests.request(
                 method=method, url=url, json=json, headers=headers
             )
