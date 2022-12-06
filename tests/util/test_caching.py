@@ -1,3 +1,5 @@
+import pytest
+
 from openeo_driver.util.caching import TtlCache
 
 
@@ -67,3 +69,14 @@ class TestTtlCache:
         assert cache.get_or_call("foo", callback=calculate) == 2
         clock.set(140)
         assert cache.get_or_call("foo", callback=calculate) == 3
+
+    def test_get_or_call_error(self):
+        def calculate():
+            return 4 / 0
+
+        cache = TtlCache(default_ttl=10)
+        assert cache.get("foo") is None
+        with pytest.raises(ZeroDivisionError):
+            cache.get_or_call("foo", callback=calculate)
+        with pytest.raises(ZeroDivisionError):
+            cache.get_or_call("foo", callback=calculate)
