@@ -62,7 +62,7 @@ class ElasticJobRegistry:
         # TODO: get most settings from a config file and secrets from env vars or the vault?
         environ = environ or os.environ
 
-        backend_id = backend_id or environ.get("OPENEO_EJR_BACKEND_ID", "test")
+        backend_id = backend_id or environ.get("OPENEO_EJR_BACKEND_ID", "undefined")
         # TODO: HTTPS url for api? https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/7
         api_url = environ.get("OPENEO_EJR_API", "http://jobtracker.openeo.vgt.vito.be/")
         # TODO: get authentication settings and secrets from Vault?
@@ -96,7 +96,7 @@ class ElasticJobRegistry:
             access_token = self._cache.get_or_call(
                 key="api_access_token",
                 callback=self._get_access_token,
-                # TODO: finetune/optimize caching TTL? Detect TTl/expiry from JWT content of access token?
+                # TODO: finetune/optimize caching TTL? Detect TTl/expiry from JWT access token itself?
                 ttl=30 * 60,
             )
             headers = {
