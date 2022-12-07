@@ -20,15 +20,6 @@ from openeo_driver.utils import generate_unique_id
 _log = logging.getLogger(__name__)
 
 
-def secret_peek(data: str, max_shown: float = 0.25, hidden: str = "...") -> str:
-    size = len(data)
-    max_shown = max(0.0, min(1.0, max_shown))
-    to_show = int(max_shown * size)
-    to_hide = size - to_show
-    prefix = to_show // 2
-    return f"{data[:prefix]}{hidden}{data[prefix+to_hide:]} ({size})"
-
-
 class ElasticJobRegistry:
     """
     (Base)class to manage storage of batch job metadata
@@ -38,9 +29,7 @@ class ElasticJobRegistry:
     _log = logging.getLogger(f"{__name__}.elastic")
 
     def __init__(self, backend_id: str, api_url: str):
-        self._log.info(
-            f"Creating ElasticJobRegistry with {backend_id=} and {api_url=} "
-        )
+        self._log.info(f"Creating ElasticJobRegistry with {backend_id=} and {api_url=}")
         self._backend_id = backend_id
         self._api_url = api_url
         self._authenticator = None
@@ -51,7 +40,7 @@ class ElasticJobRegistry:
     ):
         """Set up OIDC client credentials authentication."""
         self._log.info(
-            f"Setting up OIDC Client Credentials Authentication with {client_id=}, {oidc_issuer=}, {len(client_secret)=} {secret_peek(client_secret)=}"
+            f"Setting up OIDC Client Credentials Authentication with {client_id=}, {oidc_issuer=}, {len(client_secret)=}"
         )
         oidc_provider = OidcProviderInfo(issuer=oidc_issuer)
         client_info = OidcClientInfo(
@@ -110,7 +99,6 @@ class ElasticJobRegistry:
                 # TODO: finetune/optimize caching TTL?
                 ttl=60 * 60,
             )
-            self._log.debug(f"{secret_peek(access_token)=}")
             headers = {
                 "User-Agent": f"openeo_driver/{self.__class__.__name__}/{openeo_driver._version.__version__}/{self._backend_id}",
                 "Authorization": f"Bearer {access_token}",
