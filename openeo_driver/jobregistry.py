@@ -96,8 +96,8 @@ class ElasticJobRegistry:
             access_token = self._cache.get_or_call(
                 key="api_access_token",
                 callback=self._get_access_token,
-                # TODO: finetune/optimize caching TTL?
-                ttl=60 * 60,
+                # TODO: finetune/optimize caching TTL? Detect TTl/expiry from JWT content of access token?
+                ttl=30 * 60,
             )
             headers = {
                 "User-Agent": f"openeo_driver/{self.__class__.__name__}/{openeo_driver._version.__version__}/{self._backend_id}",
