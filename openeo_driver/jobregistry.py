@@ -26,10 +26,10 @@ class ElasticJobRegistry:
     using the Job Registry Elastic API (openeo-job-tracker-elastic-api)
     """
 
-    _log = logging.getLogger(f"{__name__}.elastic")
+    logger = logging.getLogger(f"{__name__}.elastic")
 
     def __init__(self, backend_id: str, api_url: str):
-        self._log.info(f"Creating ElasticJobRegistry with {backend_id=} and {api_url=}")
+        self.logger.info(f"Creating ElasticJobRegistry with {backend_id=} and {api_url=}")
         self._backend_id = backend_id
         self._api_url = api_url
         self._authenticator = None
@@ -39,7 +39,7 @@ class ElasticJobRegistry:
         self, oidc_issuer: str, client_id: str, client_secret: str
     ):
         """Set up OIDC client credentials authentication."""
-        self._log.info(
+        self.logger.info(
             f"Setting up OIDC Client Credentials Authentication with {client_id=}, {oidc_issuer=}, {len(client_secret)=}"
         )
         oidc_provider = OidcProviderInfo(issuer=oidc_issuer)
@@ -85,14 +85,14 @@ class ElasticJobRegistry:
             raise RuntimeError("No authentication set up")
         with TimingLogger(
             title=f"Requesting OIDC access_token ({self._authenticator.__class__.__name__})",
-            logger=self._log.info,
+            logger=self.logger.info,
         ):
             tokens = self._authenticator.get_tokens()
         return tokens.access_token
 
     def _do_request(self, method: str, path: str, json: Union[dict, list]):
         """Do an HTTP request to Elastic Job Tracker service."""
-        with TimingLogger(logger=self._log.info, title=f"Request `{method} {path}`"):
+        with TimingLogger(logger=self.logger.info, title=f"Request `{method} {path}`"):
             access_token = self._cache.get_or_call(
                 key="api_access_token",
                 callback=self._get_access_token,
@@ -104,11 +104,11 @@ class ElasticJobRegistry:
                 "Authorization": f"Bearer {access_token}",
             }
             url = url_join(self._api_url, path)
-            self._log.debug(f"Doing request to {url=} {headers.keys()=}")
+            self.logger.debug(f"Doing request to {url=} {headers.keys()=}")
             response = requests.request(
                 method=method, url=url, json=json, headers=headers
             )
-            self._log.debug(f"Response on `{method} {path}`: {response!r}")
+            self.logger.debug(f"Response on `{method} {path}`: {response!r}")
             response.raise_for_status()
             return response.json()
 
