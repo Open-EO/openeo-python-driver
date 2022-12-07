@@ -125,13 +125,15 @@ class ElasticJobRegistry:
             response = requests.request(
                 method=method, url=url, json=json, headers=headers
             )
+            # TODO: this log message might be pretty big
             self.logger.debug(f"Response on `{method} {path}`: {response!r}")
             response.raise_for_status()
             return response.json()
 
-    def health_check(self, use_auth: bool = True) -> dict:
+    def health_check(self, use_auth: bool = True, log: bool = True) -> dict:
         response = self._do_request("GET", "/health", use_auth=use_auth)
-        self.logger.info(f"Health check {response}")
+        if log:
+            self.logger.info(f"Health check {response}")
         return response
 
     def create_job(
