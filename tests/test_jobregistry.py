@@ -1,4 +1,8 @@
+import functools
+from typing import Callable
+
 import pytest
+import requests
 import time_machine
 
 from openeo.rest.auth.testing import OidcMock
@@ -40,8 +44,9 @@ class TestElasticJobRegistry:
 
     @pytest.fixture
     def ejr(self, oidc_mock) -> ElasticJobRegistry:
+        """ElasticJobRegistry set up with authentication"""
         ejr = ElasticJobRegistry(backend_id="test", api_url=self.EJR_API_URL)
-        ejr.authenticate_oidc_client_credentials(
+        ejr.setup_auth_oidc_client_credentials(
             oidc_issuer=self.OIDC_CLIENT_INFO["oidc_issuer"],
             client_id=self.OIDC_CLIENT_INFO["client_id"],
             client_secret=self.OIDC_CLIENT_INFO["client_secret"],
@@ -66,11 +71,40 @@ class TestElasticJobRegistry:
             assert result == []
             assert len(oidc_mock.get_request_history(url="/token")) == 2
 
+    def _auth_is_valid(self, oidc_mock: OidcMock, request: requests.Request) -> bool:
+        access_token = oidc_mock.state["access_token"]
+        return request.headers["Authorization"] == f"Bearer {access_token}"
+
+    def test_health_check(self, requests_mock, oidc_mock, ejr):
+        def get_health(request, context):
+            if "Authorization" not in request.headers:
+                status, state = "down", "missing"
+            elif self._auth_is_valid(oidc_mock=oidc_mock, request=request):
+                status, state = "up", "ok"
+            else:
+                status, state = "down", "expired"
+            return {"info": {"auth": {"status": status, "state": state}}}
+
+        requests_mock.get(f"{self.EJR_API_URL}/health", json=get_health)
+
+        # Health check without auth
+        response = ejr.health_check(use_auth=False)
+        assert response == {"info": {"auth": {"status": "down", "state": "missing"}}}
+
+        # With auth
+        response = ejr.health_check(use_auth=True)
+        assert response == {"info": {"auth": {"status": "up", "state": "ok"}}}
+
+        # Try again with aut,
+        # but invalidate access token at provider side (depends on caching of access token in EJR)
+        oidc_mock.invalidate_access_token()
+        response = ejr.health_check(use_auth=True)
+        assert response == {"info": {"auth": {"status": "down", "state": "expired"}}}
+
     def test_create_job(self, requests_mock, oidc_mock, ejr):
         def post_jobs(request, context):
             """Handler of `POST /jobs`"""
-            access_token = oidc_mock.state["access_token"]
-            assert request.headers["Authorization"] == f"Bearer {access_token}"
+            assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
             # TODO: what to return? What does API return?  https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
             return request.json()
 
@@ -96,8 +130,7 @@ class TestElasticJobRegistry:
     def test_list_user_jobs(self, requests_mock, oidc_mock, ejr):
         def post_jobs_search(request, context):
             """Handler of `POST /jobs/search"""
-            access_token = oidc_mock.state["access_token"]
-            assert request.headers["Authorization"] == f"Bearer {access_token}"
+            assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
             # TODO: what to return? What does API return?  https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
             return [DUMMY_PROCESS]
 

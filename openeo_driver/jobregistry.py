@@ -35,7 +35,7 @@ class ElasticJobRegistry:
         self._authenticator = None
         self._cache = TtlCache(default_ttl=60 * 60)
 
-    def authenticate_oidc_client_credentials(
+    def setup_auth_oidc_client_credentials(
         self, oidc_issuer: str, client_id: str, client_secret: str
     ):
         """Set up OIDC client credentials authentication."""
@@ -54,7 +54,9 @@ class ElasticJobRegistry:
 
     @staticmethod
     def from_environ(
-        environ: Optional[dict] = None, backend_id: Optional[str] = None
+        environ: Optional[dict] = None,
+        backend_id: Optional[str] = None,
+        setup_auth: bool = True,
     ) -> "ElasticJobRegistry":
         """
         Factory to build an ElasticJobRegistry from an environment dict (or equivalent config).
@@ -65,19 +67,26 @@ class ElasticJobRegistry:
         backend_id = backend_id or environ.get("OPENEO_EJR_BACKEND_ID", "undefined")
         # TODO: HTTPS url for api? https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/7
         api_url = environ.get("OPENEO_EJR_API", "http://jobtracker.openeo.vgt.vito.be/")
-        # TODO: get authentication settings and secrets from Vault?
-        oidc_issuer = environ.get(
-            "OPENEO_EJR_OIDC_ISSUER", "https://sso.terrascope.be/auth/realms/terrascope"
-        )
-        client_id = environ.get("OPENEO_EJR_OIDC_CLIENT_ID", "openeo-job-tracker")
-        client_secret = environ.get("OPENEO_EJR_OIDC_CLIENT_SECRET")
-        if not client_secret:
-            raise RuntimeError("Env var 'OPENEO_EJR_OIDC_CLIENT_SECRET' must be set")
-
         ejr = ElasticJobRegistry(backend_id=backend_id, api_url=api_url)
-        ejr.authenticate_oidc_client_credentials(
-            oidc_issuer=oidc_issuer, client_id=client_id, client_secret=client_secret
-        )
+
+        if setup_auth:
+            # TODO: get authentication settings and secrets from Vault?
+            oidc_issuer = environ.get(
+                "OPENEO_EJR_OIDC_ISSUER",
+                "https://sso.terrascope.be/auth/realms/terrascope",
+            )
+            client_id = environ.get("OPENEO_EJR_OIDC_CLIENT_ID", "openeo-job-tracker")
+            client_secret = environ.get("OPENEO_EJR_OIDC_CLIENT_SECRET")
+            if not client_secret:
+                raise RuntimeError(
+                    "Env var 'OPENEO_EJR_OIDC_CLIENT_SECRET' must be set"
+                )
+
+            ejr.setup_auth_oidc_client_credentials(
+                oidc_issuer=oidc_issuer,
+                client_id=client_id,
+                client_secret=client_secret,
+            )
         return ejr
 
     def _get_access_token(self) -> str:
@@ -90,19 +99,27 @@ class ElasticJobRegistry:
             tokens = self._authenticator.get_tokens()
         return tokens.access_token
 
-    def _do_request(self, method: str, path: str, json: Union[dict, list]):
+    def _do_request(
+        self,
+        method: str,
+        path: str,
+        json: Union[dict, list, None] = None,
+        use_auth: bool = True,
+    ):
         """Do an HTTP request to Elastic Job Tracker service."""
         with TimingLogger(logger=self.logger.info, title=f"Request `{method} {path}`"):
-            access_token = self._cache.get_or_call(
-                key="api_access_token",
-                callback=self._get_access_token,
-                # TODO: finetune/optimize caching TTL? Detect TTl/expiry from JWT access token itself?
-                ttl=30 * 60,
-            )
             headers = {
                 "User-Agent": f"openeo_driver/{self.__class__.__name__}/{openeo_driver._version.__version__}/{self._backend_id}",
-                "Authorization": f"Bearer {access_token}",
             }
+            if use_auth:
+                access_token = self._cache.get_or_call(
+                    key="api_access_token",
+                    callback=self._get_access_token,
+                    # TODO: finetune/optimize caching TTL? Detect TTl/expiry from JWT access token itself?
+                    ttl=30 * 60,
+                )
+                headers["Authorization"] = f"Bearer {access_token}"
+
             url = url_join(self._api_url, path)
             self.logger.debug(f"Doing request to {url=} {headers.keys()=}")
             response = requests.request(
@@ -111,6 +128,11 @@ class ElasticJobRegistry:
             self.logger.debug(f"Response on `{method} {path}`: {response!r}")
             response.raise_for_status()
             return response.json()
+
+    def health_check(self, use_auth: bool = True) -> dict:
+        response = self._do_request("GET", "/health", use_auth=use_auth)
+        self.logger.info(f"Health check {response}")
+        return response
 
     def create_job(
         self,
@@ -206,6 +228,12 @@ class Main:
         # Sub-commands
         subparsers = cli.add_subparsers(required=True)
 
+        health_check = subparsers.add_parser("health", help="Do health check request.")
+        health_check.add_argument(
+            "--no-auth", dest="do_auth", action="store_false", default=True
+        )
+        health_check.set_defaults(func=self.health_check)
+
         cli_list = subparsers.add_parser("list", help="List jobs for given user.")
         cli_list.add_argument("user_id", help="User id to filter on.")
         cli_list.set_defaults(func=self.list_user_jobs)
@@ -216,8 +244,14 @@ class Main:
 
         return cli.parse_args()
 
-    def _get_job_registry(self) -> ElasticJobRegistry:
-        return ElasticJobRegistry.from_environ(self.environ, backend_id="test")
+    def _get_job_registry(self, setup_auth=True) -> ElasticJobRegistry:
+        return ElasticJobRegistry.from_environ(
+            self.environ, backend_id="test_cli", setup_auth=setup_auth
+        )
+
+    def health_check(self, args: argparse.Namespace):
+        ejr = self._get_job_registry(setup_auth=args.do_auth)
+        print(ejr.health_check(use_auth=args.do_auth))
 
     def list_user_jobs(self, args: argparse.Namespace):
         user_id = args.user_id
