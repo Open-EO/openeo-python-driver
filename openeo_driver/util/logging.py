@@ -1,4 +1,5 @@
 import contextlib
+import functools
 import logging
 import logging.config
 import os
@@ -6,7 +7,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Callable
 
 import flask
 import pythonjsonlogger.jsonlogger
@@ -292,12 +293,26 @@ class BatchJobLoggingFilter(logging.Filter):
 
 
 @contextlib.contextmanager
-def just_log_exceptions(logger: logging.Logger = _log, name: Optional[str] = "untitled"):
+def just_log_exceptions(
+    log: Union[logging.Logger, Callable, str, int] = logging.ERROR,
+    name: Optional[str] = "untitled",
+):
     """
     Context manager to catch any exception (if any) and just log them.
+
+    :param log: one of
+        - a `logging.Logger` instance,
+        - a callable (e.g. use a logging method like `my_logger.warning` to define both logger and level)
+        - a log level as string or int (e.g. logging constant like `logging.WARNING`)
+    :param name: name of the context (to be used as reference in error log)
     """
-    # TODO: allow setting the log level?
+    if isinstance(log, logging.Logger):
+        log = log.error
+    elif isinstance(log, int):
+        log = functools.partial(_log.log, log)
+    elif isinstance(log, str):
+        log = functools.partial(_log.log, logging.getLevelName(log))
     try:
         yield
     except Exception as e:
-        logger.error(f"In context {name!r}: caught {e!r}", exc_info=True)
+        log(f"In context {name!r}: caught {e!r}", exc_info=True)

@@ -207,14 +207,57 @@ def test_just_log_exceptions_default(caplog):
     assert caplog.record_tuples == [expected]
 
 
-def test_just_log_exceptions_custom(caplog):
+def test_just_log_exceptions_name(caplog):
+    with just_log_exceptions(name="mathzz"):
+        x = 4 / 0
+
+    expected = (
+        "openeo_driver.util.logging",
+        logging.ERROR,
+        "In context 'mathzz': caught ZeroDivisionError('division by zero')",
+    )
+    assert caplog.record_tuples == [expected]
+
+
+def test_just_log_exceptions_logger(caplog):
     log = logging.getLogger("foo.dothetest")
-    with just_log_exceptions(name="mathzz", logger=log):
+
+    with just_log_exceptions(log=log):
         x = 4 / 0
 
     expected = (
         "foo.dothetest",
         logging.ERROR,
-        "In context 'mathzz': caught ZeroDivisionError('division by zero')",
+        "In context 'untitled': caught ZeroDivisionError('division by zero')",
+    )
+    assert caplog.record_tuples == [expected]
+
+
+def test_just_log_exceptions_logger_method(caplog):
+    log = logging.getLogger("foo.dothetest")
+    with just_log_exceptions(log=log.warning):
+        x = 4 / 0
+
+    expected = (
+        "foo.dothetest",
+        logging.WARNING,
+        "In context 'untitled': caught ZeroDivisionError('division by zero')",
+    )
+    assert caplog.record_tuples == [expected]
+
+
+@pytest.mark.parametrize(
+    ["level"],
+    [(logging.INFO,), ("INFO",)],
+)
+def test_just_log_exceptions_log_level(caplog, level):
+    caplog.set_level(logging.INFO)
+    with just_log_exceptions(log=level):
+        x = 4 / 0
+
+    expected = (
+        "openeo_driver.util.logging",
+        logging.INFO,
+        "In context 'untitled': caught ZeroDivisionError('division by zero')",
     )
     assert caplog.record_tuples == [expected]
