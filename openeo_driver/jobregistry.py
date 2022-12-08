@@ -20,6 +20,23 @@ from openeo_driver.utils import generate_unique_id
 _log = logging.getLogger(__name__)
 
 
+class JOB_STATUS:
+    """
+    Container of batch job status constants.
+
+    Allows to easily find places where batch job status is checked/set/updated.
+    """
+
+    # TODO: move this to a module for API-related constants?
+
+    CREATED = "created"
+    QUEUED = "queued"
+    RUNNING = "running"
+    CANCELED = "canceled"
+    FINISHED = "finished"
+    ERROR = "error"
+
+
 class ElasticJobRegistry:
     """
     (Base)class to manage storage of batch job metadata
@@ -165,7 +182,7 @@ class ElasticJobRegistry:
             "description": description,
             # TODO: fields plan, budget?
             # Initialize essential status fields (as defined by openEO API)
-            "status": "created",
+            "status": JOB_STATUS.CREATED,
             "created": created,
             "updated": created,
             # TODO: costs and usage?

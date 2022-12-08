@@ -25,6 +25,7 @@ from openeo_driver.datacube import DriverMlModel
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, ProcessUnsupportedException, \
     JobNotFinishedException, ProcessGraphInvalidException, InternalException
+from openeo_driver.jobregistry import JOB_STATUS
 from openeo_driver.save_result import SaveResult, to_save_result
 from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
 from openeo_driver.users.auth import HttpAuthHandler
@@ -832,7 +833,7 @@ def register_views_batch_jobs(
     def queue_job(job_id, user: User):
         """Add a batch job to the procsessing queue."""
         job_info = backend_implementation.batch_jobs.get_job_info(job_id, user.user_id)
-        if job_info.status in {"created", "canceled"}:
+        if job_info.status in {JOB_STATUS.CREATED, JOB_STATUS.CANCELED}:
             _log.info(f"`POST /jobs/{job_id}/results`: starting job (from status {job_info.status}")
             backend_implementation.batch_jobs.start_job(job_id=job_id, user=user)
         else:
@@ -876,7 +877,7 @@ def register_views_batch_jobs(
 
     def _list_job_results(job_id, user_id):
         job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
-        if job_info.status != "finished":
+        if job_info.status != JOB_STATUS.FINISHED:
             raise JobNotFinishedException()
 
         results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user_id)
@@ -1040,7 +1041,7 @@ def register_views_batch_jobs(
 
                 body = s3_file_object["Body"]
                 resp = flask.Response(
-                    response=body.iter_chunks(STREAM_CHUNK_SIZE_DEFAULT), 
+                    response=body.iter_chunks(STREAM_CHUNK_SIZE_DEFAULT),
                     status=200,
                     mimetype=result.get("type")
                 )

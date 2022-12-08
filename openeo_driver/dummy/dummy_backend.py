@@ -25,6 +25,7 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import SourceConstraint
 from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, ProcessGraphNotFoundException, \
     PermissionsInsufficientException
+from openeo_driver.jobregistry import JOB_STATUS
 from openeo_driver.save_result import AggregatePolygonResult, AggregatePolygonSpatialResult
 from openeo_driver.users import User
 from openeo_driver.utils import EvalEnv, generate_unique_id, WhiteListEvalEnv
@@ -577,8 +578,13 @@ class DummyBatchJobs(BatchJobs):
     ) -> BatchJobMetadata:
         job_id = self.generate_job_id()
         job_info = BatchJobMetadata(
-            id=job_id, status="created", process=process, created=utcnow(), job_options=job_options,
-            title=metadata.get("title"), description=metadata.get("description")
+            id=job_id,
+            status=JOB_STATUS.CREATED,
+            process=process,
+            created=utcnow(),
+            job_options=job_options,
+            title=metadata.get("title"),
+            description=metadata.get("description"),
         )
         self._job_registry[(user_id, job_id)] = job_info
         return job_info
@@ -603,13 +609,18 @@ class DummyBatchJobs(BatchJobs):
             raise JobNotFoundException(job_id)
 
     def start_job(self, job_id: str, user: User):
-        self._update_status(job_id=job_id, user_id=user.user_id, status="running")
+        self._update_status(
+            job_id=job_id, user_id=user.user_id, status=JOB_STATUS.RUNNING
+        )
 
     def _output_root(self) -> str:
         return "/data/jobs"
 
     def get_results(self, job_id: str, user_id: str) -> Dict[str, dict]:
-        if self._get_job_info(job_id=job_id, user_id=user_id).status != "finished":
+        if (
+            self._get_job_info(job_id=job_id, user_id=user_id).status
+            != JOB_STATUS.FINISHED
+        ):
             raise JobNotFinishedException
         return {
             "output.tiff": {
