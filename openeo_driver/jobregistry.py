@@ -75,7 +75,7 @@ class ElasticJobRegistry:
                 "OPENEO_EJR_OIDC_ISSUER",
                 "https://sso.terrascope.be/auth/realms/terrascope",
             )
-            client_id = environ.get("OPENEO_EJR_OIDC_CLIENT_ID", "openeo-job-tracker")
+            client_id = environ.get("OPENEO_EJR_OIDC_CLIENT_ID", "openeo-elastic-job-registry")
             client_secret = environ.get("OPENEO_EJR_OIDC_CLIENT_SECRET")
             if not client_secret:
                 raise RuntimeError(
