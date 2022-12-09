@@ -6,7 +6,7 @@ import requests
 import time_machine
 
 from openeo.rest.auth.testing import OidcMock
-from openeo_driver.jobregistry import ElasticJobRegistry
+from openeo_driver.jobregistry import ElasticJobRegistry, JOB_STATUS
 from openeo_driver.testing import DictSubSet, RegexMatcher
 
 DUMMY_PROCESS = {
@@ -45,7 +45,7 @@ class TestElasticJobRegistry:
     @pytest.fixture
     def ejr(self, oidc_mock) -> ElasticJobRegistry:
         """ElasticJobRegistry set up with authentication"""
-        ejr = ElasticJobRegistry(backend_id="test", api_url=self.EJR_API_URL)
+        ejr = ElasticJobRegistry(backend_id="unittests", api_url=self.EJR_API_URL)
         ejr.setup_auth_oidc_client_credentials(
             oidc_issuer=self.OIDC_CLIENT_INFO["oidc_issuer"],
             client_id=self.OIDC_CLIENT_INFO["client_id"],
@@ -115,7 +115,7 @@ class TestElasticJobRegistry:
         assert result == [
             DictSubSet(
                 {
-                    "backend_id": "test",
+                    "backend_id": "unittests",
                     "job_id": RegexMatcher("j-[0-9a-f]+"),
                     "user_id": "john",
                     "process": DUMMY_PROCESS,
@@ -138,3 +138,22 @@ class TestElasticJobRegistry:
 
         result = ejr.list_user_jobs(user_id="john")
         assert result == [DUMMY_PROCESS]
+
+    def test_set_status(self, requests_mock, oidc_mock, ejr):
+        def patch_jobs(request, context):
+            """Handler of `PATCH /jobs"""
+            assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
+            data = request.json()
+            expected = {
+                "backend_id": "unittests",
+                "job_id": "job-123",
+                "status": "running",
+            }
+            assert expected == data
+            # TODO: what to return? What does API return?  https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
+            return data
+
+        requests_mock.patch(f"{self.EJR_API_URL}/jobs", json=patch_jobs)
+
+        result = ejr.set_status(job_id="job-123", status=JOB_STATUS.RUNNING)
+        assert result["status"] == "running"

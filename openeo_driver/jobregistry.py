@@ -89,6 +89,7 @@ class ElasticJobRegistry:
 
         if setup_auth:
             # TODO: get authentication settings and secrets from Vault?
+            # TODO: don't provide fallback values?
             oidc_issuer = environ.get(
                 "OPENEO_EJR_OIDC_ISSUER",
                 "https://sso.terrascope.be/auth/realms/terrascope",
@@ -143,7 +144,6 @@ class ElasticJobRegistry:
             response = requests.request(
                 method=method, url=url, json=json, headers=headers
             )
-            # TODO: this log message might be pretty big
             self.logger.debug(f"Response on `{method} {path}`: {response!r}")
             response.raise_for_status()
             return response.json()
@@ -213,6 +213,15 @@ class ElasticJobRegistry:
         # TODO: what to return? What does API return?
         return self._do_request("POST", "/jobs/search", json=query)
 
+    def set_status(self, job_id: str, status: str):
+        # TODO: handle this with a generic `patch` method?
+        data = {
+            "backend_id": self._backend_id,
+            "job_id": job_id,
+            "status": status,
+        }
+        return self._do_request("PATCH", "/jobs", json=data)
+
     @staticmethod
     def just_log_errors(name="EJR"):
         """
@@ -225,7 +234,7 @@ class ElasticJobRegistry:
 
 class Main:
     """
-    Simple toy CLI for development and testing
+    Simple toy CLI to Elastic Job Registry API for development and testing
 
     Example usage:
 
@@ -271,6 +280,11 @@ class Main:
         cli_create.add_argument("user_id", help="User id to filter on.")
         cli_create.set_defaults(func=self.create_dummy_job)
 
+        cli_set_status = subparsers.add_parser("set_status", help="Set status of a job")
+        cli_set_status.add_argument("job_id", help="Job id")
+        cli_set_status.add_argument("status", help="New status (queued, running, ...)")
+        cli_set_status.set_defaults(func=self.set_status)
+
         return cli.parse_args()
 
     def _get_job_registry(self, setup_auth=True) -> ElasticJobRegistry:
@@ -304,6 +318,11 @@ class Main:
         }
         result = ejr.create_job(process=process, user_id=user_id)
         print("Created job:")
+        pprint.pprint(result)
+
+    def set_status(self, args: argparse.Namespace):
+        ejr = self._get_job_registry()
+        result = ejr.set_status(job_id=args.job_id, status=args.status)
         pprint.pprint(result)
 
 
