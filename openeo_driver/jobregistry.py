@@ -15,6 +15,7 @@ from openeo.rest.auth.oidc import (
 from openeo.rest.connection import url_join
 from openeo.util import TimingLogger, rfc3339
 from openeo_driver.util.caching import TtlCache
+from openeo_driver.util.logging import just_log_exceptions
 from openeo_driver.utils import generate_unique_id
 
 _log = logging.getLogger(__name__)
@@ -211,6 +212,15 @@ class ElasticJobRegistry:
         }
         # TODO: what to return? What does API return?
         return self._do_request("POST", "/jobs/search", json=query)
+
+    @staticmethod
+    def just_log_errors(name="EJR"):
+        """
+        Shortcut to easily and compactly guard all experimental, new ElasticJobRegistry logic
+        with a "just_log_errors" context.
+        """
+        # TODO #153: remove all usage when ElasticJobRegistry is ready for production
+        return just_log_exceptions(log=ElasticJobRegistry.logger, name=name)
 
 
 class Main:
