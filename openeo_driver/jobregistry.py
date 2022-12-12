@@ -38,6 +38,12 @@ class JOB_STATUS:
     ERROR = "error"
 
 
+class EjrError(Exception):
+    """Elastic Job Registry error (base class)."""
+
+    pass
+
+
 class ElasticJobRegistry:
     """
     (Base)class to manage storage of batch job metadata
@@ -98,9 +104,7 @@ class ElasticJobRegistry:
             client_id = environ.get("OPENEO_EJR_OIDC_CLIENT_ID", "openeo-elastic-job-registry")
             client_secret = environ.get("OPENEO_EJR_OIDC_CLIENT_SECRET")
             if not client_secret:
-                raise RuntimeError(
-                    "Env var 'OPENEO_EJR_OIDC_CLIENT_SECRET' must be set"
-                )
+                raise EjrError("Env var 'OPENEO_EJR_OIDC_CLIENT_SECRET' must be set")
 
             ejr.setup_auth_oidc_client_credentials(
                 oidc_issuer=oidc_issuer,
@@ -111,7 +115,7 @@ class ElasticJobRegistry:
 
     def _get_access_token(self) -> str:
         if not self._authenticator:
-            raise RuntimeError("No authentication set up")
+            raise EjrError("No authentication set up")
         with TimingLogger(
             title=f"Requesting OIDC access_token ({self._authenticator.__class__.__name__})",
             logger=self.logger.info,
@@ -125,6 +129,7 @@ class ElasticJobRegistry:
         path: str,
         json: Union[dict, list, None] = None,
         use_auth: bool = True,
+        expected_status: int = 200,
     ):
         """Do an HTTP request to Elastic Job Tracker service."""
         with TimingLogger(logger=self.logger.info, title=f"Request `{method} {path}`"):
@@ -151,7 +156,12 @@ class ElasticJobRegistry:
                 timeout=self._REQUEST_TIMEOUT,
             )
             self.logger.debug(f"Response on `{method} {path}`: {response!r}")
-            response.raise_for_status()
+            if expected_status and response.status_code != expected_status:
+                raise EjrError(
+                    f"EJR API error: {response.status_code} {response.reason!r} on `{method} {response.url!r}`: {response.text}"
+                )
+            else:
+                response.raise_for_status()
             return response.json()
 
     def health_check(self, use_auth: bool = True, log: bool = True) -> dict:
@@ -203,7 +213,7 @@ class ElasticJobRegistry:
         # TODO: keep multi-job support? https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
         # TODO: what to return? What does API return?  https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
         self.logger.info(f"Create {job_id=}", extra={"job_id": job_id})
-        return self._do_request("POST", "/jobs", json=[job_data])
+        return self._do_request("POST", "/jobs", json=[job_data], expected_status=201)
 
     def list_user_jobs(self, user_id: Optional[str]):
         # TODO: sorting, pagination?

@@ -6,7 +6,7 @@ import requests
 import time_machine
 
 from openeo.rest.auth.testing import OidcMock
-from openeo_driver.jobregistry import ElasticJobRegistry, JOB_STATUS
+from openeo_driver.jobregistry import ElasticJobRegistry, JOB_STATUS, EjrError
 from openeo_driver.testing import DictSubSet, RegexMatcher
 
 DUMMY_PROCESS = {
@@ -106,6 +106,7 @@ class TestElasticJobRegistry:
             """Handler of `POST /jobs`"""
             assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
             # TODO: what to return? What does API return?  https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
+            context.status_code = 201
             return request.json()
 
         requests_mock.post(f"{self.EJR_API_URL}/jobs", json=post_jobs)
@@ -126,6 +127,19 @@ class TestElasticJobRegistry:
                 }
             )
         ]
+
+    @pytest.mark.parametrize("status_code", [204, 400, 500])
+    def test_create_job_with_error(self, requests_mock, oidc_mock, ejr, status_code):
+        def post_jobs(request, context):
+            """Handler of `POST /jobs`"""
+            assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
+            context.status_code = status_code
+            return {"error": "meh"}
+
+        requests_mock.post(f"{self.EJR_API_URL}/jobs", json=post_jobs)
+
+        with pytest.raises(EjrError) as e:
+            _ = ejr.create_job(process=DUMMY_PROCESS, user_id="john")
 
     def test_list_user_jobs(self, requests_mock, oidc_mock, ejr):
         def post_jobs_search(request, context):
