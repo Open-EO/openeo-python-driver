@@ -139,7 +139,7 @@ class ElasticJobRegistry:
                 headers["Authorization"] = f"Bearer {access_token}"
 
             url = url_join(self._api_url, path)
-            self.logger.debug(f"Doing request to {url=} {headers.keys()=}")
+            self.logger.debug(f"Doing request `{method} {url}` {headers.keys()=}")
             response = requests.request(
                 method=method, url=url, json=json, headers=headers
             )
@@ -195,6 +195,7 @@ class ElasticJobRegistry:
         }
         # TODO: keep multi-job support? https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
         # TODO: what to return? What does API return?  https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
+        self.logger.info(f"Create {job_id=}", extra={"job_id": job_id})
         return self._do_request("POST", "/jobs", json=[job_data])
 
     def list_user_jobs(self, user_id: Optional[str]):
@@ -219,6 +220,7 @@ class ElasticJobRegistry:
             "job_id": job_id,
             "status": status,
         }
+        self.logger.info(f"Update {job_id=} {status=}", extra={"job_id": job_id})
         return self._do_request("PATCH", "/jobs", json=data)
 
     @staticmethod
