@@ -47,7 +47,7 @@ setup(
         'openeo_processes==0.0.4',  # 0.0.4 is special build/release, also see https://github.com/Open-EO/openeo-python-driver/issues/152
         'gunicorn>=20.0.1',
         'numpy>=1.22.0',
-        'shapely',
+        'shapely<2.0.0',  # https://github.com/Open-EO/openeo-python-driver/issues/158
         'pandas',
         'geopandas>=0.11.0',  # 0.11.0 fixes https://github.com/geopandas/geopandas/pull/2243
         'xarray~=0.16.2',
