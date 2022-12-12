@@ -83,8 +83,7 @@ class ElasticJobRegistry:
         environ = environ or os.environ
 
         backend_id = backend_id or environ.get("OPENEO_EJR_BACKEND_ID", "undefined")
-        # TODO: HTTPS url for api? https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/7
-        api_url = environ.get("OPENEO_EJR_API", "http://jobtracker.openeo.vgt.vito.be/")
+        api_url = environ.get("OPENEO_EJR_API", "https://jobregistry.openeo.vito.be")
         ejr = ElasticJobRegistry(backend_id=backend_id, api_url=api_url)
 
         if setup_auth:
