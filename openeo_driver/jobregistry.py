@@ -44,6 +44,8 @@ class ElasticJobRegistry:
     using the Job Registry Elastic API (openeo-job-tracker-elastic-api)
     """
 
+    _REQUEST_TIMEOUT = 20
+
     logger = logging.getLogger(f"{__name__}.elastic")
 
     def __init__(self, backend_id: str, api_url: str):
@@ -140,8 +142,13 @@ class ElasticJobRegistry:
 
             url = url_join(self._api_url, path)
             self.logger.debug(f"Doing request `{method} {url}` {headers.keys()=}")
+            # TODO: use a requests.Session to set some defaults and better resource reuse?
             response = requests.request(
-                method=method, url=url, json=json, headers=headers
+                method=method,
+                url=url,
+                json=json,
+                headers=headers,
+                timeout=self._REQUEST_TIMEOUT,
             )
             self.logger.debug(f"Response on `{method} {path}`: {response!r}")
             response.raise_for_status()
