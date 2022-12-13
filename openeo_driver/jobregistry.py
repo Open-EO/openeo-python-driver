@@ -213,7 +213,7 @@ class ElasticJobRegistry:
         # TODO: keep multi-job support? https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
         # TODO: what to return? What does API return?  https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
         self.logger.info(f"Create {job_id=}", extra={"job_id": job_id})
-        return self._do_request("POST", "/jobs", json=[job_data], expected_status=201)
+        return self._do_request("POST", "/jobs", json=job_data, expected_status=201)
 
     def list_user_jobs(self, user_id: Optional[str]):
         # TODO: sorting, pagination?
@@ -232,6 +232,7 @@ class ElasticJobRegistry:
 
     def set_status(self, job_id: str, status: str):
         # TODO: handle this with a generic `patch` method?
+        # TODO: add a source where the status came from (driver, tracker, async, ...)?
         data = {
             "backend_id": self._backend_id,
             "job_id": job_id,
@@ -241,7 +242,7 @@ class ElasticJobRegistry:
         return self._do_request("PATCH", "/jobs", json=data)
 
     @staticmethod
-    def just_log_errors(name="EJR"):
+    def just_log_errors(name: str = "EJR"):
         """
         Shortcut to easily and compactly guard all experimental, new ElasticJobRegistry logic
         with a "just_log_errors" context.

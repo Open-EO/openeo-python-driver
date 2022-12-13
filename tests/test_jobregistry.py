@@ -113,20 +113,18 @@ class TestElasticJobRegistry:
 
         with time_machine.travel("2020-01-02 03:04:05+00", tick=False):
             result = ejr.create_job(process=DUMMY_PROCESS, user_id="john")
-        assert result == [
-            DictSubSet(
-                {
-                    "backend_id": "unittests",
-                    "job_id": RegexMatcher("j-[0-9a-f]+"),
-                    "user_id": "john",
-                    "process": DUMMY_PROCESS,
-                    "created": "2020-01-02T03:04:05Z",
-                    "updated": "2020-01-02T03:04:05Z",
-                    "status": "created",
-                    "job_options": None,
-                }
-            )
-        ]
+        assert result == DictSubSet(
+            {
+                "backend_id": "unittests",
+                "job_id": RegexMatcher("j-[0-9a-f]+"),
+                "user_id": "john",
+                "process": DUMMY_PROCESS,
+                "created": "2020-01-02T03:04:05Z",
+                "updated": "2020-01-02T03:04:05Z",
+                "status": "created",
+                "job_options": None,
+            }
+        )
 
     @pytest.mark.parametrize("status_code", [204, 400, 500])
     def test_create_job_with_error(self, requests_mock, oidc_mock, ejr, status_code):
