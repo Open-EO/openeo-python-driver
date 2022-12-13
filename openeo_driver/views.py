@@ -1029,7 +1029,9 @@ def register_views_batch_jobs(
         if filename not in results.keys():
             raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
         result = results[filename]
-        if "output_dir" in result:
+        if result.get("href", "").startswith("s3://"):
+            return _stream_from_s3(result["href"], result)
+        elif "output_dir" in result:
             out_dir_url = result["output_dir"]
             if out_dir_url.startswith("s3://"):
                 # TODO: Would be nice if we could use the s3:// URL directly without splitting into bucket and key.
@@ -1040,8 +1042,6 @@ def register_views_batch_jobs(
                 # TODO: does the S3 side also support 'Accept-Ranges'? Does it need it?
                 resp.headers['Accept-Ranges'] = 'bytes'
             return resp
-        elif result.get("href","").startswith("s3://"):
-                return _stream_from_s3(result["href"], result)
         elif "json_response" in result:
             return jsonify(result["json_response"])
         else:

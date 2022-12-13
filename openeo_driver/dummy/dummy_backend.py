@@ -626,6 +626,7 @@ class DummyBatchJobs(BatchJobs):
             "output.tiff": {
                 "asset": True,
                 "output_dir": f"{self._output_root()}/{job_id}",
+                "href": f"{self._output_root()}/{job_id}/output.tiff",
                 "type": "image/tiff; application=geotiff",
                 "roles": ["data"],
                 "bands": [Band(name="NDVI", common_name="NDVI", wavelength_um=1.23)],
