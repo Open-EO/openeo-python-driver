@@ -1579,7 +1579,7 @@ class TestBatchJobs:
         job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
         s3_bucket_name = "openeo-test-bucket"
         output_root = f"s3://{s3_bucket_name}/some-data-dir"
-        s3_key = f"/some-data-dir/{job_id}/output.tiff"
+        s3_key = f"some-data-dir/{job_id}/output.tiff"
 
         # Simulate that we have a large file so we would need to stream the download in chunks.
         # A size that is at least one byte larger than the STREAM_CHUNK_SIZE_DEFAULT should trigger streaming.
