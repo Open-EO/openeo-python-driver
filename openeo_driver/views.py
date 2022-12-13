@@ -1034,27 +1034,31 @@ def register_views_batch_jobs(
             if out_dir_url.startswith("s3://"):
                 # TODO: Would be nice if we could use the s3:// URL directly without splitting into bucket and key.
                 # Ignoring the "s3://" at the start makes it easier to split into the bucket and the rest.
-                bucket, folder = out_dir_url[5:].split("/", 1)
-                key = f"/{folder}/{filename}"
-                s3_instance = _s3_client()
-                s3_file_object = s3_instance.get_object(Bucket=bucket, Key=key)
-
-                body = s3_file_object["Body"]
-                resp = flask.Response(
-                    response=body.iter_chunks(STREAM_CHUNK_SIZE_DEFAULT),
-                    status=200,
-                    mimetype=result.get("type")
-                )
+                resp = _stream_from_s3(f"{out_dir_url}/{filename}", result)
             else:
                 resp = send_from_directory(result["output_dir"], filename, mimetype=result.get("type"))
                 # TODO: does the S3 side also support 'Accept-Ranges'? Does it need it?
                 resp.headers['Accept-Ranges'] = 'bytes'
             return resp
+        elif result.get("href","").startswith("s3://"):
+                return _stream_from_s3(result["href"], result)
         elif "json_response" in result:
             return jsonify(result["json_response"])
         else:
             _log.error(f"Unsupported job result: {result!r}")
             raise InternalException("Unsupported job result")
+
+    def _stream_from_s3(s3_url, result):
+        bucket, folder = s3_url[5:].split("/", 1)
+        s3_instance = _s3_client()
+        s3_file_object = s3_instance.get_object(Bucket=bucket, Key=folder)
+        body = s3_file_object["Body"]
+        resp = flask.Response(
+            response=body.iter_chunks(STREAM_CHUNK_SIZE_DEFAULT),
+            status=200,
+            mimetype=result.get("type")
+        )
+        return resp
 
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results/items/<user_base64>/<secure_key>/<item_id>', methods=['GET'])
