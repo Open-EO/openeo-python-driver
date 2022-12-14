@@ -49,10 +49,10 @@ API_VERSIONS = {
     "1.1.0": ApiVersionInfo(version="1.1.0", supported=True, wellknown=False, production=False),
     "1.1": ApiVersionInfo(version="1.1.0", supported=True, wellknown=True, production=True),
 }
-DEFAULT_VERSION = '1.1.0'
+API_VERSION_DEFAULT = "1.1.0"
 
 _log.info("API Versions: {v}".format(v=API_VERSIONS))
-_log.info("Default API Version: {v}".format(v=DEFAULT_VERSION))
+_log.info("Default API Version: {v}".format(v=API_VERSION_DEFAULT))
 
 
 # TODO: maybe STREAM_CHUNK_SIZE_DEFAULT belongs in flask_defaults.py?
@@ -123,13 +123,15 @@ def build_app(
     @app.url_defaults
     def _add_version(endpoint, values):
         """Blueprint.url_defaults handler to automatically add "version" argument in `url_for` calls."""
-        if 'version' not in values and current_app.url_map.is_endpoint_expecting(endpoint, 'version'):
-            values['version'] = g.get('request_version', DEFAULT_VERSION)
+        if "version" not in values and current_app.url_map.is_endpoint_expecting(
+            endpoint, "version"
+        ):
+            values["version"] = g.get("request_version", API_VERSION_DEFAULT)
 
     @app.url_value_preprocessor
     def _pull_version(endpoint, values):
         """Get API version from request and store in global context"""
-        version = (values or {}).pop('version', DEFAULT_VERSION)
+        version = (values or {}).pop("version", API_VERSION_DEFAULT)
         if not (version in API_VERSIONS and API_VERSIONS[version].supported):
             raise OpenEOApiException(
                 status_code=501,
