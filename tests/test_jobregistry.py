@@ -1,5 +1,4 @@
-import functools
-from typing import Callable
+import logging
 
 import pytest
 import requests
@@ -169,3 +168,14 @@ class TestElasticJobRegistry:
 
         result = ejr.set_status(job_id="job-123", status=JOB_STATUS.RUNNING)
         assert result["status"] == "running"
+
+    def test_just_log_errors(self, caplog):
+        with ElasticJobRegistry.just_log_errors("some math"):
+            x = (2 + 3) / 0
+        assert caplog.record_tuples == [
+            (
+                "openeo_driver.jobregistry.elastic",
+                logging.WARN,
+                "In context 'some math': caught ZeroDivisionError('division by zero')",
+            )
+        ]
