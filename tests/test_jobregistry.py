@@ -1,11 +1,12 @@
 import logging
+from typing import Union
 
 import pytest
 import requests
 import time_machine
-
 from openeo.rest.auth.testing import OidcMock
-from openeo_driver.jobregistry import ElasticJobRegistry, JOB_STATUS, EjrError
+
+from openeo_driver.jobregistry import JOB_STATUS, EjrError, ElasticJobRegistry
 from openeo_driver.testing import DictSubSet, RegexMatcher
 
 DUMMY_PROCESS = {
@@ -150,23 +151,78 @@ class TestElasticJobRegistry:
         result = ejr.list_user_jobs(user_id="john")
         assert result == [DUMMY_PROCESS]
 
-    def test_set_status(self, requests_mock, oidc_mock, ejr):
-        def patch_jobs(request, context):
+    def _handle_patch_jobs(
+        self, oidc_mock: OidcMock, expected_data: Union[dict, DictSubSet]
+    ):
+        """Create a mocking handler for `PATCH /jobs` requests."""
+
+        def patch_jobs(request: requests.Request, context):
             """Handler of `PATCH /jobs"""
             assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
             data = request.json()
-            expected = {
-                "backend_id": "unittests",
-                "job_id": "job-123",
-                "status": "running",
-            }
-            assert expected == data
+            assert data == expected_data
             # TODO: what to return? What does API return?  https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
             return data
 
-        requests_mock.patch(f"{self.EJR_API_URL}/jobs", json=patch_jobs)
+        return patch_jobs
 
-        result = ejr.set_status(job_id="job-123", status=JOB_STATUS.RUNNING)
+    def test_set_status(self, requests_mock, oidc_mock, ejr):
+        handler = self._handle_patch_jobs(
+            oidc_mock=oidc_mock,
+            expected_data={
+                "backend_id": "unittests",
+                "job_id": "job-123",
+                "status": "running",
+                "updated": "2022-12-14T12:34:56Z",
+            },
+        )
+        requests_mock.patch(f"{self.EJR_API_URL}/jobs", json=handler)
+
+        with time_machine.travel("2022-12-14T12:34:56Z"):
+            result = ejr.set_status(job_id="job-123", status=JOB_STATUS.RUNNING)
+        assert result["status"] == "running"
+
+    def test_set_status_with_started(self, requests_mock, oidc_mock, ejr):
+        handler = self._handle_patch_jobs(
+            oidc_mock=oidc_mock,
+            expected_data=DictSubSet(
+                {
+                    "job_id": "job-123",
+                    "status": "running",
+                    "updated": "2022-12-14T10:00:00Z",
+                    "started": "2022-12-14T10:00:00Z",
+                }
+            ),
+        )
+        requests_mock.patch(f"{self.EJR_API_URL}/jobs", json=handler)
+
+        result = ejr.set_status(
+            job_id="job-123",
+            status=JOB_STATUS.RUNNING,
+            updated="2022-12-14T10:00:00",
+            started="2022-12-14T10:00:00",
+        )
+        assert result["status"] == "running"
+
+    def test_set_status_with_finished(self, requests_mock, oidc_mock, ejr):
+        handler = self._handle_patch_jobs(
+            oidc_mock=oidc_mock,
+            expected_data=DictSubSet(
+                {
+                    "job_id": "job-123",
+                    "status": "running",
+                    "updated": "2022-12-14T12:34:56Z",
+                    "finished": "2022-12-14T10:00:00Z",
+                }
+            ),
+        )
+        requests_mock.patch(f"{self.EJR_API_URL}/jobs", json=handler)
+        with time_machine.travel("2022-12-14T12:34:56Z"):
+            result = ejr.set_status(
+                job_id="job-123",
+                status=JOB_STATUS.RUNNING,
+                finished="2022-12-14T10:00:00",
+            )
         assert result["status"] == "running"
 
     def test_just_log_errors(self, caplog):

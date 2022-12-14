@@ -341,6 +341,8 @@ class DictSubSet:
     >> assert {"foo": "bar", "meh": 4} == DictSubSet({"foo": "bar"})
     """
 
+    # TODO rename/alias to `a_dict_with()` to be more self-explanatory
+
     def __init__(self, items: dict = None, **kwargs):
         self.items = {**(items or {}), **kwargs}
 

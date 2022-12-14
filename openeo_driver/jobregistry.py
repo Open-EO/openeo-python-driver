@@ -230,14 +230,27 @@ class ElasticJobRegistry:
         # TODO: what to return? What does API return?
         return self._do_request("POST", "/jobs/search", json=query)
 
-    def set_status(self, job_id: str, status: str):
+    def set_status(
+        self,
+        job_id: str,
+        status: str,
+        *,
+        updated: Optional[str] = None,
+        started: Optional[str] = None,
+        finished: Optional[str] = None,
+    ):
         # TODO: handle this with a generic `patch` method?
         # TODO: add a source where the status came from (driver, tracker, async, ...)?
         data = {
             "backend_id": self._backend_id,
             "job_id": job_id,
             "status": status,
+            "updated": rfc3339.datetime(updated or dt.datetime.utcnow()),
         }
+        if started:
+            data["started"] = rfc3339.datetime(started)
+        if finished:
+            data["finished"] = rfc3339.datetime(finished)
         self.logger.info(f"Update {job_id=} {status=}", extra={"job_id": job_id})
         return self._do_request("PATCH", "/jobs", json=data)
 
