@@ -185,6 +185,7 @@ class ElasticJobRegistry:
         Store/Initialize a new job
         """
         if not job_id:
+            # TODO: move this to common method?
             job_id = generate_unique_id(prefix="j")
         # TODO: dates: as UTC ISO format or unix timestamp?
         created = rfc3339.datetime(dt.datetime.utcnow())
@@ -242,7 +243,6 @@ class ElasticJobRegistry:
         # TODO: handle this with a generic `patch` method?
         # TODO: add a source where the status came from (driver, tracker, async, ...)?
         data = {
-            "backend_id": self._backend_id,
             "job_id": job_id,
             "status": status,
             "updated": rfc3339.datetime(updated or dt.datetime.utcnow()),
