@@ -170,7 +170,6 @@ class TestElasticJobRegistry:
         handler = self._handle_patch_jobs(
             oidc_mock=oidc_mock,
             expected_data={
-                "backend_id": "unittests",
                 "job_id": "job-123",
                 "status": "running",
                 "updated": "2022-12-14T12:34:56Z",
