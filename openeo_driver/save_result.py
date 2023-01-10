@@ -15,6 +15,7 @@ import pandas as pd
 import typing
 from flask import send_from_directory, jsonify, Response
 from shapely.geometry import GeometryCollection, mapping
+import xarray
 
 from openeo.metadata import CollectionMetadata
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube, DriverMlModel
@@ -285,8 +286,6 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         return super().create_flask_response()
 
     def _create_point_timeseries_xarray(self, feature_ids, timestamps, lats, lons, averages_by_feature):
-        import xarray as xr
-
         #xarray breaks with timezone aware dates: https://github.com/pydata/xarray/issues/1490
         band_names = [f"band_{band}" for band in range(averages_by_feature.shape[2])] if len(averages_by_feature.shape) > 2 else ["band_0"]
 
@@ -299,9 +298,9 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
             for band in range(averages_by_feature.shape[2]):
                 data = averages_by_feature[:, :, band]
                 array_definition[band_names[band]] =  (('feature', 't'), data)
-            the_array = xr.Dataset(array_definition)
+            the_array = xarray.Dataset(array_definition)
         else:
-            the_array = xr.Dataset({
+            the_array = xarray.Dataset({
                 'avg': (('feature', 't'), averages_by_feature),
                 't': time_index})
 
