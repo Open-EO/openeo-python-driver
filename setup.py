@@ -25,6 +25,7 @@ tests_require = [
     'boto3[s3]>=1.26.17',
     'moto>=4.0.10',
     'time-machine',
+    "netCDF4>=1.5.4",
 ]
 
 setup(
@@ -51,7 +52,6 @@ setup(
         'pandas',
         'geopandas>=0.11.0',  # 0.11.0 fixes https://github.com/geopandas/geopandas/pull/2243
         'xarray>=0.16.2',
-        'netCDF4~=1.5.4',
         'flask-cors',
         'pyproj',
         'python-dateutil',
