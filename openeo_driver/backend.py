@@ -271,11 +271,15 @@ class BatchJobMetadata(NamedTuple):
     started: datetime = None
     finished: datetime = None
     duration_: timedelta = None
+    # TODO #153 Deprecated in favor of general "usage" field
     memory_time_megabyte: timedelta = None
+    # TODO #153 Deprecated in favor of general "usage" field
     cpu_time: timedelta = None
     geometry: dict = None
     bbox: List[float] = None
+    # TODO: #153 start_datetime is actually not metadata of batch job itself, but of the result (assets)
     start_datetime: datetime = None
+    # TODO: #153 end_datetime is actually not metadata of batch job itself, but of the result (assets)
     end_datetime: datetime = None
     instruments: List[str] = None
     epsg: int = None
