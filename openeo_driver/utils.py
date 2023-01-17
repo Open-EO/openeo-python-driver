@@ -143,8 +143,12 @@ def read_json(filename: Union[str, Path]) -> Union[dict, list]:
         return json.load(f)
 
 
-def smart_bool(value):
-    """Convert given value to bool, using a bit more interpretation for strings."""
+def smart_bool(value: Any) -> bool:
+    """
+    Convert given value to a boolean value, like `bool()` builtin,
+    but in case of strings: interpret some common cases as `False`:
+    "0", "no", "off", "false", ...
+    """
     if isinstance(value, str) and value.lower() in ["0", "no", "off", "false"]:
         return False
     else:
