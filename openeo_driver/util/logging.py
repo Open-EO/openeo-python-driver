@@ -225,10 +225,10 @@ class FlaskRequestCorrelationIdLogging(logging.Filter):
     @classmethod
     def get_request_id(cls) -> str:
         """Get request correlation id as stored in Flask request global `g`."""
-        if flask._app_ctx_stack.top is None:
-            return "no-request"
-        else:
+        if flask.has_request_context():
             return flask.g.get(cls.FLASK_G_ATTR, "n/a")
+        else:
+            return "no-request"
 
     def filter(self, record: logging.LogRecord) -> bool:
         """Filter a log record (logging.Filter API)."""
