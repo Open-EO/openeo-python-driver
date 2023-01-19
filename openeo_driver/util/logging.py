@@ -27,11 +27,13 @@ JSON_LOGGER_DEFAULT_FORMAT = "%(message)s %(levelname)s %(name)s %(created)s %(f
 
 
 def get_logging_config(
-        root_handlers: Optional[List[str]] = None,
-        loggers: Optional[Dict[str, dict]] = None,
-        handler_default_level: str = "DEBUG",
-        context: str = LOGGING_CONTEXT_FLASK,
-        root_level: str = "INFO",
+    root_handlers: Optional[List[str]] = None,
+    loggers: Optional[Dict[str, dict]] = None,
+    handler_default_level: str = "DEBUG",
+    context: str = LOGGING_CONTEXT_FLASK,
+    root_level: str = "INFO",
+    log_file: Optional[Union[str, Path]] = None,
+    log_dir: Optional[Union[str, Path]] = None,
 ) -> dict:
     """Construct logging config dict to be loaded with `logging.config.dictConfig`"""
 
@@ -55,14 +57,18 @@ def get_logging_config(
     else:
         json_filters = []
 
-    log_dirs = os.environ.get("LOG_DIRS")
-    log_dir = log_dirs.split(",")[0] if log_dirs is not None else "."
-    log_file = Path(log_dir) / "openeo_python.log"
+    if not log_file:
+        if not log_dir:
+            # TODO: this LOG_DIRS env var is originally something YARN specific (see 1b441cae)
+            #       can we eliminate env var usage here to improve traceability and predictability?
+            log_dir = os.environ.get("LOG_DIRS", ".").split(",")[0]
+        log_file = Path(log_dir) / "openeo_python.log"
 
     config = {
         "version": 1,
         "root": {
             "level": root_level,
+            # TODO: `get_logging_config` is also used outside of WSGI contexts so we need a better default handler here
             "handlers": (root_handlers or ["wsgi"]),
         },
         "loggers": loggers,
@@ -102,6 +108,7 @@ def get_logging_config(
                 "filters": json_filters,
                 "formatter": "json",
             },
+            # TODO: allow adding custom handlers (e.g. rotating file)
         },
         "filters": {
             "FlaskRequestCorrelationIdLogging": {"()": FlaskRequestCorrelationIdLogging},
