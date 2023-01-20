@@ -170,12 +170,11 @@ class TestElasticJobRegistry:
         handler = self._handle_patch_jobs(
             oidc_mock=oidc_mock,
             expected_data={
-                "job_id": "job-123",
                 "status": "running",
                 "updated": "2022-12-14T12:34:56Z",
             },
         )
-        requests_mock.patch(f"{self.EJR_API_URL}/jobs", json=handler)
+        requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
 
         with time_machine.travel("2022-12-14T12:34:56Z"):
             result = ejr.set_status(job_id="job-123", status=JOB_STATUS.RUNNING)
@@ -186,14 +185,13 @@ class TestElasticJobRegistry:
             oidc_mock=oidc_mock,
             expected_data=DictSubSet(
                 {
-                    "job_id": "job-123",
                     "status": "running",
                     "updated": "2022-12-14T10:00:00Z",
                     "started": "2022-12-14T10:00:00Z",
                 }
             ),
         )
-        requests_mock.patch(f"{self.EJR_API_URL}/jobs", json=handler)
+        requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
 
         result = ejr.set_status(
             job_id="job-123",
@@ -208,14 +206,13 @@ class TestElasticJobRegistry:
             oidc_mock=oidc_mock,
             expected_data=DictSubSet(
                 {
-                    "job_id": "job-123",
                     "status": "running",
                     "updated": "2022-12-14T12:34:56Z",
                     "finished": "2022-12-14T10:00:00Z",
                 }
             ),
         )
-        requests_mock.patch(f"{self.EJR_API_URL}/jobs", json=handler)
+        requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
         with time_machine.travel("2022-12-14T12:34:56Z"):
             result = ejr.set_status(
                 job_id="job-123",

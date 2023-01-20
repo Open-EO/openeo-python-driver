@@ -243,7 +243,6 @@ class ElasticJobRegistry:
         # TODO: handle this with a generic `patch` method?
         # TODO: add a source where the status came from (driver, tracker, async, ...)?
         data = {
-            "job_id": job_id,
             "status": status,
             "updated": rfc3339.datetime(updated or dt.datetime.utcnow()),
         }
@@ -252,7 +251,8 @@ class ElasticJobRegistry:
         if finished:
             data["finished"] = rfc3339.datetime(finished)
         self.logger.info(f"Update {job_id=} {status=}", extra={"job_id": job_id})
-        return self._do_request("PATCH", "/jobs", json=data)
+        # TODO: proper URL encoding of job id?
+        return self._do_request("PATCH", f"/jobs/{job_id}", json=data)
 
     @staticmethod
     def just_log_errors(name: str = "EJR"):
