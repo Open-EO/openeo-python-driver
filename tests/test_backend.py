@@ -222,5 +222,8 @@ def test_not_implemented():
     def bar(x):
         ...
 
+    meh = None
+
     assert is_not_implemented(foo) is False
     assert is_not_implemented(bar) is True
+    assert is_not_implemented(meh) is True

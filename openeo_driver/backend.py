@@ -52,9 +52,9 @@ def not_implemented(f: Callable):
     return f
 
 
-def is_not_implemented(f: Callable):
+def is_not_implemented(f: Union[Callable, None]):
     """Checker for functions/methods that are not implemented"""
-    return hasattr(f, "_not_implemented") and f._not_implemented
+    return f is None or (hasattr(f, "_not_implemented") and f._not_implemented)
 
 
 class ServiceMetadata(NamedTuple):
