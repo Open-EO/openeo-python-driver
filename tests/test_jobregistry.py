@@ -6,7 +6,12 @@ import requests
 import time_machine
 from openeo.rest.auth.testing import OidcMock
 
-from openeo_driver.jobregistry import JOB_STATUS, EjrError, ElasticJobRegistry
+from openeo_driver.jobregistry import (
+    JOB_STATUS,
+    EjrError,
+    ElasticJobRegistry,
+    ElasticJobRegistryCredentials,
+)
 from openeo_driver.testing import DictSubSet, RegexMatcher
 
 DUMMY_PROCESS = {
@@ -19,6 +24,39 @@ DUMMY_PROCESS = {
         },
     },
 }
+
+
+class TestElasticJobRegistryCredentials:
+    def test_basic(self):
+        creds = ElasticJobRegistryCredentials(
+            oidc_issuer="https://oidc.test/", client_id="c123", client_secret="@#$"
+        )
+        assert creds.oidc_issuer == "https://oidc.test/"
+        assert creds.client_id == "c123"
+        assert creds.client_secret == "@#$"
+        assert creds == ("https://oidc.test/", "c123", "@#$")
+
+    def test_repr(self):
+        creds = ElasticJobRegistryCredentials(
+            oidc_issuer="https://oidc.test/", client_id="c123", client_secret="@#$"
+        )
+        expected = "ElasticJobRegistryCredentials(oidc_issuer='https://oidc.test/', client_id='c123', client_secret='***')"
+        assert repr(creds) == expected
+        assert str(creds) == expected
+
+    def test_get_from_config(self):
+        creds = ElasticJobRegistryCredentials.get(
+            oidc_issuer="https://oidc.test/",
+            config={"client_id": "c456789", "client_secret": "s3cr3t"},
+        )
+        assert creds == ("https://oidc.test/", "c456789", "s3cr3t")
+
+    def test_get_from_env(self, monkeypatch):
+        monkeypatch.setenv("OPENEO_EJR_OIDC_ISSUER", "https://id.example")
+        monkeypatch.setenv("OPENEO_EJR_OIDC_CLIENT_ID", "c-9876")
+        monkeypatch.setenv("OPENEO_EJR_OIDC_CLIENT_SECRET", "!@#$%%")
+        creds = ElasticJobRegistryCredentials.get()
+        assert creds == ("https://id.example", "c-9876", "!@#$%%")
 
 
 class TestElasticJobRegistry:
@@ -46,11 +84,12 @@ class TestElasticJobRegistry:
     def ejr(self, oidc_mock) -> ElasticJobRegistry:
         """ElasticJobRegistry set up with authentication"""
         ejr = ElasticJobRegistry(backend_id="unittests", api_url=self.EJR_API_URL)
-        ejr.setup_auth_oidc_client_credentials(
+        credentials = ElasticJobRegistryCredentials(
             oidc_issuer=self.OIDC_CLIENT_INFO["oidc_issuer"],
             client_id=self.OIDC_CLIENT_INFO["client_id"],
             client_secret=self.OIDC_CLIENT_INFO["client_secret"],
         )
+        ejr.setup_auth_oidc_client_credentials(credentials)
         return ejr
 
     def test_access_token_caching(self, requests_mock, oidc_mock, ejr):

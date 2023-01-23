@@ -3,8 +3,10 @@ import datetime as dt
 import logging
 import os
 import pprint
+import typing
+
 import requests
-from typing import Optional, Union
+from typing import Optional, Union, NamedTuple
 
 import openeo_driver._version
 from openeo.rest.auth.oidc import (
@@ -14,6 +16,7 @@ from openeo.rest.auth.oidc import (
 )
 from openeo.rest.connection import url_join
 from openeo.util import TimingLogger, rfc3339
+from openeo_driver.datastructs import secretive_repr
 from openeo_driver.util.caching import TtlCache
 from openeo_driver.util.logging import just_log_exceptions
 from openeo_driver.utils import generate_unique_id
@@ -44,6 +47,50 @@ class EjrError(Exception):
     pass
 
 
+class ElasticJobRegistryCredentials(NamedTuple):
+    """Container of Elastic Job Registry related credentials."""
+
+    oidc_issuer: str
+    client_id: str
+    client_secret: str
+    __repr__ = __str__ = secretive_repr()
+
+    @staticmethod
+    def get(
+        *,
+        oidc_issuer: Optional[str] = None,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
+        config: Optional[typing.Mapping] = None,
+        env: Optional[typing.Mapping] = None,
+    ) -> "ElasticJobRegistryCredentials":
+        """Best effort factory to build ElasticJobRegistryCredentials from given args, config or env"""
+        # Start from args
+        kwargs = {
+            "oidc_issuer": oidc_issuer,
+            "client_id": client_id,
+            "client_secret": client_secret,
+        }
+        # fallback on config (if any) and env
+        env_var_mapping = {
+            "oidc_issuer": "OPENEO_EJR_OIDC_ISSUER",
+            "client_id": "OPENEO_EJR_OIDC_CLIENT_ID",
+            "client_secret": "OPENEO_EJR_OIDC_CLIENT_SECRET",
+        }
+        if env is None:
+            env = os.environ
+        for key in [k for (k, v) in kwargs.items() if not v]:
+            if config and key in config:
+                kwargs[key] = config[key]
+            elif env_var_mapping[key] in env:
+                kwargs[key] = env[env_var_mapping[key]]
+            else:
+                raise EjrError(
+                    f"Failed to obtain {key} field for building {ElasticJobRegistryCredentials.__name__}"
+                )
+        return ElasticJobRegistryCredentials(**kwargs)
+
+
 class ElasticJobRegistry:
     """
     (Base)class to manage storage of batch job metadata
@@ -54,25 +101,26 @@ class ElasticJobRegistry:
 
     logger = logging.getLogger(f"{__name__}.elastic")
 
-    def __init__(self, backend_id: str, api_url: str):
+    def __init__(self, backend_id: Optional[str], api_url: str):
         self.logger.info(f"Creating ElasticJobRegistry with {backend_id=} and {api_url=}")
-        self._backend_id = backend_id
+        # TODO: allow backend_id to be unset for workflows that don't create new jobs (job tracking, job overviews, ...)
+        self._backend_id: Optional[str] = backend_id
         self._api_url = api_url
-        self._authenticator = None
+        self._authenticator: Optional[OidcClientCredentialsAuthenticator] = None
         self._cache = TtlCache(default_ttl=60 * 60)
 
     def setup_auth_oidc_client_credentials(
-        self, oidc_issuer: str, client_id: str, client_secret: str
+        self, credentials: ElasticJobRegistryCredentials
     ):
         """Set up OIDC client credentials authentication."""
         self.logger.info(
-            f"Setting up OIDC Client Credentials Authentication with {client_id=}, {oidc_issuer=}, {len(client_secret)=}"
+            f"Setting up OIDC Client Credentials Authentication with {credentials.client_id=}, {credentials.oidc_issuer=}, {len(credentials.client_secret)=}"
         )
-        oidc_provider = OidcProviderInfo(issuer=oidc_issuer)
+        oidc_provider = OidcProviderInfo(issuer=credentials.oidc_issuer)
         client_info = OidcClientInfo(
-            client_id=client_id,
+            client_id=credentials.client_id,
             provider=oidc_provider,
-            client_secret=client_secret,
+            client_secret=credentials.client_secret,
         )
         self._authenticator = OidcClientCredentialsAuthenticator(
             client_info=client_info
@@ -87,30 +135,18 @@ class ElasticJobRegistry:
         """
         Factory to build an ElasticJobRegistry from an environment dict (or equivalent config).
         """
+        # TODO eliminate need for this factory?
         # TODO: get most settings from a config file and secrets from env vars or the vault?
         environ = environ or os.environ
 
+        # TODO: allow backend_id to be unset for flows that don't create new jobs
         backend_id = backend_id or environ.get("OPENEO_EJR_BACKEND_ID", "undefined")
+        # TODO eliminate fallback value here?
         api_url = environ.get("OPENEO_EJR_API", "https://jobregistry.openeo.vito.be")
         ejr = ElasticJobRegistry(backend_id=backend_id, api_url=api_url)
 
         if setup_auth:
-            # TODO: get authentication settings and secrets from Vault?
-            # TODO: don't provide fallback values?
-            oidc_issuer = environ.get(
-                "OPENEO_EJR_OIDC_ISSUER",
-                "https://sso.terrascope.be/auth/realms/terrascope",
-            )
-            client_id = environ.get("OPENEO_EJR_OIDC_CLIENT_ID", "openeo-elastic-job-registry")
-            client_secret = environ.get("OPENEO_EJR_OIDC_CLIENT_SECRET")
-            if not client_secret:
-                raise EjrError("Env var 'OPENEO_EJR_OIDC_CLIENT_SECRET' must be set")
-
-            ejr.setup_auth_oidc_client_credentials(
-                oidc_issuer=oidc_issuer,
-                client_id=client_id,
-                client_secret=client_secret,
-            )
+            ejr.setup_auth_oidc_client_credentials(ElasticJobRegistryCredentials.get())
         return ejr
 
     def _get_access_token(self) -> str:
@@ -191,7 +227,7 @@ class ElasticJobRegistry:
         created = rfc3339.datetime(dt.datetime.utcnow())
         job_data = {
             # Essential identifiers
-            "backend_id": self._backend_id,
+            "backend_id": self._backend_id,  # TODO: must be set
             "user_id": user_id,
             "job_id": job_id,
             # Essential job creation fields (as defined by openEO API)
