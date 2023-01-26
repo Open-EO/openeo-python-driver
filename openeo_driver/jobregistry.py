@@ -58,8 +58,7 @@ class ElasticJobRegistryCredentials(NamedTuple):
     @staticmethod
     def get(
         *,
-        # TODO #153 eliminate hardcoded oidc_issuer default
-        oidc_issuer: Optional[str] = "https://sso.terrascope.be/auth/realms/terrascope",
+        oidc_issuer: Optional[str] = None,
         client_id: Optional[str] = None,
         client_secret: Optional[str] = None,
         config: Optional[typing.Mapping] = None,
@@ -85,6 +84,12 @@ class ElasticJobRegistryCredentials(NamedTuple):
                 kwargs[key] = config[key]
             elif env_var_mapping[key] in env:
                 kwargs[key] = env[env_var_mapping[key]]
+            elif key == "oidc_issuer":
+                # TODO #153 eliminate hardcoded oidc_issuer default
+                _log.warning(
+                    "Deprecated ElasticJobRegistryCredentials.oidc_issuer fallback"
+                )
+                kwargs[key] = "https://sso.terrascope.be/auth/realms/terrascope"
             else:
                 raise EjrError(
                     f"Failed to obtain {key} field for building {ElasticJobRegistryCredentials.__name__}"
