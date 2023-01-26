@@ -58,7 +58,8 @@ class ElasticJobRegistryCredentials(NamedTuple):
     @staticmethod
     def get(
         *,
-        oidc_issuer: Optional[str] = None,
+        # TODO #153 eliminate hardcoded oidc_issuer default
+        oidc_issuer: Optional[str] = "https://sso.terrascope.be/auth/realms/terrascope",
         client_id: Optional[str] = None,
         client_secret: Optional[str] = None,
         config: Optional[typing.Mapping] = None,
