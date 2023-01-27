@@ -41,6 +41,36 @@ class JOB_STATUS:
     ERROR = "error"
 
 
+class JobRegistryInterface:
+    """Base interface for job registries"""
+
+    def create_job(
+        self,
+        process: dict,
+        user_id: str,
+        job_id: Optional[str] = None,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        parent_id: Optional[str] = None,
+        api_version: Optional[str] = None,
+        job_options: Optional[dict] = None,
+    ):
+        raise NotImplementedError
+
+    def set_status(
+        self,
+        job_id: str,
+        status: str,
+        *,
+        updated: Optional[str] = None,
+        started: Optional[str] = None,
+        finished: Optional[str] = None,
+    ):
+        raise NotImplementedError
+
+    # TODO: methods to list jobs (filtering on timeframe, userid, ...)?
+
+
 class EjrError(Exception):
     """Elastic Job Registry error (base class)."""
 
@@ -97,7 +127,7 @@ class ElasticJobRegistryCredentials(NamedTuple):
         return ElasticJobRegistryCredentials(**kwargs)
 
 
-class ElasticJobRegistry:
+class ElasticJobRegistry(JobRegistryInterface):
     """
     (Base)class to manage storage of batch job metadata
     using the Job Registry Elastic API (openeo-job-tracker-elastic-api)
