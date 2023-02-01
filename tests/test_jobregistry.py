@@ -190,6 +190,28 @@ class TestElasticJobRegistry:
         result = ejr.list_user_jobs(user_id="john")
         assert result == [DUMMY_PROCESS]
 
+    def test_list_active_jobs(self, requests_mock, oidc_mock, ejr):
+        def post_jobs_search(request, context):
+            """Handler of `POST /jobs/search"""
+            assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
+            return [
+                {
+                    "backend_id": "unittests",
+                    "job_id": "job-123",
+                    "user_id": "john",
+                }
+            ]
+
+        requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=post_jobs_search)
+        result = ejr.list_active_jobs()
+        assert result == [
+            {
+                "backend_id": "unittests",
+                "job_id": "job-123",
+                "user_id": "john",
+            }
+        ]
+
     def _handle_patch_jobs(
         self, oidc_mock: OidcMock, expected_data: Union[dict, DictSubSet]
     ):

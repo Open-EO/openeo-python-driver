@@ -6,7 +6,7 @@ import pprint
 import typing
 
 import requests
-from typing import Optional, Union, NamedTuple
+from typing import Optional, Union, NamedTuple, List
 
 import openeo_driver._version
 from openeo.rest.auth.oidc import (
@@ -69,6 +69,12 @@ class JobRegistryInterface:
         raise NotImplementedError
 
     # TODO: methods to list jobs (filtering on timeframe, userid, ...)?
+
+    def list_active_jobs(self) -> List[dict]:
+        """List active jobs (created, queued, running)"""
+        # TODO: parameter to limit timeframe to look at?
+        # TODO: return something more strict than free form dicts?
+        raise NotImplementedError
 
 
 class EjrError(Exception):
@@ -144,6 +150,10 @@ class ElasticJobRegistry(JobRegistryInterface):
         self._api_url = api_url
         self._authenticator: Optional[OidcClientCredentialsAuthenticator] = None
         self._cache = TtlCache(default_ttl=60 * 60)
+
+    @property
+    def backend_id(self) -> str:
+        return self._backend_id
 
     def setup_auth_oidc_client_credentials(
         self, credentials: ElasticJobRegistryCredentials
@@ -326,6 +336,24 @@ class ElasticJobRegistry(JobRegistryInterface):
         # TODO: proper URL encoding of job id?
         return self._do_request("PATCH", f"/jobs/{job_id}", json=data)
 
+    def list_active_jobs(self) -> List[dict]:
+        active = [JOB_STATUS.CREATED, JOB_STATUS.QUEUED, JOB_STATUS.RUNNING]
+        query = {
+            "query": {
+                "bool": {
+                    "filter": [
+                        {"term": {"backend_id": self._backend_id}},
+                        {"terms": {"status": active}},
+                        # TODO: option to change this timeframe?
+                        {"range": {"created": {"gte": "now-1d"}}},
+                    ]
+                }
+            }
+        }
+        # TODO: Option to only return job metadata essentials (e.g. not process graph) to reduce payload size
+        # TODO: what to return? What does API return?
+        return self._do_request("POST", "/jobs/search", json=query)
+
     @staticmethod
     def just_log_errors(name: str = "EJR"):
         """
@@ -336,13 +364,14 @@ class ElasticJobRegistry(JobRegistryInterface):
         return just_log_exceptions(log=ElasticJobRegistry.logger.warning, name=name)
 
 
-class Main:
+class CliApp:
     """
     Simple toy CLI to Elastic Job Registry API for development and testing
 
     Example usage:
 
-        export OPENEO_EJR_OIDC_CLIENT_SECRET=foobar
+        # First: log in to vault to get a vault token (for obtaining EJR credentials)
+        vault login -method=ldap username=john
 
         # Create a dummy job for user
         python openeo_driver/jobregistry.py create john
@@ -376,9 +405,11 @@ class Main:
         )
         health_check.set_defaults(func=self.health_check)
 
-        cli_list = subparsers.add_parser("list", help="List jobs for given user.")
-        cli_list.add_argument("user_id", help="User id to filter on.")
-        cli_list.set_defaults(func=self.list_user_jobs)
+        cli_list_user = subparsers.add_parser(
+            "list-user", help="List jobs for given user."
+        )
+        cli_list_user.add_argument("user_id", help="User id to filter on.")
+        cli_list_user.set_defaults(func=self.list_user_jobs)
 
         cli_create = subparsers.add_parser("create", help="Create a new job.")
         cli_create.add_argument("user_id", help="User id to filter on.")
@@ -389,12 +420,39 @@ class Main:
         cli_set_status.add_argument("status", help="New status (queued, running, ...)")
         cli_set_status.set_defaults(func=self.set_status)
 
+        cli_list_active = subparsers.add_parser("list-active", help="List active jobs.")
+        cli_list_active.add_argument("--backend-id", help="Override back-end ID")
+        cli_list_active.set_defaults(func=self.list_active_jobs)
+
         return cli.parse_args()
 
-    def _get_job_registry(self, setup_auth=True) -> ElasticJobRegistry:
-        return ElasticJobRegistry.from_environ(
-            self.environ, backend_id="test_cli", setup_auth=setup_auth
+    def _get_job_registry(
+        self, backend_id: Optional[str] = None, setup_auth=True
+    ) -> ElasticJobRegistry:
+        api_url = self.environ.get(
+            "OPENEO_EJR_API", "https://jobregistry.openeo.vito.be"
         )
+        ejr = ElasticJobRegistry(backend_id=backend_id or "test_cli", api_url=api_url)
+
+        if setup_auth:
+            _log.info("Trying to get EJR credentials from Vault")
+            # TODO: optional dependency `hvac` (HashiCorp Vault client) is blindly assumed here.
+            import hvac
+
+            # Note: this flow assumes default token resolution of vault client,
+            # for example through env var `VAULT_TOKEN`
+            # or local `~/.vault-token` (set by a preceding `vault login` call).
+            vault_client = hvac.Client(url=self.environ.get("VAULT_ADDR"))
+            secret = vault_client.secrets.kv.v2.read_secret_version(
+                # TODO: avoid this hardcoded path?
+                f"TAP/big_data_services/openeo/openeo-job-registry-elastic-api",
+                mount_point="kv",
+            )
+            credentials = ElasticJobRegistryCredentials.get(
+                config=secret["data"]["data"]
+            )
+            ejr.setup_auth_oidc_client_credentials(credentials=credentials)
+        return ejr
 
     def health_check(self, args: argparse.Namespace):
         ejr = self._get_job_registry(setup_auth=args.do_auth)
@@ -405,6 +463,12 @@ class Main:
         ejr = self._get_job_registry()
         jobs = ejr.list_user_jobs(user_id=user_id)
         print(f"Found {len(jobs)} jobs for user {user_id!r}:")
+        pprint.pp(jobs)
+
+    def list_active_jobs(self, args: argparse.Namespace):
+        ejr = self._get_job_registry(backend_id=args.backend_id)
+        jobs = ejr.list_active_jobs()
+        print(f"Found {len(jobs)} active jobs (backend {ejr.backend_id!r}):")
         pprint.pp(jobs)
 
     def create_dummy_job(self, args: argparse.Namespace):
@@ -431,4 +495,4 @@ class Main:
 
 
 if __name__ == "__main__":
-    Main().main()
+    CliApp().main()
