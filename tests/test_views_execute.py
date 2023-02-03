@@ -3163,4 +3163,4 @@ def test_vector_buffer_returns_error_on_empty_result_geometry(api):
 
     resp.assert_error(400, "ProcessParameterInvalid",
                       message="The value passed for parameter 'geometry' in process 'vector_buffer' is invalid:"
-                              " Buffering with distance -10 meter resulted in empty geometries")
+                              " Buffering with distance -10 meter resulted in empty geometries at position(s) [0]")
