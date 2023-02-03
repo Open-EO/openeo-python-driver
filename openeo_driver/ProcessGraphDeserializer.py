@@ -627,6 +627,15 @@ def vector_buffer(args: Dict, env: EvalEnv) -> dict:
     epsg_utmzone = auto_utm_epsg_for_geometry(geoms.geometry[0])
 
     poly_buff_latlon = geoms.to_crs(epsg_utmzone).buffer(distance, resolution=buffer_resolution).to_crs(output_crs)
+
+    empty_result_indices = np.where(poly_buff_latlon.is_empty)[0]
+    if empty_result_indices.size > 0:
+        raise ProcessParameterInvalidException(
+            parameter="geometry", process="vector_buffer",
+            reason=f"Buffering with distance {distance} {unit} resulted in empty geometries "
+                   f"at position(s) {empty_result_indices}"
+        )
+
     return mapping(poly_buff_latlon[0]) if len(poly_buff_latlon) == 1 else mapping(poly_buff_latlon)
 
 

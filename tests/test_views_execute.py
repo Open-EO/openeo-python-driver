@@ -3124,3 +3124,43 @@ def test_to_vector_cube(api100, geojson, expected):
         "type": "FeatureCollection",
         "features": expected,
     })
+
+
+def test_vector_buffer_returns_error_on_empty_result_geometry(api):
+    geojson = {
+        "type": "FeatureCollection",
+        "features": [{
+            "id": "52",
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[[5.17540782, 51.2721762], [5.17541833, 51.27226422], [5.17332007, 51.27209092],
+                                 [5.17331899, 51.27206998], [5.17331584, 51.27200861], [5.17540782, 51.2721762]]]
+            }
+        }, {
+            "id": "53",
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[[5.21184352, 51.16855893], [5.21189095, 51.16861253], [5.21162038, 51.16887065],
+                                 [5.21141722, 51.16910133], [5.21117999, 51.16902886], [5.21103991, 51.16899166],
+                                 [5.21143081, 51.16848752], [5.21155978, 51.16848455], [5.21184352, 51.16855893]]]
+            }
+        }]
+    }
+
+    resp = api.result({
+        'vectorbuffer1': {
+            'process_id': 'vector_buffer',
+            'arguments': {
+                'geometry': geojson,
+                'distance': -10,
+                'unit': 'meter'
+            },
+            'result': True
+        }
+    })
+
+    resp.assert_error(400, "ProcessParameterInvalid",
+                      message="The value passed for parameter 'geometry' in process 'vector_buffer' is invalid:"
+                              " Buffering with distance -10 meter resulted in empty geometries at position(s) [0]")
