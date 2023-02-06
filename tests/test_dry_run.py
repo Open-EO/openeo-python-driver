@@ -4,7 +4,7 @@ import shapely.geometry
 from openeo.internal.graph_building import PGNode
 from openeo.rest.datacube import DataCube
 from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER, _extract_load_parameters, \
-    ENV_SOURCE_CONSTRAINTS, custom_process_from_process_graph, process_registry_100
+    ENV_SOURCE_CONSTRAINTS, custom_process_from_process_graph, process_registry_100, ENV_SAVE_RESULT
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
@@ -1385,3 +1385,73 @@ def test_load_result_constraints(dry_run_env, dry_run_tracer):
             }
         )
     ]
+
+def test_multiple_save_result(dry_run_env):
+    pg = {
+      "collection1": {
+        "process_id": "load_collection",
+        "arguments": {
+          "id": "S2_FAPAR_CLOUDCOVER"
+        }
+      },
+      "collection2": {
+        "process_id": "load_collection",
+        "arguments": {
+          "id": "S2_FOOBAR"
+        }
+      },
+      "saveresult1": {
+        "process_id": "save_result",
+        "arguments": {
+          "options": {},
+          "data": {
+            "from_node": "collection2"
+          },
+          "format": "GTiff"
+        }
+      },
+      "mergecubes1": {
+        "process_id": "merge_cubes",
+        "arguments": {
+          "cube1": {
+            "from_node": "collection1"
+          },
+          "cube2": {
+            "from_node": "saveresult1"
+          },
+          "overlap_resolver": {
+            "process_graph": {
+              "or1": {
+                "process_id": "or",
+                "arguments": {
+                  "x": {
+                    "from_parameter": "x"
+                  },
+                  "y": {
+                    "from_parameter": "y"
+                  }
+                },
+                "result": True
+              }
+            }
+          }
+        },
+        "result": False
+      },
+      "saveresult2": {
+        "result": True,
+        "arguments": {
+          "options": {},
+          "data": {
+            "from_node": "mergecubes1"
+          },
+          "format": "netCDF"
+        },
+        "process_id": "save_result"
+      }
+    }
+    dry_run_env = dry_run_env.push({ENV_SAVE_RESULT: []})
+    the_result = evaluate(pg, env=dry_run_env)
+    save_result = dry_run_env.get(ENV_SAVE_RESULT)
+    assert  len(save_result) == 2
+    assert len(the_result) == 2

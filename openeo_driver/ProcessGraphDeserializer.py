@@ -221,7 +221,7 @@ def _register_fallback_implementations_by_process_graph(process_registry: Proces
 # Some (env) string constants to simplify code navigation
 ENV_SOURCE_CONSTRAINTS = "source_constraints"
 ENV_DRY_RUN_TRACER = "dry_run_tracer"
-
+ENV_SAVE_RESULT= "save_result"
 
 class SimpleProcessing(Processing):
     """
@@ -324,17 +324,27 @@ def evaluate(
 
     top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
     result_node = process_graph[top_level_node]
+    if ENV_SAVE_RESULT not in env:
+        env = env.push({ENV_SAVE_RESULT:[]})
 
     if do_dry_run:
         dry_run_tracer = do_dry_run if isinstance(do_dry_run, DryRunDataTracer) else DryRunDataTracer()
         _log.info("Doing dry run")
-        convert_node(result_node, env=env.push({ENV_DRY_RUN_TRACER: dry_run_tracer}))
+        convert_node(result_node, env=env.push({ENV_DRY_RUN_TRACER: dry_run_tracer, ENV_SAVE_RESULT:[]}))
         # TODO: work with a dedicated DryRunEvalEnv?
         source_constraints = dry_run_tracer.get_source_constraints()
         _log.info("Dry run extracted these source constraints: {s}".format(s=source_constraints))
         env = env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
 
-    return convert_node(result_node, env=env)
+    result = convert_node(result_node, env=env)
+    if ENV_SAVE_RESULT in env and len(env[ENV_SAVE_RESULT])>0:
+        if len(env[ENV_SAVE_RESULT]) == 1:
+            return env[ENV_SAVE_RESULT][0]
+        else:
+            #unpack to remain consistent with previous behaviour of returning results
+            return env[ENV_SAVE_RESULT]
+    else:
+        return result
 
 
 def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
@@ -686,9 +696,13 @@ def save_result(args: Dict, env: EvalEnv) -> SaveResult:
         # TODO: Is this an expected code path? `save_result` should be terminal node in a graph
         #       so chaining `save_result` calls should not be valid
         data.set_format(format, options)
+        env[ENV_SAVE_RESULT].append(data)
         return data
     else:
-        return to_save_result(data, format=format, options=options)
+        result = to_save_result(data, format=format, options=options)
+        env[ENV_SAVE_RESULT].append(result)
+
+        return data
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/save_ml_model.json"))
