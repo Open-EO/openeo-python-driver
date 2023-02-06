@@ -82,6 +82,10 @@ class JobRegistryInterface:
     def set_dependency_status(self, job_id: str, dependency_status: str):
         raise NotImplementedError
 
+    def set_proxy_user(self, job_id: str, proxy_user: str):
+        # TODO: this is a pretty implementation specific field. Generalize this in some way?
+        raise NotImplementedError
+
     # TODO: methods to list jobs (filtering on timeframe, userid, ...)?
 
     def list_active_jobs(self) -> List[dict]:
@@ -352,13 +356,14 @@ class ElasticJobRegistry(JobRegistryInterface):
 
     def _update(self, job_id: str, data: dict):
         """Generic update method"""
+        self.logger.info(f"Update {job_id=} {data=}", extra={"job_id": job_id})
         return self._do_request("PATCH", f"/jobs/{job_id}", json=data)
 
     def set_dependency_status(self, job_id: str, dependency_status: str) -> None:
-        self.logger.info(
-            f"Update {job_id=} {dependency_status=}", extra={"job_id": job_id}
-        )
         self._update(job_id=job_id, data={"dependency_status": dependency_status})
+
+    def set_proxy_user(self, job_id: str, proxy_user: str):
+        self._update(job_id=job_id, data={"proxy_user": proxy_user})
 
     def list_active_jobs(self) -> List[dict]:
         active = [JOB_STATUS.CREATED, JOB_STATUS.QUEUED, JOB_STATUS.RUNNING]
