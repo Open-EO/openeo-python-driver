@@ -696,13 +696,16 @@ def save_result(args: Dict, env: EvalEnv) -> SaveResult:
         # TODO: Is this an expected code path? `save_result` should be terminal node in a graph
         #       so chaining `save_result` calls should not be valid
         data.set_format(format, options)
-        env[ENV_SAVE_RESULT].append(data)
+        if ENV_SAVE_RESULT in env:
+            env[ENV_SAVE_RESULT].append(data)
         return data
     else:
         result = to_save_result(data, format=format, options=options)
-        env[ENV_SAVE_RESULT].append(result)
-
-        return data
+        if ENV_SAVE_RESULT in env:
+            env[ENV_SAVE_RESULT].append(result)
+            return data
+        else:
+            return result
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/save_ml_model.json"))
