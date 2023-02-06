@@ -11,6 +11,7 @@ from openeo_driver.jobregistry import (
     EjrError,
     ElasticJobRegistry,
     ElasticJobRegistryCredentials,
+    DEPENDENCY_STATUS,
 )
 from openeo_driver.testing import DictSubSet, RegexMatcher
 
@@ -281,6 +282,21 @@ class TestElasticJobRegistry:
                 finished="2022-12-14T10:00:00",
             )
         assert result["status"] == "running"
+
+    def test_set_dependency_status(self, requests_mock, oidc_mock, ejr):
+        handler = self._handle_patch_jobs(
+            oidc_mock=oidc_mock,
+            expected_data={
+                "dependency_status": "awaiting",
+            },
+        )
+        mock = requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
+
+        with time_machine.travel("2022-12-14T12:34:56Z"):
+            ejr.set_dependency_status(
+                job_id="job-123", dependency_status=DEPENDENCY_STATUS.AWAITING
+            )
+        assert mock.call_count == 1
 
     def test_just_log_errors(self, caplog):
         with ElasticJobRegistry.just_log_errors("some math"):

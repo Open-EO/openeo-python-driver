@@ -41,6 +41,17 @@ class JOB_STATUS:
     ERROR = "error"
 
 
+class DEPENDENCY_STATUS:
+    """
+    Container of dependency status constants
+    """
+
+    AWAITING = "awaiting"
+    AVAILABLE = "available"
+    AWAITING_RETRY = "awaiting_retry"
+    ERROR = "error"
+
+
 class JobRegistryInterface:
     """Base interface for job registries"""
 
@@ -66,6 +77,9 @@ class JobRegistryInterface:
         started: Optional[str] = None,
         finished: Optional[str] = None,
     ):
+        raise NotImplementedError
+
+    def set_dependency_status(self, job_id: str, dependency_status: str):
         raise NotImplementedError
 
     # TODO: methods to list jobs (filtering on timeframe, userid, ...)?
@@ -335,6 +349,16 @@ class ElasticJobRegistry(JobRegistryInterface):
         self.logger.info(f"Update {job_id=} {status=}", extra={"job_id": job_id})
         # TODO: proper URL encoding of job id?
         return self._do_request("PATCH", f"/jobs/{job_id}", json=data)
+
+    def _update(self, job_id: str, data: dict):
+        """Generic update method"""
+        return self._do_request("PATCH", f"/jobs/{job_id}", json=data)
+
+    def set_dependency_status(self, job_id: str, dependency_status: str) -> None:
+        self.logger.info(
+            f"Update {job_id=} {dependency_status=}", extra={"job_id": job_id}
+        )
+        self._update(job_id=job_id, data={"dependency_status": dependency_status})
 
     def list_active_jobs(self) -> List[dict]:
         active = [JOB_STATUS.CREATED, JOB_STATUS.QUEUED, JOB_STATUS.RUNNING]
