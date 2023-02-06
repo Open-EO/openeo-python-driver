@@ -12,6 +12,7 @@ import shapely.geometry
 import shapely.geometry.base
 import shapely.ops
 import xarray
+from pyproj import CRS
 
 from openeo import ImageCollection
 from openeo.metadata import CollectionMetadata
@@ -208,7 +209,12 @@ class DriverVectorCube:
                 )
                 resp.raw.decode_content = True
                 location = io.BytesIO(resp.raw.read())
-            return cls(geometries=gpd.read_parquet(location))
+            geoDataframe = gpd.read_parquet(location)
+
+            if("WGS 84 (CRS84)" in str(geoDataframe.crs)):
+                #workaround for not being able to decode ogc:crs84
+                geoDataframe.crs = CRS.from_epsg(4326)
+            return cls(geometries=geoDataframe)
         else:
             return cls(geometries=gpd.read_file(paths[0], driver=driver))
 
