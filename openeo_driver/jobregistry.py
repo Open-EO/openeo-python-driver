@@ -6,7 +6,7 @@ import pprint
 import typing
 
 import requests
-from typing import Optional, Union, NamedTuple, List
+from typing import Optional, Union, NamedTuple, List, Dict
 
 import openeo_driver._version
 from openeo.rest.auth.oidc import (
@@ -77,6 +77,12 @@ class JobRegistryInterface:
         started: Optional[str] = None,
         finished: Optional[str] = None,
     ):
+        raise NotImplementedError
+
+    def set_dependencies(self, job_id: str, dependencies: List[Dict[str, str]]):
+        raise NotImplementedError
+
+    def remove_dependencies(self, job_id: str):
         raise NotImplementedError
 
     def set_dependency_status(self, job_id: str, dependency_status: str):
@@ -358,6 +364,14 @@ class ElasticJobRegistry(JobRegistryInterface):
         """Generic update method"""
         self.logger.info(f"Update {job_id=} {data=}", extra={"job_id": job_id})
         return self._do_request("PATCH", f"/jobs/{job_id}", json=data)
+
+    def set_dependencies(self, job_id: str, dependencies: List[Dict[str, str]]):
+        self._update(job_id=job_id, data={"dependencies": dependencies})
+
+    def remove_dependencies(self, job_id: str):
+        self._update(
+            job_id=job_id, data={"dependencies": None, "dependency_status": None}
+        )
 
     def set_dependency_status(self, job_id: str, dependency_status: str) -> None:
         self._update(job_id=job_id, data={"dependency_status": dependency_status})
