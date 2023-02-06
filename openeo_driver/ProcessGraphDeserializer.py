@@ -1971,6 +1971,19 @@ def load_result(args: dict, env: EvalEnv) -> DriverDataCube:
         return env.backend_implementation.load_result(job_id=job_id, user_id=user.user_id if user is not None else None,
                                                       load_params=load_params, env=env)
 
+@process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/inspect.json"))
+def inspect(args: dict, env: EvalEnv):
+    data = extract_arg(args,"data")
+    message = args.get("message","")
+    level = args.get("level","")
+    from logging import getLevelName
+    if message is not "":
+        _log.log(level=getLevelName(level.upper()),msg=message)
+    data_message=str(data)
+    if isinstance(data, DriverDataCube):
+        data_message = str(data.metadata)
+    _log.log(level=getLevelName(level.upper()), msg=data_message)
+    return data
 
 @process_registry_100.add_simple_function
 def text_begins(data: str, pattern: str, case_sensitive: bool = True) -> Union[bool, None]:

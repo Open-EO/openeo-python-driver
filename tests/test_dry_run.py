@@ -312,6 +312,28 @@ def test_evaluate_load_collection_and_filter_extents(dry_run_env, dry_run_tracer
     }
 
 
+def test_inspect(dry_run_env, dry_run_tracer):
+    """temporal/bbox/band extents in load_collection *and* filter_ processes"""
+    pg = {
+        "load": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "S2_FOOBAR",
+                "spatial_extent": {"west": 0, "south": 50, "east": 5, "north": 55},
+                "temporal_extent": ["2020-01-01", "2020-10-10"],
+                "bands": ["red", "green", "blue"]
+            },
+        },
+        "inspect": {
+            "process_id": "inspect",
+            "arguments": {"data": {"from_node": "load"}, "level": "error", "message":"logging a message"},
+            "result":True
+        },
+    }
+    cube = evaluate(pg, env=dry_run_env)
+
+
+
 def test_evaluate_merge_collections(dry_run_env, dry_run_tracer):
     pg = {
         "load": {
