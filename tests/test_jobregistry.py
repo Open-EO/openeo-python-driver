@@ -1,5 +1,6 @@
 import logging
 from typing import Union
+from unittest import mock
 
 import pytest
 import requests
@@ -7,11 +8,12 @@ import time_machine
 from openeo.rest.auth.testing import OidcMock
 
 from openeo_driver.jobregistry import (
+    DEPENDENCY_STATUS,
     JOB_STATUS,
     EjrError,
+    EjrHttpError,
     ElasticJobRegistry,
     ElasticJobRegistryCredentials,
-    DEPENDENCY_STATUS,
 )
 from openeo_driver.testing import DictSubSet, RegexMatcher
 
@@ -287,41 +289,102 @@ class TestElasticJobRegistry:
         handler = self._handle_patch_jobs(
             oidc_mock=oidc_mock, expected_data={"dependencies": [{"foo": "bar"}]}
         )
-        mock = requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
+        patch_mock = requests_mock.patch(
+            f"{self.EJR_API_URL}/jobs/job-123", json=handler
+        )
 
         ejr.set_dependencies(job_id="job-123", dependencies=[{"foo": "bar"}])
-        assert mock.call_count == 1
+        assert patch_mock.call_count == 1
 
     def test_remove_dependencies(self, requests_mock, oidc_mock, ejr):
         handler = self._handle_patch_jobs(
             oidc_mock=oidc_mock,
             expected_data={"dependencies": None, "dependency_status": None},
         )
-        mock = requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
+        patch_mock = requests_mock.patch(
+            f"{self.EJR_API_URL}/jobs/job-123", json=handler
+        )
 
         ejr.remove_dependencies(job_id="job-123")
-        assert mock.call_count == 1
+        assert patch_mock.call_count == 1
 
     def test_set_dependency_status(self, requests_mock, oidc_mock, ejr):
         handler = self._handle_patch_jobs(
             oidc_mock=oidc_mock,
             expected_data={"dependency_status": "awaiting"},
         )
-        mock = requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
+        patch_mock = requests_mock.patch(
+            f"{self.EJR_API_URL}/jobs/job-123", json=handler
+        )
 
         ejr.set_dependency_status(
                 job_id="job-123", dependency_status=DEPENDENCY_STATUS.AWAITING
             )
-        assert mock.call_count == 1
+        assert patch_mock.call_count == 1
 
+    def test_set_proxy_user(self, requests_mock, oidc_mock, ejr):
+        handler = self._handle_patch_jobs(
+            oidc_mock=oidc_mock, expected_data={"proxy_user": "john"}
+        )
+        patch_mock = requests_mock.patch(
+            f"{self.EJR_API_URL}/jobs/job-123", json=handler
+        )
+
+        ejr.set_proxy_user(job_id="job-123", proxy_user="john")
+        assert patch_mock.call_count == 1
     def test_set_application_id(self, requests_mock, oidc_mock, ejr):
         handler = self._handle_patch_jobs(
             oidc_mock=oidc_mock, expected_data={"application_id": "app-456"}
         )
-        mock = requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
+        patch_mock = requests_mock.patch(
+            f"{self.EJR_API_URL}/jobs/job-123", json=handler
+        )
 
         ejr.set_application_id(job_id="job-123", application_id="app-456")
-        assert mock.call_count == 1
+        assert patch_mock.call_count == 1
+
+    @pytest.mark.parametrize(
+        ["failures", "attempts", "expect_success"],
+        [
+            (0, 1, True),
+            (1, 2, True),
+            (2, 2, False),
+        ],
+    )
+    def test_update_retry(
+        self, requests_mock, oidc_mock, ejr, failures, attempts, expect_success
+    ):
+        def not_found(request: requests.Request, context):
+            context.status_code = 404
+            context.reason = "Not Found"
+            return {
+                "statusCode": 404,
+                "error": "Not Found",
+                "message": "Could not find job with job-123",
+            }
+
+        handler = self._handle_patch_jobs(
+            oidc_mock=oidc_mock, expected_data={"application_id": "app-456"}
+        )
+
+        response_list = [{"json": not_found}] * failures
+        response_list += [{"json": handler}]
+        patch_mock = requests_mock.patch(
+            f"{self.EJR_API_URL}/jobs/job-123", response_list
+        )
+
+        with mock.patch("time.sleep") as sleep:
+            try:
+                result = ejr.set_application_id(
+                    job_id="job-123", application_id="app-456"
+                )
+                assert result == {"application_id": "app-456"}
+                assert expect_success
+            except EjrHttpError:
+                assert not expect_success
+
+        assert sleep.call_count == attempts - 1
+        assert patch_mock.call_count == attempts
 
     def test_just_log_errors(self, caplog):
         with ElasticJobRegistry.just_log_errors("some math"):

@@ -3,12 +3,11 @@ import datetime as dt
 import logging
 import os
 import pprint
+import time
 import typing
+from typing import Dict, List, NamedTuple, Optional, Union
 
 import requests
-from typing import Optional, Union, NamedTuple, List, Dict
-
-import openeo_driver._version
 from openeo.rest.auth.oidc import (
     OidcClientCredentialsAuthenticator,
     OidcClientInfo,
@@ -16,6 +15,8 @@ from openeo.rest.auth.oidc import (
 )
 from openeo.rest.connection import url_join
 from openeo.util import TimingLogger, rfc3339
+
+import openeo_driver._version
 from openeo_driver.datastructs import secretive_repr
 from openeo_driver.util.caching import TtlCache
 from openeo_driver.util.logging import just_log_exceptions
@@ -108,6 +109,20 @@ class EjrError(Exception):
     """Elastic Job Registry error (base class)."""
 
     pass
+
+
+class EjrHttpError(EjrError):
+    def __init__(self, msg: str, status_code: Optional[int]):
+        super().__init__(msg)
+        self.status_code = status_code
+
+    @classmethod
+    def from_response(cls, response: requests.Response):
+        request = response.request
+        return cls(
+            msg=f"EJR API error: {response.status_code} {response.reason!r} on `{request.method} {request.url!r}`: {response.text}",
+            status_code=response.status_code,
+        )
 
 
 class ElasticJobRegistryCredentials(NamedTuple):
@@ -243,9 +258,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             )
             self.logger.debug(f"Response on `{method} {path}`: {response!r}")
             if expected_status and response.status_code != expected_status:
-                raise EjrError(
-                    f"EJR API error: {response.status_code} {response.reason!r} on `{method} {response.url!r}`: {response.text}"
-                )
+                raise EjrHttpError.from_response(response=response)
             else:
                 response.raise_for_status()
             return response.json()
@@ -340,27 +353,39 @@ class ElasticJobRegistry(JobRegistryInterface):
         # TODO: proper URL encoding of job id?
         return self._do_request("PATCH", f"/jobs/{job_id}", json=data)
 
-    def _update(self, job_id: str, data: dict):
+    def _update(self, job_id: str, data: dict, retry: bool = True) -> dict:
         """Generic update method"""
         self.logger.info(f"Update {job_id=} {data=}", extra={"job_id": job_id})
-        return self._do_request("PATCH", f"/jobs/{job_id}", json=data)
+        try:
+            return self._do_request("PATCH", f"/jobs/{job_id}", json=data)
+        except EjrHttpError as e:
+            if e.status_code == 404 and retry:
+                self.logger.warning(
+                    f"Retrying failed update {job_id=} {data=}",
+                    extra={"job_id": job_id},
+                )
+                time.sleep(3)  # TODO: finetune sleep?
+                return self._do_request("PATCH", f"/jobs/{job_id}", json=data)
+            raise
 
-    def set_dependencies(self, job_id: str, dependencies: List[Dict[str, str]]):
-        self._update(job_id=job_id, data={"dependencies": dependencies})
+    def set_dependencies(self, job_id: str, dependencies: List[Dict[str, str]]) -> dict:
+        return self._update(job_id=job_id, data={"dependencies": dependencies})
 
-    def remove_dependencies(self, job_id: str):
-        self._update(
+    def remove_dependencies(self, job_id: str) -> dict:
+        return self._update(
             job_id=job_id, data={"dependencies": None, "dependency_status": None}
         )
 
-    def set_dependency_status(self, job_id: str, dependency_status: str) -> None:
-        self._update(job_id=job_id, data={"dependency_status": dependency_status})
+    def set_dependency_status(self, job_id: str, dependency_status: str) -> dict:
+        return self._update(
+            job_id=job_id, data={"dependency_status": dependency_status}
+        )
 
-    def set_proxy_user(self, job_id: str, proxy_user: str):
-        self._update(job_id=job_id, data={"proxy_user": proxy_user})
+    def set_proxy_user(self, job_id: str, proxy_user: str) -> dict:
+        return self._update(job_id=job_id, data={"proxy_user": proxy_user})
 
-    def set_application_id(self, job_id: str, application_id: str):
-        self._update(job_id=job_id, data={"application_id": application_id})
+    def set_application_id(self, job_id: str, application_id: str) -> dict:
+        return self._update(job_id=job_id, data={"application_id": application_id})
 
     def list_active_jobs(self) -> List[dict]:
         active = [JOB_STATUS.CREATED, JOB_STATUS.QUEUED, JOB_STATUS.RUNNING]
