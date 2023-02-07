@@ -92,6 +92,9 @@ class JobRegistryInterface:
         # TODO: this is a pretty implementation specific field. Generalize this in some way?
         raise NotImplementedError
 
+    def set_application_id(self, job_id: str, application_id: str):
+        raise NotImplementedError
+
     # TODO: methods to list jobs (filtering on timeframe, userid, ...)?
 
     def list_active_jobs(self) -> List[dict]:
@@ -378,6 +381,9 @@ class ElasticJobRegistry(JobRegistryInterface):
 
     def set_proxy_user(self, job_id: str, proxy_user: str):
         self._update(job_id=job_id, data={"proxy_user": proxy_user})
+
+    def set_application_id(self, job_id: str, application_id: str):
+        self._update(job_id=job_id, data={"application_id": application_id})
 
     def list_active_jobs(self) -> List[dict]:
         active = [JOB_STATUS.CREATED, JOB_STATUS.QUEUED, JOB_STATUS.RUNNING]

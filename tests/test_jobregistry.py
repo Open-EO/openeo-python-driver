@@ -314,6 +314,15 @@ class TestElasticJobRegistry:
             )
         assert mock.call_count == 1
 
+    def test_set_application_id(self, requests_mock, oidc_mock, ejr):
+        handler = self._handle_patch_jobs(
+            oidc_mock=oidc_mock, expected_data={"application_id": "app-456"}
+        )
+        mock = requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
+
+        ejr.set_application_id(job_id="job-123", application_id="app-456")
+        assert mock.call_count == 1
+
     def test_just_log_errors(self, caplog):
         with ElasticJobRegistry.just_log_errors("some math"):
             x = (2 + 3) / 0
