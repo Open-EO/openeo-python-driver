@@ -4,6 +4,7 @@ import logging
 import os
 import pprint
 import time
+from decimal import Decimal
 import typing
 from typing import Dict, List, NamedTuple, Optional, Union
 
@@ -87,6 +88,9 @@ class JobRegistryInterface:
         raise NotImplementedError
 
     def set_dependency_status(self, job_id: str, dependency_status: str):
+        raise NotImplementedError
+
+    def set_dependency_usage(self, job_id: str, dependency_usage: Decimal) -> dict:
         raise NotImplementedError
 
     def set_proxy_user(self, job_id: str, proxy_user: str):
@@ -380,6 +384,11 @@ class ElasticJobRegistry(JobRegistryInterface):
     def set_dependency_status(self, job_id: str, dependency_status: str) -> dict:
         return self._update(
             job_id=job_id, data={"dependency_status": dependency_status}
+        )
+
+    def set_dependency_usage(self, job_id: str, dependency_usage: Decimal) -> dict:
+        return self._update(
+            job_id=job_id, data={"dependency_usage": str(dependency_usage)}
         )
 
     def set_proxy_user(self, job_id: str, proxy_user: str) -> dict:
