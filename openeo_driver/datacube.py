@@ -210,6 +210,7 @@ class DriverVectorCube:
                 resp.raw.decode_content = True
                 location = io.BytesIO(resp.raw.read())
             geoDataframe = gpd.read_parquet(location)
+            log.info(f"Read geoparquet from {location} crs {geoDataframe.crs} length {len(geoDataframe)}")
 
             if("WGS 84 (CRS84)" in str(geoDataframe.crs)):
                 #workaround for not being able to decode ogc:crs84
