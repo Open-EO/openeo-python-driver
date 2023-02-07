@@ -199,29 +199,6 @@ class ElasticJobRegistry(JobRegistryInterface):
             client_info=client_info
         )
 
-    @staticmethod
-    def from_environ(
-        environ: Optional[dict] = None,
-        backend_id: Optional[str] = None,
-        setup_auth: bool = True,
-    ) -> "ElasticJobRegistry":
-        """
-        Factory to build an ElasticJobRegistry from an environment dict (or equivalent config).
-        """
-        # TODO eliminate need for this factory?
-        # TODO: get most settings from a config file and secrets from env vars or the vault?
-        environ = environ or os.environ
-
-        # TODO: allow backend_id to be unset for flows that don't create new jobs
-        backend_id = backend_id or environ.get("OPENEO_EJR_BACKEND_ID", "undefined")
-        # TODO eliminate fallback value here?
-        api_url = environ.get("OPENEO_EJR_API", "https://jobregistry.openeo.vito.be")
-        ejr = ElasticJobRegistry(backend_id=backend_id, api_url=api_url)
-
-        if setup_auth:
-            ejr.setup_auth_oidc_client_credentials(ElasticJobRegistryCredentials.get())
-        return ejr
-
     def _get_access_token(self) -> str:
         if not self._authenticator:
             raise EjrError("No authentication set up")
