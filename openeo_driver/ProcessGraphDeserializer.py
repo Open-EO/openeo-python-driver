@@ -1491,6 +1491,13 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         _log.debug(f"data_mask: env.push: {the_mask}")
         env = env.push(data_mask=the_mask)
         args = {"data": convert_node(args["data"], env=env), "mask": the_mask}
+    elif process_id == "if":
+        #special handling: we only want to evaluate the branch that gets accepted
+        value = args.get("value")
+        if convert_node(value, env=env):
+            return convert_node(args.get("accept"), env=env)
+        else:
+            return convert_node(args.get("reject"),env=env)
     else:
         # first we resolve child nodes and arguments in an arbitrary but deterministic order
         args = {name: convert_node(expr, env=env) for (name, expr) in sorted(args.items())}
