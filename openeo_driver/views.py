@@ -766,7 +766,9 @@ def register_views_batch_jobs(
         job_options = post_data.get("job_options")
         metadata_keywords = ["title", "description", "plan", "budget"]
         if("job_options" not in post_data):
-            job_options = {k:v for (k,v) in post_data.items() if k not in metadata_keywords + ["process"]}
+            job_options = {k:v for (k,v) in post_data.items() if k not in metadata_keywords + ["process","process_graph"]}
+            if len(job_options)==0:
+                job_options = None
         job_info = backend_implementation.batch_jobs.create_job(
             user_id=user.user_id,
             process=process,
