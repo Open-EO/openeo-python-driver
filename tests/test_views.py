@@ -989,6 +989,20 @@ class TestBatchJobs:
         job_info = dummy_backend.DummyBatchJobs._job_registry[TEST_USER, 'job-256']
         assert job_info.job_options == {"driver-memory": "3g", "executor-memory": "5g"}
 
+    def test_create_job_100_with_options_inline(self, api100):
+        with self._fresh_job_registry(next_job_id="job-256"):
+            resp = api100.post('/jobs', headers=self.AUTH_HEADER, json={
+                'process': {
+                    'process_graph': {"foo": {"process_id": "foo", "arguments": {}}},
+                    'summary': 'my foo job',
+                },
+                "driver-memory": "3g", "executor-memory": "5g"
+            }).assert_status_code(201)
+        assert resp.headers['Location'] == 'http://oeo.net/openeo/1.0.0/jobs/job-256'
+        assert resp.headers['OpenEO-Identifier'] == 'job-256'
+        job_info = dummy_backend.DummyBatchJobs._job_registry[TEST_USER, 'job-256']
+        assert job_info.job_options == {"driver-memory": "3g", "executor-memory": "5g"}
+
     def test_start_job(self, api):
         with self._fresh_job_registry(next_job_id="job-267") as registry:
             api.post('/jobs', headers=self.AUTH_HEADER, json=api.get_process_graph_dict(
