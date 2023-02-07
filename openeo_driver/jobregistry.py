@@ -359,6 +359,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         try:
             return self._do_request("PATCH", f"/jobs/{job_id}", json=data)
         except EjrHttpError as e:
+            # TODO: revert retry handling when EJR API covers this itself: https://github.com/Open-EO/openeo-job-registry-elastic-api/issues/20
             if e.status_code == 404 and retry:
                 self.logger.warning(
                     f"Retrying failed update {job_id=} {data=}",
