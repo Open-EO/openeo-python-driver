@@ -375,23 +375,10 @@ class ElasticJobRegistry(JobRegistryInterface):
         """Generic update method"""
         logging_extra = {"job_id": job_id}
         self.logger.info(f"EJR update {job_id=} {data=}", extra=logging_extra)
-        try:
-            # TODO: proper URL encoding of job id?
-            return self._do_request(
-                "PATCH", f"/jobs/{job_id}", json=data, logging_extra=logging_extra
-            )
-        except EjrHttpError as e:
-            # TODO: revert retry handling when EJR API covers this itself: https://github.com/Open-EO/openeo-job-registry-elastic-api/issues/20
-            if e.status_code == 404 and retry:
-                self.logger.warning(
-                    f"Retrying failed EJR update {job_id=} {data=}",
-                    extra=logging_extra,
-                )
-                time.sleep(3)  # TODO: finetune sleep?
-                return self._do_request(
-                    "PATCH", f"/jobs/{job_id}", json=data, logging_extra=logging_extra
-                )
-            raise
+        # TODO: proper URL encoding of job id?
+        return self._do_request(
+            "PATCH", f"/jobs/{job_id}", json=data, logging_extra=logging_extra
+        )
 
     def set_dependencies(self, job_id: str, dependencies: List[Dict[str, str]]) -> dict:
         return self._update(job_id=job_id, data={"dependencies": dependencies})

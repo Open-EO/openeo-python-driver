@@ -343,48 +343,6 @@ class TestElasticJobRegistry:
         ejr.set_application_id(job_id="job-123", application_id="app-456")
         assert patch_mock.call_count == 1
 
-    @pytest.mark.parametrize(
-        ["failures", "attempts", "expect_success"],
-        [
-            (0, 1, True),
-            (1, 2, True),
-            (2, 2, False),
-        ],
-    )
-    def test_update_retry(
-        self, requests_mock, oidc_mock, ejr, failures, attempts, expect_success
-    ):
-        def not_found(request: requests.Request, context):
-            context.status_code = 404
-            context.reason = "Not Found"
-            return {
-                "statusCode": 404,
-                "error": "Not Found",
-                "message": "Could not find job with job-123",
-            }
-
-        handler = self._handle_patch_jobs(
-            oidc_mock=oidc_mock, expected_data={"application_id": "app-456"}
-        )
-
-        response_list = [{"json": not_found}] * failures
-        response_list += [{"json": handler}]
-        patch_mock = requests_mock.patch(
-            f"{self.EJR_API_URL}/jobs/job-123", response_list
-        )
-
-        with mock.patch("time.sleep") as sleep:
-            try:
-                result = ejr.set_application_id(
-                    job_id="job-123", application_id="app-456"
-                )
-                assert result == {"application_id": "app-456"}
-                assert expect_success
-            except EjrHttpError:
-                assert not expect_success
-
-        assert sleep.call_count == attempts - 1
-        assert patch_mock.call_count == attempts
 
     def test_just_log_errors(self, caplog):
         with ElasticJobRegistry.just_log_errors("some math"):
