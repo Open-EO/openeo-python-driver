@@ -1,6 +1,8 @@
 import contextlib
 import io
 import logging
+import os
+import time
 from unittest import mock
 
 import flask
@@ -17,6 +19,11 @@ from openeo_driver.views import build_app
 
 pytest_plugins = "pytester"
 
+
+def pytest_configure(config):
+    # Isolate tests from the host machine’s timezone
+    os.environ["TZ"] = "UTC"
+    time.tzset()
 
 @pytest.fixture(scope="module")
 def backend_implementation() -> DummyBackendImplementation:

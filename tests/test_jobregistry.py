@@ -436,17 +436,17 @@ class TestElasticJobRegistry:
         for expected in [
             # Create
             "openeo_driver.jobregistry.elastic:j-123:EJR creating job_id='j-123' created='2020-01-02T03:04:05Z'",
-            "openeo_driver.jobregistry.elastic:j-123:EJR Request `POST /jobs`: start 2020-01-02 04:04:05",
+            "openeo_driver.jobregistry.elastic:j-123:EJR Request `POST /jobs`: start 2020-01-02 03:04:05",
             "openeo_driver.jobregistry.elastic:j-123:Doing EJR request `POST https://ejr.test/jobs` headers.keys()=dict_keys(['User-Agent', 'Authorization'])",
             "openeo_driver.jobregistry.elastic:j-123:EJR response on `POST /jobs`: 201",
-            "openeo_driver.jobregistry.elastic:j-123:EJR Request `POST /jobs`: end 2020-01-02 04:04:05, elapsed 0:00:00",
+            "openeo_driver.jobregistry.elastic:j-123:EJR Request `POST /jobs`: end 2020-01-02 03:04:05, elapsed 0:00:00",
             # set_application_id
             "openeo_driver.jobregistry.elastic:j-123:EJR update job_id='j-123' data={'application_id': 'app-123'}",
-            "openeo_driver.jobregistry.elastic:j-123:EJR Request `PATCH /jobs/j-123`: start 2020-01-02 04:04:10",
+            "openeo_driver.jobregistry.elastic:j-123:EJR Request `PATCH /jobs/j-123`: start 2020-01-02 03:04:10",
             "openeo_driver.jobregistry.elastic:j-123:EJR response on `PATCH /jobs/j-123`: 200",
             # set_status
             "openeo_driver.jobregistry.elastic:j-123:EJR update job_id='j-123' data={'status': 'running', 'updated': '2020-01-02T03:44:55Z'}",
             "openeo_driver.jobregistry.elastic:j-123:EJR response on `PATCH /jobs/j-123`: 200",
-            "openeo_driver.jobregistry.elastic:j-123:EJR Request `PATCH /jobs/j-123`: end 2020-01-02 04:44:55, elapsed 0:00:00",
+            "openeo_driver.jobregistry.elastic:j-123:EJR Request `PATCH /jobs/j-123`: end 2020-01-02 03:44:55, elapsed 0:00:00",
         ]:
             assert expected in logs
