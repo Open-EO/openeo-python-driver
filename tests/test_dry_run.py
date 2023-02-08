@@ -846,6 +846,30 @@ def test_aggregate_spatial_and_filter_bbox(dry_run_env, dry_run_tracer):
     )
 
 
+def test_multiple_filter_spatial(dry_run_env, dry_run_tracer):
+    polygon1 = {"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]}
+    polygon2 = {"type": "Polygon", "coordinates": [[(1, 1), (3, 5), (8, 2), (1, 1)]]}
+    cube = DataCube(PGNode("load_collection", id="S2_FOOBAR"), connection=None)
+    cube = cube.filter_spatial(geometries = polygon1)
+    cube = cube.resample_spatial(projection=4326, resolution=0.25)
+    cube = cube.filter_spatial(geometries=polygon2)
+
+    pg = cube.flat_graph()
+    res = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints[0]
+    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    geometries = dry_run_tracer.get_last_geometry(operation="filter_spatial")
+    assert constraints == {
+        "spatial_extent": {'crs': 'EPSG:4326','east': 8.0,'north': 5.0,'south': 0.0,'west': 0.0},
+        "filter_spatial": {"geometries": shapely.geometry.shape(polygon1)},
+        "resample": {'method': 'near', 'resolution': [0.25, 0.25], 'target_crs': 4326},
+    }
+
+    assert geometries == shapely.geometry.shape(polygon2)
+
 def test_resample_filter_spatial(dry_run_env, dry_run_tracer):
     polygon = {"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]}
     cube = DataCube(PGNode("load_collection", id="S2_FOOBAR"), connection=None)

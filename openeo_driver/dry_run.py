@@ -84,6 +84,14 @@ class DataTraceBase:
         raise NotImplementedError
 
     def get_arguments_by_operation(self, operation: str) -> List[Union[dict, tuple]]:
+        """
+         Return in parent->child order
+        Args:
+            operation:
+
+        Returns:
+
+        """
         return []
 
     def get_operation_closest_to_source(self, operations: Union[str, List[str]]) -> Union["DataTraceBase", None]:
@@ -383,6 +391,21 @@ class DryRunDataTracer:
                     geometries_by_id[id(geometries)] = geometries
         # TODO: we just pass all (0 or more) geometries we encountered. Do something smarter when there are multiple?
         return list(geometries_by_id.values())
+
+    def get_last_geometry(
+        self, operation="aggregate_spatial"
+    ) -> Union[shapely.geometry.base.BaseGeometry, DelayedVector, DriverVectorCube]:
+        """Get geometries (polygons or DelayedVector), as used by aggregate_spatial"""
+
+        for leaf in self.get_trace_leaves():
+            args = leaf.get_arguments_by_operation(operation)
+            args.reverse()
+            for args in args:
+                if "geometries" in args:
+                    geometries = args["geometries"]
+                    return geometries
+        return None
+
 
 
 class ProcessType(Enum):
