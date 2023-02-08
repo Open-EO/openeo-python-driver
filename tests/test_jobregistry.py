@@ -396,3 +396,57 @@ class TestElasticJobRegistry:
                 "In context 'some math': caught ZeroDivisionError('division by zero')",
             )
         ]
+
+    def test_job_id_logging(self, requests_mock, oidc_mock, ejr, caplog):
+        """Check that job_id logging is passed through as logging extra in appropriate places"""
+        caplog.set_level(logging.DEBUG)
+
+        class Formatter:
+            def format(self, record: logging.LogRecord):
+                job_id = getattr(record, "job_id", None)
+                return f"{record.name}:{job_id}:{record.message}"
+
+        caplog.handler.setFormatter(Formatter())
+
+        job_id = "j-123"
+
+        def post_jobs(request, context):
+            """Handler of `POST /jobs`"""
+            context.status_code = 201
+            return {"job_id": request.json()["job_id"]}
+
+        def patch_job(request, context):
+            return request.json()
+
+        requests_mock.post(f"{self.EJR_API_URL}/jobs", json=post_jobs)
+        requests_mock.patch(f"{self.EJR_API_URL}/jobs/{job_id}", json=patch_job)
+
+        with time_machine.travel("2020-01-02 03:04:05+00", tick=False):
+            result = ejr.create_job(
+                job_id=job_id, process=DUMMY_PROCESS, user_id="john"
+            )
+            assert result == {"job_id": job_id}
+        with time_machine.travel("2020-01-02 03:04:10+00", tick=False):
+            ejr.set_application_id(job_id=job_id, application_id="app-123")
+        with time_machine.travel("2020-01-02 03:44:55+00", tick=False):
+            ejr.set_status(job_id=job_id, status=JOB_STATUS.RUNNING)
+
+        logs = caplog.text.strip().split("\n")
+
+        for expected in [
+            # Create
+            "openeo_driver.jobregistry.elastic:j-123:EJR creating job_id='j-123' created='2020-01-02T03:04:05Z'",
+            "openeo_driver.jobregistry.elastic:j-123:EJR Request `POST /jobs`: start 2020-01-02 04:04:05",
+            "openeo_driver.jobregistry.elastic:j-123:Doing EJR request `POST https://ejr.test/jobs` headers.keys()=dict_keys(['User-Agent', 'Authorization'])",
+            "openeo_driver.jobregistry.elastic:j-123:EJR response on `POST /jobs`: 201",
+            "openeo_driver.jobregistry.elastic:j-123:EJR Request `POST /jobs`: end 2020-01-02 04:04:05, elapsed 0:00:00",
+            # set_application_id
+            "openeo_driver.jobregistry.elastic:j-123:EJR update job_id='j-123' data={'application_id': 'app-123'}",
+            "openeo_driver.jobregistry.elastic:j-123:EJR Request `PATCH /jobs/j-123`: start 2020-01-02 04:04:10",
+            "openeo_driver.jobregistry.elastic:j-123:EJR response on `PATCH /jobs/j-123`: 200",
+            # set_status
+            "openeo_driver.jobregistry.elastic:j-123:EJR update job_id='j-123' data={'status': 'running', 'updated': '2020-01-02T03:44:55Z'}",
+            "openeo_driver.jobregistry.elastic:j-123:EJR response on `PATCH /jobs/j-123`: 200",
+            "openeo_driver.jobregistry.elastic:j-123:EJR Request `PATCH /jobs/j-123`: end 2020-01-02 04:44:55, elapsed 0:00:00",
+        ]:
+            assert expected in logs

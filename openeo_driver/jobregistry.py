@@ -206,7 +206,7 @@ class ElasticJobRegistry(JobRegistryInterface):
     ):
         """Set up OIDC client credentials authentication."""
         self.logger.info(
-            f"Setting up OIDC Client Credentials Authentication with {credentials.client_id=}, {credentials.oidc_issuer=}, {len(credentials.client_secret)=}"
+            f"Setting up EJR OIDC Client Credentials Authentication with {credentials.client_id=}, {credentials.oidc_issuer=}, {len(credentials.client_secret)=}"
         )
         oidc_provider = OidcProviderInfo(issuer=credentials.oidc_issuer)
         client_info = OidcClientInfo(
@@ -222,7 +222,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         if not self._authenticator:
             raise EjrError("No authentication set up")
         with TimingLogger(
-            title=f"Requesting OIDC access_token ({self._authenticator.__class__.__name__})",
+            title=f"Requesting EJR OIDC access_token ({self._authenticator.__class__.__name__})",
             logger=self.logger.info,
         ):
             tokens = self._authenticator.get_tokens()
@@ -235,9 +235,13 @@ class ElasticJobRegistry(JobRegistryInterface):
         json: Union[dict, list, None] = None,
         use_auth: bool = True,
         expected_status: int = 200,
+        logging_extra: Optional[dict] = None,
     ):
         """Do an HTTP request to Elastic Job Tracker service."""
-        with TimingLogger(logger=self.logger.info, title=f"Request `{method} {path}`"):
+        with TimingLogger(
+            logger=(lambda m: self.logger.info(m, extra=logging_extra)),
+            title=f"EJR Request `{method} {path}`",
+        ):
             headers = {
                 "User-Agent": f"openeo_driver/{self.__class__.__name__}/{openeo_driver._version.__version__}/{self._backend_id}",
             }
@@ -251,7 +255,10 @@ class ElasticJobRegistry(JobRegistryInterface):
                 headers["Authorization"] = f"Bearer {access_token}"
 
             url = url_join(self._api_url, path)
-            self.logger.debug(f"Doing request `{method} {url}` {headers.keys()=}")
+            self.logger.debug(
+                f"Doing EJR request `{method} {url}` {headers.keys()=}",
+                extra=logging_extra,
+            )
             # TODO: use a requests.Session to set some defaults and better resource reuse?
             response = requests.request(
                 method=method,
@@ -260,7 +267,10 @@ class ElasticJobRegistry(JobRegistryInterface):
                 headers=headers,
                 timeout=self._REQUEST_TIMEOUT,
             )
-            self.logger.debug(f"Response on `{method} {path}`: {response!r}")
+            self.logger.debug(
+                f"EJR response on `{method} {path}`: {response.status_code!r}",
+                extra=logging_extra,
+            )
             if expected_status and response.status_code != expected_status:
                 raise EjrHttpError.from_response(response=response)
             else:
@@ -270,7 +280,7 @@ class ElasticJobRegistry(JobRegistryInterface):
     def health_check(self, use_auth: bool = True, log: bool = True) -> dict:
         response = self._do_request("GET", "/health", use_auth=use_auth)
         if log:
-            self.logger.info(f"Health check {response}")
+            self.logger.info(f"EJR health check {response}")
         return response
 
     def create_job(
@@ -315,8 +325,15 @@ class ElasticJobRegistry(JobRegistryInterface):
             # TODO: additional technical metadata, see https://github.com/Open-EO/openeo-api/issues/472
         }
         # TODO: what to return? What does API return?  https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
-        self.logger.info(f"Create {job_id=}", extra={"job_id": job_id})
-        return self._do_request("POST", "/jobs", json=job_data, expected_status=201)
+        logging_extra = {"job_id": job_id}
+        self.logger.info(f"EJR creating {job_id=} {created=}", extra=logging_extra)
+        return self._do_request(
+            "POST",
+            "/jobs",
+            json=job_data,
+            expected_status=201,
+            logging_extra=logging_extra,
+        )
 
     def list_user_jobs(self, user_id: Optional[str]):
         # TODO: sorting, pagination?
@@ -352,24 +369,28 @@ class ElasticJobRegistry(JobRegistryInterface):
             data["started"] = rfc3339.datetime(started)
         if finished:
             data["finished"] = rfc3339.datetime(finished)
-        self.logger.info(f"Update {job_id=} {status=}", extra={"job_id": job_id})
-        # TODO: proper URL encoding of job id?
-        return self._do_request("PATCH", f"/jobs/{job_id}", json=data)
+        return self._update(job_id=job_id, data=data)
 
     def _update(self, job_id: str, data: dict, retry: bool = True) -> dict:
         """Generic update method"""
-        self.logger.info(f"Update {job_id=} {data=}", extra={"job_id": job_id})
+        logging_extra = {"job_id": job_id}
+        self.logger.info(f"EJR update {job_id=} {data=}", extra=logging_extra)
         try:
-            return self._do_request("PATCH", f"/jobs/{job_id}", json=data)
+            # TODO: proper URL encoding of job id?
+            return self._do_request(
+                "PATCH", f"/jobs/{job_id}", json=data, logging_extra=logging_extra
+            )
         except EjrHttpError as e:
             # TODO: revert retry handling when EJR API covers this itself: https://github.com/Open-EO/openeo-job-registry-elastic-api/issues/20
             if e.status_code == 404 and retry:
                 self.logger.warning(
-                    f"Retrying failed update {job_id=} {data=}",
-                    extra={"job_id": job_id},
+                    f"Retrying failed EJR update {job_id=} {data=}",
+                    extra=logging_extra,
                 )
                 time.sleep(3)  # TODO: finetune sleep?
-                return self._do_request("PATCH", f"/jobs/{job_id}", json=data)
+                return self._do_request(
+                    "PATCH", f"/jobs/{job_id}", json=data, logging_extra=logging_extra
+                )
             raise
 
     def set_dependencies(self, job_id: str, dependencies: List[Dict[str, str]]) -> dict:
