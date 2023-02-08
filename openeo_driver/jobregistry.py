@@ -239,7 +239,7 @@ class ElasticJobRegistry(JobRegistryInterface):
     ):
         """Do an HTTP request to Elastic Job Tracker service."""
         with TimingLogger(
-            logger=(lambda m: self.logger.info(m, extra=logging_extra)),
+            logger=(lambda m: self.logger.debug(m, extra=logging_extra)),
             title=f"EJR Request `{method} {path}`",
         ):
             headers = {
@@ -267,7 +267,7 @@ class ElasticJobRegistry(JobRegistryInterface):
                 headers=headers,
                 timeout=self._REQUEST_TIMEOUT,
             )
-            self.logger.debug(
+            self.logger.info(
                 f"EJR response on `{method} {path}`: {response.status_code!r}",
                 extra=logging_extra,
             )
