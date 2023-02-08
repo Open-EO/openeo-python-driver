@@ -314,7 +314,6 @@ class ElasticJobRegistry(JobRegistryInterface):
             "api_version": api_version,
             # TODO: additional technical metadata, see https://github.com/Open-EO/openeo-api/issues/472
         }
-        # TODO: keep multi-job support? https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
         # TODO: what to return? What does API return?  https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
         self.logger.info(f"Create {job_id=}", extra={"job_id": job_id})
         return self._do_request("POST", "/jobs", json=job_data, expected_status=201)
