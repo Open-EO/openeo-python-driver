@@ -3034,11 +3034,12 @@ def test_if_merge_cubes(api100):
                 "bands": ["B04"],
             }},
         "eq1": {"process_id": "eq", "arguments": {"x": 4, "y": 3}},
+        "errornode":{"process_id":"doesntExist"},
         "if1": {
             "process_id": "if",
             "arguments": {
                 "value": {"from_node": "eq1"},
-                "accept": {"from_node": "loadcollection1"}, "reject": {"from_node": "loadcollection1"},
+                "accept": {"from_node": "errornode"}, "reject": {"from_node": "loadcollection1"},
             }},
         "mergecubes1": {
             "process_id": "merge_cubes",
