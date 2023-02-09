@@ -459,6 +459,41 @@ def extract_arg_enum(args: dict, name: str, enum_values: Union[set, list, tuple]
         )
     return value
 
+def _align_extent(extent,collection_id,env):
+    metadata = env.backend_implementation.catalog.get_collection_metadata(collection_id)
+
+    if(not metadata.get('_vito',{}).get("data_source",{}).get("realign",False)):
+        return
+    x = metadata.get('cube:dimensions', {}).get('x', {})
+    y = metadata.get('cube:dimensions', {}).get('y', {})
+    if ("step" in x
+            and "step" in y
+            and x.get('reference_system', '') == "EPSG:4326"
+            and extent.get('crs','') == "EPSG:4326"
+            and "extent" in x and "extent" in y
+    ):
+
+        def align(v, dimension, rounding):
+            range = dimension.get('extent', [])
+            if v < range[0]:
+                v = range[0]
+            elif v > range[1]:
+                v = range[1]
+            else:
+                index = rounding((v - range[0]) / dimension['step'])
+                v = range[0] + index * dimension['step']
+            return v
+
+        new_extent = {
+            'west': align(extent['west'], x, math.floor),
+            'east': align(extent['east'], x, math.ceil),
+            'south': align(extent['south'], y, math.floor),
+            'north': align(extent['north'], y, math.ceil),
+            'crs': extent['crs']
+        }
+        _log.info(f"Realigned input extent {extent} into {new_extent}")
+
+        return new_extent
 
 def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     """
@@ -476,9 +511,12 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
 
     filtered_constraints = [c for c in source_constraints if c[0] == source_id]
 
-    for _, constraint in source_constraints:
+    for collection_id, constraint in source_constraints:
         if "spatial_extent" in constraint:
             extent = constraint["spatial_extent"]
+            if "resample" not in constraint:
+                extent = _align_extent(extent,collection_id[1][0],env)
+
             global_extent = spatial_extent_union(global_extent, extent) if global_extent else extent
     for _, constraint in filtered_constraints:
         if "process_type" in constraint:

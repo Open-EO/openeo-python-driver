@@ -896,6 +896,35 @@ def test_resample_filter_spatial(dry_run_env, dry_run_tracer):
     }
 
 
+def test_auto_align(dry_run_env, dry_run_tracer):
+    polygon = {"type": "Polygon", "coordinates": [[(0.1, 0.1), (3, 5), (8, 2), (0.1, 0.1)]]}
+    cube = DataCube(PGNode("load_collection", id="ESA_WORLDCOVER_10M_2020_V1"), connection=None)
+    cube = cube.filter_spatial(geometries = polygon)
+
+    pg = cube.flat_graph()
+    res = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints[0]
+    assert src == ("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()))
+    geometries, = dry_run_tracer.get_geometries(operation="filter_spatial")
+    assert constraints == {
+        "spatial_extent": {'crs': 'EPSG:4326','east': 8.0,'north': 5.0,'south': 0.1,'west': 0.1},
+        "filter_spatial": {"geometries": shapely.geometry.shape(polygon)},
+    }
+    assert isinstance(geometries, shapely.geometry.Polygon)
+    assert shapely.geometry.mapping(geometries) == {
+        "type": "Polygon",
+        "coordinates": (((0.1, 0.1), (3.0, 5.0), (8.0, 2.0), (0.1, 0.1)),)
+    }
+    #source_constraints = dry_run_tracer.get_source_constraints()
+    dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
+    load_params = _extract_load_parameters(dry_run_env, source_id= ("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ())))
+    assert {'west': 0.09999999927961767, 'east': 8.00008333258134, 'south': 0.09999999971959994, 'north': 5.000083333033345, 'crs': 'EPSG:4326'} == load_params.global_extent
+
+
+
 def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
     geometry_path = str(get_path("geojson/GeometryCollection01.json"))
     pg = {

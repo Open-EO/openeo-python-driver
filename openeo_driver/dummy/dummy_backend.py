@@ -369,8 +369,10 @@ class DummyCatalog(CollectionCatalog):
                 }
             },
             'cube:dimensions': {
-                "x": {"type": "spatial", "extent": [2.5, 6.2], "step": 10, "reference_system": "AUTO:42001"},
-                "y": {"type": "spatial", "extent": [49.5, 51.5], "step": 10, "reference_system": "AUTO:42001"},
+                "x": {"type": "spatial", "axis": "x", "extent": [-180, 180], "step": 0.000083333333333,
+                      "reference_system": "EPSG:4326"},
+                "y": {"type": "spatial", "axis": "y", "extent": [-70, 70], "step": 0.000083333333333,
+                      "reference_system": "EPSG:4326"},
                 "t": {"type": "temporal", "extent": ["2019-01-01", None]},
                 "bands": {"type": "bands", "values": ["MAP"]},
             },
@@ -380,7 +382,8 @@ class DummyCatalog(CollectionCatalog):
                 ]
             },
             'links': [],
-            '_private': {'password': 'dragon'}
+            '_private': {'password': 'dragon'},
+            '_vito': {"data_source": {"realign": True}}
         },
         {
             'id': 'SENTINEL1_GRD',
