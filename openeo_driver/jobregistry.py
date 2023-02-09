@@ -371,7 +371,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             data["finished"] = rfc3339.datetime(finished)
         return self._update(job_id=job_id, data=data)
 
-    def _update(self, job_id: str, data: dict, retry: bool = True) -> dict:
+    def _update(self, job_id: str, data: dict) -> dict:
         """Generic update method"""
         logging_extra = {"job_id": job_id}
         self.logger.info(f"EJR update {job_id=} {data=}", extra=logging_extra)
