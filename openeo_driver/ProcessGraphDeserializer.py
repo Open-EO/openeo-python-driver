@@ -46,7 +46,7 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint
 from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException, \
     FeatureUnsupportedException, OpenEOApiException, ProcessGraphInvalidException, FileTypeInvalidException, \
-    ProcessUnsupportedException
+    ProcessUnsupportedException, CollectionNotFoundException
 from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE
 from openeo_driver.save_result import JSONResult, SaveResult, AggregatePolygonResult, NullResult, \
     to_save_result, AggregatePolygonSpatialResult, MlModelResult
@@ -460,10 +460,14 @@ def extract_arg_enum(args: dict, name: str, enum_values: Union[set, list, tuple]
     return value
 
 def _align_extent(extent,collection_id,env):
-    metadata = env.backend_implementation.catalog.get_collection_metadata(collection_id)
+    metadata = None
+    try:
+        metadata = env.backend_implementation.catalog.get_collection_metadata(collection_id)
+    except CollectionNotFoundException:
+        pass
 
-    if(not metadata.get('_vito',{}).get("data_source",{}).get("realign",False)):
-        return
+    if(metadata == None or not metadata.get('_vito',{}).get("data_source",{}).get("realign",False)):
+        return extent
     x = metadata.get('cube:dimensions', {}).get('x', {})
     y = metadata.get('cube:dimensions', {}).get('y', {})
     if ("step" in x
@@ -494,6 +498,8 @@ def _align_extent(extent,collection_id,env):
         _log.info(f"Realigned input extent {extent} into {new_extent}")
 
         return new_extent
+    else:
+        return extent
 
 def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     """
