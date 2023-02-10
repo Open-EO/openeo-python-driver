@@ -321,6 +321,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             "job_options": job_options,
             # various internal/optional housekeeping fields
             "parent_id": parent_id,
+            "application_id": None,
             "api_version": api_version,
             # TODO: additional technical metadata, see https://github.com/Open-EO/openeo-api/issues/472
         }
