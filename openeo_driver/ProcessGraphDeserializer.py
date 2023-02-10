@@ -619,6 +619,15 @@ def load_disk_data(args: Dict, env: EvalEnv) -> DriverDataCube:
         return env.backend_implementation.load_disk_data(**kwargs, load_params=load_params, env=env)
 
 
+def _check_geometry_path_assumption(path: str, process: str, parameter: str):
+    if isinstance(path, str) and path.lstrip().startswith("{"):
+        raise ProcessParameterInvalidException(
+            parameter=parameter,
+            process=process,
+            reason=f"provided a string (to be handled as path/URL), but it looks like (Geo)JSON encoded data: {str_truncate(path, width=16)}.",
+        )
+
+
 @non_standard_process(
     ProcessSpec(id='vector_buffer', description="Add a buffer around a geometry.")
         .param(name='geometry', description="Input geometry (GeoJSON object) to add buffer to.",
@@ -639,7 +648,9 @@ def vector_buffer(args: Dict, env: EvalEnv) -> dict:
 
     # TODO #114 EP-3981 convert `geometry` to vector cube and move buffer logic to there
     if isinstance(geometry, str):
-        df = gpd.read_file(geometry)
+        _check_geometry_path_assumption(
+            path=geometry, process="vector_buffer", parameter="geometry"
+        )
         # TODO: assumption here that `geometry` is a path/url
         geoms = list(DelayedVector(geometry).geometries)
     elif isinstance(geometry, dict) and "type" in geometry:
@@ -1665,7 +1676,10 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
 def read_vector(args: Dict, env: EvalEnv) -> DelayedVector:
     # TODO #114 EP-3981: deprecated in favor of load_uploaded_files/load_external? https://github.com/Open-EO/openeo-processes/issues/322
     # TODO: better argument name than `filename`?
-    path = extract_arg(args, 'filename')
+    path = extract_arg(args, "filename")
+    _check_geometry_path_assumption(
+        path=path, process="read_vector", parameter="filename"
+    )
     return DelayedVector(path)
 
 
@@ -1715,6 +1729,9 @@ def get_geometries(args: Dict, env: EvalEnv) -> Union[DelayedVector, dict]:
     feature_collection = args.get('feature_collection', None)
     path = args.get('filename', None)
     if path is not None:
+        _check_geometry_path_assumption(
+            path=path, process="get_geometries", parameter="filename"
+        )
         return DelayedVector(path)
     else:
         return feature_collection
