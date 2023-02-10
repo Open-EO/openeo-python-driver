@@ -466,8 +466,9 @@ def _align_extent(extent,collection_id,env):
     except CollectionNotFoundException:
         pass
 
-    if(metadata == None or not metadata.get('_vito',{}).get("data_source",{}).get("realign",False)):
+    if metadata is None or not metadata.get("_vito", {}).get("data_source", {}).get("realign", False):
         return extent
+
     x = metadata.get('cube:dimensions', {}).get('x', {})
     y = metadata.get('cube:dimensions', {}).get('y', {})
     if ("step" in x
