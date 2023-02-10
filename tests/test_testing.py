@@ -107,6 +107,17 @@ def test_dict_subset_nesting():
     assert {1: {2: {3: {4: 5, 6: 7}, 8: 9}}} == {1: {2: DictSubSet({3: DictSubSet({})})}}
 
 
+def test_dict_subset_repr():
+    actual = {1: 2, 3: 4, 5: 6}
+    expected = DictSubSet({3: 4, 5: 66, 7: 8})
+    assert actual != expected
+    assert repr(expected) == (
+        "{3: 4, 5: 66, 7: 8}\n"
+        "    # Missing: {7: 8}\n"
+        "    # Differing: {5: (66, 6)}"
+    )
+
+
 def test_list_subset():
     assert [] == ListSubSet([])
     assert [2, 3, 5] == ListSubSet([])

@@ -341,16 +341,33 @@ class DictSubSet:
     >> assert {"foo": "bar", "meh": 4} == DictSubSet({"foo": "bar"})
     """
 
+    __slots__ = ["items", "_missing", "_differing"]
+
     # TODO rename/alias to `a_dict_with()` to be more self-explanatory
 
     def __init__(self, items: dict = None, **kwargs):
         self.items = {**(items or {}), **kwargs}
+        self._missing = None
+        self._differing = None
 
     def __eq__(self, other):
-        return isinstance(other, type(self.items)) and self.items == {k: other[k] for k in self.items if k in other}
+        if not isinstance(other, type(self.items)):
+            return False
+        self._missing = {k: v for k, v in self.items.items() if k not in other}
+        self._differing = {
+            k: (v, other[k])
+            for k, v in self.items.items()
+            if k in other and other[k] != v
+        }
+        return not (self._missing or self._differing)
 
     def __repr__(self):
-        return repr(self.items)
+        msg = repr(self.items)
+        if self._missing:
+            msg += f"\n    # Missing: {self._missing}"
+        if self._differing:
+            msg += f"\n    # Differing: {self._differing}"
+        return msg
 
 
 class ListSubSet:
