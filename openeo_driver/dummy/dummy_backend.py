@@ -370,9 +370,9 @@ class DummyCatalog(CollectionCatalog):
             },
             'cube:dimensions': {
                 "x": {"type": "spatial", "axis": "x", "extent": [-180, 180], "step": 0.000083333333333,
-                      "reference_system": "EPSG:4326"},
+                      "reference_system": 4326},
                 "y": {"type": "spatial", "axis": "y", "extent": [-70, 70], "step": 0.000083333333333,
-                      "reference_system": "EPSG:4326"},
+                      "reference_system": 4326},
                 "t": {"type": "temporal", "extent": ["2019-01-01", None]},
                 "bands": {"type": "bands", "values": ["MAP"]},
             },
