@@ -473,7 +473,7 @@ def _align_extent(extent,collection_id,env):
     y = metadata.get('cube:dimensions', {}).get('y', {})
     if ("step" in x
             and "step" in y
-            and x.get('reference_system', '') == "EPSG:4326"
+            and x.get('reference_system', '') == 4326
             and extent.get('crs','') == "EPSG:4326"
             and "extent" in x and "extent" in y
     ):
