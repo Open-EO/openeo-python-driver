@@ -196,16 +196,22 @@ class ElasticJobRegistry(JobRegistryInterface):
 
     logger = logging.getLogger(f"{__name__}.elastic")
 
-    def __init__(self, backend_id: Optional[str], api_url: str):
-        self.logger.info(f"Creating ElasticJobRegistry with {backend_id=} and {api_url=}")
-        # TODO: allow backend_id to be unset for workflows that don't create new jobs (job tracking, job overviews, ...)
+    def __init__(self, api_url: str, backend_id: Optional[str] = None):
+        self.logger.info(
+            f"Creating ElasticJobRegistry with {backend_id=} and {api_url=}"
+        )
         self._backend_id: Optional[str] = backend_id
         self._api_url = api_url
         self._authenticator: Optional[OidcClientCredentialsAuthenticator] = None
         self._cache = TtlCache(default_ttl=60 * 60)
 
+        self._user_agent = f"openeo_driver-{openeo_driver._version.__version__}/{self.__class__.__name__}"
+        if self._backend_id:
+            self._user_agent += "/{self._backend_id}"
+
     @property
     def backend_id(self) -> str:
+        assert self._backend_id
         return self._backend_id
 
     def setup_auth_oidc_client_credentials(
@@ -249,9 +255,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             logger=(lambda m: self.logger.debug(m, extra=logging_extra)),
             title=f"EJR Request `{method} {path}`",
         ):
-            headers = {
-                "User-Agent": f"openeo_driver/{self.__class__.__name__}/{openeo_driver._version.__version__}/{self._backend_id}",
-            }
+            headers = {"User-Agent": self._user_agent}
             if use_auth:
                 access_token = self._cache.get_or_call(
                     key="api_access_token",
@@ -311,7 +315,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         created = rfc3339.datetime(dt.datetime.utcnow())
         job_data = {
             # Essential identifiers
-            "backend_id": self._backend_id,  # TODO: must be set
+            "backend_id": self.backend_id,
             "user_id": user_id,
             "job_id": job_id,
             # Essential job creation fields (as defined by openEO API)
@@ -349,7 +353,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             "query": {
                 "bool": {
                     "filter": [
-                        {"term": {"backend_id": self._backend_id}},
+                        {"term": {"backend_id": self.backend_id}},
                         {"term": {"user_id": user_id}},
                     ]
                 }
@@ -418,7 +422,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             "query": {
                 "bool": {
                     "filter": [
-                        {"term": {"backend_id": self._backend_id}},
+                        {"term": {"backend_id": self.backend_id}},
                         {"terms": {"status": active}},
                         {"range": {"created": {"gte": f"now-{max_age or 7}d"}}},
                     ]
@@ -507,7 +511,7 @@ class CliApp:
         api_url = self.environ.get(
             "OPENEO_EJR_API", "https://jobregistry.openeo.vito.be"
         )
-        ejr = ElasticJobRegistry(backend_id=backend_id or "test_cli", api_url=api_url)
+        ejr = ElasticJobRegistry(api_url=api_url, backend_id=backend_id or "test_cli")
 
         if setup_auth:
             _log.info("Trying to get EJR credentials from Vault")

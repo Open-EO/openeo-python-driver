@@ -86,7 +86,7 @@ class TestElasticJobRegistry:
     @pytest.fixture
     def ejr(self, oidc_mock) -> ElasticJobRegistry:
         """ElasticJobRegistry set up with authentication"""
-        ejr = ElasticJobRegistry(backend_id="unittests", api_url=self.EJR_API_URL)
+        ejr = ElasticJobRegistry(api_url=self.EJR_API_URL, backend_id="unittests")
         credentials = ElasticJobRegistryCredentials(
             oidc_issuer=self.OIDC_CLIENT_INFO["oidc_issuer"],
             client_id=self.OIDC_CLIENT_INFO["client_id"],
