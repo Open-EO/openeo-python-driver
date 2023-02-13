@@ -374,10 +374,13 @@ class DriverVectorCube:
 
     def get_bounding_box_area(self) -> float:
         """Bounding box area in square meters"""
-        # TODO: also method to calculate covered area (instead of whole bbox)?
         return area_in_square_meters(
             self.get_bounding_box_geometry(), crs=self.get_crs()
         )
+
+    def get_area(self) -> float:
+        """Total geometry area in square meters"""
+        return area_in_square_meters(self.to_multipolygon(), self.get_crs())
 
     def get_geometries(self) -> Sequence[shapely.geometry.base.BaseGeometry]:
         return self._geometries.geometry

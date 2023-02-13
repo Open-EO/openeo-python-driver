@@ -330,6 +330,13 @@ class TestDriverVectorCube:
         #       but current implementation gives result that is quite a bit larger than that
         numpy.testing.assert_allclose(area, 8e6, rtol=0.1)
 
+    def test_get_area(self):
+        path = str(get_path("geojson/FeatureCollection07.json"))
+        vc = DriverVectorCube(gpd.read_file(path))
+        area = vc.get_area()
+        # TODO: see remark in test_get_bounding_box_area
+        numpy.testing.assert_allclose(area, 16e6, rtol=0.2)
+
     def test_buffer_points(self):
         geometry = as_geojson_feature_collection(
             Point(2, 3), Polygon.from_bounds(5, 8, 13, 21)
