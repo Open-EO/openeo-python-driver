@@ -48,6 +48,9 @@ class DEPENDENCY_STATUS:
     Container of dependency status constants
     """
 
+    # TODO #153: this is specific for SentinelHub batch process tracking in openeo-geopyspark-driver.
+    #   Can this be moved there?
+
     AWAITING = "awaiting"
     AVAILABLE = "available"
     AWAITING_RETRY = "awaiting_retry"
@@ -102,9 +105,13 @@ class JobRegistryInterface:
 
     # TODO: methods to list jobs (filtering on timeframe, userid, ...)?
 
-    def list_active_jobs(self) -> List[dict]:
-        """List active jobs (created, queued, running)"""
-        # TODO: parameter to limit timeframe to look at?
+    def list_active_jobs(self, max_age: Optional[int] = None) -> List[dict]:
+        """
+        List active jobs (created, queued, running)
+
+        :param max_age: optional filter to only return recently created jobs:
+            maximum number of days creation date.
+        """
         # TODO: return something more strict than free form dicts?
         raise NotImplementedError
 
@@ -405,7 +412,7 @@ class ElasticJobRegistry(JobRegistryInterface):
     def set_application_id(self, job_id: str, application_id: str) -> dict:
         return self._update(job_id=job_id, data={"application_id": application_id})
 
-    def list_active_jobs(self) -> List[dict]:
+    def list_active_jobs(self, max_age: Optional[int] = None) -> List[dict]:
         active = [JOB_STATUS.CREATED, JOB_STATUS.QUEUED, JOB_STATUS.RUNNING]
         query = {
             "query": {
@@ -413,8 +420,7 @@ class ElasticJobRegistry(JobRegistryInterface):
                     "filter": [
                         {"term": {"backend_id": self._backend_id}},
                         {"terms": {"status": active}},
-                        # TODO: option to change this timeframe?
-                        {"range": {"created": {"gte": "now-1d"}}},
+                        {"range": {"created": {"gte": f"now-{max_age or 7}d"}}},
                     ]
                 }
             }
