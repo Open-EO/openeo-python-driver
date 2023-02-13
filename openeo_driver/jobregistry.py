@@ -315,8 +315,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         """
         if not job_id:
             job_id = self.generate_job_id()
-        # TODO: dates: as UTC ISO format or unix timestamp?
-        created = rfc3339.datetime(dt.datetime.utcnow())
+        created = rfc3339.utcnow()
         job_data = {
             # Essential identifiers
             "backend_id": self.backend_id,
@@ -379,7 +378,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         # TODO: add a source where the status came from (driver, tracker, async, ...)?
         data = {
             "status": status,
-            "updated": rfc3339.datetime(updated or dt.datetime.utcnow()),
+            "updated": rfc3339.datetime(updated) if updated else rfc3339.utcnow(),
         }
         if started:
             data["started"] = rfc3339.datetime(started)

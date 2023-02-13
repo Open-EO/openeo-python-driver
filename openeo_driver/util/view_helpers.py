@@ -6,6 +6,7 @@ import flask
 
 def _utcnow() -> datetime.datetime:
     # Allow patching utcnow for unit testing
+    # TODO: just start using `time_machine` module for time mocking
     return datetime.datetime.utcnow()
 
 

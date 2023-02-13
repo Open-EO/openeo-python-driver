@@ -39,6 +39,7 @@ _load_collection_calls = {}
 
 def utcnow() -> datetime:
     # To simplify testing, we break time.
+    # TODO: just start using `time_machine` module for time mocking
     return DEFAULT_DATETIME
 
 
