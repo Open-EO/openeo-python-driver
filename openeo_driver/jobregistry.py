@@ -6,7 +6,7 @@ import pprint
 import time
 from decimal import Decimal
 import typing
-from typing import Dict, List, NamedTuple, Optional, Union
+from typing import Dict, List, NamedTuple, Optional, Union, Any
 
 import requests
 from openeo.rest.auth.oidc import (
@@ -57,11 +57,15 @@ class DEPENDENCY_STATUS:
     ERROR = "error"
 
 
+# Just a type alias for now
+JobDict = Dict[str, Any]
+
+
 class JobRegistryInterface:
     """Base interface for job registries"""
 
     @staticmethod
-    def generate_job_id():
+    def generate_job_id() -> str:
         return generate_unique_id(prefix="j")
 
     def create_job(
@@ -74,7 +78,7 @@ class JobRegistryInterface:
         parent_id: Optional[str] = None,
         api_version: Optional[str] = None,
         job_options: Optional[dict] = None,
-    ):
+    ) -> JobDict:
         raise NotImplementedError
 
     def set_status(
@@ -85,38 +89,39 @@ class JobRegistryInterface:
         updated: Optional[str] = None,
         started: Optional[str] = None,
         finished: Optional[str] = None,
-    ):
+    ) -> JobDict:
         raise NotImplementedError
 
-    def set_dependencies(self, job_id: str, dependencies: List[Dict[str, str]]):
+    def set_dependencies(
+        self, job_id: str, dependencies: List[Dict[str, str]]
+    ) -> JobDict:
         raise NotImplementedError
 
-    def remove_dependencies(self, job_id: str):
+    def remove_dependencies(self, job_id: str) -> JobDict:
         raise NotImplementedError
 
-    def set_dependency_status(self, job_id: str, dependency_status: str):
+    def set_dependency_status(self, job_id: str, dependency_status: str) -> JobDict:
         raise NotImplementedError
 
-    def set_dependency_usage(self, job_id: str, dependency_usage: Decimal) -> dict:
+    def set_dependency_usage(self, job_id: str, dependency_usage: Decimal) -> JobDict:
         raise NotImplementedError
 
-    def set_proxy_user(self, job_id: str, proxy_user: str):
+    def set_proxy_user(self, job_id: str, proxy_user: str) -> JobDict:
         # TODO: this is a pretty implementation specific field. Generalize this in some way?
         raise NotImplementedError
 
-    def set_application_id(self, job_id: str, application_id: str):
+    def set_application_id(self, job_id: str, application_id: str) -> JobDict:
         raise NotImplementedError
 
     # TODO: methods to list jobs (filtering on timeframe, userid, ...)?
 
-    def list_active_jobs(self, max_age: Optional[int] = None) -> List[dict]:
+    def list_active_jobs(self, max_age: Optional[int] = None) -> List[JobDict]:
         """
         List active jobs (created, queued, running)
 
         :param max_age: optional filter to only return recently created jobs:
             maximum number of days creation date.
         """
-        # TODO: return something more strict than free form dicts?
         raise NotImplementedError
 
 
@@ -132,7 +137,7 @@ class EjrHttpError(EjrError):
         self.status_code = status_code
 
     @classmethod
-    def from_response(cls, response: requests.Response):
+    def from_response(cls, response: requests.Response) -> "EjrHttpError":
         request = response.request
         return cls(
             msg=f"EJR API error: {response.status_code} {response.reason!r} on `{request.method} {request.url!r}`: {response.text}",
@@ -222,7 +227,7 @@ class ElasticJobRegistry(JobRegistryInterface):
 
     def setup_auth_oidc_client_credentials(
         self, credentials: ElasticJobRegistryCredentials
-    ):
+    ) -> None:
         """Set up OIDC client credentials authentication."""
         self.logger.info(
             f"Setting up EJR OIDC Client Credentials Authentication with {credentials.client_id=}, {credentials.oidc_issuer=}, {len(credentials.client_secret)=}"
@@ -255,7 +260,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         use_auth: bool = True,
         expected_status: int = 200,
         logging_extra: Optional[dict] = None,
-    ):
+    ) -> Union[dict, list]:
         """Do an HTTP request to Elastic Job Tracker service."""
         with TimingLogger(
             logger=(lambda m: self.logger.debug(m, extra=logging_extra)),
@@ -309,7 +314,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         parent_id: Optional[str] = None,
         api_version: Optional[str] = None,
         job_options: Optional[dict] = None,
-    ):
+    ) -> JobDict:
         """
         Store/Initialize a new job
         """
@@ -339,7 +344,6 @@ class ElasticJobRegistry(JobRegistryInterface):
             "api_version": api_version,
             # TODO: additional technical metadata, see https://github.com/Open-EO/openeo-api/issues/472
         }
-        # TODO: what to return? What does API return?  https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
         logging_extra = {"job_id": job_id}
         self.logger.info(f"EJR creating {job_id=} {created=}", extra=logging_extra)
         return self._do_request(
@@ -350,7 +354,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             logging_extra=logging_extra,
         )
 
-    def list_user_jobs(self, user_id: Optional[str]):
+    def list_user_jobs(self, user_id: Optional[str]) -> List[JobDict]:
         # TODO: sorting, pagination?
         query = {
             "query": {
@@ -373,7 +377,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         updated: Optional[str] = None,
         started: Optional[str] = None,
         finished: Optional[str] = None,
-    ):
+    ) -> JobDict:
         # TODO: handle this with a generic `patch` method?
         # TODO: add a source where the status came from (driver, tracker, async, ...)?
         data = {
@@ -386,7 +390,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             data["finished"] = rfc3339.datetime(finished)
         return self._update(job_id=job_id, data=data)
 
-    def _update(self, job_id: str, data: dict) -> dict:
+    def _update(self, job_id: str, data: dict) -> JobDict:
         """Generic update method"""
         logging_extra = {"job_id": job_id}
         self.logger.info(f"EJR update {job_id=} {data=}", extra=logging_extra)
@@ -395,31 +399,33 @@ class ElasticJobRegistry(JobRegistryInterface):
             "PATCH", f"/jobs/{job_id}", json=data, logging_extra=logging_extra
         )
 
-    def set_dependencies(self, job_id: str, dependencies: List[Dict[str, str]]) -> dict:
+    def set_dependencies(
+        self, job_id: str, dependencies: List[Dict[str, str]]
+    ) -> JobDict:
         return self._update(job_id=job_id, data={"dependencies": dependencies})
 
-    def remove_dependencies(self, job_id: str) -> dict:
+    def remove_dependencies(self, job_id: str) -> JobDict:
         return self._update(
             job_id=job_id, data={"dependencies": None, "dependency_status": None}
         )
 
-    def set_dependency_status(self, job_id: str, dependency_status: str) -> dict:
+    def set_dependency_status(self, job_id: str, dependency_status: str) -> JobDict:
         return self._update(
             job_id=job_id, data={"dependency_status": dependency_status}
         )
 
-    def set_dependency_usage(self, job_id: str, dependency_usage: Decimal) -> dict:
+    def set_dependency_usage(self, job_id: str, dependency_usage: Decimal) -> JobDict:
         return self._update(
             job_id=job_id, data={"dependency_usage": str(dependency_usage)}
         )
 
-    def set_proxy_user(self, job_id: str, proxy_user: str) -> dict:
+    def set_proxy_user(self, job_id: str, proxy_user: str) -> JobDict:
         return self._update(job_id=job_id, data={"proxy_user": proxy_user})
 
-    def set_application_id(self, job_id: str, application_id: str) -> dict:
+    def set_application_id(self, job_id: str, application_id: str) -> JobDict:
         return self._update(job_id=job_id, data={"application_id": application_id})
 
-    def list_active_jobs(self, max_age: Optional[int] = None) -> List[dict]:
+    def list_active_jobs(self, max_age: Optional[int] = None) -> List[JobDict]:
         active = [JOB_STATUS.CREATED, JOB_STATUS.QUEUED, JOB_STATUS.RUNNING]
         query = {
             "query": {
@@ -433,7 +439,6 @@ class ElasticJobRegistry(JobRegistryInterface):
             }
         }
         # TODO: Option to only return job metadata essentials (e.g. not process graph) to reduce payload size
-        # TODO: what to return? What does API return?
         return self._do_request("POST", "/jobs/search", json=query)
 
     @staticmethod
