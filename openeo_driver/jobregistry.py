@@ -1,5 +1,6 @@
 import argparse
 import datetime as dt
+import json
 import logging
 import os
 import pprint
@@ -354,21 +355,6 @@ class ElasticJobRegistry(JobRegistryInterface):
             logging_extra=logging_extra,
         )
 
-    def list_user_jobs(self, user_id: Optional[str]) -> List[JobDict]:
-        # TODO: sorting, pagination?
-        query = {
-            "query": {
-                "bool": {
-                    "filter": [
-                        {"term": {"backend_id": self.backend_id}},
-                        {"term": {"user_id": user_id}},
-                    ]
-                }
-            }
-        }
-        # TODO: what to return? What does API return?
-        return self._do_request("POST", "/jobs/search", json=query)
-
     def set_status(
         self,
         job_id: str,
@@ -425,6 +411,26 @@ class ElasticJobRegistry(JobRegistryInterface):
     def set_application_id(self, job_id: str, application_id: str) -> JobDict:
         return self._update(job_id=job_id, data={"application_id": application_id})
 
+    def _search(self, query: dict) -> List[JobDict]:
+        # TODO: sorting, pagination?
+        # TODO: How to return field subset (e.g. not process graph) to reduce payload size
+        #   https://github.com/Open-EO/openeo-job-registry-elastic-api/issues/25
+        self.logger.info(f"Doing search with query {json.dumps(query)}")
+        return self._do_request("POST", "/jobs/search", json=query)
+
+    def list_user_jobs(self, user_id: Optional[str]) -> List[JobDict]:
+        query = {
+            "query": {
+                "bool": {
+                    "filter": [
+                        {"term": {"backend_id": self.backend_id}},
+                        {"term": {"user_id": user_id}},
+                    ]
+                }
+            }
+        }
+        return self._search(query=query)
+
     def list_active_jobs(self, max_age: Optional[int] = None) -> List[JobDict]:
         active = [JOB_STATUS.CREATED, JOB_STATUS.QUEUED, JOB_STATUS.RUNNING]
         query = {
@@ -438,8 +444,7 @@ class ElasticJobRegistry(JobRegistryInterface):
                 }
             }
         }
-        # TODO: Option to only return job metadata essentials (e.g. not process graph) to reduce payload size
-        return self._do_request("POST", "/jobs/search", json=query)
+        return self._search(query=query)
 
     @staticmethod
     def just_log_errors(name: str = "EJR"):
