@@ -204,10 +204,12 @@ class ElasticJobRegistry(JobRegistryInterface):
         self._api_url = api_url
         self._authenticator: Optional[OidcClientCredentialsAuthenticator] = None
         self._cache = TtlCache(default_ttl=60 * 60)
+        self._session = requests.Session()
 
-        self._user_agent = f"openeo_driver-{openeo_driver._version.__version__}/{self.__class__.__name__}"
+        user_agent = f"openeo_driver-{openeo_driver._version.__version__}/{self.__class__.__name__}"
         if self._backend_id:
-            self._user_agent += "/{self._backend_id}"
+            user_agent += f"/{self._backend_id}"
+        self._session.headers["User-Agent"] = user_agent
 
     @property
     def backend_id(self) -> str:
@@ -255,7 +257,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             logger=(lambda m: self.logger.debug(m, extra=logging_extra)),
             title=f"EJR Request `{method} {path}`",
         ):
-            headers = {"User-Agent": self._user_agent}
+            headers = {}
             if use_auth:
                 access_token = self._cache.get_or_call(
                     key="api_access_token",
@@ -270,8 +272,7 @@ class ElasticJobRegistry(JobRegistryInterface):
                 f"Doing EJR request `{method} {url}` {headers.keys()=}",
                 extra=logging_extra,
             )
-            # TODO: use a requests.Session to set some defaults and better resource reuse?
-            response = requests.request(
+            response = self._session.request(
                 method=method,
                 url=url,
                 json=json,

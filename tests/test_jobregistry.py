@@ -143,6 +143,18 @@ class TestElasticJobRegistry:
         response = ejr.health_check(use_auth=True)
         assert response == {"info": {"auth": {"status": "down", "state": "expired"}}}
 
+    def test_session_headers(self, requests_mock, ejr):
+        def get_health(request, context):
+            assert request.headers["User-Agent"] == RegexMatcher(
+                r"openeo_driver-\d+\.\d+.*/ElasticJobRegistry/unittests"
+            )
+            return {"info": {"auth": {"status": "down", "state": "missing"}}}
+
+        requests_mock.get(f"{self.EJR_API_URL}/health", json=get_health)
+
+        response = ejr.health_check(use_auth=False)
+        assert response == {"info": {"auth": {"status": "down", "state": "missing"}}}
+
     def test_create_job(self, requests_mock, oidc_mock, ejr):
         def post_jobs(request, context):
             """Handler of `POST /jobs`"""
@@ -395,7 +407,7 @@ class TestElasticJobRegistry:
             # Create
             "openeo_driver.jobregistry.elastic:j-123:EJR creating job_id='j-123' created='2020-01-02T03:04:05Z'",
             "openeo_driver.jobregistry.elastic:j-123:EJR Request `POST /jobs`: start 2020-01-02 03:04:05",
-            "openeo_driver.jobregistry.elastic:j-123:Doing EJR request `POST https://ejr.test/jobs` headers.keys()=dict_keys(['User-Agent', 'Authorization'])",
+            "openeo_driver.jobregistry.elastic:j-123:Doing EJR request `POST https://ejr.test/jobs` headers.keys()=dict_keys(['Authorization'])",
             "openeo_driver.jobregistry.elastic:j-123:EJR response on `POST /jobs`: 201",
             "openeo_driver.jobregistry.elastic:j-123:EJR Request `POST /jobs`: end 2020-01-02 03:04:05, elapsed 0:00:00",
             # set_application_id
