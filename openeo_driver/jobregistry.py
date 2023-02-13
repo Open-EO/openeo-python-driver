@@ -60,6 +60,10 @@ class DEPENDENCY_STATUS:
 class JobRegistryInterface:
     """Base interface for job registries"""
 
+    @staticmethod
+    def generate_job_id():
+        return generate_unique_id(prefix="j")
+
     def create_job(
         self,
         process: dict,
@@ -310,8 +314,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         Store/Initialize a new job
         """
         if not job_id:
-            # TODO: move this to common method?
-            job_id = generate_unique_id(prefix="j")
+            job_id = self.generate_job_id()
         # TODO: dates: as UTC ISO format or unix timestamp?
         created = rfc3339.datetime(dt.datetime.utcnow())
         job_data = {
