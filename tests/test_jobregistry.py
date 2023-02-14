@@ -6,6 +6,7 @@ import pytest
 import requests
 import time_machine
 from openeo.rest.auth.testing import OidcMock
+from openeo_driver.errors import JobNotFoundException, InternalException
 
 from openeo_driver.jobregistry import (
     DEPENDENCY_STATUS,
@@ -192,6 +193,57 @@ class TestElasticJobRegistry:
 
         with pytest.raises(EjrError) as e:
             _ = ejr.create_job(process=DUMMY_PROCESS, user_id="john")
+
+    def test_get_job(self, requests_mock, oidc_mock, ejr):
+        def post_jobs_search(request, context):
+            """Handler of `POST /jobs/search"""
+            assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
+            assert request.json() == {
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {"term": {"backend_id": "unittests"}},
+                            {"term": {"job_id": "job-123"}},
+                        ]
+                    }
+                },
+                "_source": IgnoreOrder(
+                    ["job_id", "user_id", "created", "status", "updated", "*"]
+                ),
+            }
+            return [{"job_id": "job-123", "user_id": "john", "status": "created"}]
+
+        requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=post_jobs_search)
+
+        result = ejr.get_job(job_id="job-123")
+        assert result == {"job_id": "job-123", "user_id": "john", "status": "created"}
+
+    def test_get_job_not_found(self, requests_mock, oidc_mock, ejr):
+        def post_jobs_search(request, context):
+            """Handler of `POST /jobs/search"""
+            assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
+            return []
+
+        requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=post_jobs_search)
+
+        with pytest.raises(JobNotFoundException):
+            _ = ejr.get_job(job_id="job-123")
+
+    def test_get_job_multiple_results(self, requests_mock, oidc_mock, ejr):
+        def post_jobs_search(request, context):
+            """Handler of `POST /jobs/search"""
+            assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
+            return [
+                {"job_id": "job-123", "user_id": "alice"},
+                {"job_id": "job-123", "user_id": "bob"},
+            ]
+
+        requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=post_jobs_search)
+
+        with pytest.raises(
+            InternalException, match="Found 2 jobs for job_id='job-123'"
+        ):
+            _ = ejr.get_job(job_id="job-123")
 
     def test_list_user_jobs(self, requests_mock, oidc_mock, ejr):
         def post_jobs_search(request, context):

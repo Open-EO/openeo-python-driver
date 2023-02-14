@@ -16,10 +16,11 @@ from openeo.rest.auth.oidc import (
     OidcProviderInfo,
 )
 from openeo.rest.connection import url_join
-from openeo.util import TimingLogger, rfc3339
+from openeo.util import TimingLogger, rfc3339, repr_truncate
 
 import openeo_driver._version
 from openeo_driver.datastructs import secretive_repr
+from openeo_driver.errors import JobNotFoundException, InternalException
 from openeo_driver.util.caching import TtlCache
 from openeo_driver.util.logging import just_log_exceptions
 from openeo_driver.utils import generate_unique_id
@@ -80,6 +81,9 @@ class JobRegistryInterface:
         api_version: Optional[str] = None,
         job_options: Optional[dict] = None,
     ) -> JobDict:
+        raise NotImplementedError
+
+    def get_job(self, job_id: str) -> JobDict:
         raise NotImplementedError
 
     def set_status(
@@ -349,6 +353,29 @@ class ElasticJobRegistry(JobRegistryInterface):
             logging_extra=logging_extra,
         )
 
+    def get_job(self, job_id: str, fields: Optional[List[str]] = None) -> JobDict:
+        query = {
+            "bool": {
+                "filter": [
+                    {"term": {"backend_id": self.backend_id}},
+                    {"term": {"job_id": job_id}},
+                ]
+            }
+        }
+
+        # Return full document, by default
+        jobs = self._search(query=query, fields=fields or ["*"])
+        if len(jobs) == 1:
+            return jobs[0]
+        elif len(jobs) == 0:
+            raise JobNotFoundException(job_id=job_id)
+        else:
+            summary = [{k: j.get(k) for k in ["user_id", "created"]} for j in jobs]
+            _log.error(
+                f"Found multiple ({len(jobs)}) jobs for {job_id=}: {repr_truncate(summary, width=200)}"
+            )
+            raise InternalException(message=f"Found {len(jobs)} jobs for {job_id=}")
+
     def set_status(
         self,
         job_id: str,
@@ -512,6 +539,12 @@ class CliApp:
         cli_list_active.add_argument("--backend-id", help="Override back-end ID")
         cli_list_active.set_defaults(func=self.list_active_jobs)
 
+        cli_get_job = subparsers.add_parser(
+            "get", help="Get job metadata of a single job"
+        )
+        cli_get_job.add_argument("job_id")
+        cli_get_job.set_defaults(func=self.get_job)
+
         return cli.parse_args()
 
     def _get_job_registry(
@@ -593,6 +626,12 @@ class CliApp:
         result = ejr.create_job(process=process, user_id=user_id)
         print("Created job:")
         pprint.pprint(result)
+
+    def get_job(self, args: argparse.Namespace):
+        job_id = args.job_id
+        ejr = self._get_job_registry()
+        job = ejr.get_job(job_id=job_id)
+        pprint.pprint(job)
 
     def set_status(self, args: argparse.Namespace):
         ejr = self._get_job_registry()
