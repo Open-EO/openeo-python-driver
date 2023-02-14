@@ -529,17 +529,24 @@ class CliApp:
         if setup_auth:
             _log.info("Trying to get EJR credentials from Vault")
             # TODO: optional dependency `hvac` (HashiCorp Vault client) is blindly assumed here.
-            import hvac
+            import hvac, hvac.exceptions
 
-            # Note: this flow assumes default token resolution of vault client,
-            # for example through env var `VAULT_TOKEN`
-            # or local `~/.vault-token` (set by a preceding `vault login` call).
-            vault_client = hvac.Client(url=self.environ.get("VAULT_ADDR"))
-            secret = vault_client.secrets.kv.v2.read_secret_version(
-                # TODO: avoid this hardcoded path?
-                f"TAP/big_data_services/openeo/openeo-job-registry-elastic-api",
-                mount_point="kv",
-            )
+            try:
+                # Note: this flow assumes the default token resolution of vault client,
+                # (using `VAULT_TOKEN` env variable or local `~/.vault-token` file)
+                vault_client = hvac.Client(url=self.environ.get("VAULT_ADDR"))
+                secret = vault_client.secrets.kv.v2.read_secret_version(
+                    # TODO: avoid this hardcoded path?
+                    f"TAP/big_data_services/openeo/openeo-job-registry-elastic-api",
+                    mount_point="kv",
+                )
+            except hvac.exceptions.Forbidden as e:
+                raise RuntimeError(
+                    f"No permissions to read EJR credentials from vault: {e}."
+                    " Make sure `hvac.Client` can find a valid vault token"
+                    " through environment variable `VAULT_TOKEN`"
+                    " or local file `~/.vault-token` (e.g. created with `vault login -method=ldap username=john`)."
+                )
             credentials = ElasticJobRegistryCredentials.get(
                 config=secret["data"]["data"]
             )
