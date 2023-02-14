@@ -536,9 +536,12 @@ class CliApp:
                 # Note: this flow assumes the default token resolution of vault client,
                 # (using `VAULT_TOKEN` env variable or local `~/.vault-token` file)
                 vault_client = hvac.Client(url=self.environ.get("VAULT_ADDR"))
+                ejr_vault_path = self.environ.get(
+                    "OPENEO_EJR_CREDENTIALS_VAULT_PATH",
+                    "TAP/big_data_services/openeo/openeo-job-registry-elastic-api",
+                )
                 secret = vault_client.secrets.kv.v2.read_secret_version(
-                    # TODO: avoid this hardcoded path?
-                    f"TAP/big_data_services/openeo/openeo-job-registry-elastic-api",
+                    ejr_vault_path,
                     mount_point="kv",
                 )
             except hvac.exceptions.Forbidden as e:
