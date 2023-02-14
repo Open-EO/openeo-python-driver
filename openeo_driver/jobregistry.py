@@ -528,8 +528,12 @@ class CliApp:
 
         if setup_auth:
             _log.info("Trying to get EJR credentials from Vault")
-            # TODO: optional dependency `hvac` (HashiCorp Vault client) is blindly assumed here.
-            import hvac, hvac.exceptions
+            try:
+                import hvac, hvac.exceptions
+            except ImportError as e:
+                raise RuntimeError(
+                    "Package `hvac` (HashiCorp Vault client) is required for this functionality"
+                ) from e
 
             try:
                 # Note: this flow assumes the default token resolution of vault client,
