@@ -15,7 +15,7 @@ from openeo_driver.jobregistry import (
     ElasticJobRegistry,
     ElasticJobRegistryCredentials,
 )
-from openeo_driver.testing import DictSubSet, RegexMatcher
+from openeo_driver.testing import DictSubSet, RegexMatcher, ListSubSet, IgnoreOrder
 
 DUMMY_PROCESS = {
     "summary": "calculate 3+5, please",
@@ -197,6 +197,17 @@ class TestElasticJobRegistry:
         def post_jobs_search(request, context):
             """Handler of `POST /jobs/search"""
             assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
+            assert request.json() == {
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {"term": {"backend_id": "unittests"}},
+                            {"term": {"user_id": "john"}},
+                        ]
+                    }
+                },
+                "_source": ListSubSet(["job_id", "user_id", "status"]),
+            }
             # TODO: what to return? What does API return?  https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
             return [DUMMY_PROCESS]
 
@@ -205,26 +216,44 @@ class TestElasticJobRegistry:
         result = ejr.list_user_jobs(user_id="john")
         assert result == [DUMMY_PROCESS]
 
-    def test_list_active_jobs(self, requests_mock, oidc_mock, ejr):
+    @pytest.mark.parametrize(
+        ["fields", "expected_fields"],
+        [
+            (None, ["job_id", "user_id", "created", "status", "updated"]),
+            (
+                ["created", "started"],
+                ["job_id", "user_id", "created", "status", "updated", "started"],
+            ),
+        ],
+    )
+    def test_list_active_jobs(
+        self, requests_mock, oidc_mock, ejr, fields, expected_fields
+    ):
         def post_jobs_search(request, context):
             """Handler of `POST /jobs/search"""
             assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
+            assert request.json() == {
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {"term": {"backend_id": "unittests"}},
+                            {"terms": {"status": ["created", "queued", "running"]}},
+                            {"range": {"created": {"gte": "now-7d"}}},
+                        ]
+                    }
+                },
+                "_source": IgnoreOrder(expected_fields),
+            }
             return [
-                {
-                    "backend_id": "unittests",
-                    "job_id": "job-123",
-                    "user_id": "john",
-                }
+                {"job_id": "job-123", "user_id": "alice"},
+                {"job_id": "job-456", "user_id": "bob"},
             ]
 
         requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=post_jobs_search)
-        result = ejr.list_active_jobs()
+        result = ejr.list_active_jobs(fields=fields)
         assert result == [
-            {
-                "backend_id": "unittests",
-                "job_id": "job-123",
-                "user_id": "john",
-            }
+            {"job_id": "job-123", "user_id": "alice"},
+            {"job_id": "job-456", "user_id": "bob"},
         ]
 
     def _handle_patch_jobs(

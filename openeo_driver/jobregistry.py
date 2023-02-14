@@ -402,40 +402,45 @@ class ElasticJobRegistry(JobRegistryInterface):
     def set_application_id(self, job_id: str, application_id: str) -> JobDict:
         return self._update(job_id=job_id, data={"application_id": application_id})
 
-    def _search(self, query: dict) -> List[JobDict]:
+    def _search(self, query: dict, fields: Optional[List[str]] = None) -> List[JobDict]:
         # TODO: sorting, pagination?
-        # TODO: How to return field subset (e.g. not process graph) to reduce payload size
-        #   https://github.com/Open-EO/openeo-job-registry-elastic-api/issues/25
+        fields = set(fields or [])
+        # Make sure to include some basic fields by default
+        fields.update(["job_id", "user_id", "created", "status", "updated"])
+        query = {
+            "query": query,
+            "_source": list(fields),
+        }
         self.logger.info(f"Doing search with query {json.dumps(query)}")
         return self._do_request("POST", "/jobs/search", json=query)
 
-    def list_user_jobs(self, user_id: Optional[str]) -> List[JobDict]:
+    def list_user_jobs(
+        self, user_id: Optional[str], fields: Optional[List[str]] = None
+    ) -> List[JobDict]:
         query = {
-            "query": {
-                "bool": {
-                    "filter": [
-                        {"term": {"backend_id": self.backend_id}},
-                        {"term": {"user_id": user_id}},
-                    ]
-                }
+            "bool": {
+                "filter": [
+                    {"term": {"backend_id": self.backend_id}},
+                    {"term": {"user_id": user_id}},
+                ]
             }
         }
-        return self._search(query=query)
+        return self._search(query=query, fields=fields)
 
-    def list_active_jobs(self, max_age: Optional[int] = None) -> List[JobDict]:
+    def list_active_jobs(
+        self, max_age: Optional[int] = None, fields: Optional[List[str]] = None
+    ) -> List[JobDict]:
         active = [JOB_STATUS.CREATED, JOB_STATUS.QUEUED, JOB_STATUS.RUNNING]
         query = {
-            "query": {
-                "bool": {
-                    "filter": [
-                        {"term": {"backend_id": self.backend_id}},
-                        {"terms": {"status": active}},
-                        {"range": {"created": {"gte": f"now-{max_age or 7}d"}}},
-                    ]
-                }
-            }
+            "bool": {
+                "filter": [
+                    {"term": {"backend_id": self.backend_id}},
+                    {"terms": {"status": active}},
+                    {"range": {"created": {"gte": f"now-{max_age or 7}d"}}},
+                ]
+            },
         }
-        return self._search(query=query)
+        return self._search(query=query, fields=fields)
 
     @staticmethod
     def just_log_errors(name: str = "EJR"):
@@ -558,12 +563,16 @@ class CliApp:
     def list_user_jobs(self, args: argparse.Namespace):
         user_id = args.user_id
         ejr = self._get_job_registry()
-        jobs = ejr.list_user_jobs(user_id=user_id)
+        # TODO: option to return more fields?
+        jobs = ejr.list_user_jobs(
+            user_id=user_id, fields=["started", "finished", "title"]
+        )
         print(f"Found {len(jobs)} jobs for user {user_id!r}:")
         pprint.pp(jobs)
 
     def list_active_jobs(self, args: argparse.Namespace):
         ejr = self._get_job_registry(backend_id=args.backend_id)
+        # TODO: option to return more fields?
         jobs = ejr.list_active_jobs()
         print(f"Found {len(jobs)} active jobs (backend {ejr.backend_id!r}):")
         pprint.pp(jobs)
