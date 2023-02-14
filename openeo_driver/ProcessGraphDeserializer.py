@@ -624,7 +624,7 @@ def _check_geometry_path_assumption(path: str, process: str, parameter: str):
         raise ProcessParameterInvalidException(
             parameter=parameter,
             process=process,
-            reason=f"provided a string (to be handled as path/URL), but it looks like (Geo)JSON encoded data: {str_truncate(path, width=16)}.",
+            reason=f"provided a string (to be handled as path/URL), but it looks like (Geo)JSON encoded data: {str_truncate(path, width=32)!r}.",
         )
 
 
