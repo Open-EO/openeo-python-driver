@@ -364,8 +364,6 @@ class ElasticJobRegistry(JobRegistryInterface):
         started: Optional[str] = None,
         finished: Optional[str] = None,
     ) -> JobDict:
-        # TODO: handle this with a generic `patch` method?
-        # TODO: add a source where the status came from (driver, tracker, async, ...)?
         data = {
             "status": status,
             "updated": rfc3339.datetime(updated) if updated else rfc3339.utcnow(),
@@ -380,7 +378,6 @@ class ElasticJobRegistry(JobRegistryInterface):
         """Generic update method"""
         logging_extra = {"job_id": job_id}
         self.logger.info(f"EJR update {job_id=} {data=}", extra=logging_extra)
-        # TODO: proper URL encoding of job id?
         return self._do_request(
             "PATCH", f"/jobs/{job_id}", json=data, logging_extra=logging_extra
         )
