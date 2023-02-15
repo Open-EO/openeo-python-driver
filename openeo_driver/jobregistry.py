@@ -366,7 +366,9 @@ class ElasticJobRegistry(JobRegistryInterface):
         # Return full document, by default
         jobs = self._search(query=query, fields=fields or ["*"])
         if len(jobs) == 1:
-            return jobs[0]
+            job = jobs[0]
+            assert job["job_id"] == job, f"Expected {job_id=}, but got {job['job_id']=}"
+            return job
         elif len(jobs) == 0:
             raise JobNotFoundException(job_id=job_id)
         else:
