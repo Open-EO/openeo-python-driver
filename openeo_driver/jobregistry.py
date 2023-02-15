@@ -380,7 +380,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         jobs = self._search(query=query, fields=fields or ["*"])
         if len(jobs) == 1:
             job = jobs[0]
-            assert job["job_id"] == job, f"Expected {job_id=}, but got {job['job_id']=}"
+            assert job["job_id"] == job_id, f"{job['job_id']=} != {job_id=}"
             return job
         elif len(jobs) == 0:
             raise JobNotFoundException(job_id=job_id)
