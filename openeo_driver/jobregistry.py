@@ -118,15 +118,28 @@ class JobRegistryInterface:
     def set_application_id(self, job_id: str, application_id: str) -> JobDict:
         raise NotImplementedError
 
-    # TODO: methods to list jobs (filtering on timeframe, userid, ...)?
+    def list_user_jobs(
+        self, user_id: str, fields: Optional[List[str]] = None
+    ) -> List[JobDict]:
+        """
+        List all jobs of a user
 
-    def list_active_jobs(self, max_age: Optional[int] = None) -> List[JobDict]:
+        :param user_id: user id of user to list jobs for
+        :param fields: job metadata fields that should be included in result
+        """
+        raise NotImplementedError
+
+    def list_active_jobs(
+        self, max_age: Optional[int] = None, fields: Optional[List[str]] = None
+    ) -> List[JobDict]:
         """
         List active jobs (created, queued, running)
 
         :param max_age: optional filter to only return recently created jobs:
             maximum number of days creation date.
+        :param fields: job metadata fields that should be included in result
         """
+        # TODO: option for job metadata fields that should be included in result
         raise NotImplementedError
 
 
