@@ -4,7 +4,7 @@ import pytest
 import requests.exceptions
 from re_assert import Matches
 
-from openeogeotrellis.util.http import requests_with_retry
+from openeo_driver.util.http import requests_with_retry
 
 
 def test_requests_with_retry(caplog):
