@@ -26,6 +26,7 @@ tests_require = [
     "moto>=4.0.10",
     "time-machine",
     "netCDF4>=1.5.4",
+    "re-assert",
 ]
 
 setup(
