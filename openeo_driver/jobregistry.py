@@ -217,7 +217,12 @@ class ElasticJobRegistry(JobRegistryInterface):
 
     logger = logging.getLogger(f"{__name__}.elastic")
 
-    def __init__(self, api_url: str, backend_id: Optional[str] = None):
+    def __init__(
+        self,
+        api_url: str,
+        backend_id: Optional[str] = None,
+        session: Optional[requests.Session] = None,
+    ):
         self.logger.info(
             f"Creating ElasticJobRegistry with {backend_id=} and {api_url=}"
         )
@@ -225,7 +230,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         self._api_url = api_url
         self._authenticator: Optional[OidcClientCredentialsAuthenticator] = None
         self._cache = TtlCache(default_ttl=60 * 60)
-        self._session = requests.Session()
+        self._session = session or requests.Session()
 
         user_agent = f"openeo_driver-{openeo_driver._version.__version__}/{self.__class__.__name__}"
         if self._backend_id:
@@ -244,14 +249,16 @@ class ElasticJobRegistry(JobRegistryInterface):
         self.logger.info(
             f"Setting up EJR OIDC Client Credentials Authentication with {credentials.client_id=}, {credentials.oidc_issuer=}, {len(credentials.client_secret)=}"
         )
-        oidc_provider = OidcProviderInfo(issuer=credentials.oidc_issuer)
+        oidc_provider = OidcProviderInfo(
+            issuer=credentials.oidc_issuer, requests_session=self._session
+        )
         client_info = OidcClientInfo(
             client_id=credentials.client_id,
             provider=oidc_provider,
             client_secret=credentials.client_secret,
         )
         self._authenticator = OidcClientCredentialsAuthenticator(
-            client_info=client_info
+            client_info=client_info, requests_session=self._session
         )
 
     def _get_access_token(self) -> str:

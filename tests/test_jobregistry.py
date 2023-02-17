@@ -1,9 +1,11 @@
 import logging
-from typing import Union
+import urllib.parse
+from typing import Union, Optional, List
 from unittest import mock
 
 import pytest
 import requests
+import requests_mock
 import time_machine
 from openeo.rest.auth.testing import OidcMock
 from openeo_driver.errors import JobNotFoundException, InternalException
@@ -114,21 +116,49 @@ class TestElasticJobRegistry:
             assert result == []
             assert len(oidc_mock.get_request_history(url="/token")) == 2
 
-    def _auth_is_valid(self, oidc_mock: OidcMock, request: requests.Request) -> bool:
-        access_token = oidc_mock.state["access_token"]
+    def _auth_is_valid(
+        self,
+        request: requests.Request,
+        *,
+        expected_access_token: Optional[str] = None,
+        oidc_mock: Optional[OidcMock] = None,
+    ) -> bool:
+        if expected_access_token:
+            access_token = expected_access_token
+        elif oidc_mock:
+            access_token = oidc_mock.state["access_token"]
+        else:
+            raise RuntimeError("`expected_access_token` or `oidc_mock` should be set")
         return request.headers["Authorization"] == f"Bearer {access_token}"
 
-    def test_health_check(self, requests_mock, oidc_mock, ejr):
+    def _handle_get_health(
+        self,
+        *,
+        expected_access_token: Optional[str] = None,
+        oidc_mock: Optional[OidcMock] = None,
+    ):
+        """Create a mocking handler for `GET /health` requests."""
+
         def get_health(request, context):
             if "Authorization" not in request.headers:
                 status, state = "down", "missing"
-            elif self._auth_is_valid(oidc_mock=oidc_mock, request=request):
+            elif self._auth_is_valid(
+                request=request,
+                expected_access_token=expected_access_token,
+                oidc_mock=oidc_mock,
+            ):
                 status, state = "up", "ok"
             else:
                 status, state = "down", "expired"
             return {"info": {"auth": {"status": status, "state": state}}}
 
-        requests_mock.get(f"{self.EJR_API_URL}/health", json=get_health)
+        return get_health
+
+    def test_health_check(self, requests_mock, oidc_mock, ejr):
+        requests_mock.get(
+            f"{self.EJR_API_URL}/health",
+            json=self._handle_get_health(oidc_mock=oidc_mock),
+        )
 
         # Health check without auth
         response = ejr.health_check(use_auth=False)
@@ -155,6 +185,73 @@ class TestElasticJobRegistry:
 
         response = ejr.health_check(use_auth=False)
         assert response == {"info": {"auth": {"status": "down", "state": "missing"}}}
+
+    def test_health_check_custom_requests_session(self):
+        # Instead of using the requests_mock/oidc_mock fixtures like we do in other tests:
+        # explicitly create a requests session to play with, using an adapter from requests_mock
+        session = requests.Session()
+        session_history: List[requests.Response] = []
+        session.hooks["response"].append(
+            lambda resp, *args, **kwargs: session_history.append(resp)
+        )
+        adapter = requests_mock.Adapter()
+        session.mount("https://", adapter)
+
+        oidc_issuer = "https://oidc.test"
+        adapter.register_uri(
+            "GET",
+            f"{oidc_issuer}/.well-known/openid-configuration",
+            json={
+                "issuer": oidc_issuer,
+                "scopes_supported": ["openid"],
+                "token_endpoint": f"{oidc_issuer}/token",
+            },
+        )
+
+        def post_token(request, context):
+            # Very simple handler here (compared to OidcMock implementation)
+            assert "grant_type=client_credentials" in request.text
+            return {"access_token": "6cce5-t0k3n"}
+
+        adapter.register_uri("POST", f"{oidc_issuer}/token", json=post_token)
+        adapter.register_uri(
+            "GET",
+            "https://ejr.test/health",
+            json=self._handle_get_health(expected_access_token="6cce5-t0k3n"),
+        )
+
+        # Setup up ElasticJobRegistry
+        ejr = ElasticJobRegistry(
+            api_url=self.EJR_API_URL, backend_id="unittests", session=session
+        )
+        credentials = ElasticJobRegistryCredentials(
+            oidc_issuer=self.OIDC_CLIENT_INFO["oidc_issuer"],
+            client_id=self.OIDC_CLIENT_INFO["client_id"],
+            client_secret=self.OIDC_CLIENT_INFO["client_secret"],
+        )
+        ejr.setup_auth_oidc_client_credentials(credentials)
+
+        # Check requests so far on custom session
+        assert [
+            f"{r.status_code} {r.request.method} {r.request.url}"
+            for r in session_history
+        ] == [
+            "200 GET https://oidc.test/.well-known/openid-configuration",
+        ]
+
+        # Do a EJR /health request
+        response = ejr.health_check(use_auth=True)
+        assert response == {"info": {"auth": {"state": "ok", "status": "up"}}}
+
+        # Check requests on custom session
+        assert [
+            f"{r.status_code} {r.request.method} {r.request.url}"
+            for r in session_history
+        ] == [
+            "200 GET https://oidc.test/.well-known/openid-configuration",
+            "200 POST https://oidc.test/token",
+            "200 GET https://ejr.test/health",
+        ]
 
     def test_create_job(self, requests_mock, oidc_mock, ejr):
         def post_jobs(request, context):
