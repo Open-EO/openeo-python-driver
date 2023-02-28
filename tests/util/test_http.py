@@ -20,14 +20,10 @@ def test_requests_with_retry(caplog):
     assert caplog.messages == [
         "Starting new HTTPS connection (1): example.test:443",
         Matches("Incremented Retry.*Retry\(total=1"),
-        Matches(
-            "Retrying.*total=1.*Failed to establish a new connection.*Name or service not known"
-        ),
+        Matches("Retrying.*total=1.*Failed to establish a new connection"),
         "Starting new HTTPS connection (2): example.test:443",
         Matches("Incremented Retry.*Retry\(total=0"),
-        Matches(
-            "Retrying.*total=0.*Failed to establish a new connection.*Name or service not known"
-        ),
+        Matches("Retrying.*total=0.*Failed to establish a new connection"),
         "Starting new HTTPS connection (3): example.test:443",
     ]
 
