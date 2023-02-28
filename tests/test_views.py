@@ -575,7 +575,8 @@ def oidc_provider(requests_mock):
     user_db = {
         "j0hn": {"sub": "john"},
         "4l1c3": {"sub": "Alice"},
-        "b0b": {"sub": "b0b1b08571101437a2"}
+        "b0b": {"sub": "b0b1b08571101437a2"},
+        "c6r01": {"sub": "Carol"},
     }
     oidc_conf = f"{oidc_issuer}/.well-known/openid-configuration"
     oidc_userinfo_url = f"{oidc_issuer}/userinfo"
@@ -613,8 +614,24 @@ class TestUser:
         api.get("/me", headers={"Authorization": "Bearer oidc/invalid/j0hn"}).assert_error(403, "TokenInvalid")
 
     def test_default_plan(self, api, oidc_provider):
-        response = api.get("/me", headers={"Authorization": "Bearer oidc/eoidc/4l1c3"}).assert_status_code(200).json
-        assert response == DictSubSet({"user_id": "Alice", "default_plan": "alice-plan"})
+        response = (
+            api.get("/me", headers={"Authorization": "Bearer oidc/eoidc/4l1c3"})
+            .assert_status_code(200)
+            .json
+        )
+        assert response == DictSubSet(
+            {"user_id": "Alice", "default_plan": "alice-plan"}
+        )
+
+    def test_roles(self, api, oidc_provider):
+        response = (
+            api.get("/me", headers={"Authorization": "Bearer oidc/eoidc/c6r01"})
+            .assert_status_code(200)
+            .json
+        )
+        assert response == DictSubSet(
+            {"user_id": "Carol", "roles": ["admin", "devops"]}
+        )
 
 
 class TestLogging:

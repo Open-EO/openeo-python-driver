@@ -844,5 +844,7 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
         if "mark" in user.user_id.lower():
             raise PermissionsInsufficientException(message="No access for Mark.")
         if user.user_id == "Alice":
-            user.info["default_plan"] = "alice-plan"
+            user.set_default_plan("alice-plan")
+        if user.user_id == "Carol":
+            user.add_roles(["admin", "devops"])
         return user

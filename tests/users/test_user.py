@@ -40,3 +40,17 @@ class TestUser:
     def test_get_name_from_oidc_userinfo(self, oidc_userinfo, expected):
         user = User("u123", info={"oidc_userinfo": oidc_userinfo})
         assert user.get_name() == expected
+
+    def test_roles(self):
+        user = User("john")
+        assert user.get_roles() == set([])
+        user.add_role("trial")
+        assert user.get_roles() == {"trial"}
+        user.add_roles(["trial", "newby", "student"])
+        assert user.get_roles() == {"trial", "newby", "student"}
+
+    def test_default_plan(self):
+        user = User("alice")
+        assert user.get_default_plan() is None
+        user.set_default_plan("premium")
+        assert user.get_default_plan() == "premium"

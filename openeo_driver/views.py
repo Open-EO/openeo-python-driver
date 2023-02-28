@@ -544,14 +544,18 @@ def register_views_auth(
     @blueprint.route("/me", methods=["GET"])
     @auth_handler.requires_bearer_auth
     def me(user: User):
-        return jsonify(dict_no_none({
-            "user_id": user.user_id,
-            "name": user.get_name(),
-            "info": user.info,
-            # TODO: "default_plan" field? see https://github.com/Open-EO/openeo-api/issues/425
-            "default_plan": user.get_default_plan(),
-            # TODO more fields
-        }))
+        return jsonify(
+            dict_no_none(
+                {
+                    "user_id": user.user_id,
+                    "name": user.get_name(),
+                    "info": user.info,
+                    "roles": sorted(user.get_roles()) or None,
+                    "default_plan": user.get_default_plan(),
+                    # TODO more fields
+                }
+            )
+        )
 
 
 def _extract_process_graph(post_data: dict) -> dict:
