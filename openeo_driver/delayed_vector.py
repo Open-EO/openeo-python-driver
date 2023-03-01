@@ -14,7 +14,10 @@ from shapely.geometry import shape
 from shapely.geometry.base import BaseGeometry
 
 from openeo_driver.errors import OpenEOApiException
-from openeo_driver.util.geometry import reproject_bounding_box
+from openeo_driver.util.geometry import (
+    reproject_bounding_box,
+    validate_geojson_coordinates,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -58,7 +61,9 @@ class DelayedVector:
         )
         resp.raise_for_status()
         try:
-            return resp.json()
+            geojson = resp.json()
+            validate_geojson_coordinates(geojson)
+            return geojson
         except json.JSONDecodeError as e:
             message = f"Failed to parse GeoJSON from URL {url!r} (content-type={content_type!r}, content-length={content_length!r}): {e!r}"
             # TODO: use generic client error? https://github.com/Open-EO/openeo-api/issues/456
@@ -99,6 +104,7 @@ class DelayedVector:
             else:  # it's GeoJSON
                 with open(self.path, 'r') as f:
                     geojson = json.load(f)
+                    validate_geojson_coordinates(geojson)
                     geometries = DelayedVector._read_geojson_geometries(geojson)
 
         return geometries
@@ -141,6 +147,7 @@ class DelayedVector:
             else:  # it's GeoJSON
                 with open(self.path, 'r') as f:
                     geojson = json.load(f)
+                    validate_geojson_coordinates(geojson)
                     bounds = DelayedVector._read_geojson_bounds(geojson)
 
         return bounds
@@ -201,7 +208,8 @@ class DelayedVector:
     def _read_shapefile_geometries(shp_path: str) -> List[BaseGeometry]:
         # FIXME: returned as a list for safety but possible to return as an iterable?
         with fiona.open(shp_path) as collection:
-            return [shape(record['geometry']) for record in collection]
+            [validate_geojson_coordinates(record["geometry"]) for record in collection]
+            return [shape(record["geometry"]) for record in collection]
 
     @staticmethod
     def _read_shapefile_bounds(shp_path: str) -> List[BaseGeometry]:
