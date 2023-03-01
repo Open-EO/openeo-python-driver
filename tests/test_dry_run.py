@@ -1623,3 +1623,20 @@ def test_invalid_latlon_in_geojson(dry_run_env):
     }
     cube = init_cube.filter_spatial(geometries=polygon_with_holes)
     evaluate(cube.flat_graph(), env=dry_run_env)
+
+    feature_collection = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {"type": "Point", "coordinates": [-71.073283, -101]},
+            }
+        ],
+    }
+    cube = init_cube.filter_spatial(geometries=feature_collection)
+    with pytest.raises(OpenEOApiException) as e:
+        evaluate(cube.flat_graph(), env=dry_run_env)
+    assert e.value.message.startswith(
+        "Failed to parse Geojson. Invalid coordinate: [-71.073283, -101]"
+    )

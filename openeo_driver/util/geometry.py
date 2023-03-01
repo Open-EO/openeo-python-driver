@@ -15,24 +15,14 @@ from openeo_driver.util.utm import auto_utm_epsg
 _log = logging.getLogger(__name__)
 
 
-def geojson_to_geometry(geojson: dict) -> BaseGeometry:
-    """Convert GeoJSON object to shapely geometry object"""
-    # TODO #71 #114 EP-3981 standardize on using (FeatureCollection like) vector cubes  instead of GeometryCollection?
-    if geojson["type"] == "FeatureCollection":
-        geojson = {
-            "type": "GeometryCollection",
-            "geometries": [feature["geometry"] for feature in geojson["features"]],
-        }
-    elif geojson["type"] == "Feature":
-        geojson = geojson["geometry"]
-
-    def validate_coordinates(coordinates):
+def validate_geojson_coordinates(geojson):
+    def _validate_coordinates(coordinates):
         message = f"Failed to parse Geojson. Coordinates are invalid."
         if not isinstance(coordinates, (list, Tuple)) or len(coordinates) == 0:
             raise OpenEOApiException(status_code=400, message=message)
         if not isinstance(coordinates[0], (float, int)):
             # Flatten until elements are floats or ints.
-            return [validate_coordinates(sub) for sub in coordinates]
+            return [_validate_coordinates(sub) for sub in coordinates]
         if len(coordinates) != 2:
             raise OpenEOApiException(status_code=400, message=message)
         if not (-360 <= coordinates[0] <= 360 and -100 <= coordinates[1] <= 100):
@@ -43,20 +33,46 @@ def geojson_to_geometry(geojson: dict) -> BaseGeometry:
             raise OpenEOApiException(status_code=400, message=message)
         return None
 
-    def validate_geometry_collection(geojson):
+    def _validate_geometry_collection(geojson):
         if geojson["type"] != "GeometryCollection":
             return
         for geometry in geojson["geometries"]:
             if geometry["type"] == "GeometryCollection":
-                validate_geometry_collection(geometry)
+                _validate_geometry_collection(geometry)
             else:
-                validate_coordinates(geometry["coordinates"])
+                _validate_coordinates(geometry["coordinates"])
+
+    def _validate_feature_collection(geojson):
+        if geojson["type"] != "FeatureCollection":
+            return
+        for feature in geojson["features"]:
+            if feature["geometry"]["type"] == "GeometryCollection":
+                _validate_geometry_collection(feature["geometry"])
+            else:
+                _validate_coordinates(feature["geometry"]["coordinates"])
+
+    if geojson["type"] == "Feature":
+        geojson = geojson["geometry"]
 
     if geojson["type"] == "GeometryCollection":
-        validate_geometry_collection(geojson)
+        _validate_geometry_collection(geojson)
+    elif geojson["type"] == "FeatureCollection":
+        _validate_feature_collection(geojson)
     else:
-        validate_coordinates(geojson["coordinates"])
+        _validate_coordinates(geojson["coordinates"])
 
+
+def geojson_to_geometry(geojson: dict) -> BaseGeometry:
+    """Convert GeoJSON object to shapely geometry object"""
+    # TODO #71 #114 EP-3981 standardize on using (FeatureCollection like) vector cubes  instead of GeometryCollection?
+    validate_geojson_coordinates(geojson)
+    if geojson["type"] == "FeatureCollection":
+        geojson = {
+            "type": "GeometryCollection",
+            "geometries": [feature["geometry"] for feature in geojson["features"]],
+        }
+    elif geojson["type"] == "Feature":
+        geojson = geojson["geometry"]
     try:
         return shapely.geometry.shape(geojson)
     except Exception as e:
