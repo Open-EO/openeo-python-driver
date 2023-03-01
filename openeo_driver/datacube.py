@@ -19,7 +19,7 @@ from openeo.metadata import CollectionMetadata
 from openeo.util import ensure_dir
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs, StacAsset
 from openeo_driver.errors import FeatureUnsupportedException, InternalException
-from openeo_driver.util.geometry import GeometryBufferer
+from openeo_driver.util.geometry import GeometryBufferer, validate_geojson_coordinates
 from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.util.utm import area_in_square_meters
 from openeo_driver.utils import EvalEnv
@@ -222,6 +222,7 @@ class DriverVectorCube:
     @classmethod
     def from_geojson(cls, geojson: dict) -> "DriverVectorCube":
         """Construct vector cube from GeoJson dict structure"""
+        validate_geojson_coordinates(geojson)
         # TODO support more geojson types?
         if geojson["type"] in {"Polygon", "MultiPolygon", "Point", "MultiPoint"}:
             features = [{"type": "Feature", "geometry": geojson, "properties": {}}]

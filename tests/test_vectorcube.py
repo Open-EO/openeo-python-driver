@@ -5,6 +5,7 @@ import pytest
 import xarray
 from shapely.geometry import Polygon, MultiPolygon, Point
 
+from openeo_driver.errors import OpenEOApiException
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.testing import DictSubSet, ApproxGeometry
 from openeo_driver.util.geometry import as_geojson_feature_collection
@@ -246,6 +247,17 @@ class TestDriverVectorCube:
             "type": "FeatureCollection",
             "features": expected,
         })
+
+    def test_from_geojson_invalid_coordinates(self):
+        geojson = {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [-361, 2]},
+        }
+        with pytest.raises(OpenEOApiException) as e:
+            DriverVectorCube.from_geojson(geojson)
+        assert e.value.message.startswith(
+            "Failed to parse Geojson. Invalid coordinate: [-361, 2]"
+        )
 
     @pytest.mark.parametrize(
         ["geometry", "expected"],
