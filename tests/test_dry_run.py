@@ -3,6 +3,8 @@ import shapely.geometry
 
 from openeo.internal.graph_building import PGNode
 from openeo.rest.datacube import DataCube
+
+from errors import OpenEOApiException
 from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER, _extract_load_parameters, \
     ENV_SOURCE_CONSTRAINTS, custom_process_from_process_graph, process_registry_100, ENV_SAVE_RESULT
 from openeo_driver.datacube import DriverVectorCube
@@ -1530,3 +1532,32 @@ def test_multiple_save_result(dry_run_env):
     save_result = dry_run_env.get(ENV_SAVE_RESULT)
     assert  len(save_result) == 2
     assert len(the_result) == 2
+
+
+def test_invalid_latlon_in_geojson(dry_run_env):
+    init_cube = DataCube(PGNode("load_collection", id="S2_FOOBAR"), connection=None)
+
+    polygon1 = {"type": "Polygon", "coordinates": [[(-361, 0), (3, 5), (8, 2), (0, 0)]]}
+    cube = init_cube.filter_spatial(geometries=polygon1)
+    with pytest.raises(OpenEOApiException) as e:
+        evaluate(cube.flat_graph(), env=dry_run_env)
+    assert e.value.message.startswith(
+        "Failed to parse Geojson. Invalid coordinate: (-361, 0)"
+    )
+
+    polygon2 = {"type": "Polygon", "coordinates": [[(1, 1), (3, 5), (8, 101), (1, 1)]]}
+    cube = init_cube.filter_spatial(geometries=polygon2)
+    with pytest.raises(OpenEOApiException) as e:
+        evaluate(cube.flat_graph(), env=dry_run_env)
+    assert e.value.message.startswith(
+        "Failed to parse Geojson. Invalid coordinate: (8, 101)"
+    )
+
+    polygon3 = {
+        "type": "MultiPolygon",
+        "coordinates": [
+            [[(-360, -100), (-360, 100), (360, 100), (360, -100), (-360, -100)]]
+        ],
+    }
+    cube = init_cube.filter_spatial(geometries=polygon3)
+    evaluate(cube.flat_graph(), env=dry_run_env)

@@ -9,6 +9,7 @@ import shapely.ops
 from shapely.geometry import MultiPolygon, Point, Polygon
 from shapely.geometry.base import BaseGeometry
 
+from errors import OpenEOApiException
 from openeo_driver.util.utm import auto_utm_epsg
 
 _log = logging.getLogger(__name__)
@@ -24,6 +25,26 @@ def geojson_to_geometry(geojson: dict) -> BaseGeometry:
         }
     elif geojson["type"] == "Feature":
         geojson = geojson["geometry"]
+
+    def validate_coordinates(coordinates):
+        message = f"Failed to parse Geojson. Coordinates are invalid."
+        if not isinstance(coordinates, (list, Tuple)) or len(coordinates) == 0:
+            raise OpenEOApiException(status_code=400, message=message)
+        if not isinstance(coordinates[0], (float, int)):
+            # Flatten until elements are floats or ints.
+            return [validate_coordinates(sub) for sub in coordinates]
+        if len(coordinates) != 2:
+            raise OpenEOApiException(status_code=400, message=message)
+        if not (-360 <= coordinates[0] <= 360 and -100 <= coordinates[1] <= 100):
+            message = (
+                f"Failed to parse Geojson. Invalid coordinate: {coordinates}. "
+                f"X value must be between -360 and 360, Y value must be between -100 and 100."
+            )
+            raise OpenEOApiException(status_code=400, message=message)
+        return None
+
+    validate_coordinates(geojson["coordinates"])
+
     try:
         return shapely.geometry.shape(geojson)
     except Exception as e:
