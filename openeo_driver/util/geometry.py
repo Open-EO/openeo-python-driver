@@ -43,7 +43,19 @@ def geojson_to_geometry(geojson: dict) -> BaseGeometry:
             raise OpenEOApiException(status_code=400, message=message)
         return None
 
-    validate_coordinates(geojson["coordinates"])
+    def validate_geometry_collection(geojson):
+        if geojson["type"] != "GeometryCollection":
+            return
+        for geometry in geojson["geometries"]:
+            if geometry["type"] == "GeometryCollection":
+                validate_geometry_collection(geometry)
+            else:
+                validate_coordinates(geometry["coordinates"])
+
+    if geojson["type"] == "GeometryCollection":
+        validate_geometry_collection(geojson)
+    else:
+        validate_coordinates(geojson["coordinates"])
 
     try:
         return shapely.geometry.shape(geojson)

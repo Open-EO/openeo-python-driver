@@ -1561,3 +1561,65 @@ def test_invalid_latlon_in_geojson(dry_run_env):
     }
     cube = init_cube.filter_spatial(geometries=polygon3)
     evaluate(cube.flat_graph(), env=dry_run_env)
+
+    geometrycollection = {
+        "type": "GeometryCollection",
+        "geometries": [
+            {
+                "type": "Polygon",
+                "coordinates": [[[0.1, 0.1], [1.8, 0.1], [1.1, 1.8], [0.1, 0.1]]],
+            },
+            {
+                "type": "Polygon",
+                "coordinates": [
+                    [[2.99, -1.29], [2.279, 1.724], [0.725, -0.18], [0.725, -0.516]]
+                ],
+            },
+            {
+                "type": "GeometryCollection",
+                "geometries": [
+                    {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [-361, -1.29],
+                                [2.279, 1.724],
+                                [0.725, -0.18],
+                                [0.725, -0.516],
+                            ]
+                        ],
+                    }
+                ],
+            },
+        ],
+    }
+    cube = init_cube.filter_spatial(geometries=geometrycollection)
+    with pytest.raises(OpenEOApiException) as e:
+        evaluate(cube.flat_graph(), env=dry_run_env)
+    assert e.value.message.startswith(
+        "Failed to parse Geojson. Invalid coordinate: [-361, -1.29]"
+    )
+
+    point = {"type": "Point", "coordinates": [0, 0]}
+    cube = init_cube.filter_spatial(geometries=point)
+    evaluate(cube.flat_graph(), env=dry_run_env)
+
+    multilinestring = {
+        "type": "MultiLineString",
+        "coordinates": [
+            [[0, 0], [1, 1]],
+            [[1, 0], [0, 1]],
+        ],
+    }
+    cube = init_cube.filter_spatial(geometries=multilinestring)
+    evaluate(cube.flat_graph(), env=dry_run_env)
+
+    polygon_with_holes = {
+        "type": "Polygon",
+        "coordinates": [
+            [[100.0, 0.0], [101.0, 0.0], [101.0, 1.0], [100.0, 1.0], [100.0, 0.0]],
+            [[100.8, 0.8], [100.8, 0.2], [100.2, 0.2], [100.2, 0.8], [100.8, 0.8]],
+        ],
+    }
+    cube = init_cube.filter_spatial(geometries=polygon_with_holes)
+    evaluate(cube.flat_graph(), env=dry_run_env)
