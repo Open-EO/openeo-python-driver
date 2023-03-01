@@ -4,7 +4,7 @@ import shapely.geometry
 from openeo.internal.graph_building import PGNode
 from openeo.rest.datacube import DataCube
 
-from errors import OpenEOApiException
+from openeo_driver.errors import OpenEOApiException
 from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER, _extract_load_parameters, \
     ENV_SOURCE_CONSTRAINTS, custom_process_from_process_graph, process_registry_100, ENV_SAVE_RESULT
 from openeo_driver.datacube import DriverVectorCube

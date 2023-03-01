@@ -9,7 +9,7 @@ import shapely.ops
 from shapely.geometry import MultiPolygon, Point, Polygon
 from shapely.geometry.base import BaseGeometry
 
-from errors import OpenEOApiException
+from openeo_driver.errors import OpenEOApiException
 from openeo_driver.util.utm import auto_utm_epsg
 
 _log = logging.getLogger(__name__)
