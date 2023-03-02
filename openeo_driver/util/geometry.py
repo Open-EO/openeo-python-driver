@@ -16,13 +16,19 @@ _log = logging.getLogger(__name__)
 
 
 def validate_geojson_coordinates(geojson):
-    def _validate_coordinates(coordinates):
+    def _validate_coordinates(coordinates, initial_run=True):
+        max_evaluations = 20
         message = f"Failed to parse Geojson. Coordinates are invalid."
         if not isinstance(coordinates, (list, Tuple)) or len(coordinates) == 0:
             raise OpenEOApiException(status_code=400, message=message)
         if not isinstance(coordinates[0], (float, int)):
             # Flatten until elements are floats or ints.
-            return [_validate_coordinates(sub) for sub in coordinates]
+            eval_count = 0
+            for sub in coordinates:
+                eval_count += _validate_coordinates(sub, False)
+                if eval_count > max_evaluations:
+                    break
+            return eval_count
         if len(coordinates) != 2:
             raise OpenEOApiException(status_code=400, message=message)
         if not (-360 <= coordinates[0] <= 360 and -100 <= coordinates[1] <= 100):
@@ -31,7 +37,7 @@ def validate_geojson_coordinates(geojson):
                 f"X value must be between -360 and 360, Y value must be between -100 and 100."
             )
             raise OpenEOApiException(status_code=400, message=message)
-        return None
+        return 1
 
     def _validate_geometry_collection(geojson):
         if geojson["type"] != "GeometryCollection":

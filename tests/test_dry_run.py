@@ -1640,3 +1640,10 @@ def test_invalid_latlon_in_geojson(dry_run_env):
     assert e.value.message.startswith(
         "Failed to parse Geojson. Invalid coordinate: [-71.073283, -101]"
     )
+
+    multipoint_many_coordinates = {
+        "type": "MultiPoint",
+        "coordinates": [(x, y) for x in range(150, 200) for y in range(70, 101)],
+    }
+    cube = init_cube.filter_spatial(geometries=multipoint_many_coordinates)
+    evaluate(cube.flat_graph(), env=dry_run_env)
