@@ -31,10 +31,10 @@ def validate_geojson_coordinates(geojson):
             return eval_count
         if len(coordinates) != 2:
             raise OpenEOApiException(status_code=400, message=message)
-        if not (-360 <= coordinates[0] <= 360 and -100 <= coordinates[1] <= 100):
+        if not (-180 <= coordinates[0] <= 180 and -90 <= coordinates[1] <= 90):
             message = (
                 f"Failed to parse Geojson. Invalid coordinate: {coordinates}. "
-                f"X value must be between -360 and 360, Y value must be between -100 and 100."
+                f"X value must be between -180 and 180, Y value must be between -90 and 90."
             )
             raise OpenEOApiException(status_code=400, message=message)
         return 1

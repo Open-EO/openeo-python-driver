@@ -1556,7 +1556,15 @@ def test_invalid_latlon_in_geojson(dry_run_env):
     polygon3 = {
         "type": "MultiPolygon",
         "coordinates": [
-            [[(-360, -100), (-360, 100), (360, 100), (360, -100), (-360, -100)]]
+            [
+                [
+                    (-180, -90.0),
+                    (-180.0, 90.0),
+                    (180.0, 90),
+                    (180, -90.0),
+                    (-180.0, -90.0),
+                ]
+            ]
         ],
     }
     cube = init_cube.filter_spatial(geometries=polygon3)
