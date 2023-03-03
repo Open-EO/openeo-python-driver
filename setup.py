@@ -54,7 +54,7 @@ setup(
         "geopandas>=0.11.0",  # 0.11.0 fixes https://github.com/geopandas/geopandas/pull/2243
         "xarray>=0.16.2",
         "flask-cors",
-        "pyproj",
+        "pyproj>=2.1.0",
         "python-dateutil",
         "python-json-logger>=2.0.0",
         "deprecated>=1.2.12",

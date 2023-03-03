@@ -15,6 +15,7 @@ from openeo_driver.util.geometry import (
     GeometryBufferer,
     as_geojson_feature,
     as_geojson_feature_collection,
+    reproject_geometry,
 )
 
 
@@ -149,6 +150,46 @@ def test_reproject_bounding_box():
         "north": pytest.approx(51.22699369149726),
         "crs": "EPSG:4326",
     }
+
+
+def test_reproject_geometry():
+    geometry = shapely.geometry.GeometryCollection(
+        [
+            shapely.geometry.Point(5.0, 51.0),
+            shapely.geometry.LineString([(5.0, 51.0), (5.1, 51.1)]),
+        ]
+    )
+    expected_reprojected = shapely.geometry.GeometryCollection(
+        [
+            shapely.geometry.Point(640333.2963383198, 5651728.68267166),
+            shapely.geometry.LineString(
+                [
+                    (640333.2963383198, 5651728.68267166),
+                    (647032.2494640718, 5663042.764772809),
+                ]
+            ),
+        ]
+    )
+    reprojected = reproject_geometry(
+        geometry, from_crs="EPSG:4326", to_crs="EPSG:32631"
+    )
+    assert reprojected.equals(expected_reprojected)
+
+    # Individual reprojected geometries should be equal to the reprojected collection.
+    reprojected_geoms = []
+    for geom in geometry.geoms:
+        geom = reproject_geometry(geom, from_crs="EPSG:4326", to_crs="EPSG:32631")
+        reprojected_geoms.append(geom)
+    reprojected_expected = shapely.geometry.GeometryCollection(reprojected_geoms)
+    assert reprojected.equals(reprojected_expected)
+
+    # Inverse
+    reprojected = reproject_geometry(
+        expected_reprojected, from_crs="EPSG:32631", to_crs="EPSG:4326"
+    )
+    # Reprojection introduces very small errors.
+    assert not reprojected.within(geometry)
+    assert reprojected.within(geometry.buffer(1e-6))
 
 
 def test_spatial_extent_union():

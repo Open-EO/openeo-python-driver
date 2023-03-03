@@ -17,6 +17,7 @@ from openeo_driver.errors import OpenEOApiException
 from openeo_driver.util.geometry import (
     reproject_bounding_box,
     validate_geojson_coordinates,
+    reproject_geometry,
 )
 
 _log = logging.getLogger(__name__)
@@ -104,9 +105,21 @@ class DelayedVector:
             else:  # it's GeoJSON
                 with open(self.path, 'r') as f:
                     geojson = json.load(f)
-                    validate_geojson_coordinates(geojson)
                     geometries = DelayedVector._read_geojson_geometries(geojson)
+        return geometries
 
+    @property
+    def geometries_wgs84(self) -> Iterable[BaseGeometry]:
+        """
+        Returns the geometries in WGS84.
+        """
+        geometries = self.geometries
+        wgs84 = pyproj.CRS("EPSG:4326")
+        if self.crs != wgs84:
+            geometries = [
+                reproject_geometry(geometry, from_crs=self.crs, to_crs=wgs84)
+                for geometry in geometries
+            ]
         return geometries
 
     @property

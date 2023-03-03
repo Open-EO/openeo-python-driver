@@ -140,6 +140,25 @@ def reproject_bounding_box(bbox: dict, from_crs: str, to_crs: str) -> dict:
     return dict(zip(["west", "south", "east", "north"], reprojected.bounds), crs=to_crs)
 
 
+def reproject_geometry(
+    geometry: BaseGeometry,
+    from_crs: Union[pyproj.CRS, str],
+    to_crs: Union[pyproj.CRS, str],
+) -> BaseGeometry:
+    """
+    Reproject given shapely geometry
+
+    :param geometry: shapely geometry
+    :param from_crs: source CRS
+    :param to_crs: target CRS
+    :return: reprojected shapely geometry
+    """
+    transformer = pyproj.Transformer.from_crs(
+        crs_from=from_crs, crs_to=to_crs, always_xy=True
+    )
+    return shapely.ops.transform(transformer.transform, geometry)
+
+
 def spatial_extent_union(*bboxes: dict, default_crs="EPSG:4326") -> dict:
     """
     Calculate spatial bbox covering all given bounding boxes
