@@ -29,7 +29,7 @@ def validate_geojson_coordinates(geojson):
                 if eval_count > max_evaluations:
                     break
             return eval_count
-        if len(coordinates) != 2:
+        if len(coordinates) < 2:
             raise OpenEOApiException(status_code=400, message=message)
         if not (-180 <= coordinates[0] <= 180 and -90 <= coordinates[1] <= 90):
             message = (
