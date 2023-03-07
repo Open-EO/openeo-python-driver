@@ -337,17 +337,25 @@ class TestDriverVectorCube:
         path = str(get_path("geojson/FeatureCollection06.json"))
         vc = DriverVectorCube(gpd.read_file(path))
         area = vc.get_bounding_box_area()
-        # TODO: area of FeatureCollection06 (square with side of approx 2.3km, based on length of Watersportbaan Gent)
-        #       is roughly 2.3 km * 2.3 km = 5.29 km2,
-        #       but current implementation gives result that is quite a bit larger than that
-        numpy.testing.assert_allclose(area, 8e6, rtol=0.1)
+        numpy.testing.assert_allclose(area, 5134695.615, rtol=0.1)
+
+    def test_get_bounding_box_area_not_wgs84(self):
+        path = str(get_path("geojson/FeatureCollection08.json"))
+        vc = DriverVectorCube(gpd.read_file(path))
+        area = vc.get_bounding_box_area()
+        numpy.testing.assert_allclose(area, 5134695.615, rtol=0.1)
+
+    def test_get_bounding_box_area_northpole_not_wgs84(self):
+        path = str(get_path("geojson/FeatureCollection09.json"))
+        vc = DriverVectorCube(gpd.read_file(path))
+        area = vc.get_bounding_box_area()
+        numpy.testing.assert_allclose(area, 1526291.296426, rtol=0.1)
 
     def test_get_area(self):
         path = str(get_path("geojson/FeatureCollection07.json"))
         vc = DriverVectorCube(gpd.read_file(path))
         area = vc.get_area()
-        # TODO: see remark in test_get_bounding_box_area
-        numpy.testing.assert_allclose(area, 16e6, rtol=0.2)
+        numpy.testing.assert_allclose(area, 10269391.016361, rtol=0.1)
 
     def test_buffer_points(self):
         geometry = as_geojson_feature_collection(
