@@ -545,7 +545,7 @@ class TestElasticJobRegistry:
             )
         ]
 
-    def test_job_id_logging(self, requests_mock, oidc_mock, ejr, caplog):
+    def test_job_id_logging(self, requests_mock, oidc_mock, ejr, caplog, monkeypatch):
         """Check that job_id logging is passed through as logging extra in appropriate places"""
         caplog.set_level(logging.DEBUG)
 
@@ -554,7 +554,7 @@ class TestElasticJobRegistry:
                 job_id = getattr(record, "job_id", None)
                 return f"{record.name}:{job_id}:{record.message}"
 
-        caplog.handler.setFormatter(Formatter())
+        monkeypatch.setattr(caplog.handler, "formatter", Formatter())
 
         job_id = "j-123"
 

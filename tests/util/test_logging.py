@@ -346,13 +346,13 @@ def test_just_log_exceptions_invalid_logger(caplog):
     assert caplog.record_tuples == [expected]
 
 
-def test_just_log_exceptions_extra(caplog):
+def test_just_log_exceptions_extra(caplog, monkeypatch):
     class Formatter:
         def format(self, record: logging.LogRecord):
             foo = getattr(record, "foo", None)
             return f"[Foo:{foo}] {record.levelname} {record.message}"
 
-    caplog.handler.setFormatter(Formatter())
+    monkeypatch.setattr(caplog.handler, "formatter", Formatter())
 
     with just_log_exceptions(extra={"foo": "bar"}):
         raise RuntimeError("Nope")
