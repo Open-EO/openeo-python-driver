@@ -8,6 +8,7 @@ import flask
 import pytest
 from re_assert import Matches
 
+from openeo_driver.testing import caplog_with_custom_formatter
 from openeo_driver.util.logging import (
     LOGGING_CONTEXT_BATCH_JOB,
     LOGGING_CONTEXT_FLASK,
@@ -346,16 +347,15 @@ def test_just_log_exceptions_invalid_logger(caplog):
     assert caplog.record_tuples == [expected]
 
 
-def test_just_log_exceptions_extra(caplog, monkeypatch):
+def test_just_log_exceptions_extra(caplog):
     class Formatter:
         def format(self, record: logging.LogRecord):
             foo = getattr(record, "foo", None)
             return f"[Foo:{foo}] {record.levelname} {record.message}"
 
-    monkeypatch.setattr(caplog.handler, "formatter", Formatter())
-
-    with just_log_exceptions(extra={"foo": "bar"}):
-        raise RuntimeError("Nope")
+    with caplog_with_custom_formatter(caplog=caplog, format=Formatter()):
+        with just_log_exceptions(extra={"foo": "bar"}):
+            raise RuntimeError("Nope")
 
     expected = "[Foo:bar] ERROR In context 'untitled': caught RuntimeError('Nope')\n"
     assert caplog.text == expected

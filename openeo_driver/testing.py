@@ -4,6 +4,7 @@ Reusable helpers and fixtures for testing
 import base64
 import contextlib
 import json
+import logging
 import re
 import urllib.request
 from pathlib import Path
@@ -508,3 +509,31 @@ class ApproxGeometry:
     def to_geojson_feature_collection(self) -> dict:
         result = as_geojson_feature_collection(self.geometry)
         return approxify(result, rel=self.rel, abs=self.abs)
+
+
+def caplog_with_custom_formatter(
+    caplog: pytest.LogCaptureFixture, format: Union[str, logging.Formatter]
+):
+    """
+    Context manager to set a custom formatter on the caplog fixture.
+
+    Naive doing `caplog.handler.setFormatter()` is not cleaned up on teardown,
+    so extra care must be given. For example with this helper:
+
+        def test_my_function(caplog)
+            with caplog_with_custom_formatter(caplog=caplog, format="[%(levelname)s] %(message)s"):
+                ...
+
+    or something like:
+
+        def test_my_function(caplog, monkeypatch)
+            monkeypatch.setattr(caplog.handler, "formatter", MyCustomFormatter())
+            ...
+
+    Also see https://github.com/pytest-dev/pytest/issues/2987#issuecomment-1460509126
+    """
+    if isinstance(format, str):
+        format = logging.Formatter(format)
+    # assuming `format` is now a valid formatter:
+    # an object with a method `format(self, record: logging.LogRecord)`
+    return mock.patch.object(caplog.handler, "formatter", new=format)
