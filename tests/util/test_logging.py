@@ -330,3 +330,32 @@ def test_just_log_exceptions_log_level(caplog, level):
         "In context 'untitled': caught ZeroDivisionError('division by zero')",
     )
     assert caplog.record_tuples == [expected]
+
+
+def test_just_log_exceptions_invalid_logger(caplog):
+    caplog.set_level(logging.INFO)
+    not_a_logger = None
+    with just_log_exceptions(log=not_a_logger):
+        raise RuntimeError("Nope")
+
+    expected = (
+        "openeo_driver.util.logging",
+        logging.ERROR,
+        "Failed to do `just_log_exceptions` with log=None: 'NoneType' object is not callable",
+    )
+    assert caplog.record_tuples == [expected]
+
+
+def test_just_log_exceptions_extra(caplog):
+    class Formatter:
+        def format(self, record: logging.LogRecord):
+            foo = getattr(record, "foo", None)
+            return f"[Foo:{foo}] {record.levelname} {record.message}"
+
+    caplog.handler.setFormatter(Formatter())
+
+    with just_log_exceptions(extra={"foo": "bar"}):
+        raise RuntimeError("Nope")
+
+    expected = "[Foo:bar] ERROR In context 'untitled': caught RuntimeError('Nope')\n"
+    assert caplog.text == expected

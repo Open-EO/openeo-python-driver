@@ -304,6 +304,7 @@ class BatchJobLoggingFilter(logging.Filter):
 def just_log_exceptions(
     log: Union[logging.Logger, Callable, str, int] = logging.ERROR,
     name: Optional[str] = "untitled",
+    extra: Optional[dict] = None,
 ):
     """
     Context manager to catch any exception (if any) and just log them.
@@ -323,4 +324,9 @@ def just_log_exceptions(
     try:
         yield
     except Exception as e:
-        log(f"In context {name!r}: caught {e!r}", exc_info=True)
+        try:
+            log(f"In context {name!r}: caught {e!r}", extra=extra, exc_info=True)
+        except Exception as e:
+            _log.error(
+                f"Failed to do `just_log_exceptions` with {log=}: {e}", exc_info=True
+            )
