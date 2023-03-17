@@ -160,7 +160,7 @@ def build_app(
 
     @app.after_request
     def _after_request(response):
-        backend_implementation.after_request()
+        backend_implementation.after_request(FlaskRequestCorrelationIdLogging.get_request_id())
         return response
 
     if error_handling:
@@ -602,13 +602,15 @@ def register_views_processing(
         post_data = request.get_json()
         process_graph = _extract_process_graph(post_data)
 
+        request_id = FlaskRequestCorrelationIdLogging.get_request_id()
+
         env = EvalEnv({
             "backend_implementation": backend_implementation,
             'version': g.api_version,
             'pyramid_levels': 'highest',
             'user': user,
             'require_bounds': True,
-            'correlation_id': generate_unique_id(prefix="c"),
+            'correlation_id': request_id,
         })
         result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)
         _log.info(f"`POST /result`: {type(result)}")
@@ -616,14 +618,21 @@ def register_views_processing(
         if result is None:
             # TODO: is it still necessary to handle `None` as an error condition?
             raise InternalException(message="Process graph evaluation gave no result")
-        elif isinstance(result, flask.Response):
+
+        if isinstance(result, flask.Response):
             # TODO: handle flask.Response in `to_save_result` too?
-            return result
+            response = result
         else:
             if not isinstance(result, SaveResult):
                 # Implicit save result (using default/best effort format and options)
                 result = to_save_result(data=result)
-            return result.create_flask_response()
+            response = result.create_flask_response()
+
+        costs = backend_implementation.request_costs(request_id)
+        if costs is not None:
+            response.headers['OpenEO-Costs'] = costs
+
+        return response
 
     @blueprint.route('/execute', methods=['POST'])
     @auth_handler.requires_bearer_auth
