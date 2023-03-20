@@ -628,9 +628,9 @@ def register_views_processing(
                 result = to_save_result(data=result)
             response = result.create_flask_response()
 
-        costs = backend_implementation.request_costs(request_id)
+        costs = backend_implementation.request_costs(user.user_id, request_id, success=True)  # TODO: handle failure
         if costs is not None:
-            response.headers['OpenEO-Costs'] = costs
+            response.headers['OpenEO-Costs'] = costs  # TODO: not all costs are accounted for so remove again
 
         return response
 
