@@ -12,6 +12,8 @@ Also see https://github.com/Open-EO/openeo-python-driver/issues/8
 import abc
 import json
 import logging
+import dataclasses
+
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -283,6 +285,7 @@ class BatchJobMetadata(NamedTuple):
     end_datetime: datetime = None
     instruments: List[str] = None
     epsg: int = None
+    # TODO: openEO API associates `links` with the job *result* metadata, not the job itself
     links: List[Dict] = None
     usage: Dict = None
 
@@ -352,6 +355,14 @@ class BatchJobMetadata(NamedTuple):
         return dict_no_none(result)
 
 
+@dataclasses.dataclass
+class BatchJobResultMetadata:
+    # Basic dataclass based wrapper for batch job result metadata (allows cleaner code navigation and discovery)
+    assets: Dict[str, dict] = dataclasses.field(default_factory=dict)
+    links: List[dict] = dataclasses.field(default_factory=list)
+    # TODO: more fields
+
+
 class BatchJobs(MicroService):
     """
     Base contract/implementation for Batch Jobs "microservice"
@@ -392,6 +403,18 @@ class BatchJobs(MicroService):
         """
         raise NotImplementedError
 
+    def get_result_metadata(self, job_id: str, user_id: str) -> BatchJobResultMetadata:
+        """
+        Get job result metadata
+
+        https://openeo.org/documentation/1.0/developers/api/reference.html#tag/Batch-Jobs/operation/list-results
+        """
+        # Default implementation, based on existing components
+        return BatchJobResultMetadata(
+            assets=self.get_result_assets(job_id=job_id, user_id=user_id),
+            links=[],
+        )
+
     def get_result_assets(self, job_id: str, user_id: str) -> Dict[str, dict]:
         """
         Return result assets as (filename, metadata) mapping: `filename` is the part that
@@ -401,7 +424,7 @@ class BatchJobs(MicroService):
         related:
         https://openeo.org/documentation/1.0/developers/api/reference.html#tag/Batch-Jobs/operation/list-results
         """
-        # Default implementation: fall back on legacy method
+        # Default implementation, based on legacy API
         return self.get_results(job_id=job_id, user_id=user_id)
 
     def get_results(self, job_id: str, user_id: str) -> Dict[str, dict]:

@@ -891,9 +891,10 @@ def register_views_batch_jobs(
         if job_info.status != JOB_STATUS.FINISHED:
             raise JobNotFinishedException()
 
-        results = backend_implementation.batch_jobs.get_result_assets(
+        result_metadata = backend_implementation.batch_jobs.get_result_metadata(
             job_id=job_id, user_id=user_id
         )
+        result_assets = result_metadata.assets
 
         if requested_api_version().at_least("1.0.0"):
             def job_results_canonical_url() -> str:
@@ -912,26 +913,41 @@ def register_views_batch_jobs(
                     job_id=job_id, user_base64=user_base64, expires=expires, secure_key=secure_key, _external=True
                 )
 
-            links = job_info.links
-            if links is None:
-                links = []
+            links: List[dict] = result_metadata.links or job_info.links or []
 
-            links.extend([{
-                "rel": "self",
-                "href": url_for('.list_job_results', job_id=job_id, _external=True),  # MUST be absolute
-                "type": "application/json"
-            }, {
-                "rel": "canonical",
-                "href": job_results_canonical_url(),
-                "type": "application/json"
-            }, {
-                "rel": "card4l-document",
-                "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
-                "type": "application/pdf"
-            }])
+            if not any(l.get("rel") == "self" for l in links):
+                links.append(
+                    {
+                        "rel": "self",
+                        "href": url_for(
+                            ".list_job_results", job_id=job_id, _external=True
+                        ),  # MUST be absolute
+                        "type": "application/json",
+                    }
+                )
+            if not any(l.get("rel") == "canonical" for l in links):
+                links.append(
+                    {
+                        "rel": "canonical",
+                        "href": job_results_canonical_url(),
+                        "type": "application/json",
+                    }
+                )
+            if not any(l.get("rel") == "card4l-document" for l in links):
+                links.append(
+                    {
+                        "rel": "card4l-document",
+                        # TODO: avoid hardcoding this specific URL?
+                        "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
+                        "type": "application/pdf",
+                    }
+                )
 
-            assets = {filename: _asset_object(job_id, user_id, filename, asset_metadata)
-                      for filename, asset_metadata in results.items() if asset_metadata.get('asset', True)}
+            assets = {
+                filename: _asset_object(job_id, user_id, filename, asset_metadata)
+                for filename, asset_metadata in result_assets.items()
+                if asset_metadata.get("asset", True)
+            }
 
             if requested_api_version().at_least("1.1.0"):
                 to_datetime = Rfc3339(propagate_none=True).datetime
@@ -953,7 +969,7 @@ def register_views_batch_jobs(
                         job_id=job_id, user_base64=user_base64, secure_key=secure_key, item_id=item_id, expires=expires,
                         _external=True)
 
-                for filename, metadata in results.items():
+                for filename, metadata in result_assets.items():
                     if "data" in metadata.get("roles", []) and "geotiff" in metadata.get("type", ""):
                         links.append({
                             "rel": "item",
@@ -1027,9 +1043,11 @@ def register_views_batch_jobs(
                 if "proj:epsg" in result["properties"]:
                     result["stac_extensions"].append("projection")
         else:
+            # TODO #47 drop pre-1.0.0 API support
             result = {
                 "links": [
-                    {"href": _job_result_download_url(job_id, user_id, filename)} for filename in results.keys()
+                    {"href": _job_result_download_url(job_id, user_id, filename)}
+                    for filename in result_assets.keys()
                 ]
             }
 
