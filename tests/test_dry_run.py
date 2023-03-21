@@ -872,6 +872,32 @@ def test_multiple_filter_spatial(dry_run_env, dry_run_tracer):
 
     assert geometries == shapely.geometry.shape(polygon2)
 
+
+@pytest.mark.parametrize(
+    ["path", "expected"],
+    [
+        ("geojson/Polygon01.json", (5.1, 51.2, 5.14, 51.23)),
+        ("geojson/FeatureCollection01.json", (4.45, 51.1, 4.52, 51.2)),
+    ],
+)
+def test_filter_spatial_delayed_vector(dry_run_env, dry_run_tracer, path, expected):
+    cube = DataCube(PGNode("load_collection", id="S2_FOOBAR"), connection=None)
+    cube = cube.filter_spatial(geometries=get_path(path))
+    pg = cube.flat_graph()
+    res = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+
+    src, constraints = source_constraints[0]
+    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert isinstance(
+        constraints["filter_spatial"]["geometries"],
+        (shapely.geometry.Polygon, shapely.geometry.MultiPolygon),
+    )
+    assert constraints["filter_spatial"]["geometries"].bounds == expected
+
+
 def test_resample_filter_spatial(dry_run_env, dry_run_tracer):
     polygon = {"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]}
     cube = DataCube(PGNode("load_collection", id="S2_FOOBAR"), connection=None)

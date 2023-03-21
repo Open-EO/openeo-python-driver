@@ -1334,16 +1334,24 @@ def filter_spatial(args: Dict, env: EvalEnv) -> DriverDataCube:
         raise ProcessParameterInvalidException(
             parameter="data", process="filter_spatial", reason=f"Invalid data type {type(cube)!r} expected raster-cube."
         )
-    if not isinstance(geometries, dict):
-        # TODO #114: support DriverDataCube
-        raise NotImplementedError("filter_spatial only supports dict but got {g!r}".format(g=geometries))
 
-    geometries = geojson_to_geometry(geometries)
-
-    if isinstance(geometries, GeometryCollection):
-        polygons = [geom.geoms[0] if isinstance(geom, MultiPolygon) else geom for geom in geometries.geoms]
-        geometries = MultiPolygon(polygons)
-
+    if isinstance(geometries, dict):
+        geometries = geojson_to_geometry(geometries)
+        if isinstance(geometries, GeometryCollection):
+            polygons = [
+                geom.geoms[0] if isinstance(geom, MultiPolygon) else geom
+                for geom in geometries.geoms
+            ]
+            geometries = MultiPolygon(polygons)
+    elif isinstance(geometries, DelayedVector):
+        geometries = DriverVectorCube.from_fiona(
+            [geometries.path], None, {}
+        ).to_multipolygon()
+    else:
+        # TODO #114: support DriverVectorCube
+        raise NotImplementedError(
+            "filter_spatial does not support {g!r}".format(g=geometries)
+        )
     return cube.filter_spatial(geometries)
 
 
