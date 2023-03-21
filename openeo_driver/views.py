@@ -891,7 +891,9 @@ def register_views_batch_jobs(
         if job_info.status != JOB_STATUS.FINISHED:
             raise JobNotFinishedException()
 
-        results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user_id)
+        results = backend_implementation.batch_jobs.get_result_assets(
+            job_id=job_id, user_id=user_id
+        )
 
         if requested_api_version().at_least("1.0.0"):
             def job_results_canonical_url() -> str:
@@ -1035,8 +1037,12 @@ def register_views_batch_jobs(
         return jsonify(result)
 
     # TODO: Issue #232, TBD: refactor download functionality? more abstract, just stream blocks of bytes from S3 or from a directory.
-    def _download_job_result(job_id: str, filename: str, user_id: str) -> flask.Response:
-        results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user_id)
+    def _download_job_result(
+        job_id: str, filename: str, user_id: str
+    ) -> flask.Response:
+        results = backend_implementation.batch_jobs.get_result_assets(
+            job_id=job_id, user_id=user_id
+        )
         if filename not in results.keys():
             raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
         result = results[filename]
@@ -1090,7 +1096,9 @@ def register_views_batch_jobs(
         if item_id == DriverMlModel.METADATA_FILE_NAME:
             return _download_ml_model_metadata(job_id, item_id, user_id)
 
-        results = backend_implementation.batch_jobs.get_results(job_id, user_id)
+        results = backend_implementation.batch_jobs.get_result_assets(
+            job_id=job_id, user_id=user_id
+        )
 
         assets_for_item_id = {
             asset_filename: metadata for asset_filename, metadata in results.items()
@@ -1149,8 +1157,12 @@ def register_views_batch_jobs(
         resp.mimetype = stac_item_media_type
         return resp
 
-    def _download_ml_model_metadata(job_id: str, file_name: str, user_id) -> flask.Response:
-        results = backend_implementation.batch_jobs.get_results(job_id, user_id)
+    def _download_ml_model_metadata(
+        job_id: str, file_name: str, user_id
+    ) -> flask.Response:
+        results = backend_implementation.batch_jobs.get_result_assets(
+            job_id=job_id, user_id=user_id
+        )
         ml_model_metadata: dict = results.get(file_name, None)
         if ml_model_metadata is None:
             raise FilePathInvalidException(f"{file_name!r} not in {list(results.keys())}")

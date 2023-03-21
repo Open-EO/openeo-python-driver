@@ -392,15 +392,23 @@ class BatchJobs(MicroService):
         """
         raise NotImplementedError
 
-    def get_results(self, job_id: str, user_id: str) -> Dict[str, dict]:
+    def get_result_assets(self, job_id: str, user_id: str) -> Dict[str, dict]:
         """
-        Return result files as (filename, metadata) mapping: `filename` is the part that
+        Return result assets as (filename, metadata) mapping: `filename` is the part that
         the user can see (in download url), `metadata` contains internal (root) dir where
         output is stored.
 
         related:
-        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-results
+        https://openeo.org/documentation/1.0/developers/api/reference.html#tag/Batch-Jobs/operation/list-results
         """
+        # Default implementation: fall back on legacy method
+        return self.get_results(job_id=job_id, user_id=user_id)
+
+    def get_results(self, job_id: str, user_id: str) -> Dict[str, dict]:
+        """
+        Deprecated: use/implement `get_result_assets` instead.
+        """
+        # TODO: eliminate this method in favor of `get_result_assets`
         raise NotImplementedError
 
     def get_log_entries(self, job_id: str, user_id: str, offset: Optional[str] = None) -> Iterable[dict]:

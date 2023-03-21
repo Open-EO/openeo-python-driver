@@ -620,7 +620,7 @@ class DummyBatchJobs(BatchJobs):
     def _output_root(self) -> str:
         return "/data/jobs"
 
-    def get_results(self, job_id: str, user_id: str) -> Dict[str, dict]:
+    def get_result_assets(self, job_id: str, user_id: str) -> Dict[str, dict]:
         if (
             self._get_job_info(job_id=job_id, user_id=user_id).status
             != JOB_STATUS.FINISHED
