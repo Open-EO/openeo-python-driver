@@ -505,6 +505,7 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
             df = pd.concat(map(pd.read_csv, paths))
             features = df.feature_index.unique()
             if str(features.dtype) == 'int64':
+                # TODO: This logic might get cleaned up when one kind ove vector cube is used everywhere
                 if isinstance(self._regions, DriverVectorCube):
                     amount_of_regions = len(self._regions.get_geometries())
                 elif isinstance(self._regions, DelayedVector):
@@ -512,8 +513,6 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
                     amount_of_regions = len(geometries)
                 elif isinstance(self._regions, GeometryCollection):
                     amount_of_regions = len(self._regions)
-                elif isinstance(self._regions, BaseGeometry):
-                    amount_of_regions = 1  # layercatalog.py:1026 implies that this is a single polygon
                 else:
                     _log.warning("Using polygon with largest index to estimate how many input polygons there where.")
                     amount_of_regions = features.max() + 1
