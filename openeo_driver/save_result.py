@@ -15,6 +15,7 @@ import pandas as pd
 import typing
 from flask import send_from_directory, jsonify, Response
 from shapely.geometry import GeometryCollection, mapping
+from shapely.geometry.base import BaseGeometry
 import xarray
 
 from openeo.metadata import CollectionMetadata
@@ -489,7 +490,7 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
     # TODO #71 #114 EP-3981 port this to proper vector cube support
     # TODO: this is a openeo-geopyspark-driver related/specific implementation, move it over there?
 
-    def __init__(self, csv_dir, regions: GeometryCollection, metadata: CollectionMetadata = None):
+    def __init__(self, csv_dir, regions: Union[GeometryCollection, DriverVectorCube, DelayedVector, BaseGeometry], metadata: CollectionMetadata = None):
         super().__init__(timeseries=None, regions=regions, metadata=metadata)
         self._csv_dir = csv_dir
         self.raster_bands = None
@@ -503,9 +504,21 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
                     message = f"aggregate_spatial did not generate any output, intermediate output path on the server: {self._csv_dir}")
             df = pd.concat(map(pd.read_csv, paths))
             features = df.feature_index.unique()
-            features.sort()
             if str(features.dtype) == 'int64':
-                features = np.arange(0, features.max() + 1)
+                # TODO: This logic might get cleaned up when one kind ove vector cube is used everywhere
+                if isinstance(self._regions, DriverVectorCube):
+                    amount_of_regions = len(self._regions.get_geometries())
+                elif isinstance(self._regions, DelayedVector):
+                    geometries = list(self._regions.geometries)
+                    amount_of_regions = len(geometries)
+                elif isinstance(self._regions, GeometryCollection):
+                    amount_of_regions = len(self._regions)
+                else:
+                    _log.warning("Using polygon with largest index to estimate how many input polygons there where.")
+                    amount_of_regions = features.max() + 1
+                features = np.arange(0, amount_of_regions)
+            else:
+                features.sort()
 
             def _flatten_df(df):
                 df.index = df.feature_index
