@@ -121,7 +121,7 @@ def geojson_to_multipolygon(
     return geometry
 
 
-def reproject_bounding_box(bbox: dict, from_crs: str, to_crs: str) -> dict:
+def reproject_bounding_box(bbox: dict, from_crs: Optional[str], to_crs: str) -> dict:
     """
     Reproject given bounding box dictionary
 
