@@ -519,8 +519,6 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
                 features = np.arange(0, amount_of_regions)
             else:
                 features.sort()
-                print("interesting str(features.dtype): " + str(features.dtype))
-                logging.warning("interesting str(features.dtype): " + str(features.dtype))
 
             def _flatten_df(df):
                 df.index = df.feature_index
