@@ -147,11 +147,16 @@ class SecondaryServices(MicroService):
 
 
 class LoadParameters(dict):
+    """
+    Dictionary based container for load_collection related parameters and optimization hints.
+    """
     # TODO: these objects are part of the cache key for load_collection's lru_cache so mutating them will cause both
-    #  unwanted cache hits and unwanted cache misses; can we make them immutable like EvalEnv? #140
+    #       unwanted cache hits and unwanted cache misses; can we make them immutable like EvalEnv? #140
 
-    """Container for load_collection related parameters and optimization hints"""
-    # Some attributes pointing to dict items for more explicit tracing where parameters are set and read.
+    # Note: these `dict_item`s provide attribute-style access to dictionary items
+    # which simplifies discovery where certain parameters are written/read
+    # (and allows setting defaults centrally).
+    # TODO: use a more standard solution like dataclassses from stdlib or attrs?
     temporal_extent = dict_item(default=(None, None))
     spatial_extent = dict_item(default={})
     global_extent = dict_item(default={})

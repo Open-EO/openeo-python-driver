@@ -908,6 +908,8 @@ def register_views_batch_jobs(
                     job_id=job_id, user_id=user_id, expires=expires
                 )
                 user_base64 = user_id_b64_encode(user_id)
+                # TODO: also encrypt user id?
+                # TODO: encode all stuff (signature, userid, expiry) in a single blob in the URL
                 return url_for(
                     '.list_job_results_signed',
                     job_id=job_id, user_base64=user_base64, expires=expires, secure_key=secure_key, _external=True
