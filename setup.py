@@ -27,6 +27,7 @@ tests_require = [
     "time-machine",
     "netCDF4>=1.5.4",
     "re-assert",
+    "pyarrow>=10.0.0",
 ]
 
 setup(
