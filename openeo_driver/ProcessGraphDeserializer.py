@@ -1344,9 +1344,7 @@ def filter_spatial(args: Dict, env: EvalEnv) -> DriverDataCube:
             ]
             geometries = MultiPolygon(polygons)
     elif isinstance(geometries, DelayedVector):
-        geometries = DriverVectorCube.from_fiona(
-            [geometries.path], None, {}
-        ).to_multipolygon()
+        geometries = DriverVectorCube.from_fiona([geometries.path]).to_multipolygon()
     else:
         # TODO #114: support DriverVectorCube
         raise NotImplementedError(

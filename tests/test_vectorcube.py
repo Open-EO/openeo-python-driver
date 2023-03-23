@@ -47,6 +47,10 @@ class TestDriverVectorCube:
         for geometry, expected in zip(geometries, expected_geometries):
             assert geometry.equals(expected)
 
+    def test_geometry_count(self, gdf):
+        vc = DriverVectorCube(gdf)
+        assert vc.geometry_count() == 2
+
     def test_to_geojson(self, gdf):
         vc = DriverVectorCube(gdf)
         assert vc.to_geojson() == DictSubSet({
@@ -319,6 +323,67 @@ class TestDriverVectorCube:
             {
                 "type": "FeatureCollection",
                 "features": expected,
+            }
+        )
+
+    @pytest.mark.parametrize(
+        ["path", "driver"],
+        [
+            (get_path("shapefile/mol.shp"), None),
+            (get_path("gpkg/mol.gpkg"), None),
+            (get_path("parquet/mol.pq"), "parquet"),
+        ],
+    )
+    def test_from_fiona(self, path, driver):
+        vc = DriverVectorCube.from_fiona([path], driver=driver)
+        assert vc.to_geojson() == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "id": "0",
+                            "geometry": DictSubSet({"type": "Polygon"}),
+                            "properties": {"class": 4, "id": 23, "name": "Mol"},
+                        }
+                    ),
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "id": "1",
+                            "geometry": DictSubSet({"type": "Polygon"}),
+                            "properties": {"class": 5, "id": 58, "name": "TAP"},
+                        }
+                    ),
+                ],
+            }
+        )
+
+    def test_from_parquet(self):
+        path = get_path("parquet/mol.pq")
+        vc = DriverVectorCube.from_parquet([path])
+        assert vc.to_geojson() == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "id": "0",
+                            "geometry": DictSubSet({"type": "Polygon"}),
+                            "properties": {"class": 4, "id": 23, "name": "Mol"},
+                        }
+                    ),
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "id": "1",
+                            "geometry": DictSubSet({"type": "Polygon"}),
+                            "properties": {"class": 5, "id": 58, "name": "TAP"},
+                        }
+                    ),
+                ],
             }
         )
 

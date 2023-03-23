@@ -4,6 +4,7 @@ import logging
 import zipfile
 from pathlib import Path
 from typing import List, Union, Optional, Dict, Any, Tuple, Sequence
+import io
 
 import geopandas as gpd
 import numpy as np
@@ -13,6 +14,7 @@ import shapely.geometry.base
 import shapely.ops
 import xarray
 from pyproj import CRS
+import requests
 
 from openeo import ImageCollection
 from openeo.metadata import CollectionMetadata
@@ -163,8 +165,10 @@ class DriverVectorCube:
     FLATTEN_PREFIX = "vc"
 
     def __init__(
-            self, geometries: gpd.GeoDataFrame, cube: Optional[xarray.DataArray] = None,
-            flatten_prefix: str = FLATTEN_PREFIX
+        self,
+        geometries: gpd.GeoDataFrame,
+        cube: Optional[xarray.DataArray] = None,
+        flatten_prefix: str = FLATTEN_PREFIX,
     ):
         """
 
@@ -180,7 +184,7 @@ class DriverVectorCube:
             if not geometries.index.equals(cube.indexes[cube.dims[0]]):
                 log.error(f"Invalid VectorCube components {geometries.index!r} != {cube.indexes[cube.dims[0]]!r}")
                 raise VectorCubeError("Incompatible vector cube components")
-        self._geometries = geometries
+        self._geometries: gpd.GeoDataFrame = geometries
         self._cube = cube
         self._flatten_prefix = flatten_prefix
 
@@ -192,32 +196,43 @@ class DriverVectorCube:
         )
 
     @classmethod
-    def from_fiona(cls, paths: List[str], driver: str, options: dict) -> "DriverVectorCube":
+    def from_fiona(
+        cls,
+        paths: List[Union[str, Path]],
+        driver: Optional[str] = None,
+        options: Optional[dict] = None,
+    ) -> "DriverVectorCube":
         """Factory to load vector cube data using fiona/GeoPandas."""
         if len(paths) != 1:
             # TODO #114 EP-3981: support multiple paths
             raise FeatureUnsupportedException(message="Loading a vector cube from multiple files is not supported")
         # TODO #114 EP-3981: lazy loading like/with DelayedVector
         # note for GeoJSON: will consider Feature.id as well as Feature.properties.id
-        if "parquet"  == driver:
-            location = paths[0]
-            if location.startswith("http"):
-                import requests, io
-                resp = requests.get(
-                    location,
-                    stream=True
-                )
-                resp.raw.decode_content = True
-                location = io.BytesIO(resp.raw.read())
-            geoDataframe = gpd.read_parquet(location)
-            log.info(f"Read geoparquet from {location} crs {geoDataframe.crs} length {len(geoDataframe)}")
-
-            if("OGC:CRS84" in str(geoDataframe.crs) or "WGS 84 (CRS84)" in str(geoDataframe.crs)):
-                #workaround for not being able to decode ogc:crs84
-                geoDataframe.crs = CRS.from_epsg(4326)
-            return cls(geometries=geoDataframe)
+        if "parquet" == driver:
+            return cls.from_parquet(paths=paths)
         else:
             return cls(geometries=gpd.read_file(paths[0], driver=driver))
+
+    @classmethod
+    def from_parquet(cls, paths: List[Union[str, Path]]):
+        if len(paths) != 1:
+            # TODO #114 EP-3981: support multiple paths
+            raise FeatureUnsupportedException(
+                message="Loading a vector cube from multiple files is not supported"
+            )
+
+        location = paths[0]
+        if isinstance(location, str) and location.startswith("http"):
+            resp = requests.get(location, stream=True)
+            resp.raw.decode_content = True
+            location = io.BytesIO(resp.raw.read())
+        df = gpd.read_parquet(location)
+        log.info(f"Read geoparquet from {location} crs {df.crs} length {len(df)}")
+
+        if "OGC:CRS84" in str(df.crs) or "WGS 84 (CRS84)" in str(df.crs):
+            # workaround for not being able to decode ogc:crs84
+            df.crs = CRS.from_epsg(4326)
+        return cls(geometries=df)
 
     @classmethod
     def from_geojson(cls, geojson: dict) -> "DriverVectorCube":
@@ -382,6 +397,10 @@ class DriverVectorCube:
     def get_area(self) -> float:
         """Total geometry area in square meters"""
         return area_in_square_meters(self.to_multipolygon(), self.get_crs())
+
+    def geometry_count(self) -> int:
+        """Size of the geometry dimension"""
+        return len(self._geometries.index)
 
     def get_geometries(self) -> Sequence[shapely.geometry.base.BaseGeometry]:
         return self._geometries.geometry
