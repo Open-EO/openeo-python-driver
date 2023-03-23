@@ -2051,13 +2051,12 @@ def inspect(args: dict, env: EvalEnv):
     data = extract_arg(args,"data")
     message = args.get("message","")
     level = args.get("level","")
-    from logging import getLevelName
-    if message is not "":
-        _log.log(level=getLevelName(level.upper()),msg=message)
-    data_message=str(data)
+    if message:
+        _log.log(level=logging.getLevelName(level.upper()), msg=message)
+    data_message = str(data)
     if isinstance(data, DriverDataCube):
         data_message = str(data.metadata)
-    _log.log(level=getLevelName(level.upper()), msg=data_message)
+    _log.log(level=logging.getLevelName(level.upper()), msg=data_message)
     return data
 
 @process_registry_100.add_simple_function
