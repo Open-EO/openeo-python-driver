@@ -4,7 +4,7 @@ import pytest
 
 from openeo.capabilities import ComparableVersion
 from openeo_driver.backend import CollectionCatalog, LoadParameters, UserDefinedProcessMetadata, ServiceMetadata, \
-    BatchJobMetadata, not_implemented, is_not_implemented
+    BatchJobMetadata, not_implemented, is_not_implemented, OpenEoBackendImplementation
 from openeo_driver.errors import CollectionNotFoundException
 
 
@@ -227,3 +227,14 @@ def test_not_implemented():
     assert is_not_implemented(foo) is False
     assert is_not_implemented(bar) is True
     assert is_not_implemented(meh) is True
+
+
+def test_default_request_costs():
+    backend = OpenEoBackendImplementation()
+    assert backend.request_costs(user_id="someuser", request_id="r-abc123", success=True) is None
+
+
+def test_custom_request_costs():
+    backend = OpenEoBackendImplementation()
+    backend.set_request_costs_getter(lambda user_id, request_id, success: 42)
+    assert backend.request_costs(user_id="someuser", request_id="r-abc123", success=True) is 42
