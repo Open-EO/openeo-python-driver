@@ -39,13 +39,14 @@ TIFF_DUMMY_DATA = b'T1f7D6t6l0l' * 1000
 
 def read_file(path: Union[Path, str], mode='r') -> str:
     """Get contents of given file as text string."""
+    # TODO deprecated, just use Path(path).read_text(encoding="utf-8")
     with Path(path).open(mode) as f:
         return f.read()
 
 
 def load_json(path: Union[Path, str], preprocess: Callable[[str], str] = None) -> dict:
     """Parse data from JSON file"""
-    data = read_file(path)
+    data = Path(path).read_text(encoding="utf-8")
     if preprocess:
         data = preprocess(data)
     return json.loads(data)
@@ -224,9 +225,18 @@ class ApiTester:
         """Get absolute pat to a test data file"""
         return self.data_root / filename
 
-    def read_file(self, filename, mode='r') -> str:
+    def read_bytes(self, filename) -> bytes:
+        return self.data_path(filename).read_bytes()
+
+    def read_text(self, filename) -> str:
+        return self.data_path(filename).read_text(encoding="utf-8")
+
+    def read_file(self, filename, mode="r") -> Union[str, bytes]:
         """Get contents of test file, given by relative path."""
-        return read_file(self.data_path(filename), mode=mode)
+        if mode in {"rb", "br"}:
+            return self.read_bytes(filename)
+        else:
+            return self.read_text(filename)
 
     def load_json(self, filename, preprocess: Callable = None) -> dict:
         """Load test process graph from json file"""
