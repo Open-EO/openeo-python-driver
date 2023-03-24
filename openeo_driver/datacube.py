@@ -16,7 +16,6 @@ import xarray
 from pyproj import CRS
 import requests
 
-from openeo import ImageCollection
 from openeo.metadata import CollectionMetadata
 from openeo.util import ensure_dir
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs, StacAsset
@@ -29,10 +28,8 @@ from openeo_driver.utils import EvalEnv
 log = logging.getLogger(__name__)
 
 
-class DriverDataCube(ImageCollection):
+class DriverDataCube:
     """Base class for "driver" side raster data cubes."""
-
-    # TODO cut the openeo.ImageCollection chord (https://github.com/Open-EO/openeo-python-client/issues/100)
 
     def __init__(self, metadata: CollectionMetadata = None):
         self.metadata = CollectionMetadata.get_or_create(metadata)
