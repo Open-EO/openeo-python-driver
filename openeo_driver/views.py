@@ -612,25 +612,33 @@ def register_views_processing(
             'require_bounds': True,
             'correlation_id': request_id,
         })
-        result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)
-        _log.info(f"`POST /result`: {type(result)}")
 
-        if result is None:
-            # TODO: is it still necessary to handle `None` as an error condition?
-            raise InternalException(message="Process graph evaluation gave no result")
+        request_costs = functools.partial(backend_implementation.request_costs,
+                                          user_id=user.user_id, request_id=request_id)
 
-        if isinstance(result, flask.Response):
-            # TODO: handle flask.Response in `to_save_result` too?
-            response = result
-        else:
-            if not isinstance(result, SaveResult):
-                # Implicit save result (using default/best effort format and options)
-                result = to_save_result(data=result)
-            response = result.create_flask_response()
+        try:
+            result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)
+            _log.info(f"`POST /result`: {type(result)}")
 
-        costs = backend_implementation.request_costs(user.user_id, request_id, success=True)  # TODO: handle failure
-        if costs is not None:
-            response.headers['OpenEO-Costs'] = costs  # TODO: not all costs are accounted for so remove again
+            if result is None:
+                # TODO: is it still necessary to handle `None` as an error condition?
+                raise InternalException(message="Process graph evaluation gave no result")
+
+            if isinstance(result, flask.Response):
+                # TODO: handle flask.Response in `to_save_result` too?
+                response = result
+            else:
+                if not isinstance(result, SaveResult):
+                    # Implicit save result (using default/best effort format and options)
+                    result = to_save_result(data=result)
+                response = result.create_flask_response()
+
+            costs = request_costs(success=True)
+            if costs is not None:
+                response.headers['OpenEO-Costs'] = costs  # TODO: not all costs are accounted for so don't expose
+        except Exception:
+            request_costs(success=False)
+            raise
 
         return response
 
