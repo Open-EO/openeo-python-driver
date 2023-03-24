@@ -426,6 +426,12 @@ class UrllibMocker:
         def info(self):
             return None
 
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            pass
+
     def __init__(self):
         self.responses: Dict[Tuple[str, str], "Response"] = {}
 
