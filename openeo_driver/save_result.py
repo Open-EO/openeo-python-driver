@@ -508,8 +508,11 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
                 # TODO: This logic might get cleaned up when one kind ove vector cube is used everywhere
                 if isinstance(self._regions, DriverVectorCube):
                     amount_of_regions = len(self._regions.get_geometries())
-                elif isinstance(self._regions, DelayedVector):
-                    geometries = list(self._regions.geometries)
+                elif isinstance(self._regions, str) or isinstance(self._regions, DelayedVector):
+                    regions = self._regions
+                    if isinstance(self._regions, str):
+                        regions = DelayedVector(self._regions)
+                    geometries = list(regions.geometries)
                     amount_of_regions = len(geometries)
                 elif isinstance(self._regions, GeometryCollection):
                     amount_of_regions = len(self._regions)
