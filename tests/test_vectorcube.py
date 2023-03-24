@@ -5,6 +5,7 @@ import pytest
 import xarray
 from shapely.geometry import Polygon, MultiPolygon, Point
 
+from openeo_driver.errors import OpenEOApiException
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.testing import DictSubSet, ApproxGeometry
 from openeo_driver.util.geometry import as_geojson_feature_collection
@@ -45,6 +46,10 @@ class TestDriverVectorCube:
         ]
         for geometry, expected in zip(geometries, expected_geometries):
             assert geometry.equals(expected)
+
+    def test_geometry_count(self, gdf):
+        vc = DriverVectorCube(gdf)
+        assert vc.geometry_count() == 2
 
     def test_to_geojson(self, gdf):
         vc = DriverVectorCube(gdf)
@@ -247,6 +252,17 @@ class TestDriverVectorCube:
             "features": expected,
         })
 
+    def test_from_geojson_invalid_coordinates(self):
+        geojson = {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [-361, 2]},
+        }
+        with pytest.raises(OpenEOApiException) as e:
+            DriverVectorCube.from_geojson(geojson)
+        assert e.value.message.startswith(
+            "Failed to parse Geojson. Invalid coordinate: [-361, 2]"
+        )
+
     @pytest.mark.parametrize(
         ["geometry", "expected"],
         [
@@ -310,6 +326,67 @@ class TestDriverVectorCube:
             }
         )
 
+    @pytest.mark.parametrize(
+        ["path", "driver"],
+        [
+            (get_path("shapefile/mol.shp"), None),
+            (get_path("gpkg/mol.gpkg"), None),
+            (get_path("parquet/mol.pq"), "parquet"),
+        ],
+    )
+    def test_from_fiona(self, path, driver):
+        vc = DriverVectorCube.from_fiona([path], driver=driver)
+        assert vc.to_geojson() == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "id": "0",
+                            "geometry": DictSubSet({"type": "Polygon"}),
+                            "properties": {"class": 4, "id": 23, "name": "Mol"},
+                        }
+                    ),
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "id": "1",
+                            "geometry": DictSubSet({"type": "Polygon"}),
+                            "properties": {"class": 5, "id": 58, "name": "TAP"},
+                        }
+                    ),
+                ],
+            }
+        )
+
+    def test_from_parquet(self):
+        path = get_path("parquet/mol.pq")
+        vc = DriverVectorCube.from_parquet([path])
+        assert vc.to_geojson() == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "id": "0",
+                            "geometry": DictSubSet({"type": "Polygon"}),
+                            "properties": {"class": 4, "id": 23, "name": "Mol"},
+                        }
+                    ),
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "id": "1",
+                            "geometry": DictSubSet({"type": "Polygon"}),
+                            "properties": {"class": 5, "id": 58, "name": "TAP"},
+                        }
+                    ),
+                ],
+            }
+        )
+
     def test_get_bounding_box(self, gdf):
         vc = DriverVectorCube(gdf)
         assert vc.get_bounding_box() == (1, 1, 5, 4)
@@ -325,17 +402,25 @@ class TestDriverVectorCube:
         path = str(get_path("geojson/FeatureCollection06.json"))
         vc = DriverVectorCube(gpd.read_file(path))
         area = vc.get_bounding_box_area()
-        # TODO: area of FeatureCollection06 (square with side of approx 2.3km, based on length of Watersportbaan Gent)
-        #       is roughly 2.3 km * 2.3 km = 5.29 km2,
-        #       but current implementation gives result that is quite a bit larger than that
-        numpy.testing.assert_allclose(area, 8e6, rtol=0.1)
+        numpy.testing.assert_allclose(area, 5134695.615, rtol=0.1)
+
+    def test_get_bounding_box_area_not_wgs84(self):
+        path = str(get_path("geojson/FeatureCollection08.json"))
+        vc = DriverVectorCube(gpd.read_file(path))
+        area = vc.get_bounding_box_area()
+        numpy.testing.assert_allclose(area, 5134695.615, rtol=0.1)
+
+    def test_get_bounding_box_area_northpole_not_wgs84(self):
+        path = str(get_path("geojson/FeatureCollection09.json"))
+        vc = DriverVectorCube(gpd.read_file(path))
+        area = vc.get_bounding_box_area()
+        numpy.testing.assert_allclose(area, 1526291.296426, rtol=0.1)
 
     def test_get_area(self):
         path = str(get_path("geojson/FeatureCollection07.json"))
         vc = DriverVectorCube(gpd.read_file(path))
         area = vc.get_area()
-        # TODO: see remark in test_get_bounding_box_area
-        numpy.testing.assert_allclose(area, 16e6, rtol=0.2)
+        numpy.testing.assert_allclose(area, 10269391.016361, rtol=0.1)
 
     def test_buffer_points(self):
         geometry = as_geojson_feature_collection(

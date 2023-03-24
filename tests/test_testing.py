@@ -1,3 +1,5 @@
+import logging
+import re
 import urllib.error
 import urllib.request
 
@@ -12,6 +14,7 @@ from openeo_driver.testing import (
     DictSubSet,
     ListSubSet,
     approxify,
+    caplog_with_custom_formatter,
 )
 
 
@@ -192,3 +195,29 @@ def test_approxify_tolerance_rel():
     assert {"a": [10.1, 2.0]} != approxify({"a": [10, 2.3]}, rel=0.1)
     assert {"a": [10.1, 2.1]} == approxify({"a": [10, 2.3]}, rel=0.1)
     assert {"a": [10.1, 2.1]} != approxify({"a": [10, 2.3]}, rel=0.01)
+
+
+@pytest.mark.parametrize(
+    "format",
+    [
+        "[%(levelname)s] %(message)s (%(name)s)",
+        logging.Formatter("[%(levelname)s] %(message)s (%(name)s)"),
+    ],
+)
+def test_caplog_with_custom_formatter(caplog, format):
+    # Assumes default formatter of caplog (see DEFAULT_LOG_FORMAT in _pytest.logging)
+    logging.warning("not good")
+    # Switch to custom formatter
+    with caplog_with_custom_formatter(caplog, format=format):
+        logging.warning("still not good")
+    # Original formatter should be restored
+    logging.warning("hmm bad times")
+
+    logs = caplog.text.strip()
+    # Get rid of unstable line numbers
+    logs = re.sub(r".py:(\d+)", ".py:XXX", logs)
+    assert logs.split("\n") == [
+        "WARNING  root:test_testing.py:XXX not good",
+        "[WARNING] still not good (root)",
+        "WARNING  root:test_testing.py:XXX hmm bad times",
+    ]

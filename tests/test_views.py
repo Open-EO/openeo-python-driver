@@ -14,8 +14,15 @@ import werkzeug.exceptions
 
 from openeo.capabilities import ComparableVersion
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
-from openeo_driver.backend import BatchJobMetadata, UserDefinedProcessMetadata, BatchJobs, OpenEoBackendImplementation, \
-    Processing, not_implemented
+from openeo_driver.backend import (
+    BatchJobMetadata,
+    UserDefinedProcessMetadata,
+    BatchJobs,
+    OpenEoBackendImplementation,
+    Processing,
+    not_implemented,
+    BatchJobResultMetadata,
+)
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
 from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, \
@@ -585,7 +592,8 @@ def oidc_provider(requests_mock):
     user_db = {
         "j0hn": {"sub": "john"},
         "4l1c3": {"sub": "Alice"},
-        "b0b": {"sub": "b0b1b08571101437a2"}
+        "b0b": {"sub": "b0b1b08571101437a2"},
+        "c6r01": {"sub": "Carol"},
     }
     oidc_conf = f"{oidc_issuer}/.well-known/openid-configuration"
     oidc_userinfo_url = f"{oidc_issuer}/userinfo"
@@ -623,8 +631,24 @@ class TestUser:
         api.get("/me", headers={"Authorization": "Bearer oidc/invalid/j0hn"}).assert_error(403, "TokenInvalid")
 
     def test_default_plan(self, api, oidc_provider):
-        response = api.get("/me", headers={"Authorization": "Bearer oidc/eoidc/4l1c3"}).assert_status_code(200).json
-        assert response == DictSubSet({"user_id": "Alice", "default_plan": "alice-plan"})
+        response = (
+            api.get("/me", headers={"Authorization": "Bearer oidc/eoidc/4l1c3"})
+            .assert_status_code(200)
+            .json
+        )
+        assert response == DictSubSet(
+            {"user_id": "Alice", "default_plan": "alice-plan"}
+        )
+
+    def test_roles(self, api, oidc_provider):
+        response = (
+            api.get("/me", headers={"Authorization": "Bearer oidc/eoidc/c6r01"})
+            .assert_status_code(200)
+            .json
+        )
+        assert response == DictSubSet(
+            {"user_id": "Carol", "roles": ["admin", "devops"]}
+        )
 
 
 class TestLogging:
@@ -927,6 +951,8 @@ class TestBatchJobs:
                     budget=4.56,
                 )
             }
+            dummy_backend.DummyBatchJobs._job_result_registry = {}
+
             if jobs:
                 for job_id, job_settings in jobs.items():
                     key = (job_settings.get("user", TEST_USER), job_id)
@@ -1330,7 +1356,7 @@ class TestBatchJobs:
                             }
         }
         with self._fresh_job_registry(jobs={"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}), \
-                mock.patch.object(backend_implementation.batch_jobs, "get_results", return_value=results_data):
+                mock.patch.object(backend_implementation.batch_jobs, "get_result_assets", return_value=results_data):
             resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
         res = resp.assert_status_code(200).json
         assert res["assets"] == {
@@ -1580,6 +1606,38 @@ class TestBatchJobs:
                     }
                 }
             }
+
+    def test_get_job_results_custom_links(self, api100):
+        with self._fresh_job_registry(next_job_id="job-362"):
+            job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
+            dummy_backend.DummyBatchJobs._update_status(
+                job_id=job_id, user_id=TEST_USER, status="finished"
+            )
+            dummy_backend.DummyBatchJobs.set_result_metadata(
+                job_id=job_id,
+                user_id=TEST_USER,
+                metadata=BatchJobResultMetadata(
+                    assets={},
+                    links=[
+                        {"rel": "canonical", "href": "https://other.test/j123/results"},
+                        {"rel": "self", "href": "https://other.test/j123"},
+                        {"rel": "card4l-document", "href": "https://c4ld.test"},
+                        {"rel": "cu5t0m!", "href": "https://other.test/j123.readme"},
+                    ],
+                ),
+            )
+            resp = api100.get(f"/jobs/{job_id}/results", headers=self.AUTH_HEADER)
+            assert resp.assert_status_code(200).json == DictSubSet(
+                {
+                    "id": "07024ee9-7847-4b8a-b260-6c879a2b3cdc",
+                    "links": [
+                        {"rel": "canonical", "href": "https://other.test/j123/results"},
+                        {"rel": "self", "href": "https://other.test/j123"},
+                        {"rel": "card4l-document", "href": "https://c4ld.test"},
+                        {"rel": "cu5t0m!", "href": "https://other.test/j123.readme"},
+                    ],
+                }
+            )
 
     def test_get_job_results_invalid_job(self, api):
         api.get('/jobs/deadbeef-f00/results', headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")

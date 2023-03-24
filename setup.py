@@ -27,6 +27,7 @@ tests_require = [
     "time-machine",
     "netCDF4>=1.5.4",
     "re-assert",
+    "pyarrow>=10.0.0",
 ]
 
 setup(
@@ -45,7 +46,7 @@ setup(
         "flask",
         "werkzeug>=1.0.1",
         "requests>=2.28.0",
-        "openeo>=0.15.0a3.dev",
+        "openeo>=0.15.0",
         "openeo_processes==0.0.4",  # 0.0.4 is special build/release, also see https://github.com/Open-EO/openeo-python-driver/issues/152
         "gunicorn>=20.0.1",
         "numpy>=1.22.0",
@@ -54,7 +55,7 @@ setup(
         "geopandas>=0.11.0",  # 0.11.0 fixes https://github.com/geopandas/geopandas/pull/2243
         "xarray>=0.16.2",
         "flask-cors",
-        "pyproj",
+        "pyproj>=2.1.0",
         "python-dateutil",
         "python-json-logger>=2.0.0",
         "deprecated>=1.2.12",

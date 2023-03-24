@@ -147,10 +147,12 @@ def setup_logging(
     if not logging.getLogger().handlers or force:
         logging.config.dictConfig(config)
 
-    _log.log(level=_log.getEffectiveLevel(), msg="setup_logging")
-    for logger_name in config.get("loggers", {}).keys():
-        show_log_level(logger=logger_name)
-    _log.info(f"root handlers: {logging.getLogger().handlers}")
+    is_openeo_debug_enabled = os.environ.get("OPENEO_LOGGING_THRESHOLD", "INFO").lower() == "debug"
+    if is_openeo_debug_enabled:
+        _log.log(level=_log.getEffectiveLevel(), msg="setup_logging")
+        for logger_name in config.get("loggers", {}).keys():
+            show_log_level(logger=logger_name)
+        _log.debug(f"root handlers: {logging.getLogger().handlers}")
 
     if capture_threading_exceptions:
         if hasattr(threading, "excepthook"):
@@ -160,7 +162,7 @@ def setup_logging(
             _log.warning("No support for capturing threading exceptions")
 
     if capture_unhandled_exceptions:
-        _log.info(f"Overriding sys.excepthook with {_sys_excepthook} (was {sys.excepthook})")
+        _log.debug(f"Overriding sys.excepthook with {_sys_excepthook} (was {sys.excepthook})")
         sys.excepthook = _sys_excepthook
 
 
@@ -304,6 +306,7 @@ class BatchJobLoggingFilter(logging.Filter):
 def just_log_exceptions(
     log: Union[logging.Logger, Callable, str, int] = logging.ERROR,
     name: Optional[str] = "untitled",
+    extra: Optional[dict] = None,
 ):
     """
     Context manager to catch any exception (if any) and just log them.
@@ -323,4 +326,9 @@ def just_log_exceptions(
     try:
         yield
     except Exception as e:
-        log(f"In context {name!r}: caught {e!r}", exc_info=True)
+        try:
+            log(f"In context {name!r}: caught {e!r}", extra=extra, exc_info=True)
+        except Exception as e:
+            _log.error(
+                f"Failed to do `just_log_exceptions` with {log=}: {e}", exc_info=True
+            )

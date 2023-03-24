@@ -3,6 +3,8 @@ import shapely.geometry
 
 from openeo.internal.graph_building import PGNode
 from openeo.rest.datacube import DataCube
+
+from openeo_driver.errors import OpenEOApiException
 from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER, _extract_load_parameters, \
     ENV_SOURCE_CONSTRAINTS, custom_process_from_process_graph, process_registry_100, ENV_SAVE_RESULT
 from openeo_driver.datacube import DriverVectorCube
@@ -870,6 +872,32 @@ def test_multiple_filter_spatial(dry_run_env, dry_run_tracer):
 
     assert geometries == shapely.geometry.shape(polygon2)
 
+
+@pytest.mark.parametrize(
+    ["path", "expected"],
+    [
+        ("geojson/Polygon01.json", (5.1, 51.2, 5.14, 51.23)),
+        ("geojson/FeatureCollection01.json", (4.45, 51.1, 4.52, 51.2)),
+    ],
+)
+def test_filter_spatial_delayed_vector(dry_run_env, dry_run_tracer, path, expected):
+    cube = DataCube(PGNode("load_collection", id="S2_FOOBAR"), connection=None)
+    cube = cube.filter_spatial(geometries=get_path(path))
+    pg = cube.flat_graph()
+    res = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+
+    src, constraints = source_constraints[0]
+    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert isinstance(
+        constraints["filter_spatial"]["geometries"],
+        (shapely.geometry.Polygon, shapely.geometry.MultiPolygon),
+    )
+    assert constraints["filter_spatial"]["geometries"].bounds == expected
+
+
 def test_resample_filter_spatial(dry_run_env, dry_run_tracer):
     polygon = {"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]}
     cube = DataCube(PGNode("load_collection", id="S2_FOOBAR"), connection=None)
@@ -1530,3 +1558,126 @@ def test_multiple_save_result(dry_run_env):
     save_result = dry_run_env.get(ENV_SAVE_RESULT)
     assert  len(save_result) == 2
     assert len(the_result) == 2
+
+
+def test_invalid_latlon_in_geojson(dry_run_env):
+    init_cube = DataCube(PGNode("load_collection", id="S2_FOOBAR"), connection=None)
+
+    polygon1 = {"type": "Polygon", "coordinates": [[(-361, 0), (3, 5), (8, 2), (0, 0)]]}
+    cube = init_cube.filter_spatial(geometries=polygon1)
+    with pytest.raises(OpenEOApiException) as e:
+        evaluate(cube.flat_graph(), env=dry_run_env)
+    assert e.value.message.startswith(
+        "Failed to parse Geojson. Invalid coordinate: (-361, 0)"
+    )
+
+    polygon2 = {"type": "Polygon", "coordinates": [[(1, 1), (3, 5), (8, 101), (1, 1)]]}
+    cube = init_cube.filter_spatial(geometries=polygon2)
+    with pytest.raises(OpenEOApiException) as e:
+        evaluate(cube.flat_graph(), env=dry_run_env)
+    assert e.value.message.startswith(
+        "Failed to parse Geojson. Invalid coordinate: (8, 101)"
+    )
+
+    polygon3 = {
+        "type": "MultiPolygon",
+        "coordinates": [
+            [
+                [
+                    (-180, -90.0),
+                    (-180.0, 90.0),
+                    (180.0, 90),
+                    (180, -90.0),
+                    (-180.0, -90.0),
+                ]
+            ]
+        ],
+    }
+    cube = init_cube.filter_spatial(geometries=polygon3)
+    evaluate(cube.flat_graph(), env=dry_run_env)
+
+    geometrycollection = {
+        "type": "GeometryCollection",
+        "geometries": [
+            {
+                "type": "Polygon",
+                "coordinates": [[[0.1, 0.1], [1.8, 0.1], [1.1, 1.8], [0.1, 0.1]]],
+            },
+            {
+                "type": "Polygon",
+                "coordinates": [
+                    [[2.99, -1.29], [2.279, 1.724], [0.725, -0.18], [0.725, -0.516]]
+                ],
+            },
+            {
+                "type": "GeometryCollection",
+                "geometries": [
+                    {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [-361, -1.29],
+                                [2.279, 1.724],
+                                [0.725, -0.18],
+                                [0.725, -0.516],
+                            ]
+                        ],
+                    }
+                ],
+            },
+        ],
+    }
+    cube = init_cube.filter_spatial(geometries=geometrycollection)
+    with pytest.raises(OpenEOApiException) as e:
+        evaluate(cube.flat_graph(), env=dry_run_env)
+    assert e.value.message.startswith(
+        "Failed to parse Geojson. Invalid coordinate: [-361, -1.29]"
+    )
+
+    point = {"type": "Point", "coordinates": [0, 0]}
+    cube = init_cube.filter_spatial(geometries=point)
+    evaluate(cube.flat_graph(), env=dry_run_env)
+
+    multilinestring = {
+        "type": "MultiLineString",
+        "coordinates": [
+            [[0, 0], [1, 1]],
+            [[1, 0], [0, 1]],
+        ],
+    }
+    cube = init_cube.filter_spatial(geometries=multilinestring)
+    evaluate(cube.flat_graph(), env=dry_run_env)
+
+    polygon_with_holes = {
+        "type": "Polygon",
+        "coordinates": [
+            [[100.0, 0.0], [101.0, 0.0], [101.0, 1.0], [100.0, 1.0], [100.0, 0.0]],
+            [[100.8, 0.8], [100.8, 0.2], [100.2, 0.2], [100.2, 0.8], [100.8, 0.8]],
+        ],
+    }
+    cube = init_cube.filter_spatial(geometries=polygon_with_holes)
+    evaluate(cube.flat_graph(), env=dry_run_env)
+
+    feature_collection = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {"type": "Point", "coordinates": [-71.073283, -101]},
+            }
+        ],
+    }
+    cube = init_cube.filter_spatial(geometries=feature_collection)
+    with pytest.raises(OpenEOApiException) as e:
+        evaluate(cube.flat_graph(), env=dry_run_env)
+    assert e.value.message.startswith(
+        "Failed to parse Geojson. Invalid coordinate: [-71.073283, -101]"
+    )
+
+    multipoint_many_coordinates = {
+        "type": "MultiPoint",
+        "coordinates": [(x, y) for x in range(150, 200) for y in range(70, 101)],
+    }
+    cube = init_cube.filter_spatial(geometries=multipoint_many_coordinates)
+    evaluate(cube.flat_graph(), env=dry_run_env)

@@ -4,6 +4,7 @@ from typing import Tuple, Union
 
 import pyproj
 import shapely.ops
+from pyproj import Geod
 from shapely.geometry.base import BaseGeometry
 
 
@@ -56,6 +57,7 @@ def auto_utm_crs_for_geometry(geometry: BaseGeometry, crs: str) -> str:
 
 
 def geometry_to_crs(geometry: BaseGeometry, crs_from, crs_to):
+    # TODO: This reprojection differs from qgis, especially at the poles.
     # Skip if CRS definitions are exactly the same
     if crs_from == crs_to:
         return geometry
@@ -72,20 +74,17 @@ def geometry_to_crs(geometry: BaseGeometry, crs_from, crs_to):
 
 
 def area_in_square_meters(geometry: BaseGeometry, crs: Union[str, pyproj.CRS]):
+    """
+    Calculate the area of a geometry in square meters, the area is calculated using a curved surface (WGS84 ellipsoid).
+
+    :param geometry: The geometry to calculate the area for.
+    :param crs: The CRS of the geometry.
+
+    :return: The area in square meters.
+    """
     if isinstance(crs, str):
         crs = "+init=" + crs  # TODO: this is deprecated
-
-    geometry_lat_lon = geometry_to_crs(geometry,crs,pyproj.crs.CRS.from_epsg(4326))
-
-    geometry_area = shapely.ops.transform(
-        partial(
-            pyproj.transform,
-            pyproj.Proj(crs),
-            pyproj.Proj(
-                proj='aea',
-                lat_1=geometry_lat_lon.bounds[1],
-                lat_2=geometry_lat_lon.bounds[3])
-        ),
-        geometry)
-
-    return geometry_area.area
+    geometry_lat_lon = geometry_to_crs(geometry, crs, pyproj.crs.CRS.from_epsg(4326))
+    geod = Geod(ellps="WGS84")
+    area = abs(geod.geometry_area_perimeter(geometry_lat_lon)[0])
+    return area

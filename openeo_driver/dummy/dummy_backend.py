@@ -16,9 +16,20 @@ from shapely.geometry.collection import GeometryCollection
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.metadata import CollectionMetadata, Band
 from openeo_driver.ProcessGraphDeserializer import ConcreteProcessing
-from openeo_driver.backend import (SecondaryServices, OpenEoBackendImplementation, CollectionCatalog, ServiceMetadata,
-                                   BatchJobs, BatchJobMetadata, OidcProvider, UserDefinedProcesses,
-                                   UserDefinedProcessMetadata, LoadParameters, Processing)
+from openeo_driver.backend import (
+    SecondaryServices,
+    OpenEoBackendImplementation,
+    CollectionCatalog,
+    ServiceMetadata,
+    BatchJobs,
+    BatchJobMetadata,
+    OidcProvider,
+    UserDefinedProcesses,
+    UserDefinedProcessMetadata,
+    LoadParameters,
+    Processing,
+    BatchJobResultMetadata,
+)
 from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCube
 from openeo_driver.datastructs import StacAsset
 from openeo_driver.delayed_vector import DelayedVector
@@ -570,8 +581,9 @@ class DummyProcessing(ConcreteProcessing):
 
 
 class DummyBatchJobs(BatchJobs):
-    _job_registry = {}
+    _job_registry: Dict[Tuple[str, str], BatchJobMetadata] = {}
     _custom_job_logs = {}
+    _job_result_registry: Dict[Tuple[str, str], BatchJobResultMetadata] = {}
 
     def generate_job_id(self):
         return generate_unique_id(prefix="j")
@@ -612,6 +624,12 @@ class DummyBatchJobs(BatchJobs):
         except KeyError:
             raise JobNotFoundException(job_id)
 
+    @classmethod
+    def set_result_metadata(
+        cls, job_id: str, user_id: str, metadata: BatchJobResultMetadata
+    ):
+        cls._job_result_registry[(job_id, user_id)] = metadata
+
     def start_job(self, job_id: str, user: User):
         self._update_status(
             job_id=job_id, user_id=user.user_id, status=JOB_STATUS.RUNNING
@@ -620,7 +638,13 @@ class DummyBatchJobs(BatchJobs):
     def _output_root(self) -> str:
         return "/data/jobs"
 
-    def get_results(self, job_id: str, user_id: str) -> Dict[str, dict]:
+    def get_result_metadata(self, job_id: str, user_id: str) -> BatchJobResultMetadata:
+        if (job_id, user_id) in self._job_result_registry:
+            return self._job_result_registry[(job_id, user_id)]
+        else:
+            return super().get_result_metadata(job_id=job_id, user_id=user_id)
+
+    def get_result_assets(self, job_id: str, user_id: str) -> Dict[str, dict]:
         if (
             self._get_job_info(job_id=job_id, user_id=user_id).status
             != JOB_STATUS.FINISHED
@@ -844,5 +868,7 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
         if "mark" in user.user_id.lower():
             raise PermissionsInsufficientException(message="No access for Mark.")
         if user.user_id == "Alice":
-            user.info["default_plan"] = "alice-plan"
+            user.set_default_plan("alice-plan")
+        if user.user_id == "Carol":
+            user.add_roles(["admin", "devops"])
         return user

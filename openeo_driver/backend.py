@@ -12,6 +12,8 @@ Also see https://github.com/Open-EO/openeo-python-driver/issues/8
 import abc
 import json
 import logging
+import dataclasses
+
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -145,11 +147,16 @@ class SecondaryServices(MicroService):
 
 
 class LoadParameters(dict):
+    """
+    Dictionary based container for load_collection related parameters and optimization hints.
+    """
     # TODO: these objects are part of the cache key for load_collection's lru_cache so mutating them will cause both
-    #  unwanted cache hits and unwanted cache misses; can we make them immutable like EvalEnv? #140
+    #       unwanted cache hits and unwanted cache misses; can we make them immutable like EvalEnv? #140
 
-    """Container for load_collection related parameters and optimization hints"""
-    # Some attributes pointing to dict items for more explicit tracing where parameters are set and read.
+    # Note: these `dict_item`s provide attribute-style access to dictionary items
+    # which simplifies discovery where certain parameters are written/read
+    # (and allows setting defaults centrally).
+    # TODO: use a more standard solution like dataclassses from stdlib or attrs?
     temporal_extent = dict_item(default=(None, None))
     spatial_extent = dict_item(default={})
     global_extent = dict_item(default={})
@@ -283,6 +290,7 @@ class BatchJobMetadata(NamedTuple):
     end_datetime: datetime = None
     instruments: List[str] = None
     epsg: int = None
+    # TODO: openEO API associates `links` with the job *result* metadata, not the job itself
     links: List[Dict] = None
     usage: Dict = None
 
@@ -352,6 +360,14 @@ class BatchJobMetadata(NamedTuple):
         return dict_no_none(result)
 
 
+@dataclasses.dataclass(frozen=True)
+class BatchJobResultMetadata:
+    # Basic dataclass based wrapper for batch job result metadata (allows cleaner code navigation and discovery)
+    assets: Dict[str, dict] = dataclasses.field(default_factory=dict)
+    links: List[dict] = dataclasses.field(default_factory=list)
+    # TODO: more fields
+
+
 class BatchJobs(MicroService):
     """
     Base contract/implementation for Batch Jobs "microservice"
@@ -392,15 +408,35 @@ class BatchJobs(MicroService):
         """
         raise NotImplementedError
 
-    def get_results(self, job_id: str, user_id: str) -> Dict[str, dict]:
+    def get_result_metadata(self, job_id: str, user_id: str) -> BatchJobResultMetadata:
         """
-        Return result files as (filename, metadata) mapping: `filename` is the part that
+        Get job result metadata
+
+        https://openeo.org/documentation/1.0/developers/api/reference.html#tag/Batch-Jobs/operation/list-results
+        """
+        # Default implementation, based on existing components
+        return BatchJobResultMetadata(
+            assets=self.get_result_assets(job_id=job_id, user_id=user_id),
+            links=[],
+        )
+
+    def get_result_assets(self, job_id: str, user_id: str) -> Dict[str, dict]:
+        """
+        Return result assets as (filename, metadata) mapping: `filename` is the part that
         the user can see (in download url), `metadata` contains internal (root) dir where
         output is stored.
 
         related:
-        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-results
+        https://openeo.org/documentation/1.0/developers/api/reference.html#tag/Batch-Jobs/operation/list-results
         """
+        # Default implementation, based on legacy API
+        return self.get_results(job_id=job_id, user_id=user_id)
+
+    def get_results(self, job_id: str, user_id: str) -> Dict[str, dict]:
+        """
+        Deprecated: use/implement `get_result_assets` instead.
+        """
+        # TODO: eliminate this method in favor of `get_result_assets`
         raise NotImplementedError
 
     def get_log_entries(self, job_id: str, user_id: str, offset: Optional[str] = None) -> Iterable[dict]:

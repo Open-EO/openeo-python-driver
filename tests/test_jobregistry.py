@@ -18,7 +18,13 @@ from openeo_driver.jobregistry import (
     ElasticJobRegistry,
     ElasticJobRegistryCredentials,
 )
-from openeo_driver.testing import DictSubSet, RegexMatcher, ListSubSet, IgnoreOrder
+from openeo_driver.testing import (
+    DictSubSet,
+    RegexMatcher,
+    ListSubSet,
+    IgnoreOrder,
+    caplog_with_custom_formatter,
+)
 
 DUMMY_PROCESS = {
     "summary": "calculate 3+5, please",
@@ -554,8 +560,6 @@ class TestElasticJobRegistry:
                 job_id = getattr(record, "job_id", None)
                 return f"{record.name}:{job_id}:{record.message}"
 
-        caplog.handler.setFormatter(Formatter())
-
         job_id = "j-123"
 
         def post_jobs(request, context):
@@ -569,15 +573,16 @@ class TestElasticJobRegistry:
         requests_mock.post(f"{self.EJR_API_URL}/jobs", json=post_jobs)
         requests_mock.patch(f"{self.EJR_API_URL}/jobs/{job_id}", json=patch_job)
 
-        with time_machine.travel("2020-01-02 03:04:05+00", tick=False):
-            result = ejr.create_job(
-                job_id=job_id, process=DUMMY_PROCESS, user_id="john"
-            )
-            assert result == {"job_id": job_id}
-        with time_machine.travel("2020-01-02 03:04:10+00", tick=False):
-            ejr.set_application_id(job_id=job_id, application_id="app-123")
-        with time_machine.travel("2020-01-02 03:44:55+00", tick=False):
-            ejr.set_status(job_id=job_id, status=JOB_STATUS.RUNNING)
+        with caplog_with_custom_formatter(caplog=caplog, format=Formatter()):
+            with time_machine.travel("2020-01-02 03:04:05+00", tick=False):
+                result = ejr.create_job(
+                    job_id=job_id, process=DUMMY_PROCESS, user_id="john"
+                )
+                assert result == {"job_id": job_id}
+            with time_machine.travel("2020-01-02 03:04:10+00", tick=False):
+                ejr.set_application_id(job_id=job_id, application_id="app-123")
+            with time_machine.travel("2020-01-02 03:44:55+00", tick=False):
+                ejr.set_status(job_id=job_id, status=JOB_STATUS.RUNNING)
 
         logs = caplog.text.strip().split("\n")
 

@@ -544,14 +544,18 @@ def register_views_auth(
     @blueprint.route("/me", methods=["GET"])
     @auth_handler.requires_bearer_auth
     def me(user: User):
-        return jsonify(dict_no_none({
-            "user_id": user.user_id,
-            "name": user.get_name(),
-            "info": user.info,
-            # TODO: "default_plan" field? see https://github.com/Open-EO/openeo-api/issues/425
-            "default_plan": user.get_default_plan(),
-            # TODO more fields
-        }))
+        return jsonify(
+            dict_no_none(
+                {
+                    "user_id": user.user_id,
+                    "name": user.get_name(),
+                    "info": user.info,
+                    "roles": sorted(user.get_roles()) or None,
+                    "default_plan": user.get_default_plan(),
+                    # TODO more fields
+                }
+            )
+        )
 
 
 def _extract_process_graph(post_data: dict) -> dict:
@@ -903,7 +907,10 @@ def register_views_batch_jobs(
         if job_info.status != JOB_STATUS.FINISHED:
             raise JobNotFinishedException()
 
-        results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user_id)
+        result_metadata = backend_implementation.batch_jobs.get_result_metadata(
+            job_id=job_id, user_id=user_id
+        )
+        result_assets = result_metadata.assets
 
         if requested_api_version().at_least("1.0.0"):
             def job_results_canonical_url() -> str:
@@ -917,31 +924,48 @@ def register_views_batch_jobs(
                     job_id=job_id, user_id=user_id, expires=expires
                 )
                 user_base64 = user_id_b64_encode(user_id)
+                # TODO: also encrypt user id?
+                # TODO: encode all stuff (signature, userid, expiry) in a single blob in the URL
                 return url_for(
                     '.list_job_results_signed',
                     job_id=job_id, user_base64=user_base64, expires=expires, secure_key=secure_key, _external=True
                 )
 
-            links = job_info.links
-            if links is None:
-                links = []
+            links: List[dict] = result_metadata.links or job_info.links or []
 
-            links.extend([{
-                "rel": "self",
-                "href": url_for('.list_job_results', job_id=job_id, _external=True),  # MUST be absolute
-                "type": "application/json"
-            }, {
-                "rel": "canonical",
-                "href": job_results_canonical_url(),
-                "type": "application/json"
-            }, {
-                "rel": "card4l-document",
-                "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
-                "type": "application/pdf"
-            }])
+            if not any(l.get("rel") == "self" for l in links):
+                links.append(
+                    {
+                        "rel": "self",
+                        "href": url_for(
+                            ".list_job_results", job_id=job_id, _external=True
+                        ),  # MUST be absolute
+                        "type": "application/json",
+                    }
+                )
+            if not any(l.get("rel") == "canonical" for l in links):
+                links.append(
+                    {
+                        "rel": "canonical",
+                        "href": job_results_canonical_url(),
+                        "type": "application/json",
+                    }
+                )
+            if not any(l.get("rel") == "card4l-document" for l in links):
+                links.append(
+                    {
+                        "rel": "card4l-document",
+                        # TODO: avoid hardcoding this specific URL?
+                        "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
+                        "type": "application/pdf",
+                    }
+                )
 
-            assets = {filename: _asset_object(job_id, user_id, filename, asset_metadata)
-                      for filename, asset_metadata in results.items() if asset_metadata.get('asset', True)}
+            assets = {
+                filename: _asset_object(job_id, user_id, filename, asset_metadata)
+                for filename, asset_metadata in result_assets.items()
+                if asset_metadata.get("asset", True)
+            }
 
             if requested_api_version().at_least("1.1.0"):
                 to_datetime = Rfc3339(propagate_none=True).datetime
@@ -963,7 +987,7 @@ def register_views_batch_jobs(
                         job_id=job_id, user_base64=user_base64, secure_key=secure_key, item_id=item_id, expires=expires,
                         _external=True)
 
-                for filename, metadata in results.items():
+                for filename, metadata in result_assets.items():
                     if "data" in metadata.get("roles", []) and "geotiff" in metadata.get("type", ""):
                         links.append({
                             "rel": "item",
@@ -1037,9 +1061,11 @@ def register_views_batch_jobs(
                 if "proj:epsg" in result["properties"]:
                     result["stac_extensions"].append("projection")
         else:
+            # TODO #47 drop pre-1.0.0 API support
             result = {
                 "links": [
-                    {"href": _job_result_download_url(job_id, user_id, filename)} for filename in results.keys()
+                    {"href": _job_result_download_url(job_id, user_id, filename)}
+                    for filename in result_assets.keys()
                 ]
             }
 
@@ -1047,8 +1073,12 @@ def register_views_batch_jobs(
         return jsonify(result)
 
     # TODO: Issue #232, TBD: refactor download functionality? more abstract, just stream blocks of bytes from S3 or from a directory.
-    def _download_job_result(job_id: str, filename: str, user_id: str) -> flask.Response:
-        results = backend_implementation.batch_jobs.get_results(job_id=job_id, user_id=user_id)
+    def _download_job_result(
+        job_id: str, filename: str, user_id: str
+    ) -> flask.Response:
+        results = backend_implementation.batch_jobs.get_result_assets(
+            job_id=job_id, user_id=user_id
+        )
         if filename not in results.keys():
             raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
         result = results[filename]
@@ -1102,7 +1132,9 @@ def register_views_batch_jobs(
         if item_id == DriverMlModel.METADATA_FILE_NAME:
             return _download_ml_model_metadata(job_id, item_id, user_id)
 
-        results = backend_implementation.batch_jobs.get_results(job_id, user_id)
+        results = backend_implementation.batch_jobs.get_result_assets(
+            job_id=job_id, user_id=user_id
+        )
 
         assets_for_item_id = {
             asset_filename: metadata for asset_filename, metadata in results.items()
@@ -1161,8 +1193,12 @@ def register_views_batch_jobs(
         resp.mimetype = stac_item_media_type
         return resp
 
-    def _download_ml_model_metadata(job_id: str, file_name: str, user_id) -> flask.Response:
-        results = backend_implementation.batch_jobs.get_results(job_id, user_id)
+    def _download_ml_model_metadata(
+        job_id: str, file_name: str, user_id
+    ) -> flask.Response:
+        results = backend_implementation.batch_jobs.get_result_assets(
+            job_id=job_id, user_id=user_id
+        )
         ml_model_metadata: dict = results.get(file_name, None)
         if ml_model_metadata is None:
             raise FilePathInvalidException(f"{file_name!r} not in {list(results.keys())}")

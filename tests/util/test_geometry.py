@@ -15,6 +15,10 @@ from openeo_driver.util.geometry import (
     GeometryBufferer,
     as_geojson_feature,
     as_geojson_feature_collection,
+    reproject_geometry,
+    BoundingBox,
+    BoundingBoxException,
+    CrsRequired,
 )
 
 
@@ -149,6 +153,46 @@ def test_reproject_bounding_box():
         "north": pytest.approx(51.22699369149726),
         "crs": "EPSG:4326",
     }
+
+
+def test_reproject_geometry():
+    geometry = shapely.geometry.GeometryCollection(
+        [
+            shapely.geometry.Point(5.0, 51.0),
+            shapely.geometry.LineString([(5.0, 51.0), (5.1, 51.1)]),
+        ]
+    )
+    expected_reprojected = shapely.geometry.GeometryCollection(
+        [
+            shapely.geometry.Point(640333.2963383198, 5651728.68267166),
+            shapely.geometry.LineString(
+                [
+                    (640333.2963383198, 5651728.68267166),
+                    (647032.2494640718, 5663042.764772809),
+                ]
+            ),
+        ]
+    )
+    reprojected = reproject_geometry(
+        geometry, from_crs="EPSG:4326", to_crs="EPSG:32631"
+    )
+    assert reprojected.equals(expected_reprojected)
+
+    # Individual reprojected geometries should be equal to the reprojected collection.
+    reprojected_geoms = []
+    for geom in geometry.geoms:
+        geom = reproject_geometry(geom, from_crs="EPSG:4326", to_crs="EPSG:32631")
+        reprojected_geoms.append(geom)
+    reprojected_expected = shapely.geometry.GeometryCollection(reprojected_geoms)
+    assert reprojected.equals(reprojected_expected)
+
+    # Inverse
+    reprojected = reproject_geometry(
+        expected_reprojected, from_crs="EPSG:32631", to_crs="EPSG:4326"
+    )
+    # Reprojection introduces very small errors.
+    assert not reprojected.within(geometry)
+    assert reprojected.within(geometry.buffer(1e-6))
 
 
 def test_spatial_extent_union():
@@ -565,3 +609,140 @@ class TestAsGeoJsonFeatureCollection:
                 },
             ],
         }
+
+
+class TestBoundingBox:
+    def test_basic(self):
+        bbox = BoundingBox(1, 2, 3, 4)
+        assert bbox.west == 1
+        assert bbox.south == 2
+        assert bbox.east == 3
+        assert bbox.north == 4
+        assert bbox.crs is None
+
+    @pytest.mark.parametrize("crs", [4326, "EPSG:4326", "epsg:4326"])
+    def test_basic_with_crs(self, crs):
+        bbox = BoundingBox(1, 2, 3, 4, crs=crs)
+        assert bbox.west == 1
+        assert bbox.south == 2
+        assert bbox.east == 3
+        assert bbox.north == 4
+        assert bbox.crs == "EPSG:4326"
+
+    def test_immutable(self):
+        bbox = BoundingBox(1, 2, 3, 4, crs=4326)
+        assert bbox.west == 1
+        with pytest.raises(AttributeError):
+            bbox.west = 100
+        with pytest.raises(AttributeError):
+            bbox.crs = "EPSG:32631"
+        assert bbox.west == 1
+        assert bbox.crs == "EPSG:4326"
+
+    def test_repr(self):
+        bbox = BoundingBox(1, 2, 3, 4, crs=4326)
+        expected = "BoundingBox(west=1, south=2, east=3, north=4, crs='EPSG:4326')"
+        assert repr(bbox) == expected
+
+    def test_str(self):
+        bbox = BoundingBox(1, 2, 3, 4, crs=4326)
+        expected = "BoundingBox(west=1, south=2, east=3, north=4, crs='EPSG:4326')"
+        assert str(bbox) == expected
+
+    def test_missing_bounds(self):
+        with pytest.raises(BoundingBoxException, match=r"Missing bounds: \['south'\]"):
+            _ = BoundingBox(1, None, 3, 4)
+
+    def test_missing_invalid_crs(self):
+        with pytest.raises(BoundingBoxException):
+            _ = BoundingBox(1, 2, 3, 4, crs="foobar:42")
+
+    @pytest.mark.parametrize(
+        ["data", "default_crs", "expected"],
+        [
+            ({"west": 1, "south": 2, "east": 3, "north": 4}, None, (1, 2, 3, 4, None)),
+            (
+                {"west": 1, "south": 2, "east": 3, "north": 4},
+                4326,
+                (1, 2, 3, 4, "EPSG:4326"),
+            ),
+            (
+                {"west": 1, "south": 2, "east": 3, "north": 4, "crs": 4326},
+                None,
+                (1, 2, 3, 4, "EPSG:4326"),
+            ),
+            (
+                {"west": 1, "south": 2, "east": 3, "north": 4, "crs": "EPSG:4326"},
+                None,
+                (1, 2, 3, 4, "EPSG:4326"),
+            ),
+            (
+                {"west": 1, "south": 2, "east": 3, "north": 4, "crs": "EPSG:4326"},
+                32631,
+                (1, 2, 3, 4, "EPSG:4326"),
+            ),
+        ],
+    )
+    def test_from_dict(self, data, default_crs, expected):
+        bbox = BoundingBox.from_dict(data, default_crs=default_crs)
+        assert (bbox.west, bbox.south, bbox.east, bbox.north, bbox.crs) == expected
+
+    def test_from_dict_invalid(self):
+        data = {"west": 1, "south": 2, "east": None, "northhhhhh": 4}
+        with pytest.raises(
+            BoundingBoxException, match=r"Missing bounds: \['east', 'north'\]"
+        ):
+            _ = BoundingBox.from_dict(data)
+
+    def test_from_dict_or_none(self):
+        data = {"west": 1, "south": 2, "east": None, "northhhhhh": 4}
+        bbox = BoundingBox.from_dict_or_none(data)
+        assert bbox is None
+
+    def test_from_wsen_tuple(self):
+        bbox = BoundingBox.from_wsen_tuple((4, 3, 2, 1))
+        expected = (4, 3, 2, 1, None)
+        assert (bbox.west, bbox.south, bbox.east, bbox.north, bbox.crs) == expected
+
+    def test_from_wsen_tuple_with_crs(self):
+        bbox = BoundingBox.from_wsen_tuple((4, 3, 2, 1), crs=32631)
+        expected = (4, 3, 2, 1, "EPSG:32631")
+        assert (bbox.west, bbox.south, bbox.east, bbox.north, bbox.crs) == expected
+
+    def test_is_georeferenced(self):
+        assert BoundingBox(1, 2, 3, 4).is_georeferenced() is False
+        assert BoundingBox(1, 2, 3, 4, crs=4326).is_georeferenced() is True
+
+    def test_as_tuple(self):
+        bbox = BoundingBox(1, 2, 3, 4)
+        assert bbox.as_tuple() == (1, 2, 3, 4, None)
+        bbox = BoundingBox(1, 2, 3, 4, crs="epsg:4326")
+        assert bbox.as_tuple() == (1, 2, 3, 4, "EPSG:4326")
+
+    def test_as_wsen_tuple(self):
+        assert BoundingBox(1, 2, 3, 4).as_wsen_tuple() == (1, 2, 3, 4)
+        assert BoundingBox(1, 2, 3, 4, crs="epsg:4326").as_wsen_tuple() == (1, 2, 3, 4)
+
+    def test_reproject(self):
+        bbox = BoundingBox(3, 51, 3.1, 51.1, crs="epsg:4326")
+        reprojected = bbox.reproject(32631)
+        assert isinstance(reprojected, BoundingBox)
+        assert reprojected.as_tuple() == (
+            pytest.approx(500000, abs=10),
+            pytest.approx(5649824, abs=10),
+            pytest.approx(507016, abs=10),
+            pytest.approx(5660950, abs=10),
+            "EPSG:32631",
+        )
+
+    def test_best_utm_no_crs(self):
+        bbox = BoundingBox(1, 2, 3, 4)
+        with pytest.raises(CrsRequired):
+            _ = bbox.best_utm()
+
+    def test_best_utm(self):
+        bbox = BoundingBox(4, 51, 4.1, 51.1, crs="EPSG:4326")
+        assert bbox.best_utm() == 32631
+
+        bbox = BoundingBox(-72, -13, -71, -12, crs="EPSG:4326")
+        assert bbox.best_utm() == 32719

@@ -1,22 +1,79 @@
+import dataclasses
 import json
 import logging
+import re
 from pathlib import Path
-from typing import Union, Tuple, Optional, Sequence, List
+from typing import Union, Tuple, Optional, List, Mapping, Sequence
 
 import pyproj
 import shapely.geometry
 import shapely.ops
-from shapely.geometry import MultiPolygon, Point, Polygon
+from shapely.geometry import MultiPolygon, Polygon
 from shapely.geometry.base import BaseGeometry
 
-from openeo_driver.util.utm import auto_utm_epsg
+from openeo_driver.errors import OpenEOApiException
+from openeo_driver.util.utm import auto_utm_epsg, auto_utm_epsg_for_geometry
 
 _log = logging.getLogger(__name__)
+
+
+def validate_geojson_coordinates(geojson):
+    def _validate_coordinates(coordinates, initial_run=True):
+        max_evaluations = 20
+        message = f"Failed to parse Geojson. Coordinates are invalid."
+        if not isinstance(coordinates, (list, Tuple)) or len(coordinates) == 0:
+            raise OpenEOApiException(status_code=400, message=message)
+        if not isinstance(coordinates[0], (float, int)):
+            # Flatten until elements are floats or ints.
+            eval_count = 0
+            for sub in coordinates:
+                eval_count += _validate_coordinates(sub, False)
+                if eval_count > max_evaluations:
+                    break
+            return eval_count
+        if len(coordinates) < 2:
+            raise OpenEOApiException(status_code=400, message=message)
+        if not (-180 <= coordinates[0] <= 180 and -90 <= coordinates[1] <= 90):
+            message = (
+                f"Failed to parse Geojson. Invalid coordinate: {coordinates}. "
+                f"X value must be between -180 and 180, Y value must be between -90 and 90."
+            )
+            raise OpenEOApiException(status_code=400, message=message)
+        return 1
+
+    def _validate_geometry_collection(geojson):
+        if geojson["type"] != "GeometryCollection":
+            return
+        for geometry in geojson["geometries"]:
+            if geometry["type"] == "GeometryCollection":
+                _validate_geometry_collection(geometry)
+            else:
+                _validate_coordinates(geometry["coordinates"])
+
+    def _validate_feature_collection(geojson):
+        if geojson["type"] != "FeatureCollection":
+            return
+        for feature in geojson["features"]:
+            if feature["geometry"]["type"] == "GeometryCollection":
+                _validate_geometry_collection(feature["geometry"])
+            else:
+                _validate_coordinates(feature["geometry"]["coordinates"])
+
+    if geojson["type"] == "Feature":
+        geojson = geojson["geometry"]
+
+    if geojson["type"] == "GeometryCollection":
+        _validate_geometry_collection(geojson)
+    elif geojson["type"] == "FeatureCollection":
+        _validate_feature_collection(geojson)
+    else:
+        _validate_coordinates(geojson["coordinates"])
 
 
 def geojson_to_geometry(geojson: dict) -> BaseGeometry:
     """Convert GeoJSON object to shapely geometry object"""
     # TODO #71 #114 EP-3981 standardize on using (FeatureCollection like) vector cubes  instead of GeometryCollection?
+    validate_geojson_coordinates(geojson)
     if geojson["type"] == "FeatureCollection":
         geojson = {
             "type": "GeometryCollection",
@@ -43,6 +100,7 @@ def geojson_to_multipolygon(
     """
     # TODO: option to also force conversion of Polygon to MultiPolygon?
     # TODO: #71 #114 migrate/centralize all this kind of logic to vector cubes
+    validate_geojson_coordinates(geojson)
     if geojson["type"] == "Feature":
         geojson = geojson["geometry"]
 
@@ -65,7 +123,7 @@ def geojson_to_multipolygon(
     return geometry
 
 
-def reproject_bounding_box(bbox: dict, from_crs: str, to_crs: str) -> dict:
+def reproject_bounding_box(bbox: dict, from_crs: Optional[str], to_crs: str) -> dict:
     """
     Reproject given bounding box dictionary
 
@@ -82,6 +140,25 @@ def reproject_bounding_box(bbox: dict, from_crs: str, to_crs: str) -> dict:
     )
     reprojected = shapely.ops.transform(tranformer.transform, box)
     return dict(zip(["west", "south", "east", "north"], reprojected.bounds), crs=to_crs)
+
+
+def reproject_geometry(
+    geometry: BaseGeometry,
+    from_crs: Union[pyproj.CRS, str],
+    to_crs: Union[pyproj.CRS, str],
+) -> BaseGeometry:
+    """
+    Reproject given shapely geometry
+
+    :param geometry: shapely geometry
+    :param from_crs: source CRS
+    :param to_crs: target CRS
+    :return: reprojected shapely geometry
+    """
+    transformer = pyproj.Transformer.from_crs(
+        crs_from=from_crs, crs_to=to_crs, always_xy=True
+    )
+    return shapely.ops.transform(transformer.transform, geometry)
 
 
 def spatial_extent_union(*bboxes: dict, default_crs="EPSG:4326") -> dict:
@@ -257,3 +334,160 @@ def as_geojson_feature_collection(
         "type": "FeatureCollection",
         "features": [as_geojson_feature(f) for f in features],
     }
+
+
+class BoundingBoxException(ValueError):
+    pass
+
+
+class CrsRequired(BoundingBoxException):
+    pass
+
+
+@dataclasses.dataclass(frozen=True)
+class BoundingBox:
+    """
+    Bounding box with west, south, east, north coordinates
+    optionally (geo)referenced.
+    """
+
+    west: float
+    south: float
+    east: float
+    north: float
+    crs: Optional[str] = dataclasses.field()
+
+    def __init__(
+        self,
+        west: float,
+        south: float,
+        east: float,
+        north: float,
+        *,
+        crs: Optional[Union[str, int]] = None,
+    ):
+        missing = [
+            k
+            for k, v in zip(
+                ("west", "south", "east", "north"), (west, south, east, north)
+            )
+            if v is None
+        ]
+        if missing:
+            raise BoundingBoxException(f"Missing bounds: {missing}.")
+        # __setattr__ workaround to initialize read-only attributes
+        super().__setattr__("west", west)
+        super().__setattr__("south", south)
+        super().__setattr__("east", east)
+        super().__setattr__("north", north)
+        super().__setattr__("crs", self.normalize_crs(crs) if crs is not None else None)
+
+    @staticmethod
+    def normalize_crs(crs: Union[str, int]) -> str:
+        if isinstance(crs, int):
+            return f"EPSG:{crs}"
+        elif isinstance(crs, str):
+            # TODO: support other CRS'es too?
+            if not re.match("^epsg:\d+$", crs, flags=re.IGNORECASE):
+                raise BoundingBoxException(f"Invalid CRS {crs!r}")
+            return crs.upper()
+        raise BoundingBoxException(f"Invalid CRS {crs!r}")
+
+    @classmethod
+    def from_dict(
+        cls, d: Mapping, *, default_crs: Optional[Union[str, int]] = None
+    ) -> "BoundingBox":
+        """
+        Extract bounding box from given mapping/dict (required fields "west", "south", "east", "north"),
+        with optional CRS (field "crs").
+
+        :param d: dictionary with at least fields "west", "south", "east", "north", and optionally "crs"
+        :param default_crs: fallback CRS to use if not present in dictionary
+        :return:
+        """
+        bounds = {k: d.get(k) for k in ["west", "south", "east", "north"]}
+        return cls(**bounds, crs=d.get("crs", default_crs))
+
+    @classmethod
+    def from_dict_or_none(
+        cls, d: Mapping, *, default_crs: Optional[Union[str, int]] = None
+    ) -> Union["BoundingBox", None]:
+        """
+        Like `from_dict`, but returns `None`
+        when no valid bounding box could be loaded from dict
+        """
+        try:
+            return cls.from_dict(d=d, default_crs=default_crs)
+        except BoundingBoxException:
+            # TODO: option to log something?
+            return None
+
+    @classmethod
+    def from_wsen_tuple(
+        cls, wsen: Sequence[float], crs: Optional[Union[str, int]] = None
+    ):
+        """Build bounding box from tuple of west, south, east and north bounds (and optional crs"""
+        assert len(wsen) == 4
+        return cls(*wsen, crs=crs)
+
+    def is_georeferenced(self) -> bool:
+        return self.crs is not None
+
+    def assert_crs(self):
+        if self.crs is None:
+            raise CrsRequired(f"A CRS is required, but not available in {self}.")
+
+    def as_dict(self) -> dict:
+        return {
+            "west": self.west,
+            "south": self.south,
+            "east": self.east,
+            "north": self.north,
+            "crs": self.crs,
+        }
+
+    def as_tuple(self) -> Tuple[float, float, float, float, Union[str, None]]:
+        return (self.west, self.south, self.east, self.north, self.crs)
+
+    def as_wsen_tuple(self) -> Tuple[float, float, float, float]:
+        return (self.west, self.south, self.east, self.north)
+
+    def as_polygon(self) -> shapely.geometry.Polygon:
+        """Get bounding box as a shapely Polygon"""
+        return shapely.geometry.box(
+            minx=self.west, miny=self.south, maxx=self.east, maxy=self.north
+        )
+
+    def contains(self, x: float, y: float) -> bool:
+        """Check if given point is inside the bounding box"""
+        return (self.west <= x <= self.east) and (self.south <= y <= self.north)
+
+    def reproject(self, crs) -> "BoundingBox":
+        """
+        Reproject bounding box to given CRS to a new bounding box.
+
+        Note that bounding box of the reprojected geometry
+        typically has a larger spatial coverage than the
+        original bounding box.
+        """
+        self.assert_crs()
+        crs = self.normalize_crs(crs)
+        if crs == self.crs:
+            return self
+        transform = pyproj.Transformer.from_crs(
+            crs_from=self.crs, crs_to=crs, always_xy=True
+        ).transform
+        reprojected = shapely.ops.transform(transform, self.as_polygon())
+        return BoundingBox(*reprojected.bounds, crs=crs)
+
+    def best_utm(self) -> int:
+        """
+        Determine the best UTM zone for this bbox
+
+        :return: EPSG code of UTM zone, e.g. 32631 for Belgian bounding boxes
+        """
+        self.assert_crs()
+        return auto_utm_epsg_for_geometry(self.as_polygon(), crs=self.crs)
+
+    def reproject_to_best_utm(self):
+        return self.reproject(crs=self.best_utm())
