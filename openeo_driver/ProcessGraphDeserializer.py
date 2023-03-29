@@ -647,7 +647,10 @@ def vector_buffer(args: Dict, env: EvalEnv) -> dict:
     buffer_resolution = 3
 
     # TODO #114 EP-3981 convert `geometry` to vector cube and move buffer logic to there
-    if isinstance(geometry, str):
+    if isinstance(geometry,DriverVectorCube):
+        geoms = geometry.get_geometries()
+        input_crs = geometry.get_crs()
+    elif isinstance(geometry, str):
         _check_geometry_path_assumption(
             path=geometry, process="vector_buffer", parameter="geometry"
         )
