@@ -13,6 +13,7 @@ from shapely.geometry import Polygon, MultiPolygon
 from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 from shapely.geometry.collection import GeometryCollection
 
+from openeo.api.logs import normalize_log_level
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.metadata import CollectionMetadata, Band
 from openeo_driver.ProcessGraphDeserializer import ConcreteProcessing
@@ -731,11 +732,21 @@ class DummyBatchJobs(BatchJobs):
             }
         }
 
-    def get_log_entries(self, job_id: str, user_id: str, offset: Optional[str] = None) -> Iterable[dict]:
+    def get_log_entries(
+        self,
+        job_id: str,
+        user_id: str,
+        offset: Optional[str] = None,
+        log_level: Optional[str] = None,
+    ) -> Iterable[dict]:
         self._get_job_info(job_id=job_id, user_id=user_id)
         default_logs = [{"id": "1", "level": "info", "message": "hello world"}]
         for log in self._custom_job_logs.get(job_id, default_logs):
             if isinstance(log, dict):
+                actual_level = normalize_log_level(log.get("log_level"))
+                requested_level = normalize_log_level(log_level)
+                if actual_level < requested_level:
+                    continue
                 yield log
             elif isinstance(log, Exception):
                 raise log
