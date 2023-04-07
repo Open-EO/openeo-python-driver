@@ -1255,14 +1255,14 @@ def register_views_batch_jobs(
         return _download_job_result(job_id=job_id, filename=filename, user_id=user_id)
 
     @api_endpoint
-    @blueprint.route('/jobs/<job_id>/logs', methods=['GET'])
+    @blueprint.route("/jobs/<job_id>/logs", methods=["GET"])
     @auth_handler.requires_bearer_auth
     def get_job_logs(job_id, user: User):
         offset = request.args.get("offset")
-        log_level = request.args.get("log_level")
+        level = request.args.get("level")
         # TODO: implement paging support: `limit`, next/prev/first/last `links`, ...
         logs = backend_implementation.batch_jobs.get_log_entries(
-            job_id=job_id, user_id=user.user_id, offset=offset, log_level=log_level
+            job_id=job_id, user_id=user.user_id, offset=offset, level=level
         )
 
         def generate():

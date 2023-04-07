@@ -444,7 +444,7 @@ class BatchJobs(MicroService):
         job_id: str,
         user_id: str,
         offset: Optional[str] = None,
-        log_level: Optional[str] = None,
+        level: Optional[str] = None,
     ) -> Iterable[dict]:
         """
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/debug-job
