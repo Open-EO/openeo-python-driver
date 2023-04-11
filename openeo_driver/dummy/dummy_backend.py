@@ -741,10 +741,10 @@ class DummyBatchJobs(BatchJobs):
     ) -> Iterable[dict]:
         self._get_job_info(job_id=job_id, user_id=user_id)
         default_logs = [{"id": "1", "level": "info", "message": "hello world"}]
+        requested_level = normalize_log_level(level)
         for log in self._custom_job_logs.get(job_id, default_logs):
             if isinstance(log, dict):
                 actual_level = normalize_log_level(log.get("log_level"))
-                requested_level = normalize_log_level(level)
                 if actual_level < requested_level:
                     continue
                 yield log
