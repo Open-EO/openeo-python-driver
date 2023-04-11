@@ -7,7 +7,7 @@ import requests.adapters
 def requests_with_retry(
     total: int = 3,
     backoff_factor: float = 1,
-    status_forcelist: Set[int] = frozenset([413, 429, 500, 502, 503, 504]),
+    status_forcelist: Set[int] = frozenset([429, 500, 502, 503, 504]),
     **kwargs,
 ) -> requests.Session:
     """
