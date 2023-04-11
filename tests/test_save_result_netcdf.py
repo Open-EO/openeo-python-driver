@@ -43,7 +43,9 @@ def test_aggregate_polygon_result_basic(tmp_path):
     timeseries_ds.red.sel(feature=1)
     timeseries_ds.red.sel( t='2019-10-16')
     print(timeseries_ds)
-    assert_array_equal( 4, timeseries_ds.red.sel(feature=1).sel( t="2019-10-15T08:15:45Z").data)
+    assert_array_equal(
+        4, timeseries_ds.red.sel(feature=1).sel(t="2019-10-15T08:15:45").data
+    )
 
 
 def test_aggregate_polygon_result_nan_values(tmp_path):

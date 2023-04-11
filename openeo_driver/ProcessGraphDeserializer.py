@@ -1081,17 +1081,17 @@ def _period_to_intervals(start, end, period) -> List[Tuple[pd.Timestamp, pd.Time
     # TODO: "hour" support?
     if "day" == period:
         offset = timedelta(days=1)
-        start_dates = pd.date_range(start - offset, end, freq='D', closed='left')
-        end_dates = pd.date_range(start, end + offset, freq='D', closed='left')
+        start_dates = pd.date_range(start - offset, end, freq="D", inclusive="left")
+        end_dates = pd.date_range(start, end + offset, freq="D", inclusive="left")
         intervals = zip(start_dates, end_dates)
     elif "week" == period:
         offset = timedelta(weeks=1)
-        start_dates = pd.date_range(start - offset, end, freq='W', closed='left')
-        end_dates = pd.date_range(start, end + offset, freq='W', closed='left')
+        start_dates = pd.date_range(start - offset, end, freq="W", inclusive="left")
+        end_dates = pd.date_range(start, end + offset, freq="W", inclusive="left")
         intervals = zip(start_dates, end_dates)
     elif "dekad" == period:
         offset = timedelta(days=10)
-        start_dates = pd.date_range(start - offset, end, freq='MS', closed='left')
+        start_dates = pd.date_range(start - offset, end, freq="MS", inclusive="left")
         ten_days = pd.Timedelta(days=10)
         first_dekad_month = [(date, date + ten_days) for date in start_dates]
         second_dekad_month = [(date + ten_days, date + ten_days + ten_days) for date in start_dates]
@@ -1114,8 +1114,12 @@ def _period_to_intervals(start, end, period) -> List[Tuple[pd.Timestamp, pd.Time
         intervals = [(p.to_timestamp(), month_shift(p.to_timestamp(), months=6)) for p in periods]
     elif "year" == period:
         offset = timedelta(weeks=52)
-        start_dates = pd.date_range(start - offset, end, freq='A-DEC', closed='left') + timedelta(days=1)
-        end_dates = pd.date_range(start, end + offset, freq='A-DEC', closed='left') + timedelta(days=1)
+        start_dates = pd.date_range(
+            start - offset, end, freq="A-DEC", inclusive="left"
+        ) + timedelta(days=1)
+        end_dates = pd.date_range(
+            start, end + offset, freq="A-DEC", inclusive="left"
+        ) + timedelta(days=1)
         intervals = zip(start_dates, end_dates)
     # TODO: "decade" support?
     # TODO: "decade-ad" support?
