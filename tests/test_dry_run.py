@@ -231,7 +231,8 @@ def test_evaluate_graph_diamond(dry_run_env, dry_run_tracer):
             "result": True,
         }
     }
-    cube = evaluate(pg, env=dry_run_env)
+
+    cube = evaluate(pg, env=dry_run_env,do_dry_run=False)
 
     """
     source_constraints = dry_run_tracer.get_source_constraints(merge=False)
@@ -514,7 +515,8 @@ def test_mask_polygon_and_filter_bbox(dry_run_env, dry_run_tracer, bbox_first):
         cube = cube.mask_polygon(mask=polygon).filter_bbox(bbox=bbox)
 
     pg = cube.flat_graph()
-    res = evaluate(pg, env=dry_run_env)
+
+    res = evaluate(pg, env=dry_run_env,do_dry_run=False)
 
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
@@ -786,7 +788,7 @@ def test_aggregate_spatial_apply_dimension(dry_run_env, dry_run_tracer):
         },
     }
 
-    cube = evaluate(pg, env=dry_run_env)
+    cube = evaluate(pg, env=dry_run_env,do_dry_run=False)
 
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
@@ -823,7 +825,7 @@ def test_aggregate_spatial_and_filter_bbox(dry_run_env, dry_run_tracer):
     cube = cube.aggregate_spatial(geometries=polygon, reducer="mean")
 
     pg = cube.flat_graph()
-    res = evaluate(pg, env=dry_run_env)
+    res = evaluate(pg, env=dry_run_env,do_dry_run=False)
 
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
@@ -857,7 +859,7 @@ def test_multiple_filter_spatial(dry_run_env, dry_run_tracer):
     cube = cube.filter_spatial(geometries=polygon2)
 
     pg = cube.flat_graph()
-    res = evaluate(pg, env=dry_run_env)
+    res = evaluate(pg, env=dry_run_env,do_dry_run=False)
 
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
@@ -905,7 +907,7 @@ def test_resample_filter_spatial(dry_run_env, dry_run_tracer):
     cube = cube.resample_spatial(projection=4326, resolution=0.25)
 
     pg = cube.flat_graph()
-    res = evaluate(pg, env=dry_run_env)
+    res = evaluate(pg, env=dry_run_env,do_dry_run=False)
 
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
@@ -1374,7 +1376,7 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
         }
     }
 
-    cube = evaluate(pg, env=dry_run_env)
+    cube = evaluate(pg, env=dry_run_env,do_dry_run=False)
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert source_constraints == [
         (
@@ -1431,7 +1433,7 @@ def test_CropSAR_aggregate_spatial_constraint(dry_run_env, dry_run_tracer):
             }
         }
 
-        evaluate(pg, env=dry_run_env)
+        evaluate(pg, env=dry_run_env,do_dry_run=False)
         source_constraints = dry_run_tracer.get_source_constraints(merge=True)
 
         assert len(source_constraints) > 0
