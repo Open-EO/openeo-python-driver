@@ -330,7 +330,7 @@ def evaluate(
     if do_dry_run:
         dry_run_tracer = do_dry_run if isinstance(do_dry_run, DryRunDataTracer) else DryRunDataTracer()
         _log.info("Doing dry run")
-        convert_node(result_node, env=env.push({ENV_DRY_RUN_TRACER: dry_run_tracer, ENV_SAVE_RESULT:[]}))
+        convert_node(result_node, env=env.push({ENV_DRY_RUN_TRACER: dry_run_tracer, ENV_SAVE_RESULT:[], "node_caching":False}))
         # TODO: work with a dedicated DryRunEvalEnv?
         source_constraints = dry_run_tracer.get_source_constraints()
         _log.info("Dry run extracted these source constraints: {s}".format(s=source_constraints))
@@ -351,7 +351,7 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
     if isinstance(processGraph, dict):
         if 'process_id' in processGraph:
             process_id = processGraph['process_id']
-            caching_flag = smart_bool(env.get("node_caching", True)) and process_id != "load_collection"
+            caching_flag = smart_bool(env.get("node_caching", False)) and process_id != "load_collection"
             cached = None
             if caching_flag and "result_cache" in processGraph:
                 cached =  processGraph["result_cache"]
