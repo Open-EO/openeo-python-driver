@@ -1389,20 +1389,19 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
                 'temporal_extent': ('2019-03-01', '2019-04-01')}
         ),
         (
-            ('load_collection', ('S2_FOOBAR', ())),
-            {
-                'bands': ['B04', 'B08'],
-                'spatial_extent': {
-                    'crs': 'EPSG:32631', 'east': 642140.0, 'north': 5677450.0, 'south': 5676170.0, 'west': 640860.0,
-                },
-                'temporal_extent': ('2019-03-01', '2019-04-01')}
-        ),
-        (
             ('load_collection', ('PROBAV_L3_S10_TOC_NDVI_333M_V2', ())),
             {
                 'bands': ['ndvi'],
                 'process_type': [ProcessType.FOCAL_SPACE],
                 'resample': {'method': 'average','resolution': [10, 10], 'target_crs': 'AUTO:42001'},
+                'spatial_extent': {'crs': 'EPSG:32631',
+                                   'east': 642140.0,
+                                   'north': 5677450.0,
+                                   'south': 5676170.0,
+                                   'west': 640860.0},
+                'temporal_extent': ('2019-03-01', '2019-04-01')}),
+        (('load_collection', ('S2_FOOBAR', ())),
+         {'bands': ['B04', 'B08'],
                 'spatial_extent': {
                     'crs': 'EPSG:32631', 'east': 642140.0, 'north': 5677450.0, 'south': 5676170.0, 'west': 640860.0,
                 },
