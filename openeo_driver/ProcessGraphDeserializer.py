@@ -363,7 +363,7 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
                     comparison = cached == process_result
                     #numpy arrays have a custom eq that requires this weird check
                     if isinstance(comparison,bool) and comparison:
-                        _log.debug("Reusing an already evaluated subgraph")
+                        _log.info(f"Reusing an already evaluated subgraph for process {process_id}")
                         return cached
                 processGraph["result_cache"] = process_result
             return process_result
