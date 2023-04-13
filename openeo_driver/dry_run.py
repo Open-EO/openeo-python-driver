@@ -255,7 +255,7 @@ class DryRunDataTracer:
         if properties:
             cube = cube.filter_properties(properties)
 
-        self._load_collection_cache[cache_key] = cube
+        #self._load_collection_cache[cache_key] = cube
         return cube
 
     def load_disk_data(self, glob_pattern: str, format: str, options: dict) -> 'DryRunDataCube':
