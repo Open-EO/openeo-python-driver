@@ -15,6 +15,7 @@ from openeo_driver.testing import (
     ListSubSet,
     approxify,
     caplog_with_custom_formatter,
+    UrllibMocker,
 )
 
 
@@ -154,14 +155,25 @@ def test_list_and_dict_subset_nesting():
     assert [1, {2: 3}, {5: 6, 7: [8, 9]}] == ListSubSet([1, DictSubSet({7: ListSubSet([8])})])
 
 
-def test_urllib_mock(urllib_mock):
-    urllib_mock.get("http://a.test/foo", data="hello world")
+class TestUrllibMocker:
 
-    r = urllib.request.urlopen("http://a.test/foo")
-    assert r.read() == b"hello world"
+    def test_get(self, urllib_mock: UrllibMocker):
+        urllib_mock.get("http://a.test/foo", data="hello world")
 
-    with pytest.raises(urllib.error.HTTPError, match="404: Not Found"):
-        urllib.request.urlopen("http://a.test/bar")
+        r = urllib.request.urlopen("http://a.test/foo")
+        assert r.read() == b"hello world"
+
+    def test_get_not_found(self, urllib_mock: UrllibMocker):
+        with pytest.raises(urllib.error.HTTPError, match="404: Not Found"):
+            urllib.request.urlopen("http://a.test/bar")
+
+    def test_context_manager_get(self, urllib_mock: UrllibMocker):
+        urllib_mock.get("http://a.test/foo", data="hello world")
+
+        with urllib.request.urlopen("http://a.test/foo") as f:
+            data = f.read()
+
+        assert data == b"hello world"
 
 
 def test_approxify_basic():

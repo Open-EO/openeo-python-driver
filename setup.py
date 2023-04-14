@@ -51,7 +51,7 @@ setup(
         "gunicorn>=20.0.1",
         "numpy>=1.22.0",
         "shapely<2.0.0",  # https://github.com/Open-EO/openeo-python-driver/issues/158
-        "pandas",
+        "pandas>=1.3.0",
         "geopandas>=0.11.0",  # 0.11.0 fixes https://github.com/geopandas/geopandas/pull/2243
         "xarray>=0.16.2",
         "flask-cors",

@@ -110,3 +110,6 @@ ENV/
 openeo_driver/data
 tmp*
 temp*
+
+# pytest basetemp root (e.g. for tmp_path fixture).
+pytest-tmp
