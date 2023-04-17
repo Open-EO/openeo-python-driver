@@ -28,7 +28,7 @@ from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
 from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, \
     generate_unique_test_process_id, build_basic_http_auth_header, ListSubSet, DictSubSet, RegexMatcher
 from openeo_driver.users.auth import HttpAuthHandler
-from openeo_driver.util.logging import LOGGING_CONTEXT_FLASK
+from openeo_driver.util.logging import LOGGING_CONTEXT_FLASK, FlaskRequestCorrelationIdLogging
 from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata, build_app, STREAM_CHUNK_SIZE_DEFAULT
 
 from .conftest import TEST_APP_CONFIG, enhanced_logging
@@ -574,6 +574,16 @@ class TestGeneral:
             response.assert_status_code(200)
         else:
             response.assert_error(403, "PermissionsInsufficient", message="No access for Mark.")
+
+    def test_after_request(self):
+        backend_implementation = DummyBackendImplementation()
+        backend_implementation.after_request = mock.Mock()
+        api = api_from_backend_implementation(backend_implementation)
+
+        with mock.patch.object(FlaskRequestCorrelationIdLogging, "_build_request_id", return_value="r-abc123"):
+            api.get("/health")
+
+        backend_implementation.after_request.assert_called_with("r-abc123")
 
 
 @pytest.fixture

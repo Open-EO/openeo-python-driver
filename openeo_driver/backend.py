@@ -711,5 +711,8 @@ class OpenEoBackendImplementation:
     def set_request_id(self, request_id: str):
         pass
 
-    def after_request(self):
+    def after_request(self, request_id: str):
+        pass
+
+    def request_costs(self, user_id: str, request_id: str, success: bool) -> Optional[float]:
         pass
