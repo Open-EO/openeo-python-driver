@@ -654,8 +654,6 @@ class OpenEoBackendImplementation:
             max_age=timedelta(minutes=15), public=True,
         )
 
-        self._get_request_costs: Callable[[str, str, bool], Optional[float]] = lambda user_id, request_id, success: None
-
     def health_check(self, options: Optional[dict] = None) -> Union[str, dict, flask.Response]:
         return "OK"
 
@@ -716,8 +714,5 @@ class OpenEoBackendImplementation:
     def after_request(self, request_id: str):
         pass
 
-    def set_request_costs_getter(self, get_request_costs: Callable[[str, str, bool], Optional[float]]):
-        self._get_request_costs = get_request_costs
-
     def request_costs(self, user_id: str, request_id: str, success: bool) -> Optional[float]:
-        return self._get_request_costs(user_id, request_id, success)
+        pass

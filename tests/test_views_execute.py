@@ -3169,11 +3169,9 @@ def test_vector_buffer_returns_error_on_empty_result_geometry(api):
 
 
 def test_request_costs_for_successful_request(api, backend_implementation):
-    get_request_costs = mock.Mock()
-    backend_implementation.set_request_costs_getter(get_request_costs)
-
     with mock.patch.object(backend_implementation.catalog, "load_collection", side_effect=backend_implementation.catalog.load_collection) as load_collection, \
-            mock.patch.object(FlaskRequestCorrelationIdLogging, "_build_request_id", return_value="r-abc123"):
+            mock.patch.object(FlaskRequestCorrelationIdLogging, "_build_request_id", return_value="r-abc123"), \
+            mock.patch.object(backend_implementation, "request_costs", wraps=backend_implementation.request_costs, autospec=True) as get_request_costs:
         api.check_result({
             'collection': {
                 'process_id': 'load_collection',
@@ -3192,11 +3190,9 @@ def test_request_costs_for_successful_request(api, backend_implementation):
 
 
 def test_request_costs_for_failed_request(api, backend_implementation):
-    get_request_costs = mock.Mock()
-    backend_implementation.set_request_costs_getter(get_request_costs)
-
     with mock.patch.object(backend_implementation.catalog, "load_collection", side_effect=Exception("whoa")) as load_collection, \
-            mock.patch.object(FlaskRequestCorrelationIdLogging, "_build_request_id", return_value="r-abc123"):
+            mock.patch.object(FlaskRequestCorrelationIdLogging, "_build_request_id", return_value="r-abc123"), \
+            mock.patch.object(backend_implementation, "request_costs", wraps=backend_implementation.request_costs, autospec=True) as get_request_costs:
         api.result({
             'collection': {
                 'process_id': 'load_collection',
