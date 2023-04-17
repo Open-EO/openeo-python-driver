@@ -1238,11 +1238,29 @@ def register_views_batch_jobs(
         bands = asset_metadata.get("bands")
         nodata = asset_metadata.get("nodata")
 
-        result_dict.update(dict_no_none(**{
-            "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
-                         for band in bands] if bands else None,
-            "file:nodata": ["nan" if nodata!=None and np.isnan(nodata) else nodata],
-        }))
+        result_dict.update(
+            dict_no_none(
+                **{
+                    "eo:bands": [
+                        dict_no_none(
+                            **{
+                                "name": band.name,
+                                "center_wavelength": band.wavelength_um,
+                            }
+                        )
+                        for band in bands
+                    ]
+                    if bands
+                    else None,
+                    "file:nodata": [
+                        "nan" if nodata != None and np.isnan(nodata) else nodata
+                    ],
+                    "proj:bbox": asset_metadata.get("proj:bbox", None),
+                    "proj:epsg": asset_metadata.get("proj:epsg", None),
+                    "proj:shape": asset_metadata.get("proj:shape", None),
+                }
+            )
+        )
 
         if "file:size" not in result_dict and "output_dir" in asset_metadata:
             the_file = pathlib.Path(asset_metadata["output_dir"]) / filename
