@@ -199,17 +199,20 @@ class HttpAuthHandler:
             resp.raise_for_status()
         return resp
 
-    def _get_userinfo_endpoint(self, oidc_provider: OidcProvider) -> str:
-        key = ("userinfo_endpoint", oidc_provider.issuer)
-        if not self._cache.contains(key):
-            resp = self._oidc_provider_request(oidc_provider.discovery_url)
-            userinfo_url = resp.json()["userinfo_endpoint"]
-            self._cache.set(key, value=userinfo_url, ttl=10 * 60)
-        return self._cache.get(key)
+    def _get_oidc_provider_config(self, oidc_provider: OidcProvider) -> dict:
+        """Cached retrieval of OIDC config of a provider (/.well-known/openid-configuration)."""
+        return self._cache.get_or_call(
+            key=("oidc-conf", oidc_provider.issuer),
+            callback=lambda: self._oidc_provider_request(
+                oidc_provider.discovery_url
+            ).json(),
+            ttl=15 * 60,
+        )
 
     def resolve_oidc_access_token(self, oidc_provider: OidcProvider, access_token: str) -> User:
         try:
-            userinfo_url = self._get_userinfo_endpoint(oidc_provider=oidc_provider)
+            oidc_config = self._get_oidc_provider_config(oidc_provider=oidc_provider)
+            userinfo_url = oidc_config["userinfo_endpoint"]
             auth = BearerAuth(bearer=access_token)
             resp = self._oidc_provider_request(userinfo_url, auth=auth, raise_for_status=False)
             if resp.status_code == 200:
