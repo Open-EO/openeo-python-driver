@@ -63,10 +63,12 @@ from openeo_driver.utils import smart_bool, EvalEnv
 _log = logging.getLogger(__name__)
 
 # Set up process registries (version dependent)
+# TODO #47 remove 0.4.0 support
 process_registry_040 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/0.4', argument_names=["args", "env"])
 process_registry_100 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/1.x', argument_names=["args", "env"])
 
 # Bootstrap with some mathematical/logical processes
+# TODO #47 remove 0.4.0 support
 process_registry_040.add_spec_by_name(
     'array_contains', 'array_element',
     'count', 'first', 'last', 'order', 'rearrange', 'sort',
