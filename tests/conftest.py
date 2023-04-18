@@ -9,7 +9,9 @@ import flask
 import pytest
 import pythonjsonlogger.jsonlogger
 
+import openeo_driver.dummy.dummy_config
 from openeo_driver.backend import UserDefinedProcesses
+from openeo_driver.config import OpenEoBackendConfig
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
 from openeo_driver.server import build_backend_deploy_metadata
 from openeo_driver.testing import UrllibMocker
@@ -25,9 +27,15 @@ def pytest_configure(config):
     os.environ["TZ"] = "UTC"
     time.tzset()
 
+
+@pytest.fixture(scope="session")
+def backend_config() -> OpenEoBackendConfig:
+    return openeo_driver.dummy.dummy_config.config
+
+
 @pytest.fixture(scope="module")
-def backend_implementation() -> DummyBackendImplementation:
-    return DummyBackendImplementation()
+def backend_implementation(backend_config) -> DummyBackendImplementation:
+    return DummyBackendImplementation(config=backend_config)
 
 
 @pytest.fixture
