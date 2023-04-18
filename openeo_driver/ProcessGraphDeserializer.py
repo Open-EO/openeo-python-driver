@@ -1858,8 +1858,10 @@ def evaluate_process_from_url(process_id: str, namespace: str, args: dict, env: 
 def sleep(args: Dict, env: EvalEnv):
     data = extract_arg(args, "data")
     seconds = extract_arg(args, "seconds")
-    _log.info("Sleeping {s} seconds".format(s=seconds))
-    time.sleep(seconds)
+    dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
+    if not dry_run_tracer:
+        _log.info("Sleeping {s} seconds".format(s=seconds))
+        time.sleep(seconds)
     return data
 
 
