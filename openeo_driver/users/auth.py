@@ -33,10 +33,6 @@ class OidcProviderUnavailableException(OpenEOApiException):
 class HttpAuthHandler:
     """Handler for processing HTTP authentication in a Flask app context"""
 
-    # Access token prefix for 0.4-style basic auth
-    # TODO: get rid of this prefix once 0.4 support is not necessary anymore
-    _BASIC_ACCESS_TOKEN_PREFIX = 'basic.'
-
     def __init__(
             self,
             oidc_providers: List[OidcProvider],
@@ -112,10 +108,6 @@ class HttpAuthHandler:
 
     def _get_user_from_bearer_token(self, bearer: str) -> User:
         """Get User object from bearer token of request."""
-        # Support for 0.4-style basic auth
-        if bearer.startswith(self._BASIC_ACCESS_TOKEN_PREFIX):
-            return self.resolve_basic_access_token(access_token=bearer)
-        # 1.0-style basic and OIDC auth
         try:
             bearer_type, provider_id, access_token = bearer.split('/')
         except ValueError:
@@ -165,14 +157,11 @@ class HttpAuthHandler:
     @staticmethod
     def build_basic_access_token(user_id: str) -> str:
         # TODO: generate real access token and link to user in some key value store
-        prefix = HttpAuthHandler._BASIC_ACCESS_TOKEN_PREFIX
-        return prefix + base64.urlsafe_b64encode(user_id.encode('utf-8')).decode('ascii')
+        return base64.urlsafe_b64encode(user_id.encode("utf-8")).decode("ascii")
 
     def resolve_basic_access_token(self, access_token: str) -> User:
         try:
             # Resolve token to user id
-            head, _, access_token = access_token.partition(self._BASIC_ACCESS_TOKEN_PREFIX)
-            assert head == '' and len(access_token) > 0
             user_id = base64.urlsafe_b64decode(access_token.encode('ascii')).decode('utf-8')
         except Exception:
             raise TokenInvalidException

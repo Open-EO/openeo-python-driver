@@ -160,7 +160,7 @@ def test_bearer_auth_basic_invalid_token(app, url):
 @pytest.mark.parametrize("url", ["/private/hello", "/personal/hello"])
 def test_bearer_auth_basic_invalid_token_prefix(app, url):
     with app.test_client() as client:
-        headers = {"Authorization": "Bearer basic//{p}blehrff".format(p=HttpAuthHandler._BASIC_ACCESS_TOKEN_PREFIX)}
+        headers = {"Authorization": "Bearer basic//blehrff"}
         response = client.get(url, headers=headers)
         assert_invalid_token_failure(response)
 
