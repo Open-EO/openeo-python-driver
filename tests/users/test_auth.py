@@ -8,7 +8,7 @@ from openeo_driver.backend import OidcProvider
 from openeo_driver.errors import OpenEOApiException, PermissionsInsufficientException, TokenInvalidException
 from openeo_driver.testing import build_basic_http_auth_header, DictSubSet
 from openeo_driver.users import User
-from openeo_driver.users.auth import HttpAuthHandler, OidcProviderUnavailableException
+from openeo_driver.users.auth import HttpAuthHandler, OidcProviderUnavailableException, AccessTokenException
 
 
 @pytest.fixture()
@@ -193,16 +193,23 @@ def test_bearer_auth_oidc_invalid_token(app, url, requests_mock, oidc_provider):
         assert_invalid_token_failure(resp)
 
 
-@pytest.mark.parametrize(["resp_status", "body", "api_error"], [
-    (401, {"error": "meh"}, TokenInvalidException),
-    (403, {"error": "meh"}, TokenInvalidException),
-    (200, "inval:d j$on", OpenEOApiException(message='Unexpected error while resolving OIDC access token: TypeError.')),
-    (204, {"error": "meh"}, OpenEOApiException(message="Unexpected '/userinfo' response: 204.")),
-    (400, {"error": "meh"}, OpenEOApiException(message="Unexpected '/userinfo' response: 400.")),
-    (404, {"error": "meh"}, OpenEOApiException(message="Unexpected '/userinfo' response: 404.")),
-    (500, {"error": "meh"}, OidcProviderUnavailableException),
-    (503, {"error": "meh"}, OidcProviderUnavailableException),
-])
+@pytest.mark.parametrize(
+    ["resp_status", "body", "api_error"],
+    [
+        (401, {"error": "meh"}, TokenInvalidException),
+        (403, {"error": "meh"}, TokenInvalidException),
+        (
+            200,
+            "inval:d j$on",
+            OpenEOApiException(message="Unexpected error while resolving OIDC access token: TypeError."),
+        ),
+        (204, {"error": "meh"}, AccessTokenException(message="Unexpected '/userinfo' response: 204.")),
+        (400, {"error": "meh"}, AccessTokenException(message="Unexpected '/userinfo' response: 400.")),
+        (404, {"error": "meh"}, AccessTokenException(message="Unexpected '/userinfo' response: 404.")),
+        (500, {"error": "meh"}, OidcProviderUnavailableException),
+        (503, {"error": "meh"}, OidcProviderUnavailableException),
+    ],
+)
 def test_bearer_auth_oidc_token_resolve_problems(app, requests_mock, oidc_provider, resp_status, body, api_error):
     requests_mock.get(oidc_provider.issuer + "/userinfo", json=body, status_code=resp_status)
 

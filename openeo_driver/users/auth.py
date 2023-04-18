@@ -14,6 +14,7 @@ import requests
 import requests.exceptions
 
 from openeo.rest.auth.auth import BearerAuth
+from openeo_driver.config import OpenEoBackendConfig, get_backend_config
 from openeo_driver.users import User
 from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.errors import AuthenticationRequiredException, \
@@ -34,10 +35,13 @@ class HttpAuthHandler:
     """Handler for processing HTTP authentication in a Flask app context"""
 
     def __init__(
-            self,
-            oidc_providers: List[OidcProvider],
-            user_access_validation: Optional[Callable[[User, flask.Request], User]] = None
+        self,
+        oidc_providers: List[OidcProvider],
+        user_access_validation: Optional[Callable[[User, flask.Request], User]] = None,
+        config: Optional[OpenEoBackendConfig] = None,
     ):
+        self._config: OpenEoBackendConfig = config or get_backend_config()
+        # TODO: handle `oidc_providers` and `user_access_validation` through OpenEoBackendConfig
         self._oidc_providers: Dict[str, OidcProvider] = {p.id: p for p in oidc_providers}
         self._user_access_validation = user_access_validation
         self._cache = TtlCache(default_ttl=10 * 60)
@@ -200,39 +204,107 @@ class HttpAuthHandler:
 
     def resolve_oidc_access_token(self, oidc_provider: OidcProvider, access_token: str) -> User:
         try:
-            oidc_config = self._get_oidc_provider_config(oidc_provider=oidc_provider)
-            userinfo_url = oidc_config["userinfo_endpoint"]
-            auth = BearerAuth(bearer=access_token)
-            resp = self._oidc_provider_request(userinfo_url, auth=auth, raise_for_status=False)
-            if resp.status_code == 200:
-                # Access token was successfully accepted
-                userinfo = resp.json()
-                # The "sub" claim is the only claim in the response that is guaranteed per OIDC spec
-                # TODO: do we have better options?
-                user_id = userinfo["sub"]
-                return User(
-                    user_id=user_id,
-                    info={"oidc_userinfo": userinfo},
-                    internal_auth_data={
-                        "authentication_method": "OIDC",
-                        "provider_id": oidc_provider.id,  # TODO: deprecated
-                        "oidc_provider_id": oidc_provider.id,
-                        "oidc_provider_title": oidc_provider.title,
-                        "oidc_issuer": oidc_provider.issuer,
-                        "userinfo_url": userinfo_url,
-                        "access_token": access_token,
-                    }
-                )
-            elif resp.status_code in (401, 403):
-                # HTTP status `401 Unauthorized`/`403 Forbidden`: token was not accepted.
-                raise TokenInvalidException
+            userinfo = self._get_userinfo(oidc_provider=oidc_provider, access_token=access_token)
+
+            # The "sub" claim is the only claim in the response that is guaranteed per OIDC spec
+            token_sub = userinfo["sub"]
+
+            # Do token inspection for additional info
+            is_client_credentials_token = False
+            if self._config.oidc_token_introspection:
+                token_data = self._token_introspection(oidc_provider=oidc_provider, access_token=access_token)
+                # TODO: better/more robust guessing if this is a client creds based access token
+                if any(
+                    token_data[n].startswith("service-account-")
+                    for n in ["preferred_username", "username"]
+                    if n in token_data
+                ):
+                    _log.info(f"Assuming client credentials based access token for 'sub' {token_sub!r}")
+                    is_client_credentials_token = True
+
+            # Map token "sub" to user id
+            if is_client_credentials_token:
+                try:
+                    user_id = self._config.oidc_client_user_map[token_sub]
+                except KeyError:
+                    raise AccessTokenException(message="Failed to map client 'sub' to a user.")
             else:
-                # Unexpected response status, probably a server side issue, not necessarily end user's fault.
-                _log.error(f"Unexpected '/userinfo' response {resp.status_code}: {resp.text!r}.")
-                raise OpenEOApiException(message=f"Unexpected '/userinfo' response: {resp.status_code}.")
+                # TODO: so something more than directly using "sub"?
+                user_id = token_sub
+
+            return User(
+                user_id=user_id,
+                info={"oidc_userinfo": userinfo},
+                internal_auth_data={
+                    "authentication_method": "OIDC",
+                    "provider_id": oidc_provider.id,  # TODO: deprecated
+                    "oidc_provider_id": oidc_provider.id,
+                    "oidc_provider_title": oidc_provider.title,
+                    "oidc_issuer": oidc_provider.issuer,
+                    "access_token": access_token,  # TODO: document where access token is used/required?
+                    "client_credentials_access_token": is_client_credentials_token,
+                },
+            )
 
         except OpenEOApiException:
             raise
         except Exception as e:
             _log.error("Unexpected error while resolving OIDC access token.", exc_info=True)
             raise OpenEOApiException(message=f"Unexpected error while resolving OIDC access token: {type(e).__name__}.")
+
+    def _get_userinfo(self, oidc_provider: OidcProvider, access_token: str) -> dict:
+        oidc_config = self._get_oidc_provider_config(oidc_provider=oidc_provider)
+        userinfo_url = oidc_config["userinfo_endpoint"]
+        resp = self._oidc_provider_request(
+            userinfo_url,
+            auth=BearerAuth(bearer=access_token),
+            raise_for_status=False,
+        )
+        if resp.status_code == 200:
+            userinfo = resp.json()
+            return userinfo
+        elif resp.status_code in (401, 403):
+            # HTTP status `401 Unauthorized`/`403 Forbidden`: token was not accepted.
+            raise TokenInvalidException
+        else:
+            # Unexpected response status, probably a server side issue, not necessarily end user's fault.
+            _log.error(f"Unexpected '/userinfo' response {resp.status_code}: {resp.text!r}.")
+            raise AccessTokenException(message=f"Unexpected '/userinfo' response: {resp.status_code}.")
+
+    def _token_introspection(self, oidc_provider: OidcProvider, access_token: str) -> dict:
+        try:
+            service_account = self._config.oidc_service_accounts[oidc_provider.id]
+        except KeyError:
+            raise AccessTokenException(message=f"No service account for {oidc_provider.id}") from None
+
+        oidc_config = self._get_oidc_provider_config(oidc_provider=oidc_provider)
+        try:
+            introspection_endpoint = oidc_config["introspection_endpoint"]
+        except KeyError:
+            raise AccessTokenException(message=f"No endpoint for {oidc_provider.id}") from None
+
+        # Do introspection request
+        resp = self._oidc_provider_request(
+            url=introspection_endpoint,
+            method="POST",
+            data={"token": access_token},
+            auth=service_account,
+            raise_for_status=True,
+        )
+        token_data = resp.json()
+
+        # Basic checks
+        assert token_data["active"]
+        scope = set(token_data.get("scope").split())
+        if not scope.issuperset(oidc_provider.scopes):
+            raise AccessTokenException(
+                message=f"Token scope {scope} not covering expected scope {oidc_provider.scopes}"
+            )
+
+        return token_data
+
+
+class AccessTokenException(OpenEOApiException):
+    status_code = 500
+    code = "AccessTokenError"
+    message = "Unspecified access token handling error"
