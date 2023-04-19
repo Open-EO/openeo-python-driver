@@ -69,7 +69,7 @@ def test_get_backend_config(monkeypatch, tmp_path):
     content = textwrap.dedent(content)
     path.write_text(content)
 
-    monkeypatch.setenv("OPENEO_BACKEND_CONFIG", str(path))
+    monkeypatch.setenv("_OPENEO_BACKEND_CONFIG", str(path))
 
     get_backend_config.flush()
     config1 = get_backend_config()

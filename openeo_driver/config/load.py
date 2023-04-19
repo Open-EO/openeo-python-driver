@@ -62,7 +62,7 @@ class ConfigGetter:
             "openeo_driver.config", "default.py"
         ) as default_config:
             config_path = os.environ.get(
-                "OPENEO_BACKEND_CONFIG",
+                "_OPENEO_BACKEND_CONFIG",
                 default_config,
             )
             config = load_from_py_file(
