@@ -57,7 +57,7 @@ class ConfigGetter:
     """Config loader, with lazy-loading and flushing."""
 
     # Environment variable to point to config file
-    OPENEO_BACKEND_CONFIG = "_OPENEO_BACKEND_CONFIG"
+    OPENEO_BACKEND_CONFIG = "OPENEO_BACKEND_CONFIG"
 
     expected_class = OpenEoBackendConfig
 
