@@ -1,5 +1,6 @@
 import random
 import textwrap
+from pathlib import Path
 
 import attrs.exceptions
 import pytest
@@ -20,7 +21,8 @@ def test_config_immutable():
     assert conf.id == "dontchangeme!"
 
 
-def test_load_from_py_file_default(tmp_path):
+@pytest.mark.parametrize("path_type", [str, Path])
+def test_load_from_py_file_default(tmp_path, path_type):
     path = tmp_path / "myconfig.py"
     cid = f"config-{random.randint(1, 100000)}"
 
@@ -34,7 +36,7 @@ def test_load_from_py_file_default(tmp_path):
     content = textwrap.dedent(content)
     path.write_text(content)
 
-    config = load_from_py_file(path)
+    config = load_from_py_file(path_type(path))
     assert isinstance(config, OpenEoBackendConfig)
     assert config.id == cid
 
