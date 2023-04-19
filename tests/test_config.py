@@ -59,7 +59,7 @@ def test_load_from_py_file_wrong_type(tmp_path):
         _ = load_from_py_file(path)
 
 
-def test_get_backend_config(monkeypatch, tmp_path):
+def test_get_backend_config_lazy_cache(monkeypatch, tmp_path):
     path = tmp_path / "myconfig.py"
     content = """
         import random
@@ -83,3 +83,19 @@ def test_get_backend_config(monkeypatch, tmp_path):
     get_backend_config.flush()
     config3 = get_backend_config()
     assert not (config3 is config1)
+
+    # Remove config file
+    path.unlink()
+    config4 = get_backend_config()
+    assert config4 is config3
+
+    # Force reload should fail
+    with pytest.raises(FileNotFoundError):
+        _ = get_backend_config(force_reload=True)
+
+
+def test_get_backend_config_not_found(monkeypatch, tmp_path):
+    monkeypatch.setenv("_OPENEO_BACKEND_CONFIG", str(tmp_path / "nonexistent.py"))
+    get_backend_config.flush()
+    with pytest.raises(FileNotFoundError):
+        _ = get_backend_config()

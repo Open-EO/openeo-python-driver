@@ -59,6 +59,7 @@ setup(
         "python-dateutil",
         "python-json-logger>=2.0.0",
         "deprecated>=1.2.12",
+        "importlib_resources; python_version<'3.10'",
     ],
     extras_require={
         "dev": tests_require,

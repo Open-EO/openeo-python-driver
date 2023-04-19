@@ -1,11 +1,19 @@
 """
 Utilities for (lazy) loading of config
 """
-import importlib.resources
 import logging
 import os
 from pathlib import Path
 from typing import Any, Optional, Union, ContextManager
+
+try:
+    # Use `importlib_resources` instead of stdlib `importlib.resources`
+    # to have backported fix in Python<3.10 for https://bugs.python.org/issue44137
+    import importlib_resources
+except ImportError:
+    import importlib.resources
+
+    importlib_resources = importlib.resources
 
 from openeo_driver.config import OpenEoBackendConfig, ConfigException
 
@@ -70,7 +78,7 @@ class ConfigGetter:
         """
         Default config file (as a context manager to allow it to be an ephemeral resource).
         """
-        return importlib.resources.path("openeo_driver.config", "default.py")
+        return importlib_resources.path("openeo_driver.config", "default.py")
 
     def _load(self) -> OpenEoBackendConfig:
         """Load the config from config file."""
