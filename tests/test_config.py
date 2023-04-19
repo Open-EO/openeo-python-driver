@@ -71,7 +71,7 @@ def test_get_backend_config_lazy_cache(monkeypatch, tmp_path):
     content = textwrap.dedent(content)
     path.write_text(content)
 
-    monkeypatch.setenv("_OPENEO_BACKEND_CONFIG", str(path))
+    monkeypatch.setenv("OPENEO_BACKEND_CONFIG", str(path))
 
     get_backend_config.flush()
     config1 = get_backend_config()
@@ -95,7 +95,7 @@ def test_get_backend_config_lazy_cache(monkeypatch, tmp_path):
 
 
 def test_get_backend_config_not_found(monkeypatch, tmp_path):
-    monkeypatch.setenv("_OPENEO_BACKEND_CONFIG", str(tmp_path / "nonexistent.py"))
+    monkeypatch.setenv("OPENEO_BACKEND_CONFIG", str(tmp_path / "nonexistent.py"))
     get_backend_config.flush()
     with pytest.raises(FileNotFoundError):
         _ = get_backend_config()
