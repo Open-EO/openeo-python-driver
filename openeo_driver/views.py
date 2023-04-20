@@ -39,10 +39,6 @@ ApiVersionInfo = namedtuple("ApiVersionInfo", ["version", "supported", "wellknow
 # TODO: move this version info listing and default version configurable too?
 # Available OpenEO API versions: map of URL version component to API version info
 API_VERSIONS = {
-    "0.4.0": ApiVersionInfo(version="0.4.0", supported=True, wellknown=False, production=True),
-    "0.4.1": ApiVersionInfo(version="0.4.1", supported=True, wellknown=False, production=True),
-    "0.4.2": ApiVersionInfo(version="0.4.2", supported=True, wellknown=False, production=True),
-    "0.4": ApiVersionInfo(version="0.4.2", supported=True, wellknown=True, production=True),
     "1.0.0": ApiVersionInfo(version="1.0.0", supported=True, wellknown=False, production=True),
     "1.0": ApiVersionInfo(version="1.0.0", supported=True, wellknown=True, production=True),
     "1.0.1": ApiVersionInfo(version="1.0.1", supported=True, wellknown=False, production=True),

@@ -60,13 +60,6 @@ def api(api_version, client, backend_implementation) -> ApiTester:
 
 
 @pytest.fixture
-def api040(client,backend_implementation) -> ApiTester:
-    dummy_backend.reset(backend_implementation)
-    data_root = TEST_DATA_ROOT / "pg" / "0.4"
-    return ApiTester(api_version="0.4.0", client=client, data_root=data_root)
-
-
-@pytest.fixture
 def api100(client,backend_implementation) -> ApiTester:
     dummy_backend.reset(backend_implementation)
     data_root = TEST_DATA_ROOT / "pg" / "1.0"
@@ -370,11 +363,6 @@ def test_load_collection_spatial_extent_geojson(api, spatial_extent, expected):
     assert params["spatial_extent"] == expected
 
 
-def test_execute_apply_unary_040(api040):
-    api040.check_result("apply_unary.json")
-    assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").apply.call_count == 2
-
-
 def test_execute_apply_unary(api100):
     api100.check_result("apply_unary.json")
     assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").apply.call_count == 1
@@ -395,11 +383,6 @@ def test_execute_apply_unary_invalid_from_parameter(api100):
         preprocess=preprocess_check_and_replace('"from_parameter": "x"', '"from_parameter": "1nv8l16"')
     )
     resp.assert_error(400, "ProcessParameterRequired")
-
-
-def test_execute_apply_run_udf_040(api040):
-    api040.check_result("apply_run_udf.json")
-    assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").apply_tiles.call_count == 1
 
 
 def test_execute_apply_run_udf_100(api100):
@@ -1223,21 +1206,6 @@ def test_aggregate_spatial_vector_cube_dimensions(
     })
 
 
-def test_create_wmts_040(api040):
-    api040.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
-    process_graph = api040.load_json("filter_temporal.json")
-    post_data = {
-        "type": 'WMTS',
-        "process_graph": process_graph,
-        "custom_param": 45,
-        "title": "My Service",
-        "description": "Service description"
-    }
-    resp = api040.post('/services', json=post_data).assert_status_code(201)
-    assert resp.headers['OpenEO-Identifier'] == 'c63d6c27-c4c2-4160-b7bd-9e32f582daec'
-    assert resp.headers['Location'].endswith("/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec")
-
-
 def test_create_wmts_100(api100):
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     process_graph = api100.load_json("filter_temporal.json")
@@ -1322,23 +1290,25 @@ def test_run_udf_on_vector(api100, udf_code):
     assert resp.json[0]['type'] == 'Polygon'
 
 
-@pytest.mark.parametrize("udf_code", [
-    """
+@pytest.mark.parametrize(
+    "udf_code",
+    [
+        """
         from openeo_udf.api.udf_data import UdfData  # Old style openeo_udf API
         from openeo_udf.api.structured_data import StructuredData  # Old style openeo_udf API
         def fct_buffer(udf_data: UdfData):
             data = udf_data.get_structured_data_list()
             udf_data.set_structured_data_list([
-                StructuredData(description='res', data={'len': len(s.data), 'keys': s.data.keys(), 'values': s.data.values()}, type='dict') 
+                StructuredData(description='res', data={'len': len(s.data), 'keys': s.data.keys(), 'values': s.data.values()}, type='dict')
                 for s in data
             ])
     """,
-    """
+        """
         from openeo.udf import UdfData, StructuredData
         def fct_buffer(udf_data: UdfData):
             data = udf_data.get_structured_data_list()
             udf_data.set_structured_data_list([
-                StructuredData(description='res', data={'len': len(s.data), 'keys': s.data.keys(), 'values': s.data.values()}, type='dict') 
+                StructuredData(description='res', data={'len': len(s.data), 'keys': s.data.keys(), 'values': s.data.values()}, type='dict')
                 for s in data
             ])
     """,

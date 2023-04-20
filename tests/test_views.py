@@ -34,7 +34,13 @@ from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata
 from .conftest import TEST_APP_CONFIG, enhanced_logging
 from .data import TEST_DATA_ROOT
 
-@pytest.fixture(params=["0.4.0", "1.0.0", "1.1.0"])
+
+@pytest.fixture(
+    params=[
+        "1.0.0",
+        "1.1.0",
+    ]
+)
 def api_version(request):
     return request.param
 
@@ -42,11 +48,6 @@ def api_version(request):
 @pytest.fixture
 def api(api_version, client) -> ApiTester:
     return ApiTester(api_version=api_version, client=client, data_root=TEST_DATA_ROOT)
-
-
-@pytest.fixture
-def api040(client) -> ApiTester:
-    return ApiTester(api_version="0.4.0", client=client, data_root=TEST_DATA_ROOT)
 
 
 @pytest.fixture
@@ -121,7 +122,6 @@ class TestGeneral:
         by_api_version = {d["api_version"]: d for d in versions}
         assert len(versions) == len(by_api_version)
         assert by_api_version == {
-            "0.4.2": {'api_version': '0.4.2', 'production': True, 'url': 'http://oeo.net/openeo/0.4/'},
             "1.0.0": {'api_version': '1.0.0', 'production': True, 'url': 'http://oeo.net/openeo/1.0/'},
             "1.1.0": {'api_version': '1.1.0', 'production': True, 'url': 'http://oeo.net/openeo/1.1/'},
         }
@@ -140,7 +140,6 @@ class TestGeneral:
             assert url.startswith(expected)
 
     @pytest.mark.parametrize(["url", "expected_version"], [
-        ("/openeo/0.4/", "0.4.2"),
         ("/openeo/1.0/", "1.0.0"),
         ("/openeo/1.0.0/", "1.0.0"),
         ("/openeo/1.1/", "1.1.0"),
@@ -154,14 +153,6 @@ class TestGeneral:
         assert capabilities["title"] == "openEO Unit Test Dummy Backend"
         assert capabilities["api_version"] == expected_version
 
-    def test_capabilities_040(self, api040):
-        capabilities = api040.get('/').assert_status_code(200).json
-        assert capabilities["api_version"] == "0.4.0"
-        assert capabilities["version"] == "0.4.0"
-        assert capabilities["stac_version"] == "0.9.0"
-        assert capabilities["title"] == "openEO Unit Test Dummy Backend"
-        assert capabilities["id"] == "openeounittestdummybackend-0.4.0"
-        assert capabilities["production"] is True
 
     def test_capabilities_100(self, api100):
         capabilities = api100.get('/').assert_status_code(200).json
@@ -179,11 +170,6 @@ class TestGeneral:
         assert get_link("version-history")["href"] == "http://oeo.net/.well-known/openeo"
         assert get_link("data")["href"] == "http://oeo.net/openeo/1.0.0/collections"
         assert get_link("conformance")["href"] == "http://oeo.net/openeo/1.0.0/conformance"
-
-    def test_capabilities_version_alias(self, client):
-        resp = ApiResponse(client.get('/openeo/0.4/')).assert_status_code(200).json
-        assert resp["api_version"] == "0.4.2"
-        assert resp["production"] == True
 
     def test_capabilities_invalid_api_version(self, client):
         resp = ApiResponse(client.get('/openeo/0.0.0/'))
@@ -228,12 +214,6 @@ class TestGeneral:
         endpoints = {e["path"]: sorted(e["methods"]) for e in capabilities["endpoints"]}
         assert "/validation" not in endpoints
 
-    def test_capabilities_endpoints_issue_28_v040(self, api040):
-        """https://github.com/Open-EO/openeo-python-driver/issues/28"""
-        capabilities = api040.get("/").assert_status_code(200).json
-        endpoints = {e["path"]: e["methods"] for e in capabilities["endpoints"]}
-        assert endpoints["/output_formats"] == ["GET"]
-        assert "/file_formats" not in endpoints
 
     def test_capabilities_endpoints_issue_28_v100(self, api100):
         """https://github.com/Open-EO/openeo-python-driver/issues/28"""
@@ -446,9 +426,6 @@ class TestGeneral:
             resp = api.get('/health?shape=square&color=red').assert_status_code(200).json
             assert resp == {"status": "OK", "color": "red"}
 
-    def test_credentials_oidc_040(self, api040):
-        resp = api040.get('/credentials/oidc').assert_status_code(303)
-        assert resp.headers["Location"] == "https://oidc.test/.well-known/openid-configuration"
 
     def test_credentials_oidc_100(self, api100):
         resp = api100.get('/credentials/oidc').assert_status_code(200).json
@@ -463,9 +440,6 @@ class TestGeneral:
             DictSubSet({'id': 'local'})
         ])}
 
-    def test_output_formats(self, api040):
-        resp = api040.get('/output_formats').assert_status_code(200).json
-        assert resp == {"GTiff": {"title": "GeoTiff", "gis_data_types": ["raster"], "parameters": {}}, }
 
     def test_file_formats(self, api100):
         response = api100.get('/file_formats')
@@ -513,17 +487,6 @@ class TestGeneral:
         assert spec["links"][0]["rel"] == "about"
         assert "DigitalElevationModelInvalid" in spec["exceptions"]
 
-    def test_processes_040_vs_100(self, api040, api100):
-        pids040 = {p['id'] for p in api040.get("/processes").assert_status_code(200).json["processes"]}
-        pids100 = {p['id'] for p in api100.get("/processes").assert_status_code(200).json["processes"]}
-        expected_only_040 = {'aggregate_polygon'}
-        expected_only_100 = {'reduce_dimension', 'aggregate_spatial', 'mask_polygon', 'add'}
-        for pid in expected_only_040:
-            assert pid in pids040
-            assert pid not in pids100
-        for pid in expected_only_100:
-            assert pid not in pids040
-            assert pid in pids100
 
     def test_custom_process_listing(self, api100):
         process_id = generate_unique_test_process_id()
@@ -964,33 +927,6 @@ class TestBatchJobs:
                     )
             yield dummy_backend.DummyBatchJobs._job_registry
 
-    def test_create_job_040(self, api040):
-        with self._fresh_job_registry(next_job_id="job-220"):
-            resp = api040.post('/jobs', headers=self.AUTH_HEADER, json={
-                'title': 'foo job',
-                'process_graph': {"foo": {"process_id": "foo", "arguments": {}}},
-            }).assert_status_code(201)
-        assert resp.headers['Location'] == 'http://oeo.net/openeo/0.4.0/jobs/job-220'
-        assert resp.headers['OpenEO-Identifier'] == 'job-220'
-        job_info = dummy_backend.DummyBatchJobs._job_registry[TEST_USER, 'job-220']
-        assert job_info.id == "job-220"
-        assert job_info.process == {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}}
-        assert job_info.status == "created"
-        assert job_info.created == dummy_backend.DEFAULT_DATETIME
-        assert job_info.job_options is None
-
-    def test_create_job_with_options_040(self, api040):
-        with self._fresh_job_registry(next_job_id="job-230"):
-            resp = api040.post('/jobs', headers=self.AUTH_HEADER, json={
-                'title': 'foo job',
-                'process_graph': {"foo": {"process_id": "foo", "arguments": {}}},
-                'job_options': {"driver-memory": "3g", "executor-memory": "5g"},
-            }).assert_status_code(201)
-        assert resp.headers['Location'] == 'http://oeo.net/openeo/0.4.0/jobs/job-230'
-        assert resp.headers['OpenEO-Identifier'] == 'job-230'
-        job_info = dummy_backend.DummyBatchJobs._job_registry[TEST_USER, 'job-230']
-        assert job_info.job_options == {"driver-memory": "3g", "executor-memory": "5g"}
-
     def test_create_job_100(self, api100):
         with self._fresh_job_registry(next_job_id="job-245"):
             resp = api100.post('/jobs', headers=self.AUTH_HEADER, json={
@@ -1074,16 +1010,6 @@ class TestBatchJobs:
         resp.assert_error(404, "JobNotFound")
         assert resp.json["message"] == "The batch job 'deadbeef-f00' does not exist."
 
-    def test_get_job_info_040(self, api040):
-        with self._fresh_job_registry():
-            resp = api040.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc', headers=self.AUTH_HEADER)
-        assert resp.assert_status_code(200).json == {
-            'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
-            'status': 'running',
-            'submitted': "2017-01-01T09:32:12Z",
-            'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}},
-        }
-
     def test_get_job_info_metrics_100(self, api100):
         resp = api100.get('/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199', headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).json == {
@@ -1118,32 +1044,6 @@ class TestBatchJobs:
     def test_get_job_info_invalid(self, api):
         resp = api.get('/jobs/deadbeef-f00', headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
         assert resp.json["message"] == "The batch job 'deadbeef-f00' does not exist."
-
-    def test_list_user_jobs_040(self, api040):
-        with self._fresh_job_registry():
-            resp = api040.get('/jobs', headers=self.AUTH_HEADER)
-        assert resp.assert_status_code(200).json == {
-            "jobs": [
-                {
-                    'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
-                    'status': 'running',
-                    'submitted': "2017-01-01T09:32:12Z",
-                },
-                {
-                    'id': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
-                    'title': "Your title here.",
-                    'description': "Your description here.",
-                    'status': 'finished',
-                    'progress': 100,
-                    'submitted': "2020-06-11T11:51:29Z",
-                    'updated': "2020-06-11T11:55:15Z",
-                    'plan': 'some_plan',
-                    'costs': 1.23,
-                    'budget': 4.56
-                }
-            ],
-            "links": []
-        }
 
     def test_list_user_jobs_100(self, api100):
         with self._fresh_job_registry():
@@ -1197,25 +1097,6 @@ class TestBatchJobs:
         with self._fresh_job_registry(next_job_id="job-345"):
             resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
         resp.assert_error(400, "JobNotFinished")
-
-    def test_get_job_results_040(self, api040):
-        with self._fresh_job_registry(next_job_id="job-349"):
-            dummy_backend.DummyBatchJobs._update_status(
-                job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="finished")
-            resp = api040.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
-        assert resp.assert_status_code(200).json == {
-            "links": [
-                {
-                    "href": "http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff"
-                },
-                {
-                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/randomforest.model'
-                },
-                {
-                    "href": "http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/ml_model_metadata.json"
-                }
-            ]
-        }
 
     def test_get_job_results_100(self, api100):
         with self._fresh_job_registry(next_job_id="job-362"):
@@ -1369,26 +1250,6 @@ class TestBatchJobs:
             }
         }
 
-    def test_get_job_results_signed_040(self, api040, flask_app):
-        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}
-        with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry():
-            dummy_backend.DummyBatchJobs._update_status(
-                job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
-            resp = api040.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
-        assert resp.assert_status_code(200).json == {
-            'links': [
-                {
-                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff'
-                },
-                {
-                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model'
-                },
-                {
-                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/272d7aa46727ee3f11a7211d5be953e4/ml_model_metadata.json'
-                }
-            ]
-        }
-
     def test_get_job_results_signed_100(self, api100, flask_app):
         app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}
         with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry():
@@ -1450,27 +1311,6 @@ class TestBatchJobs:
                 'stac_version': '0.9.0',
                 'type': 'Feature'
             }
-
-    @mock.patch('time.time', mock.MagicMock(return_value=1234))
-    def test_get_job_results_signed_with_expiration_040(self, api040, flask_app):
-        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
-        with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry():
-            dummy_backend.DummyBatchJobs._update_status(
-                job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
-            resp = api040.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
-        assert resp.assert_status_code(200).json == {
-            'links': [
-                {
-                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234'
-                },
-                {
-                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/22b76413158c59acaccc74e74841a473/randomforest.model?expires=2234'
-                },
-                {
-                    'href': 'http://oeo.net/openeo/0.4.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/a23629392982e57e7312e34de4bdba95/ml_model_metadata.json?expires=2234'
-                }
-            ]
-        }
 
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
     def test_get_job_results_signed_with_expiration_100(self, api100, flask_app):
@@ -1889,21 +1729,6 @@ class TestSecondaryServices:
         })
         res.assert_status_code(405)
 
-    def test_list_services_040(self, api040):
-        metadata = api040.get('/services', headers=self.AUTH_HEADER).json
-        assert metadata == {
-            "services": [{
-                'id': 'wmts-foo',
-                'type': 'WMTS',
-                'enabled': True,
-                'url': 'https://oeo.net/wmts/foo',
-                'submitted': '2020-04-09T15:05:08Z',
-                'title': 'Test service',
-                'parameters': {'version': '0.5.8'},
-            }],
-            "links": []
-        }
-
     def test_list_services_100(self, api100):
         metadata = api100.get('/services', headers=self.AUTH_HEADER).json
         assert metadata == {
@@ -1917,20 +1742,6 @@ class TestSecondaryServices:
                 'configuration': {'version': '0.5.8'},
             }],
             "links": []
-        }
-
-    def test_get_service_metadata_040(self, api040):
-        metadata = api040.get('/services/wmts-foo', headers=self.AUTH_HEADER).json
-        assert metadata == {
-            "id": "wmts-foo",
-            "process_graph": {"foo": {"process_id": "foo", "arguments": {}}},
-            "url": "https://oeo.net/wmts/foo",
-            "type": "WMTS",
-            "enabled": True,
-            "parameters": {"version": "0.5.8"},
-            "attributes": {},
-            "title": "Test service",
-            'submitted': '2020-04-09T15:05:08Z',
         }
 
     def test_get_service_metadata_100(self, api100):
