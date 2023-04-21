@@ -204,10 +204,20 @@ class HttpAuthHandler:
 
     def resolve_oidc_access_token(self, oidc_provider: OidcProvider, access_token: str) -> User:
         try:
+            internal_auth_data = {
+                "authentication_method": "OIDC",
+                "provider_id": oidc_provider.id,  # TODO: deprecated
+                "oidc_provider_id": oidc_provider.id,
+                "oidc_provider_title": oidc_provider.title,
+                "oidc_issuer": oidc_provider.issuer,
+                "access_token": access_token,  # TODO: document where access token is used/required?
+            }
+
             userinfo = self._get_userinfo(oidc_provider=oidc_provider, access_token=access_token)
 
             # The "sub" claim is the only claim in the response that is guaranteed per OIDC spec
             token_sub = userinfo["sub"]
+            internal_auth_data["oidc_token_sub"] = token_sub
 
             # Do token inspection for additional info
             is_client_credentials_token = None
@@ -220,11 +230,13 @@ class HttpAuthHandler:
                     if n in token_data
                 ):
                     _log.info(f"Assuming client credentials based access token for 'sub' {token_sub!r}")
+                    internal_auth_data["oidc_client_credentials_access_token"] = True
                     is_client_credentials_token = True
 
             # Map token "sub" to user id
             if token_sub in self._config.oidc_user_map:
-                user_id = self._config.oidc_user_map[token_sub]
+                internal_auth_data["oidc_user_map_data"] = self._config.oidc_user_map[token_sub]
+                user_id = internal_auth_data["oidc_user_map_data"]["user_id"]
             elif is_client_credentials_token:
                 raise AccessTokenException(
                     message=f"Client credentials access token without user mapping: sub={token_sub!r}."
@@ -234,20 +246,7 @@ class HttpAuthHandler:
                 # TODO: do something more than directly using "sub"?
                 user_id = token_sub
 
-            return User(
-                user_id=user_id,
-                info={"oidc_userinfo": userinfo},
-                internal_auth_data={
-                    "authentication_method": "OIDC",
-                    "provider_id": oidc_provider.id,  # TODO: deprecated
-                    "oidc_provider_id": oidc_provider.id,
-                    "oidc_provider_title": oidc_provider.title,
-                    "oidc_issuer": oidc_provider.issuer,
-                    "oidc_sub": token_sub,
-                    "access_token": access_token,  # TODO: document where access token is used/required?
-                    "client_credentials_access_token": is_client_credentials_token,
-                },
-            )
+            return User(user_id=user_id, info={"oidc_userinfo": userinfo}, internal_auth_data=internal_auth_data)
 
         except OpenEOApiException:
             raise
