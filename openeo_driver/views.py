@@ -184,7 +184,8 @@ def build_app(
 
     auth = HttpAuthHandler(
         oidc_providers=backend_implementation.oidc_providers(),
-        user_access_validation=backend_implementation.user_access_validation
+        user_access_validation=backend_implementation.user_access_validation,
+        config=backend_implementation.config,
     )
     api_reg = EndpointRegistry()
     bp = Blueprint("openeo", import_name=__name__)
@@ -530,9 +531,11 @@ def register_views_auth(
         def credentials_oidc():
             providers = backend_implementation.oidc_providers()
             if requested_api_version().at_least("1.0.0"):
-                return jsonify({
-                    "providers": [p.prepare_for_json() for p in providers]
-                })
+                return jsonify(
+                    {
+                        "providers": [p.export_for_api() for p in providers],
+                    }
+                )
             else:
                 return flask.redirect(providers[0].issuer + '/.well-known/openid-configuration', code=303)
 
