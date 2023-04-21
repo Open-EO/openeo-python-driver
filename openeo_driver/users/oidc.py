@@ -1,4 +1,4 @@
-from typing import List, NamedTuple
+from typing import List, NamedTuple, Optional, Tuple
 
 from openeo_driver.utils import extract_namedtuple_fields_from_dict
 
@@ -9,20 +9,30 @@ class OidcProvider(NamedTuple):
     issuer: str
     title: str
     scopes: List[str] = ["openid"]
-    description: str = None
-    default_clients: List[dict] = None
+    description: Optional[str] = None
+    default_clients: Optional[List[dict]] = None
+
+    # Optional: (client_id, client_secret) tuple to use with OIDC client credentials grant auth.
+    service_account: Optional[Tuple[str, str]] = None
 
     @classmethod
     def from_dict(cls, d: dict) -> 'OidcProvider':
         d = extract_namedtuple_fields_from_dict(d, OidcProvider)
         return cls(**d)
 
-    def prepare_for_json(self) -> dict:
-        d = self._asdict()
-        for omit_when_none in ["description", "default_clients"]:
-            if d[omit_when_none] is None:
-                d.pop(omit_when_none)
-        return d
+    def export_for_api(self) -> dict:
+        """Export for publishing under `GET /credentials/oidc`"""
+        data = {
+            "id": self.id,
+            "issuer": self.issuer,
+            "title": self.title,
+            "scopes": self.scopes,
+        }
+        if self.description:
+            data["description"] = self.description
+        if self.default_clients:
+            data["default_clients"] = self.default_clients
+        return data
 
     @property
     def discovery_url(self):

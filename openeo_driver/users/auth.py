@@ -210,7 +210,7 @@ class HttpAuthHandler:
             token_sub = userinfo["sub"]
 
             # Do token inspection for additional info
-            is_client_credentials_token = False
+            is_client_credentials_token = None
             if self._config.oidc_token_introspection:
                 token_data = self._token_introspection(oidc_provider=oidc_provider, access_token=access_token)
                 # TODO: better/more robust guessing if this is a client creds based access token
@@ -223,13 +223,15 @@ class HttpAuthHandler:
                     is_client_credentials_token = True
 
             # Map token "sub" to user id
-            if is_client_credentials_token:
-                try:
-                    user_id = self._config.oidc_client_user_map[token_sub]
-                except KeyError:
-                    raise AccessTokenException(message="Failed to map client 'sub' to a user.")
+            if token_sub in self._config.oidc_user_map:
+                user_id = self._config.oidc_user_map[token_sub]
+            elif is_client_credentials_token:
+                raise AccessTokenException(
+                    message=f"Client credentials access token without user mapping: sub={token_sub!r}."
+                )
             else:
-                # TODO: so something more than directly using "sub"?
+                # Default: normal user access token
+                # TODO: do something more than directly using "sub"?
                 user_id = token_sub
 
             return User(
@@ -241,6 +243,7 @@ class HttpAuthHandler:
                     "oidc_provider_id": oidc_provider.id,
                     "oidc_provider_title": oidc_provider.title,
                     "oidc_issuer": oidc_provider.issuer,
+                    "oidc_sub": token_sub,
                     "access_token": access_token,  # TODO: document where access token is used/required?
                     "client_credentials_access_token": is_client_credentials_token,
                 },
@@ -250,7 +253,9 @@ class HttpAuthHandler:
             raise
         except Exception as e:
             _log.error("Unexpected error while resolving OIDC access token.", exc_info=True)
-            raise OpenEOApiException(message=f"Unexpected error while resolving OIDC access token: {type(e).__name__}.")
+            raise OpenEOApiException(
+                message=f"Unexpected error while resolving OIDC access token: {type(e).__name__}."
+            ) from e
 
     def _get_userinfo(self, oidc_provider: OidcProvider, access_token: str) -> dict:
         oidc_config = self._get_oidc_provider_config(oidc_provider=oidc_provider)
@@ -272,30 +277,29 @@ class HttpAuthHandler:
             raise AccessTokenException(message=f"Unexpected '/userinfo' response: {resp.status_code}.")
 
     def _token_introspection(self, oidc_provider: OidcProvider, access_token: str) -> dict:
-        try:
-            service_account = self._config.oidc_service_accounts[oidc_provider.id]
-        except KeyError:
+        if not oidc_provider.service_account:
+            # TODO: possible to relax the requirement to have a service account for token introspection?
             raise AccessTokenException(message=f"No service account for {oidc_provider.id}") from None
 
         oidc_config = self._get_oidc_provider_config(oidc_provider=oidc_provider)
         try:
             introspection_endpoint = oidc_config["introspection_endpoint"]
         except KeyError:
-            raise AccessTokenException(message=f"No endpoint for {oidc_provider.id}") from None
+            raise AccessTokenException(message=f"No introspection endpoint for {oidc_provider.id}") from None
 
         # Do introspection request
         resp = self._oidc_provider_request(
             url=introspection_endpoint,
             method="POST",
             data={"token": access_token},
-            auth=service_account,
+            auth=oidc_provider.service_account,
             raise_for_status=True,
         )
         token_data = resp.json()
 
         # Basic checks
         assert token_data["active"]
-        scope = set(token_data.get("scope").split())
+        scope = set(token_data.get("scope", "").split())
         if not scope.issuperset(oidc_provider.scopes):
             raise AccessTokenException(
                 message=f"Token scope {scope} not covering expected scope {oidc_provider.scopes}"

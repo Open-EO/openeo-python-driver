@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 from contextlib import contextmanager, ExitStack
@@ -5,6 +6,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 from unittest import mock
+import urllib.parse
 
 import boto3
 import flask
@@ -23,11 +25,14 @@ from openeo_driver.backend import (
     not_implemented,
     BatchJobResultMetadata,
 )
+from openeo_driver.config import OpenEoBackendConfig
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
+from openeo_driver.errors import OpenEOApiException
 from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, \
     generate_unique_test_process_id, build_basic_http_auth_header, ListSubSet, DictSubSet, RegexMatcher
-from openeo_driver.users.auth import HttpAuthHandler
+from openeo_driver.users.auth import HttpAuthHandler, AccessTokenException
+from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.util.logging import LOGGING_CONTEXT_FLASK, FlaskRequestCorrelationIdLogging
 from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata, build_app, STREAM_CHUNK_SIZE_DEFAULT
 
@@ -553,25 +558,56 @@ class TestGeneral:
 def oidc_provider(requests_mock):
     oidc_issuer = "https://eoidc.test"
     user_db = {
+        # Access token mapping
         "j0hn": {"sub": "john"},
         "4l1c3": {"sub": "Alice"},
         "b0b": {"sub": "b0b1b08571101437a2"},
         "c6r01": {"sub": "Carol"},
+        "cust0m.cl13nt.j0": {
+            "active": True,
+            "sub": "s3rv1c36cc-0fj0hn",
+            "username": "service-account-0fj0hn",
+            "scope": "openid",
+        },
+        "cust0m.cl13nt.4l": {
+            "active": True,
+            "sub": "s3rv1c36cc-0f6l1c3",
+            "preferred_username": "service-account-0f6l1c3",
+            "scope": "openid",
+        },
     }
     oidc_conf = f"{oidc_issuer}/.well-known/openid-configuration"
     oidc_userinfo_url = f"{oidc_issuer}/userinfo"
-    requests_mock.get(oidc_conf, json={"userinfo_endpoint": oidc_userinfo_url})
+    oidc_introspection_url = f"{oidc_issuer}/token/inspect"
+    requests_mock.get(
+        oidc_conf,
+        json={
+            "userinfo_endpoint": oidc_userinfo_url,
+            "introspection_endpoint": oidc_introspection_url,
+        },
+    )
 
     def userinfo(request, context):
         """Fake OIDC /userinfo endpoint handler"""
         _, _, token = request.headers["Authorization"].partition("Bearer ")
         if token in user_db:
-            return user_db[token]
+            return {"sub": user_db[token]["sub"]}
         else:
             context.status_code = 401
             return {"code": "InvalidToken"}
 
+    def introspection(request, context):
+        """Fake OIDC token introspection endpoint"""
+        try:
+            data = urllib.parse.parse_qs(request.body)
+            token = data["token"][0]
+            return user_db[token]
+        except Exception:
+            context.status_code = 401
+            return {"code": "InvalidToken"}
+
     requests_mock.get(oidc_userinfo_url, json=userinfo)
+    requests_mock.post(oidc_introspection_url, json=introspection)
 
 
 class TestUser:
@@ -612,6 +648,74 @@ class TestUser:
         assert response == DictSubSet(
             {"user_id": "Carol", "roles": ["admin", "devops"]}
         )
+
+    def _get_api_with_client_mapping(
+        self,
+        oidc_token_introspection: bool = True,
+        oidc_client_user_map: Optional[dict] = None,
+        api_version: str = "1.0.0",
+    ):
+        # Because token introspection is not standard yet in,
+        # we can not use the default fixtures.
+        provider = OidcProvider(
+            id="eoidc",
+            issuer="https://eoidc.test",
+            scopes=["openid"],
+            title="e-OIDC",
+            service_account=("service-account-123", "s3rv1c3-6cc0unt-123"),
+        )
+        if oidc_client_user_map is None:
+            oidc_client_user_map = {"service-account-0fj0hn": "john"}
+        backend_config = OpenEoBackendConfig(
+            id="_get_api_with_client_mapping",
+            oidc_providers=[provider],
+            oidc_token_introspection=oidc_token_introspection,
+            oidc_user_map=oidc_client_user_map,
+        )
+        backend_implementation = DummyBackendImplementation(config=backend_config)
+        flask_app = build_app(
+            backend_implementation=backend_implementation,
+            # error_handling=False,
+        )
+        flask_app.config.from_mapping(TEST_APP_CONFIG)
+        client = flask_app.test_client()
+        return ApiTester(api_version=api_version, client=client, data_root=TEST_DATA_ROOT)
+
+    @pytest.mark.parametrize(
+        ["oidc_token_introspection", "oidc_client_user_map", "access_token", "expected"],
+        [
+            (False, {}, "cust0m.cl13nt.j0", "s3rv1c36cc-0fj0hn"),
+            (False, {"s3rv1c36cc-0fj0hn": "john"}, "cust0m.cl13nt.j0", "john"),
+            (
+                True,
+                {},
+                "cust0m.cl13nt.j0",
+                AccessTokenException("Client credentials access token without user mapping: sub='s3rv1c36cc-0fj0hn'."),
+            ),
+            (True, {"s3rv1c36cc-0fj0hn": "john"}, "cust0m.cl13nt.j0", "john"),
+            (
+                True,
+                {"s3rv1c36cc-0fj0hn": "john"},
+                "cust0m.cl13nt.4l",
+                AccessTokenException("Client credentials access token without user mapping: sub='s3rv1c36cc-0f6l1c3'."),
+            ),
+            (True, {"s3rv1c36cc-0f6l1c3": "Alice"}, "cust0m.cl13nt.4l", "Alice"),
+        ],
+    )
+    def test_client_mapping(
+        self, oidc_provider, oidc_token_introspection, oidc_client_user_map, access_token, expected
+    ):
+        api = self._get_api_with_client_mapping(
+            oidc_token_introspection=oidc_token_introspection, oidc_client_user_map=oidc_client_user_map
+        )
+        headers = {"Authorization": f"Bearer oidc/eoidc/{access_token}"}
+        response = api.get("/me", headers=headers)
+        if isinstance(expected, str):
+            assert response.assert_status_code(200).json == DictSubSet({"user_id": expected})
+        elif isinstance(expected, OpenEOApiException):
+            assert response.assert_error(expected.status_code, expected.code, message=expected.message)
+        else:
+            raise ValueError(expected)
 
 
 class TestLogging:
