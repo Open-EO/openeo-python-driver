@@ -22,8 +22,9 @@ class OpenEoBackendConfig:
 
     oidc_token_introspection: bool = False
 
-    # Mapping of OIDC token "sub" (which usually identifies a user,
-    # but could also identify a OIDC client authenticated through the client credentials grant)
-    # to user info, as a dictionary with at least a "user_id" field
+    # Mapping of `(oidc_provider id, token_sub)`
+    # to user info, as a dictionary with at least a "user_id" field.
+    # `token_sub` is the  OIDC token "sub" field, which usually identifies a user,
+    # but could also identify a OIDC client authenticated through the client credentials grant.
     # TODO: allow it to be a callable instead of a dictionary?
-    oidc_user_map: Dict[str, dict] = attrs.Factory(dict)
+    oidc_user_map: Dict[Tuple[str, str], dict] = attrs.Factory(dict)

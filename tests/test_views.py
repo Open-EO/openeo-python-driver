@@ -664,13 +664,11 @@ class TestUser:
             title="e-OIDC",
             service_account=("service-account-123", "s3rv1c3-6cc0unt-123"),
         )
-        if oidc_client_user_map is None:
-            oidc_client_user_map = {"service-account-0fj0hn": "john"}
         backend_config = OpenEoBackendConfig(
             id="_get_api_with_client_mapping",
             oidc_providers=[provider],
             oidc_token_introspection=oidc_token_introspection,
-            oidc_user_map=oidc_client_user_map,
+            oidc_user_map=oidc_client_user_map or {},
         )
         backend_implementation = DummyBackendImplementation(config=backend_config)
         flask_app = build_app(
@@ -685,21 +683,21 @@ class TestUser:
         ["oidc_token_introspection", "oidc_client_user_map", "access_token", "expected"],
         [
             (False, {}, "cust0m.cl13nt.j0", "s3rv1c36cc-0fj0hn"),
-            (False, {"s3rv1c36cc-0fj0hn": {"user_id": "john"}}, "cust0m.cl13nt.j0", "john"),
+            (False, {("eoidc", "s3rv1c36cc-0fj0hn"): {"user_id": "john"}}, "cust0m.cl13nt.j0", "john"),
             (
                 True,
                 {},
                 "cust0m.cl13nt.j0",
                 AccessTokenException("Client credentials access token without user mapping: sub='s3rv1c36cc-0fj0hn'."),
             ),
-            (True, {"s3rv1c36cc-0fj0hn": {"user_id": "john"}}, "cust0m.cl13nt.j0", "john"),
+            (True, {("eoidc", "s3rv1c36cc-0fj0hn"): {"user_id": "john"}}, "cust0m.cl13nt.j0", "john"),
             (
                 True,
-                {"s3rv1c36cc-0fj0hn": {"user_id": "john"}},
+                {("eoidc", "s3rv1c36cc-0fj0hn"): {"user_id": "john"}},
                 "cust0m.cl13nt.4l",
                 AccessTokenException("Client credentials access token without user mapping: sub='s3rv1c36cc-0f6l1c3'."),
             ),
-            (True, {"s3rv1c36cc-0f6l1c3": {"user_id": "Alice"}}, "cust0m.cl13nt.4l", "Alice"),
+            (True, {("eoidc", "s3rv1c36cc-0f6l1c3"): {"user_id": "Alice"}}, "cust0m.cl13nt.4l", "Alice"),
         ],
     )
     def test_oidc_client_to_user_mapping(
