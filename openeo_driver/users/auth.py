@@ -234,9 +234,11 @@ class HttpAuthHandler:
                     is_client_credentials_token = True
 
             # Map token "sub" to user id
-            if (oidc_provider.id, token_sub) in self._config.oidc_user_map:
-                internal_auth_data["oidc_user_map_data"] = self._config.oidc_user_map[(oidc_provider.id, token_sub)]
-                user_id = internal_auth_data["oidc_user_map_data"]["user_id"]
+            oidc_user_map_data = self._config.oidc_user_map.get((oidc_provider.id, token_sub))
+            if oidc_user_map_data:
+                _log.debug(f"User mapping {token_sub=} -> {oidc_user_map_data=}")
+                internal_auth_data["oidc_user_map_data"] = oidc_user_map_data
+                user_id = oidc_user_map_data["user_id"]
             elif is_client_credentials_token:
                 raise AccessTokenException(
                     message=f"Client credentials access token without user mapping: sub={token_sub!r}."
