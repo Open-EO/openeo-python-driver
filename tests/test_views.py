@@ -1014,6 +1014,7 @@ class TestBatchJobs:
                     plan='some_plan',
                     costs=1.23,
                     budget=4.56,
+                    proj_shape=[300, 600],
                 )
             }
             dummy_backend.DummyBatchJobs._job_result_registry = {}
@@ -1306,26 +1307,30 @@ class TestBatchJobs:
                         "type": "application/pdf"
                     }
                 ],
-                'properties': {
-                    'created': '2020-06-11T11:51:29Z',
-                    'updated': '2020-06-11T11:55:15Z',
-                    'datetime': '1981-04-24T03:00:00Z',
-                    'title': "Your title here.",
-                    'description': "Your description here.",
-                    'instruments': ['MSI'],
-                    'proj:epsg': 4326,
-                    'card4l:processing_chain': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
-                    'card4l:specification': 'SR',
-                    'card4l:specification_version': '5.0',
-                    'processing:facility': 'VITO - SPARK',
-                    'processing:software': 'openeo-geotrellis-0.0.1'},
-                'stac_extensions': ['processing',
-                                    'card4l-eo',
-                                    'https://stac-extensions.github.io/file/v1.0.0/schema.json',
-                                    'eo',
-                                    'projection'],
-                'stac_version': '0.9.0',
-                'type': 'Feature'
+                "properties": {
+                    "created": "2020-06-11T11:51:29Z",
+                    "updated": "2020-06-11T11:55:15Z",
+                    "datetime": "1981-04-24T03:00:00Z",
+                    "title": "Your title here.",
+                    "description": "Your description here.",
+                    "instruments": ["MSI"],
+                    "proj:epsg": 4326,
+                    "proj:shape": [300, 600],
+                    "card4l:processing_chain": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
+                    "card4l:specification": "SR",
+                    "card4l:specification_version": "5.0",
+                    "processing:facility": "VITO - SPARK",
+                    "processing:software": "openeo-geotrellis-0.0.1",
+                },
+                "stac_extensions": [
+                    "processing",
+                    "card4l-eo",
+                    "https://stac-extensions.github.io/file/v1.0.0/schema.json",
+                    "eo",
+                    "projection",
+                ],
+                "stac_version": "0.9.0",
+                "type": "Feature",
             }
 
     def test_get_job_results_public_href_asset_100(self, api100, backend_implementation):
@@ -1500,7 +1505,9 @@ class TestBatchJobs:
                         'interval': [['1981-04-24T03:00:00Z', '1981-04-24T03:00:00Z']]
                     }
                 },
-                'links': [
+                "bbox": [-180, -90, 180, 90],
+                "epsg": 4326,
+                "links": [
                     {
                         'rel': 'self',
                         'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results',
@@ -1692,14 +1699,16 @@ class TestBatchJobs:
                               headers=self.AUTH_HEADER)
 
         assert resp.assert_status_code(200).json == {
-            'type': 'Feature',
-            'stac_version': '0.9.0',
-            'stac_extensions': ['eo', 'file'],
-            'id': 'output.tiff',
-            'geometry': None,
-            'bbox': None,
-            'properties': {
-                'datetime': '1981-04-24T03:00:00Z'
+            "type": "Feature",
+            "stac_version": "0.9.0",
+            "stac_extensions": ["eo", "file"],
+            "id": "output.tiff",
+            "geometry": None,
+            "bbox": None,
+            "epsg": 4326,
+            "properties": {
+                "datetime": "1981-04-24T03:00:00Z",
+                "proj:shape": [300, 600],
             },
             'links': [{
                 'rel': 'self',

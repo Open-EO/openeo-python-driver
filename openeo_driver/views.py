@@ -738,12 +738,15 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
             properties["end_datetime"] = end_datetime
 
     if job_info.instruments:
-        properties['instruments'] = job_info.instruments
+        properties["instruments"] = job_info.instruments
 
     if job_info.epsg:
-        properties['proj:epsg'] = job_info.epsg
+        properties["proj:epsg"] = job_info.epsg
 
-    properties['card4l:processing_chain'] = job_info.process
+    if job_info.proj_shape:
+        properties["proj:shape"] = job_info.proj_shape
+
+    properties["card4l:processing_chain"] = job_info.process
 
     return properties
 
@@ -1002,25 +1005,27 @@ def register_views_batch_jobs(
                                 "type": "application/json"
                         })
 
-                result = dict_no_none(**{
-                    "type": "Collection",
-                    "stac_version": "1.0.0",
-                    "stac_extensions": ["eo", "file"],
-                    "id": job_id,
-                    "title": job_info.title,
-                    "description": job_info.description or f"Results for batch job {job_id}",
-                    "license": "proprietary",  # TODO?
-                    "extent": {
-                        "spatial": {
-                            "bbox": [job_info.bbox]
+                result = dict_no_none(
+                    **{
+                        "type": "Collection",
+                        "stac_version": "1.0.0",
+                        "stac_extensions": ["eo", "file"],
+                        "id": job_id,
+                        "title": job_info.title,
+                        "description": job_info.description or f"Results for batch job {job_id}",
+                        "license": "proprietary",  # TODO?
+                        "extent": {
+                            "spatial": {"bbox": [job_info.bbox]},
+                            "temporal": {
+                                "interval": [[to_datetime(job_info.start_datetime), to_datetime(job_info.end_datetime)]]
+                            },
                         },
-                        "temporal": {
-                            "interval": [[to_datetime(job_info.start_datetime), to_datetime(job_info.end_datetime)]]
-                        }
-                    },
-                    "links": links,
-                    "assets": assets
-                })
+                        "bbox": job_info.bbox,
+                        "epsg": job_info.epsg,
+                        "links": links,
+                        "assets": assets,
+                    }
+                )
                 if ml_model_metadata is not None:
                     result["stac_extensions"].extend(ml_model_metadata.get("stac_extensions", []))
                     if "summaries" not in result.keys():
@@ -1051,20 +1056,23 @@ def register_views_batch_jobs(
                     result["bbox"] = job_info.bbox
 
                 result["stac_extensions"] = [
-                    "processing", "card4l-eo", "https://stac-extensions.github.io/file/v1.0.0/schema.json"
+                    "processing",
+                    "card4l-eo",
+                    "https://stac-extensions.github.io/file/v1.0.0/schema.json",
                 ]
 
                 if any("eo:bands" in asset_object for asset_object in result["assets"].values()):
                     result["stac_extensions"].append("eo")
 
-                if "proj:epsg" in result["properties"]:
+                if any(key.startswith("proj:") for key in result["properties"]) or any(
+                    key.startswith("proj:") for key in result["assets"]
+                ):
                     result["stac_extensions"].append("projection")
         else:
             # TODO #47 drop pre-1.0.0 API support
             result = {
                 "links": [
-                    {"href": _job_result_download_url(job_id, user_id, filename)}
-                    for filename in result_assets.keys()
+                    {"href": _job_result_download_url(job_id, user_id, filename)} for filename in result_assets.keys()
                 ]
             }
 
@@ -1149,8 +1157,8 @@ def register_views_batch_jobs(
         bbox = metadata.get("bbox")
 
         properties = {"datetime": metadata.get("datetime")}
+        job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
         if properties["datetime"] is None:
-            job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
             to_datetime = Rfc3339(propagate_none=True).datetime
 
             start_datetime = to_datetime(job_info.start_datetime)
@@ -1164,6 +1172,9 @@ def register_views_batch_jobs(
                 if end_datetime:
                     properties["end_datetime"] = end_datetime
 
+        if job_info.proj_shape:
+            properties["proj:shape"] = job_info.proj_shape
+
         stac_item = {
             "type": "Feature",
             "stac_version": "0.9.0",
@@ -1172,32 +1183,37 @@ def register_views_batch_jobs(
             "geometry": geometry,
             "bbox": bbox,
             "properties": properties,
-            "links": [{
-                "rel": "self",
-                # MUST be absolute
-                "href": url_for('.get_job_result_item', job_id=job_id, item_id=item_id, _external=True),
-                "type": stac_item_media_type
-            }, {
-                "rel": "collection",
-                "href": url_for('.list_job_results', job_id=job_id, _external=True),  # SHOULD be absolute
-                "type": "application/json"
-            }],
-            "assets": {
-                asset_filename: _asset_object(job_id, user_id, asset_filename, metadata)
-            },
-            "collection": job_id
+            "links": [
+                {
+                    "rel": "self",
+                    # MUST be absolute
+                    "href": url_for(".get_job_result_item", job_id=job_id, item_id=item_id, _external=True),
+                    "type": stac_item_media_type,
+                },
+                {
+                    "rel": "collection",
+                    "href": url_for(".list_job_results", job_id=job_id, _external=True),  # SHOULD be absolute
+                    "type": "application/json",
+                },
+            ],
+            "assets": {asset_filename: _asset_object(job_id, user_id, asset_filename, metadata)},
+            "collection": job_id,
         }
+        # Add optional items, if they are present.
+        stac_item.update(
+            **dict_no_none(
+                {
+                    "epsg": job_info.epsg,
+                }
+            )
+        )
 
         resp = jsonify(stac_item)
         resp.mimetype = stac_item_media_type
         return resp
 
-    def _download_ml_model_metadata(
-        job_id: str, file_name: str, user_id
-    ) -> flask.Response:
-        results = backend_implementation.batch_jobs.get_result_assets(
-            job_id=job_id, user_id=user_id
-        )
+    def _download_ml_model_metadata(job_id: str, file_name: str, user_id) -> flask.Response:
+        results = backend_implementation.batch_jobs.get_result_assets(job_id=job_id, user_id=user_id)
         ml_model_metadata: dict = results.get(file_name, None)
         if ml_model_metadata is None:
             raise FilePathInvalidException(f"{file_name!r} not in {list(results.keys())}")

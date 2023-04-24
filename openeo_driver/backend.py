@@ -294,6 +294,7 @@ class BatchJobMetadata(NamedTuple):
     # TODO: openEO API associates `links` with the job *result* metadata, not the job itself
     links: List[Dict] = None
     usage: Dict = None
+    proj_shape: List[int] = None
 
     @property
     def duration(self) -> Union[timedelta, None]:
