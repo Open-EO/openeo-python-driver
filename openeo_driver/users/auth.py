@@ -236,7 +236,7 @@ class HttpAuthHandler:
             # Map token "sub" to user id
             oidc_user_map_data = self._config.oidc_user_map.get((oidc_provider.id, token_sub))
             if oidc_user_map_data:
-                _log.debug(f"User mapping {token_sub=} -> {oidc_user_map_data=}")
+                _log.debug(f"oidc_user_map user mapping {token_sub=} -> {oidc_user_map_data=}")
                 internal_auth_data["oidc_user_map_data"] = oidc_user_map_data
                 user_id = oidc_user_map_data["user_id"]
             elif is_client_credentials_token:
