@@ -225,6 +225,7 @@ ENV_SOURCE_CONSTRAINTS = "source_constraints"
 ENV_DRY_RUN_TRACER = "dry_run_tracer"
 ENV_SAVE_RESULT= "save_result"
 
+
 class SimpleProcessing(Processing):
     """
     Simple graph processing: just implement basic math/logic operators
@@ -1511,7 +1512,7 @@ def run_udf(args: dict, env: EvalEnv):
         )
 
     _log.info(f"[run_udf] Running UDF {str_truncate(udf, width=256)!r} on {data!r}")
-    result_data = openeo.udf.run_udf_code(udf, data)
+    result_data = env.backend_implementation.processing.run_udf(udf, data)
     _log.info(f"[run_udf] UDF resulted in {result_data!r}")
 
     result_collections = result_data.get_feature_collection_list()

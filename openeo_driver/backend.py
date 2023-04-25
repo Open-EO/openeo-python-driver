@@ -24,6 +24,7 @@ import flask
 import openeo_driver.util.view_helpers
 from openeo.capabilities import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+import openeo.udf
 from openeo.util import rfc3339, dict_no_none
 from openeo_driver.config import OpenEoBackendConfig, get_backend_config
 from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCube
@@ -545,6 +546,10 @@ class Processing(MicroService):
         :return: List (or generator) of validation error dicts (having at least a "code" and "message" field)
         """
         raise NotImplementedError
+
+    def run_udf(self, udf: str, data: openeo.udf.UdfData) -> openeo.udf.UdfData:
+        # TODO: remove this concrete implementation to be more secure by default.
+        return openeo.udf.run_udf_code(udf, data)
 
 
 class ErrorSummary(Exception):
