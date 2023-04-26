@@ -1363,7 +1363,7 @@ class TestBatchJobs:
                     'output.tiff': {
                         'roles': ['data'],
                         'title': 'output.tiff',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/50afb0cad129e61d415278c4ffcd8a83/output.tiff',
                         'type': 'image/tiff; application=geotiff',
                         'eo:bands': [{
                             'name': 'NDVI',
@@ -1372,7 +1372,7 @@ class TestBatchJobs:
                         'file:nodata': [123]
                     },
                     'randomforest.model': {
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model',
                         'roles': ['data'],
                         'title': 'randomforest.model',
                         'type': 'application/octet-stream'
@@ -1388,7 +1388,7 @@ class TestBatchJobs:
                     },
                     {
                         'rel': 'canonical',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/05cb8b78f20c68a5aa9eb05249928d24',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA==/05cb8b78f20c68a5aa9eb05249928d24',
                         'type': 'application/json'
                     },
                     {
@@ -1426,7 +1426,7 @@ class TestBatchJobs:
                     'output.tiff': {
                         'roles': ['data'],
                         'title': 'output.tiff',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
                         'type': 'image/tiff; application=geotiff',
                         'eo:bands': [{
                             'name': 'NDVI',
@@ -1435,7 +1435,7 @@ class TestBatchJobs:
                         'file:nodata': [123]
                     },
                     'randomforest.model': {
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/22b76413158c59acaccc74e74841a473/randomforest.model?expires=2234',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/22b76413158c59acaccc74e74841a473/randomforest.model?expires=2234',
                         'roles': ['data'],
                         'title': 'randomforest.model',
                         'type': 'application/octet-stream'
@@ -1451,7 +1451,7 @@ class TestBatchJobs:
                     },
                     {
                         'rel': 'canonical',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/9fea29cd94195399cc4d902388a3c32c?expires=2234',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA==/9fea29cd94195399cc4d902388a3c32c?expires=2234',
                         'type': 'application/json'
                     },
                     {
@@ -1508,7 +1508,7 @@ class TestBatchJobs:
                     },
                     {
                         'rel': 'canonical',
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/TXIuVGVzdA%3D%3D/748b8c91160fbb6e137c91d7d33b0c4a?expires=2234',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/TXIuVGVzdA==/748b8c91160fbb6e137c91d7d33b0c4a?expires=2234',
                         'type': 'application/json'
                     },
                     {
@@ -1518,11 +1518,11 @@ class TestBatchJobs:
                     },
                     {
                         'rel': 'item',
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA==/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
                         'type': 'application/geo+json'
                     },
                     {
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA%3D%3D/30fac5af7fe96123c923e94c2732f9aa/ml_model_metadata.json?expires=2234',                        'rel': 'item',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA==/30fac5af7fe96123c923e94c2732f9aa/ml_model_metadata.json?expires=2234',                        'rel': 'item',
                         'type': 'application/json'
                     },
                 ],
@@ -1534,14 +1534,14 @@ class TestBatchJobs:
                 'assets': {
                     'output.tiff': {
                         'title': 'output.tiff',
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
                         'type': 'image/tiff; application=geotiff',
                         'eo:bands': [{'center_wavelength': 1.23, 'name': 'NDVI'}],
                         'file:nodata': [123],
                         'roles': ['data']
                     },
                     'randomforest.model': {
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA%3D%3D/18fd2346c52945c0caba7b13246f5a63/randomforest.model?expires=2234',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/18fd2346c52945c0caba7b13246f5a63/randomforest.model?expires=2234',
                         'roles': ['data'],
                         'title': 'randomforest.model',
                         'type': 'application/octet-stream'
@@ -1713,7 +1713,7 @@ class TestBatchJobs:
             'assets': {
                 'output.tiff': {
                     'title': 'output.tiff',
-                    'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
+                    'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
                     'type': 'image/tiff; application=geotiff',
                     'eo:bands': [{'center_wavelength': 1.23, 'name': 'NDVI'}],
                     'file:nodata': [123],
