@@ -44,7 +44,7 @@ setup(
     tests_require=tests_require,
     install_requires=[
         "flask",
-        "werkzeug>=1.0.1",
+        "werkzeug>=1.0.1,<2.3.0",  # https://github.com/Open-EO/openeo-python-driver/issues/187
         "requests>=2.28.0",
         "openeo>=0.15.0",
         "openeo_processes==0.0.4",  # 0.0.4 is special build/release, also see https://github.com/Open-EO/openeo-python-driver/issues/152
