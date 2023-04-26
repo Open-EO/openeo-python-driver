@@ -333,7 +333,7 @@ def evaluate(
     if do_dry_run:
         dry_run_tracer = do_dry_run if isinstance(do_dry_run, DryRunDataTracer) else DryRunDataTracer()
         _log.info("Doing dry run")
-        convert_node(result_node, env=env.push({ENV_DRY_RUN_TRACER: dry_run_tracer, ENV_SAVE_RESULT:[]}))
+        convert_node(result_node, env=env.push({ENV_DRY_RUN_TRACER: dry_run_tracer, ENV_SAVE_RESULT:[], "node_caching":False}))
         # TODO: work with a dedicated DryRunEvalEnv?
         source_constraints = dry_run_tracer.get_source_constraints()
         _log.info("Dry run extracted these source constraints: {s}".format(s=source_constraints))
@@ -366,7 +366,7 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
                     comparison = cached == process_result
                     #numpy arrays have a custom eq that requires this weird check
                     if isinstance(comparison,bool) and comparison:
-                        _log.debug("Reusing an already evaluated subgraph")
+                        _log.info(f"Reusing an already evaluated subgraph for process {process_id}")
                         return cached
                 processGraph["result_cache"] = process_result
             return process_result
