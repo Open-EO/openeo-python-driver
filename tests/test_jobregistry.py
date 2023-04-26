@@ -88,7 +88,7 @@ class TestElasticJobRegistry:
             oidc_issuer=oidc_issuer,
             expected_grant_type="client_credentials",
             expected_client_id=self.OIDC_CLIENT_INFO["client_id"],
-            expected_fields={"client_secret": self.OIDC_CLIENT_INFO["client_secret"]},
+            expected_fields={"client_secret": self.OIDC_CLIENT_INFO["client_secret"], "scope": "openid"},
         )
         return oidc_mock
 

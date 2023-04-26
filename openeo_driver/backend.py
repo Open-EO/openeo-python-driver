@@ -24,7 +24,9 @@ import flask
 import openeo_driver.util.view_helpers
 from openeo.capabilities import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+import openeo.udf
 from openeo.util import rfc3339, dict_no_none
+from openeo_driver.config import OpenEoBackendConfig, get_backend_config
 from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.dry_run import SourceConstraint
@@ -545,6 +547,10 @@ class Processing(MicroService):
         """
         raise NotImplementedError
 
+    def run_udf(self, udf: str, data: openeo.udf.UdfData) -> openeo.udf.UdfData:
+        # TODO: remove this concrete implementation to be more secure by default.
+        return openeo.udf.run_udf_code(udf, data)
+
 
 class ErrorSummary(Exception):
     # TODO: this is specific for openeo-geopyspark-driver: can we avoid defining it in openeo-python-driver?
@@ -634,13 +640,16 @@ class OpenEoBackendImplementation:
     vector_cube_cls = DriverVectorCube
 
     def __init__(
-            self,
-            secondary_services: Optional[SecondaryServices] = None,
-            catalog: Optional[AbstractCollectionCatalog] = None,
-            batch_jobs: Optional[BatchJobs] = None,
-            user_defined_processes: Optional[UserDefinedProcesses] = None,
-            processing: Optional[Processing] = None,
+        self,
+        *,
+        secondary_services: Optional[SecondaryServices] = None,
+        catalog: Optional[AbstractCollectionCatalog] = None,
+        batch_jobs: Optional[BatchJobs] = None,
+        user_defined_processes: Optional[UserDefinedProcesses] = None,
+        processing: Optional[Processing] = None,
+        config: Optional[OpenEoBackendConfig] = None,
     ):
+        self.config: OpenEoBackendConfig = config or get_backend_config()
         self.secondary_services = secondary_services
         self.catalog = catalog
         self.batch_jobs = batch_jobs
@@ -658,7 +667,7 @@ class OpenEoBackendImplementation:
         return "OK"
 
     def oidc_providers(self) -> List[OidcProvider]:
-        return []
+        return self.config.oidc_providers
 
     def file_formats(self) -> dict:
         """
@@ -711,5 +720,8 @@ class OpenEoBackendImplementation:
     def set_request_id(self, request_id: str):
         pass
 
-    def after_request(self):
+    def after_request(self, request_id: str):
+        pass
+
+    def request_costs(self, user_id: str, request_id: str, success: bool) -> Optional[float]:
         pass

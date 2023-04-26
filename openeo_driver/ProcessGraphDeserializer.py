@@ -63,10 +63,12 @@ from openeo_driver.utils import smart_bool, EvalEnv
 _log = logging.getLogger(__name__)
 
 # Set up process registries (version dependent)
+# TODO #47 remove 0.4.0 support
 process_registry_040 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/0.4', argument_names=["args", "env"])
 process_registry_100 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/1.x', argument_names=["args", "env"])
 
 # Bootstrap with some mathematical/logical processes
+# TODO #47 remove 0.4.0 support
 process_registry_040.add_spec_by_name(
     'array_contains', 'array_element',
     'count', 'first', 'last', 'order', 'rearrange', 'sort',
@@ -222,6 +224,7 @@ def _register_fallback_implementations_by_process_graph(process_registry: Proces
 ENV_SOURCE_CONSTRAINTS = "source_constraints"
 ENV_DRY_RUN_TRACER = "dry_run_tracer"
 ENV_SAVE_RESULT= "save_result"
+
 
 class SimpleProcessing(Processing):
     """
@@ -1352,6 +1355,8 @@ def filter_spatial(args: Dict, env: EvalEnv) -> DriverDataCube:
             geometries = MultiPolygon(polygons)
     elif isinstance(geometries, DelayedVector):
         geometries = DriverVectorCube.from_fiona([geometries.path]).to_multipolygon()
+    elif isinstance(geometries, DriverVectorCube):
+        pass
     else:
         # TODO #114: support DriverVectorCube
         raise NotImplementedError(
@@ -1507,7 +1512,7 @@ def run_udf(args: dict, env: EvalEnv):
         )
 
     _log.info(f"[run_udf] Running UDF {str_truncate(udf, width=256)!r} on {data!r}")
-    result_data = openeo.udf.run_udf_code(udf, data)
+    result_data = env.backend_implementation.processing.run_udf(udf, data)
     _log.info(f"[run_udf] UDF resulted in {result_data!r}")
 
     result_collections = result_data.get_feature_collection_list()
@@ -1856,8 +1861,10 @@ def evaluate_process_from_url(process_id: str, namespace: str, args: dict, env: 
 def sleep(args: Dict, env: EvalEnv):
     data = extract_arg(args, "data")
     seconds = extract_arg(args, "seconds")
-    _log.info("Sleeping {s} seconds".format(s=seconds))
-    time.sleep(seconds)
+    dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
+    if not dry_run_tracer:
+        _log.info("Sleeping {s} seconds".format(s=seconds))
+        time.sleep(seconds)
     return data
 
 

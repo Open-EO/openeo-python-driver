@@ -39,10 +39,6 @@ ApiVersionInfo = namedtuple("ApiVersionInfo", ["version", "supported", "wellknow
 # TODO: move this version info listing and default version configurable too?
 # Available OpenEO API versions: map of URL version component to API version info
 API_VERSIONS = {
-    "0.4.0": ApiVersionInfo(version="0.4.0", supported=True, wellknown=False, production=True),
-    "0.4.1": ApiVersionInfo(version="0.4.1", supported=True, wellknown=False, production=True),
-    "0.4.2": ApiVersionInfo(version="0.4.2", supported=True, wellknown=False, production=True),
-    "0.4": ApiVersionInfo(version="0.4.2", supported=True, wellknown=True, production=True),
     "1.0.0": ApiVersionInfo(version="1.0.0", supported=True, wellknown=False, production=True),
     "1.0": ApiVersionInfo(version="1.0.0", supported=True, wellknown=True, production=True),
     "1.0.1": ApiVersionInfo(version="1.0.1", supported=True, wellknown=False, production=True),
@@ -160,7 +156,7 @@ def build_app(
 
     @app.after_request
     def _after_request(response):
-        backend_implementation.after_request()
+        backend_implementation.after_request(FlaskRequestCorrelationIdLogging.get_request_id())
         return response
 
     if error_handling:
@@ -188,7 +184,8 @@ def build_app(
 
     auth = HttpAuthHandler(
         oidc_providers=backend_implementation.oidc_providers(),
-        user_access_validation=backend_implementation.user_access_validation
+        user_access_validation=backend_implementation.user_access_validation,
+        config=backend_implementation.config,
     )
     api_reg = EndpointRegistry()
     bp = Blueprint("openeo", import_name=__name__)
@@ -534,9 +531,11 @@ def register_views_auth(
         def credentials_oidc():
             providers = backend_implementation.oidc_providers()
             if requested_api_version().at_least("1.0.0"):
-                return jsonify({
-                    "providers": [p.prepare_for_json() for p in providers]
-                })
+                return jsonify(
+                    {
+                        "providers": [p.export_for_api() for p in providers],
+                    }
+                )
             else:
                 return flask.redirect(providers[0].issuer + '/.well-known/openid-configuration', code=303)
 
@@ -606,28 +605,44 @@ def register_views_processing(
         post_data = request.get_json()
         process_graph = _extract_process_graph(post_data)
 
+        request_id = FlaskRequestCorrelationIdLogging.get_request_id()
+
         env = EvalEnv({
             "backend_implementation": backend_implementation,
             'version': g.api_version,
             'pyramid_levels': 'highest',
             'user': user,
             'require_bounds': True,
-            'correlation_id': generate_unique_id(prefix="c"),
+            'correlation_id': request_id,
         })
-        result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)
-        _log.info(f"`POST /result`: {type(result)}")
 
-        if result is None:
-            # TODO: is it still necessary to handle `None` as an error condition?
-            raise InternalException(message="Process graph evaluation gave no result")
-        elif isinstance(result, flask.Response):
-            # TODO: handle flask.Response in `to_save_result` too?
-            return result
-        else:
-            if not isinstance(result, SaveResult):
-                # Implicit save result (using default/best effort format and options)
-                result = to_save_result(data=result)
-            return result.create_flask_response()
+        request_costs = functools.partial(backend_implementation.request_costs,
+                                          user_id=user.user_id, request_id=request_id)
+
+        try:
+            result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)
+            _log.info(f"`POST /result`: {type(result)}")
+
+            if result is None:
+                # TODO: is it still necessary to handle `None` as an error condition?
+                raise InternalException(message="Process graph evaluation gave no result")
+
+            if isinstance(result, flask.Response):
+                # TODO: handle flask.Response in `to_save_result` too?
+                response = result
+            else:
+                if not isinstance(result, SaveResult):
+                    # Implicit save result (using default/best effort format and options)
+                    result = to_save_result(data=result)
+                response = result.create_flask_response()
+
+            # not all costs are accounted for so don't expose in "OpenEO-Costs" yet
+            request_costs(success=True)
+        except Exception:
+            request_costs(success=False)
+            raise
+
+        return response
 
     @blueprint.route('/execute', methods=['POST'])
     @auth_handler.requires_bearer_auth
@@ -1222,11 +1237,29 @@ def register_views_batch_jobs(
         bands = asset_metadata.get("bands")
         nodata = asset_metadata.get("nodata")
 
-        result_dict.update(dict_no_none(**{
-            "eo:bands": [dict_no_none(**{"name": band.name, "center_wavelength": band.wavelength_um})
-                         for band in bands] if bands else None,
-            "file:nodata": ["nan" if nodata!=None and np.isnan(nodata) else nodata],
-        }))
+        result_dict.update(
+            dict_no_none(
+                **{
+                    "eo:bands": [
+                        dict_no_none(
+                            **{
+                                "name": band.name,
+                                "center_wavelength": band.wavelength_um,
+                            }
+                        )
+                        for band in bands
+                    ]
+                    if bands
+                    else None,
+                    "file:nodata": [
+                        "nan" if nodata != None and np.isnan(nodata) else nodata
+                    ],
+                    "proj:bbox": asset_metadata.get("proj:bbox", None),
+                    "proj:epsg": asset_metadata.get("proj:epsg", None),
+                    "proj:shape": asset_metadata.get("proj:shape", None),
+                }
+            )
+        )
 
         if "file:size" not in result_dict and "output_dir" in asset_metadata:
             the_file = pathlib.Path(asset_metadata["output_dir"]) / filename

@@ -31,6 +31,7 @@ from openeo_driver.backend import (
     Processing,
     BatchJobResultMetadata,
 )
+from openeo_driver.config import OpenEoBackendConfig
 from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCube
 from openeo_driver.datastructs import StacAsset
 from openeo_driver.delayed_vector import DelayedVector
@@ -788,52 +789,19 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
 
     vector_cube_cls = DummyVectorCube
 
-    def __init__(self, processing: Optional[Processing] = None):
+    def __init__(
+        self,
+        processing: Optional[Processing] = None,
+        config: Optional[OpenEoBackendConfig] = None,
+    ):
         super(DummyBackendImplementation, self).__init__(
             secondary_services=DummySecondaryServices(),
             catalog=DummyCatalog(),
             batch_jobs=DummyBatchJobs(),
             user_defined_processes=DummyUserDefinedProcesses(),
             processing=processing or DummyProcessing(),
+            config=config,
         )
-
-    def oidc_providers(self) -> List[OidcProvider]:
-        return [
-            OidcProvider(id="testprovider", issuer="https://oidc.test", scopes=["openid"], title="Test"),
-            OidcProvider(
-                id="eoidc", issuer="https://eoidc.test", scopes=["openid"], title="e-OIDC",
-                default_clients=[{
-                    "id": "badcafef00d",
-                    "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"]
-                }],
-            ),
-            # Allow testing with Keycloak setup running in docker on localhost.
-            OidcProvider(
-                id="local", title="Local Keycloak",
-                issuer="http://localhost:9090/auth/realms/master", scopes=["openid"],
-            ),
-            # Allow testing the dummy backend with EGI
-            OidcProvider(
-                id="egi",
-                issuer="https://aai.egi.eu/auth/realms/egi/",
-                scopes=[
-                    "openid", "email",
-                    "eduperson_entitlement",
-                    "eduperson_scoped_affiliation",
-                ],
-                title="EGI Check-in",
-            ),
-            OidcProvider(
-                id="egi-dev",
-                issuer="https://aai-dev.egi.eu/auth/realms/egi",
-                scopes=[
-                    "openid", "email",
-                    "eduperson_entitlement",
-                    "eduperson_scoped_affiliation",
-                ],
-                title="EGI Check-in (dev)",
-            ),
-        ]
 
     def file_formats(self) -> dict:
         return {

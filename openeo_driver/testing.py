@@ -272,10 +272,11 @@ class ApiTester:
         if isinstance(process_graph, str):
             # Assume it is a file name
             process_graph = self.load_json(process_graph, preprocess=preprocess)
-        elif isinstance(
-            process_graph, (openeo.DataCube, openeo.processes.ProcessBuilderBase)
-        ):
+        elif hasattr(process_graph, "flat_graph"):
+            # process graph API
+            # TODO: make this a more explicit API (e.g. with mixin)
             process_graph = process_graph.flat_graph()
+        assert isinstance(process_graph, dict)
         data = self.get_process_graph_dict(process_graph)
         self.set_auth_bearer_token()
         response = self.post(path=path, json=data)
