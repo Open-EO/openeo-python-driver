@@ -548,8 +548,7 @@ class Processing(MicroService):
         raise NotImplementedError
 
     def run_udf(self, udf: str, data: openeo.udf.UdfData) -> openeo.udf.UdfData:
-        # TODO: remove this concrete implementation to be more secure by default.
-        return openeo.udf.run_udf_code(udf, data)
+        raise NotImplementedError
 
 
 class ErrorSummary(Exception):

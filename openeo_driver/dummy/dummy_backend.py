@@ -16,6 +16,7 @@ from shapely.geometry.collection import GeometryCollection
 from openeo.api.logs import normalize_log_level
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.metadata import CollectionMetadata, Band
+import openeo.udf
 from openeo_driver.ProcessGraphDeserializer import ConcreteProcessing
 from openeo_driver.backend import (
     SecondaryServices,
@@ -580,6 +581,9 @@ class DummyProcessing(ConcreteProcessing):
                 bbox = constraints.get("spatial_extent")
                 if dates and dates[0] <= "2021-02-10" and bbox and bbox["west"] <= 1.4:
                     yield {"code": "MissingProduct", "message": "Tile 4322 not available"}
+
+    def run_udf(self, udf: str, data: openeo.udf.UdfData) -> openeo.udf.UdfData:
+        return openeo.udf.run_udf_code(udf, data)
 
 
 class DummyBatchJobs(BatchJobs):
