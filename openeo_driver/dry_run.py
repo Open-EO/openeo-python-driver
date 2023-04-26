@@ -210,7 +210,6 @@ class DryRunDataTracer:
 
     def __init__(self):
         self._traces: List[DataTraceBase] = []
-        self._load_collection_cache = {}
 
     def add_trace(self, trace: DataTraceBase) -> DataTraceBase:
         """Keep track of given trace"""
@@ -230,17 +229,6 @@ class DryRunDataTracer:
         properties = {**CollectionMetadata(metadata).get("_vito", "properties", default={}),
                       **arguments.get("properties", {})}
 
-        from openeo_driver.backend import LoadParameters
-        params = LoadParameters()
-        params.temporal_extent = arguments.get("temporal_extent", None)
-        params.spatial_extent = arguments.get("spatial_extent", None)
-        params.bands = arguments.get("bands", None)
-        params.properties = arguments.get("properties", {})
-
-        cache_key = (collection_id, params)
-        if (cache_key in self._load_collection_cache):
-            return self._load_collection_cache[cache_key]
-
         trace = DataSource.load_collection(collection_id=collection_id, properties=properties)
         self.add_trace(trace)
 
@@ -255,7 +243,6 @@ class DryRunDataTracer:
         if properties:
             cube = cube.filter_properties(properties)
 
-        #self._load_collection_cache[cache_key] = cube
         return cube
 
     def load_disk_data(self, glob_pattern: str, format: str, options: dict) -> 'DryRunDataCube':
