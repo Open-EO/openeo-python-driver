@@ -1006,7 +1006,7 @@ def register_views_batch_jobs(
                         })
 
                 result = dict_no_none(
-                    **{
+                    {
                         "type": "Collection",
                         "stac_version": "1.0.0",
                         "stac_extensions": ["eo", "file"],
