@@ -284,15 +284,17 @@ class BatchJobMetadata(NamedTuple):
     memory_time_megabyte: timedelta = None
     # TODO #153 Deprecated in favor of general "usage" field
     cpu_time: timedelta = None
+    # TODO #190 most fields below are not batch job metadata, but batch job *result* metadata:
+    #      move these to BatchJobResultMetadata for better separation of concerns
     geometry: dict = None
     bbox: List[float] = None
-    # TODO: #153 start_datetime is actually not metadata of batch job itself, but of the result (assets)
+    # TODO: #190 start_datetime is actually not metadata of batch job itself, but of the result (assets)
     start_datetime: datetime = None
-    # TODO: #153 end_datetime is actually not metadata of batch job itself, but of the result (assets)
+    # TODO: #190 end_datetime is actually not metadata of batch job itself, but of the result (assets)
     end_datetime: datetime = None
     instruments: List[str] = None
     epsg: int = None
-    # TODO: openEO API associates `links` with the job *result* metadata, not the job itself
+    # TODO: #190 openEO API associates `links` with the job *result* metadata, not the job itself
     links: List[Dict] = None
     usage: Dict = None
     proj_shape: List[int] = None
