@@ -583,7 +583,7 @@ class DummyProcessing(ConcreteProcessing):
                     yield {"code": "MissingProduct", "message": "Tile 4322 not available"}
 
     def run_udf(self, udf: str, data: openeo.udf.UdfData) -> openeo.udf.UdfData:
-        return openeo.udf.run_udf_code(udf, data)
+        return openeo.udf.run_udf_code(code=udf, data=data)
 
 
 class DummyBatchJobs(BatchJobs):
