@@ -33,6 +33,7 @@ from openeo_driver.backend import (
     BatchJobResultMetadata,
 )
 from openeo_driver.config import OpenEoBackendConfig
+from openeo_driver.constants import STAC_EXTENSION
 from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCube
 from openeo_driver.datastructs import StacAsset
 from openeo_driver.delayed_vector import DelayedVector
@@ -676,7 +677,7 @@ class DummyBatchJobs(BatchJobs):
                 "asset": False,
                 "stac_version": "1.0.0",
                 "stac_extensions": [
-                    "https://stac-extensions.github.io/ml-model/v1.0.0/schema.json"
+                    STAC_EXTENSION.MLMODEL,
                 ],
                 "type": "Feature",
                 "id": generate_unique_id(prefix="ml"),

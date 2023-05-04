@@ -21,6 +21,7 @@ from openeo.util import dict_no_none, deep_get, Rfc3339
 from openeo_driver import urlsigning
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
     ErrorSummary, OpenEoBackendImplementation, BatchJobs, is_not_implemented
+from openeo_driver.constants import STAC_EXTENSION
 from openeo_driver.datacube import DriverMlModel
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
     FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, ProcessUnsupportedException, \
@@ -366,7 +367,7 @@ def register_views_general(
 
         capabilities = {
             "stac_extensions": [
-                "https://stac-extensions.github.io/processing/v1.0.0/schema.json",
+                STAC_EXTENSION.PROCESSING,
             ],
             "version": api_version,  # Deprecated pre-0.4.0 API version field
             "api_version": api_version,  # API version field since 0.4.0
@@ -1009,7 +1010,10 @@ def register_views_batch_jobs(
                     {
                         "type": "Collection",
                         "stac_version": "1.0.0",
-                        "stac_extensions": ["eo", "file"],
+                        "stac_extensions": [
+                            STAC_EXTENSION.EO,
+                            STAC_EXTENSION.FILEINFO,
+                        ],
                         "id": job_id,
                         "title": job_info.title,
                         "description": job_info.description or f"Results for batch job {job_id}",
@@ -1056,18 +1060,18 @@ def register_views_batch_jobs(
                     result["bbox"] = job_info.bbox
 
                 result["stac_extensions"] = [
-                    "processing",
-                    "card4l-eo",
-                    "https://stac-extensions.github.io/file/v1.0.0/schema.json",
+                    STAC_EXTENSION.PROCESSING,
+                    "card4l-eo",  # TODO: full stac-extension URL?
+                    STAC_EXTENSION.FILEINFO,
                 ]
 
                 if any("eo:bands" in asset_object for asset_object in result["assets"].values()):
-                    result["stac_extensions"].append("eo")
+                    result["stac_extensions"].append(STAC_EXTENSION.EO)
 
                 if any(key.startswith("proj:") for key in result["properties"]) or any(
                     key.startswith("proj:") for key in result["assets"]
                 ):
-                    result["stac_extensions"].append("projection")
+                    result["stac_extensions"].append(STAC_EXTENSION.PROJECTION)
         else:
             # TODO #47 drop pre-1.0.0 API support
             result = {
@@ -1178,7 +1182,10 @@ def register_views_batch_jobs(
         stac_item = {
             "type": "Feature",
             "stac_version": "0.9.0",
-            "stac_extensions": ["eo", "file"],
+            "stac_extensions": [
+                STAC_EXTENSION.EO,
+                STAC_EXTENSION.FILEINFO,
+            ],
             "id": item_id,
             "geometry": geometry,
             "bbox": bbox,
@@ -1606,11 +1613,14 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
 
     # Make sure some required fields are set.
     metadata.setdefault("stac_version", "0.9.0" if api_version.at_least("1.0.0") else "0.6.2")
-    metadata.setdefault("stac_extensions", [
-        # TODO: enable these extensions only when necessary?
-        "datacube",
-        "https://stac-extensions.github.io/eo/v1.0.0/schema.json",
-    ])
+    metadata.setdefault(
+        "stac_extensions",
+        [
+            # TODO: enable these extensions only when necessary?
+            STAC_EXTENSION.DATACUBE,
+            STAC_EXTENSION.EO,
+        ],
+    )
     metadata.setdefault("links", [])
     metadata.setdefault("description", collection_id)
     metadata.setdefault("license", "proprietary")

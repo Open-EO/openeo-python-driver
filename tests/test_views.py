@@ -742,28 +742,34 @@ class TestCollections:
 
     def test_normalize_collection_metadata_minimal_040(self, caplog):
         assert _normalize_collection_metadata({"id": "foobar"}, api_version=ComparableVersion("0.4.2")) == {
-            'id': 'foobar',
-            'stac_version': '0.6.2',
-            'stac_extensions': ['datacube', "https://stac-extensions.github.io/eo/v1.0.0/schema.json"],
-            'description': 'foobar',
-            'extent': {'spatial': [0, 0, 0, 0], 'temporal': [None, None]},
-            'license': 'proprietary',
-            'links': [],
+            "id": "foobar",
+            "stac_version": "0.6.2",
+            "stac_extensions": [
+                "https://stac-extensions.github.io/datacube/v2.2.0/schema.json",
+                "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+            ],
+            "description": "foobar",
+            "extent": {"spatial": [0, 0, 0, 0], "temporal": [None, None]},
+            "license": "proprietary",
+            "links": [],
         }
         warnings = set(r.getMessage() for r in caplog.records if r.levelno == logging.WARN)
         assert warnings == {"Collection 'foobar' metadata does not have field 'extent'."}
 
     def test_normalize_collection_metadata_minimal_full_040(self, caplog):
         assert _normalize_collection_metadata({"id": "foobar"}, api_version=ComparableVersion("0.4.2"), full=True) == {
-            'id': 'foobar',
-            'stac_version': '0.6.2',
-            'stac_extensions': ['datacube', "https://stac-extensions.github.io/eo/v1.0.0/schema.json"],
-            'description': 'foobar',
-            'extent': {'spatial': [0, 0, 0, 0], 'temporal': [None, None]},
-            'license': 'proprietary',
-            'properties': {},
-            'other_properties': {},
-            'links': [],
+            "id": "foobar",
+            "stac_version": "0.6.2",
+            "stac_extensions": [
+                "https://stac-extensions.github.io/datacube/v2.2.0/schema.json",
+                "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+            ],
+            "description": "foobar",
+            "extent": {"spatial": [0, 0, 0, 0], "temporal": [None, None]},
+            "license": "proprietary",
+            "properties": {},
+            "other_properties": {},
+            "links": [],
         }
         warnings = set(r.getMessage() for r in caplog.records if r.levelno == logging.WARN)
         assert warnings == {
@@ -774,28 +780,34 @@ class TestCollections:
 
     def test_normalize_collection_metadata_minimal_100(self, caplog):
         assert _normalize_collection_metadata({"id": "foobar"}, api_version=ComparableVersion("1.0.0")) == {
-            'id': 'foobar',
-            'stac_version': '0.9.0',
-            'stac_extensions': ['datacube', "https://stac-extensions.github.io/eo/v1.0.0/schema.json"],
-            'description': 'foobar',
-            'extent': {'spatial': {'bbox': [[0, 0, 0, 0]]}, 'temporal': {'interval': [[None, None]]}},
-            'license': 'proprietary',
-            'links': [],
+            "id": "foobar",
+            "stac_version": "0.9.0",
+            "stac_extensions": [
+                "https://stac-extensions.github.io/datacube/v2.2.0/schema.json",
+                "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+            ],
+            "description": "foobar",
+            "extent": {"spatial": {"bbox": [[0, 0, 0, 0]]}, "temporal": {"interval": [[None, None]]}},
+            "license": "proprietary",
+            "links": [],
         }
         warnings = set(r.getMessage() for r in caplog.records if r.levelno == logging.WARN)
         assert warnings == {"Collection 'foobar' metadata does not have field 'extent'."}
 
     def test_normalize_collection_metadata_minimal_full_100(self, caplog):
         assert _normalize_collection_metadata({"id": "foobar"}, api_version=ComparableVersion("1.0.0"), full=True) == {
-            'id': 'foobar',
-            'stac_version': '0.9.0',
-            'stac_extensions': ['datacube', "https://stac-extensions.github.io/eo/v1.0.0/schema.json"],
-            'description': 'foobar',
-            'extent': {'spatial': {'bbox': [[0, 0, 0, 0]]}, 'temporal': {'interval': [[None, None]]}},
-            'license': 'proprietary',
-            'cube:dimensions': {},
-            'summaries': {},
-            'links': [],
+            "id": "foobar",
+            "stac_version": "0.9.0",
+            "stac_extensions": [
+                "https://stac-extensions.github.io/datacube/v2.2.0/schema.json",
+                "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+            ],
+            "description": "foobar",
+            "extent": {"spatial": {"bbox": [[0, 0, 0, 0]]}, "temporal": {"interval": [[None, None]]}},
+            "license": "proprietary",
+            "cube:dimensions": {},
+            "summaries": {},
+            "links": [],
         }
         warnings = set(r.getMessage() for r in caplog.records if r.levelno == logging.WARN)
         assert warnings == {
@@ -818,13 +830,16 @@ class TestCollections:
             },
         }
         assert _normalize_collection_metadata(metadata, api_version=ComparableVersion("1.0.0"), full=True) == {
-            'id': 'foobar',
-            'stac_version': '0.9.0',
-            'stac_extensions': ['datacube', "https://stac-extensions.github.io/eo/v1.0.0/schema.json"],
-            'description': 'foobar',
-            'extent': {
-                'spatial': {'bbox': [[-180, -56, 180, 83]]},
-                'temporal': {'interval': [["2015-07-06T00:00:00Z", None]]}
+            "id": "foobar",
+            "stac_version": "0.9.0",
+            "stac_extensions": [
+                "https://stac-extensions.github.io/datacube/v2.2.0/schema.json",
+                "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+            ],
+            "description": "foobar",
+            "extent": {
+                "spatial": {"bbox": [[-180, -56, 180, 83]]},
+                "temporal": {"interval": [["2015-07-06T00:00:00Z", None]]},
             },
             'license': 'proprietary',
             "cube:dimensions": {
@@ -1254,12 +1269,14 @@ class TestBatchJobs:
                     'processing:facility': 'VITO - SPARK',
                     'processing:software': 'openeo-geotrellis-0.0.1'
                 },
-                'stac_extensions': ['processing',
-                                    'card4l-eo',
-                                    'https://stac-extensions.github.io/file/v1.0.0/schema.json',
-                                    'eo'],
-                 'stac_version': '0.9.0',
-                 'type': 'Feature'
+                "stac_extensions": [
+                    "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
+                    "card4l-eo",
+                    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+                    "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+                ],
+                "stac_version": "0.9.0",
+                "type": "Feature",
             }
 
             resp = api100.get('/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results', headers=self.AUTH_HEADER)
@@ -1323,11 +1340,11 @@ class TestBatchJobs:
                     "processing:software": "openeo-geotrellis-0.0.1",
                 },
                 "stac_extensions": [
-                    "processing",
+                    "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
                     "card4l-eo",
-                    "https://stac-extensions.github.io/file/v1.0.0/schema.json",
-                    "eo",
-                    "projection",
+                    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+                    "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+                    "https://stac-extensions.github.io/projection/v1.1.0/schema.json",
                 ],
                 "stac_version": "0.9.0",
                 "type": "Feature",
@@ -1411,12 +1428,14 @@ class TestBatchJobs:
                     'processing:facility': 'VITO - SPARK',
                     'processing:software': 'openeo-geotrellis-0.0.1'
                 },
-                'stac_extensions': ['processing',
-                                    'card4l-eo',
-                                    'https://stac-extensions.github.io/file/v1.0.0/schema.json',
-                                    'eo'],
-                'stac_version': '0.9.0',
-                'type': 'Feature'
+                "stac_extensions": [
+                    "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
+                    "card4l-eo",
+                    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+                    "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+                ],
+                "stac_version": "0.9.0",
+                "type": "Feature",
             }
 
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
@@ -1474,12 +1493,14 @@ class TestBatchJobs:
                     'processing:facility': 'VITO - SPARK',
                     'processing:software': 'openeo-geotrellis-0.0.1'
                 },
-                'stac_extensions': ['processing',
-                                    'card4l-eo',
-                                    'https://stac-extensions.github.io/file/v1.0.0/schema.json',
-                                    'eo'],
-                'stac_version': '0.9.0',
-                'type': 'Feature'
+                "stac_extensions": [
+                    "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
+                    "card4l-eo",
+                    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+                    "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+                ],
+                "stac_version": "0.9.0",
+                "type": "Feature",
             }
 
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
@@ -1490,20 +1511,20 @@ class TestBatchJobs:
                 job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
             resp = api110.get('/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results', headers=self.AUTH_HEADER)
             assert resp.assert_status_code(200).json == {
-                'type': 'Collection',
-                'stac_version': '1.0.0',
-                'stac_extensions': ['eo', 'file', 'https://stac-extensions.github.io/ml-model/v1.0.0/schema.json'],
-                'id': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
-                'title': 'Your title here.',
-                'description': 'Your description here.',
-                'license': 'proprietary',
-                'extent': {
-                    'spatial': {
-                        'bbox': [[-180, -90, 180, 90]]
-                    },
-                    'temporal': {
-                        'interval': [['1981-04-24T03:00:00Z', '1981-04-24T03:00:00Z']]
-                    }
+                "type": "Collection",
+                "stac_version": "1.0.0",
+                "stac_extensions": [
+                    "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+                    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+                    "https://stac-extensions.github.io/ml-model/v1.0.0/schema.json",
+                ],
+                "id": "53c71345-09b4-46b4-b6b0-03fd6fe1f199",
+                "title": "Your title here.",
+                "description": "Your description here.",
+                "license": "proprietary",
+                "extent": {
+                    "spatial": {"bbox": [[-180, -90, 180, 90]]},
+                    "temporal": {"interval": [["1981-04-24T03:00:00Z", "1981-04-24T03:00:00Z"]]},
                 },
                 "bbox": [-180, -90, 180, 90],
                 "epsg": 4326,
@@ -1701,7 +1722,10 @@ class TestBatchJobs:
         assert resp.assert_status_code(200).json == {
             "type": "Feature",
             "stac_version": "0.9.0",
-            "stac_extensions": ["eo", "file"],
+            "stac_extensions": [
+                "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+                "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+            ],
             "id": "output.tiff",
             "geometry": None,
             "bbox": None,
