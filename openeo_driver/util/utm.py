@@ -43,9 +43,8 @@ def auto_utm_epsg_for_geometry(geometry: BaseGeometry, crs: str = "EPSG:4326") -
     # If needed, convert it to lon/lat (WGS84)
     crs_wgs = 'epsg:4326'
     if crs.lower() != crs_wgs:
-        x, y = pyproj.transform(pyproj.Proj(crs),
-                                pyproj.Proj(crs_wgs),
-                                x, y, always_xy=True)
+        transformer = pyproj.Transformer.from_crs(crs, crs_wgs, always_xy=True)
+        x, y = transformer.transform(x, y)
 
     # And derive the EPSG code
     return auto_utm_epsg(x, y)
@@ -67,7 +66,8 @@ def geometry_to_crs(geometry: BaseGeometry, crs_from, crs_to):
     proj_to = pyproj.Proj(crs_to)
 
     def project(x, y, z=0):
-        return pyproj.transform(proj_from, proj_to, x, y, always_xy=True)
+        transformer = pyproj.Transformer.from_crs(crs_from, crs_to, always_xy=True)
+        return transformer.transform(x, y)
 
     # And apply to all coordinates in the geometry
     return shapely.ops.transform(project, geometry)
