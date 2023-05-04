@@ -1061,7 +1061,7 @@ def register_views_batch_jobs(
 
                 result["stac_extensions"] = [
                     STAC_EXTENSION.PROCESSING,
-                    "card4l-eo",  # TODO: full stac-extension URL?
+                    STAC_EXTENSION.CARD4LOPTICAL,
                     STAC_EXTENSION.FILEINFO,
                 ]
 

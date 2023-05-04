@@ -1271,7 +1271,7 @@ class TestBatchJobs:
                 },
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
-                    "card4l-eo",
+                    "https://stac-extensions.github.io/card4l/v0.1.0/optical/schema.json",
                     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
                     "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                 ],
@@ -1341,7 +1341,7 @@ class TestBatchJobs:
                 },
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
-                    "card4l-eo",
+                    "https://stac-extensions.github.io/card4l/v0.1.0/optical/schema.json",
                     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
                     "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                     "https://stac-extensions.github.io/projection/v1.1.0/schema.json",
@@ -1430,7 +1430,7 @@ class TestBatchJobs:
                 },
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
-                    "card4l-eo",
+                    "https://stac-extensions.github.io/card4l/v0.1.0/optical/schema.json",
                     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
                     "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                 ],
@@ -1495,7 +1495,7 @@ class TestBatchJobs:
                 },
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
-                    "card4l-eo",
+                    "https://stac-extensions.github.io/card4l/v0.1.0/optical/schema.json",
                     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
                     "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                 ],
