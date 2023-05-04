@@ -4,23 +4,20 @@ import json
 import logging
 import os
 import pprint
+import shlex
 import time
-from decimal import Decimal
 import typing
-from typing import Dict, List, NamedTuple, Optional, Union, Any
+from decimal import Decimal
+from typing import Any, Dict, List, NamedTuple, Optional, Union
 
 import requests
-from openeo.rest.auth.oidc import (
-    OidcClientCredentialsAuthenticator,
-    OidcClientInfo,
-    OidcProviderInfo,
-)
+from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcClientInfo, OidcProviderInfo
 from openeo.rest.connection import url_join
-from openeo.util import TimingLogger, rfc3339, repr_truncate
+from openeo.util import TimingLogger, repr_truncate, rfc3339
 
 import openeo_driver._version
 from openeo_driver.datastructs import secretive_repr
-from openeo_driver.errors import JobNotFoundException, InternalException
+from openeo_driver.errors import InternalException, JobNotFoundException
 from openeo_driver.util.caching import TtlCache
 from openeo_driver.util.logging import just_log_exceptions
 from openeo_driver.utils import generate_unique_id
@@ -221,11 +218,11 @@ class ElasticJobRegistry(JobRegistryInterface):
         self,
         api_url: str,
         backend_id: Optional[str] = None,
+        *,
         session: Optional[requests.Session] = None,
+        _debug_show_curl: bool = False,
     ):
-        self.logger.info(
-            f"Creating ElasticJobRegistry with {backend_id=} and {api_url=}"
-        )
+        self.logger.info(f"Creating ElasticJobRegistry with {backend_id=} and {api_url=}")
         self._backend_id: Optional[str] = backend_id
         self._api_url = api_url
         self._authenticator: Optional[OidcClientCredentialsAuthenticator] = None
@@ -236,6 +233,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         if self._backend_id:
             user_agent += f"/{self._backend_id}"
         self._session.headers["User-Agent"] = user_agent
+        self._debug_show_curl = _debug_show_curl
 
     @property
     def backend_id(self) -> str:
@@ -300,6 +298,10 @@ class ElasticJobRegistry(JobRegistryInterface):
                 f"Doing EJR request `{method} {url}` {headers.keys()=}",
                 extra=logging_extra,
             )
+            if self._debug_show_curl:
+                curl_command = self._as_curl(method=method, url=url, data=json, headers=headers)
+                self.logger.debug(f"Equivalent curl command: {curl_command}")
+
             response = self._session.request(
                 method=method,
                 url=url,
@@ -316,6 +318,15 @@ class ElasticJobRegistry(JobRegistryInterface):
             else:
                 response.raise_for_status()
             return response.json()
+
+    def _as_curl(self, method: str, url: str, data: dict, headers: dict):
+        cmd = ["curl", "-i", "-X", method.upper()]
+        cmd += ["-H", "Content-Type: application/json"]
+        for k, v in headers.items():
+            cmd += ["-H", f"{k}: {v}"]
+        cmd += ["--data", json.dumps(data, separators=(",", ":"))]
+        cmd += [url]
+        return " ".join(shlex.quote(c) for c in cmd)
 
     def health_check(self, use_auth: bool = True, log: bool = True) -> dict:
         response = self._do_request("GET", "/health", use_auth=use_auth)
@@ -532,6 +543,7 @@ class CliApp:
         cli = argparse.ArgumentParser()
 
         cli.add_argument("-v", "--verbose", action="count", default=0)
+        cli.add_argument("--show-curl", action="store_true")
 
         # Sub-commands
         subparsers = cli.add_subparsers(required=True)
@@ -542,14 +554,13 @@ class CliApp:
         )
         health_check.set_defaults(func=self.health_check)
 
-        cli_list_user = subparsers.add_parser(
-            "list-user", help="List jobs for given user."
-        )
+        cli_list_user = subparsers.add_parser("list-user", help="List jobs for given user.")
         cli_list_user.add_argument("user_id", help="User id to filter on.")
         cli_list_user.set_defaults(func=self.list_user_jobs)
 
         cli_create = subparsers.add_parser("create", help="Create a new job.")
-        cli_create.add_argument("user_id", help="User id to filter on.")
+        cli_create.add_argument("user_id", help="User id.")
+        cli_create.add_argument("--process-graph", help="JSON representation of process graph")
         cli_create.set_defaults(func=self.create_dummy_job)
 
         cli_set_status = subparsers.add_parser("set_status", help="Set status of a job")
@@ -570,12 +581,14 @@ class CliApp:
         return cli.parse_args()
 
     def _get_job_registry(
-        self, backend_id: Optional[str] = None, setup_auth=True
+        self, backend_id: Optional[str] = None, setup_auth=True, cli_args: Optional[argparse.Namespace] = None
     ) -> ElasticJobRegistry:
-        api_url = self.environ.get(
-            "OPENEO_EJR_API", "https://jobregistry.openeo.vito.be"
+        api_url = self.environ.get("OPENEO_EJR_API", "https://jobregistry.openeo.vito.be")
+        ejr = ElasticJobRegistry(
+            api_url=api_url,
+            backend_id=backend_id or "test_cli",
+            _debug_show_curl=cli_args.show_curl if cli_args else False,
         )
-        ejr = ElasticJobRegistry(api_url=api_url, backend_id=backend_id or "test_cli")
 
         if setup_auth:
             _log.info("Trying to get EJR credentials from Vault")
@@ -605,28 +618,24 @@ class CliApp:
                     " through environment variable `VAULT_TOKEN`"
                     " or local file `~/.vault-token` (e.g. created with `vault login -method=ldap username=john`)."
                 )
-            credentials = ElasticJobRegistryCredentials.get(
-                config=secret["data"]["data"]
-            )
+            credentials = ElasticJobRegistryCredentials.get(config=secret["data"]["data"])
             ejr.setup_auth_oidc_client_credentials(credentials=credentials)
         return ejr
 
     def health_check(self, args: argparse.Namespace):
-        ejr = self._get_job_registry(setup_auth=args.do_auth)
+        ejr = self._get_job_registry(setup_auth=args.do_auth, cli_args=args)
         print(ejr.health_check(use_auth=args.do_auth))
 
     def list_user_jobs(self, args: argparse.Namespace):
         user_id = args.user_id
-        ejr = self._get_job_registry()
+        ejr = self._get_job_registry(cli_args=args)
         # TODO: option to return more fields?
-        jobs = ejr.list_user_jobs(
-            user_id=user_id, fields=["started", "finished", "title"]
-        )
+        jobs = ejr.list_user_jobs(user_id=user_id, fields=["started", "finished", "title"])
         print(f"Found {len(jobs)} jobs for user {user_id!r}:")
         pprint.pp(jobs)
 
     def list_active_jobs(self, args: argparse.Namespace):
-        ejr = self._get_job_registry(backend_id=args.backend_id)
+        ejr = self._get_job_registry(backend_id=args.backend_id, cli_args=args)
         # TODO: option to return more fields?
         jobs = ejr.list_active_jobs()
         print(f"Found {len(jobs)} active jobs (backend {ejr.backend_id!r}):")
@@ -634,29 +643,35 @@ class CliApp:
 
     def create_dummy_job(self, args: argparse.Namespace):
         user_id = args.user_id
-        ejr = self._get_job_registry()
-        process = {
-            "summary": "calculate 3+5, please",
-            "process_graph": {
-                "add": {
-                    "process_id": "add",
-                    "arguments": {"x": 3, "y": 5},
-                    "result": True,
+        ejr = self._get_job_registry(cli_args=args)
+        if args.process_graph:
+            process = json.loads(args.process_graph)
+            if "process_graph" not in process:
+                process = {"process_graph": process}
+        else:
+            # Default process graph
+            process = {
+                "summary": "calculate 3+5, please",
+                "process_graph": {
+                    "add": {
+                        "process_id": "add",
+                        "arguments": {"x": 3, "y": 5},
+                        "result": True,
+                    },
                 },
-            },
-        }
+            }
         result = ejr.create_job(process=process, user_id=user_id)
         print("Created job:")
         pprint.pprint(result)
 
     def get_job(self, args: argparse.Namespace):
         job_id = args.job_id
-        ejr = self._get_job_registry()
+        ejr = self._get_job_registry(cli_args=args)
         job = ejr.get_job(job_id=job_id)
         pprint.pprint(job)
 
     def set_status(self, args: argparse.Namespace):
-        ejr = self._get_job_registry()
+        ejr = self._get_job_registry(cli_args=args)
         result = ejr.set_status(job_id=args.job_id, status=args.status)
         pprint.pprint(result)
 
