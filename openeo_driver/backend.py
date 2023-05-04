@@ -279,10 +279,11 @@ class BatchJobMetadata(NamedTuple):
     budget: float = None
     started: datetime = None
     finished: datetime = None
+    # TODO #191 Deprecated in favor of general "usage" field
     duration_: timedelta = None
-    # TODO #153 Deprecated in favor of general "usage" field
+    # TODO #191 Deprecated in favor of general "usage" field
     memory_time_megabyte: timedelta = None
-    # TODO #153 Deprecated in favor of general "usage" field
+    # TODO #191 Deprecated in favor of general "usage" field
     cpu_time: timedelta = None
     # TODO #190 most fields below are not batch job metadata, but batch job *result* metadata:
     #      move these to BatchJobResultMetadata for better separation of concerns
