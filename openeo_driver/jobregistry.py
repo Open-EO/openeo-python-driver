@@ -309,7 +309,7 @@ class ElasticJobRegistry(JobRegistryInterface):
                 headers=headers,
                 timeout=self._REQUEST_TIMEOUT,
             )
-            self.logger.info(
+            self.logger.debug(
                 f"EJR response on `{method} {path}`: {response.status_code!r}",
                 extra=logging_extra,
             )
@@ -471,7 +471,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             "query": query,
             "_source": list(fields),
         }
-        self.logger.info(f"Doing search with query {json.dumps(query)}")
+        self.logger.debug(f"Doing search with query {json.dumps(query)}")
         return self._do_request("POST", "/jobs/search", json=query)
 
     def list_user_jobs(
