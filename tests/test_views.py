@@ -1928,7 +1928,7 @@ def test_credentials_basic_wrong_password(api):
 
 
 def test_credentials_basic(api):
-    headers = {"Authorization": build_basic_http_auth_header(username="john", password="john123")}
+    headers = {"Authorization": build_basic_http_auth_header(username="Alice", password="alice123")}
     response = api.get("/credentials/basic", headers=headers).assert_status_code(200).json
     expected = {"access_token"}
     if api.api_version_compare.below("1.0.0"):

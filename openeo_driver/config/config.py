@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple, Dict
+from typing import Callable, Dict, List, Optional, Tuple
 
 import attrs
 
@@ -28,3 +28,6 @@ class OpenEoBackendConfig:
     # but could also identify a OIDC client authenticated through the client credentials grant.
     # TODO: allow it to be a callable instead of a dictionary?
     oidc_user_map: Dict[Tuple[str, str], dict] = attrs.Factory(dict)
+
+    # TODO #90 #186: eliminate simple password scheme
+    valid_basic_auth: Callable[[str, str], bool] = lambda u, p: p == f"{u}123"

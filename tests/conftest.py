@@ -27,15 +27,13 @@ def pytest_configure(config):
     os.environ["TZ"] = "UTC"
     time.tzset()
 
-
-@pytest.fixture(scope="session")
-def backend_config() -> OpenEoBackendConfig:
-    return openeo_driver.dummy.dummy_config.config
+    # Load dummy OpenEoBackendConfig by default
+    os.environ["OPENEO_BACKEND_CONFIG"] = openeo_driver.dummy.dummy_config.__file__
 
 
 @pytest.fixture(scope="module")
-def backend_implementation(backend_config) -> DummyBackendImplementation:
-    return DummyBackendImplementation(config=backend_config)
+def backend_implementation() -> DummyBackendImplementation:
+    return DummyBackendImplementation()
 
 
 @pytest.fixture

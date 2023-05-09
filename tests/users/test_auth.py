@@ -118,9 +118,16 @@ def test_basic_auth_invalid_password(app):
         assert_invalid_credentials_failure(response)
 
 
-def test_basic_auth_success(app):
+@pytest.mark.parametrize(
+    ["username", "password"],
+    [
+        ("Alice", "alice123"),
+        ("Bob", "BOB!!!"),
+    ],
+)
+def test_basic_auth_success(app, username, password):
     with app.test_client() as client:
-        headers = {"Authorization": build_basic_http_auth_header("testuser", "testuser123")}
+        headers = {"Authorization": build_basic_http_auth_header(username, password)}
         response = client.get("/basic/hello", headers=headers)
         assert response.status_code == 200
         assert response.data == b"hello basic"
@@ -165,13 +172,16 @@ def test_bearer_auth_basic_invalid_token_prefix(app, url):
         assert_invalid_token_failure(response)
 
 
-@pytest.mark.parametrize(["url", "expected_data"], [
-    ("/private/hello", b"hello you"),
-    ("/personal/hello", b"hello testuser"),
-])
+@pytest.mark.parametrize(
+    ["url", "expected_data"],
+    [
+        ("/private/hello", b"hello you"),
+        ("/personal/hello", b"hello Alice"),
+    ],
+)
 def test_bearer_auth_basic_token_success(app, url, expected_data):
     with app.test_client() as client:
-        headers = {"Authorization": build_basic_http_auth_header("testuser", "testuser123")}
+        headers = {"Authorization": build_basic_http_auth_header("Alice", "alice123")}
         resp = client.get("/basic/auth", headers=headers)
         assert resp.status_code == 200
         access_token = resp.json["access_token"]
@@ -372,7 +382,7 @@ def app_with_user_access_validation(oidc_provider) -> Flask:
 ])
 def test_user_access_validation_basic_auth(app_with_user_access_validation, user_id, success, message):
     with app_with_user_access_validation.test_client() as client:
-        headers = {"Authorization": build_basic_http_auth_header(user_id, f"{user_id}123")}
+        headers = {"Authorization": build_basic_http_auth_header(user_id, f"{user_id.upper()}!!!")}
         resp = client.get("/basic/auth", headers=headers)
         assert resp.status_code == 200
         access_token = resp.json["access_token"]

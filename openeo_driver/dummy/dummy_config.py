@@ -56,7 +56,16 @@ oidc_providers = [
 ]
 
 
+def _valid_basic_auth(username: str, password: str) -> bool:
+    # Next generation password scheme!!1!
+    if username[:1].lower() in "aeiou":
+        return password == f"{username.lower()}123"
+    else:
+        return password == f"{username.upper()}!!!"
+
+
 config = OpenEoBackendConfig(
     id="dummy",
     oidc_providers=oidc_providers,
+    valid_basic_auth=_valid_basic_auth,
 )

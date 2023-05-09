@@ -147,13 +147,10 @@ class HttpAuthHandler:
         :returns: (access_token, user_id)
         """
         username, password = self.parse_basic_auth_header(request)
-        password_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
-        _log.info("Handling basic auth for user {u!r} with sha256(pwd)={p})".format(u=username, p=password_hash))
-        # TODO: do real password check
-        # move password checking to backend_implementation?
-        if password != username + '123':
+        _log.info(f"Handling basic auth for user {username!r}")
+        if not get_backend_config().valid_basic_auth(username, password):
             raise CredentialsInvalidException
-        # TODO real resolving of given user name to user_id
+        # TODO real resolving of given user name to user_id?
         user_id = username
         access_token = self.build_basic_access_token(user_id)
         return access_token, user_id
