@@ -59,7 +59,14 @@ def test_load_from_py_file_wrong_type(tmp_path):
         _ = load_from_py_file(path)
 
 
-def test_get_backend_config_lazy_cache(monkeypatch, tmp_path):
+@pytest.fixture
+def final_flush():
+    """Make sure to always flush"""
+    yield
+    get_backend_config.flush()
+
+
+def test_get_backend_config_lazy_cache(monkeypatch, tmp_path, final_flush):
     path = tmp_path / "myconfig.py"
     content = """
         import random
@@ -94,7 +101,7 @@ def test_get_backend_config_lazy_cache(monkeypatch, tmp_path):
         _ = get_backend_config(force_reload=True)
 
 
-def test_get_backend_config_not_found(monkeypatch, tmp_path):
+def test_get_backend_config_not_found(monkeypatch, tmp_path, final_flush):
     monkeypatch.setenv("OPENEO_BACKEND_CONFIG", str(tmp_path / "nonexistent.py"))
     get_backend_config.flush()
     with pytest.raises(FileNotFoundError):
