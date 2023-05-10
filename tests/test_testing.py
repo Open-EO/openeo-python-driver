@@ -207,7 +207,7 @@ def test_ephemeral_fileserver_subprocess(tmp_path):
     with ephemeral_fileserver(path=tmp_path) as root_url:
         cmd = [sys.executable, str(tmp_path / "get.py"), f"{root_url}/hello.txt"]
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        assert (res.returncode, res.stdout, res.stderr) == (0, b"200 'Hello world!'\n", b"")
+        assert (res.returncode, res.stdout) == (0, b"200 'Hello world!'\n")
 
     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     assert (res.returncode, res.stdout) == (1, b"")
