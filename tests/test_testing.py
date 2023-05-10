@@ -1,21 +1,26 @@
 import logging
 import re
+import subprocess
+import sys
+import textwrap
 import urllib.error
 import urllib.request
 
 import flask
 import pytest
+import requests
 
 from openeo_driver.testing import (
-    preprocess_check_and_replace,
-    IgnoreOrder,
     ApiTester,
-    RegexMatcher,
     DictSubSet,
+    IgnoreOrder,
     ListSubSet,
+    RegexMatcher,
+    UrllibMocker,
     approxify,
     caplog_with_custom_formatter,
-    UrllibMocker,
+    ephemeral_fileserver,
+    preprocess_check_and_replace,
 )
 
 
@@ -174,6 +179,52 @@ class TestUrllibMocker:
             data = f.read()
 
         assert data == b"hello world"
+
+
+def test_ephemeral_fileserver(tmp_path):
+    (tmp_path / "hello.txt").write_text("Hello world!")
+
+    with ephemeral_fileserver(path=tmp_path) as root_url:
+        resp = requests.get(f"{root_url}/hello.txt")
+        assert (resp.status_code, resp.text) == (200, "Hello world!")
+
+    with pytest.raises(requests.exceptions.ConnectionError):
+        _ = requests.get(f"{root_url}/hello.txt")
+
+
+def test_ephemeral_fileserver_subprocess(tmp_path):
+    (tmp_path / "hello.txt").write_text("Hello world!")
+    (tmp_path / "get.py").write_text(
+        textwrap.dedent(
+            """
+            import sys
+            import requests
+            resp = requests.get(sys.argv[1])
+            print(f"{resp.status_code} {resp.text!r}")
+          """
+        )
+    )
+    with ephemeral_fileserver(path=tmp_path) as root_url:
+        cmd = [sys.executable, str(tmp_path / "get.py"), f"{root_url}/hello.txt"]
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        assert (res.returncode, res.stdout, res.stderr) == (0, b"200 'Hello world!'\n", b"")
+
+    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    assert (res.returncode, res.stdout) == (1, b"")
+    assert b"requests.exceptions.ConnectionError" in res.stderr
+
+
+def test_ephemeral_fileserver_failure(tmp_path, caplog):
+    caplog.set_level(logging.INFO)
+    (tmp_path / "hello.txt").write_text("Hello world!")
+
+    with pytest.raises(RuntimeError):
+        with ephemeral_fileserver(path=tmp_path) as root_url:
+            resp = requests.get(f"{root_url}/hello.txt")
+            assert (resp.status_code, resp.text) == (200, "Hello world!")
+            raise RuntimeError("Something's up")
+
+    assert "terminated with exitcode" in caplog.text
 
 
 def test_approxify_basic():

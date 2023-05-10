@@ -52,7 +52,7 @@ setup(
         "numpy>=1.22.0",
         "shapely<2.0.0",  # https://github.com/Open-EO/openeo-python-driver/issues/158
         "pandas>=1.4.0",
-        "geopandas>=0.11.0,<0.13",  # 0.11.0 fixes https://github.com/geopandas/geopandas/pull/2243,  '<0.13' constraint is Temporary workaround/attempt for https://github.com/Open-EO/openeo-python-driver/issues/193
+        "geopandas>=0.11.0",  # 0.11.0 fixes https://github.com/geopandas/geopandas/pull/2243
         "xarray>=0.16.2",
         "flask-cors",
         "pyproj>=2.1.0",

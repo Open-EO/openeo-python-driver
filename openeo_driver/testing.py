@@ -3,12 +3,14 @@ Reusable helpers and fixtures for testing
 """
 import base64
 import contextlib
+import http.server
 import json
 import logging
+import multiprocessing
 import re
 import urllib.request
 from pathlib import Path
-from typing import Union, Callable, Pattern, Dict, Tuple, Optional, Any
+from typing import Any, Callable, Dict, Optional, Pattern, Tuple, Union
 from unittest import mock
 
 import pytest
@@ -27,6 +29,8 @@ from openeo_driver.util.geometry import (
     as_geojson_feature_collection,
 )
 from openeo_driver.utils import generate_unique_id
+
+_log = logging.getLogger(__name__)
 
 TEST_USER = "Mr.Test"
 TEST_USER_BEARER_TOKEN = "basic//" + HttpAuthHandler.build_basic_access_token(user_id=TEST_USER)
@@ -554,3 +558,43 @@ def caplog_with_custom_formatter(
     # assuming `format` is now a valid formatter:
     # an object with a method `format(self, record: logging.LogRecord)`
     return mock.patch.object(caplog.handler, "formatter", new=format)
+
+
+@contextlib.contextmanager
+def ephemeral_fileserver(path: Union[Path, str], host: str = "localhost", port: int = 0) -> str:
+    """
+    Context manager to run a short-lived (static) file HTTP server, serving some local test data.
+    This is an alternative to traditional mocking of HTTP requests (e.g. with requests_mock)
+    for situations where that doesn't work (requests are done in a subprocess or at the level of a C-extension/library).
+
+    :param path: root path of the local files to serve
+    :return: root URL of the ephemeral file server (e.g. "http://localhost:21342")
+    """
+
+    def run(queue: multiprocessing.Queue):
+        server = http.server.HTTPServer(
+            server_address=(host, port),
+            RequestHandlerClass=lambda *args, **kwargs: http.server.SimpleHTTPRequestHandler(
+                *args, directory=path, **kwargs
+            ),
+        )
+        url = f"http://{server.server_address[0]}:{server.server_port}"
+        _log.info(f"ephemeral_fileserver: started server at {url=}")
+        queue.put(url)
+        server.serve_forever()
+
+    queue = multiprocessing.Queue()
+    server_process = multiprocessing.Process(target=run, args=(queue,))
+    _log.debug("ephemeral_fileserver: starting server process")
+    server_process.start()
+    _log.info(f"ephemeral_fileserver: started pid={server_process.pid}")
+    url = queue.get(timeout=2)
+    _log.info(f"ephemeral_fileserver: detected {url=}")
+    try:
+        yield url
+    finally:
+        _log.debug(f"ephemeral_fileserver: terminating")
+        server_process.terminate()
+        server_process.join(timeout=2)
+        _log.info(f"ephemeral_fileserver: terminated with exitcode={server_process.exitcode}")
+        server_process.close()

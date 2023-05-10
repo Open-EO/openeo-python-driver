@@ -15,35 +15,31 @@ import numpy as np
 import pytest
 import shapely.geometry
 
-from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube
-from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
+from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import ProcessType
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyVisitor
-from openeo_driver.errors import (
-    ProcessGraphMissingException,
-    ProcessGraphInvalidException,
-)
+from openeo_driver.errors import ProcessGraphInvalidException, ProcessGraphMissingException
+from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
 from openeo_driver.testing import (
-    ApiTester,
-    preprocess_check_and_replace,
     TEST_USER,
     TEST_USER_BEARER_TOKEN,
-    preprocess_regex_check_and_replace,
-    generate_unique_test_process_id,
-    RegexMatcher,
+    ApiTester,
     DictSubSet,
+    RegexMatcher,
+    ephemeral_fileserver,
+    generate_unique_test_process_id,
+    preprocess_check_and_replace,
+    preprocess_regex_check_and_replace,
 )
-from openeo_driver.util.geometry import (
-    as_geojson_feature,
-    as_geojson_feature_collection,
-)
+from openeo_driver.util.geometry import as_geojson_feature, as_geojson_feature_collection
 from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.util.logging import FlaskRequestCorrelationIdLogging
 from openeo_driver.utils import EvalEnv
-from .data import get_path, TEST_DATA_ROOT, load_json
+
+from .data import TEST_DATA_ROOT, get_path, load_json
 
 
 @pytest.fixture(params=["1.0.0"])
@@ -1523,18 +1519,21 @@ class TestVectorCubeLoading:
             "features": expected_features
         })
 
-    def test_geojson_url(self, api, urllib_mock):
-        """Load vector cube from GeoJSON URL"""
-        urllib_mock.get(
-            "https://a.test/features.geojson",
-            data=get_path("geojson/FeatureCollection02.json").read_bytes()
-        )
+    @pytest.fixture(scope="class")
+    def test_data_file_server(self) -> str:
+        """Ephemeral file server of the test data"""
+        with ephemeral_fileserver(path=TEST_DATA_ROOT) as fileserver_root:
+            yield fileserver_root
 
+    def test_geojson_url(self, api, test_data_file_server):
+        """Load vector cube from GeoJSON URL"""
+        url = f"{test_data_file_server}/geojson/FeatureCollection02.json"
         pg = {"lf": {
-            "process_id": "load_uploaded_files",
-            "arguments": {"paths": ["https://a.test/features.geojson"], "format": "GeoJSON"},
-            "result": True,
-        }}
+                "process_id": "load_uploaded_files",
+                "arguments": {"paths": [url], "format": "GeoJSON"},
+                "result": True,
+            }
+        }
         resp = api.check_result(pg)
         assert resp.headers["Content-Type"] == "application/geo+json"
         assert resp.json == DictSubSet({
@@ -1584,11 +1583,9 @@ class TestVectorCubeLoading:
         ("geojson/mol.json", "GeoJSON"),
         ("gpkg/mol.gpkg", "GPKG"),
     ])
-    def test_vector_url(self, api, path, format, urllib_mock):
+    def test_vector_url(self, api, path, format, test_data_file_server):
         """Load vector cube from URL"""
-        path = get_path(path)
-        url = f"https://a.test/{path.name}"
-        urllib_mock.get(url, data=path.read_bytes())
+        url = f"{test_data_file_server}/{path}"
 
         pg = {"lf": {
             "process_id": "load_uploaded_files",
@@ -1619,16 +1616,19 @@ class TestVectorCubeLoading:
                     zip_file.writestr(path.name, path.read_bytes())
             return bytes_io.getvalue()
 
-    def test_shapefile_url(self, api, urllib_mock):
+    def test_shapefile_url(self, api, tmp_path, test_data_file_server):
         """Load vector cube from shapefile (zip) URL"""
-        zip_bytes = self._zip_content(get_path("shapefile").glob("mol.*"))
-        urllib_mock.get(f"https://a.test/geom.shp.zip", data=zip_bytes)
-        pg = {"lf": {
-            "process_id": "load_uploaded_files",
-            "arguments": {"paths": ["https://a.test/geom.shp.zip"], "format": "ESRI Shapefile"},
-            "result": True,
-        }}
-        resp = api.check_result(pg)
+        (tmp_path / "geom.shp.zip").write_bytes(self._zip_content(get_path("shapefile").glob("mol.*")))
+        with ephemeral_fileserver(path=tmp_path) as fileserver_root:
+            url = f"{fileserver_root}/geom.shp.zip"
+            pg = {
+                "lf": {
+                    "process_id": "load_uploaded_files",
+                    "arguments": {"paths": [url], "format": "ESRI Shapefile"},
+                    "result": True,
+                }
+            }
+            resp = api.check_result(pg)
         assert resp.headers["Content-Type"] == "application/geo+json"
         assert resp.json == DictSubSet({
             "type": "FeatureCollection",
