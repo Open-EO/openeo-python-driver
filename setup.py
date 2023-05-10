@@ -28,6 +28,7 @@ tests_require = [
     "netCDF4>=1.5.4",
     "re-assert",
     "pyarrow>=10.0.0",
+    "setuptools>=60.2.0",  # https://github.com/Open-EO/openeo-python-driver/issues/186
 ]
 
 setup(
