@@ -798,7 +798,7 @@ def apply(args: dict, env: EvalEnv) -> DriverDataCube:
         data_cube = extract_arg(args, 'data','apply')
         context = args.get('context',{})
 
-        return data_cube.apply(apply_pg,context)
+        return data_cube.apply(process=apply_pg, context=context)
     else:
         return _evaluate_sub_process_graph(args, 'process', parent_process='apply', env=env)
 

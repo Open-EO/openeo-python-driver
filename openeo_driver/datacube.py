@@ -56,7 +56,7 @@ class DriverDataCube:
     def filter_bands(self, bands) -> 'DriverDataCube':
         self._not_implemented()
 
-    def apply(self, process) -> 'DriverDataCube':
+    def apply(self, process: dict, context: dict) -> "DriverDataCube":
         self._not_implemented()
 
     def apply_kernel(self, kernel: list, factor=1, border=0, replace_invalid=0) -> 'DriverDataCube':
