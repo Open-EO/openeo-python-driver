@@ -1,0 +1,76 @@
+{
+    "id": "to_scl_dilation_mask",
+    "summary": "Create a mask for clouds by dilating Sen2Cor sceneclassification",
+    "description": "Create a mask for clouds by dilating Sen2Cor sceneclassification. This dilation algorithm removes pixels in the neighbourhood of clouds in a fairly aggresive manner, to avoid any type of contamination. Nevertheless, some outliers can sometimes still remain.",
+    "categories": [
+        "cubes",
+        "ard"
+    ],
+    "experimental": true,
+    "parameters": [
+      {
+          "name": "data",
+          "description": "The source data cube containing only the Sentinel-2 SCL band.",
+          "schema": {
+              "subtype": "raster-cube",
+              "type": "object"
+          }
+      },
+      {
+        "name": "erosion_kernel_size",
+        "description": "",
+        "optional": true,
+        "default": 0,
+        "schema": {
+            "type": "number"
+        }
+      },
+      {
+        "name": "mask1_values",
+        "description": "",
+        "optional": true,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      {
+        "name": "mask2_values",
+        "description": "",
+        "optional": true,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      {
+        "name": "kernel1_size",
+        "description": "Size of the first convolution kernel.",
+        "optional": true,
+        "default": 17,
+        "schema": {
+            "type": "number"
+        }
+      },
+      {
+        "name": "kernel2_size",
+        "description": "Size of the second convolution kernel.",
+        "optional": true,
+        "default": 201,
+        "schema": {
+            "type": "number"
+        }
+      }
+    ],
+    "returns": {
+        "description": "SCL dilation mask.",
+        "schema": {
+            "subtype": "raster-cube",
+            "type": "object"
+        }
+    }
+}

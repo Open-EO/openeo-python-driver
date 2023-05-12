@@ -102,6 +102,16 @@ class DriverDataCube:
     def mask_polygon(self, mask: shapely.geometry.MultiPolygon, replacement=None, inside: bool = False) -> 'DriverDataCube':
         self._not_implemented()
 
+    def to_scl_dilation_mask(
+        self,
+        erosion_kernel_size: int,
+        mask1_values: List[int],
+        mask2_values: List[int],
+        kernel1_size: int,
+        kernel2_size: int,
+    ) -> "DriverDataCube":
+        self._not_implemented()
+
     def merge_cubes(self, other: 'DriverDataCube', overlap_resolver) -> 'DriverDataCube':
         self._not_implemented()
 

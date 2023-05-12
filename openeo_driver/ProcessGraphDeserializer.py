@@ -1992,6 +1992,27 @@ def mask_scl_dilation(args: Dict, env: EvalEnv):
     else:
         return cube
 
+
+@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/to_scl_dilation_mask.json"))
+def to_scl_dilation_mask(args: Dict, env: EvalEnv):
+    cube: DriverDataCube = extract_arg(args, "data")
+    if not isinstance(cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data",
+            process="to_scl_dilation_mask",
+            reason=f"Invalid data type {type(cube)!r} expected raster-cube.",
+        )
+    if hasattr(cube, "to_scl_dilation_mask"):
+        erosion_kernel_size = args.get("erosion_kernel_size", 0)
+        mask1_values = args.get("mask1_values", [2, 4, 5, 6, 7])
+        mask2_values = args.get("mask2_values", [3, 8, 9, 10, 11])
+        kernel1_size = args.get("kernel1_size", 17)
+        kernel2_size = args.get("kernel2_size", 201)
+        return cube.to_scl_dilation_mask(erosion_kernel_size, mask1_values, mask2_values, kernel1_size, kernel2_size)
+    else:
+        return cube
+
+
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/mask_l1c.json"))
 def mask_l1c(args: Dict, env: EvalEnv):
     cube: DriverDataCube = extract_arg(args, 'data')
