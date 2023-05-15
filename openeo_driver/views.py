@@ -744,6 +744,9 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
     if job_info.epsg:
         properties["proj:epsg"] = job_info.epsg
 
+    if job_info.proj_bbox:
+        properties["proj:bbox"] = job_info.proj_bbox
+
     if job_info.proj_shape:
         properties["proj:shape"] = job_info.proj_shape
 
@@ -1178,6 +1181,8 @@ def register_views_batch_jobs(
 
         if job_info.proj_shape:
             properties["proj:shape"] = job_info.proj_shape
+        if job_info.proj_bbox:
+            properties["proj:bbox"] = job_info.proj_bbox
 
         stac_item = {
             "type": "Feature",
