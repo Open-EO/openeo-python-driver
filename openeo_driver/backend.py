@@ -298,7 +298,9 @@ class BatchJobMetadata(NamedTuple):
     # TODO: #190 openEO API associates `links` with the job *result* metadata, not the job itself
     links: List[Dict] = None
     usage: Dict = None
+    # TODO #190 the STAC projection extension fields "proj:..." are not batch job metadata, but batch job *result* metadata:
     proj_shape: List[int] = None
+    proj_bbox: List[int] = None
 
     @property
     def duration(self) -> Union[timedelta, None]:
