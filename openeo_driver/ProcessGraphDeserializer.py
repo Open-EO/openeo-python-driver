@@ -416,7 +416,7 @@ def extract_arg_list(args: dict, names: list):
     raise ProcessParameterRequiredException(process='n/a', parameter=str(names))
 
 
-def extract_deep(args: dict, *steps):
+def extract_deep(args: dict, *steps, process_id: str = "n/a"):
     """
     Walk recursively through a dictionary to get to a value.
     Also support trying multiple (legacy/fallback/...) keys at a certain level: specify step as a list of options
@@ -430,7 +430,7 @@ def extract_deep(args: dict, *steps):
                 break
         else:
             # TODO: find out process id for proper error message?
-            raise ProcessParameterInvalidException(process="n/a", parameter=steps[0], reason=step)
+            raise ProcessParameterInvalidException(process=process_id, parameter=steps[0], reason=step)
     return value
 
 
@@ -806,7 +806,7 @@ def apply(args: dict, env: EvalEnv) -> DriverDataCube:
 @process_registry_100.add_function
 def reduce_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
     data_cube: DriverDataCube = extract_arg(args, "data")
-    reduce_pg = extract_deep(args, "reducer", "process_graph")
+    reduce_pg = extract_deep(args, "reducer", "process_graph", process_id="reduce_dimension")
     dimension = extract_arg(args, 'dimension')
     context = args.get("context")
     if not isinstance(data_cube, DriverDataCube):
