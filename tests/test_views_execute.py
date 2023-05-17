@@ -2134,23 +2134,30 @@ def test_execute_no_cube_logic(api100, process_graph, expected):
     assert api100.result(process_graph).assert_status_code(200).json == expected
 
 
-@pytest.mark.parametrize(["process_id", "arguments", "expected"], [
-    ("text_begins", {"data": "FooBar", "pattern": "Foo"}, True),
-    ("text_begins", {"data": "FooBar", "pattern": "Bar"}, False),
-    ("text_begins", {"data": "FooBar", "pattern": "fOo"}, False),
-    ("text_begins", {"data": "FooBar", "pattern": "fOo", "case_sensitive": False}, True),
-    ("text_contains", {"data": "FooBar", "pattern": "oB"}, True),
-    ("text_contains", {"data": "FooBar", "pattern": "ob"}, False),
-    ("text_contains", {"data": "FooBar", "pattern": "ob", "case_sensitive": False}, True),
-    ("text_ends", {"data": "FooBar", "pattern": "Bar"}, True),
-    ("text_ends", {"data": "FooBar", "pattern": "Foo"}, False),
-    ("text_ends", {"data": "FooBar", "pattern": "bar"}, False),
-    ("text_ends", {"data": "FooBar", "pattern": "bar", "case_sensitive": False}, True),
-    ("text_merge", {"data": ["foo", "bar"]}, "foobar"),
-    ("text_merge", {"data": ["foo", "bar"], "separator": "--"}, "foo--bar"),
-    ("text_merge", {"data": [1, 2, 3], "separator": "/"}, "1/2/3"),
-    ("text_merge", {"data": [1, "b"], "separator": 0}, "10b"),
-])
+@pytest.mark.parametrize(
+    ["process_id", "arguments", "expected"],
+    [
+        ("text_begins", {"data": "FooBar", "pattern": "Foo"}, True),
+        ("text_begins", {"data": "FooBar", "pattern": "Bar"}, False),
+        ("text_begins", {"data": "FooBar", "pattern": "fOo"}, False),
+        ("text_begins", {"data": "FooBar", "pattern": "fOo", "case_sensitive": False}, True),
+        ("text_contains", {"data": "FooBar", "pattern": "oB"}, True),
+        ("text_contains", {"data": "FooBar", "pattern": "ob"}, False),
+        ("text_contains", {"data": "FooBar", "pattern": "ob", "case_sensitive": False}, True),
+        ("text_ends", {"data": "FooBar", "pattern": "Bar"}, True),
+        ("text_ends", {"data": "FooBar", "pattern": "Foo"}, False),
+        ("text_ends", {"data": "FooBar", "pattern": "bar"}, False),
+        ("text_ends", {"data": "FooBar", "pattern": "bar", "case_sensitive": False}, True),
+        ("text_merge", {"data": ["foo", "bar"]}, "foobar"),
+        ("text_merge", {"data": ["foo", "bar"], "separator": "--"}, "foo--bar"),
+        ("text_merge", {"data": [1, 2, 3], "separator": "/"}, "1/2/3"),
+        ("text_merge", {"data": [1, "b"], "separator": 0}, "10b"),
+        ("text_concat", {"data": ["foo", "bar"]}, "foobar"),
+        ("text_concat", {"data": ["foo", "bar"], "separator": "--"}, "foo--bar"),
+        ("text_concat", {"data": [1, 2, 3], "separator": "/"}, "1/2/3"),
+        ("text_concat", {"data": [1, "b"], "separator": 0}, "10b"),
+    ],
+)
 def test_text_processes(api100, process_id, arguments, expected):
     # TODO: null propagation (`text_begins(data=null,...) -> null`) can not be tested at the moment
     pg = {"t": {"process_id": process_id, "arguments": arguments, "result":True}}

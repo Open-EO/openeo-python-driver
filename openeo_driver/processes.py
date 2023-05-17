@@ -140,10 +140,10 @@ class ProcessRegistry:
         if function and self._argument_names:
             sig = inspect.signature(function)
             arg_names = [n for n, p in sig.parameters.items() if p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD]
-            if arg_names[:len(self._argument_names)] != self._argument_names:
-                raise ProcessRegistryException("Process {p!r} has invalid argument names: {a}".format(
-                    p=name, a=arg_names
-                ))
+            if arg_names[: len(self._argument_names)] != self._argument_names:
+                raise ProcessRegistryException(
+                    f"Process {name!r} has invalid argument names: {arg_names}. Expected {self._argument_names}"
+                )
 
         self._processes[self._key(name=name, namespace=namespace)] = ProcessData(function=function, spec=spec)
 
