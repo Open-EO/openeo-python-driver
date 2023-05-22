@@ -1388,6 +1388,13 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
                 },
                 'temporal_extent': ('2019-03-01', '2019-04-01')}
         ),
+        (('load_collection', ('S2_FOOBAR', ())),
+         {'bands': ['B04', 'B08'],
+          'spatial_extent': {
+              'crs': 'EPSG:32631', 'east': 642140.0, 'north': 5677450.0, 'south': 5676170.0, 'west': 640860.0,
+          },
+          'temporal_extent': ('2019-03-01', '2019-04-01')}
+         ),
         (
             ('load_collection', ('PROBAV_L3_S10_TOC_NDVI_333M_V2', ())),
             {
@@ -1400,13 +1407,7 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
                                    'south': 5676170.0,
                                    'west': 640860.0},
                 'temporal_extent': ('2019-03-01', '2019-04-01')}),
-        (('load_collection', ('S2_FOOBAR', ())),
-         {'bands': ['B04', 'B08'],
-                'spatial_extent': {
-                    'crs': 'EPSG:32631', 'east': 642140.0, 'north': 5677450.0, 'south': 5676170.0, 'west': 640860.0,
-                },
-                'temporal_extent': ('2019-03-01', '2019-04-01')}
-        )
+        (('load_collection', ('S2_FOOBAR', ())), {'bands': ['B04', 'B08']})
     ]
 
 
@@ -1437,7 +1438,10 @@ def test_CropSAR_aggregate_spatial_constraint(dry_run_env, dry_run_tracer):
 
         assert len(source_constraints) > 0
 
-        for _, constraints in source_constraints:
+        constraints_with_geometry = [c for c in source_constraints if 'aggregate_spatial' in c[1]]
+        assert len(constraints_with_geometry) == 3
+
+        for _, constraints in constraints_with_geometry:
             assert constraints['aggregate_spatial']['geometries'].path == geometry_path
     finally:
         del process_registry_100._processes['test', 'CropSAR']
