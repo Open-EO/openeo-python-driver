@@ -793,14 +793,11 @@ def apply(args: dict, env: EvalEnv) -> DriverDataCube:
     """
     Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
     """
-    if ComparableVersion("1.0.0").or_higher(env["version"]):
-        apply_pg = extract_deep(args, "process", "process_graph")
-        data_cube = extract_arg(args, 'data','apply')
-        context = args.get('context',{})
+    apply_pg = extract_deep(args, "process", "process_graph")
+    data_cube = extract_arg(args, "data", "apply")
+    context = args.get("context", {})
 
-        return data_cube.apply(process=apply_pg, context=context)
-    else:
-        return _evaluate_sub_process_graph(args, 'process', parent_process='apply', env=env)
+    return data_cube.apply(process=apply_pg, context=context)
 
 
 @process_registry_100.add_function
@@ -1151,24 +1148,6 @@ def _get_time_dim_or_default(args, data_cube, process_id =  "aggregate_temporal"
     # do check_dimension here for error handling
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process=process_id)
     return dimension
-
-
-def _evaluate_sub_process_graph(args: dict, name: str, parent_process: str, env: EvalEnv) -> DriverDataCube:
-    """
-    Helper function to unwrap and evaluate a sub-process_graph
-
-    :param args: arguments dictionary
-    :param name: argument name of sub-process_graph
-    :return:
-    """
-    pg = extract_deep(args, name, ["process_graph", "callback"])
-    env = env.push(parameters=args, parent_process=parent_process)
-    return evaluate(pg, env=env, do_dry_run=False)
-
-
-@process_registry_040.add_function
-def aggregate_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
-    return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_polygon', env=env)
 
 
 @process_registry_100.add_function
