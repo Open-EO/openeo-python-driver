@@ -430,7 +430,7 @@ def extract_deep(args: dict, *steps, process_id: str = "n/a"):
                 break
         else:
             # TODO: find out process id for proper error message?
-            raise ProcessParameterInvalidException(process=process_id, parameter=steps[0], reason=step)
+            raise ProcessParameterInvalidException(process=process_id, parameter=steps[0], reason=f"{step=}")
     return value
 
 
