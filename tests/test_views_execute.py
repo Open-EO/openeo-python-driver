@@ -1899,7 +1899,9 @@ def test_udp_apply_neighborhood(api100, udp_registry, set_parameter):
     response = api100.result(pg).assert_status_code(200)
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.apply_neighborhood.call_count == 1
-    dummy.apply_neighborhood.assert_called_with(process=mock.ANY, size=mock.ANY, overlap=mock.ANY, env=mock.ANY)
+    dummy.apply_neighborhood.assert_called_with(
+        process=mock.ANY, size=mock.ANY, overlap=mock.ANY, env=mock.ANY, context=None
+    )
     args, kwargs = dummy.apply_neighborhood.call_args
     assert "runudf1" in kwargs["process"]
     env: EvalEnv = kwargs["env"]

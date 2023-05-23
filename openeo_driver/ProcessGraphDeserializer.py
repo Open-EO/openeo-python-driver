@@ -716,16 +716,16 @@ def vector_buffer(args: Dict, env: EvalEnv) -> dict:
 def apply_neighborhood(args: dict, env: EvalEnv) -> DriverDataCube:
     process = extract_deep(args, "process", "process_graph")
     size = extract_arg(args, 'size')
-    overlap = extract_arg(args, 'overlap')
-    # TODO: pass context?
-    context = args.get('context', {})
-    data_cube = extract_arg(args, 'data')
+    # TODO: overlap is optional
+    overlap = extract_arg(args, "overlap")
+    context = args.get("context")
+    data_cube = extract_arg(args, "data")
     if not isinstance(data_cube, DriverDataCube):
         raise ProcessParameterInvalidException(
             parameter="data", process="apply_neighborhood",
             reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
         )
-    return data_cube.apply_neighborhood(process=process, size=size, overlap=overlap, env=env)
+    return data_cube.apply_neighborhood(process=process, size=size, overlap=overlap, env=env, context=context)
 
 @process
 def apply_dimension(args: Dict, env: EvalEnv) -> DriverDataCube:

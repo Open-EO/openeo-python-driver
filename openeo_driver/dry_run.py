@@ -34,7 +34,7 @@ These source constraints can then be fetched from the EvalEnv at `load_collectio
 """
 import logging
 from enum import Enum
-from typing import List, Union, Tuple, Any
+from typing import List, Union, Tuple, Any, Optional
 
 import numpy
 import shapely.geometry.base
@@ -627,7 +627,9 @@ class DryRunDataCube(DriverDataCube):
         else:
             return self
 
-    def apply_neighborhood(self, process, size: List[dict], overlap: List[dict], env: EvalEnv) -> 'DriverDataCube':
+    def apply_neighborhood(
+        self, process, size: List[dict], overlap: List[dict], env: EvalEnv, context: Optional[dict] = None
+    ) -> "DriverDataCube":
         temporal_size = temporal_overlap = None
         size_dict = {e['dimension']: e for e in size}
         overlap_dict = {e['dimension']: e for e in overlap}
