@@ -63,7 +63,7 @@ class DriverDataCube:
         self._not_implemented()
 
     def apply_neighborhood(
-        self, process: dict, *, size: List[dict], overlap: List[dict], context: Optional[dict] = None, env: EvalEnv
+        self, process: dict, *, size: List[dict], overlap: List[dict], context: Optional[dict], env: EvalEnv
     ) -> "DriverDataCube":
         self._not_implemented()
 
