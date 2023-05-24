@@ -564,7 +564,9 @@ class DryRunDataCube(DriverDataCube):
             metadata=self.metadata
         )
 
-    def reduce_dimension(self, reducer, *, dimension: str, context: Optional[dict], env: EvalEnv) -> "DryRunDataCube":
+    def reduce_dimension(
+        self, reducer, *, dimension: str, context: Optional[dict] = None, env: EvalEnv
+    ) -> "DryRunDataCube":
         dc = self
         if self.metadata.has_temporal_dimension() and self.metadata.temporal_dimension.name == dimension:
             # TODO: reduce is not necessarily global in call cases
@@ -572,7 +574,9 @@ class DryRunDataCube(DriverDataCube):
 
         return dc._process_metadata(self.metadata.reduce_dimension(dimension_name=dimension))
 
-    def chunk_polygon(self, reducer, chunks: MultiPolygon, mask_value: float, env: EvalEnv, context={}) -> 'DryRunDataCube':
+    def chunk_polygon(
+        self, reducer, chunks: MultiPolygon, mask_value: float, env: EvalEnv, context: Optional[dict] = None
+    ) -> "DryRunDataCube":
         # TODO: rename/update `chunk_polygon` to `apply_polygon` (https://github.com/Open-EO/openeo-processes/pull/298)
         polygons: List[Polygon] = chunks.geoms
         # TODO #71 #114 Deprecate/avoid usage of GeometryCollection
@@ -612,7 +616,7 @@ class DryRunDataCube(DriverDataCube):
         return cube._process("apply_kernel", arguments={"kernel": kernel})
 
     def apply_dimension(
-        self, process, *, dimension: str, target_dimension: Optional[str], context: Optional[dict], env: EvalEnv
+        self, process, *, dimension: str, target_dimension: Optional[str], context: Optional[dict] = None, env: EvalEnv
     ) -> "DriverDataCube":
         cube = self
         if self.metadata.has_temporal_dimension() and self.metadata.temporal_dimension.name == dimension:
@@ -624,8 +628,8 @@ class DryRunDataCube(DriverDataCube):
 
         return cube._process("apply_dimension", arguments={"dimension": dimension})
 
-    def apply_tiles_spatiotemporal(self, process, context={}) -> 'DriverDataCube':
-        if (self.metadata.has_temporal_dimension()):
+    def apply_tiles_spatiotemporal(self, process, context: Optional[dict] = None) -> "DriverDataCube":
+        if self.metadata.has_temporal_dimension():
             return self._process("process_type", [ProcessType.GLOBAL_TIME])
         else:
             return self

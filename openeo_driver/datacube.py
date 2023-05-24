@@ -56,14 +56,14 @@ class DriverDataCube:
     def filter_bands(self, bands) -> 'DriverDataCube':
         self._not_implemented()
 
-    def apply(self, process: dict, *, context: Optional[dict], env: EvalEnv) -> "DriverDataCube":
+    def apply(self, process: dict, *, context: Optional[dict] = None, env: EvalEnv) -> "DriverDataCube":
         self._not_implemented()
 
     def apply_kernel(self, kernel: list, factor=1, border=0, replace_invalid=0) -> 'DriverDataCube':
         self._not_implemented()
 
     def apply_neighborhood(
-        self, process: dict, *, size: List[dict], overlap: List[dict], context: Optional[dict], env: EvalEnv
+        self, process: dict, *, size: List[dict], overlap: List[dict], context: Optional[dict] = None, env: EvalEnv
     ) -> "DriverDataCube":
         self._not_implemented()
 
@@ -73,20 +73,22 @@ class DriverDataCube:
         *,
         dimension: str,
         target_dimension: Optional[str],
-        context: Optional[dict],
+        context: Optional[dict] = None,
         env: EvalEnv,
     ) -> "DriverDataCube":
         self._not_implemented()
 
-    def apply_tiles_spatiotemporal(self, process, context={}) -> 'DriverDataCube':
+    def apply_tiles_spatiotemporal(self, process, *, context: Optional[dict] = None) -> "DriverDataCube":
         self._not_implemented()
 
     def reduce_dimension(
-        self, reducer: dict, *, dimension: str, context: Optional[dict], env: EvalEnv
+        self, reducer: dict, *, dimension: str, context: Optional[dict] = None, env: EvalEnv
     ) -> "DriverDataCube":
         self._not_implemented()
 
-    def chunk_polygon(self, reducer, chunks, mask_value: float, env: EvalEnv, context={}) -> 'DriverDataCube':
+    def chunk_polygon(
+        self, reducer, chunks, mask_value: float, env: EvalEnv, context: Optional[dict] = None
+    ) -> "DriverDataCube":
         # TODO: rename/update `chunk_polygon` to `apply_polygon` (https://github.com/Open-EO/openeo-processes/pull/298)
         self._not_implemented()
 
@@ -131,8 +133,9 @@ class DriverDataCube:
     def resample_cube_spatial(self, target: 'DriverDataCube', method: str = 'near') -> 'DriverDataCube':
         self._not_implemented()
 
-    def aggregate_temporal(self, intervals: list, reducer, labels: list = None,
-                           dimension: str = None, context:dict = None) -> 'DriverDataCube':
+    def aggregate_temporal(
+        self, intervals: list, reducer, labels: list = None, dimension: str = None, context: Optional[dict] = None
+    ) -> "DriverDataCube":
         self._not_implemented()
 
     def aggregate_spatial(
