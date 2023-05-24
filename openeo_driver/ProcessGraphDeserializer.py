@@ -743,10 +743,10 @@ def apply_dimension(args: Dict, env: EvalEnv) -> DriverDataCube:
     # do check_dimension here for error handling
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="apply_dimension")
 
-    transformed_collection = data_cube.apply_dimension(process, dimension,target_dimension=target_dimension,context=context)
-    if target_dimension is not None and target_dimension not in transformed_collection.metadata.dimension_names():
-        transformed_collection.rename_dimension(dimension, target_dimension)
-    return transformed_collection
+    cube = data_cube.apply_dimension(process, dimension, target_dimension=target_dimension, context=context)
+    if target_dimension is not None and target_dimension not in cube.metadata.dimension_names():
+        cube = cube.rename_dimension(dimension, target_dimension)
+    return cube
 
 
 @process
