@@ -1739,7 +1739,7 @@ def _evaluate_process_graph_process(
                 args[name] = param["default"]
             else:
                 raise ProcessParameterRequiredException(process=process_id, parameter=name)
-    env = env.push(parameters=args)
+    env = env.push_parameters(args)
     return evaluate(process_graph, env=env, do_dry_run=False)
 
 
