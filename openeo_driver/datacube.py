@@ -56,27 +56,38 @@ class DriverDataCube:
     def filter_bands(self, bands) -> 'DriverDataCube':
         self._not_implemented()
 
-    def apply(self, process: dict, context: dict) -> "DriverDataCube":
+    def apply(self, process: dict, *, context: Optional[dict], env: EvalEnv) -> "DriverDataCube":
         self._not_implemented()
 
     def apply_kernel(self, kernel: list, factor=1, border=0, replace_invalid=0) -> 'DriverDataCube':
         self._not_implemented()
 
     def apply_neighborhood(
-        self, process, size: List[dict], overlap: List[dict], env: EvalEnv, context: Optional[dict] = None
+        self, process: dict, *, size: List[dict], overlap: List[dict], context: Optional[dict] = None, env: EvalEnv
     ) -> "DriverDataCube":
         self._not_implemented()
 
-    def apply_dimension(self, process, dimension: str, target_dimension: str=None, context:dict = None, env: EvalEnv = None) -> 'DriverDataCube':
+    def apply_dimension(
+        self,
+        process: dict,
+        *,
+        dimension: str,
+        target_dimension: Optional[str],
+        context: Optional[dict],
+        env: EvalEnv,
+    ) -> "DriverDataCube":
         self._not_implemented()
 
     def apply_tiles_spatiotemporal(self, process, context={}) -> 'DriverDataCube':
         self._not_implemented()
 
-    def reduce_dimension(self, reducer, dimension: str, context: Any, env: EvalEnv) -> 'DriverDataCube':
+    def reduce_dimension(
+        self, reducer: dict, *, dimension: str, context: Optional[dict], env: EvalEnv
+    ) -> "DriverDataCube":
         self._not_implemented()
 
     def chunk_polygon(self, reducer, chunks, mask_value: float, env: EvalEnv, context={}) -> 'DriverDataCube':
+        # TODO: rename/update `chunk_polygon` to `apply_polygon` (https://github.com/Open-EO/openeo-processes/pull/298)
         self._not_implemented()
 
     def add_dimension(self, name: str, label, type: str = "other") -> 'DriverDataCube':

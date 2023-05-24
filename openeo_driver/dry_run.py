@@ -564,7 +564,7 @@ class DryRunDataCube(DriverDataCube):
             metadata=self.metadata
         )
 
-    def reduce_dimension(self, reducer, dimension: str, context: Any, env: EvalEnv) -> 'DryRunDataCube':
+    def reduce_dimension(self, reducer, *, dimension: str, context: Optional[dict], env: EvalEnv) -> "DryRunDataCube":
         dc = self
         if self.metadata.has_temporal_dimension() and self.metadata.temporal_dimension.name == dimension:
             # TODO: reduce is not necessarily global in call cases
@@ -573,6 +573,7 @@ class DryRunDataCube(DriverDataCube):
         return dc._process_metadata(self.metadata.reduce_dimension(dimension_name=dimension))
 
     def chunk_polygon(self, reducer, chunks: MultiPolygon, mask_value: float, env: EvalEnv, context={}) -> 'DryRunDataCube':
+        # TODO: rename/update `chunk_polygon` to `apply_polygon` (https://github.com/Open-EO/openeo-processes/pull/298)
         polygons: List[Polygon] = chunks.geoms
         # TODO #71 #114 Deprecate/avoid usage of GeometryCollection
         geometries, bbox = self._normalize_geometry(GeometryCollection(polygons))
@@ -610,7 +611,9 @@ class DryRunDataCube(DriverDataCube):
         cube = cube._process("pixel_buffer", arguments={"buffer_size":[x/2.0 for x in kernel.shape]})
         return cube._process("apply_kernel", arguments={"kernel": kernel})
 
-    def apply_dimension(self, process, dimension: str, target_dimension: str = None, context:dict = None, env: EvalEnv=None) -> 'DriverDataCube':
+    def apply_dimension(
+        self, process, *, dimension: str, target_dimension: Optional[str], context: Optional[dict], env: EvalEnv
+    ) -> "DriverDataCube":
         cube = self
         if self.metadata.has_temporal_dimension() and self.metadata.temporal_dimension.name == dimension:
             # TODO: reduce is not necessarily global in call cases
@@ -628,7 +631,7 @@ class DryRunDataCube(DriverDataCube):
             return self
 
     def apply_neighborhood(
-        self, process, size: List[dict], overlap: List[dict], env: EvalEnv, context: Optional[dict] = None
+        self, process, *, size: List[dict], overlap: List[dict], context: Optional[dict] = None, env: EvalEnv
     ) -> "DriverDataCube":
         temporal_size = temporal_overlap = None
         size_dict = {e['dimension']: e for e in size}

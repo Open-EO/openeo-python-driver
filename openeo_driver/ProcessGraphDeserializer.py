@@ -729,11 +729,11 @@ def apply_neighborhood(args: dict, env: EvalEnv) -> DriverDataCube:
 
 @process
 def apply_dimension(args: Dict, env: EvalEnv) -> DriverDataCube:
-    process = extract_deep(args, 'process', "process_graph")
-    dimension = extract_arg(args, 'dimension')
-    target_dimension = args.get('target_dimension',None)
-    data_cube = extract_arg(args, 'data')
-    context = args.get('context',None)
+    data_cube = extract_arg(args, "data")
+    process = extract_deep(args, "process", "process_graph")
+    dimension = extract_arg(args, "dimension")
+    target_dimension = args.get("target_dimension", None)
+    context = args.get("context")
     if not isinstance(data_cube, DriverDataCube):
         raise ProcessParameterInvalidException(
             parameter="data", process="apply_dimension",
@@ -743,7 +743,9 @@ def apply_dimension(args: Dict, env: EvalEnv) -> DriverDataCube:
     # do check_dimension here for error handling
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="apply_dimension")
 
-    cube = data_cube.apply_dimension(process, dimension, target_dimension=target_dimension, context=context)
+    cube = data_cube.apply_dimension(
+        process=process, dimension=dimension, target_dimension=target_dimension, context=context, env=env
+    )
     if target_dimension is not None and target_dimension not in cube.metadata.dimension_names():
         cube = cube.rename_dimension(dimension, target_dimension)
     return cube
@@ -795,9 +797,9 @@ def apply(args: dict, env: EvalEnv) -> DriverDataCube:
     """
     apply_pg = extract_deep(args, "process", "process_graph")
     data_cube = extract_arg(args, "data", "apply")
-    context = args.get("context", {})
+    context = args.get("context")
 
-    return data_cube.apply(process=apply_pg, context=context)
+    return data_cube.apply(process=apply_pg, context=context, env=env)
 
 
 @process_registry_100.add_function
@@ -1739,7 +1741,7 @@ def _evaluate_process_graph_process(
                 args[name] = param["default"]
             else:
                 raise ProcessParameterRequiredException(process=process_id, parameter=name)
-    env = env.push(parameters=args)
+    env = env.push_parameters(args)
     return evaluate(process_graph, env=env, do_dry_run=False)
 
 

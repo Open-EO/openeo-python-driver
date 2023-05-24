@@ -261,8 +261,8 @@ class TestSimpleProcessing:
         processing = SimpleProcessing()
         env = processing.get_basic_env()
         pg = {"add": {"process_id": "add", "arguments": {"x": {"from_parameter": "foo"}, "y": 5}, "result": True}}
-        assert processing.evaluate(pg, env=env.push(parameters={"foo": 3})) == 8
-        assert processing.evaluate(pg, env=env.push(parameters={"foo": 30})) == 35
+        assert processing.evaluate(pg, env=env.push_parameters({"foo": 3})) == 8
+        assert processing.evaluate(pg, env=env.push_parameters({"foo": 30})) == 35
 
         with pytest.raises(ProcessParameterRequiredException):
             processing.evaluate(pg, env=env)

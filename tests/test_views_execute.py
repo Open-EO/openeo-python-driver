@@ -1,4 +1,4 @@
-
+import dataclasses
 import json
 import math
 import re
@@ -6,7 +6,7 @@ import sys
 import textwrap
 from io import BytesIO
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Optional
 from unittest import mock
 from zipfile import ZipFile
 
@@ -456,14 +456,12 @@ def test_apply_dimension_temporal_run_udf(api):
     api.check_result("apply_dimension_temporal_run_udf.json")
     dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
     assert dummy.apply_dimension.call_count == 1
-    args,kwargs = dummy.apply_dimension.call_args
-    if api.api_version_compare.at_least("1.0.0"):
-        callback = args[0]
-        #check if callback is valid
-        DummyVisitor().accept_process_graph(callback)
-        dummy.rename_dimension.assert_called_with('t', 'new_time_dimension')
-        load_parameters = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
-        assert load_parameters.process_types == set([ProcessType.GLOBAL_TIME])
+    callback = dummy.apply_dimension.call_args.kwargs["process"]
+    # check if callback is valid
+    DummyVisitor().accept_process_graph(callback)
+    dummy.rename_dimension.assert_called_with("t", "new_time_dimension")
+    load_parameters = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    assert load_parameters.process_types == set([ProcessType.GLOBAL_TIME])
 
 
 def test_apply_dimension_temporal_run_udf_legacy_client(api):
@@ -1855,6 +1853,7 @@ def test_user_defined_process_required_parameter(api100, udp_registry):
 
 @pytest.mark.parametrize("set_parameter", [False, True])
 def test_udp_udf_reduce_dimension(api100, udp_registry, set_parameter):
+    # TODO: eliminate this test?
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     spec = api100.load_json("udp/udf_reduce_dimension.json")
     udp_registry.save(user_id=TEST_USER, process_id="udf_reduce_dimension", spec=spec)
@@ -1880,6 +1879,217 @@ def test_udp_udf_reduce_dimension(api100, udp_registry, set_parameter):
     assert env.collect_parameters()["udfparam"] == expected_param
 
 
+class TestParameterHandingUdpWithUdf:
+    """
+    Tests for parameter handling with UDP doing a reduce_dimension/apply/apply_dimension/... and a UDF
+    """
+
+    def _build_udp(
+        self,
+        parent: str,
+        *,
+        parent_context: Optional[dict] = None,
+        udf_context: Optional[dict] = None,
+    ) -> dict:
+        """Build UDP as dict"""
+        run_udf_args = {"data": {"from_parameter": "data"}, "udf": "print('hello world')", "runtime": "Python"}
+        if udf_context:
+            run_udf_args["context"] = udf_context
+
+        child = {"process_graph": {"runudf1": {"process_id": "run_udf", "arguments": run_udf_args, "result": True}}}
+
+        parent_args = {
+            "data": {"from_parameter": "data"},
+        }
+        if parent in ["reduce_dimension", "apply_dimension"]:
+            parent_args["dimension"] = "bands"
+        elif parent in ["apply_neighborhood"]:
+            parent_args["size"] = [
+                {"dimension": "x", "value": 128, "unit": "px"},
+                {"dimension": "y", "value": 128, "unit": "px"},
+            ]
+            parent_args["overlap"] = [
+                {"dimension": "x", "value": 16, "unit": "px"},
+                {"dimension": "y", "value": 16, "unit": "px"},
+            ]
+        if parent in ["reduce_dimension"]:
+            parent_args["reducer"] = child
+        elif parent in ["apply", "apply_dimension", "apply_neighborhood"]:
+            parent_args["process"] = child
+        else:
+            raise ValueError(parent)
+        if parent_context:
+            parent_args["context"] = parent_context
+
+        udp = {
+            "id": "parameterized_udf",
+            "parameters": [
+                {"name": "data", "schema": {"type": "object", "subtype": "raster-cube"}},
+                {
+                    "name": "udp_param",
+                    "schema": {"type": "string"},
+                    "optional": True,
+                    "default": "udp_param_default",
+                },
+            ],
+            "returns": {"schema": {"type": "object", "subtype": "raster-cube"}},
+            "process_graph": {
+                "parent1": {
+                    "process_id": parent,
+                    "arguments": parent_args,
+                    "result": True,
+                }
+            },
+        }
+        return udp
+
+    def _build_process_graph(self, udp_param: Optional[str] = None) -> dict:
+        udp_args = {"data": {"from_node": "loadcollection1"}}
+        if udp_param:
+            udp_args["udp_param"] = udp_param
+        pg = {
+            "loadcollection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+            "parameterizedudf1": {
+                "process_id": "parameterized_udf",
+                "namespace": "user",
+                "arguments": udp_args,
+                "result": True,
+            },
+        }
+        return pg
+
+    @dataclasses.dataclass(frozen=True)
+    class _UseCase:
+        parent_context: Optional[dict]
+        udf_context: Optional[dict]
+        set_udp_parameter: bool
+        expected_context: Optional[dict]
+        expected_udp_param: Optional[str]
+
+    _use_cases = [
+        _UseCase(
+            parent_context=None,
+            udf_context={"udf_param": {"from_parameter": "udp_param"}},
+            set_udp_parameter=False,
+            expected_context=None,
+            expected_udp_param="udp_param_default",
+        ),
+        _UseCase(
+            parent_context=None,
+            udf_context={"udf_param": {"from_parameter": "udp_param"}},
+            set_udp_parameter=True,
+            expected_context=None,
+            expected_udp_param="udp_param_123",
+        ),
+        _UseCase(
+            parent_context={"udf_param": {"from_parameter": "udp_param"}},
+            udf_context={"from_parameter": "context"},
+            set_udp_parameter=False,
+            expected_context={"udf_param": "udp_param_default"},
+            expected_udp_param="udp_param_default",
+        ),
+        _UseCase(
+            parent_context={"udf_param": {"from_parameter": "udp_param"}},
+            udf_context={"from_parameter": "context"},
+            set_udp_parameter=True,
+            expected_context={"udf_param": "udp_param_123"},
+            expected_udp_param="udp_param_123",
+        ),
+    ]
+
+    @pytest.mark.parametrize("use_case", _use_cases)
+    def test_reduce_dimension(self, api100, udp_registry, use_case: _UseCase):
+        api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+
+        # Build + register UDP, build process graph and execute.
+        udp = self._build_udp(
+            parent="reduce_dimension", parent_context=use_case.parent_context, udf_context=use_case.udf_context
+        )
+        udp_registry.save(user_id=TEST_USER, process_id="parameterized_udf", spec=udp)
+        pg = self._build_process_graph(udp_param="udp_param_123" if use_case.set_udp_parameter else None)
+        print(f"{udp=})")
+        print(f"{pg=}")
+        _ = api100.result(pg).assert_status_code(200)
+
+        parent_mock: mock.Mock = dummy_backend.get_collection("S2_FOOBAR").reduce_dimension
+        assert parent_mock.mock_calls == [
+            mock.call(reducer=mock.ANY, dimension="bands", context=use_case.expected_context, env=mock.ANY)
+        ]
+        parent_env: EvalEnv = parent_mock.call_args.kwargs["env"]
+        assert parent_env.collect_parameters()["udp_param"] == use_case.expected_udp_param
+
+    @pytest.mark.parametrize("use_case", _use_cases)
+    def test_apply(self, api100, udp_registry, use_case: _UseCase):
+        api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+
+        # Build + register UDP, build process graph and execute.
+        udp = self._build_udp(parent="apply", parent_context=use_case.parent_context, udf_context=use_case.udf_context)
+        udp_registry.save(user_id=TEST_USER, process_id="parameterized_udf", spec=udp)
+        pg = self._build_process_graph(udp_param="udp_param_123" if use_case.set_udp_parameter else None)
+        print(f"{udp=})")
+        print(f"{pg=}")
+        _ = api100.result(pg).assert_status_code(200)
+
+        parent_mock: mock.Mock = dummy_backend.get_collection("S2_FOOBAR").apply
+        assert parent_mock.mock_calls == [mock.call(process=mock.ANY, context=use_case.expected_context, env=mock.ANY)]
+        parent_env: EvalEnv = parent_mock.call_args.kwargs["env"]
+        assert parent_env.collect_parameters()["udp_param"] == use_case.expected_udp_param
+
+    @pytest.mark.parametrize("use_case", _use_cases)
+    def test_apply_dimension(self, api100, udp_registry, use_case: _UseCase):
+        api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+
+        # Build + register UDP, build process graph and execute.
+        udp = self._build_udp(
+            parent="apply_dimension", parent_context=use_case.parent_context, udf_context=use_case.udf_context
+        )
+        udp_registry.save(user_id=TEST_USER, process_id="parameterized_udf", spec=udp)
+        pg = self._build_process_graph(udp_param="udp_param_123" if use_case.set_udp_parameter else None)
+        print(f"{udp=})")
+        print(f"{pg=}")
+        _ = api100.result(pg).assert_status_code(200)
+
+        parent_mock: mock.Mock = dummy_backend.get_collection("S2_FOOBAR").apply_dimension
+        assert parent_mock.mock_calls == [
+            mock.call(
+                process=mock.ANY,
+                dimension="bands",
+                target_dimension=None,
+                context=use_case.expected_context,
+                env=mock.ANY,
+            )
+        ]
+        parent_env: EvalEnv = parent_mock.call_args.kwargs["env"]
+        assert parent_env.collect_parameters()["udp_param"] == use_case.expected_udp_param
+
+    @pytest.mark.parametrize("use_case", _use_cases)
+    def test_apply_neighborhood(self, api100, udp_registry, use_case: _UseCase):
+        api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+
+        # Build + register UDP, build process graph and execute.
+        udp = self._build_udp(
+            parent="apply_neighborhood", parent_context=use_case.parent_context, udf_context=use_case.udf_context
+        )
+        udp_registry.save(user_id=TEST_USER, process_id="parameterized_udf", spec=udp)
+        pg = self._build_process_graph(udp_param="udp_param_123" if use_case.set_udp_parameter else None)
+        print(f"{udp=})")
+        print(f"{pg=}")
+        _ = api100.result(pg).assert_status_code(200)
+
+        parent_mock: mock.Mock = dummy_backend.get_collection("S2_FOOBAR").apply_neighborhood
+        assert parent_mock.mock_calls == [
+            mock.call(
+                process=mock.ANY,
+                size=mock.ANY,
+                overlap=mock.ANY,
+                context=use_case.expected_context,
+                env=mock.ANY,
+            )
+        ]
+        parent_env: EvalEnv = parent_mock.call_args.kwargs["env"]
+        assert parent_env.collect_parameters()["udp_param"] == use_case.expected_udp_param
+
+
 @pytest.mark.parametrize("set_parameter", [False, True])
 def test_udp_apply_neighborhood(api100, udp_registry, set_parameter):
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
@@ -1895,6 +2105,7 @@ def test_udp_apply_neighborhood(api100, udp_registry, set_parameter):
             "process_id": "udf_apply_neighborhood", "namespace": "user", "arguments": udp_args, "result": True
         }
     }
+    expected_param = "test_the_udfparam" if set_parameter else "udfparam_default"
 
     response = api100.result(pg).assert_status_code(200)
     dummy = dummy_backend.get_collection("S2_FOOBAR")
@@ -1905,7 +2116,6 @@ def test_udp_apply_neighborhood(api100, udp_registry, set_parameter):
     args, kwargs = dummy.apply_neighborhood.call_args
     assert "runudf1" in kwargs["process"]
     env: EvalEnv = kwargs["env"]
-    expected_param = "test_the_udfparam" if set_parameter else "udfparam_default"
     assert env.collect_parameters()["udfparam"] == expected_param
 
 

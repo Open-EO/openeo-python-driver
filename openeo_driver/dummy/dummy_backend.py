@@ -191,7 +191,7 @@ class DummyDataCube(DriverDataCube):
             setattr(self, name, Mock(side_effect=getattr(self, name)))
 
     @mock_side_effect
-    def reduce_dimension(self, reducer, dimension: str, context: Any, env: EvalEnv) -> 'DummyDataCube':
+    def reduce_dimension(self, reducer, *, dimension: str, context: Optional[dict], env: EvalEnv) -> "DummyDataCube":
         return DummyDataCube(self.metadata.reduce_dimension(dimension_name=dimension))
 
     @mock_side_effect
