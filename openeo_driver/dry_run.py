@@ -152,6 +152,11 @@ class DataSource(DataTraceBase):
         """Factory for a `load_result` DataSource."""
         return cls(process="load_result", arguments=(job_id,))
 
+    @classmethod
+    def load_stac(cls, url: str) -> 'DataSource':
+        """Factory for a `load_stac` DataSource."""
+        return cls(process="load_stac", arguments=(url,))
+
 
 class DataTrace(DataTraceBase):
     """
@@ -254,6 +259,20 @@ class DryRunDataTracer:
 
     def load_result(self, job_id: str, arguments: dict) -> 'DryRunDataCube':
         trace = DataSource.load_result(job_id=job_id)
+        self.add_trace(trace)
+
+        cube = DryRunDataCube(traces=[trace], data_tracer=self)
+        if "temporal_extent" in arguments:
+            cube = cube.filter_temporal(*arguments["temporal_extent"])
+        if "spatial_extent" in arguments:
+            cube = cube.filter_bbox(**arguments["spatial_extent"])
+        if "bands" in arguments:
+            cube = cube.filter_bands(arguments["bands"])
+
+        return cube
+
+    def load_stac(self, url: str, arguments: dict) -> 'DryRunDataCube':
+        trace = DataSource.load_stac(url=url)
         self.add_trace(trace)
 
         cube = DryRunDataCube(traces=[trace], data_tracer=self)
