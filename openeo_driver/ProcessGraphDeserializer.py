@@ -1533,7 +1533,6 @@ def constant(args: dict, env: EvalEnv):
 
 def apply_process(process_id: str, args: dict, namespace: Union[str, None], env: EvalEnv):
     _log.debug(f"apply_process {process_id} with {args}")
-    parent_process = env.get('parent_process')
     parameters = env.collect_parameters()
 
     if process_id == "mask" and args.get("replacement", None) is None \
@@ -1557,69 +1556,6 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         args = {name: convert_node(expr, env=env) for (name, expr) in sorted(args.items())}
 
     # when all arguments and dependencies are resolved, we can run the process
-    if parent_process == "apply":
-        # TODO EP-3404 this code path is for version <1.0.0, soon to be deprecated
-        image_collection = extract_arg_list(args, ['x', 'data'])
-        if not isinstance(image_collection, DriverDataCube):
-            raise ProcessParameterInvalidException(
-                parameter="[x, data]", process="apply_process",
-                reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
-            )
-        if process_id == "run_udf":
-            udf, runtime = _get_udf(args, env=env)
-            # TODO replace non-standard apply_tiles with standard "reduce_dimension" https://github.com/Open-EO/openeo-python-client/issues/140
-            return image_collection.apply_tiles(udf, {}, runtime)
-        else:
-            # TODO : add support for `apply` with non-trivial child process graphs #EP-3404
-            return image_collection.apply(process_id, args)
-    elif parent_process == 'apply_dimension':
-        # TODO EP-3285 this code path is for version <1.0.0, soon to be deprecated
-        image_collection = extract_arg(args, 'data', process_id=process_id)
-        if not isinstance(image_collection, DriverDataCube):
-            raise ProcessParameterInvalidException(
-                parameter="data", process="apply_process",
-                reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
-            )
-        dimension = parameters.get('dimension', None) # By default, applies the the process on all pixel values (as apply does).
-        target_dimension = parameters.get('target_dimension', None)
-        dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
-        transformed_collection = None
-        if process_id == "run_udf":
-            udf, runtime = _get_udf(args, env=env)
-            context = args.get("context",{})
-            if dimension == temporal_dim:
-                transformed_collection = image_collection.apply_tiles_spatiotemporal(udf,context)
-            else:
-                # TODO replace non-standard apply_tiles with standard "reduce_dimension" https://github.com/Open-EO/openeo-python-client/issues/140
-                transformed_collection = image_collection.apply_tiles(udf,context,runtime)
-        else:
-            transformed_collection = image_collection.apply_dimension(process_id, dimension)
-        if target_dimension is not None:
-            transformed_collection.rename_dimension(dimension, target_dimension)
-        return transformed_collection
-    elif parent_process == 'aggregate_temporal':
-        # TODO EP-3285 this code path is for version <1.0.0, soon to be deprecated
-        image_collection = extract_arg(args, 'data', process_id=process_id)
-        if not isinstance(image_collection, DriverDataCube):
-            raise ProcessParameterInvalidException(
-                parameter="data", process="apply_process",
-                reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
-            )
-        intervals = extract_arg(parameters, 'intervals')
-        labels = extract_arg(parameters, 'labels')
-        dimension = parameters.get('dimension', None)
-        if dimension is not None:
-            dimension, _, _ = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
-        else:
-            #default: there is a single temporal dimension
-            try:
-                dimension = image_collection.metadata.temporal_dimension.name
-            except MetadataException:
-                raise ProcessParameterInvalidException(
-                    parameter="dimension", process=process_id,
-                    reason="No dimension was set, and no temporal dimension could be found. Available dimensions: {n!r}".format( n= image_collection.metadata.dimension_names()))
-        return image_collection.aggregate_temporal(intervals, labels, process_id, dimension)
-
     if namespace and any(namespace.startswith(p) for p in ["http://", "https://"]):
         # TODO: HTTPS only by default and config to also allow HTTP (e.g. for localhost dev and testing)
         # TODO: security aspects: only allow for certain users, only allow whitelisted domains, ...?
