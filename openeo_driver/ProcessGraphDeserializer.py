@@ -354,7 +354,7 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
     if isinstance(processGraph, dict):
         if 'process_id' in processGraph:
             process_id = processGraph['process_id']
-            caching_flag = smart_bool(env.get("node_caching", True)) and process_id != "load_collection"
+            caching_flag = smart_bool(env.get("node_caching", False)) and process_id != "load_collection"
             cached = None
             if caching_flag and "result_cache" in processGraph:
                 cached =  processGraph["result_cache"]
