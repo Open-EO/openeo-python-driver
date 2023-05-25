@@ -1261,17 +1261,62 @@ def test_read_vector_no_load_collection_spatial_extent(api):
             return udf_data
     """,
 ])
-def test_run_udf_on_vector(api100, udf_code):
+def test_run_udf_on_vector_read_vector(api100, udf_code):
     udf_code = textwrap.dedent(udf_code)
     process_graph = {
-        "geojson_file": {
+        "get_vector_data": {
             "process_id": "read_vector",
-            "arguments": {"filename": str(get_path("geojson/GeometryCollection01.json"))},
+            "arguments": {"filename": str(get_path("geojson/FeatureCollection01.json"))},
         },
         "udf": {
             "process_id": "run_udf",
             "arguments": {
-                "data": {"from_node": "geojson_file"},
+                "data": {"from_node": "get_vector_data"},
+                "udf": udf_code,
+                "runtime": "Python",
+            },
+            "result": "true",
+        },
+    }
+    resp = api100.check_result(process_graph)
+    assert resp.json == [
+        {
+            "type": "Polygon",
+            "coordinates": [[[4.47, 51.1], [4.52, 51.1], [4.52, 51.15], [4.47, 51.15], [4.47, 51.1]]],
+        },
+        {
+            "type": "Polygon",
+            "coordinates": [[[4.45, 51.17], [4.5, 51.17], [4.5, 51.2], [4.45, 51.2], [4.45, 51.17]]],
+        },
+    ]
+
+
+@pytest.mark.parametrize(
+    "udf_code",
+    [
+        """
+        from openeo_udf.api.datacube import DataCube  # Old style openeo_udf API
+        def fct_buffer(udf_data: UdfData):
+            return udf_data
+    """,
+        """
+        from openeo.udf import UdfData
+        def fct_buffer(udf_data: UdfData):
+            return udf_data
+    """,
+    ],
+)
+def test_run_udf_on_vector_get_geometries(api100, udf_code):
+    udf_code = textwrap.dedent(udf_code)
+    process_graph = {
+        "get_vector_data": {
+            "process_id": "get_geometries",
+            "arguments": {"filename": str(get_path("geojson/FeatureCollection01.json"))},
+        },
+        "udf": {
+            "process_id": "run_udf",
+            "arguments": {
+                "data": {"from_node": "get_vector_data"},
                 "udf": udf_code,
                 "runtime": "Python",
             },
@@ -1279,9 +1324,53 @@ def test_run_udf_on_vector(api100, udf_code):
         }
     }
     resp = api100.check_result(process_graph)
-    print(resp.json)
-    assert len(resp.json) == 2
-    assert resp.json[0]['type'] == 'Polygon'
+    assert resp.json == [
+        {
+            "type": "Polygon",
+            "coordinates": [[[4.47, 51.1], [4.52, 51.1], [4.52, 51.15], [4.47, 51.15], [4.47, 51.1]]],
+        },
+        {
+            "type": "Polygon",
+            "coordinates": [[[4.45, 51.17], [4.5, 51.17], [4.5, 51.2], [4.45, 51.2], [4.45, 51.17]]],
+        },
+    ]
+
+
+@pytest.mark.parametrize(
+    "udf_code",
+    [
+        """
+        from openeo_udf.api.datacube import DataCube  # Old style openeo_udf API
+        def fct_buffer(udf_data: UdfData):
+            return udf_data
+    """,
+        """
+        from openeo.udf import UdfData
+        def fct_buffer(udf_data: UdfData):
+            return udf_data
+    """,
+    ],
+)
+def test_run_udf_on_vector_load_uploaded_files(api100, udf_code):
+    """https://github.com/Open-EO/openeo-python-driver/issues/197"""
+    udf_code = textwrap.dedent(udf_code)
+    process_graph = {
+        "get_vector_data": {
+            "process_id": "load_uploaded_files",
+            "arguments": {"paths": [str(get_path("geojson/FeatureCollection01.json"))], "format": "GeoJSON"},
+        },
+        "udf": {
+            "process_id": "run_udf",
+            "arguments": {
+                "data": {"from_node": "get_vector_data"},
+                "udf": udf_code,
+                "runtime": "Python",
+            },
+            "result": "true",
+        },
+    }
+    resp = api100.check_result(process_graph)
+    assert resp.json == [None, None]
 
 
 @pytest.mark.parametrize(
