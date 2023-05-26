@@ -615,6 +615,7 @@ def register_views_processing(
             'user': user,
             'require_bounds': True,
             'correlation_id': request_id,
+            'node_caching': False
         })
 
         request_costs = functools.partial(backend_implementation.request_costs,
