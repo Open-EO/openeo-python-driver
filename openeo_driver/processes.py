@@ -352,7 +352,7 @@ class ProcessArgs(dict):
                     kwargs[key] = self[alias]
         return kwargs
 
-    def get_enum(self, name: str, options: typing.Container[str]) -> ArgumentValue:
+    def get_enum(self, name: str, options: typing.Container[ArgumentValue]) -> ArgumentValue:
         """
         Get argument by name and check if it belongs to given set of (enum) values.
 

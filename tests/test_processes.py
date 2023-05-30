@@ -487,6 +487,11 @@ class TestProcessArgs:
     def test_get_enum(self):
         args = ProcessArgs({"size": 5, "color": "red"}, process_id="wibble")
         assert args.get_enum("color", options=["red", "green", "blue"]) == "red"
+        assert args.get_enum("size", options={3, 5, 8}) == 5
+
+        with pytest.raises(ProcessParameterRequiredException, match="Process 'wibble' parameter 'shape' is required."):
+            _ = args.get_enum("shape", options=["circle", "square"])
+
         with pytest.raises(
             ProcessParameterInvalidException,
             match=re.escape(

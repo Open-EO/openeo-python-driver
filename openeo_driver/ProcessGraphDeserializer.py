@@ -421,11 +421,6 @@ def extract_args_subset(args: dict, keys: List[str], aliases: Dict[str, str] = N
     return _as_process_args(args).get_subset(names=keys, aliases=aliases)
 
 
-def extract_arg_enum(args: dict, name: str, enum_values: Union[set, list, tuple], process_id='n/a'):
-    # TODO: eliminate this function, use `ProcessArgs.get_subset()` directly
-    return _as_process_args(args).get_enum(name=name, options=enum_values)
-
-
 def _align_extent(extent,collection_id,env):
     metadata = None
     try:
@@ -1921,11 +1916,10 @@ def array_interpolate_linear(args: Dict, env: EvalEnv) -> str:
     pass
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/date_shift.json"))
-def date_shift(args: Dict, env: EvalEnv) -> str:
-    date = rfc3339.parse_date_or_datetime(extract_arg(args, "date"))
-    value = int(extract_arg(args, "value"))
-    unit_values = {"year", "month", "week", "day", "hour", "minute", "second", "millisecond"}
-    unit = extract_arg_enum(args, "unit", enum_values=unit_values, process_id="date_shift")
+def date_shift(args: ProcessArgs, env: EvalEnv) -> str:
+    date = rfc3339.parse_date_or_datetime(args.get_required("date"))
+    value = int(args.get_required("value"))
+    unit = args.get_enum("unit", options={"year", "month", "week", "day", "hour", "minute", "second", "millisecond"})
     if unit == "millisecond":
         raise FeatureUnsupportedException(message="Millisecond unit is not supported in date_shift")
     shifted = date + relativedelta(**{unit + "s": value})
