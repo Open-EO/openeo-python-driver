@@ -47,7 +47,7 @@ from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint
 from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException, \
     FeatureUnsupportedException, OpenEOApiException, ProcessGraphInvalidException, FileTypeInvalidException, \
     ProcessUnsupportedException, CollectionNotFoundException
-from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE
+from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE, ProcessArgs
 from openeo_driver.save_result import JSONResult, SaveResult, AggregatePolygonResult, NullResult, \
     to_save_result, AggregatePolygonSpatialResult, MlModelResult
 from openeo_driver.specs import SPECS_ROOT, read_spec
@@ -397,70 +397,39 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
     return processGraph
 
 
-def extract_arg(args: dict, name: str, process_id='n/a'):
-    """Get process argument by name."""
-    # TODO: support optional default value for optional parameters?
-    try:
-        return args[name]
-    except KeyError:
-        # TODO: automate argument extraction directly from process spec instead of these exract_* functions?
-        raise ProcessParameterRequiredException(process=process_id, parameter=name)
+def _as_process_args(args: Union[dict, ProcessArgs], process_id: str = "n/a") -> ProcessArgs:
+    """Adapter for legacy style args"""
+    if not isinstance(args, ProcessArgs):
+        args = ProcessArgs(args, process_id=process_id)
+    elif process_id not in {args.process_id, "n/a"}:
+        _log.warning(f"Inconsistent {process_id=} in extract_arg(): expected {args.process_id=}")
+    return args
+
+
+def extract_arg(args: ProcessArgs, name: str, process_id="n/a"):
+    # TODO: eliminate this function, use `ProcessArgs.get_required()` directly
+    return _as_process_args(args, process_id=process_id).get_required(name=name)
 
 
 def extract_arg_list(args: dict, names: list):
-    """Get process argument by list of (legacy/fallback/...) names."""
-    for name in names:
-        if name in args:
-            return args[name]
-    # TODO: find out process id for proper error message?
-    raise ProcessParameterRequiredException(process='n/a', parameter=str(names))
+    # TODO: eliminate this function, use `ProcessArgs.get_aliased()` directly
+    return _as_process_args(args).get_aliased(names)
 
 
-def extract_deep(args: dict, *steps, process_id: str = "n/a"):
-    """
-    Walk recursively through a dictionary to get to a value.
-    Also support trying multiple (legacy/fallback/...) keys at a certain level: specify step as a list of options
-    """
-    value = args
-    for step in steps:
-        keys = [step] if not isinstance(step, list) else step
-        for key in keys:
-            if key in value:
-                value = value[key]
-                break
-        else:
-            # TODO: find out process id for proper error message?
-            raise ProcessParameterInvalidException(process=process_id, parameter=steps[0], reason=f"{step=}")
-    return value
+def extract_deep(args: ProcessArgs, *steps, process_id: str = "n/a"):
+    # TODO: eliminate this function, use `ProcessArgs.get_deep()` directly
+    return _as_process_args(args, process_id=process_id).get_deep(*steps)
 
 
 def extract_args_subset(args: dict, keys: List[str], aliases: Dict[str, str] = None) -> dict:
-    """
-    Extract subset of given keys (where available) from given dictionary,
-    possibly handling legacy aliases
-
-    :param args: dictionary of arguments
-    :param keys: keys to extract
-    :param aliases: mapping of (legacy) alias to target key
-    :return:
-    """
-    kwargs = {k: args[k] for k in keys if k in args}
-    if aliases:
-        for alias, key in aliases.items():
-            if alias in args and key not in kwargs:
-                kwargs[key] = args[alias]
-    return kwargs
+    # TODO: eliminate this function, use `ProcessArgs.get_subset()` directly
+    return _as_process_args(args).get_subset(names=keys, aliases=aliases)
 
 
 def extract_arg_enum(args: dict, name: str, enum_values: Union[set, list, tuple], process_id='n/a'):
-    """Get process argument by name and check if it is proper enum value."""
-    # TODO: support optional default value for optional parameters?
-    value = extract_arg(args=args, name=name, process_id=process_id)
-    if value not in enum_values:
-        raise ProcessParameterInvalidException(
-            parameter=name, process=process_id, reason=f"Invalid enum value {value!r}"
-        )
-    return value
+    # TODO: eliminate this function, use `ProcessArgs.get_subset()` directly
+    return _as_process_args(args).get_enum(name=name, options=enum_values)
+
 
 def _align_extent(extent,collection_id,env):
     metadata = None
@@ -1589,7 +1558,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
 
     process_registry = env.backend_implementation.processing.get_process_registry(api_version=env["version"])
     process_function = process_registry.get_function(process_id, namespace=namespace)
-    return process_function(args=args, env=env)
+    return process_function(args=ProcessArgs(args, process_id=process_id), env=env)
 
 
 @non_standard_process(

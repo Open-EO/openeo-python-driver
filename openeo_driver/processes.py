@@ -1,11 +1,16 @@
 import functools
 import inspect
+import typing
 import warnings
 from collections import namedtuple
 from pathlib import Path
-from typing import Callable, Dict, List, Tuple, Optional
+from typing import Callable, Dict, List, Tuple, Optional, Any, Union
 
-from openeo_driver.errors import ProcessUnsupportedException
+from openeo_driver.errors import (
+    ProcessUnsupportedException,
+    ProcessParameterRequiredException,
+    ProcessParameterInvalidException,
+)
 from openeo_driver.specs import SPECS_ROOT
 from openeo_driver.utils import read_json, EvalEnv
 
@@ -204,16 +209,15 @@ class ProcessRegistry:
             else:
                 defaults[param.name] = param.default
 
-        # TODO: avoid this local import, e.g. by encapsulating all extract_ functions in some kind of ProcessArgs object
-        from openeo_driver.ProcessGraphDeserializer import extract_arg
-
         # TODO: can we generalize this assumption?
         assert self._argument_names == ["args", "env"]
 
         # TODO: option to also pass `env: EvalEnv` to `f`?
-        def wrapped(args: dict, env: EvalEnv):
-            kwargs = {a: extract_arg(args, a, process_id=process_id) for a in required}
-            kwargs.update({a: args.get(a, d) for a, d in defaults.items()})
+        def wrapped(args: Union[dict, ProcessArgs], env: EvalEnv):
+            args = ProcessArgs.cast(args, process_id=process_id)
+            # TODO: optional type checks based on type annotations too?
+            kwargs = {a: args.get_required(name=a) for a in required}
+            kwargs.update({a: args.get_optional(a, default=d) for a, d in defaults.items()})
             return f(**kwargs)
 
         spec = spec or self.load_predefined_spec(process_id)
@@ -258,3 +262,107 @@ class ProcessRegistry:
         if not self.contains(name, namespace) or self._get(name, namespace).function is None:
             raise ProcessUnsupportedException(process=name, namespace=namespace)
         return self._get(name, namespace).function
+
+
+# Type annotation for an argument value
+ArgumentValue = Any
+
+
+class ProcessArgs(dict):
+    """
+    Wrapper for process argument extraction with proper exception throwing.
+
+    Implemented as `dict` subclass to stay backwards compatible,
+    but with additional methods for compact extraction
+    """
+
+    def __init__(self, args: dict, process_id: Optional[str] = None):
+        super().__init__(args)
+        self.process_id = process_id
+
+    @classmethod
+    def cast(cls, args: Union[dict, "ProcessArgs"], process_id: Optional[str] = None):
+        if isinstance(args, ProcessArgs):
+            assert args.process_id == process_id
+        else:
+            args = ProcessArgs(args=args, process_id=process_id)
+        return args
+
+    def get_required(self, name: str) -> ArgumentValue:
+        """
+        Get a required argument by name.
+
+        Originally: `extract_arg`.
+        """
+        try:
+            return self[name]
+        except KeyError:
+            raise ProcessParameterRequiredException(process=self.process_id, parameter=name) from None
+
+    def get_optional(self, name: str, default: Any = None) -> ArgumentValue:
+        """
+        Get an optional argument with default
+        """
+        return self.get(name, default)
+
+    def get_deep(self, *steps: str) -> ArgumentValue:
+        """
+        Walk recursively through a dictionary to get to a value.
+
+        Originally: `extract_deep`
+        """
+        value = self
+        for step in steps:
+            keys = [step] if not isinstance(step, list) else step
+            for key in keys:
+                if key in value:
+                    value = value[key]
+                    break
+            else:
+                raise ProcessParameterInvalidException(process=self.process_id, parameter=steps[0], reason=f"{step=}")
+        return value
+
+    def get_aliased(self, names: List[str]) -> ArgumentValue:
+        """
+        Get argument by list of (legacy/fallback/...) names.
+
+        Originally: `extract_arg_list`.
+        """
+        # TODO: support for default value?
+        for name in names:
+            if name in self:
+                return self[name]
+        raise ProcessParameterRequiredException(process=self.process_id, parameter=str(names))
+
+    def get_subset(self, names: List[str], aliases: Optional[Dict[str, str]] = None) -> Dict[str, ArgumentValue]:
+        """
+        Extract subset of given argument names (where available) from given dictionary,
+        possibly handling legacy aliases
+
+        Originally: `extract_args_subset`
+
+        :param names: keys to extract
+        :param aliases: mapping of (legacy) alias to target key
+        :return:
+        """
+        kwargs = {k: self[k] for k in names if k in self}
+        if aliases:
+            for alias, key in aliases.items():
+                if alias in self and key not in kwargs:
+                    kwargs[key] = self[alias]
+        return kwargs
+
+    def get_enum(self, name: str, options: typing.Container[str]) -> ArgumentValue:
+        """
+        Get argument by name and check if it belongs to given set of (enum) values.
+
+        Originally: `extract_arg_enum`
+        """
+        value = self.get_required(name=name)
+        if value not in options:
+            raise ProcessParameterInvalidException(
+                parameter=name,
+                process=self.process_id,
+                reason=f"Invalid enum value {value!r}. Expected one of {options}.",
+            )
+        return value

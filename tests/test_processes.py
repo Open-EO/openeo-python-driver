@@ -1,7 +1,13 @@
+import re
+
 import pytest
 
-from openeo_driver.errors import ProcessUnsupportedException, ProcessParameterRequiredException
-from openeo_driver.processes import ProcessSpec, ProcessRegistry, ProcessRegistryException
+from openeo_driver.errors import (
+    ProcessUnsupportedException,
+    ProcessParameterRequiredException,
+    ProcessParameterInvalidException,
+)
+from openeo_driver.processes import ProcessSpec, ProcessRegistry, ProcessRegistryException, ProcessArgs
 
 
 def test_process_spec_basic_040():
@@ -427,3 +433,64 @@ def test_process_registry_add_simple_function_with_spec():
         ProcessParameterRequiredException, match="Process 'something_custom' parameter 'x' is required."
     ):
         _ = process(args={}, env=None)
+
+
+class TestProcessArgs:
+    def test_dict(self):
+        args = ProcessArgs({"foo": "bar"}, process_id="wibble")
+        assert isinstance(args, dict)
+
+    def test_get_required(self):
+        args = ProcessArgs({"foo": "bar"}, process_id="wibble")
+        assert args.get_required("foo") == "bar"
+        with pytest.raises(ProcessParameterRequiredException, match="Process 'wibble' parameter 'other' is required."):
+            _ = args.get_required("other")
+
+    def test_get_optional(self):
+        args = ProcessArgs({"foo": "bar"}, process_id="wibble")
+        assert args.get_optional("foo") == "bar"
+        assert args.get_optional("other") is None
+        assert args.get_optional("foo", 123) == "bar"
+        assert args.get_optional("other", 123) == 123
+
+    def test_get_deep(self):
+        args = ProcessArgs({"foo": {"bar": {"color": "red", "size": {"x": 5, "y": 8}}}}, process_id="wibble")
+        assert args.get_deep("foo", "bar") == {"color": "red", "size": {"x": 5, "y": 8}}
+        assert args.get_deep("foo", "bar", "color") == "red"
+        assert args.get_deep("foo", "bar", "size", "y") == 8
+
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match="The value passed for parameter 'foo' in process 'wibble' is invalid: step='z'",
+        ):
+            _ = args.get_deep("foo", "bar", "size", "z")
+
+    def test_get_aliased(self):
+        args = ProcessArgs({"size": 5, "color": "red"}, process_id="wibble")
+        assert args.get_aliased(["size", "dimensions"]) == 5
+        assert args.get_aliased(["dimensions", "size"]) == 5
+        assert args.get_aliased(["size", "color"]) == 5
+        assert args.get_aliased(["color", "size"]) == "red"
+        with pytest.raises(
+            ProcessParameterRequiredException,
+            match=re.escape("Process 'wibble' parameter '['shape', 'height']' is required."),
+        ):
+            _ = args.get_aliased(["shape", "height"])
+
+    def test_get_subset(self):
+        args = ProcessArgs({"size": 5, "color": "red", "shape": "circle"}, process_id="wibble")
+        assert args.get_subset(["size", "color"]) == {"size": 5, "color": "red"}
+        assert args.get_subset(["size", "height"]) == {"size": 5}
+        assert args.get_subset(["color"], aliases={"shape": "form"}) == {"color": "red", "form": "circle"}
+        assert args.get_subset(["color"], aliases={"foo": "bar"}) == {"color": "red"}
+
+    def test_get_enum(self):
+        args = ProcessArgs({"size": 5, "color": "red"}, process_id="wibble")
+        assert args.get_enum("color", options=["red", "green", "blue"]) == "red"
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'color' in process 'wibble' is invalid: Invalid enum value 'red'. Expected one of ['R', 'G', 'B']."
+            ),
+        ):
+            _ = args.get_enum("color", options=["R", "G", "B"])
