@@ -411,11 +411,6 @@ def extract_arg(args: ProcessArgs, name: str, process_id="n/a"):
     return _as_process_args(args, process_id=process_id).get_required(name=name)
 
 
-def extract_arg_list(args: dict, names: list):
-    # TODO: eliminate this function, use `ProcessArgs.get_aliased()` directly
-    return _as_process_args(args).get_aliased(names)
-
-
 def extract_deep(args: ProcessArgs, *steps, process_id: str = "n/a"):
     # TODO: eliminate this function, use `ProcessArgs.get_deep()` directly
     return _as_process_args(args, process_id=process_id).get_deep(*steps)
@@ -899,18 +894,19 @@ def predict_catboost(args: dict, env: EvalEnv) -> SaveResult:
 def predict_probabilities(args: dict, env: EvalEnv) -> SaveResult:
     pass
 
+
 @process
-def add_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
-    data_cube = extract_arg(args, 'data')
+def add_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    data_cube = args.get_required("data")
     if not isinstance(data_cube, DriverDataCube):
         raise ProcessParameterInvalidException(
             parameter="data", process="add_dimension",
             reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
         )
     return data_cube.add_dimension(
-        name=extract_arg(args, 'name'),
-        label=extract_arg_list(args, ['label', 'value']),
-        type=args.get("type", "other"),
+        name=args.get_required("name"),
+        label=args.get_required("label"),
+        type=args.get_optional("type", default="other"),
     )
 
 
@@ -1394,10 +1390,9 @@ def resample_cube_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
 
 
 @process
-def merge_cubes(args: dict, env: EvalEnv) -> DriverDataCube:
-    cube1 = extract_arg(args, 'cube1')
-    cube2 = extract_arg(args, 'cube2')
-    overlap_resolver = args.get('overlap_resolver')
+def merge_cubes(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube1 = args.get_required("cube1")
+    cube2 = args.get_required("cube2")
     for cube, param_str in [(cube1, "cube1"), (cube2, "cube2")]:
         if not isinstance(cube, DriverDataCube):
             raise ProcessParameterInvalidException(
@@ -1406,8 +1401,8 @@ def merge_cubes(args: dict, env: EvalEnv) -> DriverDataCube:
             )
     # TODO raise check if cubes overlap and raise exception if resolver is missing
     resolver_process = None
-    if overlap_resolver:
-        pg = extract_arg_list(overlap_resolver, ["process_graph", "callback"])
+    if "overlap_resolver" in args:
+        pg = args.get_deep("overlap_resolver", "process_graph")
         if len(pg) != 1:
             raise ProcessParameterInvalidException(
                 parameter='overlap_resolver', process='merge_cubes',
