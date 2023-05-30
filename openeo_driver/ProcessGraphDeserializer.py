@@ -2068,16 +2068,11 @@ def text_merge(
     return str(separator).join(str(d) for d in data)
 
 
-# TODO #195 #196 use official spec instead of custom  openeo-processes/experimental/text_concat.json
-@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/text_concat.json"))
+@process_registry_100.add_simple_function(spec=read_spec("openeo-processes/2.x/text_concat.json"))
 def text_concat(
-    args: Dict,
-    env: EvalEnv
-    # data: List[Union[str, int, float, bool, None]],
-    # separator: Union[str, int, float, bool, None] = ""
+    data: List[Union[str, int, float, bool, None]],
+    separator: str = "",
 ) -> str:
-    data = extract_arg(args, "data")
-    separator = args.get("separator", "")
     return str(separator).join(str(d) for d in data)
 
 

@@ -178,17 +178,20 @@ class ProcessRegistry:
         )
         return f
 
-    def add_simple_function(self, f: Callable = None, name: str = None):
+    def add_simple_function(
+        self, f: Optional[Callable] = None, name: Optional[str] = None, spec: Optional[dict] = None
+    ):
         """
         Register a simple function that uses normal arguments instead of `args: dict, env: EvalEnv`:
         wrap it in a wrapper that automatically extracts these arguments
         :param f:
         :param name: process_id (when guessing from `f.__name__` doesn't work)
+        :param spec: optional spec dict
         :return:
         """
         if f is None:
             # Called as parameterized decorator
-            return functools.partial(self.add_simple_function, name=name)
+            return functools.partial(self.add_simple_function, name=name, spec=spec)
 
         process_id = name or f.__name__
         # Detect arguments without and with defaults
@@ -201,18 +204,20 @@ class ProcessRegistry:
             else:
                 defaults[param.name] = param.default
 
-        # TODO: avoid this local import, e.g. by encapsulating all extrac_ functions in some kind of ProcessArgs object
+        # TODO: avoid this local import, e.g. by encapsulating all extract_ functions in some kind of ProcessArgs object
         from openeo_driver.ProcessGraphDeserializer import extract_arg
 
         # TODO: can we generalize this assumption?
         assert self._argument_names == ["args", "env"]
 
+        # TODO: option to also pass `env: EvalEnv` to `f`?
         def wrapped(args: dict, env: EvalEnv):
             kwargs = {a: extract_arg(args, a, process_id=process_id) for a in required}
             kwargs.update({a: args.get(a, d) for a, d in defaults.items()})
             return f(**kwargs)
 
-        self.add_process(name=process_id, function=wrapped, spec=self.load_predefined_spec(process_id))
+        spec = spec or self.load_predefined_spec(process_id)
+        self.add_process(name=process_id, function=wrapped, spec=spec)
         return f
 
     def add_hidden(self, f: Callable, name: str = None, namespace: str = DEFAULT_NAMESPACE):

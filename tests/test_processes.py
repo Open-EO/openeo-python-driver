@@ -392,7 +392,7 @@ def test_process_registry_add_simple_function():
 
     assert process(args={"x": 2, "y": 3}, env=None) == 5
     assert process(args={"x": 2}, env=None) == 102
-    with pytest.raises(ProcessParameterRequiredException):
+    with pytest.raises(ProcessParameterRequiredException, match="Process 'add' parameter 'x' is required."):
         _ = process(args={}, env=None)
 
 
@@ -408,5 +408,22 @@ def test_process_registry_add_simple_function_with_name():
     assert process(args={"value": True, "accept": 3}, env=None) == 3
     assert process(args={"value": False, "accept": 3}, env=None) is None
     assert process(args={"value": False, "accept": 3, "reject": 5}, env=None) == 5
-    with pytest.raises(ProcessParameterRequiredException):
+    with pytest.raises(ProcessParameterRequiredException, match="Process 'if' parameter 'value' is required."):
+        _ = process(args={}, env=None)
+
+
+def test_process_registry_add_simple_function_with_spec():
+    reg = ProcessRegistry(argument_names=["args", "env"])
+
+    @reg.add_simple_function(spec={"id": "something_custom"})
+    def something_custom(x: int, y: int = 123):
+        return x + y
+
+    process = reg.get_function("something_custom")
+
+    assert process(args={"x": 5, "y": 3}, env=None) == 8
+    assert process(args={"x": 5}, env=None) == 128
+    with pytest.raises(
+        ProcessParameterRequiredException, match="Process 'something_custom' parameter 'x' is required."
+    ):
         _ = process(args={}, env=None)

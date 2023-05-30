@@ -2449,6 +2449,7 @@ def test_execute_no_cube_logic(api100, process_graph, expected):
         ("text_ends", {"data": "FooBar", "pattern": "Foo"}, False),
         ("text_ends", {"data": "FooBar", "pattern": "bar"}, False),
         ("text_ends", {"data": "FooBar", "pattern": "bar", "case_sensitive": False}, True),
+        # TODO: `text_merge` is deprecated (in favor of `text_concat`)
         ("text_merge", {"data": ["foo", "bar"]}, "foobar"),
         ("text_merge", {"data": ["foo", "bar"], "separator": "--"}, "foo--bar"),
         ("text_merge", {"data": [1, 2, 3], "separator": "/"}, "1/2/3"),
