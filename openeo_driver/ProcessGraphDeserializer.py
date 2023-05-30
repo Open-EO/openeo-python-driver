@@ -416,9 +416,6 @@ def extract_deep(args: ProcessArgs, *steps, process_id: str = "n/a"):
     return _as_process_args(args, process_id=process_id).get_deep(*steps)
 
 
-def extract_args_subset(args: dict, keys: List[str], aliases: Dict[str, str] = None) -> dict:
-    # TODO: eliminate this function, use `ProcessArgs.get_subset()` directly
-    return _as_process_args(args).get_subset(names=keys, aliases=aliases)
 
 
 def _align_extent(extent,collection_id,env):
@@ -892,16 +889,11 @@ def predict_probabilities(args: dict, env: EvalEnv) -> SaveResult:
 
 @process
 def add_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
-    data_cube = args.get_required("data")
-    if not isinstance(data_cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="add_dimension",
-            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
-        )
+    data_cube = args.get_required("data", expected_type=DriverDataCube)
     return data_cube.add_dimension(
-        name=args.get_required("name"),
-        label=args.get_required("label"),
-        type=args.get_optional("type", default="other"),
+        name=args.get_required("name", expected_type=str),
+        label=args.get_required("label", expected_type=str),
+        type=args.get_optional("type", default="other", expected_type=str),
     )
 
 
@@ -1386,14 +1378,8 @@ def resample_cube_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
 
 @process
 def merge_cubes(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
-    cube1 = args.get_required("cube1")
-    cube2 = args.get_required("cube2")
-    for cube, param_str in [(cube1, "cube1"), (cube2, "cube2")]:
-        if not isinstance(cube, DriverDataCube):
-            raise ProcessParameterInvalidException(
-                parameter=param_str, process="merge_cubes",
-                reason=f"Invalid data type {type(cube)!r} expected raster-cube."
-            )
+    cube1 = args.get_required("cube1", expected_type=DriverDataCube)
+    cube2 = args.get_required("cube2", expected_type=DriverDataCube)
     # TODO raise check if cubes overlap and raise exception if resolver is missing
     resolver_process = None
     if "overlap_resolver" in args:
@@ -1819,29 +1805,27 @@ def atmospheric_correction(args: Dict, env: EvalEnv) -> object:
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/sar_backscatter.json"))
-def sar_backscatter(args: Dict, env: EvalEnv):
-    cube: DriverDataCube = extract_arg(args, 'data')
-    kwargs = extract_args_subset(
-        args, keys=["coefficient", "elevation_model", "mask", "contributing_area", "local_incidence_angle",
-                    "ellipsoid_incidence_angle", "noise_removal", "options"]
+def sar_backscatter(args: ProcessArgs, env: EvalEnv):
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    kwargs = args.get_subset(
+        names=[
+            "coefficient",
+            "elevation_model",
+            "mask",
+            "contributing_area",
+            "local_incidence_angle",
+            "ellipsoid_incidence_angle",
+            "noise_removal",
+            "options",
+        ]
     )
-    if not isinstance(cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="sar_backscatter",
-            reason=f"Invalid data type {type(cube)!r} expected raster-cube."
-        )
     return cube.sar_backscatter(SarBackscatterArgs(**kwargs))
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/resolution_merge.json"))
-def resolution_merge(args: Dict, env: EvalEnv):
-    cube: DriverDataCube = extract_arg(args, 'data')
-    kwargs = extract_args_subset(args, keys=["method", "high_resolution_bands", "low_resolution_bands", "options"])
-    if not isinstance(cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="resolution_merge",
-            reason=f"Invalid data type {type(cube)!r} expected raster-cube."
-        )
+def resolution_merge(args: ProcessArgs, env: EvalEnv):
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    kwargs = args.get_subset(names=["method", "high_resolution_bands", "low_resolution_bands", "options"])
     return cube.resolution_merge(ResolutionMergeArgs(**kwargs))
 
 
@@ -1917,8 +1901,8 @@ def array_interpolate_linear(args: Dict, env: EvalEnv) -> str:
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/date_shift.json"))
 def date_shift(args: ProcessArgs, env: EvalEnv) -> str:
-    date = rfc3339.parse_date_or_datetime(args.get_required("date"))
-    value = int(args.get_required("value"))
+    date = rfc3339.parse_date_or_datetime(args.get_required("date", expected_type=str))
+    value = int(args.get_required("value", expected_type=int))
     unit = args.get_enum("unit", options={"year", "month", "week", "day", "hour", "minute", "second", "millisecond"})
     if unit == "millisecond":
         raise FeatureUnsupportedException(message="Millisecond unit is not supported in date_shift")

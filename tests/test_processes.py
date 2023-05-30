@@ -2,6 +2,7 @@ import re
 
 import pytest
 
+from openeo_driver.datacube import DriverDataCube
 from openeo_driver.errors import (
     ProcessUnsupportedException,
     ProcessParameterRequiredException,
@@ -446,12 +447,40 @@ class TestProcessArgs:
         with pytest.raises(ProcessParameterRequiredException, match="Process 'wibble' parameter 'other' is required."):
             _ = args.get_required("other")
 
+    def test_get_required_with_type(self):
+        args = ProcessArgs({"color": "red", "size": 5}, process_id="wibble")
+        assert args.get_required("color", expected_type=str) == "red"
+        assert args.get_required("color", expected_type=(str, int)) == "red"
+        assert args.get_required("size", expected_type=int) == 5
+        assert args.get_required("size", expected_type=(str, int)) == 5
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'color' in process 'wibble' is invalid: Expected <class 'openeo_driver.datacube.DriverDataCube'> but got <class 'str'>."
+            ),
+        ):
+            _ = args.get_required("color", expected_type=DriverDataCube)
+
     def test_get_optional(self):
         args = ProcessArgs({"foo": "bar"}, process_id="wibble")
         assert args.get_optional("foo") == "bar"
         assert args.get_optional("other") is None
         assert args.get_optional("foo", 123) == "bar"
         assert args.get_optional("other", 123) == 123
+
+    def test_get_optional_with_type(self):
+        args = ProcessArgs({"foo": "bar"}, process_id="wibble")
+        assert args.get_optional("foo", expected_type=str) == "bar"
+        assert args.get_optional("foo", expected_type=(str, int)) == "bar"
+        assert args.get_optional("other", expected_type=str) is None
+        assert args.get_optional("foo", 123, expected_type=(str, int)) == "bar"
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'foo' in process 'wibble' is invalid: Expected <class 'openeo_driver.datacube.DriverDataCube'> but got <class 'str'>."
+            ),
+        ):
+            _ = args.get_required("foo", expected_type=DriverDataCube)
 
     def test_get_deep(self):
         args = ProcessArgs({"foo": {"bar": {"color": "red", "size": {"x": 5, "y": 8}}}}, process_id="wibble")
@@ -464,6 +493,20 @@ class TestProcessArgs:
             match="The value passed for parameter 'foo' in process 'wibble' is invalid: step='z'",
         ):
             _ = args.get_deep("foo", "bar", "size", "z")
+
+    def test_get_deep_with_type(self):
+        args = ProcessArgs({"foo": {"bar": {"color": "red", "size": {"x": 5, "y": 8}}}}, process_id="wibble")
+        assert args.get_deep("foo", "bar", "color", expected_type=str) == "red"
+        assert args.get_deep("foo", "bar", "color", expected_type=(str, int)) == "red"
+        assert args.get_deep("foo", "bar", "size", "x", expected_type=(str, int)) == 5
+
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'foo' in process 'wibble' is invalid: Expected (<class 'openeo_driver.datacube.DriverDataCube'>, <class 'str'>) but got <class 'int'>."
+            ),
+        ):
+            _ = args.get_deep("foo", "bar", "size", "x", expected_type=(DriverDataCube, str))
 
     def test_get_aliased(self):
         args = ProcessArgs({"size": 5, "color": "red"}, process_id="wibble")
@@ -481,6 +524,7 @@ class TestProcessArgs:
         args = ProcessArgs({"size": 5, "color": "red", "shape": "circle"}, process_id="wibble")
         assert args.get_subset(["size", "color"]) == {"size": 5, "color": "red"}
         assert args.get_subset(["size", "height"]) == {"size": 5}
+        assert args.get_subset(["meh"]) == {}
         assert args.get_subset(["color"], aliases={"shape": "form"}) == {"color": "red", "form": "circle"}
         assert args.get_subset(["color"], aliases={"foo": "bar"}) == {"color": "red"}
 

@@ -288,24 +288,41 @@ class ProcessArgs(dict):
             args = ProcessArgs(args=args, process_id=process_id)
         return args
 
-    def get_required(self, name: str) -> ArgumentValue:
+    def get_required(
+        self, name: str, *, expected_type: Optional[Union[type, Tuple[type, ...]]] = None
+    ) -> ArgumentValue:
         """
         Get a required argument by name.
 
         Originally: `extract_arg`.
         """
+        # TODO: add option for type check too
         try:
-            return self[name]
+            value = self[name]
         except KeyError:
             raise ProcessParameterRequiredException(process=self.process_id, parameter=name) from None
+        self._check_type(name=name, value=value, expected_type=expected_type)
+        return value
 
-    def get_optional(self, name: str, default: Any = None) -> ArgumentValue:
+    def _check_type(self, *, name: str, value: Any, expected_type: Optional[Union[type, Tuple[type, ...]]] = None):
+        if expected_type:
+            if not isinstance(value, expected_type):
+                raise ProcessParameterInvalidException(
+                    parameter=name, process=self.process_id, reason=f"Expected {expected_type} but got {type(value)}."
+                )
+
+    def get_optional(
+        self, name: str, default: Any = None, *, expected_type: Optional[Union[type, Tuple[type, ...]]] = None
+    ) -> ArgumentValue:
         """
         Get an optional argument with default
         """
-        return self.get(name, default)
+        value = self.get(name, default)
+        if value is not None:
+            self._check_type(name=name, value=value, expected_type=expected_type)
+        return value
 
-    def get_deep(self, *steps: str) -> ArgumentValue:
+    def get_deep(self, *steps: str, expected_type: Optional[Union[type, Tuple[type, ...]]] = None) -> ArgumentValue:
         """
         Walk recursively through a dictionary to get to a value.
 
@@ -320,6 +337,8 @@ class ProcessArgs(dict):
                     break
             else:
                 raise ProcessParameterInvalidException(process=self.process_id, parameter=steps[0], reason=f"{step=}")
+
+        self._check_type(name=steps[0], value=value, expected_type=expected_type)
         return value
 
     def get_aliased(self, names: List[str]) -> ArgumentValue:
