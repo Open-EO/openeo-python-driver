@@ -20,6 +20,7 @@ import pyproj
 import requests
 from dateutil.relativedelta import relativedelta
 from requests.structures import CaseInsensitiveDict
+import shapely.geometry
 from shapely.geometry import shape, GeometryCollection, shape, mapping, MultiPolygon
 import shapely.ops
 
@@ -411,12 +412,6 @@ def extract_arg(args: ProcessArgs, name: str, process_id="n/a"):
     return _as_process_args(args, process_id=process_id).get_required(name=name)
 
 
-def extract_deep(args: ProcessArgs, *steps, process_id: str = "n/a"):
-    # TODO: eliminate this function, use `ProcessArgs.get_deep()` directly
-    return _as_process_args(args, process_id=process_id).get_deep(*steps)
-
-
-
 
 def _align_extent(extent,collection_id,env):
     metadata = None
@@ -669,33 +664,21 @@ def vector_buffer(args: Dict, env: EvalEnv) -> dict:
 
 
 @process_registry_100.add_function
-def apply_neighborhood(args: dict, env: EvalEnv) -> DriverDataCube:
-    process = extract_deep(args, "process", "process_graph")
-    size = extract_arg(args, 'size')
-    # TODO: overlap is optional
-    overlap = extract_arg(args, "overlap")
-    context = args.get("context")
-    data_cube = extract_arg(args, "data")
-    if not isinstance(data_cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="apply_neighborhood",
-            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
-        )
+def apply_neighborhood(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    data_cube = args.get_required("data", expected_type=DriverDataCube)
+    process = args.get_deep("process", "process_graph", expected_type=dict)
+    size = args.get_required("size")
+    overlap = args.get_optional("overlap")
+    context = args.get_optional("context", expected_type=dict)
     return data_cube.apply_neighborhood(process=process, size=size, overlap=overlap, env=env, context=context)
 
 @process
-def apply_dimension(args: Dict, env: EvalEnv) -> DriverDataCube:
-    data_cube = extract_arg(args, "data")
-    process = extract_deep(args, "process", "process_graph")
-    dimension = extract_arg(args, "dimension")
-    target_dimension = args.get("target_dimension", None)
-    context = args.get("context")
-    if not isinstance(data_cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="apply_dimension",
-            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
-        )
-
+def apply_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    data_cube = args.get_required("data", expected_type=DriverDataCube)
+    process = args.get_deep("process", "process_graph", expected_type=dict)
+    dimension = args.get_required("dimension", expected_type=str)
+    target_dimension = args.get_optional("target_dimension", default=None, expected_type=str)
+    context = args.get_optional("context", default=None, expected_type=dict)
     # do check_dimension here for error handling
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="apply_dimension")
 
@@ -747,48 +730,34 @@ def load_ml_model(args: dict, env: EvalEnv) -> DriverMlModel:
 
 
 @process
-def apply(args: dict, env: EvalEnv) -> DriverDataCube:
+def apply(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     """
     Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
     """
-    apply_pg = extract_deep(args, "process", "process_graph")
-    data_cube = extract_arg(args, "data", "apply")
-    context = args.get("context")
-
+    data_cube = args.get_required("data", expected_type=DriverDataCube)
+    apply_pg = args.get_deep("process", "process_graph", expected_type=dict)
+    context = args.get_optional("context", expected_type=dict)
     return data_cube.apply(process=apply_pg, context=context, env=env)
 
 
 @process_registry_100.add_function
-def reduce_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
-    data_cube: DriverDataCube = extract_arg(args, "data")
-    reduce_pg = extract_deep(args, "reducer", "process_graph", process_id="reduce_dimension")
-    dimension = extract_arg(args, 'dimension')
-    context = args.get("context")
-    if not isinstance(data_cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="reduce_dimension",
-            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
-        )
-
+def reduce_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    data_cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
+    dimension = args.get_required("dimension", expected_type=str)
+    context = args.get_optional("context", default=None, expected_type=dict)
     # do check_dimension here for error handling
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce_dimension")
     return data_cube.reduce_dimension(reducer=reduce_pg, dimension=dimension, context=context, env=env)
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/chunk_polygon.json"))
-def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
-    import shapely
-
-    data_cube = extract_arg(args, "data")
-    reduce_pg = extract_deep(args, "process", "process_graph")
-    chunks = extract_arg(args, 'chunks')
-    mask_value = args.get('mask_value', None)
-    context = args.get("context", {})
-    if not isinstance(data_cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="chunk_polygon",
-            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
-        )
+def chunk_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    data_cube = args.get_required("data", expected_type=DriverDataCube)
+    reduce_pg = args.get_deep("process", "process_graph", expected_type=dict)
+    chunks = args.get_required("chunks")
+    mask_value = args.get_optional("mask_value", default=None)
+    context = args.get_optional("context", default=None)
 
     # Chunks parameter check.
     # TODO #114 EP-3981 normalize first to vector cube and simplify logic
@@ -980,37 +949,22 @@ def _check_dimension(cube: DriverDataCube, dim: str, process: str):
 
 
 @process
-def aggregate_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
-    data_cube = extract_arg(args, 'data')
-    if not isinstance(data_cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="aggregate_temporal",
-            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
-        )
-
-    reduce_pg = extract_deep(args, "reducer", "process_graph")
-    context = args.get('context', None)
-    intervals = extract_arg(args, 'intervals')
-    labels = args.get('labels', None)
-
+def aggregate_temporal(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    data_cube = args.get_required("data", expected_type=DriverDataCube)
+    reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
+    context = args.get_optional("context", default=None)
+    intervals = args.get_required("intervals")
+    labels = args.get_optional("labels", default=None)
     dimension = _get_time_dim_or_default(args, data_cube)
     return data_cube.aggregate_temporal(intervals=intervals,labels=labels,reducer=reduce_pg, dimension=dimension, context=context)
 
 
 @process_registry_100.add_function
-def aggregate_temporal_period(args: dict, env: EvalEnv) -> DriverDataCube:
-    data_cube = extract_arg(args, 'data')
-    if not isinstance(data_cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="aggregate_temporal_period",
-            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
-        )
-
-    reduce_pg = extract_deep(args, "reducer", "process_graph")
-
-    context = args.get('context', None)
-    period = extract_arg(args, 'period')
-
+def aggregate_temporal_period(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    data_cube = args.get_required("data", expected_type=DriverDataCube)
+    reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
+    context = args.get_optional("context", default=None)
+    period = args.get_required("period")
     dimension = _get_time_dim_or_default(args, data_cube, "aggregate_temporal_period")
 
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
@@ -1088,8 +1042,8 @@ def _period_to_intervals(start, end, period) -> List[Tuple[pd.Timestamp, pd.Time
     return intervals
 
 
-def _get_time_dim_or_default(args, data_cube, process_id =  "aggregate_temporal"):
-    dimension = args.get('dimension', None)
+def _get_time_dim_or_default(args: ProcessArgs, data_cube, process_id="aggregate_temporal"):
+    dimension = args.get_optional("dimension", None)
     if dimension is not None:
         dimension, _, _ = _check_dimension(cube=data_cube, dim=dimension, process=process_id)
     else:
@@ -1107,18 +1061,13 @@ def _get_time_dim_or_default(args, data_cube, process_id =  "aggregate_temporal"
 
 
 @process_registry_100.add_function
-def aggregate_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
-    reduce_pg = extract_deep(args, "reducer", "process_graph")
-    cube = extract_arg(args, 'data')
-    if not isinstance(cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="aggregate_spatial",
-            reason=f"Invalid data type {type(cube)!r} expected raster-cube."
-        )
+def aggregate_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube = args.get_required("data", expected_type=DriverDataCube)
+    reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
     # TODO: drop `target_dimension`? see https://github.com/Open-EO/openeo-processes/issues/366
-    target_dimension = args.get('target_dimension', None)
+    target_dimension = args.get_optional("target_dimension", default=None)
 
-    geoms = extract_arg(args, 'geometries')
+    geoms = args.get_required("geometries")
     # TODO #114: convert all cases to DriverVectorCube first and just work with that
     if isinstance(geoms, DriverVectorCube):
         geoms = geoms
