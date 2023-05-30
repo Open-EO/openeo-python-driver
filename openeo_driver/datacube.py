@@ -87,7 +87,13 @@ class DriverDataCube:
         self._not_implemented()
 
     def chunk_polygon(
-        self, reducer, chunks, mask_value: float, env: EvalEnv, context: Optional[dict] = None
+        self,
+        *,
+        reducer: dict,
+        chunks: Union[shapely.geometry.base.BaseGeometry],
+        mask_value: Union[float, None],
+        env: EvalEnv,
+        context: Optional[dict] = None,
     ) -> "DriverDataCube":
         # TODO: rename/update `chunk_polygon` to `apply_polygon` (https://github.com/Open-EO/openeo-processes/pull/298)
         self._not_implemented()

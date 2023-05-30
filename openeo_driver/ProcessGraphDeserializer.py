@@ -822,10 +822,12 @@ def reduce_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/chunk_polygon.json"))
 def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     import shapely
+
+    data_cube = extract_arg(args, "data")
     reduce_pg = extract_deep(args, "process", "process_graph")
     chunks = extract_arg(args, 'chunks')
     mask_value = args.get('mask_value', None)
-    data_cube = extract_arg(args, 'data')
+    context = args.get("context", {})
     if not isinstance(data_cube, DriverDataCube):
         raise ProcessParameterInvalidException(
             parameter="data", process="chunk_polygon",
@@ -862,7 +864,7 @@ def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     if not isinstance(mask_value, float) and mask_value is not None:
         reason = "mask_value parameter is not of type float. Actual type: {m!s}".format(m=type(mask_value))
         raise ProcessParameterInvalidException(parameter='mask_value', process='chunk_polygon', reason=reason)
-    return data_cube.chunk_polygon(reducer=reduce_pg, chunks=polygon, mask_value=mask_value, env=env)
+    return data_cube.chunk_polygon(reducer=reduce_pg, chunks=polygon, mask_value=mask_value, context=context, env=env)
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/fit_class_random_forest.json"))
