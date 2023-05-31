@@ -1,0 +1,627 @@
+{
+  "process_graph": {
+    "loadcollection1": {
+      "process_id": "load_collection",
+      "arguments": {
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "sunAzimuthAngles",
+          "sunZenithAngles"
+        ],
+        "id": "SENTINEL2_L2A_SENTINELHUB",
+        "spatial_extent": {
+          "west": -74.5,
+          "east": -73,
+          "south": 4.5,
+          "north": 5,
+          "crs": "epsg:4326"
+        },
+        "temporal_extent": [
+          "2021-03-01",
+          "2021-09-01"
+        ]
+      }
+    },
+    "resamplespatial1": {
+      "process_id": "resample_spatial",
+      "arguments": {
+        "align": "upper-left",
+        "data": {
+          "from_node": "loadcollection1"
+        },
+        "method": "average",
+        "projection": null,
+        "resolution": 30
+      }
+    },
+    "loadcollection2": {
+      "process_id": "load_collection",
+      "arguments": {
+        "id": "ESA_WORLDCOVER_10M_2020_V1",
+        "spatial_extent": {
+          "west": -74.5,
+          "east": -73,
+          "south": 4.5,
+          "north": 5,
+          "crs": "epsg:4326"
+        },
+        "temporal_extent": [
+          "2010-01-01",
+          "2030-12-31"
+        ]
+      }
+    },
+    "reducedimension1": {
+      "process_id": "reduce_dimension",
+      "arguments": {
+        "data": {
+          "from_node": "loadcollection2"
+        },
+        "dimension": "t",
+        "reducer": {
+          "process_graph": {
+            "max1": {
+              "process_id": "max",
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                }
+              },
+              "result": true
+            }
+          }
+        }
+      }
+    },
+    "mergecubes1": {
+      "process_id": "merge_cubes",
+      "arguments": {
+        "cube1": {
+          "from_node": "resamplespatial1"
+        },
+        "cube2": {
+          "from_node": "reducedimension1"
+        }
+      }
+    },
+    "applyneighborhood1": {
+      "process_id": "apply_neighborhood",
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes1"
+        },
+        "overlap": [
+          {
+            "dimension": "x",
+            "unit": "px",
+            "value": 8
+          },
+          {
+            "dimension": "y",
+            "unit": "px",
+            "value": 8
+          }
+        ],
+        "process": {
+          "process_graph": {
+            "runudf1": {
+              "process_id": "run_udf",
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "runtime": "Python",
+                "udf": "\n\nfrom openeo.udf import XarrayDataCube\nfrom openeo.udf.debug import inspect\nimport numpy as np\nfrom hillshade.hillshade import hillshade\n\n\ndef rasterize(azimuth, resolution=None):\n    azimuth = np.deg2rad(azimuth)\n    xdir, ydir = np.sin(azimuth), np.cos(azimuth)\n\n    if resolution is not None:\n        xdir = xdir * resolution[0]\n        ydir = ydir * resolution[1]\n        signx = np.sign(xdir)\n        signy = np.sign(ydir)\n    slope = abs(ydir / xdir)\n\n    if slope < 1. and slope > -1.:\n        xdir = 1.\n        ydir = slope\n    else:\n        xdir = 1. / slope\n        ydir = 1.\n\n    return xdir*signx, ydir*signx\n\n\ndef _run_shader(sun_zenith, sun_azimuth, elevation_model, resolution_x, resolution_y):\n\n    azimuth = np.nanmean(sun_azimuth.astype(np.float32))\n    zenith = np.nanmean(sun_zenith.astype(np.float32))\n    if np.isnan(azimuth):\n        shadow = np.zeros(elevation_model.shape) + 255\n    else:\n        resolution = (float(resolution_x), float(resolution_y))\n        ray_xdir, ray_ydir = rasterize(azimuth, resolution)\n\n        # Assume chunking is already done by Dask\n        ystart = 0\n        yend = elevation_model.shape[0]\n\n        # Make sure inputs have the right data type\n        zenith = float(zenith)\n        ray = (float(ray_xdir), float(ray_ydir))\n        shadow = hillshade(elevation_model.astype(np.float32),\n                           resolution,\n                           zenith,\n                           ray,\n                           ystart,\n                           yend)\n        shadow = shadow.reshape(elevation_model.shape)\n        shadow[np.isnan(sun_azimuth)] = 255\n    return shadow\n\n\ndef apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:\n    in_xarray = cube.get_array()\n    sun_zenith = in_xarray.sel({\"bands\": \"sunZenithAngles\"}).values.astype(np.float32)\n    sun_azimuth = in_xarray.sel({\"bands\": \"sunAzimuthAngles\"}).values.astype(np.float32)\n    elevation_model = in_xarray.sel({\"bands\": \"DEM\"}).values.astype(np.float32)\n    res_y = in_xarray.coords[\"y\"][int(len(in_xarray.coords[\"y\"])/2)+1] - in_xarray.coords[\"y\"][int(len(in_xarray.coords[\"y\"])/2)]\n    res_x = in_xarray.coords[\"x\"][int(len(in_xarray.coords[\"x\"])/2)+1] - in_xarray.coords[\"x\"][int(len(in_xarray.coords[\"x\"])/2)]\n\n    sun_zenith = sun_zenith *3\n\n    shadow = _run_shader(sun_zenith, sun_azimuth, elevation_model, res_x, res_x)\n    cube.get_array().values[0] = shadow\n\n    return cube\n\n"
+              },
+              "result": true
+            }
+          }
+        },
+        "size": [
+          {
+            "dimension": "t",
+            "value": "P1D"
+          },
+          {
+            "dimension": "x",
+            "unit": "px",
+            "value": 256
+          },
+          {
+            "dimension": "y",
+            "unit": "px",
+            "value": 256
+          }
+        ]
+      }
+    },
+    "renamelabels1": {
+      "process_id": "rename_labels",
+      "arguments": {
+        "data": {
+          "from_node": "applyneighborhood1"
+        },
+        "dimension": "bands",
+        "target": [
+          "hillshade_mask",
+          "B03",
+          "B04",
+          "B08",
+          "sunAzimuthAngles",
+          "sunZenithAngles",
+          "DEM"
+        ]
+      }
+    },
+    "reducedimension2": {
+      "process_id": "reduce_dimension",
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels1"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "arrayelement1": {
+              "process_id": "array_element",
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              }
+            },
+            "eq1": {
+              "process_id": "eq",
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement1"
+                },
+                "y": 1
+              },
+              "result": true
+            }
+          }
+        }
+      }
+    },
+    "mask1": {
+      "process_id": "mask",
+      "arguments": {
+        "data": {
+          "from_node": "loadcollection1"
+        },
+        "mask": {
+          "from_node": "reducedimension2"
+        }
+      }
+    },
+    "loadcollection3": {
+      "process_id": "load_collection",
+      "arguments": {
+        "bands": [
+          "CLP",
+          "SCL"
+        ],
+        "id": "SENTINEL2_L2A_SENTINELHUB",
+        "spatial_extent": {
+          "west": -74.5,
+          "east": -73,
+          "south": 4.5,
+          "north": 5,
+          "crs": "epsg:4326"
+        },
+        "temporal_extent": [
+          "2021-03-01",
+          "2021-09-01"
+        ]
+      }
+    },
+    "reducedimension3": {
+      "process_id": "reduce_dimension",
+      "arguments": {
+        "data": {
+          "from_node": "loadcollection3"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "arrayelement2": {
+              "process_id": "array_element",
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              }
+            },
+            "eq2": {
+              "process_id": "eq",
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement2"
+                },
+                "y": 3
+              }
+            },
+            "eq3": {
+              "process_id": "eq",
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement2"
+                },
+                "y": 8
+              }
+            },
+            "or1": {
+              "process_id": "or",
+              "arguments": {
+                "x": {
+                  "from_node": "eq2"
+                },
+                "y": {
+                  "from_node": "eq3"
+                }
+              }
+            },
+            "eq4": {
+              "process_id": "eq",
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement2"
+                },
+                "y": 9
+              }
+            },
+            "or2": {
+              "process_id": "or",
+              "arguments": {
+                "x": {
+                  "from_node": "or1"
+                },
+                "y": {
+                  "from_node": "eq4"
+                }
+              }
+            },
+            "eq5": {
+              "process_id": "eq",
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement2"
+                },
+                "y": 10
+              }
+            },
+            "or3": {
+              "process_id": "or",
+              "arguments": {
+                "x": {
+                  "from_node": "or2"
+                },
+                "y": {
+                  "from_node": "eq5"
+                }
+              }
+            },
+            "eq6": {
+              "process_id": "eq",
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement2"
+                },
+                "y": 11
+              }
+            },
+            "or4": {
+              "process_id": "or",
+              "arguments": {
+                "x": {
+                  "from_node": "or3"
+                },
+                "y": {
+                  "from_node": "eq6"
+                }
+              }
+            },
+            "arrayelement3": {
+              "process_id": "array_element",
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              }
+            },
+            "divide1": {
+              "process_id": "divide",
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement3"
+                },
+                "y": 255
+              }
+            },
+            "or5": {
+              "process_id": "or",
+              "arguments": {
+                "x": {
+                  "from_node": "or4"
+                },
+                "y": {
+                  "from_node": "divide1"
+                }
+              }
+            },
+            "gt1": {
+              "process_id": "gt",
+              "arguments": {
+                "x": {
+                  "from_node": "or5"
+                },
+                "y": 0.3
+              },
+              "result": true
+            }
+          }
+        }
+      }
+    },
+    "mask2": {
+      "process_id": "mask",
+      "arguments": {
+        "data": {
+          "from_node": "mask1"
+        },
+        "mask": {
+          "from_node": "reducedimension3"
+        }
+      }
+    },
+    "apply1": {
+      "process_id": "apply",
+      "arguments": {
+        "data": {
+          "from_node": "mask2"
+        },
+        "process": {
+          "process_graph": {
+            "eq7": {
+              "process_id": "eq",
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": 0
+              },
+              "result": true
+            }
+          }
+        }
+      }
+    },
+    "mask3": {
+      "process_id": "mask",
+      "arguments": {
+        "data": {
+          "from_node": "mask2"
+        },
+        "mask": {
+          "from_node": "apply1"
+        }
+      }
+    },
+    "applydimension1": {
+      "process_id": "apply_dimension",
+      "arguments": {
+        "data": {
+          "from_node": "mask3"
+        },
+        "dimension": "bands",
+        "process": {
+          "process_graph": {
+            "arrayelement4": {
+              "process_id": "array_element",
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              }
+            },
+            "arrayelement5": {
+              "process_id": "array_element",
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 3
+              }
+            },
+            "subtract1": {
+              "process_id": "subtract",
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement4"
+                },
+                "y": {
+                  "from_node": "arrayelement5"
+                }
+              }
+            },
+            "add1": {
+              "process_id": "add",
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement4"
+                },
+                "y": {
+                  "from_node": "arrayelement5"
+                }
+              }
+            },
+            "divide2": {
+              "process_id": "divide",
+              "arguments": {
+                "x": {
+                  "from_node": "subtract1"
+                },
+                "y": {
+                  "from_node": "add1"
+                }
+              }
+            },
+            "arrayelement6": {
+              "process_id": "array_element",
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 2
+              }
+            },
+            "subtract2": {
+              "process_id": "subtract",
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement5"
+                },
+                "y": {
+                  "from_node": "arrayelement6"
+                }
+              }
+            },
+            "add2": {
+              "process_id": "add",
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement5"
+                },
+                "y": {
+                  "from_node": "arrayelement6"
+                }
+              }
+            },
+            "divide3": {
+              "process_id": "divide",
+              "arguments": {
+                "x": {
+                  "from_node": "subtract2"
+                },
+                "y": {
+                  "from_node": "add2"
+                }
+              }
+            },
+            "arraymodify1": {
+              "process_id": "array_modify",
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 6,
+                "values": [
+                  {
+                    "from_node": "divide2"
+                  },
+                  {
+                    "from_node": "divide3"
+                  }
+                ]
+              },
+              "result": true
+            }
+          }
+        }
+      }
+    },
+    "renamelabels2": {
+      "process_id": "rename_labels",
+      "arguments": {
+        "data": {
+          "from_node": "applydimension1"
+        },
+        "dimension": "bands",
+        "target": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "sunAzimuthAngles",
+          "sunZenithAngles",
+          "NDWI",
+          "NDVI"
+        ]
+      }
+    },
+    "renamelabels3": {
+      "process_id": "rename_labels",
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels2"
+        },
+        "dimension": "bands",
+        "target": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "sunAzimuthAngles",
+          "sunZenithAngles",
+          "NDWI",
+          "NDVI"
+        ]
+      }
+    },
+    "filtertemporal1": {
+      "process_id": "filter_temporal",
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels3"
+        },
+        "extent": [
+          "2021-06-01",
+          "2021-09-01"
+        ]
+      }
+    },
+    "reducedimension4": {
+      "process_id": "reduce_dimension",
+      "arguments": {
+        "data": {
+          "from_node": "filtertemporal1"
+        },
+        "dimension": "t",
+        "reducer": {
+          "process_graph": {
+            "median1": {
+              "process_id": "median",
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                }
+              },
+              "result": true
+            }
+          }
+        }
+      }
+    },
+    "filterbands1": {
+      "process_id": "filter_bands",
+      "arguments": {
+        "bands": [
+          "NDVI",
+          "NDWI"
+        ],
+        "data": {
+          "from_node": "reducedimension4"
+        }
+      },
+      "result": true
+    }
+  }
+}

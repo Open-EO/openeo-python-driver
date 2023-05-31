@@ -356,17 +356,20 @@ class DryRunDataTracer:
                     )
                     if subgraph_without_blocking_processes is not None:
                         leaf_without_blockers = subgraph_without_blocking_processes
+                    else:
+                        leaf_without_blockers = None
 
                 # 2 merge filtering arguments
-                args = leaf_without_blockers.get_arguments_by_operation(op)
-                if args:
-                    if merge:
-                        # Take first item (to reproduce original behavior)
-                        # TODO: take temporal/spatial/categorical intersection instead?
-                        #       see https://github.com/Open-EO/openeo-processes/issues/201
-                        constraints[op] = args[0]
-                    else:
-                        constraints[op] = args
+                if leaf_without_blockers is not None:
+                    args = leaf_without_blockers.get_arguments_by_operation(op)
+                    if args:
+                        if merge:
+                            # Take first item (to reproduce original behavior)
+                            # TODO: take temporal/spatial/categorical intersection instead?
+                            #       see https://github.com/Open-EO/openeo-processes/issues/201
+                            constraints[op] = args[0]
+                        else:
+                            constraints[op] = args
 
             if "_weak_spatial_extent" in constraints:
                 if "spatial_extent" not in constraints:

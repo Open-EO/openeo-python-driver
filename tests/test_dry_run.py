@@ -1410,6 +1410,14 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
         (('load_collection', ('S2_FOOBAR', ())), {'bands': ['B04', 'B08']})
     ]
 
+def test_worldwater(dry_run_env,dry_run_tracer):
+    ww_process = load_json("pg/1.0/worldwater_graph.json")
+    evaluate(ww_process["process_graph"], env=dry_run_env,do_dry_run=False)
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    #print(source_constraints)
+    for c in source_constraints :
+        if "WORLDCOVER" in str(c):
+            assert "bands" not in c[1]
 
 def test_CropSAR_aggregate_spatial_constraint(dry_run_env, dry_run_tracer):
     cropsar_process = load_json("pg/1.0/cropsar_graph.json")
