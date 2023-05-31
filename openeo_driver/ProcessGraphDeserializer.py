@@ -669,7 +669,7 @@ def apply_neighborhood(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     process = args.get_deep("process", "process_graph", expected_type=dict)
     size = args.get_required("size")
     overlap = args.get_optional("overlap")
-    context = args.get_optional("context", expected_type=dict)
+    context = args.get_optional("context", default=None)
     return data_cube.apply_neighborhood(process=process, size=size, overlap=overlap, env=env, context=context)
 
 @process
@@ -678,7 +678,7 @@ def apply_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     process = args.get_deep("process", "process_graph", expected_type=dict)
     dimension = args.get_required("dimension", expected_type=str)
     target_dimension = args.get_optional("target_dimension", default=None, expected_type=str)
-    context = args.get_optional("context", default=None, expected_type=dict)
+    context = args.get_optional("context", default=None)
     # do check_dimension here for error handling
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="apply_dimension")
 
@@ -736,7 +736,7 @@ def apply(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     """
     data_cube = args.get_required("data", expected_type=DriverDataCube)
     apply_pg = args.get_deep("process", "process_graph", expected_type=dict)
-    context = args.get_optional("context", expected_type=dict)
+    context = args.get_optional("context", default=None)
     return data_cube.apply(process=apply_pg, context=context, env=env)
 
 
@@ -745,7 +745,7 @@ def reduce_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
     reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
     dimension = args.get_required("dimension", expected_type=str)
-    context = args.get_optional("context", default=None, expected_type=dict)
+    context = args.get_optional("context", default=None)
     # do check_dimension here for error handling
     dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce_dimension")
     return data_cube.reduce_dimension(reducer=reduce_pg, dimension=dimension, context=context, env=env)
