@@ -357,16 +357,18 @@ class DryRunDataTracer:
                     if subgraph_without_blocking_processes is not None:
                         leaf_without_blockers = subgraph_without_blocking_processes
 
+
                 # 2 merge filtering arguments
-                args = leaf_without_blockers.get_arguments_by_operation(op)
-                if args:
-                    if merge:
-                        # Take first item (to reproduce original behavior)
-                        # TODO: take temporal/spatial/categorical intersection instead?
-                        #       see https://github.com/Open-EO/openeo-processes/issues/201
-                        constraints[op] = args[0]
-                    else:
-                        constraints[op] = args
+                if leaf_without_blockers is not None:
+                    args = leaf_without_blockers.get_arguments_by_operation(op)
+                    if args:
+                        if merge:
+                            # Take first item (to reproduce original behavior)
+                            # TODO: take temporal/spatial/categorical intersection instead?
+                            #       see https://github.com/Open-EO/openeo-processes/issues/201
+                            constraints[op] = args[0]
+                        else:
+                            constraints[op] = args
 
             if "_weak_spatial_extent" in constraints:
                 if "spatial_extent" not in constraints:
@@ -483,7 +485,7 @@ class DryRunDataCube(DriverDataCube):
             traces=self._traces + other._traces, data_tracer=self._data_tracer,
             # TODO: properly merge (other) metadata?
             metadata=self.metadata
-        )
+        )._process("merge_cubes", arguments={})
 
     def mask_polygon(self, mask, replacement=None, inside: bool = False) -> 'DriverDataCube':
         cube = self
@@ -572,7 +574,7 @@ class DryRunDataCube(DriverDataCube):
             # TODO: reduce is not necessarily global in call cases
             dc = self._process("process_type", [ProcessType.GLOBAL_TIME])
 
-        return dc._process_metadata(self.metadata.reduce_dimension(dimension_name=dimension))
+        return dc._process_metadata(self.metadata.reduce_dimension(dimension_name=dimension))._process("reduce_dimension", arguments={})
 
     def chunk_polygon(
         self, reducer, chunks: MultiPolygon, mask_value: float, env: EvalEnv, context: Optional[dict] = None
@@ -637,6 +639,7 @@ class DryRunDataCube(DriverDataCube):
     def apply_neighborhood(
         self, process, *, size: List[dict], overlap: List[dict], context: Optional[dict] = None, env: EvalEnv
     ) -> "DriverDataCube":
+        cube = self._process("apply_neighborhood", {})
         temporal_size = temporal_overlap = None
         size_dict = {e['dimension']: e for e in size}
         overlap_dict = {e['dimension']: e for e in overlap}
@@ -644,8 +647,8 @@ class DryRunDataCube(DriverDataCube):
             temporal_size = size_dict.get(self.metadata.temporal_dimension.name, None)
             temporal_overlap = overlap_dict.get(self.metadata.temporal_dimension.name, None)
             if temporal_size is None or temporal_size.get('value', None) is None:
-                return self._process("process_type", [ProcessType.GLOBAL_TIME])
-        return self
+                return cube._process("process_type", [ProcessType.GLOBAL_TIME])
+        return cube
 
     def atmospheric_correction(self, method: str = None, *args) -> 'DriverDataCube':
         method_link = "https://remotesensing.vito.be/case/icor"
