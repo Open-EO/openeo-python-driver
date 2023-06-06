@@ -1,3 +1,5 @@
+import textwrap
+
 import geopandas as gpd
 import numpy.testing
 import pyproj
@@ -442,6 +444,59 @@ class TestDriverVectorCube:
                         ApproxGeometry(
                             Polygon.from_bounds(5, 8, 13, 21), abs=0.000001
                         ).to_geojson_feature(properties={})
+                    ),
+                ],
+            }
+        )
+
+    def test_run_udf_geojson(self, gdf):
+        vc = DriverVectorCube(gdf)
+        udf = textwrap.dedent(
+            """
+            def udf_apply_geojson_feature_collection(feature_collection: dict) -> dict:
+                features = []
+                for feature in feature_collection["features"]:
+                    # transpose and rescale vertices
+                    vertices = feature["geometry"]["coordinates"][0]
+                    vertices = [(y, 2 * x) for (x, y) in vertices]
+                    feature["geometry"]["coordinates"] = [vertices]
+
+                    # Manipulate properties
+                    feature["properties"]["hello"] = feature["properties"]["id"]
+                    feature["properties"]["vertices"] = len(vertices) - 1
+                    del feature["properties"]["pop"]
+
+                    features.append(feature)
+                return {"type": "FeatureCollection", "features": features}
+        """
+        )
+        vc2 = vc.run_udf(udf=udf)
+        assert isinstance(vc2, DriverVectorCube)
+        assert vc2.to_geojson() == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "id": "0",
+                            "geometry": {
+                                "type": "Polygon",
+                                "coordinates": (((1, 2), (1, 6), (3, 4), (1, 2)),),
+                            },
+                            "properties": {"hello": "first", "id": "first", "vertices": 3},
+                        }
+                    ),
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "id": "1",
+                            "geometry": {
+                                "type": "Polygon",
+                                "coordinates": (((2, 8), (4, 10), (4, 6), (2, 8)),),
+                            },
+                            "properties": {"hello": "second", "id": "second", "vertices": 3},
+                        },
                     ),
                 ],
             }

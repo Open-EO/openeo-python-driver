@@ -16,6 +16,8 @@ import xarray
 from pyproj import CRS
 import requests
 
+import openeo.udf
+import openeo.udf.run_code
 from openeo.metadata import CollectionMetadata
 from openeo.util import ensure_dir
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs, StacAsset
@@ -200,7 +202,7 @@ class VectorCubeError(InternalException):
         super(VectorCubeError, self).__init__(message=message)
 
 
-class DriverVectorCube:
+class DriverVectorCube(SupportsRunUdf):
     """
     Base class for driver-side 'vector cubes'
 
@@ -499,6 +501,25 @@ class DriverVectorCube:
                 for g in self.get_geometries()
             ]
         )
+
+    def supports_udf(self, udf: str, runtime: str = "Python") -> bool:
+        udf_globals = openeo.udf.run_code.load_module_from_string(code=udf)
+        return any(
+            name in udf_globals
+            for name in [
+                "udf_apply_geojson_feature_collection",
+            ]
+        )
+
+    def run_udf(self, *, udf: str, runtime: str = "Python", context: Optional[dict] = None, env: EvalEnv):
+        udf_globals = openeo.udf.run_code.load_module_from_string(code=udf)
+
+        if "udf_apply_geojson_feature_collection" in udf_globals:
+            callback = udf_globals["udf_apply_geojson_feature_collection"]
+            result = callback(self.to_geojson())
+            return DriverVectorCube.from_geojson(geojson=result)
+        else:
+            raise openeo.udf.OpenEoUdfException("No UDF found")
 
 
 class DriverMlModel:
