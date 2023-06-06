@@ -969,7 +969,7 @@ def register_views_batch_jobs(
                 )
 
             assets = {
-                filename: _asset_object(job_id, user_id, filename, asset_metadata)
+                filename: _asset_object(job_id, user_id, filename, asset_metadata,job_info)
                 for filename, asset_metadata in result_assets.items()
                 if asset_metadata.get("asset", True)
             }
@@ -1303,6 +1303,7 @@ def register_views_batch_jobs(
                 }
             )
         )
+
 
         if "file:size" not in result_dict and "output_dir" in asset_metadata:
             the_file = pathlib.Path(asset_metadata["output_dir"]) / filename
