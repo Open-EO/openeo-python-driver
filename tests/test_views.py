@@ -1288,6 +1288,8 @@ class TestBatchJobs:
                         'title': 'output.tiff',
                         'href': 'http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.tiff',
                         'type': 'image/tiff; application=geotiff',
+                        'proj:epsg': 4326,
+                        'proj:shape': [300, 600],
                         'eo:bands': [{
                             'name': "NDVI",
                             'center_wavelength': 1.23
@@ -1516,7 +1518,9 @@ class TestBatchJobs:
                 "stac_extensions": [
                     "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
-                    "https://stac-extensions.github.io/ml-model/v1.0.0/schema.json",
+                    'https://stac-extensions.github.io/processing/v1.1.0/schema.json',
+                    'https://stac-extensions.github.io/projection/v1.1.0/schema.json',
+                    "https://stac-extensions.github.io/ml-model/v1.0.0/schema.json"
                 ],
                 "id": "53c71345-09b4-46b4-b6b0-03fd6fe1f199",
                 "title": "Your title here.",
@@ -1526,8 +1530,7 @@ class TestBatchJobs:
                     "spatial": {"bbox": [[-180, -90, 180, 90]]},
                     "temporal": {"interval": [["1981-04-24T03:00:00Z", "1981-04-24T03:00:00Z"]]},
                 },
-                "bbox": [-180, -90, 180, 90],
-                "epsg": 4326,
+                'providers': [{'name': 'openEO backend', 'roles': ['processor']}],
                 "links": [
                     {
                         'rel': 'self',
@@ -1555,6 +1558,7 @@ class TestBatchJobs:
                     },
                 ],
                 'summaries': {
+                    'instruments': ['MSI'],
                     'ml-model:architecture': ['random-forest'],
                     'ml-model:learning_approach': ['supervised'],
                     'ml-model:prediction_type': ['classification']
@@ -1564,6 +1568,8 @@ class TestBatchJobs:
                         'title': 'output.tiff',
                         'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
                         'type': 'image/tiff; application=geotiff',
+                        'proj:epsg': 4326,
+                        'proj:shape': [300, 600],
                         'eo:bands': [{'center_wavelength': 1.23, 'name': 'NDVI'}],
                         'file:nodata': [123],
                         'roles': ['data']
@@ -1748,6 +1754,8 @@ class TestBatchJobs:
                     'title': 'output.tiff',
                     'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
                     'type': 'image/tiff; application=geotiff',
+                    'proj:epsg': 4326,
+                    'proj:shape': [300, 600],
                     'eo:bands': [{'center_wavelength': 1.23, 'name': 'NDVI'}],
                     'file:nodata': [123],
                     'roles': ['data']
