@@ -28,6 +28,25 @@ from openeo_driver.utils import EvalEnv
 log = logging.getLogger(__name__)
 
 
+class SupportsRunUdf(metaclass=abc.ABCMeta):
+    """
+    Interface/Mixin for cube/result classes that (partially) support `run_udf`
+    """
+
+    # TODO: as there is quite some duplication between the current methods of this API:
+    #       simplify it by just providing a single method: e.g. `get_udf_runner`,
+    #       which returns None if run_udf is not supported, and returns a callable (to run the udf on the data) when it is supported.
+
+    @abc.abstractmethod
+    def supports_udf(self, udf: str, *, runtime: str = "Python") -> bool:
+        """Check if UDF code is supported."""
+        return False
+
+    @abc.abstractmethod
+    def run_udf(self, udf: str, *, runtime: str = "Python", context: Optional[dict] = None, env: EvalEnv):
+        ...
+
+
 class DriverDataCube:
     """Base class for "driver" side raster data cubes."""
 
@@ -491,20 +510,3 @@ class DriverMlModel:
 
     def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
         raise NotImplementedError
-
-
-class SupportsRunUdf(metaclass=abc.ABCMeta):
-    """
-    Interface for cube/result classes that (partially) support `run_udf`
-    """
-
-    @abc.abstractmethod
-    def supports_udf(self, udf: str, runtime: str = "Python") -> bool:
-        """Check if UDF code is supported."""
-        return False
-
-    @abc.abstractmethod
-    def run_udf(
-        self, udf: str, runtime: str = "Python", context: Optional[dict] = None
-    ):
-        ...

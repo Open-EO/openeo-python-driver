@@ -1356,7 +1356,7 @@ def run_udf(args: dict, env: EvalEnv):
 
     if isinstance(data, SupportsRunUdf) and data.supports_udf(udf=udf, runtime=runtime):
         _log.info(f"run_udf: data of type {type(data)} has direct run_udf support")
-        return data.run_udf(udf=udf, runtime=runtime, context=context)
+        return data.run_udf(udf=udf, runtime=runtime, context=context, env=env)
 
     # TODO #114 add support for DriverVectorCube
     if isinstance(data, AggregatePolygonResult):
