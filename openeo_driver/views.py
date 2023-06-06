@@ -1017,6 +1017,8 @@ def register_views_batch_jobs(
                         "stac_extensions": [
                             STAC_EXTENSION.EO,
                             STAC_EXTENSION.FILEINFO,
+                            STAC_EXTENSION.PROCESSING,
+                            STAC_EXTENSION.PROJECTION
                         ],
                         "id": job_id,
                         "title": job_info.title,
@@ -1028,8 +1030,20 @@ def register_views_batch_jobs(
                                 "interval": [[to_datetime(job_info.start_datetime), to_datetime(job_info.end_datetime)]]
                             },
                         },
-                        "bbox": job_info.bbox,
-                        "epsg": job_info.epsg,
+                        "summaries" : {
+                            "instruments":job_info.instruments
+                        },
+                        "providers": [
+                            {
+                                "name": "openEO backend",
+                                "roles": [
+                                    "processor"
+                                ],
+                                "processing:software": {
+                                    "Sentinel-2 Toolbox": "8.0.0"
+                                }
+                            }
+                        ],
                         "links": links,
                         "assets": assets,
                     }
@@ -1209,7 +1223,7 @@ def register_views_batch_jobs(
                     "type": "application/json",
                 },
             ],
-            "assets": {asset_filename: _asset_object(job_id, user_id, asset_filename, metadata)},
+            "assets": {asset_filename: _asset_object(job_id, user_id, asset_filename, metadata,job_info)},
             "collection": job_id,
         }
         # Add optional items, if they are present.
@@ -1251,7 +1265,7 @@ def register_views_batch_jobs(
         resp.mimetype = stac_item_media_type
         return resp
 
-    def _asset_object(job_id, user_id, filename: str, asset_metadata: dict) -> dict:
+    def _asset_object(job_id, user_id, filename: str, asset_metadata: dict, job_info:BatchJobMetadata) -> dict:
         result_dict = dict_no_none({
             "title": asset_metadata.get("title", filename),
             "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or _job_result_download_url(job_id, user_id, filename),
@@ -1283,9 +1297,9 @@ def register_views_batch_jobs(
                     "file:nodata": [
                         "nan" if nodata != None and np.isnan(nodata) else nodata
                     ],
-                    "proj:bbox": asset_metadata.get("proj:bbox", None),
-                    "proj:epsg": asset_metadata.get("proj:epsg", None),
-                    "proj:shape": asset_metadata.get("proj:shape", None),
+                    "proj:bbox": asset_metadata.get("proj:bbox", job_info.proj_bbox),
+                    "proj:epsg": asset_metadata.get("proj:epsg", job_info.epsg),
+                    "proj:shape": asset_metadata.get("proj:shape", job_info.proj_shape),
                 }
             )
         )
