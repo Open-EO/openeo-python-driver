@@ -1038,10 +1038,7 @@ def register_views_batch_jobs(
                                 "name": "openEO backend",
                                 "roles": [
                                     "processor"
-                                ],
-                                "processing:software": {
-                                    "Sentinel-2 Toolbox": "8.0.0"
-                                }
+                                ]
                             }
                         ],
                         "links": links,
