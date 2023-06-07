@@ -247,10 +247,13 @@ class SimpleProcessing(Processing):
         return self._registry_cache[spec]
 
     def get_basic_env(self, api_version=None) -> EvalEnv:
-        return EvalEnv({
-            "backend_implementation": OpenEoBackendImplementation(processing=self),
-            "version": api_version or "1.0.0",  # TODO: get better default api version from somewhere?
-        })
+        return EvalEnv(
+            {
+                "backend_implementation": OpenEoBackendImplementation(processing=self),
+                "version": api_version or "1.0.0",  # TODO: get better default api version from somewhere?
+                "node_caching": False,
+            }
+        )
 
     def evaluate(self, process_graph: dict, env: EvalEnv = None):
         return evaluate(process_graph=process_graph, env=env or self.get_basic_env(), do_dry_run=False)
