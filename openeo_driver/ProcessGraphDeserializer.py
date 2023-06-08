@@ -1301,18 +1301,13 @@ def ndvi(args: dict, env: EvalEnv) -> DriverDataCube:
 
 
 @process
-def resample_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
-    image_collection = extract_arg(args, 'data')
-    resolution = args.get('resolution', 0)
-    projection = args.get('projection', None)
-    method = args.get('method', 'near')
-    align = args.get('align', 'lower-left')
-    if not isinstance(image_collection, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="resample_spatial",
-            reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
-        )
-    return image_collection.resample_spatial(resolution=resolution, projection=projection, method=method, align=align)
+def resample_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    resolution = args.get_optional("resolution", 0)
+    projection = args.get_optional("projection", None)
+    method = args.get_optional("method", "near")
+    align = args.get_optional("align", "lower-left")
+    return cube.resample_spatial(resolution=resolution, projection=projection, method=method, align=align)
 
 
 @process

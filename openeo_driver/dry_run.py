@@ -604,8 +604,11 @@ class DryRunDataCube(DriverDataCube):
         return self._process("resolution_merge", args)
 
     def resample_spatial(
-            self, resolution: Union[float, Tuple[float, float]], projection: Union[int, str] = None,
-            method: str = 'near', align: str = 'upper-left'
+        self,
+        resolution: Union[float, Tuple[float, float]],
+        projection: Union[int, str] = None,
+        method: str = "near",
+        align: str = "upper-left",
     ):
         return self._process(
             "resample_spatial",

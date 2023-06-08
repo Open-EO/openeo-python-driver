@@ -192,6 +192,15 @@ class DriverDataCube:
     def resolution_merge(self, args: ResolutionMergeArgs) -> 'DriverDataCube':
         self._not_implemented()
 
+    def resample_spatial(
+        self,
+        resolution: Union[float, Tuple[float, float]],
+        projection: Union[int, str] = None,
+        method: str = "near",
+        align: str = "upper-left",
+    ):
+        self._not_implemented()
+
 
 class VectorCubeError(InternalException):
     code = "VectorCubeError"
