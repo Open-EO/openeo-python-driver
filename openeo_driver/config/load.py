@@ -85,6 +85,8 @@ class ConfigGetter:
         with self._default_config() as default_config:
             config_path = os.environ.get(self.OPENEO_BACKEND_CONFIG, default_config)
             config = load_from_py_file(path=config_path, variable="config", expected_class=self.expected_class)
+        if hasattr(config, "id"):
+            _log.debug(f"Loaded config {config.id=}")
         return config
 
     def flush(self):
