@@ -168,40 +168,33 @@ class ElasticJobRegistryCredentials(NamedTuple):
     client_secret: str
     __repr__ = __str__ = secretive_repr()
 
-    @staticmethod
-    def get(
-        *,
-        oidc_issuer: Optional[str] = None,
-        client_id: Optional[str] = None,
-        client_secret: Optional[str] = None,
-        config: Optional[typing.Mapping] = None,
-        env: Optional[typing.Mapping] = None,
-    ) -> "ElasticJobRegistryCredentials":
-        """Best effort factory to build ElasticJobRegistryCredentials from given args, config or env"""
-        # Start from args
-        kwargs = {
-            "oidc_issuer": oidc_issuer,
-            "client_id": client_id,
-            "client_secret": client_secret,
-        }
-        # fallback on config (if any) and env
+    @classmethod
+    def from_mapping(cls, data: typing.Mapping, *, strict: bool = True) -> Union["ElasticJobRegistryCredentials", None]:
+        """Build from mapping/dict/config"""
+        args = {"oidc_issuer", "client_id", "client_secret"}
+        try:
+            return cls(**{a: data[a] for a in args})
+        except KeyError:
+            if strict:
+                missing = args.difference(data.keys())
+                raise EjrError(f"Failed building {cls.__name__} from mapping: missing {missing!r}") from None
+
+    @classmethod
+    def from_env(
+        cls, env: Optional[typing.Mapping] = None, *, strict: bool = True
+    ) -> Union["ElasticJobRegistryCredentials", None]:
+        env = env or os.environ
         env_var_mapping = {
             "oidc_issuer": "OPENEO_EJR_OIDC_ISSUER",
             "client_id": "OPENEO_EJR_OIDC_CLIENT_ID",
             "client_secret": "OPENEO_EJR_OIDC_CLIENT_SECRET",
         }
-        if env is None:
-            env = os.environ
-        for key in [k for (k, v) in kwargs.items() if not v]:
-            if config and key in config:
-                kwargs[key] = config[key]
-            elif env_var_mapping[key] in env:
-                kwargs[key] = env[env_var_mapping[key]]
-            else:
-                raise EjrError(
-                    f"Failed to obtain {key} field for building {ElasticJobRegistryCredentials.__name__}"
-                )
-        return ElasticJobRegistryCredentials(**kwargs)
+        try:
+            return cls(**{a: env[e] for a, e in env_var_mapping.items()})
+        except KeyError:
+            if strict:
+                missing = set(env_var_mapping.values()).difference(env.keys())
+                raise EjrError(f"Failed building {cls.__name__} from env: missing {missing!r}") from None
 
 
 class ElasticJobRegistry(JobRegistryInterface):
@@ -605,6 +598,7 @@ class CliApp:
                 vault_client = hvac.Client(url=self.environ.get("VAULT_ADDR"))
                 ejr_vault_path = self.environ.get(
                     "OPENEO_EJR_CREDENTIALS_VAULT_PATH",
+                    # TODO: eliminate this hardcoded VITO specific default value
                     "TAP/big_data_services/openeo/openeo-job-registry-elastic-api",
                 )
                 secret = vault_client.secrets.kv.v2.read_secret_version(
@@ -618,7 +612,7 @@ class CliApp:
                     " through environment variable `VAULT_TOKEN`"
                     " or local file `~/.vault-token` (e.g. created with `vault login -method=ldap username=john`)."
                 )
-            credentials = ElasticJobRegistryCredentials.get(config=secret["data"]["data"])
+            credentials = ElasticJobRegistryCredentials.from_mapping(secret["data"]["data"])
             ejr.setup_auth_oidc_client_credentials(credentials=credentials)
         return ejr
 

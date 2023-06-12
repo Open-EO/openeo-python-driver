@@ -56,19 +56,38 @@ class TestElasticJobRegistryCredentials:
         assert repr(creds) == expected
         assert str(creds) == expected
 
-    def test_get_from_config(self):
-        creds = ElasticJobRegistryCredentials.get(
-            oidc_issuer="https://oidc.test/",
-            config={"client_id": "c456789", "client_secret": "s3cr3t"},
+    def test_get_from_mapping(self):
+        creds = ElasticJobRegistryCredentials.from_mapping(
+            {"oidc_issuer": "https://oidc.test/", "client_id": "c456789", "client_secret": "s3cr3t"},
         )
         assert creds == ("https://oidc.test/", "c456789", "s3cr3t")
+
+    def test_get_from_mapping_strictness(self):
+        data = {"oidc_issuer": "https://oidc.test/", "client_id": "c456789"}
+        with pytest.raises(
+            EjrError, match="Failed building ElasticJobRegistryCredentials from mapping: missing {'client_secret'}"
+        ):
+            _ = ElasticJobRegistryCredentials.from_mapping(data)
+        creds = ElasticJobRegistryCredentials.from_mapping(data, strict=False)
+        assert creds is None
 
     def test_get_from_env(self, monkeypatch):
         monkeypatch.setenv("OPENEO_EJR_OIDC_ISSUER", "https://id.example")
         monkeypatch.setenv("OPENEO_EJR_OIDC_CLIENT_ID", "c-9876")
         monkeypatch.setenv("OPENEO_EJR_OIDC_CLIENT_SECRET", "!@#$%%")
-        creds = ElasticJobRegistryCredentials.get()
+        creds = ElasticJobRegistryCredentials.from_env()
         assert creds == ("https://id.example", "c-9876", "!@#$%%")
+
+    def test_get_from_env_strictness(self, monkeypatch):
+        monkeypatch.setenv("OPENEO_EJR_OIDC_ISSUER", "https://id.example")
+        monkeypatch.setenv("OPENEO_EJR_OIDC_CLIENT_ID", "c-9876")
+        with pytest.raises(
+            EjrError,
+            match="Failed building ElasticJobRegistryCredentials from env: missing {'OPENEO_EJR_OIDC_CLIENT_SECRET'}",
+        ):
+            _ = ElasticJobRegistryCredentials.from_env()
+        creds = ElasticJobRegistryCredentials.from_env(strict=False)
+        assert creds is None
 
 
 class TestElasticJobRegistry:
