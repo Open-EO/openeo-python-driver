@@ -918,6 +918,7 @@ def register_views_batch_jobs(
             job_id=job_id, user_id=user_id
         )
         result_assets = result_metadata.assets
+        providers = result_metadata.providers
 
         if requested_api_version().at_least("1.0.0"):
             def job_results_canonical_url() -> str:
@@ -1033,14 +1034,7 @@ def register_views_batch_jobs(
                         "summaries" : {
                             "instruments":job_info.instruments
                         },
-                        "providers": [
-                            {
-                                "name": "openEO backend",
-                                "roles": [
-                                    "processor"
-                                ]
-                            }
-                        ],
+                        "providers": providers or None,
                         "links": links,
                         "assets": assets,
                     }
@@ -1068,6 +1062,8 @@ def register_views_batch_jobs(
                     "assets": assets,
                     "links": links
                 }
+                if providers:
+                    result["providers"] = providers
 
                 geometry = job_info.geometry
                 result["geometry"] = geometry

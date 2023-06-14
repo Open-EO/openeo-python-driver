@@ -373,6 +373,7 @@ class BatchJobResultMetadata:
     # Basic dataclass based wrapper for batch job result metadata (allows cleaner code navigation and discovery)
     assets: Dict[str, dict] = dataclasses.field(default_factory=dict)
     links: List[dict] = dataclasses.field(default_factory=list)
+    providers: List[dict] = dataclasses.field(default_factory=list)
     # TODO: more fields
 
 
@@ -426,7 +427,19 @@ class BatchJobs(MicroService):
         return BatchJobResultMetadata(
             assets=self.get_result_assets(job_id=job_id, user_id=user_id),
             links=[],
+            providers=self._get_providers(job_id=job_id, user_id=user_id),
         )
+
+    def _get_providers(self, job_id: str, user_id: str):
+        """Creates a standard value for the STAC providers object.
+
+        Helper method for default implementation of `get_result_metadata`.
+
+        For an example implementation, see:
+           openeo_driver.dummy.dummy_backend.DummyBatchJobs._get_providers
+
+        """
+        raise NotImplementedError
 
     def get_result_assets(self, job_id: str, user_id: str) -> Dict[str, dict]:
         """

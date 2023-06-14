@@ -40,6 +40,22 @@ from .conftest import TEST_APP_CONFIG, enhanced_logging
 from .data import TEST_DATA_ROOT
 
 
+EXPECTED_PROCESSING_EXPRESSION = [
+    {"expression": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}}, "format": "openeo"}
+]
+
+EXPECTED_PROVIDERS = [
+    {
+        "description": "This data was processed on an openEO backend " "maintained by VITO.",
+        "name": "VITO",
+        "processing:expression": EXPECTED_PROCESSING_EXPRESSION,
+        "processing:facility": "openEO unit test backend",
+        "processing:software": {"unit test backend": "0.0.0"},
+        "roles": ["processor"],
+    }
+]
+
+
 @pytest.fixture(
     params=[
         "1.0.0",
@@ -1269,6 +1285,7 @@ class TestBatchJobs:
                     'processing:facility': 'VITO - SPARK',
                     'processing:software': 'openeo-geotrellis-0.0.1'
                 },
+                "providers": EXPECTED_PROVIDERS,
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
                     "https://stac-extensions.github.io/card4l/v0.1.0/optical/schema.json",
@@ -1341,6 +1358,7 @@ class TestBatchJobs:
                     "processing:facility": "VITO - SPARK",
                     "processing:software": "openeo-geotrellis-0.0.1",
                 },
+                "providers": EXPECTED_PROVIDERS,
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
                     "https://stac-extensions.github.io/card4l/v0.1.0/optical/schema.json",
@@ -1430,6 +1448,7 @@ class TestBatchJobs:
                     'processing:facility': 'VITO - SPARK',
                     'processing:software': 'openeo-geotrellis-0.0.1'
                 },
+                "providers": EXPECTED_PROVIDERS,
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
                     "https://stac-extensions.github.io/card4l/v0.1.0/optical/schema.json",
@@ -1495,6 +1514,22 @@ class TestBatchJobs:
                     'processing:facility': 'VITO - SPARK',
                     'processing:software': 'openeo-geotrellis-0.0.1'
                 },
+                "providers": EXPECTED_PROVIDERS,
+                # "providers": [
+                #     {
+                #         "description": "This data was processed on an openEO backend " "maintained by VITO.",
+                #         "name": "VITO",
+                #         "processing:expression": [
+                #             {
+                #                 "expression": {"process_graph": {"foo": {"arguments": {}, "process_id": "foo"}}},
+                #                 "format": "openeo",
+                #             }
+                #         ],
+                #         "processing:facility": "openEO unit test backend",
+                #         "processing:software": {"unit test backend": "0.0.0"},
+                #         "roles": ["processor"],
+                #     }
+                # ],
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
                     "https://stac-extensions.github.io/card4l/v0.1.0/optical/schema.json",
@@ -1530,7 +1565,7 @@ class TestBatchJobs:
                     "spatial": {"bbox": [[-180, -90, 180, 90]]},
                     "temporal": {"interval": [["1981-04-24T03:00:00Z", "1981-04-24T03:00:00Z"]]},
                 },
-                'providers': [{'name': 'openEO backend', 'roles': ['processor']}],
+                "providers": EXPECTED_PROVIDERS,
                 "links": [
                     {
                         'rel': 'self',
