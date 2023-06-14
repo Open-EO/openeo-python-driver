@@ -106,3 +106,21 @@ def test_get_backend_config_not_found(monkeypatch, tmp_path, final_flush):
     get_backend_config.flush()
     with pytest.raises(FileNotFoundError):
         _ = get_backend_config()
+
+
+def test_kw_only():
+    with pytest.raises(TypeError, match="takes 1 positional argument but 3 were given"):
+        OpenEoBackendConfig(123, [])
+
+
+def test_add_mandatory_fields():
+    @attrs.frozen(kw_only=True)
+    class MyConfig(OpenEoBackendConfig):
+        color: str = "red"
+        set_this_or_die: int
+
+    with pytest.raises(TypeError, match="missing.*required.*argument.*set_this_or_die"):
+        _ = MyConfig()
+
+    conf = MyConfig(set_this_or_die=4)
+    assert conf.set_this_or_die == 4

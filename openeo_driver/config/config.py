@@ -9,7 +9,11 @@ class ConfigException(ValueError):
     pass
 
 
-@attrs.frozen
+@attrs.frozen(
+    # Note: `kw_only=True` enforces "kwargs" based construction (which is good for readability/maintainability)
+    # and allows defining mandatory fields (fields without default) after optional fields.
+    kw_only=True
+)
 class OpenEoBackendConfig:
     """
     Configuration for openEO backend.
