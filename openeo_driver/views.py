@@ -920,6 +920,9 @@ def register_views_batch_jobs(
         result_assets = result_metadata.assets
         providers = result_metadata.providers
 
+        treat_v100_like_v110 = os.environ.get("TREAT_V100_LIKE_V110", "0")
+        TREAT_V100_LIKE_V110 = treat_v100_like_v110.lower() in ["1", "true", "yes"]
+
         if requested_api_version().at_least("1.0.0"):
             def job_results_canonical_url() -> str:
                 if not smart_bool(current_app.config.get('SIGNED_URL')):
@@ -975,7 +978,7 @@ def register_views_batch_jobs(
                 if asset_metadata.get("asset", True)
             }
 
-            if requested_api_version().at_least("1.1.0"):
+            if TREAT_V100_LIKE_V110 or requested_api_version().at_least("1.1.0"):
                 to_datetime = Rfc3339(propagate_none=True).datetime
                 ml_model_metadata = None
 
@@ -1039,6 +1042,7 @@ def register_views_batch_jobs(
                         "assets": assets,
                     }
                 )
+
                 if ml_model_metadata is not None:
                     result["stac_extensions"].extend(ml_model_metadata.get("stac_extensions", []))
                     if "summaries" not in result.keys():
@@ -1053,7 +1057,7 @@ def register_views_batch_jobs(
                             "ml-model:prediction_type": [prediction_type] if prediction_type is not None else [],
                             "ml-model:architecture": [architecture] if architecture is not None else [],
                         })
-            else:
+            elif not TREAT_V100_LIKE_V110:
                 result = {
                     "type": "Feature",
                     "stac_version": "0.9.0",
