@@ -5,6 +5,7 @@ import logging
 import os
 import pathlib
 import re
+import textwrap
 from collections import namedtuple, defaultdict
 from typing import Callable, Tuple, List, Optional
 
@@ -384,7 +385,9 @@ def register_views_general(
             "stac_version": "0.9.0",
             "id": service_id,
             "title": title,
-            "description": app_config_get("OPENEO_DESCRIPTION") or backend_config.capabilities_description,
+            "description": textwrap.dedent(
+                app_config_get("OPENEO_DESCRIPTION") or backend_config.capabilities_description
+            ).strip(),
             "production": API_VERSIONS[g.request_version].production,
             "endpoints": endpoints,
             "billing": backend_implementation.capabilities_billing(),
