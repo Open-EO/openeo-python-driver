@@ -2,6 +2,8 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 import attrs
 
+import openeo_driver
+from openeo_driver.server import build_backend_deploy_metadata
 from openeo_driver.users.oidc import OidcProvider
 
 
@@ -25,8 +27,10 @@ class OpenEoBackendConfig:
     capabilities_service_id: Optional[str] = None
     capabilities_title: str = "Untitled openEO Backend"
     capabilities_description: str = "This is a generic openEO Backend, powered by [openeo-python-driver](https://github.com/Open-EO/openeo-python-driver)."
-    capabilities_backend_version: str = "0.0.1"
-    capabilities_deploy_metadata: Optional[dict] = None
+    capabilities_backend_version: str = openeo_driver.__version__
+    capabilities_deploy_metadata: dict = attrs.Factory(
+        lambda: build_backend_deploy_metadata(packages=["openeo", "openeo_driver"])
+    )
 
     oidc_providers: List[OidcProvider] = attrs.Factory(list)
 

@@ -372,7 +372,7 @@ def register_views_general(
         # TODO only list endpoints that are actually supported by the backend.
         endpoints = EndpointRegistry.get_capabilities_endpoints(_openeo_endpoint_metadata, api_version=api_version)
         deploy_metadata = (
-            app_config_get("OPENEO_BACKEND_DEPLOY_METADATA") or backend_config.capabilities_deploy_metadata or {}
+            app_config_get("OPENEO_BACKEND_DEPLOY_METADATA") or backend_config.capabilities_deploy_metadata
         )
 
         capabilities = {
