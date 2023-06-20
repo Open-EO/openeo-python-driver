@@ -24,7 +24,7 @@ tests_require = [
     "openeo_udf>=1.0.0rc3",
     "boto3[s3]>=1.26.17",
     "moto>=4.0.10",
-    "time-machine",
+    "time-machine<2.10",  # v2.10 does not provide wheels for Linux (yet) and won't build.
     "netCDF4>=1.5.4",
     "re-assert",
     "pyarrow>=10.0.0",
