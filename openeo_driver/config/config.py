@@ -26,6 +26,7 @@ class OpenEoBackendConfig:
     capabilities_title: str = "Untitled openEO Backend"
     capabilities_description: str = "This is a generic openEO Backend, powered by [openeo-python-driver](https://github.com/Open-EO/openeo-python-driver)."
     capabilities_backend_version: str = "0.0.1"
+    capabilities_deploy_metadata: Optional[dict] = None
 
     oidc_providers: List[OidcProvider] = attrs.Factory(list)
 

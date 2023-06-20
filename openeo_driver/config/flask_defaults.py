@@ -1,6 +1,3 @@
 
-# openEO capabilities metadata
-# TODO #204 migrate all to OpenEoBackendConfig
-OPENEO_BACKEND_DEPLOY_METADATA = None
-
+# TODO #204 move all Flask specific configs to OpenEoBackendConfig?
 MAX_CONTENT_LENGTH = 1024 * 1024  # bytes

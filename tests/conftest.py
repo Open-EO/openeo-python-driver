@@ -45,10 +45,6 @@ def udp_registry(backend_implementation) -> UserDefinedProcesses:
 TEST_APP_CONFIG = dict(
     TESTING=True,
     SERVER_NAME='oeo.net',
-    # TODO #204 replace with OpenEoBackendConfig usage
-    OPENEO_BACKEND_DEPLOY_METADATA=build_backend_deploy_metadata(
-        packages=["openeo", "openeo_driver"]
-    ),
 )
 
 

@@ -370,7 +370,9 @@ def register_views_general(
         )
         # TODO only list endpoints that are actually supported by the backend.
         endpoints = EndpointRegistry.get_capabilities_endpoints(_openeo_endpoint_metadata, api_version=api_version)
-        deploy_metadata = app_config.get('OPENEO_BACKEND_DEPLOY_METADATA') or {}
+        deploy_metadata = (
+            app_config_get("OPENEO_BACKEND_DEPLOY_METADATA") or backend_config.capabilities_deploy_metadata
+        )
 
         capabilities = {
             "stac_extensions": [
@@ -730,6 +732,7 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
         "card4l:specification": "SR",
         "card4l:specification_version": "5.0",
         # TODO: eliminate hard coded VITO/Spark/Geotrellis references. See https://github.com/Open-EO/openeo-python-driver/issues/74
+        # TODO #204 replace flask-style config with OpenEoBackendConfig
         "processing:facility": 'VITO - SPARK',
         "processing:software": 'openeo-geotrellis-' + current_app.config.get('OPENEO_BACKEND_VERSION', '0.0.1')
     })
@@ -882,6 +885,7 @@ def register_views_batch_jobs(
         return make_response("", 202)
 
     def _job_result_download_url(job_id, user_id, filename) -> str:
+        # TODO #204 replace flask-style config with OpenEoBackendConfig
         if smart_bool(current_app.config.get('SIGNED_URL')):
             signer = urlsigning.Signer.from_config(current_app.config)
         else:
@@ -911,6 +915,7 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs/<job_id>/results/<user_base64>/<secure_key>', methods=['GET'])
     def list_job_results_signed(job_id, user_base64, secure_key):
         expires = request.args.get('expires')
+        # TODO #204 replace flask-style config with OpenEoBackendConfig
         signer = urlsigning.Signer.from_config(current_app.config)
         user_id = user_id_b64_decode(user_base64)
         signer.verify_job_results(signature=secure_key, job_id=job_id, user_id=user_id, expires=expires)
@@ -928,6 +933,7 @@ def register_views_batch_jobs(
 
         if requested_api_version().at_least("1.0.0"):
             def job_results_canonical_url() -> str:
+                # TODO #204 replace flask-style config with OpenEoBackendConfig
                 if not smart_bool(current_app.config.get('SIGNED_URL')):
                     return url_for('.list_job_results', job_id=job_id, _external=True)
 
@@ -986,6 +992,7 @@ def register_views_batch_jobs(
                 ml_model_metadata = None
 
                 def job_result_item_url(item_id) -> str:
+                    # TODO #204 replace flask-style config with OpenEoBackendConfig
                     if not smart_bool(current_app.config.get('SIGNED_URL')):
                         return url_for('.get_job_result_item', job_id=job_id, item_id=item_id, _external=True)
 
@@ -1150,6 +1157,7 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs/<job_id>/results/items/<user_base64>/<secure_key>/<item_id>', methods=['GET'])
     def get_job_result_item_signed(job_id, user_base64, secure_key, item_id):
         expires = request.args.get('expires')
+        # TODO #204 replace flask-style config with OpenEoBackendConfig
         signer = urlsigning.Signer.from_config(current_app.config)
         user_id = user_id_b64_decode(user_base64)
         signer.verify_job_item(signature=secure_key, job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
@@ -1327,6 +1335,7 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs/<job_id>/results/assets/<user_base64>/<secure_key>/<filename>', methods=['GET'])
     def download_job_result_signed(job_id, user_base64, secure_key, filename):
         expires = request.args.get('expires')
+        # TODO #204 replace flask-style config with OpenEoBackendConfig
         signer = urlsigning.Signer.from_config(current_app.config)
         user_id = user_id_b64_decode(user_base64)
         signer.verify_job_asset(
