@@ -22,6 +22,11 @@ class OpenEoBackendConfig:
     # identifier for this config
     id: Optional[str] = None
 
+    capabilities_service_id: Optional[str] = None
+    capabilities_title: str = "Untitled openEO Backend"
+    capabilities_description: str = "This is a generic openEO Backend, powered by [openeo-python-driver](https://github.com/Open-EO/openeo-python-driver)."
+    capabilities_backend_version: str = "0.0.1"
+
     oidc_providers: List[OidcProvider] = attrs.Factory(list)
 
     oidc_token_introspection: bool = False
