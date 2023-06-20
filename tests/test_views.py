@@ -46,7 +46,7 @@ EXPECTED_PROCESSING_EXPRESSION = [
 
 EXPECTED_PROVIDERS = [
     {
-        "description": "This data was processed on an openEO backend " "maintained by VITO.",
+        "description": "This data was processed on an openEO backend maintained by VITO.",
         "name": "VITO",
         "processing:expression": EXPECTED_PROCESSING_EXPRESSION,
         "processing:facility": "openEO unit test backend",
