@@ -907,6 +907,56 @@ def test_mask_polygon_vector_cube(api100):
     assert isinstance(kwargs['mask'], shapely.geometry.MultiPolygon)
 
 
+def test_data_mask_optimized(api100):
+    pg = {
+        "load_collection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "load_collection2": {"process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}},
+        "filter1": {
+            "process_id": "filter_bands",
+            "arguments": {
+                "data": {"from_node": "load_collection1"},
+                "bands": ["B02"]
+            }
+        },
+        "mask1": {
+            "process_id": "mask",
+            "arguments": {"data": {"from_node": "filter1"}, "mask": {"from_node": "load_collection2"}},
+            "result": True
+        }
+    }
+    api100.check_result(pg)
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
+    # Even with filter_bands, the load_collection optimization should work
+    # mask does not need to be called when it is already applied in load_collection
+    assert dummy.mask.call_count == 0
+
+
+def test_data_mask_unoptimized(api100):
+    pg = {
+        "load_collection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "load_collection2": {"process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}},
+        "apply1": {
+            "process_id": "apply_kernel",
+            "arguments": {
+                "data": {"from_node": "load_collection1"},
+                "kernel": [
+                    [+0, -1, +0],
+                    [-1, +4, -1],
+                    [+0, -1, +0]
+                ]
+            },
+        },
+        "mask1": {
+            "process_id": "mask",
+            "arguments": {"data": {"from_node": "apply1"}, "mask": {"from_node": "load_collection2"}},
+            "result": True
+        }
+    }
+    api100.check_result(pg)
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
+    assert dummy.mask.call_count == 1
+
+
 def test_aggregate_temporal_period(api100):
     api100.check_result("aggregate_temporal_period_max.json")
 
