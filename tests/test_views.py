@@ -1,18 +1,17 @@
-import base64
 import json
 import logging
-from contextlib import contextmanager, ExitStack
+import urllib.parse
+from contextlib import ExitStack, contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 from unittest import mock
-import urllib.parse
 
 import boto3
 import flask
-from moto import mock_s3
 import pytest
 import werkzeug.exceptions
+from moto import mock_s3
 
 from openeo.capabilities import ComparableVersion
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
@@ -31,11 +30,11 @@ from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, \
     generate_unique_test_process_id, build_basic_http_auth_header, ListSubSet, DictSubSet, RegexMatcher
+from openeo_driver.urlsigning import UrlSigner
 from openeo_driver.users.auth import HttpAuthHandler, AccessTokenException
 from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.util.logging import LOGGING_CONTEXT_FLASK, FlaskRequestCorrelationIdLogging
 from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata, build_app, STREAM_CHUNK_SIZE_DEFAULT
-
 from .conftest import TEST_APP_CONFIG, enhanced_logging
 from .data import TEST_DATA_ROOT
 
@@ -1381,8 +1380,15 @@ class TestBatchJobs:
             }
         }
 
-    def test_get_job_results_signed_100(self, api100, flask_app):
-        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}
+    @pytest.mark.parametrize(
+        ["app_config", "backend_config_overrides"],
+        [
+            # TODO #204 eliminate flask config based signer initialization
+            ({"SIGNED_URL": "TRUE", "SIGNED_URL_SECRET": "123&@#"}, {}),
+            ({}, {"url_signer": UrlSigner(secret="123&@#")}),
+        ],
+    )
+    def test_get_job_results_signed_100(self, api100, flask_app, app_config, backend_config_overrides):
         with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry():
             dummy_backend.DummyBatchJobs._update_status(
                 job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
@@ -1446,8 +1452,15 @@ class TestBatchJobs:
             }
 
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
-    def test_get_job_results_signed_with_expiration_100(self, api100, flask_app):
-        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
+    @pytest.mark.parametrize(
+        ["app_config", "backend_config_overrides"],
+        [
+            # TODO #204 eliminate flask config based signer initialization
+            ({"SIGNED_URL": "TRUE", "SIGNED_URL_SECRET": "123&@#", "SIGNED_URL_EXPIRATION": "1000"}, {}),
+            ({}, {"url_signer": UrlSigner(secret="123&@#", expiration=1000)}),
+        ],
+    )
+    def test_get_job_results_signed_with_expiration_100(self, api100, flask_app, app_config, backend_config_overrides):
         with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry():
             dummy_backend.DummyBatchJobs._update_status(
                 job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
@@ -1511,8 +1524,15 @@ class TestBatchJobs:
             }
 
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
-    def test_get_job_results_signed_with_expiration_110(self, api110, flask_app):
-        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
+    @pytest.mark.parametrize(
+        ["app_config", "backend_config_overrides"],
+        [
+            # TODO #204 eliminate flask config based signer initialization
+            ({"SIGNED_URL": "TRUE", "SIGNED_URL_SECRET": "123&@#", "SIGNED_URL_EXPIRATION": "1000"}, {}),
+            ({}, {"url_signer": UrlSigner(secret="123&@#", expiration=1000)}),
+        ],
+    )
+    def test_get_job_results_signed_with_expiration_110(self, api110, flask_app, app_config, backend_config_overrides):
         with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry(next_job_id='job-373'):
             dummy_backend.DummyBatchJobs._update_status(
                 job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
@@ -1658,9 +1678,16 @@ class TestBatchJobs:
         assert resp.assert_status_code(200).data == large_tiff_data
         assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
 
-    def test_download_result_signed(self, api, tmp_path, flask_app):
+    @pytest.mark.parametrize(
+        ["app_config", "backend_config_overrides"],
+        [
+            # TODO #204 eliminate flask config based signer initialization
+            ({"SIGNED_URL": "TRUE", "SIGNED_URL_SECRET": "123&@#"}, {}),
+            ({}, {"url_signer": UrlSigner(secret="123&@#")}),
+        ],
+    )
+    def test_download_result_signed(self, api, tmp_path, flask_app, app_config, backend_config_overrides):
         output_root = Path(tmp_path)
-        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}
         jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
         with mock.patch.dict(flask_app.config, app_config), \
                 self._fresh_job_registry(output_root=output_root, jobs=jobs):
@@ -1672,17 +1699,33 @@ class TestBatchJobs:
         assert resp.assert_status_code(200).data == b'tiffdata'
         assert resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
 
-    def test_download_result_signed_invalid(self, api, flask_app):
-        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#'}
+    @pytest.mark.parametrize(
+        ["app_config", "backend_config_overrides"],
+        [
+            # TODO #204 eliminate flask config based signer initialization
+            ({"SIGNED_URL": "TRUE", "SIGNED_URL_SECRET": "123&@#"}, {}),
+            ({}, {"url_signer": UrlSigner(secret="123&@#")}),
+        ],
+    )
+    def test_download_result_signed_invalid(self, api, flask_app, app_config, backend_config_overrides):
         jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
         with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry(jobs=jobs):
             resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/test123/output.tiff')
         assert resp.assert_error(403, 'CredentialsInvalid')
 
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
-    def test_download_result_signed_with_expiration(self, api, tmp_path, flask_app):
+    @pytest.mark.parametrize(
+        ["app_config", "backend_config_overrides"],
+        [
+            # TODO #204 eliminate flask config based signer initialization
+            ({"SIGNED_URL": "TRUE", "SIGNED_URL_SECRET": "123&@#", "SIGNED_URL_EXPIRATION": "1000"}, {}),
+            ({}, {"url_signer": UrlSigner(secret="123&@#", expiration=1000)}),
+        ],
+    )
+    def test_download_result_signed_with_expiration(
+        self, api, tmp_path, flask_app, app_config, backend_config_overrides
+    ):
         output_root = Path(tmp_path)
-        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
         jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
         with mock.patch.dict(flask_app.config, app_config), \
                 self._fresh_job_registry(output_root=output_root, jobs=jobs):
@@ -1695,9 +1738,18 @@ class TestBatchJobs:
         assert resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
 
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
-    def test_download_result_signed_with_expiration_supports_range_request(self, api, tmp_path, flask_app):
+    @pytest.mark.parametrize(
+        ["app_config", "backend_config_overrides"],
+        [
+            # TODO #204 eliminate flask config based signer initialization
+            ({"SIGNED_URL": "TRUE", "SIGNED_URL_SECRET": "123&@#", "SIGNED_URL_EXPIRATION": "1000"}, {}),
+            ({}, {"url_signer": UrlSigner(secret="123&@#", expiration=1000)}),
+        ],
+    )
+    def test_download_result_signed_with_expiration_supports_range_request(
+        self, api, tmp_path, flask_app, app_config, backend_config_overrides
+    ):
         output_root = Path(tmp_path)
-        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
         jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
         with mock.patch.dict(flask_app.config, app_config), \
                 self._fresh_job_registry(output_root=output_root, jobs=jobs):
@@ -1716,16 +1768,32 @@ class TestBatchJobs:
             assert get_resp.assert_status_code(206).data == b'tiff'
 
     @mock.patch('time.time', mock.MagicMock(return_value=3456))
-    def test_download_result_signed_with_expiration_invalid(self, api, tmp_path, flask_app):
-        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
+    @pytest.mark.parametrize(
+        ["app_config", "backend_config_overrides"],
+        [
+            # TODO #204 eliminate flask config based signer initialization
+            ({"SIGNED_URL": "TRUE", "SIGNED_URL_SECRET": "123&@#", "SIGNED_URL_EXPIRATION": "1000"}, {}),
+            ({}, {"url_signer": UrlSigner(secret="123&@#", expiration=1000)}),
+        ],
+    )
+    def test_download_result_signed_with_expiration_invalid(
+        self, api, tmp_path, flask_app, app_config, backend_config_overrides
+    ):
         jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
         with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry(jobs=jobs):
             resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
         assert resp.assert_error(410, 'ResultLinkExpired')
 
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
-    def test_get_job_result_item(self, flask_app, api110):
-        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
+    @pytest.mark.parametrize(
+        ["app_config", "backend_config_overrides"],
+        [
+            # TODO #204 eliminate flask config based signer initialization
+            ({"SIGNED_URL": "TRUE", "SIGNED_URL_SECRET": "123&@#", "SIGNED_URL_EXPIRATION": "1000"}, {}),
+            ({}, {"url_signer": UrlSigner(secret="123&@#", expiration=1000)}),
+        ],
+    )
+    def test_get_job_result_item(self, flask_app, api110, app_config, backend_config_overrides):
         with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry():
             resp = api110.get("/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.tiff",
                               headers=self.AUTH_HEADER)
@@ -1771,8 +1839,15 @@ class TestBatchJobs:
         assert resp.headers["Content-Type"] == "application/geo+json"
 
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
-    def test_download_ml_model_metadata(self, flask_app, api110):
-        app_config = {'SIGNED_URL': 'TRUE', 'SIGNED_URL_SECRET': '123&@#', 'SIGNED_URL_EXPIRATION': '1000'}
+    @pytest.mark.parametrize(
+        ["app_config", "backend_config_overrides"],
+        [
+            # TODO #204 eliminate flask config based signer initialization
+            ({"SIGNED_URL": "TRUE", "SIGNED_URL_SECRET": "123&@#", "SIGNED_URL_EXPIRATION": "1000"}, {}),
+            ({}, {"url_signer": UrlSigner(secret="123&@#", expiration=1000)}),
+        ],
+    )
+    def test_download_ml_model_metadata(self, flask_app, api110, app_config, backend_config_overrides):
         with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry():
             resp = api110.get("/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/ml_model_metadata.json",
                               headers=self.AUTH_HEADER)

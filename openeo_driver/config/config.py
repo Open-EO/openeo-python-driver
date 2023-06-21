@@ -4,6 +4,7 @@ import attrs
 
 import openeo_driver
 from openeo_driver.server import build_backend_deploy_metadata
+from openeo_driver.urlsigning import UrlSigner
 from openeo_driver.users.oidc import OidcProvider
 
 
@@ -56,3 +57,5 @@ class OpenEoBackendConfig:
             "MAX_CONTENT_LENGTH": 1024 * 1024,  # bytes
         }
     )
+
+    url_signer: Optional[UrlSigner] = None

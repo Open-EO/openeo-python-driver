@@ -5,12 +5,9 @@ from pathlib import Path
 import attrs.exceptions
 import pytest
 
-from openeo_driver.config import (
-    OpenEoBackendConfig,
-    get_backend_config,
-    ConfigException,
-)
-from openeo_driver.config.load import load_from_py_file
+import openeo_driver.config.load
+from openeo_driver.config import ConfigException, OpenEoBackendConfig, get_backend_config
+from openeo_driver.config.load import _backend_config_getter, load_from_py_file
 
 
 def test_config_immutable():
@@ -60,13 +57,18 @@ def test_load_from_py_file_wrong_type(tmp_path):
 
 
 @pytest.fixture
-def final_flush():
-    """Make sure to always flush"""
-    yield
-    get_backend_config.flush()
+def backend_config_flush():
+    """Generate callable to flush the backend_config and automatically flush at start and end of test"""
+
+    def flush():
+        openeo_driver.config.load._backend_config_getter.flush()
+
+    flush()
+    yield flush
+    flush()
 
 
-def test_get_backend_config_lazy_cache(monkeypatch, tmp_path, final_flush):
+def test_get_backend_config_lazy_cache(monkeypatch, tmp_path, backend_config_flush):
     path = tmp_path / "myconfig.py"
     content = """
         import random
@@ -80,14 +82,14 @@ def test_get_backend_config_lazy_cache(monkeypatch, tmp_path, final_flush):
 
     monkeypatch.setenv("OPENEO_BACKEND_CONFIG", str(path))
 
-    get_backend_config.flush()
+    backend_config_flush()
     config1 = get_backend_config()
     assert isinstance(config1, OpenEoBackendConfig)
 
     config2 = get_backend_config()
     assert config2 is config1
 
-    get_backend_config.flush()
+    backend_config_flush()
     config3 = get_backend_config()
     assert not (config3 is config1)
 
@@ -101,9 +103,9 @@ def test_get_backend_config_lazy_cache(monkeypatch, tmp_path, final_flush):
         _ = get_backend_config(force_reload=True)
 
 
-def test_get_backend_config_not_found(monkeypatch, tmp_path, final_flush):
+def test_get_backend_config_not_found(monkeypatch, tmp_path, backend_config_flush):
     monkeypatch.setenv("OPENEO_BACKEND_CONFIG", str(tmp_path / "nonexistent.py"))
-    get_backend_config.flush()
+    backend_config_flush()
     with pytest.raises(FileNotFoundError):
         _ = get_backend_config()
 
@@ -124,3 +126,16 @@ def test_add_mandatory_fields():
 
     conf = MyConfig(set_this_or_die=4)
     assert conf.set_this_or_die == 4
+
+
+@pytest.mark.parametrize(
+    ["backend_config_overrides", "expected_id"],
+    [
+        (None, "dummy"),
+        ({}, "dummy"),
+        ({"id": "overridden!"}, "overridden!"),
+    ],
+)
+def test_pytest_override_context(backend_config, backend_config_overrides, expected_id):
+    config = get_backend_config()
+    assert config.id == expected_id

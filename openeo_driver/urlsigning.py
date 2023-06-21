@@ -11,13 +11,14 @@ from openeo_driver.utils import smart_bool
 _log = logging.getLogger(__name__)
 
 
-class Signer:
+class UrlSigner:
     def __init__(self, secret: str, expiration: int = None):
         self._secret = secret
         self._expiration = int(expiration or 0)
 
     @classmethod
-    def from_config(cls, config: dict) -> 'Signer':
+    def from_config(cls, config: dict) -> "UrlSigner":
+        # TODO #204 eliminate flask based Signer.from_config usage
         assert smart_bool(config.get('SIGNED_URL'))
         return cls(
             secret=config.get('SIGNED_URL_SECRET'),

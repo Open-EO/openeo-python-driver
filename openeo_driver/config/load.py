@@ -1,10 +1,13 @@
 """
 Utilities for (lazy) loading of config
 """
+import contextlib
 import logging
 import os
 from pathlib import Path
-from typing import Any, Optional, Union, ContextManager
+from typing import Any, ContextManager, Optional, Union
+
+import attrs
 
 try:
     # Use `importlib_resources` instead of stdlib `importlib.resources`
@@ -15,8 +18,7 @@ except ImportError:
 
     importlib_resources = importlib.resources
 
-from openeo_driver.config import OpenEoBackendConfig, ConfigException
-
+from openeo_driver.config import ConfigException, OpenEoBackendConfig
 
 _log = logging.getLogger(__name__)
 
@@ -93,5 +95,21 @@ class ConfigGetter:
         """Flush the config, to force a reload on next get."""
         self._config = None
 
+    @contextlib.contextmanager
+    def _pytest_override_context(self, overrides: Optional[dict] = None):
+        """
+        Important: this context manger specifically intended for usage in pytest fixtures,
+        to override specific config fields during the lifetime of a test
+        """
+        orig = self.get()
+        kwargs = {**attrs.asdict(orig, recurse=False), **overrides}
+        overridden = self.expected_class(**kwargs)
+        self._config = overridden
+        yield overridden
+        self.flush()
 
-get_backend_config = ConfigGetter()
+
+# "Singleton by convention" config getter
+_backend_config_getter = ConfigGetter()
+
+get_backend_config = _backend_config_getter.get
