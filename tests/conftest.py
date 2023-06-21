@@ -43,12 +43,8 @@ def udp_registry(backend_implementation) -> UserDefinedProcesses:
 
 # TODO: move this to dummy config file
 TEST_APP_CONFIG = dict(
-    OPENEO_TITLE="openEO Unit Test Dummy Backend",
     TESTING=True,
     SERVER_NAME='oeo.net',
-    OPENEO_BACKEND_DEPLOY_METADATA=build_backend_deploy_metadata(
-        packages=["openeo", "openeo_driver"]
-    ),
 )
 
 
