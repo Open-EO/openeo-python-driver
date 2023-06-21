@@ -1265,14 +1265,14 @@ class TestBatchJobs:
                         "type": "application/pdf"
                     }
                 ],
-                'properties': {
-                    'created': '2017-01-01T09:32:12Z',
-                    'datetime': None,
-                    'card4l:processing_chain': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
-                    'card4l:specification': 'SR',
-                    'card4l:specification_version': '5.0',
-                    'processing:facility': 'VITO - SPARK',
-                    'processing:software': 'openeo-geotrellis-0.0.1'
+                "properties": {
+                    "created": "2017-01-01T09:32:12Z",
+                    "datetime": None,
+                    "card4l:processing_chain": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
+                    "card4l:specification": "SR",
+                    "card4l:specification_version": "5.0",
+                    "processing:facility": "Dummy openEO API",
+                    "processing:software": "openeo-python-driver",
                 },
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
@@ -1343,8 +1343,8 @@ class TestBatchJobs:
                     "card4l:processing_chain": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
                     "card4l:specification": "SR",
                     "card4l:specification_version": "5.0",
-                    "processing:facility": "VITO - SPARK",
-                    "processing:software": "openeo-geotrellis-0.0.1",
+                    "processing:facility": "Dummy openEO API",
+                    "processing:software": "openeo-python-driver",
                 },
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
@@ -1426,14 +1426,14 @@ class TestBatchJobs:
                         'type': 'application/pdf'
                     }
                 ],
-                'properties': {
-                    'created': '2017-01-01T09:32:12Z',
-                    'datetime': None,
-                    'card4l:processing_chain': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
-                    'card4l:specification': 'SR',
-                    'card4l:specification_version': '5.0',
-                    'processing:facility': 'VITO - SPARK',
-                    'processing:software': 'openeo-geotrellis-0.0.1'
+                "properties": {
+                    "created": "2017-01-01T09:32:12Z",
+                    "datetime": None,
+                    "card4l:processing_chain": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
+                    "card4l:specification": "SR",
+                    "card4l:specification_version": "5.0",
+                    "processing:facility": "Dummy openEO API",
+                    "processing:software": "openeo-python-driver",
                 },
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
@@ -1491,14 +1491,14 @@ class TestBatchJobs:
                         'type': 'application/pdf'
                     }
                 ],
-                'properties': {
-                    'created': '2017-01-01T09:32:12Z',
-                    'datetime': None,
-                    'card4l:processing_chain': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
-                    'card4l:specification': 'SR',
-                    'card4l:specification_version': '5.0',
-                    'processing:facility': 'VITO - SPARK',
-                    'processing:software': 'openeo-geotrellis-0.0.1'
+                "properties": {
+                    "created": "2017-01-01T09:32:12Z",
+                    "datetime": None,
+                    "card4l:processing_chain": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
+                    "card4l:specification": "SR",
+                    "card4l:specification_version": "5.0",
+                    "processing:facility": "Dummy openEO API",
+                    "processing:software": "openeo-python-driver",
                 },
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
