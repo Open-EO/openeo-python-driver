@@ -93,6 +93,7 @@ config = OpenEoBackendConfig(
     capabilities_description="Dummy openEO backend provided by [openeo-python-driver](https://github.com/Open-EO/openeo-python-driver).",
     capabilities_backend_version="1.2.3-foo",
     capabilities_deploy_metadata=build_backend_deploy_metadata(packages=["openeo", "openeo_driver"]),
+    processing_facility="Dummy openEO API",
     oidc_providers=oidc_providers,
     valid_basic_auth=_valid_basic_auth,
 )

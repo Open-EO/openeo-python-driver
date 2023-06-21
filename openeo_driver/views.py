@@ -55,7 +55,6 @@ _log.info("API Versions: {v}".format(v=API_VERSIONS))
 _log.info("Default API Version: {v}".format(v=API_VERSION_DEFAULT))
 
 
-# TODO: maybe STREAM_CHUNK_SIZE_DEFAULT belongs in flask_defaults.py?
 STREAM_CHUNK_SIZE_DEFAULT = 10 * 1024
 
 class OpenEoApiApp(Flask):
@@ -229,9 +228,8 @@ def build_app(
     global _openeo_endpoint_metadata
     _openeo_endpoint_metadata = api_reg.get_path_metadata(bp)
 
-    # Load default config.
-    # TODO #204 replace flask-style config with generic OpenEoBackendConfig
-    app.config.from_object("openeo_driver.config.flask_defaults")
+    # Load flask settings from config.
+    app.config.from_object(get_backend_config().flask_settings)
 
     return app
 
@@ -736,18 +734,18 @@ def register_views_processing(
 def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
     to_datetime = Rfc3339(propagate_none=True).datetime
 
-    properties = dict_no_none(**{
-        "title": job_info.title,
-        "description": job_info.description,
-        "created": to_datetime(job_info.created),
-        "updated": to_datetime(job_info.updated),
-        "card4l:specification": "SR",
-        "card4l:specification_version": "5.0",
-        # TODO: eliminate hard coded VITO/Spark/Geotrellis references. See https://github.com/Open-EO/openeo-python-driver/issues/74
-        # TODO #204 replace flask-style config with OpenEoBackendConfig
-        "processing:facility": 'VITO - SPARK',
-        "processing:software": 'openeo-geotrellis-' + current_app.config.get('OPENEO_BACKEND_VERSION', '0.0.1')
-    })
+    properties = dict_no_none(
+        {
+            "title": job_info.title,
+            "description": job_info.description,
+            "created": to_datetime(job_info.created),
+            "updated": to_datetime(job_info.updated),
+            "card4l:specification": "SR",
+            "card4l:specification_version": "5.0",
+            "processing:facility": get_backend_config().processing_facility,
+            "processing:software": get_backend_config().processing_software,
+        }
+    )
     properties["datetime"] = None
 
     start_datetime = to_datetime(job_info.start_datetime)
