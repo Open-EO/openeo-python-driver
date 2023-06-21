@@ -5,6 +5,7 @@ import logging
 import os
 import pathlib
 import re
+import textwrap
 from collections import namedtuple, defaultdict
 from typing import Callable, Tuple, List, Optional
 
@@ -21,6 +22,7 @@ from openeo.util import dict_no_none, deep_get, Rfc3339
 from openeo_driver import urlsigning
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
     ErrorSummary, OpenEoBackendImplementation, BatchJobs, is_not_implemented
+from openeo_driver.config import get_backend_config, OpenEoBackendConfig
 from openeo_driver.constants import STAC_EXTENSION
 from openeo_driver.datacube import DriverMlModel
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
@@ -53,7 +55,6 @@ _log.info("API Versions: {v}".format(v=API_VERSIONS))
 _log.info("Default API Version: {v}".format(v=API_VERSION_DEFAULT))
 
 
-# TODO: maybe STREAM_CHUNK_SIZE_DEFAULT belongs in flask_defaults.py?
 STREAM_CHUNK_SIZE_DEFAULT = 10 * 1024
 
 class OpenEoApiApp(Flask):
@@ -101,16 +102,6 @@ def build_app(
         # Directly set config values
         app.config['TESTING'] = True
         app.config['SERVER_NAME'] = 'oeo.net'
-
-        # Load config values from a module (upper case variables)
-        from openeogeotrellis.deploy import flask_config
-        app.config.from_object(flask_config)
-
-        # Load from a dictionary/mapping
-        app.config.from_mapping(
-            OPENEO_TITLE="Local GeoPySpark",
-            OPENEO_DESCRIPTION="Local openEO API using GeoPySpark driver",
-        )
 
     :param backend_implementation:
     :param import_name:
@@ -237,8 +228,8 @@ def build_app(
     global _openeo_endpoint_metadata
     _openeo_endpoint_metadata = api_reg.get_path_metadata(bp)
 
-    # Load default config.
-    app.config.from_object("openeo_driver.config.flask_defaults")
+    # Load flask settings from config.
+    app.config.from_object(get_backend_config().flask_settings)
 
     return app
 
@@ -357,14 +348,30 @@ def register_views_general(
     @blueprint.route('/')
     @backend_implementation.cache_control
     def index():
+        backend_config: OpenEoBackendConfig = get_backend_config()
+
+        # TODO #204 replace flask-style config with generic OpenEoBackendConfig
         app_config = current_app.config
 
+        def app_config_get(key: str):
+            # TODO #204 eliminate this deprecation adapter
+            if key in app_config:
+                _log.warning(f"Flask-style configuration of {key} is deprecated, use OpenEoBackendConfig instead")
+                return app_config[key]
+
         api_version = requested_api_version().to_string()
-        title = app_config.get('OPENEO_TITLE', 'OpenEO API')
-        service_id = app_config.get('OPENEO_SERVICE_ID', re.sub(r"\s+", "", title.lower() + '-' + api_version))
+        title = app_config_get("OPENEO_TITLE") or backend_config.capabilities_title
+        backend_version = app_config_get("OPENEO_BACKEND_VERSION") or backend_config.capabilities_backend_version
+        service_id = (
+            app_config_get("OPENEO_SERVICE_ID")
+            or backend_config.capabilities_service_id
+            or re.sub(r"\s+", "", f"{title.lower()}-{backend_version}")
+        )
         # TODO only list endpoints that are actually supported by the backend.
         endpoints = EndpointRegistry.get_capabilities_endpoints(_openeo_endpoint_metadata, api_version=api_version)
-        deploy_metadata = app_config.get('OPENEO_BACKEND_DEPLOY_METADATA') or {}
+        deploy_metadata = (
+            app_config_get("OPENEO_BACKEND_DEPLOY_METADATA") or backend_config.capabilities_deploy_metadata
+        )
 
         capabilities = {
             "stac_extensions": [
@@ -372,11 +379,13 @@ def register_views_general(
             ],
             "version": api_version,  # Deprecated pre-0.4.0 API version field
             "api_version": api_version,  # API version field since 0.4.0
-            "backend_version": app_config.get('OPENEO_BACKEND_VERSION', '0.0.1'),
+            "backend_version": backend_version,
             "stac_version": "0.9.0",
             "id": service_id,
             "title": title,
-            "description": app_config.get('OPENEO_DESCRIPTION', 'OpenEO API'),
+            "description": textwrap.dedent(
+                app_config_get("OPENEO_DESCRIPTION") or backend_config.capabilities_description
+            ).strip(),
             "production": API_VERSIONS[g.request_version].production,
             "endpoints": endpoints,
             "billing": backend_implementation.capabilities_billing(),
@@ -716,17 +725,18 @@ def register_views_processing(
 def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
     to_datetime = Rfc3339(propagate_none=True).datetime
 
-    properties = dict_no_none(**{
-        "title": job_info.title,
-        "description": job_info.description,
-        "created": to_datetime(job_info.created),
-        "updated": to_datetime(job_info.updated),
-        "card4l:specification": "SR",
-        "card4l:specification_version": "5.0",
-        # TODO: eliminate hard coded VITO/Spark/Geotrellis references. See https://github.com/Open-EO/openeo-python-driver/issues/74
-        "processing:facility": 'VITO - SPARK',
-        "processing:software": 'openeo-geotrellis-' + current_app.config.get('OPENEO_BACKEND_VERSION', '0.0.1')
-    })
+    properties = dict_no_none(
+        {
+            "title": job_info.title,
+            "description": job_info.description,
+            "created": to_datetime(job_info.created),
+            "updated": to_datetime(job_info.updated),
+            "card4l:specification": "SR",
+            "card4l:specification_version": "5.0",
+            "processing:facility": get_backend_config().processing_facility,
+            "processing:software": get_backend_config().processing_software,
+        }
+    )
     properties["datetime"] = None
 
     start_datetime = to_datetime(job_info.start_datetime)
@@ -876,6 +886,7 @@ def register_views_batch_jobs(
         return make_response("", 202)
 
     def _job_result_download_url(job_id, user_id, filename) -> str:
+        # TODO #204 replace flask-style config with OpenEoBackendConfig
         if smart_bool(current_app.config.get('SIGNED_URL')):
             signer = urlsigning.Signer.from_config(current_app.config)
         else:
@@ -905,6 +916,7 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs/<job_id>/results/<user_base64>/<secure_key>', methods=['GET'])
     def list_job_results_signed(job_id, user_base64, secure_key):
         expires = request.args.get('expires')
+        # TODO #204 replace flask-style config with OpenEoBackendConfig
         signer = urlsigning.Signer.from_config(current_app.config)
         user_id = user_id_b64_decode(user_base64)
         signer.verify_job_results(signature=secure_key, job_id=job_id, user_id=user_id, expires=expires)
@@ -926,6 +938,7 @@ def register_views_batch_jobs(
 
         if requested_api_version().at_least("1.0.0"):
             def job_results_canonical_url() -> str:
+                # TODO #204 replace flask-style config with OpenEoBackendConfig
                 if not smart_bool(current_app.config.get('SIGNED_URL')):
                     return url_for('.list_job_results', job_id=job_id, _external=True)
 
@@ -984,6 +997,7 @@ def register_views_batch_jobs(
                 ml_model_metadata = None
 
                 def job_result_item_url(item_id) -> str:
+                    # TODO #204 replace flask-style config with OpenEoBackendConfig
                     if not smart_bool(current_app.config.get('SIGNED_URL')):
                         return url_for('.get_job_result_item', job_id=job_id, item_id=item_id, _external=True)
 
@@ -1144,6 +1158,7 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs/<job_id>/results/items/<user_base64>/<secure_key>/<item_id>', methods=['GET'])
     def get_job_result_item_signed(job_id, user_base64, secure_key, item_id):
         expires = request.args.get('expires')
+        # TODO #204 replace flask-style config with OpenEoBackendConfig
         signer = urlsigning.Signer.from_config(current_app.config)
         user_id = user_id_b64_decode(user_base64)
         signer.verify_job_item(signature=secure_key, job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
@@ -1321,6 +1336,7 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs/<job_id>/results/assets/<user_base64>/<secure_key>/<filename>', methods=['GET'])
     def download_job_result_signed(job_id, user_base64, secure_key, filename):
         expires = request.args.get('expires')
+        # TODO #204 replace flask-style config with OpenEoBackendConfig
         signer = urlsigning.Signer.from_config(current_app.config)
         user_id = user_id_b64_decode(user_base64)
         signer.verify_job_asset(

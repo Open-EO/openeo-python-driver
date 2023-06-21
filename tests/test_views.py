@@ -172,16 +172,20 @@ class TestGeneral:
         resp = client.get(url)
         assert resp.status_code == 200
         capabilities = resp.json
-        assert capabilities["title"] == "openEO Unit Test Dummy Backend"
+        assert capabilities["title"] == "Dummy openEO Backend"
         assert capabilities["api_version"] == expected_version
-
 
     def test_capabilities_100(self, api100):
         capabilities = api100.get('/').assert_status_code(200).json
         assert capabilities["api_version"] == "1.0.0"
         assert capabilities["stac_version"] == "0.9.0"
-        assert capabilities["title"] == "openEO Unit Test Dummy Backend"
-        assert capabilities["id"] == "openeounittestdummybackend-1.0.0"
+        assert capabilities["title"] == "Dummy openEO Backend"
+        assert (
+            capabilities["description"]
+            == "Dummy openEO backend provided by [openeo-python-driver](https://github.com/Open-EO/openeo-python-driver)."
+        )
+        assert capabilities["backend_version"] == "1.2.3-foo"
+        assert capabilities["id"] == "dummyopeneobackend-1.2.3-foo"
         assert capabilities["production"] is True
 
         def get_link(rel):
@@ -1277,14 +1281,14 @@ class TestBatchJobs:
                         "type": "application/pdf"
                     }
                 ],
-                'properties': {
-                    'created': '2017-01-01T09:32:12Z',
-                    'datetime': None,
-                    'card4l:processing_chain': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
-                    'card4l:specification': 'SR',
-                    'card4l:specification_version': '5.0',
-                    'processing:facility': 'VITO - SPARK',
-                    'processing:software': 'openeo-geotrellis-0.0.1'
+                "properties": {
+                    "created": "2017-01-01T09:32:12Z",
+                    "datetime": None,
+                    "card4l:processing_chain": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
+                    "card4l:specification": "SR",
+                    "card4l:specification_version": "5.0",
+                    "processing:facility": "Dummy openEO API",
+                    "processing:software": "openeo-python-driver",
                 },
                 "providers": EXPECTED_PROVIDERS,
                 "stac_extensions": [
@@ -1356,8 +1360,8 @@ class TestBatchJobs:
                     "card4l:processing_chain": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
                     "card4l:specification": "SR",
                     "card4l:specification_version": "5.0",
-                    "processing:facility": "VITO - SPARK",
-                    "processing:software": "openeo-geotrellis-0.0.1",
+                    "processing:facility": "Dummy openEO API",
+                    "processing:software": "openeo-python-driver",
                 },
                 "providers": EXPECTED_PROVIDERS,
                 "stac_extensions": [
@@ -1588,14 +1592,14 @@ class TestBatchJobs:
                         'type': 'application/pdf'
                     }
                 ],
-                'properties': {
-                    'created': '2017-01-01T09:32:12Z',
-                    'datetime': None,
-                    'card4l:processing_chain': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
-                    'card4l:specification': 'SR',
-                    'card4l:specification_version': '5.0',
-                    'processing:facility': 'VITO - SPARK',
-                    'processing:software': 'openeo-geotrellis-0.0.1'
+                "properties": {
+                    "created": "2017-01-01T09:32:12Z",
+                    "datetime": None,
+                    "card4l:processing_chain": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
+                    "card4l:specification": "SR",
+                    "card4l:specification_version": "5.0",
+                    "processing:facility": "Dummy openEO API",
+                    "processing:software": "openeo-python-driver",
                 },
                 "providers": EXPECTED_PROVIDERS,
                 "stac_extensions": [
@@ -1727,14 +1731,14 @@ class TestBatchJobs:
                         'type': 'application/pdf'
                     }
                 ],
-                'properties': {
-                    'created': '2017-01-01T09:32:12Z',
-                    'datetime': None,
-                    'card4l:processing_chain': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
-                    'card4l:specification': 'SR',
-                    'card4l:specification_version': '5.0',
-                    'processing:facility': 'VITO - SPARK',
-                    'processing:software': 'openeo-geotrellis-0.0.1'
+                "properties": {
+                    "created": "2017-01-01T09:32:12Z",
+                    "datetime": None,
+                    "card4l:processing_chain": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
+                    "card4l:specification": "SR",
+                    "card4l:specification_version": "5.0",
+                    "processing:facility": "Dummy openEO API",
+                    "processing:software": "openeo-python-driver",
                 },
                 "providers": EXPECTED_PROVIDERS,
                 "stac_extensions": [
