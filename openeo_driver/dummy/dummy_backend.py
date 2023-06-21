@@ -659,23 +659,6 @@ class DummyBatchJobs(BatchJobs):
             )
             return result_md
 
-    def _get_processing_expression(self, job_id: str, user_id: str):
-        job = self.get_job_info(job_id=job_id, user_id=user_id)
-        return [{"expression": job.process, "format": "openeo"}]
-
-    def _get_providers(self, job_id: str, user_id: str):
-        expression = self._get_processing_expression(job_id=job_id, user_id=user_id)
-        return [
-            {
-                "description": "This data was processed on an openEO backend " "maintained by VITO.",
-                "name": "VITO",
-                "processing:expression": expression,
-                "processing:facility": "openEO unit test backend",  # fake backend
-                "processing:software": {"unit test backend": "0.0.0"},  # fake SW version
-                "roles": ["processor"],
-            }
-        ]
-
     def get_result_assets(self, job_id: str, user_id: str) -> Dict[str, dict]:
         if (
             self._get_job_info(job_id=job_id, user_id=user_id).status

@@ -26,7 +26,7 @@ from openeo_driver.backend import (
     BatchJobResultMetadata,
 )
 from openeo_driver.config import OpenEoBackendConfig
-from openeo_driver.dummy import dummy_backend
+from openeo_driver.dummy import dummy_backend, dummy_config
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, \
@@ -44,13 +44,16 @@ EXPECTED_PROCESSING_EXPRESSION = [
     {"expression": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}}, "format": "openeo"}
 ]
 
+
 EXPECTED_PROVIDERS = [
     {
-        "description": "This data was processed on an openEO backend maintained by VITO.",
-        "name": "VITO",
+        "name": dummy_config.config.capabilities_title,
+        "description": dummy_config.config.capabilities_description,
         "processing:expression": EXPECTED_PROCESSING_EXPRESSION,
-        "processing:facility": "openEO unit test backend",
-        "processing:software": {"unit test backend": "0.0.0"},
+        "processing:facility": dummy_config.config.processing_facility,
+        "processing:software": {
+            dummy_config.config.processing_software: dummy_config.config.capabilities_backend_version
+        },
         "roles": ["processor"],
     }
 ]

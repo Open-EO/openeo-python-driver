@@ -933,8 +933,11 @@ def register_views_batch_jobs(
         result_assets = result_metadata.assets
         providers = result_metadata.providers
 
-        treat_v100_like_v110 = os.environ.get("TREAT_V100_LIKE_V110", "0")
-        TREAT_V100_LIKE_V110 = treat_v100_like_v110.lower() in ["1", "true", "yes"]
+        # TODO: remove feature toggle, during refactoring for openeo-geopyspark-driver#440
+        #   https://github.com/Open-EO/openeo-geopyspark-driver/issues/440
+        #   We will try to simplify the code and give the same response for API v1.0.0 as v1.1.0.
+        #   This is a bit of an ugly temporary hack, to aid in testing and comparing.
+        TREAT_JOB_RESULTS_V100_LIKE_V110 = smart_bool(os.environ.get("TREAT_JOB_RESULTS_V100_LIKE_V110", "0"))
 
         if requested_api_version().at_least("1.0.0"):
             def job_results_canonical_url() -> str:
@@ -992,7 +995,7 @@ def register_views_batch_jobs(
                 if asset_metadata.get("asset", True)
             }
 
-            if TREAT_V100_LIKE_V110 or requested_api_version().at_least("1.1.0"):
+            if TREAT_JOB_RESULTS_V100_LIKE_V110 or requested_api_version().at_least("1.1.0"):
                 to_datetime = Rfc3339(propagate_none=True).datetime
                 ml_model_metadata = None
 
@@ -1072,7 +1075,7 @@ def register_views_batch_jobs(
                             "ml-model:prediction_type": [prediction_type] if prediction_type is not None else [],
                             "ml-model:architecture": [architecture] if architecture is not None else [],
                         })
-            elif not TREAT_V100_LIKE_V110:
+            elif not TREAT_JOB_RESULTS_V100_LIKE_V110:
                 result = {
                     "type": "Feature",
                     "stac_version": "0.9.0",

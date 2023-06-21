@@ -439,7 +439,18 @@ class BatchJobs(MicroService):
            openeo_driver.dummy.dummy_backend.DummyBatchJobs._get_providers
 
         """
-        raise NotImplementedError
+        config: OpenEoBackendConfig = get_backend_config()
+        job: BatchJobMetadata = self.get_job_info(job_id=job_id, user_id=user_id)
+        return [
+            {
+                "name": config.capabilities_title,
+                "description": config.capabilities_description,
+                "roles": ["processor"],
+                "processing:facility": config.processing_facility,
+                "processing:software": {config.processing_software: config.capabilities_backend_version},
+                "processing:expression": [{"format": "openeo", "expression": job.process}],
+            }
+        ]
 
     def get_result_assets(self, job_id: str, user_id: str) -> Dict[str, dict]:
         """
