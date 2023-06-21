@@ -32,6 +32,9 @@ class OpenEoBackendConfig:
         lambda: build_backend_deploy_metadata(packages=["openeo", "openeo_driver"])
     )
 
+    processing_facility: str = "openEO"
+    processing_software: str = "openeo-python-driver"
+
     oidc_providers: List[OidcProvider] = attrs.Factory(list)
 
     oidc_token_introspection: bool = False

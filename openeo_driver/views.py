@@ -725,18 +725,18 @@ def register_views_processing(
 def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
     to_datetime = Rfc3339(propagate_none=True).datetime
 
-    properties = dict_no_none(**{
-        "title": job_info.title,
-        "description": job_info.description,
-        "created": to_datetime(job_info.created),
-        "updated": to_datetime(job_info.updated),
-        "card4l:specification": "SR",
-        "card4l:specification_version": "5.0",
-        # TODO: eliminate hard coded VITO/Spark/Geotrellis references. See https://github.com/Open-EO/openeo-python-driver/issues/74
-        # TODO #204 replace flask-style config with OpenEoBackendConfig
-        "processing:facility": 'VITO - SPARK',
-        "processing:software": 'openeo-geotrellis-' + current_app.config.get('OPENEO_BACKEND_VERSION', '0.0.1')
-    })
+    properties = dict_no_none(
+        {
+            "title": job_info.title,
+            "description": job_info.description,
+            "created": to_datetime(job_info.created),
+            "updated": to_datetime(job_info.updated),
+            "card4l:specification": "SR",
+            "card4l:specification_version": "5.0",
+            "processing:facility": get_backend_config().processing_facility,
+            "processing:software": get_backend_config().processing_software,
+        }
+    )
     properties["datetime"] = None
 
     start_datetime = to_datetime(job_info.start_datetime)
