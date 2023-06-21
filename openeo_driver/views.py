@@ -55,7 +55,6 @@ _log.info("API Versions: {v}".format(v=API_VERSIONS))
 _log.info("Default API Version: {v}".format(v=API_VERSION_DEFAULT))
 
 
-# TODO: maybe STREAM_CHUNK_SIZE_DEFAULT belongs in flask_defaults.py?
 STREAM_CHUNK_SIZE_DEFAULT = 10 * 1024
 
 class OpenEoApiApp(Flask):
@@ -229,9 +228,8 @@ def build_app(
     global _openeo_endpoint_metadata
     _openeo_endpoint_metadata = api_reg.get_path_metadata(bp)
 
-    # Load default config.
-    # TODO #204 replace flask-style config with generic OpenEoBackendConfig
-    app.config.from_object("openeo_driver.config.flask_defaults")
+    # Load flask settings from config.
+    app.config.from_object(get_backend_config().flask_settings)
 
     return app
 

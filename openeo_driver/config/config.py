@@ -45,3 +45,11 @@ class OpenEoBackendConfig:
 
     # TODO #90 #186: eliminate simple password scheme
     valid_basic_auth: Callable[[str, str], bool] = lambda u, p: p == f"{u}123"
+
+    # General Flask related settings
+    # (e.g. see https://flask.palletsprojects.com/en/2.3.x/config/#builtin-configuration-values)
+    flask_settings: dict = attrs.Factory(
+        lambda: {
+            "MAX_CONTENT_LENGTH": 1024 * 1024,  # bytes
+        }
+    )
