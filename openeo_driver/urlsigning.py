@@ -16,15 +16,6 @@ class UrlSigner:
         self._secret = secret
         self._expiration = int(expiration or 0)
 
-    @classmethod
-    def from_config(cls, config: dict) -> "UrlSigner":
-        # TODO #204 eliminate flask based Signer.from_config usage
-        assert smart_bool(config.get('SIGNED_URL'))
-        return cls(
-            secret=config.get('SIGNED_URL_SECRET'),
-            expiration=config.get('SIGNED_URL_EXPIRATION')
-        )
-
     def get_expires(self, now: int = None) -> Optional[int]:
         if self._expiration:
             return int((now or time.time()) + self._expiration)

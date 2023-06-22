@@ -886,12 +886,7 @@ def register_views_batch_jobs(
         return make_response("", 202)
 
     def _job_result_download_url(job_id, user_id, filename) -> str:
-        # TODO #204 eliminate flask based Signer.from_config usage
-        signer = (
-            UrlSigner.from_config(current_app.config)
-            if smart_bool(current_app.config.get("SIGNED_URL"))
-            else get_backend_config().url_signer
-        )
+        signer = get_backend_config().url_signer
         if signer:
             expires = signer.get_expires()
             secure_key = signer.sign_job_asset(
@@ -916,8 +911,7 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs/<job_id>/results/<user_base64>/<secure_key>', methods=['GET'])
     def list_job_results_signed(job_id, user_base64, secure_key):
         expires = request.args.get('expires')
-        # TODO #204 eliminate flask based Signer.from_config usage
-        signer = get_backend_config().url_signer or UrlSigner.from_config(current_app.config)
+        signer = get_backend_config().url_signer
         user_id = user_id_b64_decode(user_base64)
         signer.verify_job_results(signature=secure_key, job_id=job_id, user_id=user_id, expires=expires)
         return _list_job_results(job_id, user_id)
@@ -941,12 +935,7 @@ def register_views_batch_jobs(
 
         if requested_api_version().at_least("1.0.0"):
             def job_results_canonical_url() -> str:
-                # TODO #204 eliminate flask based Signer.from_config usage
-                signer = (
-                    UrlSigner.from_config(current_app.config)
-                    if smart_bool(current_app.config.get("SIGNED_URL"))
-                    else get_backend_config().url_signer
-                )
+                signer = get_backend_config().url_signer
                 if not signer:
                     return url_for('.list_job_results', job_id=job_id, _external=True)
 
@@ -1003,12 +992,7 @@ def register_views_batch_jobs(
                 ml_model_metadata = None
 
                 def job_result_item_url(item_id) -> str:
-                    # TODO #204 eliminate flask based Signer.from_config usage
-                    signer = (
-                        UrlSigner.from_config(current_app.config)
-                        if smart_bool(current_app.config.get("SIGNED_URL"))
-                        else get_backend_config().url_signer
-                    )
+                    signer = get_backend_config().url_signer
                     if not signer:
                         return url_for('.get_job_result_item', job_id=job_id, item_id=item_id, _external=True)
 
@@ -1167,8 +1151,7 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs/<job_id>/results/items/<user_base64>/<secure_key>/<item_id>', methods=['GET'])
     def get_job_result_item_signed(job_id, user_base64, secure_key, item_id):
         expires = request.args.get('expires')
-        # TODO #204 eliminate flask based Signer.from_config usage
-        signer = get_backend_config().url_signer or UrlSigner.from_config(current_app.config)
+        signer = get_backend_config().url_signer
         user_id = user_id_b64_decode(user_base64)
         signer.verify_job_item(signature=secure_key, job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
         return _get_job_result_item(job_id, item_id, user_id)
@@ -1345,8 +1328,7 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs/<job_id>/results/assets/<user_base64>/<secure_key>/<filename>', methods=['GET'])
     def download_job_result_signed(job_id, user_base64, secure_key, filename):
         expires = request.args.get('expires')
-        # TODO #204 eliminate flask based Signer.from_config usage
-        signer = get_backend_config().url_signer or UrlSigner.from_config(current_app.config)
+        signer = get_backend_config().url_signer
         user_id = user_id_b64_decode(user_base64)
         signer.verify_job_asset(
             signature=secure_key,
