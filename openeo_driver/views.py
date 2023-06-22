@@ -349,29 +349,13 @@ def register_views_general(
     @backend_implementation.cache_control
     def index():
         backend_config: OpenEoBackendConfig = get_backend_config()
-
-        # TODO #204 replace flask-style config with generic OpenEoBackendConfig
-        app_config = current_app.config
-
-        def app_config_get(key: str):
-            # TODO #204 eliminate this deprecation adapter
-            if key in app_config:
-                _log.warning(f"Flask-style configuration of {key} is deprecated, use OpenEoBackendConfig instead")
-                return app_config[key]
-
         api_version = requested_api_version().to_string()
-        title = app_config_get("OPENEO_TITLE") or backend_config.capabilities_title
-        backend_version = app_config_get("OPENEO_BACKEND_VERSION") or backend_config.capabilities_backend_version
-        service_id = (
-            app_config_get("OPENEO_SERVICE_ID")
-            or backend_config.capabilities_service_id
-            or re.sub(r"\s+", "", f"{title.lower()}-{backend_version}")
-        )
+        title = backend_config.capabilities_title
+        backend_version = backend_config.capabilities_backend_version
+        service_id = backend_config.capabilities_service_id or re.sub(r"\s+", "", f"{title.lower()}-{backend_version}")
         # TODO only list endpoints that are actually supported by the backend.
         endpoints = EndpointRegistry.get_capabilities_endpoints(_openeo_endpoint_metadata, api_version=api_version)
-        deploy_metadata = (
-            app_config_get("OPENEO_BACKEND_DEPLOY_METADATA") or backend_config.capabilities_deploy_metadata
-        )
+        deploy_metadata = backend_config.capabilities_deploy_metadata
 
         capabilities = {
             "stac_extensions": [
@@ -383,9 +367,7 @@ def register_views_general(
             "stac_version": "0.9.0",
             "id": service_id,
             "title": title,
-            "description": textwrap.dedent(
-                app_config_get("OPENEO_DESCRIPTION") or backend_config.capabilities_description
-            ).strip(),
+            "description": textwrap.dedent(backend_config.capabilities_description).strip(),
             "production": API_VERSIONS[g.request_version].production,
             "endpoints": endpoints,
             "billing": backend_implementation.capabilities_billing(),
