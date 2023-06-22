@@ -931,6 +931,13 @@ def register_views_batch_jobs(
             job_id=job_id, user_id=user_id
         )
         result_assets = result_metadata.assets
+        providers = result_metadata.providers
+
+        # TODO: remove feature toggle, during refactoring for openeo-geopyspark-driver#440
+        #   https://github.com/Open-EO/openeo-geopyspark-driver/issues/440
+        #   We will try to simplify the code and give the same response for API v1.0.0 as v1.1.0.
+        #   This is a bit of an ugly temporary hack, to aid in testing and comparing.
+        TREAT_JOB_RESULTS_V100_LIKE_V110 = smart_bool(os.environ.get("TREAT_JOB_RESULTS_V100_LIKE_V110", "0"))
 
         if requested_api_version().at_least("1.0.0"):
             def job_results_canonical_url() -> str:
@@ -991,7 +998,7 @@ def register_views_batch_jobs(
                 if asset_metadata.get("asset", True)
             }
 
-            if requested_api_version().at_least("1.1.0"):
+            if TREAT_JOB_RESULTS_V100_LIKE_V110 or requested_api_version().at_least("1.1.0"):
                 to_datetime = Rfc3339(propagate_none=True).datetime
                 ml_model_metadata = None
 
@@ -1054,18 +1061,12 @@ def register_views_batch_jobs(
                         "summaries" : {
                             "instruments":job_info.instruments
                         },
-                        "providers": [
-                            {
-                                "name": "openEO backend",
-                                "roles": [
-                                    "processor"
-                                ]
-                            }
-                        ],
+                        "providers": providers or None,
                         "links": links,
                         "assets": assets,
                     }
                 )
+
                 if ml_model_metadata is not None:
                     result["stac_extensions"].extend(ml_model_metadata.get("stac_extensions", []))
                     if "summaries" not in result.keys():
@@ -1080,7 +1081,7 @@ def register_views_batch_jobs(
                             "ml-model:prediction_type": [prediction_type] if prediction_type is not None else [],
                             "ml-model:architecture": [architecture] if architecture is not None else [],
                         })
-            else:
+            elif not TREAT_JOB_RESULTS_V100_LIKE_V110:
                 result = {
                     "type": "Feature",
                     "stac_version": "0.9.0",
@@ -1089,6 +1090,8 @@ def register_views_batch_jobs(
                     "assets": assets,
                     "links": links
                 }
+                if providers:
+                    result["providers"] = providers
 
                 geometry = job_info.geometry
                 result["geometry"] = geometry

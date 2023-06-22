@@ -25,7 +25,7 @@ from openeo_driver.backend import (
     BatchJobResultMetadata,
 )
 from openeo_driver.config import OpenEoBackendConfig
-from openeo_driver.dummy import dummy_backend
+from openeo_driver.dummy import dummy_backend, dummy_config
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, \
@@ -37,6 +37,25 @@ from openeo_driver.util.logging import LOGGING_CONTEXT_FLASK, FlaskRequestCorrel
 from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata, build_app, STREAM_CHUNK_SIZE_DEFAULT
 from .conftest import TEST_APP_CONFIG, enhanced_logging
 from .data import TEST_DATA_ROOT
+
+
+EXPECTED_PROCESSING_EXPRESSION = [
+    {"expression": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}}, "format": "openeo"}
+]
+
+
+EXPECTED_PROVIDERS = [
+    {
+        "name": dummy_config.config.capabilities_title,
+        "description": dummy_config.config.capabilities_description,
+        "processing:expression": EXPECTED_PROCESSING_EXPRESSION,
+        "processing:facility": dummy_config.config.processing_facility,
+        "processing:software": {
+            dummy_config.config.processing_software: dummy_config.config.capabilities_backend_version
+        },
+        "roles": ["processor"],
+    }
+]
 
 
 @pytest.fixture(
@@ -1273,6 +1292,7 @@ class TestBatchJobs:
                     "processing:facility": "Dummy openEO API",
                     "processing:software": "openeo-python-driver",
                 },
+                "providers": EXPECTED_PROVIDERS,
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
                     "https://stac-extensions.github.io/card4l/v0.1.0/optical/schema.json",
@@ -1345,6 +1365,7 @@ class TestBatchJobs:
                     "processing:facility": "Dummy openEO API",
                     "processing:software": "openeo-python-driver",
                 },
+                "providers": EXPECTED_PROVIDERS,
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
                     "https://stac-extensions.github.io/card4l/v0.1.0/optical/schema.json",
@@ -1356,7 +1377,154 @@ class TestBatchJobs:
                 "type": "Feature",
             }
 
-    def test_get_job_results_public_href_asset_100(self, api100, backend_implementation):
+    def test_get_job_results_110(self, api110):
+        with self._fresh_job_registry(next_job_id="job-362"):
+            dummy_backend.DummyBatchJobs._update_status(
+                job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="finished"
+            )
+            resp = api110.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results", headers=self.AUTH_HEADER)
+
+            assert resp.assert_status_code(200).json == {
+                "description": "Results for batch job 07024ee9-7847-4b8a-b260-6c879a2b3cdc",
+                "extent": {"spatial": {"bbox": [None]}, "temporal": {"interval": [[None, None]]}},
+                "license": "proprietary",
+                "summaries": {
+                    "instruments": None,
+                    "ml-model:architecture": ["random-forest"],
+                    "ml-model:learning_approach": ["supervised"],
+                    "ml-model:prediction_type": ["classification"],
+                },
+                "assets": {
+                    "output.tiff": {
+                        "roles": ["data"],
+                        "title": "output.tiff",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff",
+                        "type": "image/tiff; application=geotiff",
+                        "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
+                        "file:nodata": [123],
+                    },
+                    "randomforest.model": {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/randomforest.model",
+                        "roles": ["data"],
+                        "title": "randomforest.model",
+                        "type": "application/octet-stream",
+                    },
+                },
+                "id": "07024ee9-7847-4b8a-b260-6c879a2b3cdc",
+                "links": [
+                    {
+                        "rel": "self",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results",
+                        "type": "application/json",
+                    },
+                    {
+                        "rel": "canonical",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results",
+                        "type": "application/json",
+                    },
+                    {
+                        "rel": "card4l-document",
+                        "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
+                        "type": "application/pdf",
+                    },
+                    {
+                        "rel": "item",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/output.tiff",
+                        "type": "application/geo+json",
+                    },
+                    {
+                        "rel": "item",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/ml_model_metadata.json",
+                        "type": "application/json",
+                    },
+                ],
+                "providers": EXPECTED_PROVIDERS,
+                "stac_extensions": [
+                    "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+                    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+                    "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
+                    "https://stac-extensions.github.io/projection/v1.1.0/schema.json",
+                    "https://stac-extensions.github.io/ml-model/v1.0.0/schema.json",
+                ],
+                "stac_version": "1.0.0",
+                "type": "Collection",
+            }
+
+            resp = api110.get("/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results", headers=self.AUTH_HEADER)
+
+            assert resp.assert_status_code(200).json == {
+                "description": "Your description here.",
+                "extent": {
+                    "spatial": {"bbox": [[-180, -90, 180, 90]]},
+                    "temporal": {"interval": [["1981-04-24T03:00:00Z", "1981-04-24T03:00:00Z"]]},
+                },
+                "license": "proprietary",
+                "assets": {
+                    "output.tiff": {
+                        "roles": ["data"],
+                        "title": "output.tiff",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.tiff",
+                        "type": "image/tiff; application=geotiff",
+                        "proj:epsg": 4326,
+                        "proj:shape": [300, 600],
+                        "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
+                        "file:nodata": [123],
+                    },
+                    "randomforest.model": {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/randomforest.model",
+                        "roles": ["data"],
+                        "title": "randomforest.model",
+                        "type": "application/octet-stream",
+                    },
+                },
+                "id": "53c71345-09b4-46b4-b6b0-03fd6fe1f199",
+                "links": [
+                    {
+                        "rel": "self",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results",
+                        "type": "application/json",
+                    },
+                    {
+                        "rel": "canonical",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results",
+                        "type": "application/json",
+                    },
+                    {
+                        "rel": "card4l-document",
+                        "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
+                        "type": "application/pdf",
+                    },
+                    {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.tiff",
+                        "rel": "item",
+                        "type": "application/geo+json",
+                    },
+                    {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/ml_model_metadata.json",
+                        "rel": "item",
+                        "type": "application/json",
+                    },
+                ],
+                "providers": EXPECTED_PROVIDERS,
+                "stac_extensions": [
+                    "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+                    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+                    "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
+                    "https://stac-extensions.github.io/projection/v1.1.0/schema.json",
+                    "https://stac-extensions.github.io/ml-model/v1.0.0/schema.json",
+                ],
+                "summaries": {
+                    "instruments": ["MSI"],
+                    "ml-model:architecture": ["random-forest"],
+                    "ml-model:learning_approach": ["supervised"],
+                    "ml-model:prediction_type": ["classification"],
+                },
+                "title": "Your title here.",
+                "stac_version": "1.0.0",
+                "type": "Collection",
+            }
+
+    def test_get_job_results_public_href_asset_100(self, api, backend_implementation):
         import numpy as np
 
         results_data = {
@@ -1366,9 +1534,10 @@ class TestBatchJobs:
                             "nodata":np.nan
                             }
         }
-        with self._fresh_job_registry(jobs={"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}), \
-                mock.patch.object(backend_implementation.batch_jobs, "get_result_assets", return_value=results_data):
-            resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
+        with self._fresh_job_registry(
+            jobs={"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
+        ), mock.patch.object(backend_implementation.batch_jobs, "get_result_assets", return_value=results_data):
+            resp = api.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results", headers=self.AUTH_HEADER)
         res = resp.assert_status_code(200).json
         assert res["assets"] == {
             "output.tiff": {
@@ -1441,6 +1610,7 @@ class TestBatchJobs:
                     "processing:facility": "Dummy openEO API",
                     "processing:software": "openeo-python-driver",
                 },
+                "providers": EXPECTED_PROVIDERS,
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
                     "https://stac-extensions.github.io/card4l/v0.1.0/optical/schema.json",
@@ -1449,6 +1619,79 @@ class TestBatchJobs:
                 ],
                 "stac_version": "0.9.0",
                 "type": "Feature",
+            }
+
+    def test_get_job_results_signed_110(self, api110, flask_app):
+        app_config = {"SIGNED_URL": "TRUE", "SIGNED_URL_SECRET": "123&@#"}
+        with mock.patch.dict(flask_app.config, app_config), self._fresh_job_registry():
+            dummy_backend.DummyBatchJobs._update_status(
+                job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="finished"
+            )
+            resp = api110.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results", headers=self.AUTH_HEADER)
+            assert resp.assert_status_code(200).json == {
+                "description": "Results for batch job 07024ee9-7847-4b8a-b260-6c879a2b3cdc",
+                "extent": {"spatial": {"bbox": [None]}, "temporal": {"interval": [[None, None]]}},
+                "license": "proprietary",
+                "summaries": {
+                    "instruments": None,
+                    "ml-model:architecture": ["random-forest"],
+                    "ml-model:learning_approach": ["supervised"],
+                    "ml-model:prediction_type": ["classification"],
+                },
+                "assets": {
+                    "output.tiff": {
+                        "roles": ["data"],
+                        "title": "output.tiff",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
+                        "type": "image/tiff; application=geotiff",
+                        "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
+                        "file:nodata": [123],
+                    },
+                    "randomforest.model": {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model",
+                        "roles": ["data"],
+                        "title": "randomforest.model",
+                        "type": "application/octet-stream",
+                    },
+                },
+                "id": "07024ee9-7847-4b8a-b260-6c879a2b3cdc",
+                "links": [
+                    {
+                        "rel": "self",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results",
+                        "type": "application/json",
+                    },
+                    {
+                        "rel": "canonical",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/05cb8b78f20c68a5aa9eb05249928d24",
+                        "type": "application/json",
+                    },
+                    {
+                        "rel": "card4l-document",
+                        "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
+                        "type": "application/pdf",
+                    },
+                    {
+                        "rel": "item",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
+                        "type": "application/geo+json",
+                    },
+                    {
+                        "rel": "item",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/TXIuVGVzdA%3D%3D/272d7aa46727ee3f11a7211d5be953e4/ml_model_metadata.json",
+                        "type": "application/json",
+                    },
+                ],
+                "providers": EXPECTED_PROVIDERS,
+                "stac_extensions": [
+                    "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+                    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+                    "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
+                    "https://stac-extensions.github.io/projection/v1.1.0/schema.json",
+                    "https://stac-extensions.github.io/ml-model/v1.0.0/schema.json",
+                ],
+                "stac_version": "1.0.0",
+                "type": "Collection",
             }
 
     @mock.patch('time.time', mock.MagicMock(return_value=1234))
@@ -1513,6 +1756,7 @@ class TestBatchJobs:
                     "processing:facility": "Dummy openEO API",
                     "processing:software": "openeo-python-driver",
                 },
+                "providers": EXPECTED_PROVIDERS,
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
                     "https://stac-extensions.github.io/card4l/v0.1.0/optical/schema.json",
@@ -1555,7 +1799,7 @@ class TestBatchJobs:
                     "spatial": {"bbox": [[-180, -90, 180, 90]]},
                     "temporal": {"interval": [["1981-04-24T03:00:00Z", "1981-04-24T03:00:00Z"]]},
                 },
-                'providers': [{'name': 'openEO backend', 'roles': ['processor']}],
+                "providers": EXPECTED_PROVIDERS,
                 "links": [
                     {
                         'rel': 'self',
