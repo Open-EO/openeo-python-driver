@@ -1467,7 +1467,8 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         # evaluate the mask
         _log.debug(f"data_mask: convert_node(mask_node): {mask_node}")
         the_mask = convert_node(mask_node, env=env)
-        if check_subgraph_for_data_mask_optimization(args["data"], real_env=env):
+        dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
+        if not dry_run_tracer and check_subgraph_for_data_mask_optimization(args["data"], real_env=env):
             if not env.get("data_mask"):
                 _log.debug(f"data_mask: env.push: {the_mask}")
                 env = env.push(data_mask=the_mask)

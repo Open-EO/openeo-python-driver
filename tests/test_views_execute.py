@@ -624,7 +624,7 @@ def test_execute_mask(api):
 
 def test_execute_diy_mask(api):
     api.check_result("scl_mask_custom.json")
-    assert dummy_backend.get_collection("TERRASCOPE_S2_FAPAR_V2").mask.call_count == 1
+    # assert dummy_backend.get_collection("TERRASCOPE_S2_FAPAR_V2").mask.call_count == 1  # Optimized away now
 
     load_collections = dummy_backend.all_load_collection_calls("TERRASCOPE_S2_FAPAR_V2")
     assert len(load_collections) == 4
@@ -641,7 +641,7 @@ def test_execute_mask_optimized_loading(api):
     api.check_result("mask.json",
                      preprocess=preprocess_check_and_replace('"10"', 'null')
                      )
-    assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").mask.call_count == 1
+    # assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").mask.call_count == 1  # Optimized away now
 
     expected_spatial_extent = {
         "west": 7.02,
