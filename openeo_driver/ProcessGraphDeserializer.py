@@ -1427,7 +1427,12 @@ def constant(args: dict, env: EvalEnv):
     return args["x"]
 
 
-def check_subgraph_for_data_mask_optimization(process_graph: Union[dict, list], real_env: EvalEnv):
+def check_subgraph_for_data_mask_optimization(process_graph: Union[dict, list]):
+    """
+    Check if it is safe to early apply a mask on load_collection. When the mask is applied early,
+    some data tiles may be discarded before being loaded. But there may be no special filters between
+    the load_collection and the mask node.
+    """
     whitelist = [
         "drop_dimension",
         "filter_bands",
@@ -1468,7 +1473,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         _log.debug(f"data_mask: convert_node(mask_node): {mask_node}")
         the_mask = convert_node(mask_node, env=env)
         dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
-        if not dry_run_tracer and check_subgraph_for_data_mask_optimization(args["data"], real_env=env):
+        if not dry_run_tracer and check_subgraph_for_data_mask_optimization(args["data"]):
             if not env.get("data_mask"):
                 _log.debug(f"data_mask: env.push: {the_mask}")
                 env = env.push(data_mask=the_mask)
