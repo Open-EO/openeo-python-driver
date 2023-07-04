@@ -271,16 +271,7 @@ def register_error_handlers(app: flask.Flask, backend_implementation: OpenEoBack
             if error.is_client_error:
                 api_error = OpenEOApiException(message=error.summary, code="BadRequest", status_code=400)
             else:
-                message = error.summary
-                OPENEO_LOCAL_DEBUGGING = smart_bool(os.environ.get("OPENEO_LOCAL_DEBUGGING", "false"))
-                if OPENEO_LOCAL_DEBUGGING and error.exception:
-                    from py4j.protocol import Py4JJavaError
-                    if isinstance(error.exception, Py4JJavaError):
-                        stack = error.exception.java_exception.getStackTrace()
-                        stack_list = list(map(lambda x: x.toString(), list(stack)))
-                        stack_str = "\n".join(stack_list)
-                        message += "   \nstack trace:\n" + stack_str
-                api_error = InternalException(message=message)
+                api_error = InternalException(message=error.summary)
         else:
             log_message = repr(error)
             api_error = InternalException(message=repr(error))
