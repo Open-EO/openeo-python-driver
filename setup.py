@@ -59,7 +59,7 @@ setup(
         "python-dateutil",
         "python-json-logger>=2.0.0",
         "deprecated>=1.2.12",
-        "importlib_resources; python_version<'3.10'",
+        "importlib_resources<6.0.0; python_version<'3.10'",  # '<6.0.0' becaue of https://github.com/Open-EO/openeo-python-driver/issues/206
         "attrs",
     ],
     extras_require={
