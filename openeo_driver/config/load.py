@@ -72,8 +72,13 @@ class ConfigGetter:
 
     def get(self, force_reload: bool = False) -> OpenEoBackendConfig:
         """Lazy load the config."""
-        if self._config is None or force_reload:
+        if self._config is None:
+            logging.info("lazy load config")
             self._config = self._load()
+        elif force_reload:
+            logging.info("force reload config")
+            self._config = self._load()
+
         return self._config
 
     def _default_config(self) -> ContextManager[Path]:
@@ -88,7 +93,7 @@ class ConfigGetter:
             config_path = os.environ.get(self.OPENEO_BACKEND_CONFIG) or default_config
             config = load_from_py_file(path=config_path, variable="config", expected_class=self.expected_class)
         if hasattr(config, "id"):
-            _log.debug(f"Loaded config {config.id=}")
+            _log.info(f"Loaded config {config.id=}")
         return config
 
     def flush(self):
