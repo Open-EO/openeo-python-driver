@@ -73,10 +73,10 @@ class ConfigGetter:
     def get(self, force_reload: bool = False) -> OpenEoBackendConfig:
         """Lazy load the config."""
         if self._config is None:
-            logging.info("lazy load config")
+            _log.info("Lazy load config")
             self._config = self._load()
         elif force_reload:
-            logging.info("force reload config")
+            _log.info("Force reload config")
             self._config = self._load()
 
         return self._config
