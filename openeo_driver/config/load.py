@@ -30,9 +30,7 @@ def load_from_py_file(
 ) -> Any:
     """Load a config value from a Python file."""
     path = Path(path)
-    _log.info(
-        f"Loading configuration from Python file {path!r} (variable {variable!r})"
-    )
+    _log.debug(f"Loading configuration from Python file {path!r} (variable {variable!r})")
 
     # Based on flask's Config.from_pyfile
     with path.open(mode="rb") as f:
@@ -73,11 +71,9 @@ class ConfigGetter:
     def get(self, force_reload: bool = False) -> OpenEoBackendConfig:
         """Lazy load the config."""
         if self._config is None:
-            _log.info("Lazy load config")
-            self._config = self._load()
+            self._config = self._load(reason="lazy_load")
         elif force_reload:
-            _log.info("Force reload config")
-            self._config = self._load()
+            self._config = self._load(reason="force_reload")
 
         return self._config
 
@@ -87,13 +83,13 @@ class ConfigGetter:
         """
         return importlib_resources.path("openeo_driver.config", "default.py")
 
-    def _load(self) -> OpenEoBackendConfig:
+    def _load(self, reason: Optional[str] = None) -> OpenEoBackendConfig:
         """Load the config from config file."""
         with self._default_config() as default_config:
             config_path = os.environ.get(self.OPENEO_BACKEND_CONFIG) or default_config
             config = load_from_py_file(path=config_path, variable="config", expected_class=self.expected_class)
-        if hasattr(config, "id"):
-            _log.info(f"Loaded config {config.id=}")
+        config_id = getattr(config, "id", None)
+        _log.info(f"Loaded config {config_id=} from {config_path=} ({reason=})")
         return config
 
     def flush(self):
