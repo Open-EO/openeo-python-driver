@@ -77,7 +77,7 @@ class ConfigGetter:
         """
         Default config file (as a context manager to allow it to be an ephemeral resource).
         """
-        return importlib_resources.path("openeo_driver.config", "default.py")
+        return importlib_resources.as_file(importlib_resources.files("openeo_driver.config") / "default.py")
 
     def _load(self, reason: Optional[str] = None) -> OpenEoBackendConfig:
         """Load the config from config file."""
