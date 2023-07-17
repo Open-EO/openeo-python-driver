@@ -68,6 +68,12 @@ def backend_config_flush():
     flush()
 
 
+def test_default_config(backend_config_flush, monkeypatch):
+    monkeypatch.delenv("OPENEO_BACKEND_CONFIG")
+    config = get_backend_config()
+    assert config.id == "default"
+
+
 def test_get_backend_config_lazy_cache(monkeypatch, tmp_path, backend_config_flush):
     path = tmp_path / "myconfig.py"
     content = """
