@@ -173,7 +173,12 @@ class DriverDataCube:
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
         self._not_implemented()
 
-    def atmospheric_correction(self, method: str = None) -> 'DriverDataCube':
+    def atmospheric_correction(
+        self,
+        method: Optional[str] = None,
+        elevation_model: Optional[str] = None,
+        options: Optional[dict] = None,
+    ) -> "DriverDataCube":
         self._not_implemented()
 
     def sar_backscatter(self, args: SarBackscatterArgs) -> 'DriverDataCube':

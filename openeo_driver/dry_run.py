@@ -653,7 +653,12 @@ class DryRunDataCube(DriverDataCube):
                 return cube._process("process_type", [ProcessType.GLOBAL_TIME])
         return cube
 
-    def atmospheric_correction(self, method: str = None, *args) -> 'DriverDataCube':
+    def atmospheric_correction(
+        self,
+        method: Optional[str] = None,
+        elevation_model: Optional[str] = None,
+        options: Optional[dict] = None,
+    ) -> "DriverDataCube":
         method_link = "https://remotesensing.vito.be/case/icor"
         if method == "SMAC":
             method_link = "https://doi.org/10.1080/01431169408954055"

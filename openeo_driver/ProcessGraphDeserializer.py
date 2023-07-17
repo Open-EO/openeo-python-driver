@@ -1721,6 +1721,8 @@ def sleep(args: Dict, env: EvalEnv):
         .param('data', description="Data cube containing multi-spectral optical top of atmosphere reflectances to be corrected.", schema={"type": "object", "subtype": "raster-cube"})
         .param(name='method', description="The atmospheric correction method to use. To get reproducible results, you have to set a specific method.\n\nSet to `null` to allow the back-end to choose, which will improve portability, but reduce reproducibility as you *may* get different results if you run the processes multiple times.",                      schema={"type": "string"}, required=False)
         .param(name='elevation_model', description="The digital elevation model to use, leave empty to allow the back-end to make a suitable choice.", schema={"type": "string"}, required=False)
+         # TODO #91 the following parameters deviate from the official atmospheric_correction spec
+         # TODO: process parameters should be snake_case, not camelCase
         .param(name='missionId', description="non-standard mission Id, currently defaults to sentinel2",                      schema={"type": "string"}, required=False)
         .param(name='sza',       description="non-standard if set, overrides sun zenith angle values [deg]",                  schema={"type": "number"}, required=False)
         .param(name='vza',       description="non-standard if set, overrides sensor zenith angle values [deg]",               schema={"type": "number"}, required=False)
@@ -1728,27 +1730,36 @@ def sleep(args: Dict, env: EvalEnv):
         .param(name='gnd',       description="non-standard if set, overrides ground elevation [km]",                          schema={"type": "number"}, required=False)
         .param(name='aot',       description="non-standard if set, overrides aerosol optical thickness [], usually 0.1..0.2", schema={"type": "number"}, required=False)
         .param(name='cwv',       description="non-standard if set, overrides water vapor [], usually 0..7",                   schema={"type": "number"}, required=False)
+        # TODO: process parameters should be snake_case, not camelCase
         .param(name='appendDebugBands', description="non-standard if set to 1, saves debug bands",                            schema={"type": "number"}, required=False)
         .returns(description="the corrected data as a data cube", schema={"type": "object", "subtype": "raster-cube"})
 )
-def atmospheric_correction(args: Dict, env: EvalEnv) -> object:
-    image_collection = extract_arg(args, 'data')
-    method = args.get('method', None)
-    elevation_model = args.get('elevation_model', None)
-    missionId = args.get('missionId',None)
-    sza = args.get('sza',None)
-    vza = args.get('vza',None)
-    raa = args.get('raa',None)
-    gnd = args.get('gnd',None)
-    aot = args.get('aot',None)
-    cwv = args.get('cwv',None)
-    appendDebugBands = args.get('appendDebugBands',None)
-    if not isinstance(image_collection, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="atmospheric_correction",
-            reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
-        )
-    return image_collection.atmospheric_correction(method,elevation_model, missionId, sza, vza, raa, gnd, aot, cwv, appendDebugBands)
+def atmospheric_correction(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    method = args.get_optional("method", expected_type=str)
+    elevation_model = args.get_optional("elevation_model", expected_type=str)
+    mission_id = args.get_optional("missionId", expected_type=str)
+    sza = args.get_optional("sza", expected_type=float)
+    vza = args.get_optional("vza", expected_type=float)
+    raa = args.get_optional("raa", expected_type=float)
+    gnd = args.get_optional("gnd", expected_type=float)
+    aot = args.get_optional("aot", expected_type=float)
+    cwv = args.get_optional("cwv", expected_type=float)
+    append_debug_bands = args.get_optional("appendDebugBands", expected_type=int)
+    return cube.atmospheric_correction(
+        method=method,
+        elevation_model=elevation_model,
+        options={
+            "mission_id": mission_id,
+            "sza": sza,
+            "vza": vza,
+            "raa": raa,
+            "gnd": gnd,
+            "aot": aot,
+            "cwv": cwv,
+            "append_debug_bands": append_debug_bands,
+        },
+    )
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/sar_backscatter.json"))
