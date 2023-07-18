@@ -1,3 +1,4 @@
+import json
 import random
 import textwrap
 from pathlib import Path
@@ -7,7 +8,8 @@ import pytest
 
 import openeo_driver.config.load
 from openeo_driver.config import ConfigException, OpenEoBackendConfig, get_backend_config
-from openeo_driver.config.load import _backend_config_getter, load_from_py_file
+from openeo_driver.config.load import load_from_py_file
+from .conftest import enhanced_logging
 
 
 def test_config_immutable():
@@ -107,6 +109,15 @@ def test_get_backend_config_lazy_cache(monkeypatch, tmp_path, backend_config_flu
     # Force reload should fail
     with pytest.raises(FileNotFoundError):
         _ = get_backend_config(force_reload=True)
+
+
+def test_config_load_info_log(backend_config_flush):
+    with enhanced_logging(json=True, context="test") as logs:
+        _ = get_backend_config()
+
+    logs = [json.loads(l) for l in logs.getvalue().strip().split("\n")]
+    (log,) = [log for log in logs if log["message"].startswith("Loaded config")]
+    assert "test_config_load_info_log" in log["stack_info"]
 
 
 def test_get_backend_config_not_found(monkeypatch, tmp_path, backend_config_flush):
