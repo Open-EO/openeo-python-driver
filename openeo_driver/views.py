@@ -47,6 +47,7 @@ API_VERSIONS = {
     "1.0.1": ApiVersionInfo(version="1.0.1", supported=True, wellknown=False, production=True),
     "1.1.0": ApiVersionInfo(version="1.1.0", supported=True, wellknown=False, production=False),
     "1.1": ApiVersionInfo(version="1.1.0", supported=True, wellknown=True, production=True),
+    "1": ApiVersionInfo(version="1.1.0", supported=True, wellknown=False, production=True),
     "1.2": ApiVersionInfo(version="1.2.0", supported=True, wellknown=True, production=False),
 }
 API_VERSION_DEFAULT = "1.1.0"
