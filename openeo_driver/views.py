@@ -758,8 +758,8 @@ def _s3_client():
     import boto3
 
     # TODO: Get these credentials/secrets from VITO TAP vault instead of os.environ
-    aws_access_key_id = os.environ.get("AWS_ACCESS_KEY_ID")
-    aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY")
+    aws_access_key_id = os.environ.get("SWIFT_ACCESS_KEY_ID", os.environ.get("AWS_ACCESS_KEY_ID"))
+    aws_secret_access_key = os.environ.get("SWIFT_SECRET_ACCESS_KEY", os.environ.get("AWS_SECRET_ACCESS_KEY"))
     swift_url = os.environ.get("SWIFT_URL")
     s3_client = boto3.client("s3",
         aws_access_key_id=aws_access_key_id,
