@@ -678,9 +678,13 @@ class DryRunDataCube(DriverDataCube):
     def mask_scl_dilation(self, **kwargs) -> 'DriverDataCube':
         return self._process("custom_cloud_mask", arguments={**{"method":"mask_scl_dilation"},**kwargs})
 
-    def to_scl_dilation_mask(self, **kwargs) -> 'DriverDataCube':
+    def to_scl_dilation_mask(self, erosion_kernel_size: int,
+        mask1_values: List[int],
+        mask2_values: List[int],
+        kernel1_size: int,
+        kernel2_size: int) -> 'DriverDataCube':
         cube = self._process("process_type", [ProcessType.FOCAL_SPACE])
-        size = kwargs.get("kernel2_size",201)
+        size = kernel2_size
         cube = cube._process("pixel_buffer", arguments={"buffer_size": [size/2.0,size/2.0]})
         return cube
 
