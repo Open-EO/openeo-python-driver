@@ -18,13 +18,14 @@ import requests
 
 from openeo.metadata import CollectionMetadata
 from openeo.util import ensure_dir, str_truncate
+import openeo.udf
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs, StacAsset
 from openeo_driver.errors import FeatureUnsupportedException, InternalException
 from openeo_driver.util.geometry import GeometryBufferer, validate_geojson_coordinates
 from openeo_driver.util.ioformats import IOFORMATS
+from openeo_driver.util.pgparsing import SingleRunUDFProcessGraph
 from openeo_driver.util.utm import area_in_square_meters
 from openeo_driver.utils import EvalEnv
-from openeogeotrellis.backend import SingleNodeUDFProcessGraphVisitor
 
 log = logging.getLogger(__name__)
 
@@ -247,38 +248,6 @@ class DriverVectorCube:
         return type(self)(
             geometries=self._geometries, cube=cube, flatten_prefix=flatten_prefix
         )
-
-    def apply_dimension(
-            self,
-            process: dict,
-            *,
-            dimension: str,
-            target_dimension: Optional[str] = None,
-            context: Optional[dict] = None,
-            env: EvalEnv,
-    ) -> "DriverVectorCube":
-        if dimension == "bands" and target_dimension == None and len(process) == 1 and next(iter(process.values())).get('process_id') == 'run_udf':
-            visitor = SingleNodeUDFProcessGraphVisitor().accept_process_graph(process)
-            udf = visitor.udf_args.get('udf', None)
-
-            from openeo.udf import FeatureCollection, UdfData
-            collection = FeatureCollection(id='VectorCollection', data=self._as_geopandas_df())
-            data = UdfData(
-                proj={"EPSG": self._geometries.crs.to_epsg()}, feature_collection_list=[collection], user_context=context
-            )
-
-            log.info(f"[run_udf] Running UDF {str_truncate(udf, width=256)!r} on {data!r}")
-            result_data = env.backend_implementation.processing.run_udf(udf, data)
-            log.info(f"[run_udf] UDF resulted in {result_data!r}")
-
-            if isinstance(result_data, UdfData):
-                if(result_data.get_feature_collection_list() is not None and len(result_data.get_feature_collection_list()) == 1):
-                    return DriverVectorCube(geometries=result_data.get_feature_collection_list()[0].data)
-
-            raise ValueError(f"Could not handle UDF result: {result_data}")
-
-        else:
-            raise FeatureUnsupportedException()
 
     @classmethod
     def from_fiona(
@@ -536,6 +505,44 @@ class DriverVectorCube:
                 for g in self.get_geometries()
             ]
         )
+
+    def apply_dimension(
+        self,
+        process: dict,
+        *,
+        dimension: str,
+        target_dimension: Optional[str] = None,
+        context: Optional[dict] = None,
+        env: EvalEnv,
+    ) -> "DriverVectorCube":
+        single_run_udf = SingleRunUDFProcessGraph.parse_or_none(process)
+
+        if single_run_udf:
+            # Process with single "run_udf" node
+            if self._cube is None and dimension == self.DIM_GEOMETRIES and target_dimension is None:
+                log.warning(
+                    f"Using experimental feature: DriverVectorCube.apply_dimension along dim {dimension} and empty cube"
+                )
+                # TODO: this is non-standard special case: vector cube with only geometries, but no "cube" data
+                gdf = self._as_geopandas_df()
+                feature_collection = openeo.udf.FeatureCollection(id="_", data=gdf)
+                udf_data = openeo.udf.UdfData(
+                    proj={"EPSG": self._geometries.crs.to_epsg()},
+                    feature_collection_list=[feature_collection],
+                    user_context=context,
+                )
+                log.info(f"[run_udf] Running UDF {str_truncate(single_run_udf.udf, width=256)!r} on {udf_data!r}")
+                result_data = env.backend_implementation.processing.run_udf(udf=single_run_udf.udf, data=udf_data)
+                log.info(f"[run_udf] UDF resulted in {result_data!r}")
+
+                if isinstance(result_data, openeo.udf.UdfData):
+                    result_features = result_data.get_feature_collection_list()
+                    if result_features and len(result_features) == 1:
+                        return DriverVectorCube(geometries=result_features[0].data)
+                raise ValueError(f"Could not handle UDF result: {result_data}")
+
+        raise FeatureUnsupportedException()
+
 
 
 class DriverMlModel:

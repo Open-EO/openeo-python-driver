@@ -1,3 +1,5 @@
+import textwrap
+
 import geopandas as gpd
 import numpy.testing
 import pyproj
@@ -9,6 +11,7 @@ from openeo_driver.errors import OpenEOApiException
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.testing import DictSubSet, ApproxGeometry
 from openeo_driver.util.geometry import as_geojson_feature_collection
+from openeo_driver.utils import EvalEnv
 
 from .data import get_path
 
@@ -21,6 +24,10 @@ class TestDriverVectorCube:
         path = str(get_path("geojson/FeatureCollection02.json"))
         df = gpd.read_file(path)
         return df
+
+    @pytest.fixture
+    def vc(self, gdf) -> DriverVectorCube:
+        return DriverVectorCube(geometries=gdf)
 
     def test_basic(self, gdf):
         vc = DriverVectorCube(gdf)
@@ -443,6 +450,53 @@ class TestDriverVectorCube:
                             Polygon.from_bounds(5, 8, 13, 21), abs=0.000001
                         ).to_geojson_feature(properties={})
                     ),
+                ],
+            }
+        )
+
+    def test_apply_dimension_run_udf(self, vc, backend_implementation):
+        udf = textwrap.dedent(
+            """
+            from openeo.udf import UdfData, FeatureCollection
+            def process_geometries(udf_data: UdfData) -> UdfData:
+                [feature_collection] = udf_data.get_feature_collection_list()
+                gdf = feature_collection.data
+                gdf["geometry"] = gdf["geometry"].buffer(distance=1, resolution=2)
+                udf_data.set_feature_collection_list([
+                    FeatureCollection(id="_", data=gdf),
+                ])
+            """
+        )
+        callback = {
+            "runudf1": {
+                "process_id": "run_udf",
+                "arguments": {"data": {"from_parameter": "data"}, "udf": udf, "runtime": "Python"},
+                "result": True,
+            }
+        }
+        env = EvalEnv({"backend_implementation": backend_implementation})
+        result = vc.apply_dimension(process=callback, dimension="geometries", env=env)
+        assert isinstance(result, DriverVectorCube)
+        feature_collection = result.to_geojson()
+        assert feature_collection == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "bbox": pytest.approx((0, 0, 6, 5), abs=0.1),
+                "features": [
+                    {
+                        "type": "Feature",
+                        "bbox": pytest.approx((0, 0, 4, 4), abs=0.1),
+                        "geometry": DictSubSet({"type": "Polygon"}),
+                        "id": "0",
+                        "properties": {"id": "first", "pop": 1234},
+                    },
+                    {
+                        "type": "Feature",
+                        "bbox": pytest.approx((2, 1, 6, 5), abs=0.1),
+                        "geometry": DictSubSet({"type": "Polygon"}),
+                        "id": "1",
+                        "properties": {"id": "second", "pop": 5678},
+                    },
                 ],
             }
         )
