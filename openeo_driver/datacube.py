@@ -216,6 +216,7 @@ class DriverVectorCube:
     These components are "joined" on the GeoPandas dataframe's index and DataArray first dimension
     """
     DIM_GEOMETRIES = "geometries"
+    DIM_BANDS = "bands"
     FLATTEN_PREFIX = "vc"
 
     def __init__(
@@ -519,7 +520,7 @@ class DriverVectorCube:
 
         if single_run_udf:
             # Process with single "run_udf" node
-            if self._cube is None and dimension == self.DIM_GEOMETRIES and target_dimension is None:
+            if dimension == self.DIM_BANDS and target_dimension is None:
                 log.warning(
                     f"Using experimental feature: DriverVectorCube.apply_dimension along dim {dimension} and empty cube"
                 )
@@ -535,14 +536,18 @@ class DriverVectorCube:
                 result_data = env.backend_implementation.processing.run_udf(udf=single_run_udf.udf, data=udf_data)
                 log.info(f"[run_udf] UDF resulted in {result_data!r}")
 
-                if isinstance(result_data, openeo.udf.UdfData):
-                    result_features = result_data.get_feature_collection_list()
-                    if result_features and len(result_features) == 1:
-                        return DriverVectorCube(geometries=result_features[0].data)
-                raise ValueError(f"Could not handle UDF result: {result_data}")
+                if not isinstance(result_data, openeo.udf.UdfData):
+                    raise ValueError(f"UDF should return UdfData, but got {type(result_data)}")
+                result_features = result_data.get_feature_collection_list()
+                if not (result_features and len(result_features) == 1):
+                    raise ValueError(
+                        f"UDF should return single feature collection but got {result_features and len(result_features)}"
+                    )
+                return DriverVectorCube(geometries=result_features[0].data)
 
-        raise FeatureUnsupportedException()
-
+        raise FeatureUnsupportedException(
+            message=f"DriverVectorCube.apply_dimension with {dimension=} and {bool(single_run_udf)=}"
+        )
 
 
 class DriverMlModel:

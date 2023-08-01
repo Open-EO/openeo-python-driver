@@ -454,7 +454,7 @@ class TestDriverVectorCube:
             }
         )
 
-    def test_apply_dimension_run_udf(self, vc, backend_implementation):
+    def test_apply_dimension_run_udf_change_geometry(self, vc, backend_implementation):
         udf = textwrap.dedent(
             """
             from openeo.udf import UdfData, FeatureCollection
@@ -475,7 +475,7 @@ class TestDriverVectorCube:
             }
         }
         env = EvalEnv({"backend_implementation": backend_implementation})
-        result = vc.apply_dimension(process=callback, dimension="geometries", env=env)
+        result = vc.apply_dimension(process=callback, dimension="bands", env=env)
         assert isinstance(result, DriverVectorCube)
         feature_collection = result.to_geojson()
         assert feature_collection == DictSubSet(
