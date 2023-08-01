@@ -1427,6 +1427,37 @@ def constant(args: dict, env: EvalEnv):
     return args["x"]
 
 
+def check_subgraph_for_data_mask_optimization(process_graph: Union[dict, list]):
+    """
+    Check if it is safe to early apply a mask on load_collection. When the mask is applied early,
+    some data tiles may be discarded before being loaded. But there may be no special filters between
+    the load_collection and the mask node.
+    """
+    whitelist = [
+        "drop_dimension",
+        "filter_bands",
+        "filter_bbox",
+        "filter_spatial",
+        "filter_temporal",
+        "load_collection",
+    ]
+
+    def is_all_whitelisted(graph):
+        if not isinstance(graph, dict) or "node" not in graph:
+            return True
+        process_id = graph["node"]["process_id"]
+        if process_id not in whitelist:
+            return False
+        arguments = graph["node"]["arguments"]
+        for arg_name in arguments:
+            arg_value = arguments[arg_name]
+            if not is_all_whitelisted(arg_value):
+                return False
+        return True
+
+    return is_all_whitelisted(process_graph)
+
+
 def apply_process(process_id: str, args: dict, namespace: Union[str, None], env: EvalEnv):
     _log.debug(f"apply_process {process_id} with {args}")
     parameters = env.collect_parameters()
@@ -1437,9 +1468,15 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         # evaluate the mask
         _log.debug(f"data_mask: convert_node(mask_node): {mask_node}")
         the_mask = convert_node(mask_node, env=env)
-        _log.debug(f"data_mask: env.push: {the_mask}")
-        env = env.push(data_mask=the_mask)
-        args = {"data": convert_node(args["data"], env=env), "mask": the_mask}
+        dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
+        if not dry_run_tracer and check_subgraph_for_data_mask_optimization(args["data"]):
+            if not env.get("data_mask"):
+                _log.debug(f"data_mask: env.push: {the_mask}")
+                env = env.push(data_mask=the_mask)
+                the_data = convert_node(args["data"], env=env)
+                return the_data  # masking happens in scala when loading data
+        the_data = convert_node(args["data"], env=env)
+        args = {"data": the_data, "mask": the_mask}
     elif process_id == "if":
         #special handling: we only want to evaluate the branch that gets accepted
         value = args.get("value")
