@@ -1442,16 +1442,12 @@ def check_subgraph_for_data_mask_optimization(process_graph: Union[dict, list]):
         "load_collection",
     ]
 
-    visited_process_ids = set()
-
     def is_all_whitelisted(graph):
         if not isinstance(graph, dict) or "node" not in graph:
             return True
         process_id = graph["node"]["process_id"]
         if process_id not in whitelist:
             return False
-        if process_id in visited_process_ids:
-            return True  # this node is already ok
         arguments = graph["node"]["arguments"]
         for arg_name in arguments:
             arg_value = arguments[arg_name]
