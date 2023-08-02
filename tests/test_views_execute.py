@@ -1047,7 +1047,7 @@ def test_aggregate_spatial_vector_cube_basic(api100, feature_collection_test_pat
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "bands": ["B02", "B03", "B04"]}},
         "lf": {
             "process_id": "load_uploaded_files",
-            "arguments": {"paths": [str(path)], "format": "GeoJSON"},
+            "arguments": {"paths": [str(path)], "format": "GeoJSON", "options": {"columns_for_cube": []}},
         },
         "ag": {
             "process_id": "aggregate_spatial",
@@ -1058,8 +1058,12 @@ def test_aggregate_spatial_vector_cube_basic(api100, feature_collection_test_pat
                     "mean": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}}
                 }
             },
+        },
+        "sr": {
+            "process_id": "save_result",
+            "arguments": {"data": {"from_node": "ag"}, "format": "GeoJSON", "options": {"flatten_prefix": "agg"}},
             "result": True
-        }
+        },
     }
     res = api100.check_result(pg)
 
@@ -1212,19 +1216,29 @@ def test_aggregate_spatial_vector_cube_dimensions(
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "bands": ["B02", "B03", "B04"]}},
         "lf": {
             "process_id": "load_uploaded_files",
-            "arguments": {"paths": [str(path)], "format": "GeoJSON"},
+            "arguments": {"paths": [str(path)], "format": "GeoJSON", "options": {"columns_for_cube": []}},
         },
         "ag": {
             "process_id": "aggregate_spatial",
             "arguments": {
                 "data": {"from_node": aggregate_data},
                 "geometries": {"from_node": "lf"},
-                "reducer": {"process_graph": {
-                    "mean": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}}
-                }
+                "reducer": {
+                    "process_graph": {
+                        "mean": {
+                            "process_id": "mean",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        }
+                    }
+                },
             },
+        },
+        "sr": {
+            "process_id": "save_result",
+            "arguments": {"data": {"from_node": "ag"}, "format": "GeoJSON", "options": {"flatten_prefix": "agg"}},
             "result": True
-        }
+        },
     }
     pg.update(preprocess_pg)
     res = api100.check_result(pg)
@@ -3299,10 +3313,10 @@ def test_fit_class_random_forest(api100):
                                     "id": "0",
                                     "geometry": geom1,
                                     "properties": {
-                                        "agg~B02": 2.345,
-                                        "agg~B03": None,
-                                        "agg~B04": 2.0,
-                                        "agg~B08": 3.0,
+                                        "B02": 2.345,
+                                        "B03": None,
+                                        "B04": 2.0,
+                                        "B08": 3.0,
                                         "target": 0,
                                     },
                                 }
@@ -3313,10 +3327,10 @@ def test_fit_class_random_forest(api100):
                                     "id": "1",
                                     "geometry": geom2,
                                     "properties": {
-                                        "agg~B02": 4.0,
-                                        "agg~B03": 5.0,
-                                        "agg~B04": 6.0,
-                                        "agg~B08": 7.0,
+                                        "B02": 4.0,
+                                        "B03": 5.0,
+                                        "B04": 6.0,
+                                        "B08": 7.0,
                                         "target": 1,
                                     },
                                 }

@@ -1,5 +1,6 @@
 import textwrap
 
+import geopandas
 import geopandas as gpd
 import numpy.testing
 import pyproj
@@ -92,37 +93,153 @@ class TestDriverVectorCube:
         dims += ("bands",)
         coords["bands"] = ["red", "green"]
         cube = xarray.DataArray(data=[[1, 2], [3, 4]], dims=dims, coords=coords)
-        vc2 = vc1.with_cube(cube, flatten_prefix="bandz")
-        assert vc1.to_geojson() == DictSubSet({
-            "type": "FeatureCollection",
-            "features": [
-                DictSubSet({
-                    "type": "Feature",
-                    "geometry": {"type": "Polygon", "coordinates": (((1, 1), (3, 1), (2, 3), (1, 1)),)},
-                    "properties": {"id": "first", "pop": 1234},
-                }),
-                DictSubSet({
-                    "type": "Feature",
-                    "geometry": {"type": "Polygon", "coordinates": (((4, 2), (5, 4), (3, 4), (4, 2)),)},
-                    "properties": {"id": "second", "pop": 5678},
-                }),
-            ]
-        })
-        assert vc2.to_geojson() == DictSubSet({
-            "type": "FeatureCollection",
-            "features": [
-                DictSubSet({
-                    "type": "Feature",
-                    "geometry": {"type": "Polygon", "coordinates": (((1, 1), (3, 1), (2, 3), (1, 1)),)},
-                    "properties": {"id": "first", "pop": 1234, "bandz~red": 1, "bandz~green": 2},
-                }),
-                DictSubSet({
-                    "type": "Feature",
-                    "geometry": {"type": "Polygon", "coordinates": (((4, 2), (5, 4), (3, 4), (4, 2)),)},
-                    "properties": {"id": "second", "pop": 5678, "bandz~red": 3, "bandz~green": 4},
-                }),
-            ]
-        })
+        vc2 = vc1.with_cube(cube)
+        assert vc1.to_geojson() == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "Polygon", "coordinates": (((1, 1), (3, 1), (2, 3), (1, 1)),)},
+                            "properties": {"id": "first", "pop": 1234},
+                        }
+                    ),
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "Polygon", "coordinates": (((4, 2), (5, 4), (3, 4), (4, 2)),)},
+                            "properties": {"id": "second", "pop": 5678},
+                        }
+                    ),
+                ],
+            }
+        )
+        assert vc2.to_geojson() == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "Polygon", "coordinates": (((1, 1), (3, 1), (2, 3), (1, 1)),)},
+                            "properties": {"id": "first", "pop": 1234, "red": 1, "green": 2},
+                        }
+                    ),
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "Polygon", "coordinates": (((4, 2), (5, 4), (3, 4), (4, 2)),)},
+                            "properties": {"id": "second", "pop": 5678, "red": 3, "green": 4},
+                        }
+                    ),
+                ],
+            }
+        )
+        assert vc2.to_geojson(flatten_prefix="bandz") == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "Polygon", "coordinates": (((1, 1), (3, 1), (2, 3), (1, 1)),)},
+                            "properties": {"id": "first", "pop": 1234, "bandz~red": 1, "bandz~green": 2},
+                        }
+                    ),
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "Polygon", "coordinates": (((4, 2), (5, 4), (3, 4), (4, 2)),)},
+                            "properties": {"id": "second", "pop": 5678, "bandz~red": 3, "bandz~green": 4},
+                        }
+                    ),
+                ],
+            }
+        )
+
+    def test_from_geodataframe_default(self, gdf):
+        vc = DriverVectorCube.from_geodataframe(gdf)
+        assert vc.to_geojson() == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "properties": {"id": "first", "pop": 1234},
+                            "geometry": {
+                                "coordinates": (((1.0, 1.0), (3.0, 1.0), (2.0, 3.0), (1.0, 1.0)),),
+                                "type": "Polygon",
+                            },
+                        }
+                    ),
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "properties": {"id": "second", "pop": 5678},
+                            "geometry": {
+                                "coordinates": (((4.0, 2.0), (5.0, 4.0), (3.0, 4.0), (4.0, 2.0)),),
+                                "type": "Polygon",
+                            },
+                        }
+                    ),
+                ],
+            }
+        )
+        cube = vc.get_cube()
+        assert cube.dims == ("geometries", "bands")
+        assert cube.shape == (2, 1)
+        assert {k: list(v.values) for k, v in cube.coords.items()} == {"geometries": [0, 1], "bands": ["pop"]}
+
+    @pytest.mark.parametrize(
+        ["columns_for_cube", "expected"],
+        [
+            ("numerical", {"shape": (2, 1), "coords": {"geometries": [0, 1], "bands": ["pop"]}}),
+            ("all", {"shape": (2, 2), "coords": {"geometries": [0, 1], "bands": ["id", "pop"]}}),
+            ([], None),
+            (["id"], {"shape": (2, 1), "coords": {"geometries": [0, 1], "bands": ["id"]}}),
+            (["pop", "id"], {"shape": (2, 2), "coords": {"geometries": [0, 1], "bands": ["pop", "id"]}}),
+            # TODO: test specifying non-existent column (to be filled with no-data):
+            # (["pop", "nopenope"], {"shape": (2, 2), "coords": {"geometries": [0, 1], "bands": ["pop", "nopenope"]}}),
+        ],
+    )
+    def test_from_geodataframe_columns_for_cube(self, gdf, columns_for_cube, expected):
+        vc = DriverVectorCube.from_geodataframe(gdf, columns_for_cube=columns_for_cube)
+        assert vc.to_geojson() == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "properties": {"id": "first", "pop": 1234},
+                            "geometry": {
+                                "coordinates": (((1.0, 1.0), (3.0, 1.0), (2.0, 3.0), (1.0, 1.0)),),
+                                "type": "Polygon",
+                            },
+                        }
+                    ),
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "properties": {"id": "second", "pop": 5678},
+                            "geometry": {
+                                "coordinates": (((4.0, 2.0), (5.0, 4.0), (3.0, 4.0), (4.0, 2.0)),),
+                                "type": "Polygon",
+                            },
+                        }
+                    ),
+                ],
+            }
+        )
+        cube = vc.get_cube()
+        if expected is None:
+            assert cube is None
+        else:
+            assert cube.dims == ("geometries", "bands")
+            assert cube.shape == expected["shape"]
+            assert {k: list(v.values) for k, v in cube.coords.items()} == expected["coords"]
 
     @pytest.mark.parametrize(["geojson", "expected"], [
         (
@@ -342,7 +459,7 @@ class TestDriverVectorCube:
         ],
     )
     def test_from_fiona(self, path, driver):
-        vc = DriverVectorCube.from_fiona([path], driver=driver)
+        vc = DriverVectorCube.from_fiona([path], driver=driver, options={"columns_for_cube": []})
         assert vc.to_geojson() == DictSubSet(
             {
                 "type": "FeatureCollection",

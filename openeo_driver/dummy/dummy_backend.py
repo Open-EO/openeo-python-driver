@@ -265,7 +265,7 @@ class DummyDataCube(DriverDataCube):
                 coords=coords,
                 name="aggregate_spatial",
             )
-            return geometries.with_cube(cube=cube, flatten_prefix="agg")
+            return geometries.with_cube(cube=cube)
         elif isinstance(geometries, str):
             geometries = [geometry for geometry in DelayedVector(geometries).geometries]
             n_geometries = assert_polygon_sequence(geometries)
