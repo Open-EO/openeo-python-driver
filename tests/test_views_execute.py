@@ -962,7 +962,7 @@ def test_data_mask_use_data_twice(api100):
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     # Not handling overlaps between mask and data nodes.
     # A load_collection under the data node could be used twice and would not be pre-masked correctly.
-    assert dummy.mask.call_count == 0
+    assert dummy.mask.call_count == 1
 
 def test_data_mask_unoptimized(api100):
     pg = {
