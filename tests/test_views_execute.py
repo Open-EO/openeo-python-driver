@@ -930,6 +930,39 @@ def test_data_mask_optimized(api100):
     # mask does not need to be called when it is already applied in load_collection
     assert dummy.mask.call_count == 0
 
+def test_data_mask_use_data_twice(api100):
+    pg = {
+        "load_collection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "load_collection2": {"process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}},
+        "filter1": {
+            "process_id": "filter_bands",
+            "arguments": {
+                "data": {"from_node": "load_collection1"},
+                "bands": ["B02"]
+            }
+        },
+        "resample1": {
+            "process_id": "resample_cube_spatial",
+            "arguments": {
+                "data": {
+                    "from_node": "load_collection2"
+                },
+                "target": {
+                    "from_node": "filter1"
+                }
+            }
+        },
+        "mask1": {
+            "process_id": "mask",
+            "arguments": {"data": {"from_node": "filter1"}, "mask": {"from_node": "resample1"}},
+            "result": True
+        }
+    }
+    api100.check_result(pg)
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
+    # Not handling overlaps between mask and data nodes.
+    # A load_collection under the data node could be used twice and would not be pre-masked correctly.
+    assert dummy.mask.call_count == 0
 
 def test_data_mask_unoptimized(api100):
     pg = {

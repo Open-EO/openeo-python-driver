@@ -5,6 +5,8 @@ from openeo.rest.datacube import DataCube, PGNode
 from openeo_driver.ProcessGraphDeserializer import (
     _period_to_intervals,
     SimpleProcessing,
+    flatten_children_node_types,
+    flatten_children_node_names,
 )
 from openeo_driver.errors import ProcessParameterRequiredException
 
@@ -223,3 +225,30 @@ class TestSimpleProcessing:
         pg = cube.flat_graph()
         processing = SimpleProcessing()
         assert processing.evaluate(pg) == 11
+
+    def test_get_all_dependency_nodes(self):
+        process_graph = {
+            "from_node": "filter1",
+            "node": {
+                "arguments": {
+                    "bands": [
+                        "B02"
+                    ],
+                    "data": {
+                        "from_node": "load_collection1",
+                        "node": {
+                            "arguments": {
+                                "id": "S2_FOOBAR"
+                            },
+                            "process_id": "load_collection"
+                        }
+                    }
+                },
+                "process_id": "filter_bands"
+            }
+        }
+        children_node_types = flatten_children_node_types(process_graph)
+        children_node_names = flatten_children_node_names(process_graph)
+
+        assert len(children_node_types) == 2
+        assert len(children_node_names) == 2
