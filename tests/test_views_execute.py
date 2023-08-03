@@ -396,17 +396,6 @@ def test_reduce_temporal_run_udf(api):
         assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").apply_tiles_spatiotemporal.call_count == 1
 
 
-def test_reduce_temporal_run_udf_legacy_client(api):
-    api.check_result(
-        "reduce_temporal_run_udf.json",
-        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "temporal"')
-    )
-    if api.api_version_compare.at_least("1.0.0"):
-        assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").reduce_dimension.call_count == 1
-    else:
-        assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").apply_tiles_spatiotemporal.call_count == 1
-
-
 def test_reduce_temporal_run_udf_invalid_dimension(api):
     resp = api.result(
         "reduce_temporal_run_udf.json",
@@ -422,17 +411,6 @@ def test_reduce_temporal_run_udf_invalid_dimension(api):
 
 def test_reduce_bands_run_udf(api):
     api.check_result("reduce_bands_run_udf.json")
-    if api.api_version_compare.at_least("1.0.0"):
-        assert dummy_backend.get_collection("S2_FOOBAR").reduce_dimension.call_count == 1
-    else:
-        assert dummy_backend.get_collection("S2_FOOBAR").apply_tiles.call_count == 1
-
-
-def test_reduce_bands_run_udf_legacy_client(api):
-    api.check_result(
-        "reduce_bands_run_udf.json",
-        preprocess=preprocess_check_and_replace('"dimension": "bands"', '"dimension": "spectral_bands"')
-    )
     if api.api_version_compare.at_least("1.0.0"):
         assert dummy_backend.get_collection("S2_FOOBAR").reduce_dimension.call_count == 1
     else:
@@ -462,15 +440,6 @@ def test_apply_dimension_temporal_run_udf(api):
     dummy.rename_dimension.assert_called_with("t", "new_time_dimension")
     load_parameters = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
     assert load_parameters.process_types == set([ProcessType.GLOBAL_TIME])
-
-
-def test_apply_dimension_temporal_run_udf_legacy_client(api):
-    api.check_result(
-        "apply_dimension_temporal_run_udf.json",
-        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "temporal"')
-    )
-    dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
-    assert dummy.apply_dimension.call_count == 1
 
 
 def test_apply_dimension_temporal_run_udf_invalid_temporal_dimension(api):
@@ -506,10 +475,6 @@ def test_reduce_max_y(api):
 
 def test_reduce_max_bands(api):
     api.check_result("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "bands"))
-
-
-def test_reduce_max_bands_legacy_style(api):
-    api.check_result("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "spectral_bands"))
 
 
 def test_reduce_max_invalid_dimension(api):
@@ -558,24 +523,6 @@ def test_reduce_bands(api):
         reduce_bands = dummy.reduce_dimension
     else:
         reduce_bands = dummy.reduce_bands
-    reduce_bands.assert_called_once()
-    if api.api_version_compare.below("1.0.0"):
-        visitor = reduce_bands.call_args_list[0][0][0]
-        assert isinstance(visitor, dummy_backend.DummyVisitor)
-        assert set(p[0] for p in visitor.processes) == {"sum", "subtract", "divide"}
-
-
-def test_reduce_bands_legacy_client(api):
-    api.check_result(
-        "reduce_bands.json",
-        preprocess=preprocess_check_and_replace('"dimension": "bands"', '"dimension": "spectral_bands"')
-    )
-    dummy = dummy_backend.get_collection("S2_FOOBAR")
-    if api.api_version_compare.at_least("1.0.0"):
-        reduce_bands = dummy.reduce_dimension
-    else:
-        reduce_bands = dummy.reduce_bands
-
     reduce_bands.assert_called_once()
     if api.api_version_compare.below("1.0.0"):
         visitor = reduce_bands.call_args_list[0][0][0]
@@ -996,13 +943,6 @@ def test_aggregate_temporal_period(api100):
 
 def test_aggregate_temporal_max(api):
     api.check_result("aggregate_temporal_max.json")
-
-
-def test_aggregate_temporal_max_legacy_client(api):
-    api.check_result(
-        "aggregate_temporal_max.json",
-        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "temporal"')
-    )
 
 
 def test_aggregate_temporal_max_invalid_temporal_dimension(api):
