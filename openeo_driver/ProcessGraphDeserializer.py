@@ -679,11 +679,11 @@ def apply_neighborhood(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def apply_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube = args.get_required("data", expected_type=DriverDataCube)
     process = args.get_deep("process", "process_graph", expected_type=dict)
-    dimension = args.get_required("dimension", expected_type=str)
+    dimension = args.get_required(
+        "dimension", expected_type=str, validator=ProcessArgs.validator_one_of(data_cube.metadata.dimension_names())
+    )
     target_dimension = args.get_optional("target_dimension", default=None, expected_type=str)
     context = args.get_optional("context", default=None)
-    # do check_dimension here for error handling
-    dimension = _check_dimension(cube=data_cube, dim=dimension, process="apply_dimension")
 
     cube = data_cube.apply_dimension(
         process=process, dimension=dimension, target_dimension=target_dimension, context=context, env=env
@@ -747,10 +747,10 @@ def apply(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def reduce_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
     reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
-    dimension = args.get_required("dimension", expected_type=str)
+    dimension = args.get_required(
+        "dimension", expected_type=str, validator=ProcessArgs.validator_one_of(data_cube.metadata.dimension_names())
+    )
     context = args.get_optional("context", default=None)
-    # do check_dimension here for error handling
-    dimension = _check_dimension(cube=data_cube, dim=dimension, process="reduce_dimension")
     return data_cube.reduce_dimension(reducer=reduce_pg, dimension=dimension, context=context, env=env)
 
 
@@ -915,40 +915,35 @@ def rename_labels(args: dict, env: EvalEnv) -> DriverDataCube:
     )
 
 
-def _check_dimension(cube: DriverDataCube, dim: str, process: str) -> str:
-    """
-    Helper to check/validate the requested and available dimensions of a cube.
-
-    :return: tuple (requested dimension, name of band dimension, name of temporal dimension)
-    """
-    metadata = cube.metadata
-
-    if dim not in metadata.dimension_names():
-        raise ProcessParameterInvalidException(
-                parameter="dimension", process=process,
-                reason="got {d!r}, but should be one of {n!r}".format(d=dim, n=metadata.dimension_names()))
-
-    return dim
-
-
 @process
 def aggregate_temporal(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube = args.get_required("data", expected_type=DriverDataCube)
-    reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
-    context = args.get_optional("context", default=None)
     intervals = args.get_required("intervals")
+    reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
     labels = args.get_optional("labels", default=None)
-    dimension = _get_time_dim_or_default(args, data_cube)
-    return data_cube.aggregate_temporal(intervals=intervals,labels=labels,reducer=reduce_pg, dimension=dimension, context=context)
+    dimension = args.get_optional(
+        "dimension",
+        default=lambda: data_cube.metadata.temporal_dimension.name,
+        validator=ProcessArgs.validator_one_of(data_cube.metadata.dimension_names()),
+    )
+    context = args.get_optional("context", default=None)
+
+    return data_cube.aggregate_temporal(
+        intervals=intervals, labels=labels, reducer=reduce_pg, dimension=dimension, context=context
+    )
 
 
 @process_registry_100.add_function
 def aggregate_temporal_period(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube = args.get_required("data", expected_type=DriverDataCube)
-    reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
-    context = args.get_optional("context", default=None)
     period = args.get_required("period")
-    dimension = _get_time_dim_or_default(args, data_cube, "aggregate_temporal_period")
+    reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
+    dimension = args.get_optional(
+        "dimension",
+        default=lambda: data_cube.metadata.temporal_dimension.name,
+        validator=ProcessArgs.validator_one_of(data_cube.metadata.dimension_names()),
+    )
+    context = args.get_optional("context", default=None)
 
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
@@ -1023,24 +1018,6 @@ def _period_to_intervals(start, end, period) -> List[Tuple[pd.Timestamp, pd.Time
     intervals = [i for i in intervals if i[0] < end]
     _log.info(f"aggregate_temporal_period input: [{start},{end}] - {period} intervals: {intervals}")
     return intervals
-
-
-def _get_time_dim_or_default(args: ProcessArgs, data_cube, process_id="aggregate_temporal"):
-    dimension = args.get_optional("dimension", None)
-    if dimension is not None:
-        dimension = _check_dimension(cube=data_cube, dim=dimension, process=process_id)
-    else:
-        # default: there is a single temporal dimension
-        try:
-            dimension = data_cube.metadata.temporal_dimension.name
-        except MetadataException:
-            raise ProcessParameterInvalidException(
-                parameter="dimension", process=process_id,
-                reason="No dimension was set, and no temporal dimension could be found. Available dimensions: {n!r}".format(
-                    n=data_cube.metadata.dimension_names()))
-    # do check_dimension here for error handling
-    dimension = _check_dimension(cube=data_cube, dim=dimension, process=process_id)
-    return dimension
 
 
 @process_registry_100.add_function
