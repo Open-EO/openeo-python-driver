@@ -218,7 +218,6 @@ class DriverVectorCube:
     DIM_GEOMETRIES = "geometries"
     DIM_BANDS = "bands"
     DIM_PROPERTIES = "properties"
-    FLATTEN_PREFIX = "vc"
     COLUMN_SELECTION_ALL = "all"
     COLUMN_SELECTION_NUMERICAL = "numerical"
 
@@ -414,7 +413,8 @@ class DriverVectorCube:
                     # TODO: avoid column collisions?
                     df[name] = stacked.sel(prop=p)
             else:
-                df[flatten_prefix or self.FLATTEN_PREFIX] = self._cube
+                # TODO: better fallback column/property name in this case?
+                df[flatten_prefix or "_vc"] = self._cube
 
         return df
 
