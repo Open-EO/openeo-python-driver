@@ -1427,38 +1427,70 @@ def constant(args: dict, env: EvalEnv):
     return args["x"]
 
 
-def check_subgraph_for_data_mask_optimization(process_graph: Union[dict, list]):
+def flatten_children_node_types(process_graph: Union[dict, list]):
+    children_node_types = set()
+
+    def recurse(graph):
+        process_id = graph["node"]["process_id"]
+        children_node_types.add(process_id)
+
+        arguments = graph["node"]["arguments"]
+        for arg_name in arguments:
+            arg_value = arguments[arg_name]
+            if isinstance(arg_value, dict) and "node" in arg_value:
+                recurse(arg_value)
+
+    recurse(process_graph)
+    return children_node_types
+
+def flatten_children_node_names(process_graph: Union[dict, list]):
+    children_node_names = set()
+
+    def recurse(graph):
+        process_id = graph["from_node"]
+        children_node_names.add(process_id)
+
+        arguments = graph["node"]["arguments"]
+        for arg_name in arguments:
+            arg_value = arguments[arg_name]
+            if isinstance(arg_value, dict) and "node" in arg_value:
+                recurse(arg_value)
+
+    recurse(process_graph)
+    return children_node_names
+
+
+def check_subgraph_for_data_mask_optimization(args: dict) -> bool:
     """
     Check if it is safe to early apply a mask on load_collection. When the mask is applied early,
     some data tiles may be discarded before being loaded. But there may be no special filters between
     the load_collection and the mask node.
     """
-    whitelist = [
+    whitelist = {
         "drop_dimension",
         "filter_bands",
         "filter_bbox",
         "filter_spatial",
         "filter_temporal",
         "load_collection",
-    ]
+    }
 
-    def is_all_whitelisted(graph):
-        if not isinstance(graph, dict) or "node" not in graph:
-            return True
-        process_id = graph["node"]["process_id"]
-        if process_id not in whitelist:
-            return False
-        arguments = graph["node"]["arguments"]
-        for arg_name in arguments:
-            arg_value = arguments[arg_name]
-            if not is_all_whitelisted(arg_value):
-                return False
-        return True
+    children_node_types = flatten_children_node_types(args["data"])
+    # If children_node_types exists only out of whitelisted nodes, an intersection should have no effect.
+    if len(children_node_types.intersection(whitelist)) != len(children_node_types):
+        return False
 
-    return is_all_whitelisted(process_graph)
+    data_children_node_names = flatten_children_node_names(args["data"])
+    mask_children_node_names = flatten_children_node_names(args["mask"])
+    if not data_children_node_names.isdisjoint(mask_children_node_names):
+        # To avoid an issue in integration tests:
+        _log.info("Overlap between data and mask node. Will not pre-apply mask on load_collections.")
+        return False
+
+    return True
 
 
-def apply_process(process_id: str, args: dict, namespace: Union[str, None], env: EvalEnv):
+def apply_process(process_id: str, args: dict, namespace: Union[str, None], env: EvalEnv) -> DriverDataCube:
     _log.debug(f"apply_process {process_id} with {args}")
     parameters = env.collect_parameters()
 
@@ -1469,7 +1501,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         _log.debug(f"data_mask: convert_node(mask_node): {mask_node}")
         the_mask = convert_node(mask_node, env=env)
         dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
-        if not dry_run_tracer and check_subgraph_for_data_mask_optimization(args["data"]):
+        if not dry_run_tracer and check_subgraph_for_data_mask_optimization(args):
             if not env.get("data_mask"):
                 _log.debug(f"data_mask: env.push: {the_mask}")
                 env = env.push(data_mask=the_mask)
