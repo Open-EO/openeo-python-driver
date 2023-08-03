@@ -7,7 +7,7 @@ from typing import List, Union, Optional, Dict, Any, Tuple, Sequence
 import io
 
 import geopandas as gpd
-import numpy as np
+import numpy
 import pyproj
 import shapely.geometry
 import shapely.geometry.base
@@ -17,11 +17,13 @@ from pyproj import CRS
 import requests
 
 from openeo.metadata import CollectionMetadata
-from openeo.util import ensure_dir
+from openeo.util import ensure_dir, str_truncate
+import openeo.udf
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs, StacAsset
 from openeo_driver.errors import FeatureUnsupportedException, InternalException
 from openeo_driver.util.geometry import GeometryBufferer, validate_geojson_coordinates
 from openeo_driver.util.ioformats import IOFORMATS
+from openeo_driver.util.pgparsing import SingleRunUDFProcessGraph
 from openeo_driver.util.utm import area_in_square_meters
 from openeo_driver.utils import EvalEnv
 
@@ -214,13 +216,15 @@ class DriverVectorCube:
     These components are "joined" on the GeoPandas dataframe's index and DataArray first dimension
     """
     DIM_GEOMETRIES = "geometries"
-    FLATTEN_PREFIX = "vc"
+    DIM_BANDS = "bands"
+    DIM_PROPERTIES = "properties"
+    COLUMN_SELECTION_ALL = "all"
+    COLUMN_SELECTION_NUMERICAL = "numerical"
 
     def __init__(
         self,
         geometries: gpd.GeoDataFrame,
         cube: Optional[xarray.DataArray] = None,
-        flatten_prefix: str = FLATTEN_PREFIX,
     ):
         """
 
@@ -234,18 +238,77 @@ class DriverVectorCube:
                 log.error(f"First cube dim should be {self.DIM_GEOMETRIES!r} but got dims {cube.dims!r}")
                 raise VectorCubeError("Cube's first dimension is invalid.")
             if not geometries.index.equals(cube.indexes[cube.dims[0]]):
-                log.error(f"Invalid VectorCube components {geometries.index!r} != {cube.indexes[cube.dims[0]]!r}")
+                log.error(f"Invalid VectorCube components {geometries.index=} != {cube.indexes[cube.dims[0]]=}")
                 raise VectorCubeError("Incompatible vector cube components")
         self._geometries: gpd.GeoDataFrame = geometries
         self._cube = cube
-        self._flatten_prefix = flatten_prefix
 
-    def with_cube(self, cube: xarray.DataArray, flatten_prefix: str = FLATTEN_PREFIX) -> "DriverVectorCube":
+    def with_cube(self, cube: xarray.DataArray) -> "DriverVectorCube":
         """Create new vector cube with same geometries but new cube"""
         log.info(f"Creating vector cube with new cube {cube.name!r}")
-        return type(self)(
-            geometries=self._geometries, cube=cube, flatten_prefix=flatten_prefix
-        )
+        return type(self)(geometries=self._geometries, cube=cube)
+
+    @classmethod
+    def from_geodataframe(
+        cls,
+        data: gpd.GeoDataFrame,
+        *,
+        columns_for_cube: Union[List[str], str] = COLUMN_SELECTION_NUMERICAL,
+        dimension_name: str = DIM_PROPERTIES,
+    ) -> "DriverVectorCube":
+        """
+        Build a DriverVectorCube from given GeoPandas data frame,
+        using the data frame geometries as vector cube geometries
+        and other columns (as specified) as cube values along a "bands" dimension
+
+        :param data: geopandas data frame
+        :param columns_for_cube: which data frame columns to use as cube values.
+            One of:
+            - "numerical": automatically pick numerical columns
+            - "all": use all columns as cube values
+            - list of column names
+        :param dimension_name: name of the "bands" dimension
+        :return: vector cube
+        """
+        available_columns = [c for c in data.columns if c != "geometry"]
+
+        if columns_for_cube is None:
+            # TODO #114: what should default selection be?
+            columns_for_cube = cls.COLUMN_SELECTION_NUMERICAL
+
+        if columns_for_cube == cls.COLUMN_SELECTION_NUMERICAL:
+            columns_for_cube = [c for c in available_columns if numpy.issubdtype(data[c].dtype, numpy.number)]
+        elif columns_for_cube == cls.COLUMN_SELECTION_ALL:
+            columns_for_cube = available_columns
+        elif isinstance(columns_for_cube, list):
+            # TODO #114 limit to subset with available columns (and automatically fill in missing columns with nodata)?
+            columns_for_cube = columns_for_cube
+        else:
+            raise ValueError(columns_for_cube)
+        assert isinstance(columns_for_cube, list)
+
+        if columns_for_cube:
+            cube_df = data[columns_for_cube]
+            # TODO: remove `columns_for_cube` from geopandas data frame?
+            #   Enabling that triggers failure of som existing tests that use `aggregate_spatial`
+            #   to "enrich" a vector cube with pre-existing properties
+            #   Also see https://github.com/Open-EO/openeo-api/issues/504
+            # geometries_df = data.drop(columns=columns_for_cube)
+            geometries_df = data
+
+            # TODO: leverage pandas `to_xarray` and xarray `to_array` instead of this manual building?
+            cube: xarray.DataArray = xarray.DataArray(
+                data=cube_df.values,
+                dims=[cls.DIM_GEOMETRIES, dimension_name],
+                coords={
+                    cls.DIM_GEOMETRIES: data.geometry.index.to_list(),
+                    dimension_name: cube_df.columns,
+                },
+            )
+            return cls(geometries=geometries_df, cube=cube)
+
+        else:
+            return cls(geometries=data)
 
     @classmethod
     def from_fiona(
@@ -258,15 +321,21 @@ class DriverVectorCube:
         if len(paths) != 1:
             # TODO #114 EP-3981: support multiple paths
             raise FeatureUnsupportedException(message="Loading a vector cube from multiple files is not supported")
+        columns_for_cube = (options or {}).get("columns_for_cube", cls.COLUMN_SELECTION_NUMERICAL)
         # TODO #114 EP-3981: lazy loading like/with DelayedVector
         # note for GeoJSON: will consider Feature.id as well as Feature.properties.id
         if "parquet" == driver:
-            return cls.from_parquet(paths=paths)
+            return cls.from_parquet(paths=paths, columns_for_cube=columns_for_cube)
         else:
-            return cls(geometries=gpd.read_file(paths[0], driver=driver))
+            gdf = gpd.read_file(paths[0], driver=driver)
+            return cls.from_geodataframe(gdf, columns_for_cube=columns_for_cube)
 
     @classmethod
-    def from_parquet(cls, paths: List[Union[str, Path]]):
+    def from_parquet(
+        cls,
+        paths: List[Union[str, Path]],
+        columns_for_cube: Union[List[str], str] = COLUMN_SELECTION_NUMERICAL,
+    ):
         if len(paths) != 1:
             # TODO #114 EP-3981: support multiple paths
             raise FeatureUnsupportedException(
@@ -284,10 +353,14 @@ class DriverVectorCube:
         if "OGC:CRS84" in str(df.crs) or "WGS 84 (CRS84)" in str(df.crs):
             # workaround for not being able to decode ogc:crs84
             df.crs = CRS.from_epsg(4326)
-        return cls(geometries=df)
+        return cls.from_geodataframe(df, columns_for_cube=columns_for_cube)
 
     @classmethod
-    def from_geojson(cls, geojson: dict) -> "DriverVectorCube":
+    def from_geojson(
+        cls,
+        geojson: dict,
+        columns_for_cube: Union[List[str], str] = COLUMN_SELECTION_NUMERICAL,
+    ) -> "DriverVectorCube":
         """Construct vector cube from GeoJson dict structure"""
         validate_geojson_coordinates(geojson)
         # TODO support more geojson types?
@@ -305,7 +378,8 @@ class DriverVectorCube:
             raise FeatureUnsupportedException(
                 f"Can not construct DriverVectorCube from {geojson.get('type', type(geojson))!r}"
             )
-        return cls(geometries=gpd.GeoDataFrame.from_features(features))
+        gdf = gpd.GeoDataFrame.from_features(features)
+        return cls.from_geodataframe(gdf, columns_for_cube=columns_for_cube)
 
     @classmethod
     def from_geometry(
@@ -320,7 +394,9 @@ class DriverVectorCube:
             geometry = [geometry]
         return cls(geometries=gpd.GeoDataFrame(geometry=geometry))
 
-    def _as_geopandas_df(self) -> gpd.GeoDataFrame:
+    def _as_geopandas_df(
+        self, flatten_prefix: Optional[str] = None, flatten_name_joiner: str = "~"
+    ) -> gpd.GeoDataFrame:
         """Join geometries and cube as a geopandas dataframe"""
         # TODO: avoid copy?
         df = self._geometries.copy(deep=True)
@@ -331,18 +407,20 @@ class DriverVectorCube:
             if self._cube.dims[1:]:
                 stacked = self._cube.stack(prop=self._cube.dims[1:])
                 log.info(f"Flattened cube component of vector cube to {stacked.shape[1]} properties")
+                name_prefix = [flatten_prefix] if flatten_prefix else []
                 for p in stacked.indexes["prop"]:
-                    name = "~".join(str(x) for x in [self._flatten_prefix] + list(p))
+                    name = flatten_name_joiner.join(str(x) for x in name_prefix + list(p))
                     # TODO: avoid column collisions?
                     df[name] = stacked.sel(prop=p)
             else:
-                df[self._flatten_prefix] = self._cube
+                # TODO: better fallback column/property name in this case?
+                df[flatten_prefix or "_vc"] = self._cube
 
         return df
 
-    def to_geojson(self) -> dict:
+    def to_geojson(self, flatten_prefix: Optional[str] = None) -> dict:
         """Export as GeoJSON FeatureCollection."""
-        return shapely.geometry.mapping(self._as_geopandas_df())
+        return shapely.geometry.mapping(self._as_geopandas_df(flatten_prefix=flatten_prefix))
 
     def to_wkt(self) -> List[str]:
         wkts = [str(g) for g in self._geometries.geometry]
@@ -366,7 +444,8 @@ class DriverVectorCube:
             )
             return self.to_legacy_save_result().write_assets(directory)
 
-        self._as_geopandas_df().to_file(path, driver=format_info.fiona_driver)
+        gdf = self._as_geopandas_df(flatten_prefix=options.get("flatten_prefix"))
+        gdf.to_file(path, driver=format_info.fiona_driver)
 
         if not format_info.multi_file:
             # single file format
@@ -461,6 +540,9 @@ class DriverVectorCube:
     def get_geometries(self) -> Sequence[shapely.geometry.base.BaseGeometry]:
         return self._geometries.geometry
 
+    def get_cube(self) -> Optional[xarray.DataArray]:
+        return self._cube
+
     def get_ids(self) -> Optional[Sequence]:
         return self._geometries.get("id")
 
@@ -471,8 +553,9 @@ class DriverVectorCube:
         return dims, coords
 
     def __eq__(self, other):
-        return (isinstance(other, DriverVectorCube)
-                and np.array_equal(self._as_geopandas_df().values, other._as_geopandas_df().values))
+        return isinstance(other, DriverVectorCube) and numpy.array_equal(
+            self._as_geopandas_df().values, other._as_geopandas_df().values
+        )
 
     def fit_class_random_forest(
         self,
@@ -502,6 +585,49 @@ class DriverVectorCube:
                 bufferer.buffer(g) if isinstance(g, shapely.geometry.Point) else g
                 for g in self.get_geometries()
             ]
+        )
+
+    def apply_dimension(
+        self,
+        process: dict,
+        *,
+        dimension: str,
+        target_dimension: Optional[str] = None,
+        context: Optional[dict] = None,
+        env: EvalEnv,
+    ) -> "DriverVectorCube":
+        single_run_udf = SingleRunUDFProcessGraph.parse_or_none(process)
+
+        if single_run_udf:
+            # Process with single "run_udf" node
+            # TODO: check provided dimension with actual dimension of the cube
+            if dimension in (self.DIM_BANDS, self.DIM_PROPERTIES) and target_dimension is None:
+                log.warning(
+                    f"Using experimental feature: DriverVectorCube.apply_dimension along dim {dimension} and empty cube"
+                )
+                # TODO: this is non-standard special case: vector cube with only geometries, but no "cube" data
+                gdf = self._as_geopandas_df()
+                feature_collection = openeo.udf.FeatureCollection(id="_", data=gdf)
+                udf_data = openeo.udf.UdfData(
+                    proj={"EPSG": self._geometries.crs.to_epsg()},
+                    feature_collection_list=[feature_collection],
+                    user_context=context,
+                )
+                log.info(f"[run_udf] Running UDF {str_truncate(single_run_udf.udf, width=256)!r} on {udf_data!r}")
+                result_data = env.backend_implementation.processing.run_udf(udf=single_run_udf.udf, data=udf_data)
+                log.info(f"[run_udf] UDF resulted in {result_data!r}")
+
+                if not isinstance(result_data, openeo.udf.UdfData):
+                    raise ValueError(f"UDF should return UdfData, but got {type(result_data)}")
+                result_features = result_data.get_feature_collection_list()
+                if not (result_features and len(result_features) == 1):
+                    raise ValueError(
+                        f"UDF should return single feature collection but got {result_features and len(result_features)}"
+                    )
+                return DriverVectorCube(geometries=result_features[0].data)
+
+        raise FeatureUnsupportedException(
+            message=f"DriverVectorCube.apply_dimension with {dimension=} and {bool(single_run_udf)=}"
         )
 
 
