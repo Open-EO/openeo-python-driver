@@ -677,10 +677,10 @@ def apply_neighborhood(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
 @process
 def apply_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
-    data_cube = args.get_required("data", expected_type=DriverDataCube)
+    data_cube = args.get_required("data", expected_type=(DriverDataCube, DriverVectorCube))
     process = args.get_deep("process", "process_graph", expected_type=dict)
     dimension = args.get_required(
-        "dimension", expected_type=str, validator=ProcessArgs.validator_one_of(data_cube.metadata.dimension_names())
+        "dimension", expected_type=str, validator=ProcessArgs.validator_one_of(data_cube.get_dimension_names())
     )
     target_dimension = args.get_optional("target_dimension", default=None, expected_type=str)
     context = args.get_optional("context", default=None)
@@ -748,7 +748,7 @@ def reduce_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
     reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
     dimension = args.get_required(
-        "dimension", expected_type=str, validator=ProcessArgs.validator_one_of(data_cube.metadata.dimension_names())
+        "dimension", expected_type=str, validator=ProcessArgs.validator_one_of(data_cube.get_dimension_names())
     )
     context = args.get_optional("context", default=None)
     return data_cube.reduce_dimension(reducer=reduce_pg, dimension=dimension, context=context, env=env)
@@ -924,7 +924,7 @@ def aggregate_temporal(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     dimension = args.get_optional(
         "dimension",
         default=lambda: data_cube.metadata.temporal_dimension.name,
-        validator=ProcessArgs.validator_one_of(data_cube.metadata.dimension_names()),
+        validator=ProcessArgs.validator_one_of(data_cube.get_dimension_names()),
     )
     context = args.get_optional("context", default=None)
 
@@ -941,7 +941,7 @@ def aggregate_temporal_period(args: ProcessArgs, env: EvalEnv) -> DriverDataCube
     dimension = args.get_optional(
         "dimension",
         default=lambda: data_cube.metadata.temporal_dimension.name,
-        validator=ProcessArgs.validator_one_of(data_cube.metadata.dimension_names()),
+        validator=ProcessArgs.validator_one_of(data_cube.get_dimension_names()),
     )
     context = args.get_optional("context", default=None)
 

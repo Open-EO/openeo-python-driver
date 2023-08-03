@@ -10,7 +10,7 @@ import multiprocessing
 import re
 import urllib.request
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Pattern, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Pattern, Tuple, Union, Collection
 from unittest import mock
 
 import pytest
@@ -532,9 +532,48 @@ class ApproxGeometry:
         return approxify(result, rel=self.rel, abs=self.abs)
 
 
-def caplog_with_custom_formatter(
-    caplog: pytest.LogCaptureFixture, format: Union[str, logging.Formatter]
-):
+class ApproxGeoJSONByBounds:
+    """pytest assert helper to build a matcher to check if a certain GeoJSON construct is within expected bounds"""
+
+    def __init__(
+        self,
+        *args,
+        types: Collection[str] = ("Polygon", "MultiPolygon"),
+        rel: Optional[float] = None,
+        abs: Optional[float] = None,
+    ):
+        bounds = args[0] if len(args) == 1 else args
+        assert isinstance(bounds, (list, tuple)) and len(bounds) == 4
+        self.expected_bounds = [float(b) for b in bounds]
+        self.rel = rel
+        self.abs = abs
+        self.expected_types = set(types)
+        self.actual_info = []
+
+    def __eq__(self, other):
+        try:
+            assert isinstance(other, dict), "Not a dict"
+            assert "type" in other, "No 'type' field"
+            assert other["type"] in self.expected_types, f"Wrong type {other['type']!r}"
+            assert "coordinates" in other, "No 'coordinates' field"
+
+            actual_bounds = shapely.geometry.shape(other).bounds
+            matching = actual_bounds == pytest.approx(self.expected_bounds, rel=self.rel, abs=self.abs)
+            if not matching:
+                self.actual_info.append(f"expected bounds {self.expected_bounds} != actual bounds: {actual_bounds}")
+            return matching
+        except Exception as e:
+            self.actual_info.append(str(e))
+        return False
+
+    def __repr__(self):
+        msg = f"<{type(self).__name__} types={self.expected_types} bounds={self.expected_bounds} rel={self.rel}, abs={self.abs}>"
+        if self.actual_info:
+            msg += "\n" + "\n".join(f"    # {i}" for i in self.actual_info)
+        return msg
+
+
+def caplog_with_custom_formatter(caplog: pytest.LogCaptureFixture, format: Union[str, logging.Formatter]):
     """
     Context manager to set a custom formatter on the caplog fixture.
 

@@ -21,6 +21,7 @@ from openeo_driver.testing import (
     caplog_with_custom_formatter,
     ephemeral_fileserver,
     preprocess_check_and_replace,
+    ApproxGeoJSONByBounds,
 )
 
 
@@ -284,3 +285,38 @@ def test_caplog_with_custom_formatter(caplog, format):
         "[WARNING] still not good (root)",
         "WARNING  root:test_testing.py:XXX hmm bad times",
     ]
+
+
+class TestApproxGeoJSONByBounds:
+    def test_basic(self):
+        geometry = {"type": "Polygon", "coordinates": [[[1, 2], [3, 1], [2, 4], [1, 2]]]}
+        assert geometry == ApproxGeoJSONByBounds(1, 1, 3, 4, abs=0.1)
+
+    @pytest.mark.parametrize(
+        ["data", "expected_message"],
+        [
+            ("nope", "# Not a dict"),
+            ({"foo": "bar"}, "    # No 'type' field"),
+            ({"type": "Polygommm", "coordinates": [[[1, 2], [3, 1], [2, 4], [1, 2]]]}, "    # Wrong type 'Polygommm'"),
+            ({"type": "Polygon"}, "    # No 'coordinates' field"),
+        ],
+    )
+    def test_invalid_construct(self, data, expected_message):
+        expected = ApproxGeoJSONByBounds(1, 2, 3, 4)
+        assert data != expected
+        assert expected_message in repr(expected)
+
+    def test_out_of_bounds(self):
+        geometry = {"type": "Polygon", "coordinates": [[[1, 2], [3, 1], [2, 4], [1, 2]]]}
+        expected = ApproxGeoJSONByBounds(11, 22, 33, 44, abs=0.1)
+        assert geometry != expected
+        assert "# expected bounds [11.0, 22.0, 33.0, 44.0] != actual bounds: (1.0, 1.0, 3.0, 4.0)" in repr(expected)
+
+    def test_types(self):
+        geometry = {"type": "Polygon", "coordinates": [[[1, 2], [3, 1], [2, 4], [1, 2]]]}
+        assert geometry == ApproxGeoJSONByBounds(1, 1, 3, 4, types=["Polygon"], abs=0.1)
+        assert geometry == ApproxGeoJSONByBounds(1, 1, 3, 4, types=["Polygon", "Point"], abs=0.1)
+
+        expected = ApproxGeoJSONByBounds(1, 1, 3, 4, types=["MultiPolygon"], abs=0.1)
+        assert geometry != expected
+        assert "Wrong type 'Polygon'" in repr(expected)

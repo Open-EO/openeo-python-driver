@@ -33,6 +33,7 @@ from openeo_driver.testing import (
     generate_unique_test_process_id,
     preprocess_check_and_replace,
     preprocess_regex_check_and_replace,
+    ApproxGeoJSONByBounds,
 )
 from openeo_driver.util.geometry import as_geojson_feature, as_geojson_feature_collection
 from openeo_driver.util.ioformats import IOFORMATS
@@ -1310,7 +1311,7 @@ def test_run_udf_on_vector_read_vector(api100, udf_code):
                 "udf": udf_code,
                 "runtime": "Python",
             },
-            "result": "true",
+            "result": True,
         },
     }
     resp = api100.check_result(process_graph)
@@ -1355,8 +1356,8 @@ def test_run_udf_on_vector_get_geometries(api100, udf_code):
                 "udf": udf_code,
                 "runtime": "Python",
             },
-            "result": "true"
-        }
+            "result": True,
+        },
     }
     resp = api100.check_result(process_graph)
     assert resp.json == [
@@ -1401,7 +1402,7 @@ def test_run_udf_on_vector_load_uploaded_files(api100, udf_code):
                 "udf": udf_code,
                 "runtime": "Python",
             },
-            "result": "true",
+            "result": True,
         },
     }
     resp = api100.check_result(process_graph)
@@ -3522,3 +3523,72 @@ def test_request_costs_for_failed_request(api, backend_implementation):
     assert env["correlation_id"] == "r-abc123"
 
     get_request_costs.assert_called_with(TEST_USER, "r-abc123", False)
+
+
+class TestVectorCubeRunUDF:
+    """
+    Tests about running UDF based manipulations on vector cubes
+
+    References:
+    - https://github.com/Open-EO/openeo-python-driver/issues/197
+    - https://github.com/Open-EO/openeo-python-driver/pull/200
+    - https://github.com/Open-EO/openeo-geopyspark-driver/issues/437
+    """
+
+    def test_apply_dimension_run_udf_change_geometry(self, api100):
+        udf_code = """
+            from openeo.udf import UdfData, FeatureCollection
+            def process_geometries(udf_data: UdfData) -> UdfData:
+                [feature_collection] = udf_data.get_feature_collection_list()
+                gdf = feature_collection.data
+                gdf["geometry"] = gdf["geometry"].buffer(distance=1, resolution=2)
+                udf_data.set_feature_collection_list([
+                    FeatureCollection(id="_", data=gdf),
+                ])
+            """
+        udf_code = textwrap.dedent(udf_code)
+        process_graph = {
+            "get_vector_data": {
+                "process_id": "load_uploaded_files",
+                "arguments": {"paths": [str(get_path("geojson/FeatureCollection02.json"))], "format": "GeoJSON"},
+            },
+            "apply_dimension": {
+                "process_id": "apply_dimension",
+                "arguments": {
+                    "data": {"from_node": "get_vector_data"},
+                    "dimension": "properties",
+                    "process": {
+                        "process_graph": {
+                            "runudf1": {
+                                "process_id": "run_udf",
+                                "arguments": {
+                                    "data": {"from_node": "get_vector_data"},
+                                    "udf": udf_code,
+                                    "runtime": "Python",
+                                },
+                                "result": True,
+                            }
+                        },
+                    },
+                },
+                "result": True,
+            },
+        }
+        resp = api100.check_result(process_graph)
+        assert resp.json == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "geometry": ApproxGeoJSONByBounds(0, 0, 4, 4, types=["Polygon"], abs=0.1),
+                        "properties": {"id": "first", "pop": 1234},
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": ApproxGeoJSONByBounds(2, 1, 6, 5, types=["Polygon"], abs=0.1),
+                        "properties": {"id": "second", "pop": 5678},
+                    },
+                ],
+            }
+        )

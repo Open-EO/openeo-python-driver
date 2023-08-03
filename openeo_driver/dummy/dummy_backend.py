@@ -181,10 +181,12 @@ class DummyDataCube(DriverDataCube):
         self.apply_tiles = Mock(name="apply_tiles", return_value=self)
         self.apply_tiles_spatiotemporal = Mock(name="apply_tiles_spatiotemporal", return_value=self)
 
-        # Create mock methods for remaining data cube methods that are not yet defined
-        already_defined = set(DummyDataCube.__dict__.keys()).union(self.__dict__.keys())
+        # Create mock methods for remaining DriverDataCube methods that are not yet defined directly by DummyDataCube
+        to_keep = set(DummyDataCube.__dict__.keys()).union(self.__dict__.keys())
+        to_keep.update(m for m in DriverDataCube.__dict__.keys() if m.startswith("_"))
+        to_keep.update(["get_dimension_names"])
         for name, method in DriverDataCube.__dict__.items():
-            if not name.startswith('_') and name not in already_defined and callable(method):
+            if not name in to_keep and callable(method):
                 setattr(self, name, Mock(name=name, return_value=self))
 
         for name in [n for n, m in DummyDataCube.__dict__.items() if getattr(m, '_mock_side_effect', False)]:

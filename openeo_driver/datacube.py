@@ -61,6 +61,9 @@ class DriverDataCube:
                 return True
         return False
 
+    def get_dimension_names(self) -> List[str]:
+        return self.metadata.dimension_names()
+
     def _not_implemented(self):
         """Helper to raise a NotImplemented exception containing method name"""
         raise NotImplementedError("DataCube method not implemented: {m!r}".format(m=inspect.stack()[1].function))
@@ -510,6 +513,12 @@ class DriverVectorCube:
         raise ValueError(
             f"Unsupported cube configuration {cube.dims} for _write_legacy_aggregate_polygon_result_json"
         )
+
+    def get_dimension_names(self) -> List[str]:
+        if self._cube is None:
+            return [self.DIM_GEOMETRIES]
+        else:
+            return list(self._cube.dims)
 
     def get_bounding_box(self) -> Tuple[float, float, float, float]:
         # TODO: cache bounding box?
