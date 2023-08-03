@@ -188,20 +188,20 @@ class TestDriverVectorCube:
             }
         )
         cube = vc.get_cube()
-        assert cube.dims == ("geometries", "bands")
+        assert cube.dims == ("geometries", "properties")
         assert cube.shape == (2, 1)
-        assert {k: list(v.values) for k, v in cube.coords.items()} == {"geometries": [0, 1], "bands": ["pop"]}
+        assert {k: list(v.values) for k, v in cube.coords.items()} == {"geometries": [0, 1], "properties": ["pop"]}
 
     @pytest.mark.parametrize(
         ["columns_for_cube", "expected"],
         [
-            ("numerical", {"shape": (2, 1), "coords": {"geometries": [0, 1], "bands": ["pop"]}}),
-            ("all", {"shape": (2, 2), "coords": {"geometries": [0, 1], "bands": ["id", "pop"]}}),
+            ("numerical", {"shape": (2, 1), "coords": {"geometries": [0, 1], "properties": ["pop"]}}),
+            ("all", {"shape": (2, 2), "coords": {"geometries": [0, 1], "properties": ["id", "pop"]}}),
             ([], None),
-            (["id"], {"shape": (2, 1), "coords": {"geometries": [0, 1], "bands": ["id"]}}),
-            (["pop", "id"], {"shape": (2, 2), "coords": {"geometries": [0, 1], "bands": ["pop", "id"]}}),
+            (["id"], {"shape": (2, 1), "coords": {"geometries": [0, 1], "properties": ["id"]}}),
+            (["pop", "id"], {"shape": (2, 2), "coords": {"geometries": [0, 1], "properties": ["pop", "id"]}}),
             # TODO: test specifying non-existent column (to be filled with no-data):
-            # (["pop", "nopenope"], {"shape": (2, 2), "coords": {"geometries": [0, 1], "bands": ["pop", "nopenope"]}}),
+            # (["pop", "nopenope"], {"shape": (2, 2), "coords": {"geometries": [0, 1], "properties": ["pop", "nopenope"]}}),
         ],
     )
     def test_from_geodataframe_columns_for_cube(self, gdf, columns_for_cube, expected):
@@ -237,7 +237,7 @@ class TestDriverVectorCube:
         if expected is None:
             assert cube is None
         else:
-            assert cube.dims == ("geometries", "bands")
+            assert cube.dims == ("geometries", "properties")
             assert cube.shape == expected["shape"]
             assert {k: list(v.values) for k, v in cube.coords.items()} == expected["coords"]
 
@@ -571,7 +571,9 @@ class TestDriverVectorCube:
             }
         )
 
-    def test_apply_dimension_run_udf_change_geometry(self, vc, backend_implementation):
+    @pytest.mark.parametrize("dimension", ["bands", "properties"])
+    def test_apply_dimension_run_udf_change_geometry(self, gdf, backend_implementation, dimension):
+        vc = DriverVectorCube.from_geodataframe(gdf, dimension_name=dimension)
         udf = textwrap.dedent(
             """
             from openeo.udf import UdfData, FeatureCollection
@@ -592,7 +594,7 @@ class TestDriverVectorCube:
             }
         }
         env = EvalEnv({"backend_implementation": backend_implementation})
-        result = vc.apply_dimension(process=callback, dimension="bands", env=env)
+        result = vc.apply_dimension(process=callback, dimension=dimension, env=env)
         assert isinstance(result, DriverVectorCube)
         feature_collection = result.to_geojson()
         assert feature_collection == DictSubSet(

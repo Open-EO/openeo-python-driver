@@ -217,6 +217,7 @@ class DriverVectorCube:
     """
     DIM_GEOMETRIES = "geometries"
     DIM_BANDS = "bands"
+    DIM_PROPERTIES = "properties"
     FLATTEN_PREFIX = "vc"
     COLUMN_SELECTION_ALL = "all"
     COLUMN_SELECTION_NUMERICAL = "numerical"
@@ -254,8 +255,7 @@ class DriverVectorCube:
         data: gpd.GeoDataFrame,
         *,
         columns_for_cube: Union[List[str], str] = COLUMN_SELECTION_NUMERICAL,
-        # TODO: change default band name to "properties" (per `load_geojson`  spec introduced by https://github.com/Open-EO/openeo-processes/pull/427)
-        dimension_name: str = DIM_BANDS,
+        dimension_name: str = DIM_PROPERTIES,
     ) -> "DriverVectorCube":
         """
         Build a DriverVectorCube from given GeoPandas data frame,
@@ -600,7 +600,8 @@ class DriverVectorCube:
 
         if single_run_udf:
             # Process with single "run_udf" node
-            if dimension == self.DIM_BANDS and target_dimension is None:
+            # TODO: check provided dimension with actual dimension of the cube
+            if dimension in (self.DIM_BANDS, self.DIM_PROPERTIES) and target_dimension is None:
                 log.warning(
                     f"Using experimental feature: DriverVectorCube.apply_dimension along dim {dimension} and empty cube"
                 )
