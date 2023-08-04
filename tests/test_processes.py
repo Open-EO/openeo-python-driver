@@ -612,3 +612,26 @@ class TestProcessArgs:
             ),
         ):
             _ = args.get_enum("color", options=["R", "G", "B"])
+
+    def test_validator_geojson_dict(self):
+        polygon = {"type": "Polygon", "coordinates": [[1, 2]]}
+        args = ProcessArgs({"geometry": polygon, "color": "red"}, process_id="wibble")
+
+        validator = ProcessArgs.validator_geojson_dict()
+        assert args.get_required("geometry", validator=validator) == polygon
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'color' in process 'wibble' is invalid: Invalid GeoJSON: JSON object (mapping/dictionary) expected, but got str."
+            ),
+        ):
+            _ = args.get_required("color", validator=validator)
+
+        validator = ProcessArgs.validator_geojson_dict(allowed_types=["FeatureCollection"])
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'geometry' in process 'wibble' is invalid: Invalid GeoJSON: Found type 'Polygon', but expects one of ['FeatureCollection']."
+            ),
+        ):
+            _ = args.get_required("geometry", validator=validator)

@@ -1589,6 +1589,14 @@ def to_vector_cube(args: Dict, env: EvalEnv):
     raise FeatureUnsupportedException(f"Converting {type(data)} to vector cube is not supported")
 
 
+@process_registry_100.add_function(spec=read_spec("openeo-processes/2.x/proposals/load_geojson.json"))
+def load_geojson(args: ProcessArgs, env: EvalEnv) -> DriverVectorCube:
+    data = args.get_required("data", validator=ProcessArgs.validator_geojson_dict())
+    properties = args.get_optional("properties", default=[], expected_type=(list, tuple))
+    vector_cube = env.backend_implementation.vector_cube_cls.from_geojson(data, columns_for_cube=properties)
+    return vector_cube
+
+
 @non_standard_process(
     ProcessSpec("get_geometries", description="Reads vector data from a file or a URL or get geometries from a FeatureCollection")
         .param('filename', description="filename or http url of a vector file", schema={"type": "string"}, required=False)

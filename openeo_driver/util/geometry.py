@@ -3,7 +3,7 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Union, Tuple, Optional, List, Mapping, Sequence
+from typing import Union, Tuple, Optional, List, Mapping, Sequence, Any, Collection
 
 import pyproj
 import shapely.geometry
@@ -15,6 +15,67 @@ from openeo_driver.errors import OpenEOApiException
 from openeo_driver.util.utm import auto_utm_epsg, auto_utm_epsg_for_geometry
 
 _log = logging.getLogger(__name__)
+
+
+GEOJSON_GEOMETRY_TYPES_BASIC = frozenset(
+    {"Point", "MultiPoint", "LineString", "MultiLineString", "Polygon", "MultiPolygon"}
+)
+GEOJSON_GEOMETRY_TYPES_EXTENDED = GEOJSON_GEOMETRY_TYPES_BASIC | {"GeometryCollection"}
+
+
+def validate_geojson_basic(
+    value: Any,
+    *,
+    allowed_types: Optional[Collection[str]] = None,
+    raise_exception: bool = True,
+    recurse: bool = True,
+) -> List[str]:
+    """
+    Validate if given value looks like a valid GeoJSON construct.
+
+    Note: this is just for basic inspection to catch simple/obvious structural issues.
+    It is not intended for a full-blown, deep GeoJSON validation and coordinate inspection.
+
+    :param value: the value to inspect
+    :param allowed_types: optional collection of GeoJSON types to accept
+    :param raise_exception: whether to raise an exception when issues are found (default),
+        or just return list of issues
+    :param recurse: whether to recursively validate Feature's geometry and FeatureCollection's features
+    :returns: list of issues found (when `raise_exception` is off)
+    """
+    try:
+        if not isinstance(value, dict):
+            raise ValueError(f"JSON object (mapping/dictionary) expected, but got {type(value).__name__}")
+        assert "type" in value, "No 'type' field"
+        geojson_type = value["type"]
+        assert isinstance(geojson_type, str), f"Invalid 'type' type: {type(geojson_type).__name__}"
+        if allowed_types and geojson_type not in allowed_types:
+            raise ValueError(f"Found type {geojson_type!r}, but expects one of {sorted(allowed_types)}")
+        if geojson_type in GEOJSON_GEOMETRY_TYPES_BASIC:
+            assert "coordinates" in value, f"No 'coordinates' field (type {geojson_type!r})"
+        elif geojson_type in {"GeometryCollection"}:
+            assert "geometries" in value, f"No 'geometries' field (type {geojson_type!r})"
+            # TODO: recursively check sub-geometries?
+        elif geojson_type in {"Feature"}:
+            assert "geometry" in value, f"No 'geometry' field (type {geojson_type!r})"
+            assert "properties" in value, f"No 'properties' field (type {geojson_type!r})"
+            if recurse:
+                validate_geojson_basic(
+                    value["geometry"], recurse=True, allowed_types=GEOJSON_GEOMETRY_TYPES_EXTENDED, raise_exception=True
+                )
+        elif geojson_type in {"FeatureCollection"}:
+            assert "features" in value, f"No 'features' field (type {geojson_type!r})"
+            if recurse:
+                for f in value["features"]:
+                    validate_geojson_basic(f, recurse=True, allowed_types=["Feature"], raise_exception=True)
+        else:
+            raise ValueError(f"Invalid type {geojson_type!r}")
+
+    except Exception as e:
+        if raise_exception:
+            raise
+        return [str(e)]
+    return []
 
 
 def validate_geojson_coordinates(geojson):

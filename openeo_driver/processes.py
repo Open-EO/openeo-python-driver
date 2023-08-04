@@ -1,10 +1,9 @@
 import functools
 import inspect
-import typing
 import warnings
 from collections import namedtuple
 from pathlib import Path
-from typing import Callable, Dict, List, Tuple, Optional, Any, Union
+from typing import Callable, Dict, List, Tuple, Optional, Any, Union, Collection
 
 from openeo_driver.errors import (
     ProcessUnsupportedException,
@@ -12,6 +11,7 @@ from openeo_driver.errors import (
     ProcessParameterInvalidException,
 )
 from openeo_driver.specs import SPECS_ROOT
+from openeo_driver.util.geometry import validate_geojson_basic
 from openeo_driver.utils import read_json, EvalEnv
 
 
@@ -411,7 +411,7 @@ class ProcessArgs(dict):
                     kwargs[key] = self[alias]
         return kwargs
 
-    def get_enum(self, name: str, options: typing.Container[ArgumentValue]) -> ArgumentValue:
+    def get_enum(self, name: str, options: Collection[ArgumentValue]) -> ArgumentValue:
         """
         Get argument by name and check if it belongs to given set of (enum) values.
 
@@ -437,6 +437,20 @@ class ProcessArgs(dict):
                 else:
                     message = f"Must be one of {options!r}."
                 raise ValueError(message)
+            return True
+
+        return validator
+
+    @staticmethod
+    def validator_geojson_dict(
+        allowed_types: Optional[Collection[str]] = None,
+    ):
+        """Build validator to verify that provided structure looks like a GeoJSON-style object"""
+
+        def validator(value):
+            issues = validate_geojson_basic(value=value, allowed_types=allowed_types, raise_exception=False)
+            if issues:
+                raise ValueError(f"Invalid GeoJSON: {', '.join(issues)}.")
             return True
 
         return validator
