@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from openeo_driver.delayed_vector import DelayedVector
@@ -40,11 +42,7 @@ def test_geojson_url_invalid(requests_mock):
 
 
 def test_geojson_invalid_coordinates():
-    dv = DelayedVector(
-        str(get_path("geojson/test_geojson_invalid_coordinates.geojson"))
-    )
-    with pytest.raises(OpenEOApiException) as e:
+    dv = DelayedVector(str(get_path("geojson/test_geojson_invalid_coordinates.geojson")))
+    expected_error = "Failed to parse Geojson. Invalid coordinate: [-361.0, 50.861345984658136]"
+    with pytest.raises(OpenEOApiException, match=re.escape(expected_error)):
         _ = dv.bounds
-    assert e.value.message.startswith(
-        "Failed to parse Geojson. Invalid coordinate: [-361.0, 50.861345984658136]"
-    )
