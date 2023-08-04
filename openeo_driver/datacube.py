@@ -633,18 +633,23 @@ class DriverVectorCube:
         context: Optional[dict] = None,
         env: EvalEnv,
     ) -> "DriverVectorCube":
+        # Is callback a single run_udf node process?
         single_run_udf = SingleRunUDFProcessGraph.parse_or_none(process)
 
         if single_run_udf:
             # Process with single "run_udf" node
-            # TODO: check provided dimension with actual dimension of the cube
-            if dimension in (self.DIM_BANDS, self.DIM_PROPERTIES) and target_dimension is None:
+            if (
+                dimension == self.DIM_GEOMETRIES
+                or (dimension in {self.DIM_BANDS, self.DIM_PROPERTIES}.intersection(self.get_dimension_names()))
+                and target_dimension is None
+            ):
                 log.warning(
                     f"Using experimental feature: DriverVectorCube.apply_dimension along dim {dimension} and empty cube"
                 )
-                # TODO: this is non-standard special case: vector cube with only geometries, but no "cube" data
+                # TODO: data chunking (e.g. large feature collections)
                 gdf = self._as_geopandas_df()
                 feature_collection = openeo.udf.FeatureCollection(id="_", data=gdf)
+                # TODO: dedicated UDF signature to indicate to work on vector cube through a feature collection based API
                 udf_data = openeo.udf.UdfData(
                     proj={"EPSG": self._geometries.crs.to_epsg()},
                     feature_collection_list=[feature_collection],

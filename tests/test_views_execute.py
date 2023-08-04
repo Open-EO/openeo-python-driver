@@ -3686,14 +3686,22 @@ class TestVectorCubeRunUDF:
             }
         )
 
-    def test_apply_dimension_run_udf_filter_geometries_dimension_properties(self, api100):
+    @pytest.mark.parametrize(
+        "dimension",
+        [
+            "properties",
+            "geometries",
+        ],
+    )
+    def test_apply_dimension_run_udf_filter_geometries_dimension_properties(self, api100, dimension):
         """
-        Test to use `apply_dimension(dimension="properties", process=UDF)` to filter out certain
+        Test to use `apply_dimension(dimension="...", process=UDF)` to filter out certain
         entries from geometries dimension.
 
-        Note that, strictly speaking, this approach draws outside the lines of the openEO API spec
-        as apply_dimension only allows changing the cardinality of the provided dimension ("properties" in this case),
-        not any other dimension (like "geometries" in this case).
+        Note in case of dimension="properties":
+            strictly speaking, this approach draws outside the lines of the openEO API spec
+            as apply_dimension only allows changing the cardinality of the provided dimension ("properties" in this case),
+            not any other dimension (like "geometries" in this case).
         """
         udf_code = """
             from openeo.udf import UdfData, FeatureCollection
@@ -3717,7 +3725,7 @@ class TestVectorCubeRunUDF:
                 "process_id": "apply_dimension",
                 "arguments": {
                     "data": {"from_node": "get_vector_data"},
-                    "dimension": "properties",
+                    "dimension": dimension,
                     "process": {
                         "process_graph": {
                             "runudf1": {
