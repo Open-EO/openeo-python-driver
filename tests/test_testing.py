@@ -1,21 +1,22 @@
 import logging
 import re
 import subprocess
-
-import numpy
 import sys
 import textwrap
 import urllib.error
 import urllib.request
 
 import flask
+import numpy
 import pytest
 import requests
 
 from openeo_driver.testing import (
     ApiTester,
+    ApproxGeoJSONByBounds,
     DictSubSet,
     IgnoreOrder,
+    IsNan,
     ListSubSet,
     RegexMatcher,
     UrllibMocker,
@@ -23,8 +24,6 @@ from openeo_driver.testing import (
     caplog_with_custom_formatter,
     ephemeral_fileserver,
     preprocess_check_and_replace,
-    ApproxGeoJSONByBounds,
-    IsNan,
 )
 
 

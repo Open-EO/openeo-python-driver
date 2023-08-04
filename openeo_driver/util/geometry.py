@@ -3,7 +3,7 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Union, Tuple, Optional, List, Mapping, Sequence, Any, Collection
+from typing import Any, Collection, List, Mapping, Optional, Sequence, Tuple, Union
 
 import pyproj
 import shapely.geometry

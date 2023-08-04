@@ -11,24 +11,21 @@ import multiprocessing
 import re
 import urllib.request
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Pattern, Tuple, Union, Collection
+from typing import Any, Callable, Collection, Dict, Optional, Pattern, Tuple, Union
 from unittest import mock
 
+import openeo
+import openeo.processes
 import pytest
 import shapely.geometry.base
 import shapely.wkt
 from flask import Response
 from flask.testing import FlaskClient
+from openeo.capabilities import ComparableVersion
 from werkzeug.datastructures import Headers
 
-import openeo
-import openeo.processes
-from openeo.capabilities import ComparableVersion
 from openeo_driver.users.auth import HttpAuthHandler
-from openeo_driver.util.geometry import (
-    as_geojson_feature,
-    as_geojson_feature_collection,
-)
+from openeo_driver.util.geometry import as_geojson_feature, as_geojson_feature_collection
 from openeo_driver.utils import generate_unique_id
 
 _log = logging.getLogger(__name__)
@@ -586,6 +583,7 @@ class ApproxGeoJSONByBounds:
         if self.actual_info:
             msg += "\n" + "\n".join(f"    # {i}" for i in self.actual_info)
         return msg
+
 
 def caplog_with_custom_formatter(caplog: pytest.LogCaptureFixture, format: Union[str, logging.Formatter]):
     """

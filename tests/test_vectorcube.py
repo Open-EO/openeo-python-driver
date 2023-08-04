@@ -6,11 +6,11 @@ import numpy.testing
 import pyproj
 import pytest
 import xarray
-from shapely.geometry import Polygon, MultiPolygon, Point
+from shapely.geometry import MultiPolygon, Point, Polygon
 
-from openeo_driver.errors import OpenEOApiException
 from openeo_driver.datacube import DriverVectorCube
-from openeo_driver.testing import DictSubSet, ApproxGeometry, IsNan
+from openeo_driver.errors import OpenEOApiException
+from openeo_driver.testing import ApproxGeometry, DictSubSet, IsNan
 from openeo_driver.util.geometry import as_geojson_feature_collection
 from openeo_driver.utils import EvalEnv
 

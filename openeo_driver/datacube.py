@@ -1,26 +1,26 @@
 import abc
 import inspect
+import io
 import logging
 import zipfile
 from pathlib import Path
-from typing import List, Union, Optional, Dict, Any, Tuple, Sequence
-import io
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import geopandas as gpd
 import numpy
+import openeo.udf
 import pandas
 import pyproj
+import requests
 import shapely.geometry
 import shapely.geometry.base
 import shapely.ops
 import xarray
-from pyproj import CRS
-import requests
-
 from openeo.metadata import CollectionMetadata
 from openeo.util import ensure_dir, str_truncate
-import openeo.udf
-from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs, StacAsset
+from pyproj import CRS
+
+from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs, StacAsset
 from openeo_driver.errors import FeatureUnsupportedException, InternalException
 from openeo_driver.util.geometry import GeometryBufferer, validate_geojson_coordinates
 from openeo_driver.util.ioformats import IOFORMATS

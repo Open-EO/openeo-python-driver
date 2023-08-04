@@ -1,11 +1,12 @@
 import re
 
 import pytest
+from pyproj import CRS
 
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException
+
 from .data import get_path
-from pyproj import CRS
 
 
 def test_feature_collection_bounds():

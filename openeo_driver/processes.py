@@ -3,16 +3,16 @@ import inspect
 import warnings
 from collections import namedtuple
 from pathlib import Path
-from typing import Callable, Dict, List, Tuple, Optional, Any, Union, Collection
+from typing import Any, Callable, Collection, Dict, List, Optional, Tuple, Union
 
 from openeo_driver.errors import (
-    ProcessUnsupportedException,
-    ProcessParameterRequiredException,
     ProcessParameterInvalidException,
+    ProcessParameterRequiredException,
+    ProcessUnsupportedException,
 )
 from openeo_driver.specs import SPECS_ROOT
 from openeo_driver.util.geometry import validate_geojson_basic
-from openeo_driver.utils import read_json, EvalEnv
+from openeo_driver.utils import EvalEnv, read_json
 
 
 class ProcessParameter:

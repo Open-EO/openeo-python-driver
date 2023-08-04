@@ -1,7 +1,6 @@
 import contextlib
-from typing import Union, List
-
 import math
+from typing import List, Union
 
 import pyproj
 import pytest
@@ -12,19 +11,18 @@ from shapely.geometry.base import BaseGeometry
 from shapely.geos import WKTWriter
 
 from openeo_driver.util.geometry import (
-    geojson_to_multipolygon,
-    reproject_bounding_box,
-    spatial_extent_union,
-    GeometryBufferer,
-    as_geojson_feature,
-    as_geojson_feature_collection,
-    reproject_geometry,
     BoundingBox,
     BoundingBoxException,
     CrsRequired,
+    GeometryBufferer,
+    as_geojson_feature,
+    as_geojson_feature_collection,
+    geojson_to_multipolygon,
+    reproject_bounding_box,
+    reproject_geometry,
+    spatial_extent_union,
     validate_geojson_basic,
 )
-
 
 from ..data import get_path
 
