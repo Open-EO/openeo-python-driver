@@ -8,6 +8,7 @@ import io
 
 import geopandas as gpd
 import numpy
+import pandas
 import pyproj
 import shapely.geometry
 import shapely.geometry.base
@@ -284,14 +285,21 @@ class DriverVectorCube:
         elif columns_for_cube == cls.COLUMN_SELECTION_ALL:
             columns_for_cube = available_columns
         elif isinstance(columns_for_cube, list):
-            # TODO #114 limit to subset with available columns (and automatically fill in missing columns with nodata)?
             columns_for_cube = columns_for_cube
         else:
             raise ValueError(columns_for_cube)
         assert isinstance(columns_for_cube, list)
 
         if columns_for_cube:
-            cube_df = data[columns_for_cube]
+            existing = [c for c in columns_for_cube if c in available_columns]
+            to_add = [c for c in columns_for_cube if c not in available_columns]
+            if existing:
+                cube_df = data[existing]
+                if to_add:
+                    cube_df.loc[:, to_add] = numpy.nan
+            else:
+                cube_df = pandas.DataFrame(index=data.index, columns=to_add)
+
             # TODO: remove `columns_for_cube` from geopandas data frame?
             #   Enabling that triggers failure of som existing tests that use `aggregate_spatial`
             #   to "enrich" a vector cube with pre-existing properties
@@ -311,6 +319,7 @@ class DriverVectorCube:
             return cls(geometries=geometries_df, cube=cube)
 
         else:
+            # TODO: add a dummy 1D no-data cube?
             return cls(geometries=data)
 
     @classmethod
@@ -428,6 +437,16 @@ class DriverVectorCube:
     def to_wkt(self) -> List[str]:
         wkts = [str(g) for g in self._geometries.geometry]
         return wkts
+
+    def to_internal_json(self) -> dict:
+        """
+        Export to an internal JSON-style representation.
+        Subject to change any time: not intended for public consumption, just for (unit) test purposes.
+        """
+        return {
+            "geometries": shapely.geometry.mapping(self._geometries),
+            "cube": self._cube.to_dict(data="array") if self._cube is not None else None,
+        }
 
     def get_crs(self) -> pyproj.CRS:
         return self._geometries.crs or pyproj.CRS.from_epsg(4326)

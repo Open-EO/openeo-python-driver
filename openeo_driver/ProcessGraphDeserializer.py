@@ -1581,17 +1581,23 @@ def load_uploaded_files(args: dict, env: EvalEnv) -> Union[DriverVectorCube,Driv
     .returns("vector-cube", schema={"type": "object", "subtype": "vector-cube"})
 )
 def to_vector_cube(args: Dict, env: EvalEnv):
-    # TODO: standardization of something like this? https://github.com/Open-EO/openeo-processes/issues/346
+    _log.warning("Experimental process `to_vector_cube` is deprecated, use `load_geojson` instead")
+    # TODO: remove this experimental/deprecated process
     data = extract_arg(args, "data", process_id="to_vector_cube")
     if isinstance(data, dict) and data.get("type") in {"Polygon", "MultiPolygon", "Feature", "FeatureCollection"}:
         return env.backend_implementation.vector_cube_cls.from_geojson(data)
-    # TODO: support more inputs: string with geojson, string with WKT, list of WKT, string with URL to GeoJSON, ...
     raise FeatureUnsupportedException(f"Converting {type(data)} to vector cube is not supported")
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/2.x/proposals/load_geojson.json"))
 def load_geojson(args: ProcessArgs, env: EvalEnv) -> DriverVectorCube:
-    data = args.get_required("data", validator=ProcessArgs.validator_geojson_dict())
+    data = args.get_required(
+        "data",
+        validator=ProcessArgs.validator_geojson_dict(
+            # TODO: also allow LineString and MultiLineString?
+            allowed_types=["Point", "MultiPoint", "Polygon", "MultiPolygon", "Feature", "FeatureCollection"]
+        ),
+    )
     properties = args.get_optional("properties", default=[], expected_type=(list, tuple))
     vector_cube = env.backend_implementation.vector_cube_cls.from_geojson(data, columns_for_cube=properties)
     return vector_cube

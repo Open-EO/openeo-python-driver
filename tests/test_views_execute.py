@@ -1801,6 +1801,175 @@ class TestVectorCubeLoading:
             assert isinstance(geometry, shapely.geometry.Polygon)
             assert geometry.bounds == expected
 
+    @pytest.mark.parametrize(
+        ["geojson", "expected"],
+        [
+            (
+                {"type": "Polygon", "coordinates": [[(1, 1), (3, 1), (2, 3), (1, 1)]]},
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
+                        "properties": {},
+                    },
+                ],
+            ),
+            (
+                {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
+                        "properties": {},
+                    },
+                ],
+            ),
+            (
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                    "properties": {"id": "12_3"},
+                },
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
+                        "properties": {"id": "12_3"},
+                    },
+                ],
+            ),
+            (
+                {
+                    "type": "FeatureCollection",
+                    "features": [
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "Polygon", "coordinates": [[(1, 1), (3, 1), (2, 3), (1, 1)]]},
+                            "properties": {"id": 1},
+                        },
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                            "properties": {"id": 2},
+                        },
+                    ],
+                },
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
+                        "properties": {"id": 1},
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
+                        "properties": {"id": 2},
+                    },
+                ],
+            ),
+        ],
+    )
+    def test_to_vector_cube(self, api100, geojson, expected):
+        res = api100.check_result(
+            {
+                "vc": {
+                    "process_id": "to_vector_cube",
+                    "arguments": {"data": geojson},
+                    "result": True,
+                }
+            }
+        )
+        assert res.json == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": expected,
+            }
+        )
+
+    @pytest.mark.parametrize(
+        ["geojson", "expected"],
+        [
+            (
+                {"type": "Point", "coordinates": (1, 2)},
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Point", "coordinates": [1, 2]},
+                        "properties": {},
+                    },
+                ],
+            ),
+            (
+                {"type": "Polygon", "coordinates": [[(1, 1), (3, 1), (2, 3), (1, 1)]]},
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
+                        "properties": {},
+                    },
+                ],
+            ),
+            (
+                {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
+                        "properties": {},
+                    },
+                ],
+            ),
+            (
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                    "properties": {"id": "12_3"},
+                },
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
+                        "properties": {"id": "12_3"},
+                    },
+                ],
+            ),
+            (
+                {
+                    "type": "FeatureCollection",
+                    "features": [
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "Polygon", "coordinates": [[(1, 1), (3, 1), (2, 3), (1, 1)]]},
+                            "properties": {"id": 1},
+                        },
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                            "properties": {"id": 2},
+                        },
+                    ],
+                },
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
+                        "properties": {"id": 1},
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
+                        "properties": {"id": 2},
+                    },
+                ],
+            ),
+        ],
+    )
+    def test_load_geojson(self, api100, geojson, expected):
+        res = api100.check_result(
+            {"vc": {"process_id": "load_geojson", "arguments": {"data": geojson}, "result": True}}
+        )
+        assert res.json == DictSubSet({"type": "FeatureCollection", "features": expected})
+
 
 def test_no_nested_JSONResult(api):
     api.set_auth_bearer_token()
@@ -3365,82 +3534,6 @@ def test_if_merge_cubes(api100):
     })
 
 
-@pytest.mark.parametrize(["geojson", "expected"], [
-    (
-            {"type": "Polygon", "coordinates": [[(1, 1), (3, 1), (2, 3), (1, 1)]]},
-            [
-                {
-                    "type": "Feature",
-                    "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
-                    "properties": {},
-                },
-            ],
-    ),
-    (
-            {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
-            [
-                {
-                    "type": "Feature",
-                    "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
-                    "properties": {},
-                },
-            ],
-    ),
-    (
-            {
-                "type": "Feature",
-                "geometry": {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
-                "properties": {"id": "12_3"},
-            },
-            [
-                {
-                    "type": "Feature",
-                    "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
-                    "properties": {"id": "12_3"},
-                },
-            ],
-    ),
-    (
-            {
-                "type": "FeatureCollection",
-                "features": [
-                    {
-                        "type": "Feature",
-                        "geometry": {"type": "Polygon", "coordinates": [[(1, 1), (3, 1), (2, 3), (1, 1)]]},
-                        "properties": {"id": 1},
-                    },
-                    {
-                        "type": "Feature",
-                        "geometry": {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
-                        "properties": {"id": 2},
-                    },
-                ]},
-            [
-                {
-                    "type": "Feature",
-                    "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
-                    "properties": {"id": 1},
-                },
-                {
-                    "type": "Feature",
-                    "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
-                    "properties": {"id": 2},
-                },
-            ],
-    ),
-])
-def test_to_vector_cube(api100, geojson, expected):
-    res = api100.check_result({
-        "vc": {
-            "process_id": "to_vector_cube",
-            "arguments": {"data": geojson},
-            "result": True,
-        }
-    })
-    assert res.json == DictSubSet({
-        "type": "FeatureCollection",
-        "features": expected,
-    })
 
 
 def test_vector_buffer_returns_error_on_empty_result_geometry(api):

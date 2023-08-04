@@ -6,6 +6,7 @@ import contextlib
 import http.server
 import json
 import logging
+import math
 import multiprocessing
 import re
 import urllib.request
@@ -492,6 +493,11 @@ def approxify(x: Any, rel: Optional = None, abs: Optional[float] = None) -> Any:
     else:
         # TODO: support more types
         raise ValueError(x)
+
+
+class IsNan:
+    def __eq__(self, other):
+        return isinstance(other, float) and math.isnan(other)
 
 
 class ApproxGeometry:

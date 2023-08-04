@@ -1,6 +1,8 @@
 import logging
 import re
 import subprocess
+
+import numpy
 import sys
 import textwrap
 import urllib.error
@@ -22,6 +24,7 @@ from openeo_driver.testing import (
     ephemeral_fileserver,
     preprocess_check_and_replace,
     ApproxGeoJSONByBounds,
+    IsNan,
 )
 
 
@@ -259,6 +262,18 @@ def test_approxify_tolerance_rel():
     assert {"a": [10.1, 2.0]} != approxify({"a": [10, 2.3]}, rel=0.1)
     assert {"a": [10.1, 2.1]} == approxify({"a": [10, 2.3]}, rel=0.1)
     assert {"a": [10.1, 2.1]} != approxify({"a": [10, 2.3]}, rel=0.01)
+
+
+@pytest.mark.parametrize("other", [float("nan"), numpy.nan])
+def test_is_nan(other):
+    assert other == IsNan()
+    assert IsNan() == other
+
+
+@pytest.mark.parametrize("other", [0, 123, False, True, None, "dfd", [], {}, ()])
+def test_is_not_nan(other):
+    assert other != IsNan()
+    assert IsNan() != other
 
 
 @pytest.mark.parametrize(
