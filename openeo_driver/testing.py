@@ -533,7 +533,15 @@ class ApproxGeometry:
 
 
 class ApproxGeoJSONByBounds:
-    """pytest assert helper to build a matcher to check if a certain GeoJSON construct is within expected bounds"""
+    """
+    pytest assert helper to build a matcher to check if a certain GeoJSON construct has expected bounds
+
+    Usage example:
+
+        >>> geometry = {"type": "Polygon",  "coordinates": [...]}
+        # Check that this geometry has bounds (1, 2, 6, 5) with some absolute tolerance
+        >>> assert geometry == ApproxGeoJSONByBounds(1, 2, 6, 5, abs=0.1)
+    """
 
     def __init__(
         self,
@@ -543,8 +551,9 @@ class ApproxGeoJSONByBounds:
         abs: Optional[float] = None,
     ):
         bounds = args[0] if len(args) == 1 else args
-        assert isinstance(bounds, (list, tuple)) and len(bounds) == 4
-        self.expected_bounds = [float(b) for b in bounds]
+        bounds = [float(b) for b in bounds]
+        assert len(bounds) == 4
+        self.expected_bounds = bounds
         self.rel = rel
         self.abs = abs
         self.expected_types = set(types)
@@ -571,7 +580,6 @@ class ApproxGeoJSONByBounds:
         if self.actual_info:
             msg += "\n" + "\n".join(f"    # {i}" for i in self.actual_info)
         return msg
-
 
 def caplog_with_custom_formatter(caplog: pytest.LogCaptureFixture, format: Union[str, logging.Formatter]):
     """

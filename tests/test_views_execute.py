@@ -3592,3 +3592,71 @@ class TestVectorCubeRunUDF:
                 ],
             }
         )
+
+    def test_apply_dimension_run_udf_filter_geometries_dimension_properties(self, api100):
+        """
+        Test to use `apply_dimension(dimension="properties", process=UDF)` to filter out certain
+        entries from geometries dimension.
+
+        Note that, strictly speaking, this approach draws outside the lines of the openEO API spec
+        as apply_dimension only allows changing the cardinality of the provided dimension ("properties" in this case),
+        not any other dimension (like "geometries" in this case).
+        """
+        udf_code = """
+            from openeo.udf import UdfData, FeatureCollection
+            import shapely.geometry
+            def process_geometries(udf_data: UdfData) -> UdfData:
+                [feature_collection] = udf_data.get_feature_collection_list()
+                gdf = feature_collection.data
+                to_intersect = shapely.geometry.box(4, 3, 8, 4)
+                gdf = gdf[gdf["geometry"].intersects(to_intersect)]
+                udf_data.set_feature_collection_list([
+                    FeatureCollection(id="_", data=gdf),
+                ])
+            """
+        udf_code = textwrap.dedent(udf_code)
+        process_graph = {
+            "get_vector_data": {
+                "process_id": "load_uploaded_files",
+                "arguments": {"paths": [str(get_path("geojson/FeatureCollection10.json"))], "format": "GeoJSON"},
+            },
+            "apply_dimension": {
+                "process_id": "apply_dimension",
+                "arguments": {
+                    "data": {"from_node": "get_vector_data"},
+                    "dimension": "properties",
+                    "process": {
+                        "process_graph": {
+                            "runudf1": {
+                                "process_id": "run_udf",
+                                "arguments": {
+                                    "data": {"from_node": "get_vector_data"},
+                                    "udf": udf_code,
+                                    "runtime": "Python",
+                                },
+                                "result": True,
+                            }
+                        },
+                    },
+                },
+                "result": True,
+            },
+        }
+        resp = api100.check_result(process_graph)
+        assert resp.json == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "geometry": ApproxGeoJSONByBounds(3, 2, 5, 4, types=["Polygon"], abs=0.1),
+                        "properties": {"id": "second", "pop": 456},
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": ApproxGeoJSONByBounds(6, 2, 12, 6, types=["Polygon"], abs=0.1),
+                        "properties": {"id": "third", "pop": 789},
+                    },
+                ],
+            }
+        )
