@@ -145,7 +145,18 @@ class TestDriverVectorCube:
                     "attrs": {},
                 },
             ),
-            ([], None),
+            (
+                [],
+                {
+                    "name": None,
+                    "dims": ("geometries",),
+                    "coords": {
+                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                    },
+                    "data": [IsNan(), IsNan()],
+                    "attrs": {"vector_cube_dummy": True},
+                },
+            ),
             (
                 ["pop", "id"],
                 {
@@ -359,7 +370,18 @@ class TestDriverVectorCube:
                     "attrs": {},
                 },
             ),
-            ([], None),
+            (
+                [],
+                {
+                    "name": None,
+                    "dims": ("geometries",),
+                    "coords": {
+                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                    },
+                    "data": [IsNan(), IsNan()],
+                    "attrs": {"vector_cube_dummy": True},
+                },
+            ),
             (
                 ["id"],
                 {

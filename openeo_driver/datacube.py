@@ -225,6 +225,9 @@ class DriverVectorCube:
     COLUMN_SELECTION_ALL = "all"
     COLUMN_SELECTION_NUMERICAL = "numerical"
 
+    # Xarray cube attribute to indicate that it is a dummy cube
+    CUBE_ATTR_VECTOR_CUBE_DUMMY = "vector_cube_dummy"
+
     def __init__(
         self,
         geometries: gpd.GeoDataFrame,
@@ -319,8 +322,14 @@ class DriverVectorCube:
             return cls(geometries=geometries_df, cube=cube)
 
         else:
-            # TODO: add a dummy 1D no-data cube?
-            return cls(geometries=data)
+            # Use 1D dummy cube of NaN values
+            cube: xarray.DataArray = xarray.DataArray(
+                data=numpy.full(shape=[data.shape[0]], fill_value=numpy.nan),
+                dims=[cls.DIM_GEOMETRIES],
+                coords={cls.DIM_GEOMETRIES: data.geometry.index.to_list()},
+                attrs={cls.CUBE_ATTR_VECTOR_CUBE_DUMMY: True},
+            )
+            return cls(geometries=data, cube=cube)
 
     @classmethod
     def from_fiona(
@@ -412,7 +421,7 @@ class DriverVectorCube:
         """Join geometries and cube as a geopandas dataframe"""
         # TODO: avoid copy?
         df = self._geometries.copy(deep=True)
-        if self._cube is not None:
+        if self._cube is not None and not self._cube.attrs.get(self.CUBE_ATTR_VECTOR_CUBE_DUMMY):
             assert self._cube.dims[0] == self.DIM_GEOMETRIES
             # TODO: better way to combine cube with geometries
             # Flatten multiple (non-geometry) dimensions from cube to new properties in geopandas dataframe
@@ -507,7 +516,7 @@ class DriverVectorCube:
         # TODO: eliminate these legacy, non-standard formats?
         from openeo_driver.save_result import AggregatePolygonResult, JSONResult
 
-        if self._cube is None:
+        if self._cube is None or self._cube.attrs.get(self.CUBE_ATTR_VECTOR_CUBE_DUMMY):
             # No cube: no real data to return (in legacy style), so let's just return a `null` per geometry.
             return JSONResult(data=[None] * self.geometry_count())
 
