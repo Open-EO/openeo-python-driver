@@ -6,28 +6,26 @@ import contextlib
 import http.server
 import json
 import logging
+import math
 import multiprocessing
 import re
 import urllib.request
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Pattern, Tuple, Union
+from typing import Any, Callable, Collection, Dict, Optional, Pattern, Tuple, Union
 from unittest import mock
 
+import openeo
+import openeo.processes
 import pytest
 import shapely.geometry.base
 import shapely.wkt
 from flask import Response
 from flask.testing import FlaskClient
+from openeo.capabilities import ComparableVersion
 from werkzeug.datastructures import Headers
 
-import openeo
-import openeo.processes
-from openeo.capabilities import ComparableVersion
 from openeo_driver.users.auth import HttpAuthHandler
-from openeo_driver.util.geometry import (
-    as_geojson_feature,
-    as_geojson_feature_collection,
-)
+from openeo_driver.util.geometry import as_geojson_feature, as_geojson_feature_collection
 from openeo_driver.utils import generate_unique_id
 
 _log = logging.getLogger(__name__)
@@ -494,6 +492,11 @@ def approxify(x: Any, rel: Optional = None, abs: Optional[float] = None) -> Any:
         raise ValueError(x)
 
 
+class IsNan:
+    def __eq__(self, other):
+        return isinstance(other, float) and math.isnan(other)
+
+
 class ApproxGeometry:
     """Helper to compactly and approximately compare geometries."""
 
@@ -532,9 +535,57 @@ class ApproxGeometry:
         return approxify(result, rel=self.rel, abs=self.abs)
 
 
-def caplog_with_custom_formatter(
-    caplog: pytest.LogCaptureFixture, format: Union[str, logging.Formatter]
-):
+class ApproxGeoJSONByBounds:
+    """
+    pytest assert helper to build a matcher to check if a certain GeoJSON construct has expected bounds
+
+    Usage example:
+
+        >>> geometry = {"type": "Polygon",  "coordinates": [...]}
+        # Check that this geometry has bounds (1, 2, 6, 5) with some absolute tolerance
+        >>> assert geometry == ApproxGeoJSONByBounds(1, 2, 6, 5, abs=0.1)
+    """
+
+    def __init__(
+        self,
+        *args,
+        types: Collection[str] = ("Polygon", "MultiPolygon"),
+        rel: Optional[float] = None,
+        abs: Optional[float] = None,
+    ):
+        bounds = args[0] if len(args) == 1 else args
+        bounds = [float(b) for b in bounds]
+        assert len(bounds) == 4
+        self.expected_bounds = bounds
+        self.rel = rel
+        self.abs = abs
+        self.expected_types = set(types)
+        self.actual_info = []
+
+    def __eq__(self, other):
+        try:
+            assert isinstance(other, dict), "Not a dict"
+            assert "type" in other, "No 'type' field"
+            assert other["type"] in self.expected_types, f"Wrong type {other['type']!r}"
+            assert "coordinates" in other, "No 'coordinates' field"
+
+            actual_bounds = shapely.geometry.shape(other).bounds
+            matching = actual_bounds == pytest.approx(self.expected_bounds, rel=self.rel, abs=self.abs)
+            if not matching:
+                self.actual_info.append(f"expected bounds {self.expected_bounds} != actual bounds: {actual_bounds}")
+            return matching
+        except Exception as e:
+            self.actual_info.append(str(e))
+        return False
+
+    def __repr__(self):
+        msg = f"<{type(self).__name__} types={self.expected_types} bounds={self.expected_bounds} rel={self.rel}, abs={self.abs}>"
+        if self.actual_info:
+            msg += "\n" + "\n".join(f"    # {i}" for i in self.actual_info)
+        return msg
+
+
+def caplog_with_custom_formatter(caplog: pytest.LogCaptureFixture, format: Union[str, logging.Formatter]):
     """
     Context manager to set a custom formatter on the caplog fixture.
 

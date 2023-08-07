@@ -677,13 +677,13 @@ def apply_neighborhood(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
 @process
 def apply_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
-    data_cube = args.get_required("data", expected_type=DriverDataCube)
+    data_cube = args.get_required("data", expected_type=(DriverDataCube, DriverVectorCube))
     process = args.get_deep("process", "process_graph", expected_type=dict)
-    dimension = args.get_required("dimension", expected_type=str)
+    dimension = args.get_required(
+        "dimension", expected_type=str, validator=ProcessArgs.validator_one_of(data_cube.get_dimension_names())
+    )
     target_dimension = args.get_optional("target_dimension", default=None, expected_type=str)
     context = args.get_optional("context", default=None)
-    # do check_dimension here for error handling
-    dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="apply_dimension")
 
     cube = data_cube.apply_dimension(
         process=process, dimension=dimension, target_dimension=target_dimension, context=context, env=env
@@ -747,10 +747,10 @@ def apply(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def reduce_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
     reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
-    dimension = args.get_required("dimension", expected_type=str)
+    dimension = args.get_required(
+        "dimension", expected_type=str, validator=ProcessArgs.validator_one_of(data_cube.get_dimension_names())
+    )
     context = args.get_optional("context", default=None)
-    # do check_dimension here for error handling
-    dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce_dimension")
     return data_cube.reduce_dimension(reducer=reduce_pg, dimension=dimension, context=context, env=env)
 
 
@@ -915,60 +915,35 @@ def rename_labels(args: dict, env: EvalEnv) -> DriverDataCube:
     )
 
 
-def _check_dimension(cube: DriverDataCube, dim: str, process: str):
-    """
-    Helper to check/validate the requested and available dimensions of a cube.
-
-    :return: tuple (requested dimension, name of band dimension, name of temporal dimension)
-    """
-    # Note: large part of this is support/adapting for old client
-    # (pre https://github.com/Open-EO/openeo-python-client/issues/93)
-    # TODO remove this legacy support when not necessary anymore
-    metadata = cube.metadata
-    try:
-        band_dim = metadata.band_dimension.name
-    except MetadataException:
-        band_dim = None
-    try:
-        temporal_dim = metadata.temporal_dimension.name
-    except MetadataException:
-        temporal_dim = None
-
-    if dim not in metadata.dimension_names():
-        if dim in ["spectral_bands", "bands"] and band_dim:
-            _log.warning("Probably old client requesting band dimension {d!r},"
-                         " but actual band dimension name is {n!r}".format(d=dim, n=band_dim))
-            dim = band_dim
-        elif dim == "temporal" and temporal_dim:
-            _log.warning("Probably old client requesting temporal dimension {d!r},"
-                         " but actual temporal dimension name is {n!r}".format(d=dim, n=temporal_dim))
-            dim = temporal_dim
-        else:
-            raise ProcessParameterInvalidException(
-                parameter="dimension", process=process,
-                reason="got {d!r}, but should be one of {n!r}".format(d=dim, n=metadata.dimension_names()))
-
-    return dim, band_dim, temporal_dim
-
-
 @process
 def aggregate_temporal(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube = args.get_required("data", expected_type=DriverDataCube)
-    reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
-    context = args.get_optional("context", default=None)
     intervals = args.get_required("intervals")
+    reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
     labels = args.get_optional("labels", default=None)
-    dimension = _get_time_dim_or_default(args, data_cube)
-    return data_cube.aggregate_temporal(intervals=intervals,labels=labels,reducer=reduce_pg, dimension=dimension, context=context)
+    dimension = args.get_optional(
+        "dimension",
+        default=lambda: data_cube.metadata.temporal_dimension.name,
+        validator=ProcessArgs.validator_one_of(data_cube.get_dimension_names()),
+    )
+    context = args.get_optional("context", default=None)
+
+    return data_cube.aggregate_temporal(
+        intervals=intervals, labels=labels, reducer=reduce_pg, dimension=dimension, context=context
+    )
 
 
 @process_registry_100.add_function
 def aggregate_temporal_period(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube = args.get_required("data", expected_type=DriverDataCube)
-    reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
-    context = args.get_optional("context", default=None)
     period = args.get_required("period")
-    dimension = _get_time_dim_or_default(args, data_cube, "aggregate_temporal_period")
+    reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
+    dimension = args.get_optional(
+        "dimension",
+        default=lambda: data_cube.metadata.temporal_dimension.name,
+        validator=ProcessArgs.validator_one_of(data_cube.get_dimension_names()),
+    )
+    context = args.get_optional("context", default=None)
 
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
@@ -1043,24 +1018,6 @@ def _period_to_intervals(start, end, period) -> List[Tuple[pd.Timestamp, pd.Time
     intervals = [i for i in intervals if i[0] < end]
     _log.info(f"aggregate_temporal_period input: [{start},{end}] - {period} intervals: {intervals}")
     return intervals
-
-
-def _get_time_dim_or_default(args: ProcessArgs, data_cube, process_id="aggregate_temporal"):
-    dimension = args.get_optional("dimension", None)
-    if dimension is not None:
-        dimension, _, _ = _check_dimension(cube=data_cube, dim=dimension, process=process_id)
-    else:
-        # default: there is a single temporal dimension
-        try:
-            dimension = data_cube.metadata.temporal_dimension.name
-        except MetadataException:
-            raise ProcessParameterInvalidException(
-                parameter="dimension", process=process_id,
-                reason="No dimension was set, and no temporal dimension could be found. Available dimensions: {n!r}".format(
-                    n=data_cube.metadata.dimension_names()))
-    # do check_dimension here for error handling
-    dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process=process_id)
-    return dimension
 
 
 @process_registry_100.add_function
@@ -1624,12 +1581,26 @@ def load_uploaded_files(args: dict, env: EvalEnv) -> Union[DriverVectorCube,Driv
     .returns("vector-cube", schema={"type": "object", "subtype": "vector-cube"})
 )
 def to_vector_cube(args: Dict, env: EvalEnv):
-    # TODO: standardization of something like this? https://github.com/Open-EO/openeo-processes/issues/346
+    _log.warning("Experimental process `to_vector_cube` is deprecated, use `load_geojson` instead")
+    # TODO: remove this experimental/deprecated process
     data = extract_arg(args, "data", process_id="to_vector_cube")
     if isinstance(data, dict) and data.get("type") in {"Polygon", "MultiPolygon", "Feature", "FeatureCollection"}:
         return env.backend_implementation.vector_cube_cls.from_geojson(data)
-    # TODO: support more inputs: string with geojson, string with WKT, list of WKT, string with URL to GeoJSON, ...
     raise FeatureUnsupportedException(f"Converting {type(data)} to vector cube is not supported")
+
+
+@process_registry_100.add_function(spec=read_spec("openeo-processes/2.x/proposals/load_geojson.json"))
+def load_geojson(args: ProcessArgs, env: EvalEnv) -> DriverVectorCube:
+    data = args.get_required(
+        "data",
+        validator=ProcessArgs.validator_geojson_dict(
+            # TODO: also allow LineString and MultiLineString?
+            allowed_types=["Point", "MultiPoint", "Polygon", "MultiPolygon", "Feature", "FeatureCollection"]
+        ),
+    )
+    properties = args.get_optional("properties", default=[], expected_type=(list, tuple))
+    vector_cube = env.backend_implementation.vector_cube_cls.from_geojson(data, columns_for_cube=properties)
+    return vector_cube
 
 
 @non_standard_process(

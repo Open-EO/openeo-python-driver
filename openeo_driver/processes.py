@@ -1,18 +1,18 @@
 import functools
 import inspect
-import typing
 import warnings
 from collections import namedtuple
 from pathlib import Path
-from typing import Callable, Dict, List, Tuple, Optional, Any, Union
+from typing import Any, Callable, Collection, Dict, List, Optional, Tuple, Union
 
 from openeo_driver.errors import (
-    ProcessUnsupportedException,
-    ProcessParameterRequiredException,
     ProcessParameterInvalidException,
+    ProcessParameterRequiredException,
+    ProcessUnsupportedException,
 )
 from openeo_driver.specs import SPECS_ROOT
-from openeo_driver.utils import read_json, EvalEnv
+from openeo_driver.util.geometry import validate_geojson_basic
+from openeo_driver.utils import EvalEnv, read_json
 
 
 class ProcessParameter:
@@ -289,7 +289,11 @@ class ProcessArgs(dict):
         return args
 
     def get_required(
-        self, name: str, *, expected_type: Optional[Union[type, Tuple[type, ...]]] = None
+        self,
+        name: str,
+        *,
+        expected_type: Optional[Union[type, Tuple[type, ...]]] = None,
+        validator: Optional[Callable[[Any], bool]] = None,
     ) -> ArgumentValue:
         """
         Get a required argument by name.
@@ -301,33 +305,69 @@ class ProcessArgs(dict):
             value = self[name]
         except KeyError:
             raise ProcessParameterRequiredException(process=self.process_id, parameter=name) from None
-        self._check_type(name=name, value=value, expected_type=expected_type)
+        self._check_value(name=name, value=value, expected_type=expected_type, validator=validator)
         return value
 
-    def _check_type(self, *, name: str, value: Any, expected_type: Optional[Union[type, Tuple[type, ...]]] = None):
+    def _check_value(
+        self,
+        *,
+        name: str,
+        value: Any,
+        expected_type: Optional[Union[type, Tuple[type, ...]]] = None,
+        validator: Optional[Callable[[Any], bool]] = None,
+    ):
         if expected_type:
             if not isinstance(value, expected_type):
                 raise ProcessParameterInvalidException(
                     parameter=name, process=self.process_id, reason=f"Expected {expected_type} but got {type(value)}."
                 )
+        if validator:
+            try:
+                valid = validator(value)
+                reason = "Failed validation."
+            except Exception as e:
+                valid = False
+                reason = str(e)
+            if not valid:
+                raise ProcessParameterInvalidException(parameter=name, process=self.process_id, reason=reason)
 
     def get_optional(
-        self, name: str, default: Any = None, *, expected_type: Optional[Union[type, Tuple[type, ...]]] = None
+        self,
+        name: str,
+        default: Union[Any, Callable[[], Any]] = None,
+        *,
+        expected_type: Optional[Union[type, Tuple[type, ...]]] = None,
+        validator: Optional[Callable[[Any], bool]] = None,
     ) -> ArgumentValue:
         """
         Get an optional argument with default
+
+        :param name: argument name
+        :param default: default value or a function/factory to generate the default value
+        :param expected_type: expected class (or list of multiple options) the value should be (unless it's None)
+        :param validator: optional validation callable
         """
-        value = self.get(name, default)
+        if name in self:
+            value = self.get(name)
+        else:
+            value = default() if callable(default) else default
         if value is not None:
-            self._check_type(name=name, value=value, expected_type=expected_type)
+            self._check_value(name=name, value=value, expected_type=expected_type, validator=validator)
+
         return value
 
-    def get_deep(self, *steps: str, expected_type: Optional[Union[type, Tuple[type, ...]]] = None) -> ArgumentValue:
+    def get_deep(
+        self,
+        *steps: str,
+        expected_type: Optional[Union[type, Tuple[type, ...]]] = None,
+        validator: Optional[Callable[[Any], bool]] = None,
+    ) -> ArgumentValue:
         """
         Walk recursively through a dictionary to get to a value.
 
         Originally: `extract_deep`
         """
+        # TODO: current implementation requires the argument. Allow it to be optional too?
         value = self
         for step in steps:
             keys = [step] if not isinstance(step, list) else step
@@ -338,7 +378,7 @@ class ProcessArgs(dict):
             else:
                 raise ProcessParameterInvalidException(process=self.process_id, parameter=steps[0], reason=f"{step=}")
 
-        self._check_type(name=steps[0], value=value, expected_type=expected_type)
+        self._check_value(name=steps[0], value=value, expected_type=expected_type, validator=validator)
         return value
 
     def get_aliased(self, names: List[str]) -> ArgumentValue:
@@ -371,7 +411,7 @@ class ProcessArgs(dict):
                     kwargs[key] = self[alias]
         return kwargs
 
-    def get_enum(self, name: str, options: typing.Container[ArgumentValue]) -> ArgumentValue:
+    def get_enum(self, name: str, options: Collection[ArgumentValue]) -> ArgumentValue:
         """
         Get argument by name and check if it belongs to given set of (enum) values.
 
@@ -385,3 +425,32 @@ class ProcessArgs(dict):
                 reason=f"Invalid enum value {value!r}. Expected one of {options}.",
             )
         return value
+
+    @staticmethod
+    def validator_one_of(options: list, show_value: bool = True):
+        """Build a validator function that check that the value is in given list"""
+
+        def validator(value):
+            if value not in options:
+                if show_value:
+                    message = f"Must be one of {options!r} but got {value!r}."
+                else:
+                    message = f"Must be one of {options!r}."
+                raise ValueError(message)
+            return True
+
+        return validator
+
+    @staticmethod
+    def validator_geojson_dict(
+        allowed_types: Optional[Collection[str]] = None,
+    ):
+        """Build validator to verify that provided structure looks like a GeoJSON-style object"""
+
+        def validator(value):
+            issues = validate_geojson_basic(value=value, allowed_types=allowed_types, raise_exception=False)
+            if issues:
+                raise ValueError(f"Invalid GeoJSON: {', '.join(issues)}.")
+            return True
+
+        return validator

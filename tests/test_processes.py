@@ -461,12 +461,54 @@ class TestProcessArgs:
         ):
             _ = args.get_required("color", expected_type=DriverDataCube)
 
+    def test_get_required_with_validator(self):
+        args = ProcessArgs({"color": "red", "size": 5}, process_id="wibble")
+        assert args.get_required("color", expected_type=str, validator=lambda v: len(v) == 3) == "red"
+        assert (
+            args.get_required(
+                "color", expected_type=str, validator=ProcessArgs.validator_one_of(["red", "green", "blue"])
+            )
+            == "red"
+        )
+        assert args.get_required("size", expected_type=int, validator=lambda v: v % 3 == 2) == 5
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'color' in process 'wibble' is invalid: Failed validation."
+            ),
+        ):
+            _ = args.get_required("color", expected_type=str, validator=lambda v: len(v) == 10)
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape("The value passed for parameter 'size' in process 'wibble' is invalid: Failed validation."),
+        ):
+            _ = args.get_required("size", expected_type=int, validator=lambda v: v % 3 == 1)
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'color' in process 'wibble' is invalid: Must be one of ['yellow', 'violet'] but got 'red'."
+            ),
+        ):
+            _ = args.get_required(
+                "color", expected_type=str, validator=ProcessArgs.validator_one_of(["yellow", "violet"])
+            )
+
     def test_get_optional(self):
         args = ProcessArgs({"foo": "bar"}, process_id="wibble")
         assert args.get_optional("foo") == "bar"
         assert args.get_optional("other") is None
         assert args.get_optional("foo", 123) == "bar"
         assert args.get_optional("other", 123) == 123
+
+    def test_get_optional_callable_default(self):
+        args = ProcessArgs({"foo": "bar"}, process_id="wibble")
+        assert args.get_optional("foo", default=lambda: 123) == "bar"
+        assert args.get_optional("other", default=lambda: 123) == 123
+
+        # Possible, but probably a bad idea:
+        default = [1, 2, 3].pop
+        assert args.get_optional("other", default=default) == 3
+        assert args.get_optional("other", default=default) == 2
 
     def test_get_optional_with_type(self):
         args = ProcessArgs({"foo": "bar"}, process_id="wibble")
@@ -480,7 +522,24 @@ class TestProcessArgs:
                 "The value passed for parameter 'foo' in process 'wibble' is invalid: Expected <class 'openeo_driver.datacube.DriverDataCube'> but got <class 'str'>."
             ),
         ):
-            _ = args.get_required("foo", expected_type=DriverDataCube)
+            _ = args.get_optional("foo", expected_type=DriverDataCube)
+
+    def test_get_optional_with_validator(self):
+        args = ProcessArgs({"foo": "bar"}, process_id="wibble")
+        assert args.get_optional("foo", validator=lambda s: all(c.lower() for c in s)) == "bar"
+        assert args.get_optional("foo", validator=ProcessArgs.validator_one_of(["bar", "meh"])) == "bar"
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape("The value passed for parameter 'foo' in process 'wibble' is invalid: Failed validation."),
+        ):
+            _ = args.get_optional("foo", validator=lambda s: all(c.isupper() for c in s))
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'foo' in process 'wibble' is invalid: Must be one of ['nope', 'meh'] but got 'bar'."
+            ),
+        ):
+            _ = args.get_optional("foo", validator=ProcessArgs.validator_one_of(["nope", "meh"]))
 
     def test_get_deep(self):
         args = ProcessArgs({"foo": {"bar": {"color": "red", "size": {"x": 5, "y": 8}}}}, process_id="wibble")
@@ -507,6 +566,16 @@ class TestProcessArgs:
             ),
         ):
             _ = args.get_deep("foo", "bar", "size", "x", expected_type=(DriverDataCube, str))
+
+    def test_get_deep_with_validator(self):
+        args = ProcessArgs({"foo": {"bar": {"color": "red", "size": {"x": 5, "y": 8}}}}, process_id="wibble")
+        assert args.get_deep("foo", "bar", "size", "x", validator=lambda v: v % 5 == 0) == 5
+
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape("The value passed for parameter 'foo' in process 'wibble' is invalid: Failed validation."),
+        ):
+            _ = args.get_deep("foo", "bar", "size", "y", validator=lambda v: v % 5 == 0)
 
     def test_get_aliased(self):
         args = ProcessArgs({"size": 5, "color": "red"}, process_id="wibble")
@@ -543,3 +612,26 @@ class TestProcessArgs:
             ),
         ):
             _ = args.get_enum("color", options=["R", "G", "B"])
+
+    def test_validator_geojson_dict(self):
+        polygon = {"type": "Polygon", "coordinates": [[1, 2]]}
+        args = ProcessArgs({"geometry": polygon, "color": "red"}, process_id="wibble")
+
+        validator = ProcessArgs.validator_geojson_dict()
+        assert args.get_required("geometry", validator=validator) == polygon
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'color' in process 'wibble' is invalid: Invalid GeoJSON: JSON object (mapping/dictionary) expected, but got str."
+            ),
+        ):
+            _ = args.get_required("color", validator=validator)
+
+        validator = ProcessArgs.validator_geojson_dict(allowed_types=["FeatureCollection"])
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'geometry' in process 'wibble' is invalid: Invalid GeoJSON: Found type 'Polygon', but expects one of ['FeatureCollection']."
+            ),
+        ):
+            _ = args.get_required("geometry", validator=validator)
