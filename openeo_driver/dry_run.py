@@ -41,7 +41,7 @@ import shapely.geometry.base
 from shapely.geometry import Point, Polygon, MultiPolygon, GeometryCollection
 from shapely.geometry.base import BaseGeometry
 
-from openeo.metadata import CollectionMetadata, DimensionAlreadyExistsException
+from openeo.metadata import CollectionMetadata, DimensionAlreadyExistsException, Band
 from openeo_driver import filter_properties
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
@@ -575,6 +575,14 @@ class DryRunDataCube(DriverDataCube):
             dc = self._process("process_type", [ProcessType.GLOBAL_TIME])
 
         return dc._process_metadata(self.metadata.reduce_dimension(dimension_name=dimension))._process("reduce_dimension", arguments={})
+
+    def ndvi(self, nir: str = "nir", red: str = "red", target_band: str = None) -> 'DriverDataCube':
+        if target_band == None and self.metadata.has_band_dimension():
+            return self._process_metadata(self.metadata.reduce_dimension(dimension_name=self.metadata.band_dimension.name))
+        elif target_band is not None  and self.metadata.has_band_dimension():
+            return self._process_metadata(self.metadata.append_band(Band(name=target_band, common_name=target_band, wavelength_um=None)))
+        else:
+            return self
 
     def chunk_polygon(
         self, reducer, chunks: MultiPolygon, mask_value: float, env: EvalEnv, context: Optional[dict] = None
