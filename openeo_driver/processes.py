@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any, Callable, Collection, Dict, List, Optional, Tuple, Union
 
 from openeo_driver.errors import (
-    FileTypeInvalidException,
     OpenEOApiException,
     ProcessParameterInvalidException,
     ProcessParameterRequiredException,
@@ -458,7 +457,11 @@ class ProcessArgs(dict):
 
         def validator(value: str):
             if value.lower() not in options:
-                raise FileTypeInvalidException(type=value, types=", ".join(formats))
+                raise OpenEOApiException(
+                    message=f"Invalid file format {value!r}. Allowed formats: {', '.join(formats)}",
+                    code="FormatUnsuitable",
+                    status_code=400,
+                )
             return True
 
         return validator

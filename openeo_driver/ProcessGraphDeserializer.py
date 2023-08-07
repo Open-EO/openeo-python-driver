@@ -45,9 +45,15 @@ from openeo_driver.datacube import (
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint
-from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException, \
-    FeatureUnsupportedException, OpenEOApiException, ProcessGraphInvalidException, FileTypeInvalidException, \
-    ProcessUnsupportedException, CollectionNotFoundException
+from openeo_driver.errors import (
+    ProcessParameterRequiredException,
+    ProcessParameterInvalidException,
+    FeatureUnsupportedException,
+    OpenEOApiException,
+    ProcessGraphInvalidException,
+    ProcessUnsupportedException,
+    CollectionNotFoundException,
+)
 from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE, ProcessArgs
 from openeo_driver.save_result import JSONResult, SaveResult, AggregatePolygonResult, NullResult, \
     to_save_result, AggregatePolygonSpatialResult, MlModelResult

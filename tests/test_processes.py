@@ -5,6 +5,7 @@ import pytest
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.errors import (
     FileTypeInvalidException,
+    OpenEOApiException,
     ProcessParameterInvalidException,
     ProcessParameterRequiredException,
     ProcessUnsupportedException,
@@ -656,7 +657,9 @@ class TestProcessArgs:
         assert args.get_required("format2", validator=validator) == "geojson"
 
         with pytest.raises(
-            FileTypeInvalidException,
-            match=re.escape("File format TooExotic not allowed. Allowed file formats: GeoJSON, CSV"),
-        ):
+            OpenEOApiException,
+            match=re.escape("Invalid file format 'TooExotic'. Allowed formats: GeoJSON, CSV"),
+        ) as exc_info:
             _ = args.get_required("format3", validator=validator)
+
+        assert exc_info.value.code == "FormatUnsuitable"
