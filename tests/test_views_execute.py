@@ -3628,6 +3628,22 @@ class TestVectorCubeRunUDF:
     - https://github.com/Open-EO/openeo-geopyspark-driver/issues/437
     """
 
+    def _build_run_udf_callback(self, udf_code: str) -> dict:
+        udf_code = textwrap.dedent(udf_code)
+        return {
+            "process_graph": {
+                "runudf1": {
+                    "process_id": "run_udf",
+                    "arguments": {
+                        "data": {"from_parameter": "data"},
+                        "udf": udf_code,
+                        "runtime": "Python",
+                    },
+                    "result": True,
+                }
+            },
+        }
+
     @pytest.mark.parametrize(
         "dimension",
         [
@@ -3636,40 +3652,32 @@ class TestVectorCubeRunUDF:
         ],
     )
     def test_apply_dimension_run_udf_change_geometry(self, api100, dimension):
-        udf_code = """
-            from openeo.udf import UdfData, FeatureCollection
-            def process_geometries(udf_data: UdfData) -> UdfData:
-                [feature_collection] = udf_data.get_feature_collection_list()
-                gdf = feature_collection.data
-                gdf["geometry"] = gdf["geometry"].buffer(distance=1, resolution=2)
-                udf_data.set_feature_collection_list([
-                    FeatureCollection(id="_", data=gdf),
-                ])
-            """
-        udf_code = textwrap.dedent(udf_code)
+        """VectorCube + apply_dimension + UDF (changing geometry)"""
         process_graph = {
-            "get_vector_data": {
-                "process_id": "load_uploaded_files",
-                "arguments": {"paths": [str(get_path("geojson/FeatureCollection02.json"))], "format": "GeoJSON"},
+            "load": {
+                "process_id": "load_geojson",
+                "arguments": {
+                    "data": load_json("geojson/FeatureCollection02.json"),
+                    "properties": ["pop"],
+                },
             },
             "apply_dimension": {
                 "process_id": "apply_dimension",
                 "arguments": {
-                    "data": {"from_node": "get_vector_data"},
+                    "data": {"from_node": "load"},
                     "dimension": dimension,
-                    "process": {
-                        "process_graph": {
-                            "runudf1": {
-                                "process_id": "run_udf",
-                                "arguments": {
-                                    "data": {"from_node": "get_vector_data"},
-                                    "udf": udf_code,
-                                    "runtime": "Python",
-                                },
-                                "result": True,
-                            }
-                        },
-                    },
+                    "process": self._build_run_udf_callback(
+                        """
+                        from openeo.udf import UdfData, FeatureCollection
+                        def process_geometries(udf_data: UdfData) -> UdfData:
+                            [feature_collection] = udf_data.get_feature_collection_list()
+                            gdf = feature_collection.data
+                            gdf["geometry"] = gdf["geometry"].buffer(distance=1, resolution=2)
+                            udf_data.set_feature_collection_list([
+                                FeatureCollection(id="_", data=gdf),
+                            ])
+                        """
+                    ),
                 },
                 "result": True,
             },
@@ -3708,42 +3716,33 @@ class TestVectorCubeRunUDF:
         Test to use `apply_dimension(dimension="...", process=UDF)` to filter out certain
         entries from geometries dimension based on geometry (e.g. intersection with another geometry)
         """
-        udf_code = """
-            from openeo.udf import UdfData, FeatureCollection
-            import shapely.geometry
-            def process_geometries(udf_data: UdfData) -> UdfData:
-                [feature_collection] = udf_data.get_feature_collection_list()
-                gdf = feature_collection.data
-                to_intersect = shapely.geometry.box(4, 3, 8, 4)
-                gdf = gdf[gdf["geometry"].intersects(to_intersect)]
-                udf_data.set_feature_collection_list([
-                    FeatureCollection(id="_", data=gdf),
-                ])
-            """
-        udf_code = textwrap.dedent(udf_code)
         process_graph = {
-            "get_vector_data": {
-                "process_id": "load_uploaded_files",
-                "arguments": {"paths": [str(get_path("geojson/FeatureCollection10.json"))], "format": "GeoJSON"},
+            "load": {
+                "process_id": "load_geojson",
+                "arguments": {
+                    "data": load_json("geojson/FeatureCollection10.json"),
+                    "properties": ["pop"],
+                },
             },
             "apply_dimension": {
                 "process_id": "apply_dimension",
                 "arguments": {
-                    "data": {"from_node": "get_vector_data"},
+                    "data": {"from_node": "load"},
                     "dimension": dimension,
-                    "process": {
-                        "process_graph": {
-                            "runudf1": {
-                                "process_id": "run_udf",
-                                "arguments": {
-                                    "data": {"from_node": "get_vector_data"},
-                                    "udf": udf_code,
-                                    "runtime": "Python",
-                                },
-                                "result": True,
-                            }
-                        },
-                    },
+                    "process": self._build_run_udf_callback(
+                        """
+                        from openeo.udf import UdfData, FeatureCollection
+                        import shapely.geometry
+                        def process_geometries(udf_data: UdfData) -> UdfData:
+                            [feature_collection] = udf_data.get_feature_collection_list()
+                            gdf = feature_collection.data
+                            to_intersect = shapely.geometry.box(4, 3, 8, 4)
+                            gdf = gdf[gdf["geometry"].intersects(to_intersect)]
+                            udf_data.set_feature_collection_list([
+                                FeatureCollection(id="_", data=gdf),
+                            ])
+                        """
+                    ),
                 },
                 "result": True,
             },
@@ -3787,41 +3786,32 @@ class TestVectorCubeRunUDF:
             as apply_dimension only allows changing the cardinality of the provided dimension ("properties" in this case),
             not any other dimension (like "geometries" in this case).
         """
-        udf_code = """
-            from openeo.udf import UdfData, FeatureCollection
-            import shapely.geometry
-            def process_geometries(udf_data: UdfData) -> UdfData:
-                [feature_collection] = udf_data.get_feature_collection_list()
-                gdf = feature_collection.data
-                gdf = gdf[gdf["pop"] > 500]
-                udf_data.set_feature_collection_list([
-                    FeatureCollection(id="_", data=gdf),
-                ])
-            """
-        udf_code = textwrap.dedent(udf_code)
         process_graph = {
-            "get_vector_data": {
-                "process_id": "load_uploaded_files",
-                "arguments": {"paths": [str(get_path("geojson/FeatureCollection10.json"))], "format": "GeoJSON"},
+            "load": {
+                "process_id": "load_geojson",
+                "arguments": {
+                    "data": load_json("geojson/FeatureCollection10.json"),
+                    "properties": ["pop"],
+                },
             },
             "apply_dimension": {
                 "process_id": "apply_dimension",
                 "arguments": {
-                    "data": {"from_node": "get_vector_data"},
+                    "data": {"from_node": "load"},
                     "dimension": dimension,
-                    "process": {
-                        "process_graph": {
-                            "runudf1": {
-                                "process_id": "run_udf",
-                                "arguments": {
-                                    "data": {"from_node": "get_vector_data"},
-                                    "udf": udf_code,
-                                    "runtime": "Python",
-                                },
-                                "result": True,
-                            }
-                        },
-                    },
+                    "process": self._build_run_udf_callback(
+                        """
+                        from openeo.udf import UdfData, FeatureCollection
+                        import shapely.geometry
+                        def process_geometries(udf_data: UdfData) -> UdfData:
+                            [feature_collection] = udf_data.get_feature_collection_list()
+                            gdf = feature_collection.data
+                            gdf = gdf[gdf["pop"] > 500]
+                            udf_data.set_feature_collection_list([
+                                FeatureCollection(id="_", data=gdf),
+                            ])
+                        """
+                    ),
                 },
                 "result": True,
             },
@@ -3859,41 +3849,32 @@ class TestVectorCubeRunUDF:
         """
         Test to use `apply_dimension(dimension="...", process=UDF)` to add properties
         """
-        udf_code = """
-            from openeo.udf import UdfData, FeatureCollection
-            import shapely.geometry
-            def process_geometries(udf_data: UdfData) -> UdfData:
-                [feature_collection] = udf_data.get_feature_collection_list()
-                gdf = feature_collection.data
-                gdf["poppop"] = gdf["pop"] ** 2
-                udf_data.set_feature_collection_list([
-                    FeatureCollection(id="_", data=gdf),
-                ])
-            """
-        udf_code = textwrap.dedent(udf_code)
         process_graph = {
-            "get_vector_data": {
-                "process_id": "load_uploaded_files",
-                "arguments": {"paths": [str(get_path("geojson/FeatureCollection02.json"))], "format": "GeoJSON"},
+            "load": {
+                "process_id": "load_geojson",
+                "arguments": {
+                    "data": load_json("geojson/FeatureCollection02.json"),
+                    "properties": ["pop"],
+                },
             },
             "apply_dimension": {
                 "process_id": "apply_dimension",
                 "arguments": {
-                    "data": {"from_node": "get_vector_data"},
+                    "data": {"from_node": "load"},
                     "dimension": dimension,
-                    "process": {
-                        "process_graph": {
-                            "runudf1": {
-                                "process_id": "run_udf",
-                                "arguments": {
-                                    "data": {"from_node": "get_vector_data"},
-                                    "udf": udf_code,
-                                    "runtime": "Python",
-                                },
-                                "result": True,
-                            }
-                        },
-                    },
+                    "process": self._build_run_udf_callback(
+                        """
+                        from openeo.udf import UdfData, FeatureCollection
+                        import shapely.geometry
+                        def process_geometries(udf_data: UdfData) -> UdfData:
+                            [feature_collection] = udf_data.get_feature_collection_list()
+                            gdf = feature_collection.data
+                            gdf["poppop"] = gdf["pop"] ** 2
+                            udf_data.set_feature_collection_list([
+                                FeatureCollection(id="_", data=gdf),
+                            ])
+                        """
+                    ),
                 },
                 "result": True,
             },

@@ -21,7 +21,7 @@ from openeo.util import ensure_dir, str_truncate
 from pyproj import CRS
 
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs, StacAsset
-from openeo_driver.errors import FeatureUnsupportedException, InternalException
+from openeo_driver.errors import FeatureUnsupportedException, InternalException, ProcessGraphInvalidException
 from openeo_driver.util.geometry import GeometryBufferer, validate_geojson_coordinates
 from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.util.pgparsing import SingleRunUDFProcessGraph
@@ -638,6 +638,10 @@ class DriverVectorCube:
 
         if single_run_udf:
             # Process with single "run_udf" node
+            if single_run_udf.data != {"from_parameter": "data"}:
+                raise ProcessGraphInvalidException(
+                    message="Vector cube `apply_dimension` process does not reference `data` parameter."
+                )
             if (
                 dimension == self.DIM_GEOMETRIES
                 or (dimension in {self.DIM_BANDS, self.DIM_PROPERTIES}.intersection(self.get_dimension_names()))
@@ -651,7 +655,7 @@ class DriverVectorCube:
                 feature_collection = openeo.udf.FeatureCollection(id="_", data=gdf)
                 # TODO: dedicated UDF signature to indicate to work on vector cube through a feature collection based API
                 udf_data = openeo.udf.UdfData(
-                    proj={"EPSG": self._geometries.crs.to_epsg()},
+                    proj={"EPSG": self._geometries.crs.to_epsg()} if self._geometries.crs else None,
                     feature_collection_list=[feature_collection],
                     user_context=context,
                 )

@@ -1598,6 +1598,7 @@ def load_geojson(args: ProcessArgs, env: EvalEnv) -> DriverVectorCube:
             allowed_types=["Point", "MultiPoint", "Polygon", "MultiPolygon", "Feature", "FeatureCollection"]
         ),
     )
+    # TODO: better default value for `properties`? https://github.com/Open-EO/openeo-processes/issues/448
     properties = args.get_optional("properties", default=[], expected_type=(list, tuple))
     vector_cube = env.backend_implementation.vector_cube_cls.from_geojson(data, columns_for_cube=properties)
     return vector_cube
