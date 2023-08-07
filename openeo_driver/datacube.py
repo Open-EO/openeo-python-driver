@@ -546,7 +546,7 @@ class DriverVectorCube:
         if self._cube is None:
             return [self.DIM_GEOMETRIES]
         else:
-            return list(self._cube.dims)
+            return list(str(d) for d in self._cube.dims)
 
     def get_bounding_box(self) -> Tuple[float, float, float, float]:
         # TODO: cache bounding box?

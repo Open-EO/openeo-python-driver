@@ -439,6 +439,7 @@ class TestDriverVectorCube:
     def test_from_geodataframe_columns_for_cube(self, gdf, columns_for_cube, expected_cube):
         vc = DriverVectorCube.from_geodataframe(gdf, columns_for_cube=columns_for_cube)
 
+        assert vc.get_dimension_names() == list(expected_cube["dims"])
         assert vc.to_internal_json() == {
             "geometries": DictSubSet(
                 {
