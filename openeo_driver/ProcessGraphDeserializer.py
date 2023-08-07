@@ -6,29 +6,29 @@ import calendar
 import datetime
 import logging
 import math
+import re
 import tempfile
 import time
 import warnings
 from pathlib import Path
-from typing import Dict, Callable, List, Union, Tuple, Any, Iterable
+from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
 
-import pandas as pd
 import geopandas as gpd
 import numpy as np
+import openeo.udf
 import openeo_processes
+import pandas as pd
 import pyproj
 import requests
-from dateutil.relativedelta import relativedelta
-from requests.structures import CaseInsensitiveDict
 import shapely.geometry
-from shapely.geometry import shape, GeometryCollection, shape, mapping, MultiPolygon
 import shapely.ops
-
-import openeo.udf
+from dateutil.relativedelta import relativedelta
 from openeo.capabilities import ComparableVersion
-from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphVisitException
+from openeo.internal.process_graph_visitor import ProcessGraphVisitException, ProcessGraphVisitor
 from openeo.metadata import CollectionMetadata, MetadataException
-from openeo.util import load_json, rfc3339, deep_get, str_truncate
+from openeo.util import deep_get, load_json, rfc3339, str_truncate
+from shapely.geometry import GeometryCollection, MultiPolygon, mapping, shape
+
 from openeo_driver import dry_run
 from openeo_driver.backend import (
     UserDefinedProcessMetadata,
@@ -53,13 +53,9 @@ from openeo_driver.save_result import JSONResult, SaveResult, AggregatePolygonRe
     to_save_result, AggregatePolygonSpatialResult, MlModelResult
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.util.date_math import month_shift
-from openeo_driver.util.geometry import (
-    geojson_to_geometry,
-    geojson_to_multipolygon,
-    spatial_extent_union,
-)
+from openeo_driver.util.geometry import geojson_to_geometry, geojson_to_multipolygon, spatial_extent_union
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
-from openeo_driver.utils import smart_bool, EvalEnv
+from openeo_driver.utils import EvalEnv, smart_bool
 
 _log = logging.getLogger(__name__)
 
@@ -1540,26 +1536,24 @@ def read_vector(args: Dict, env: EvalEnv) -> DelayedVector:
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/load_uploaded_files.json"))
-def load_uploaded_files(args: dict, env: EvalEnv) -> Union[DriverVectorCube,DriverDataCube]:
+def load_uploaded_files(args: ProcessArgs, env: EvalEnv) -> Union[DriverVectorCube, DriverDataCube]:
     # TODO #114 EP-3981 process name is still under discussion https://github.com/Open-EO/openeo-processes/issues/322
-    paths = extract_arg(args, 'paths', process_id="load_uploaded_files")
-    format = extract_arg(args, 'format', process_id="load_uploaded_files")
-    options = args.get("options", {})
+    paths = args.get_required("paths", expected_type=list)
+    format = args.get_required(
+        "format",
+        expected_type=str,
+        validator=ProcessArgs.validator_file_format(formats=env.backend_implementation.file_formats()["input"]),
+    )
+    options = args.get_optional("options", default={})
 
-    input_formats = CaseInsensitiveDict(env.backend_implementation.file_formats()["input"])
-    if format not in input_formats:
-        raise FileTypeInvalidException(type=format, types=", ".join(input_formats.keys()))
-
-    if format.lower() in {"geojson", "esri shapefile", "gpkg", "parquet"}:
+    if DriverVectorCube.from_fiona_supports(format):
         return DriverVectorCube.from_fiona(paths, driver=format, options=options)
     elif format.lower() in {"GTiff"}:
-        if(len(paths)!=1):
-            raise FeatureUnsupportedException(f"load_uploaded_files only supports a single raster of format {format!r}, you provided {paths}")
-        kwargs = dict(
-            glob_pattern=paths[0],
-            format=format,
-            options=options
-        )
+        if len(paths) != 1:
+            raise FeatureUnsupportedException(
+                f"load_uploaded_files only supports a single raster of format {format!r}, you provided {paths}"
+            )
+        kwargs = dict(glob_pattern=paths[0], format=format, options=options)
         dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
         if dry_run_tracer:
             return dry_run_tracer.load_disk_data(**kwargs)
@@ -1602,6 +1596,24 @@ def load_geojson(args: ProcessArgs, env: EvalEnv) -> DriverVectorCube:
     properties = args.get_optional("properties", default=[], expected_type=(list, tuple))
     vector_cube = env.backend_implementation.vector_cube_cls.from_geojson(data, columns_for_cube=properties)
     return vector_cube
+
+
+@process_registry_100.add_function(spec=read_spec("openeo-processes/2.x/proposals/load_url.json"))
+def load_url(args: ProcessArgs, env: EvalEnv) -> DriverVectorCube:
+    # TODO: Follow up possible `load_url` changes https://github.com/Open-EO/openeo-processes/issues/450 ?
+    url = args.get_required("url", expected_type=str, validator=re.compile("^https?://").match)
+    format = args.get_required(
+        "format",
+        expected_type=str,
+        validator=ProcessArgs.validator_file_format(formats=env.backend_implementation.file_formats()["input"]),
+    )
+    options = args.get_optional("options", default={})
+
+    if DriverVectorCube.from_fiona_supports(format):
+        # TODO: for GeoJSON (and related) support `properties` option like load_geojson? https://github.com/Open-EO/openeo-processes/issues/450
+        return DriverVectorCube.from_fiona(paths=[url], driver=format, options=options)
+    else:
+        raise FeatureUnsupportedException(f"Loading format {format!r} is not supported")
 
 
 @non_standard_process(

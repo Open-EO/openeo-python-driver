@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Any, Callable, Collection, Dict, List, Optional, Tuple, Union
 
 from openeo_driver.errors import (
+    FileTypeInvalidException,
+    OpenEOApiException,
     ProcessParameterInvalidException,
     ProcessParameterRequiredException,
     ProcessUnsupportedException,
@@ -325,6 +327,9 @@ class ProcessArgs(dict):
             try:
                 valid = validator(value)
                 reason = "Failed validation."
+            except OpenEOApiException:
+                # Preserve original OpenEOApiException
+                raise
             except Exception as e:
                 valid = False
                 reason = str(e)
@@ -437,6 +442,23 @@ class ProcessArgs(dict):
                 else:
                     message = f"Must be one of {options!r}."
                 raise ValueError(message)
+            return True
+
+        return validator
+
+    @staticmethod
+    def validator_file_format(formats: Union[List[str], Dict[str, dict]]):
+        """
+        Build validator for input/output format (case-insensitive check)
+
+        :param formats list of valid formats, or dictionary with formats as keys
+        """
+        formats = list(formats)
+        options = set(f.lower() for f in formats)
+
+        def validator(value: str):
+            if value.lower() not in options:
+                raise FileTypeInvalidException(type=value, types=", ".join(formats))
             return True
 
         return validator

@@ -332,6 +332,12 @@ class DriverVectorCube:
             return cls(geometries=data, cube=cube)
 
     @classmethod
+    def from_fiona_supports(cls, format: str) -> bool:
+        """Does `from_fiona` supports given format?"""
+        # TODO: also cover input format options?
+        return format.lower() in {"geojson", "esri shapefile", "gpkg", "parquet"}
+
+    @classmethod
     def from_fiona(
         cls,
         paths: List[Union[str, Path]],

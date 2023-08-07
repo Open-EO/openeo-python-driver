@@ -614,9 +614,18 @@ def caplog_with_custom_formatter(caplog: pytest.LogCaptureFixture, format: Union
 @contextlib.contextmanager
 def ephemeral_fileserver(path: Union[Path, str], host: str = "localhost", port: int = 0) -> str:
     """
-    Context manager to run a short-lived (static) file HTTP server, serving some local test data.
+    Context manager to run a short-lived (static) file HTTP server, serving files from a given local test data folder.
+
     This is an alternative to traditional mocking of HTTP requests (e.g. with requests_mock)
     for situations where that doesn't work (requests are done in a subprocess or at the level of a C-extension/library).
+
+    Usage example:
+
+        >>> # create temp file with `tmp_path` fixture
+        >>> (tmp_path / "hello.txt").write_text("Hello world")
+        >>> with ephemeral_fileserver(tmp_path) as fileserver_root:
+        ...      res = subprocess.check_output(["curl", f"{fileserver_root}/hello.txt"])
+        >>> assert res.strip() == "Hello world"
 
     :param path: root path of the local files to serve
     :return: root URL of the ephemeral file server (e.g. "http://localhost:21342")

@@ -4,11 +4,12 @@ import pytest
 
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.errors import (
-    ProcessUnsupportedException,
-    ProcessParameterRequiredException,
+    FileTypeInvalidException,
     ProcessParameterInvalidException,
+    ProcessParameterRequiredException,
+    ProcessUnsupportedException,
 )
-from openeo_driver.processes import ProcessSpec, ProcessRegistry, ProcessRegistryException, ProcessArgs
+from openeo_driver.processes import ProcessArgs, ProcessRegistry, ProcessRegistryException, ProcessSpec
 
 
 def test_process_spec_basic_040():
@@ -635,3 +636,27 @@ class TestProcessArgs:
             ),
         ):
             _ = args.get_required("geometry", validator=validator)
+
+    @pytest.mark.parametrize(
+        ["formats"],
+        [
+            (["GeoJSON", "CSV"],),
+            ({"GeoJSON": {}, "CSV": {}},),
+        ],
+    )
+    def test_validator_file_format(self, formats):
+        args = ProcessArgs(
+            {"format1": "GeoJSON", "format2": "geojson", "format3": "TooExotic"},
+            process_id="wibble",
+        )
+
+        validator = ProcessArgs.validator_file_format(formats=formats)
+
+        assert args.get_required("format1", validator=validator) == "GeoJSON"
+        assert args.get_required("format2", validator=validator) == "geojson"
+
+        with pytest.raises(
+            FileTypeInvalidException,
+            match=re.escape("File format TooExotic not allowed. Allowed file formats: GeoJSON, CSV"),
+        ):
+            _ = args.get_required("format3", validator=validator)

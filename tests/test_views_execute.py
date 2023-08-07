@@ -1965,9 +1965,103 @@ class TestVectorCubeLoading:
         ],
     )
     def test_load_geojson(self, api100, geojson, expected):
+        # TODO: cover `properties` parameter
         res = api100.check_result(
             {"vc": {"process_id": "load_geojson", "arguments": {"data": geojson}, "result": True}}
         )
+        assert res.json == DictSubSet({"type": "FeatureCollection", "features": expected})
+
+    @pytest.mark.parametrize(
+        ["geometry", "expected"],
+        [
+            (
+                {"type": "Point", "coordinates": (1, 2)},
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Point", "coordinates": [1, 2]},
+                        "properties": {},
+                    },
+                ],
+            ),
+            (
+                {"type": "Polygon", "coordinates": [[(1, 1), (3, 1), (2, 3), (1, 1)]]},
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
+                        "properties": {},
+                    },
+                ],
+            ),
+            (
+                {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
+                        "properties": {},
+                    },
+                ],
+            ),
+            (
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                    "properties": {"id": "12_3"},
+                },
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
+                        "properties": {"id": "12_3"},
+                    },
+                ],
+            ),
+            (
+                {
+                    "type": "FeatureCollection",
+                    "features": [
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "Polygon", "coordinates": [[(1, 1), (3, 1), (2, 3), (1, 1)]]},
+                            "properties": {"id": 1},
+                        },
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                            "properties": {"id": 2},
+                        },
+                    ],
+                },
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
+                        "properties": {"id": 1},
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
+                        "properties": {"id": 2},
+                    },
+                ],
+            ),
+        ],
+    )
+    def test_load_url_geojson(self, api100, geometry, expected, tmp_path):
+        (tmp_path / "geometry.json").write_text(json.dumps(geometry))
+        with ephemeral_fileserver(tmp_path) as fileserver_root:
+            url = f"{fileserver_root}/geometry.json"
+            res = api100.check_result(
+                {
+                    "load": {
+                        "process_id": "load_url",
+                        "arguments": {"url": url, "format": "GeoJSON"},
+                        "result": True,
+                    }
+                }
+            )
         assert res.json == DictSubSet({"type": "FeatureCollection", "features": expected})
 
 
