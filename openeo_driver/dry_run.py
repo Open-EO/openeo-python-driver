@@ -34,14 +34,14 @@ These source constraints can then be fetched from the EvalEnv at `load_collectio
 """
 import logging
 from enum import Enum
-from typing import List, Union, Tuple, Any
+from typing import List, Union, Tuple, Any, Optional
 
 import numpy
 import shapely.geometry.base
 from shapely.geometry import Point, Polygon, MultiPolygon, GeometryCollection
 from shapely.geometry.base import BaseGeometry
 
-from openeo.metadata import CollectionMetadata, DimensionAlreadyExistsException
+from openeo.metadata import CollectionMetadata, DimensionAlreadyExistsException, Band
 from openeo_driver import filter_properties
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
@@ -376,16 +376,18 @@ class DryRunDataTracer:
                     if subgraph_without_blocking_processes is not None:
                         leaf_without_blockers = subgraph_without_blocking_processes
 
+
                 # 2 merge filtering arguments
-                args = leaf_without_blockers.get_arguments_by_operation(op)
-                if args:
-                    if merge:
-                        # Take first item (to reproduce original behavior)
-                        # TODO: take temporal/spatial/categorical intersection instead?
-                        #       see https://github.com/Open-EO/openeo-processes/issues/201
-                        constraints[op] = args[0]
-                    else:
-                        constraints[op] = args
+                if leaf_without_blockers is not None:
+                    args = leaf_without_blockers.get_arguments_by_operation(op)
+                    if args:
+                        if merge:
+                            # Take first item (to reproduce original behavior)
+                            # TODO: take temporal/spatial/categorical intersection instead?
+                            #       see https://github.com/Open-EO/openeo-processes/issues/201
+                            constraints[op] = args[0]
+                        else:
+                            constraints[op] = args
 
             if "_weak_spatial_extent" in constraints:
                 if "spatial_extent" not in constraints:
@@ -502,7 +504,7 @@ class DryRunDataCube(DriverDataCube):
             traces=self._traces + other._traces, data_tracer=self._data_tracer,
             # TODO: properly merge (other) metadata?
             metadata=self.metadata
-        )
+        )._process("merge_cubes", arguments={})
 
     def mask_polygon(self, mask, replacement=None, inside: bool = False) -> 'DriverDataCube':
         cube = self
@@ -583,15 +585,28 @@ class DryRunDataCube(DriverDataCube):
             metadata=self.metadata
         )
 
-    def reduce_dimension(self, reducer, dimension: str, context: Any, env: EvalEnv) -> 'DryRunDataCube':
+    def reduce_dimension(
+        self, reducer, *, dimension: str, context: Optional[dict] = None, env: EvalEnv
+    ) -> "DryRunDataCube":
         dc = self
         if self.metadata.has_temporal_dimension() and self.metadata.temporal_dimension.name == dimension:
             # TODO: reduce is not necessarily global in call cases
             dc = self._process("process_type", [ProcessType.GLOBAL_TIME])
 
-        return dc._process_metadata(self.metadata.reduce_dimension(dimension_name=dimension))
+        return dc._process_metadata(self.metadata.reduce_dimension(dimension_name=dimension))._process("reduce_dimension", arguments={})
 
-    def chunk_polygon(self, reducer, chunks: MultiPolygon, mask_value: float, env: EvalEnv, context={}) -> 'DryRunDataCube':
+    def ndvi(self, nir: str = "nir", red: str = "red", target_band: str = None) -> 'DriverDataCube':
+        if target_band == None and self.metadata.has_band_dimension():
+            return self._process_metadata(self.metadata.reduce_dimension(dimension_name=self.metadata.band_dimension.name))
+        elif target_band is not None  and self.metadata.has_band_dimension():
+            return self._process_metadata(self.metadata.append_band(Band(name=target_band, common_name=target_band, wavelength_um=None)))
+        else:
+            return self
+
+    def chunk_polygon(
+        self, reducer, chunks: MultiPolygon, mask_value: float, env: EvalEnv, context: Optional[dict] = None
+    ) -> "DryRunDataCube":
+        # TODO: rename/update `chunk_polygon` to `apply_polygon` (https://github.com/Open-EO/openeo-processes/pull/298)
         polygons: List[Polygon] = chunks.geoms
         # TODO #71 #114 Deprecate/avoid usage of GeometryCollection
         geometries, bbox = self._normalize_geometry(GeometryCollection(polygons))
@@ -616,8 +631,11 @@ class DryRunDataCube(DriverDataCube):
         return self._process("resolution_merge", args)
 
     def resample_spatial(
-            self, resolution: Union[float, Tuple[float, float]], projection: Union[int, str] = None,
-            method: str = 'near', align: str = 'upper-left'
+        self,
+        resolution: Union[float, Tuple[float, float]],
+        projection: Union[int, str] = None,
+        method: str = "near",
+        align: str = "upper-left",
     ):
         return self._process(
             "resample_spatial",
@@ -629,7 +647,9 @@ class DryRunDataCube(DriverDataCube):
         cube = cube._process("pixel_buffer", arguments={"buffer_size":[x/2.0 for x in kernel.shape]})
         return cube._process("apply_kernel", arguments={"kernel": kernel})
 
-    def apply_dimension(self, process, dimension: str, target_dimension: str = None, context:dict = None, env: EvalEnv=None) -> 'DriverDataCube':
+    def apply_dimension(
+        self, process, *, dimension: str, target_dimension: Optional[str], context: Optional[dict] = None, env: EvalEnv
+    ) -> "DriverDataCube":
         cube = self
         if self.metadata.has_temporal_dimension() and self.metadata.temporal_dimension.name == dimension:
             # TODO: reduce is not necessarily global in call cases
@@ -640,13 +660,16 @@ class DryRunDataCube(DriverDataCube):
 
         return cube._process("apply_dimension", arguments={"dimension": dimension})
 
-    def apply_tiles_spatiotemporal(self, process, context={}) -> 'DriverDataCube':
-        if (self.metadata.has_temporal_dimension()):
+    def apply_tiles_spatiotemporal(self, process, context: Optional[dict] = None) -> "DriverDataCube":
+        if self.metadata.has_temporal_dimension():
             return self._process("process_type", [ProcessType.GLOBAL_TIME])
         else:
             return self
 
-    def apply_neighborhood(self, process, size: List[dict], overlap: List[dict], env: EvalEnv) -> 'DriverDataCube':
+    def apply_neighborhood(
+        self, process, *, size: List[dict], overlap: List[dict], context: Optional[dict] = None, env: EvalEnv
+    ) -> "DriverDataCube":
+        cube = self._process("apply_neighborhood", {})
         temporal_size = temporal_overlap = None
         size_dict = {e['dimension']: e for e in size}
         overlap_dict = {e['dimension']: e for e in overlap}
@@ -654,10 +677,15 @@ class DryRunDataCube(DriverDataCube):
             temporal_size = size_dict.get(self.metadata.temporal_dimension.name, None)
             temporal_overlap = overlap_dict.get(self.metadata.temporal_dimension.name, None)
             if temporal_size is None or temporal_size.get('value', None) is None:
-                return self._process("process_type", [ProcessType.GLOBAL_TIME])
-        return self
+                return cube._process("process_type", [ProcessType.GLOBAL_TIME])
+        return cube
 
-    def atmospheric_correction(self, method: str = None, *args) -> 'DriverDataCube':
+    def atmospheric_correction(
+        self,
+        method: Optional[str] = None,
+        elevation_model: Optional[str] = None,
+        options: Optional[dict] = None,
+    ) -> "DriverDataCube":
         method_link = "https://remotesensing.vito.be/case/icor"
         if method == "SMAC":
             method_link = "https://doi.org/10.1080/01431169408954055"
@@ -676,6 +704,16 @@ class DryRunDataCube(DriverDataCube):
 
     def mask_scl_dilation(self, **kwargs) -> 'DriverDataCube':
         return self._process("custom_cloud_mask", arguments={**{"method":"mask_scl_dilation"},**kwargs})
+
+    def to_scl_dilation_mask(self, erosion_kernel_size: int,
+        mask1_values: List[int],
+        mask2_values: List[int],
+        kernel1_size: int,
+        kernel2_size: int) -> 'DriverDataCube':
+        cube = self._process("process_type", [ProcessType.FOCAL_SPACE])
+        size = kernel2_size
+        cube = cube._process("pixel_buffer", arguments={"buffer_size": [size/2.0,size/2.0]})
+        return cube
 
     def mask_l1c(self) -> 'DriverDataCube':
         return self._process("custom_cloud_mask", arguments={"method": "mask_l1c"})

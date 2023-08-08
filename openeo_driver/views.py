@@ -5,6 +5,7 @@ import logging
 import os
 import pathlib
 import re
+import textwrap
 from collections import namedtuple, defaultdict
 from typing import Callable, Tuple, List, Optional
 
@@ -18,9 +19,10 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from openeo.capabilities import ComparableVersion
 from openeo.util import dict_no_none, deep_get, Rfc3339
-from openeo_driver import urlsigning
+from openeo_driver.urlsigning import UrlSigner
 from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
     ErrorSummary, OpenEoBackendImplementation, BatchJobs, is_not_implemented
+from openeo_driver.config import get_backend_config, OpenEoBackendConfig
 from openeo_driver.constants import STAC_EXTENSION
 from openeo_driver.datacube import DriverMlModel
 from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
@@ -45,6 +47,8 @@ API_VERSIONS = {
     "1.0.1": ApiVersionInfo(version="1.0.1", supported=True, wellknown=False, production=True),
     "1.1.0": ApiVersionInfo(version="1.1.0", supported=True, wellknown=False, production=False),
     "1.1": ApiVersionInfo(version="1.1.0", supported=True, wellknown=True, production=True),
+    "1": ApiVersionInfo(version="1.1.0", supported=True, wellknown=False, production=True),
+    "1.2": ApiVersionInfo(version="1.2.0", supported=True, wellknown=True, production=False),
 }
 API_VERSION_DEFAULT = "1.1.0"
 
@@ -52,7 +56,6 @@ _log.info("API Versions: {v}".format(v=API_VERSIONS))
 _log.info("Default API Version: {v}".format(v=API_VERSION_DEFAULT))
 
 
-# TODO: maybe STREAM_CHUNK_SIZE_DEFAULT belongs in flask_defaults.py?
 STREAM_CHUNK_SIZE_DEFAULT = 10 * 1024
 
 class OpenEoApiApp(Flask):
@@ -100,16 +103,6 @@ def build_app(
         # Directly set config values
         app.config['TESTING'] = True
         app.config['SERVER_NAME'] = 'oeo.net'
-
-        # Load config values from a module (upper case variables)
-        from openeogeotrellis.deploy import flask_config
-        app.config.from_object(flask_config)
-
-        # Load from a dictionary/mapping
-        app.config.from_mapping(
-            OPENEO_TITLE="Local GeoPySpark",
-            OPENEO_DESCRIPTION="Local openEO API using GeoPySpark driver",
-        )
 
     :param backend_implementation:
     :param import_name:
@@ -236,8 +229,8 @@ def build_app(
     global _openeo_endpoint_metadata
     _openeo_endpoint_metadata = api_reg.get_path_metadata(bp)
 
-    # Load default config.
-    app.config.from_object("openeo_driver.config.flask_defaults")
+    # Load flask settings from config.
+    app.config.from_object(get_backend_config().flask_settings)
 
     return app
 
@@ -356,14 +349,14 @@ def register_views_general(
     @blueprint.route('/')
     @backend_implementation.cache_control
     def index():
-        app_config = current_app.config
-
+        backend_config: OpenEoBackendConfig = get_backend_config()
         api_version = requested_api_version().to_string()
-        title = app_config.get('OPENEO_TITLE', 'OpenEO API')
-        service_id = app_config.get('OPENEO_SERVICE_ID', re.sub(r"\s+", "", title.lower() + '-' + api_version))
+        title = backend_config.capabilities_title
+        backend_version = backend_config.capabilities_backend_version
+        service_id = backend_config.capabilities_service_id or re.sub(r"\s+", "", f"{title.lower()}-{backend_version}")
         # TODO only list endpoints that are actually supported by the backend.
         endpoints = EndpointRegistry.get_capabilities_endpoints(_openeo_endpoint_metadata, api_version=api_version)
-        deploy_metadata = app_config.get('OPENEO_BACKEND_DEPLOY_METADATA') or {}
+        deploy_metadata = backend_config.capabilities_deploy_metadata
 
         capabilities = {
             "stac_extensions": [
@@ -371,11 +364,11 @@ def register_views_general(
             ],
             "version": api_version,  # Deprecated pre-0.4.0 API version field
             "api_version": api_version,  # API version field since 0.4.0
-            "backend_version": app_config.get('OPENEO_BACKEND_VERSION', '0.0.1'),
+            "backend_version": backend_version,
             "stac_version": "0.9.0",
             "id": service_id,
             "title": title,
-            "description": app_config.get('OPENEO_DESCRIPTION', 'OpenEO API'),
+            "description": textwrap.dedent(backend_config.capabilities_description).strip(),
             "production": API_VERSIONS[g.request_version].production,
             "endpoints": endpoints,
             "billing": backend_implementation.capabilities_billing(),
@@ -615,6 +608,7 @@ def register_views_processing(
             'user': user,
             'require_bounds': True,
             'correlation_id': request_id,
+            'node_caching': False
         })
 
         request_costs = functools.partial(backend_implementation.request_costs,
@@ -714,17 +708,18 @@ def register_views_processing(
 def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
     to_datetime = Rfc3339(propagate_none=True).datetime
 
-    properties = dict_no_none(**{
-        "title": job_info.title,
-        "description": job_info.description,
-        "created": to_datetime(job_info.created),
-        "updated": to_datetime(job_info.updated),
-        "card4l:specification": "SR",
-        "card4l:specification_version": "5.0",
-        # TODO: eliminate hard coded VITO/Spark/Geotrellis references. See https://github.com/Open-EO/openeo-python-driver/issues/74
-        "processing:facility": 'VITO - SPARK',
-        "processing:software": 'openeo-geotrellis-' + current_app.config.get('OPENEO_BACKEND_VERSION', '0.0.1')
-    })
+    properties = dict_no_none(
+        {
+            "title": job_info.title,
+            "description": job_info.description,
+            "created": to_datetime(job_info.created),
+            "updated": to_datetime(job_info.updated),
+            "card4l:specification": "SR",
+            "card4l:specification_version": "5.0",
+            "processing:facility": get_backend_config().processing_facility,
+            "processing:software": get_backend_config().processing_software,
+        }
+    )
     properties["datetime"] = None
 
     start_datetime = to_datetime(job_info.start_datetime)
@@ -764,8 +759,8 @@ def _s3_client():
     import boto3
 
     # TODO: Get these credentials/secrets from VITO TAP vault instead of os.environ
-    aws_access_key_id = os.environ.get("AWS_ACCESS_KEY_ID")
-    aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY")
+    aws_access_key_id = os.environ.get("SWIFT_ACCESS_KEY_ID", os.environ.get("AWS_ACCESS_KEY_ID"))
+    aws_secret_access_key = os.environ.get("SWIFT_SECRET_ACCESS_KEY", os.environ.get("AWS_SECRET_ACCESS_KEY"))
     swift_url = os.environ.get("SWIFT_URL")
     s3_client = boto3.client("s3",
         aws_access_key_id=aws_access_key_id,
@@ -874,11 +869,7 @@ def register_views_batch_jobs(
         return make_response("", 202)
 
     def _job_result_download_url(job_id, user_id, filename) -> str:
-        if smart_bool(current_app.config.get('SIGNED_URL')):
-            signer = urlsigning.Signer.from_config(current_app.config)
-        else:
-            signer = None
-
+        signer = get_backend_config().url_signer
         if signer:
             expires = signer.get_expires()
             secure_key = signer.sign_job_asset(
@@ -903,7 +894,7 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs/<job_id>/results/<user_base64>/<secure_key>', methods=['GET'])
     def list_job_results_signed(job_id, user_base64, secure_key):
         expires = request.args.get('expires')
-        signer = urlsigning.Signer.from_config(current_app.config)
+        signer = get_backend_config().url_signer
         user_id = user_id_b64_decode(user_base64)
         signer.verify_job_results(signature=secure_key, job_id=job_id, user_id=user_id, expires=expires)
         return _list_job_results(job_id, user_id)
@@ -917,13 +908,19 @@ def register_views_batch_jobs(
             job_id=job_id, user_id=user_id
         )
         result_assets = result_metadata.assets
+        providers = result_metadata.providers
+
+        # TODO: remove feature toggle, during refactoring for openeo-geopyspark-driver#440
+        #   https://github.com/Open-EO/openeo-geopyspark-driver/issues/440
+        #   We will try to simplify the code and give the same response for API v1.0.0 as v1.1.0.
+        #   This is a bit of an ugly temporary hack, to aid in testing and comparing.
+        TREAT_JOB_RESULTS_V100_LIKE_V110 = smart_bool(os.environ.get("TREAT_JOB_RESULTS_V100_LIKE_V110", "0"))
 
         if requested_api_version().at_least("1.0.0"):
             def job_results_canonical_url() -> str:
-                if not smart_bool(current_app.config.get('SIGNED_URL')):
+                signer = get_backend_config().url_signer
+                if not signer:
                     return url_for('.list_job_results', job_id=job_id, _external=True)
-
-                signer = urlsigning.Signer.from_config(current_app.config)
 
                 expires = signer.get_expires()
                 secure_key = signer.sign_job_results(
@@ -968,20 +965,19 @@ def register_views_batch_jobs(
                 )
 
             assets = {
-                filename: _asset_object(job_id, user_id, filename, asset_metadata)
+                filename: _asset_object(job_id, user_id, filename, asset_metadata,job_info)
                 for filename, asset_metadata in result_assets.items()
                 if asset_metadata.get("asset", True)
             }
 
-            if requested_api_version().at_least("1.1.0"):
+            if TREAT_JOB_RESULTS_V100_LIKE_V110 or requested_api_version().at_least("1.1.0"):
                 to_datetime = Rfc3339(propagate_none=True).datetime
                 ml_model_metadata = None
 
                 def job_result_item_url(item_id) -> str:
-                    if not smart_bool(current_app.config.get('SIGNED_URL')):
+                    signer = get_backend_config().url_signer
+                    if not signer:
                         return url_for('.get_job_result_item', job_id=job_id, item_id=item_id, _external=True)
-
-                    signer = urlsigning.Signer.from_config(current_app.config)
 
                     expires = signer.get_expires()
                     secure_key = signer.sign_job_item(
@@ -1016,6 +1012,8 @@ def register_views_batch_jobs(
                         "stac_extensions": [
                             STAC_EXTENSION.EO,
                             STAC_EXTENSION.FILEINFO,
+                            STAC_EXTENSION.PROCESSING,
+                            STAC_EXTENSION.PROJECTION
                         ],
                         "id": job_id,
                         "title": job_info.title,
@@ -1027,12 +1025,15 @@ def register_views_batch_jobs(
                                 "interval": [[to_datetime(job_info.start_datetime), to_datetime(job_info.end_datetime)]]
                             },
                         },
-                        "bbox": job_info.bbox,
-                        "epsg": job_info.epsg,
+                        "summaries" : {
+                            "instruments":job_info.instruments
+                        },
+                        "providers": providers or None,
                         "links": links,
                         "assets": assets,
                     }
                 )
+
                 if ml_model_metadata is not None:
                     result["stac_extensions"].extend(ml_model_metadata.get("stac_extensions", []))
                     if "summaries" not in result.keys():
@@ -1047,7 +1048,7 @@ def register_views_batch_jobs(
                             "ml-model:prediction_type": [prediction_type] if prediction_type is not None else [],
                             "ml-model:architecture": [architecture] if architecture is not None else [],
                         })
-            else:
+            elif not TREAT_JOB_RESULTS_V100_LIKE_V110:
                 result = {
                     "type": "Feature",
                     "stac_version": "0.9.0",
@@ -1056,6 +1057,8 @@ def register_views_batch_jobs(
                     "assets": assets,
                     "links": links
                 }
+                if providers:
+                    result["providers"] = providers
 
                 geometry = job_info.geometry
                 result["geometry"] = geometry
@@ -1131,7 +1134,7 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs/<job_id>/results/items/<user_base64>/<secure_key>/<item_id>', methods=['GET'])
     def get_job_result_item_signed(job_id, user_base64, secure_key, item_id):
         expires = request.args.get('expires')
-        signer = urlsigning.Signer.from_config(current_app.config)
+        signer = get_backend_config().url_signer
         user_id = user_id_b64_decode(user_base64)
         signer.verify_job_item(signature=secure_key, job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
         return _get_job_result_item(job_id, item_id, user_id)
@@ -1208,7 +1211,7 @@ def register_views_batch_jobs(
                     "type": "application/json",
                 },
             ],
-            "assets": {asset_filename: _asset_object(job_id, user_id, asset_filename, metadata)},
+            "assets": {asset_filename: _asset_object(job_id, user_id, asset_filename, metadata,job_info)},
             "collection": job_id,
         }
         # Add optional items, if they are present.
@@ -1250,7 +1253,7 @@ def register_views_batch_jobs(
         resp.mimetype = stac_item_media_type
         return resp
 
-    def _asset_object(job_id, user_id, filename: str, asset_metadata: dict) -> dict:
+    def _asset_object(job_id, user_id, filename: str, asset_metadata: dict, job_info:BatchJobMetadata) -> dict:
         result_dict = dict_no_none({
             "title": asset_metadata.get("title", filename),
             "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or _job_result_download_url(job_id, user_id, filename),
@@ -1282,12 +1285,13 @@ def register_views_batch_jobs(
                     "file:nodata": [
                         "nan" if nodata != None and np.isnan(nodata) else nodata
                     ],
-                    "proj:bbox": asset_metadata.get("proj:bbox", None),
-                    "proj:epsg": asset_metadata.get("proj:epsg", None),
-                    "proj:shape": asset_metadata.get("proj:shape", None),
+                    "proj:bbox": asset_metadata.get("proj:bbox", job_info.proj_bbox),
+                    "proj:epsg": asset_metadata.get("proj:epsg", job_info.epsg),
+                    "proj:shape": asset_metadata.get("proj:shape", job_info.proj_shape),
                 }
             )
         )
+
 
         if "file:size" not in result_dict and "output_dir" in asset_metadata:
             the_file = pathlib.Path(asset_metadata["output_dir"]) / filename
@@ -1307,7 +1311,7 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs/<job_id>/results/assets/<user_base64>/<secure_key>/<filename>', methods=['GET'])
     def download_job_result_signed(job_id, user_base64, secure_key, filename):
         expires = request.args.get('expires')
-        signer = urlsigning.Signer.from_config(current_app.config)
+        signer = get_backend_config().url_signer
         user_id = user_id_b64_decode(user_base64)
         signer.verify_job_asset(
             signature=secure_key,

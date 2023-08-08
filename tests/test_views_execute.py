@@ -1,4 +1,4 @@
-
+import dataclasses
 import json
 import math
 import re
@@ -6,7 +6,7 @@ import sys
 import textwrap
 from io import BytesIO
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Optional
 from unittest import mock
 from zipfile import ZipFile
 
@@ -27,6 +27,7 @@ from openeo_driver.testing import (
     TEST_USER,
     TEST_USER_BEARER_TOKEN,
     ApiTester,
+    ApproxGeoJSONByBounds,
     DictSubSet,
     RegexMatcher,
     ephemeral_fileserver,
@@ -396,43 +397,20 @@ def test_reduce_temporal_run_udf(api):
         assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").apply_tiles_spatiotemporal.call_count == 1
 
 
-def test_reduce_temporal_run_udf_legacy_client(api):
-    api.check_result(
-        "reduce_temporal_run_udf.json",
-        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "temporal"')
-    )
-    if api.api_version_compare.at_least("1.0.0"):
-        assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").reduce_dimension.call_count == 1
-    else:
-        assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").apply_tiles_spatiotemporal.call_count == 1
-
-
 def test_reduce_temporal_run_udf_invalid_dimension(api):
     resp = api.result(
         "reduce_temporal_run_udf.json",
         preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "tempo"')
     )
     resp.assert_error(
-        400, "ProcessParameterInvalid",
-        message="The value passed for parameter 'dimension' in process '{p}' is invalid: got 'tempo', but should be one of ['x', 'y', 't']".format(
-            p="reduce_dimension" if api.api_version_compare.at_least("1.0.0") else "reduce"
-        )
+        400,
+        "ProcessParameterInvalid",
+        message="The value passed for parameter 'dimension' in process 'reduce_dimension' is invalid: Must be one of ['x', 'y', 't'] but got 'tempo'.",
     )
 
 
 def test_reduce_bands_run_udf(api):
     api.check_result("reduce_bands_run_udf.json")
-    if api.api_version_compare.at_least("1.0.0"):
-        assert dummy_backend.get_collection("S2_FOOBAR").reduce_dimension.call_count == 1
-    else:
-        assert dummy_backend.get_collection("S2_FOOBAR").apply_tiles.call_count == 1
-
-
-def test_reduce_bands_run_udf_legacy_client(api):
-    api.check_result(
-        "reduce_bands_run_udf.json",
-        preprocess=preprocess_check_and_replace('"dimension": "bands"', '"dimension": "spectral_bands"')
-    )
     if api.api_version_compare.at_least("1.0.0"):
         assert dummy_backend.get_collection("S2_FOOBAR").reduce_dimension.call_count == 1
     else:
@@ -445,10 +423,9 @@ def test_reduce_bands_run_udf_invalid_dimension(api):
         preprocess=preprocess_check_and_replace('"dimension": "bands"', '"dimension": "layers"')
     )
     resp.assert_error(
-        400, 'ProcessParameterInvalid',
-        message="The value passed for parameter 'dimension' in process '{p}' is invalid: got 'layers', but should be one of ['x', 'y', 't', 'bands']".format(
-            p="reduce_dimension" if api.api_version_compare.at_least("1.0.0") else "reduce"
-        )
+        400,
+        "ProcessParameterInvalid",
+        message="The value passed for parameter 'dimension' in process 'reduce_dimension' is invalid: Must be one of ['x', 'y', 't', 'bands'] but got 'layers'.",
     )
 
 
@@ -456,23 +433,12 @@ def test_apply_dimension_temporal_run_udf(api):
     api.check_result("apply_dimension_temporal_run_udf.json")
     dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
     assert dummy.apply_dimension.call_count == 1
-    args,kwargs = dummy.apply_dimension.call_args
-    if api.api_version_compare.at_least("1.0.0"):
-        callback = args[0]
-        #check if callback is valid
-        DummyVisitor().accept_process_graph(callback)
-        dummy.rename_dimension.assert_called_with('t', 'new_time_dimension')
-        load_parameters = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
-        assert load_parameters.process_types == set([ProcessType.GLOBAL_TIME])
-
-
-def test_apply_dimension_temporal_run_udf_legacy_client(api):
-    api.check_result(
-        "apply_dimension_temporal_run_udf.json",
-        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "temporal"')
-    )
-    dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
-    assert dummy.apply_dimension.call_count == 1
+    callback = dummy.apply_dimension.call_args.kwargs["process"]
+    # check if callback is valid
+    DummyVisitor().accept_process_graph(callback)
+    dummy.rename_dimension.assert_called_with("t", "new_time_dimension")
+    load_parameters = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    assert load_parameters.process_types == set([ProcessType.GLOBAL_TIME])
 
 
 def test_apply_dimension_temporal_run_udf_invalid_temporal_dimension(api):
@@ -481,8 +447,9 @@ def test_apply_dimension_temporal_run_udf_invalid_temporal_dimension(api):
         preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "letemps"')
     )
     resp.assert_error(
-        400, 'ProcessParameterInvalid',
-        message="The value passed for parameter 'dimension' in process 'apply_dimension' is invalid: got 'letemps', but should be one of ['x', 'y', 't']"
+        400,
+        "ProcessParameterInvalid",
+        message="The value passed for parameter 'dimension' in process 'apply_dimension' is invalid: Must be one of ['x', 'y', 't'] but got 'letemps'.",
     )
 
 
@@ -510,17 +477,12 @@ def test_reduce_max_bands(api):
     api.check_result("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "bands"))
 
 
-def test_reduce_max_bands_legacy_style(api):
-    api.check_result("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "spectral_bands"))
-
-
 def test_reduce_max_invalid_dimension(api):
     res = api.result("reduce_max.json", preprocess=preprocess_check_and_replace("PLACEHOLDER", "orbit"))
     res.assert_error(
-        400, 'ProcessParameterInvalid',
-        message="The value passed for parameter 'dimension' in process '{p}' is invalid: got 'orbit', but should be one of ['x', 'y', 't', 'bands']".format(
-            p="reduce_dimension" if api.api_version_compare.at_least("1.0.0") else "reduce"
-        )
+        400,
+        "ProcessParameterInvalid",
+        message="The value passed for parameter 'dimension' in process 'reduce_dimension' is invalid: Must be one of ['x', 'y', 't', 'bands'] but got 'orbit'.",
     )
 
 
@@ -567,32 +529,13 @@ def test_reduce_bands(api):
         assert set(p[0] for p in visitor.processes) == {"sum", "subtract", "divide"}
 
 
-def test_reduce_bands_legacy_client(api):
-    api.check_result(
-        "reduce_bands.json",
-        preprocess=preprocess_check_and_replace('"dimension": "bands"', '"dimension": "spectral_bands"')
-    )
-    dummy = dummy_backend.get_collection("S2_FOOBAR")
-    if api.api_version_compare.at_least("1.0.0"):
-        reduce_bands = dummy.reduce_dimension
-    else:
-        reduce_bands = dummy.reduce_bands
-
-    reduce_bands.assert_called_once()
-    if api.api_version_compare.below("1.0.0"):
-        visitor = reduce_bands.call_args_list[0][0][0]
-        assert isinstance(visitor, dummy_backend.DummyVisitor)
-        assert set(p[0] for p in visitor.processes) == {"sum", "subtract", "divide"}
-
-
 def test_reduce_bands_invalid_dimension(api):
     res = api.result("reduce_bands.json",
                      preprocess=preprocess_check_and_replace('"dimension": "bands"', '"dimension": "layor"'))
     res.assert_error(
-        400, "ProcessParameterInvalid",
-        message="The value passed for parameter 'dimension' in process '{p}' is invalid: got 'layor', but should be one of ['x', 'y', 't', 'bands']".format(
-            p="reduce_dimension" if api.api_version_compare.at_least("1.0.0") else "reduce"
-        )
+        400,
+        "ProcessParameterInvalid",
+        message="The value passed for parameter 'dimension' in process 'reduce_dimension' is invalid: Must be one of ['x', 'y', 't', 'bands'] but got 'layor'.",
     )
 
 
@@ -626,7 +569,7 @@ def test_execute_mask(api):
 
 def test_execute_diy_mask(api):
     api.check_result("scl_mask_custom.json")
-    assert dummy_backend.get_collection("TERRASCOPE_S2_FAPAR_V2").mask.call_count == 1
+    # assert dummy_backend.get_collection("TERRASCOPE_S2_FAPAR_V2").mask.call_count == 1  # Optimized away now
 
     load_collections = dummy_backend.all_load_collection_calls("TERRASCOPE_S2_FAPAR_V2")
     assert len(load_collections) == 4
@@ -643,7 +586,7 @@ def test_execute_mask_optimized_loading(api):
     api.check_result("mask.json",
                      preprocess=preprocess_check_and_replace('"10"', 'null')
                      )
-    assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").mask.call_count == 1
+    # assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").mask.call_count == 1  # Optimized away now
 
     expected_spatial_extent = {
         "west": 7.02,
@@ -909,6 +852,89 @@ def test_mask_polygon_vector_cube(api100):
     assert isinstance(kwargs['mask'], shapely.geometry.MultiPolygon)
 
 
+def test_data_mask_optimized(api100):
+    pg = {
+        "load_collection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "load_collection2": {"process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}},
+        "filter1": {
+            "process_id": "filter_bands",
+            "arguments": {
+                "data": {"from_node": "load_collection1"},
+                "bands": ["B02"]
+            }
+        },
+        "mask1": {
+            "process_id": "mask",
+            "arguments": {"data": {"from_node": "filter1"}, "mask": {"from_node": "load_collection2"}},
+            "result": True
+        }
+    }
+    api100.check_result(pg)
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
+    # Even with filter_bands, the load_collection optimization should work
+    # mask does not need to be called when it is already applied in load_collection
+    assert dummy.mask.call_count == 0
+
+def test_data_mask_use_data_twice(api100):
+    pg = {
+        "load_collection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "load_collection2": {"process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}},
+        "filter1": {
+            "process_id": "filter_bands",
+            "arguments": {
+                "data": {"from_node": "load_collection1"},
+                "bands": ["B02"]
+            }
+        },
+        "resample1": {
+            "process_id": "resample_cube_spatial",
+            "arguments": {
+                "data": {
+                    "from_node": "load_collection2"
+                },
+                "target": {
+                    "from_node": "filter1"
+                }
+            }
+        },
+        "mask1": {
+            "process_id": "mask",
+            "arguments": {"data": {"from_node": "filter1"}, "mask": {"from_node": "resample1"}},
+            "result": True
+        }
+    }
+    api100.check_result(pg)
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
+    # Not handling overlaps between mask and data nodes.
+    # A load_collection under the data node could be used twice and would not be pre-masked correctly.
+    assert dummy.mask.call_count == 1
+
+def test_data_mask_unoptimized(api100):
+    pg = {
+        "load_collection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "load_collection2": {"process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}},
+        "apply1": {
+            "process_id": "apply_kernel",
+            "arguments": {
+                "data": {"from_node": "load_collection1"},
+                "kernel": [
+                    [+0, -1, +0],
+                    [-1, +4, -1],
+                    [+0, -1, +0]
+                ]
+            },
+        },
+        "mask1": {
+            "process_id": "mask",
+            "arguments": {"data": {"from_node": "apply1"}, "mask": {"from_node": "load_collection2"}},
+            "result": True
+        }
+    }
+    api100.check_result(pg)
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
+    assert dummy.mask.call_count == 1
+
+
 def test_aggregate_temporal_period(api100):
     api100.check_result("aggregate_temporal_period_max.json")
 
@@ -917,21 +943,15 @@ def test_aggregate_temporal_max(api):
     api.check_result("aggregate_temporal_max.json")
 
 
-def test_aggregate_temporal_max_legacy_client(api):
-    api.check_result(
-        "aggregate_temporal_max.json",
-        preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "temporal"')
-    )
-
-
 def test_aggregate_temporal_max_invalid_temporal_dimension(api):
     resp = api.result(
         "aggregate_temporal_max.json",
         preprocess=preprocess_check_and_replace('"dimension": "t"', '"dimension": "detijd"')
     )
     resp.assert_error(
-        400, 'ProcessParameterInvalid',
-        message="The value passed for parameter 'dimension' in process 'aggregate_temporal' is invalid: got 'detijd', but should be one of ['x', 'y', 't']"
+        400,
+        "ProcessParameterInvalid",
+        message="The value passed for parameter 'dimension' in process 'aggregate_temporal' is invalid: Must be one of ['x', 'y', 't'] but got 'detijd'.",
     )
 
 
@@ -999,7 +1019,7 @@ def test_aggregate_spatial_vector_cube_basic(api100, feature_collection_test_pat
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "bands": ["B02", "B03", "B04"]}},
         "lf": {
             "process_id": "load_uploaded_files",
-            "arguments": {"paths": [str(path)], "format": "GeoJSON"},
+            "arguments": {"paths": [str(path)], "format": "GeoJSON", "options": {"columns_for_cube": []}},
         },
         "ag": {
             "process_id": "aggregate_spatial",
@@ -1010,8 +1030,12 @@ def test_aggregate_spatial_vector_cube_basic(api100, feature_collection_test_pat
                     "mean": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}}
                 }
             },
+        },
+        "sr": {
+            "process_id": "save_result",
+            "arguments": {"data": {"from_node": "ag"}, "format": "GeoJSON", "options": {"flatten_prefix": "agg"}},
             "result": True
-        }
+        },
     }
     res = api100.check_result(pg)
 
@@ -1164,19 +1188,29 @@ def test_aggregate_spatial_vector_cube_dimensions(
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "bands": ["B02", "B03", "B04"]}},
         "lf": {
             "process_id": "load_uploaded_files",
-            "arguments": {"paths": [str(path)], "format": "GeoJSON"},
+            "arguments": {"paths": [str(path)], "format": "GeoJSON", "options": {"columns_for_cube": []}},
         },
         "ag": {
             "process_id": "aggregate_spatial",
             "arguments": {
                 "data": {"from_node": aggregate_data},
                 "geometries": {"from_node": "lf"},
-                "reducer": {"process_graph": {
-                    "mean": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}}
-                }
+                "reducer": {
+                    "process_graph": {
+                        "mean": {
+                            "process_id": "mean",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        }
+                    }
+                },
             },
+        },
+        "sr": {
+            "process_id": "save_result",
+            "arguments": {"data": {"from_node": "ag"}, "format": "GeoJSON", "options": {"flatten_prefix": "agg"}},
             "result": True
-        }
+        },
     }
     pg.update(preprocess_pg)
     res = api100.check_result(pg)
@@ -1263,27 +1297,116 @@ def test_read_vector_no_load_collection_spatial_extent(api):
             return udf_data
     """,
 ])
-def test_run_udf_on_vector(api100, udf_code):
+def test_run_udf_on_vector_read_vector(api100, udf_code):
     udf_code = textwrap.dedent(udf_code)
     process_graph = {
-        "geojson_file": {
+        "get_vector_data": {
             "process_id": "read_vector",
-            "arguments": {"filename": str(get_path("geojson/GeometryCollection01.json"))},
+            "arguments": {"filename": str(get_path("geojson/FeatureCollection01.json"))},
         },
         "udf": {
             "process_id": "run_udf",
             "arguments": {
-                "data": {"from_node": "geojson_file"},
+                "data": {"from_node": "get_vector_data"},
                 "udf": udf_code,
                 "runtime": "Python",
             },
-            "result": "true"
-        }
+            "result": True,
+        },
     }
     resp = api100.check_result(process_graph)
-    print(resp.json)
-    assert len(resp.json) == 2
-    assert resp.json[0]['type'] == 'Polygon'
+    assert resp.json == [
+        {
+            "type": "Polygon",
+            "coordinates": [[[4.47, 51.1], [4.52, 51.1], [4.52, 51.15], [4.47, 51.15], [4.47, 51.1]]],
+        },
+        {
+            "type": "Polygon",
+            "coordinates": [[[4.45, 51.17], [4.5, 51.17], [4.5, 51.2], [4.45, 51.2], [4.45, 51.17]]],
+        },
+    ]
+
+
+@pytest.mark.parametrize(
+    "udf_code",
+    [
+        """
+        from openeo_udf.api.datacube import DataCube  # Old style openeo_udf API
+        def fct_buffer(udf_data: UdfData):
+            return udf_data
+    """,
+        """
+        from openeo.udf import UdfData
+        def fct_buffer(udf_data: UdfData):
+            return udf_data
+    """,
+    ],
+)
+def test_run_udf_on_vector_get_geometries(api100, udf_code):
+    udf_code = textwrap.dedent(udf_code)
+    process_graph = {
+        "get_vector_data": {
+            "process_id": "get_geometries",
+            "arguments": {"filename": str(get_path("geojson/FeatureCollection01.json"))},
+        },
+        "udf": {
+            "process_id": "run_udf",
+            "arguments": {
+                "data": {"from_node": "get_vector_data"},
+                "udf": udf_code,
+                "runtime": "Python",
+            },
+            "result": True,
+        },
+    }
+    resp = api100.check_result(process_graph)
+    assert resp.json == [
+        {
+            "type": "Polygon",
+            "coordinates": [[[4.47, 51.1], [4.52, 51.1], [4.52, 51.15], [4.47, 51.15], [4.47, 51.1]]],
+        },
+        {
+            "type": "Polygon",
+            "coordinates": [[[4.45, 51.17], [4.5, 51.17], [4.5, 51.2], [4.45, 51.2], [4.45, 51.17]]],
+        },
+    ]
+
+
+@pytest.mark.parametrize(
+    "udf_code",
+    [
+        """
+        from openeo_udf.api.datacube import DataCube  # Old style openeo_udf API
+        def fct_buffer(udf_data: UdfData):
+            return udf_data
+    """,
+        """
+        from openeo.udf import UdfData
+        def fct_buffer(udf_data: UdfData):
+            return udf_data
+    """,
+    ],
+)
+def test_run_udf_on_vector_load_uploaded_files(api100, udf_code):
+    """https://github.com/Open-EO/openeo-python-driver/issues/197"""
+    udf_code = textwrap.dedent(udf_code)
+    process_graph = {
+        "get_vector_data": {
+            "process_id": "load_uploaded_files",
+            "arguments": {"paths": [str(get_path("geojson/FeatureCollection01.json"))], "format": "GeoJSON"},
+        },
+        "udf": {
+            "process_id": "run_udf",
+            "arguments": {
+                "data": {"from_node": "get_vector_data"},
+                "udf": udf_code,
+                "runtime": "Python",
+            },
+            "result": True,
+        },
+    }
+    resp = api100.check_result(process_graph)
+    assert resp.json == [None, None]
 
 
 @pytest.mark.parametrize(
@@ -1678,6 +1801,269 @@ class TestVectorCubeLoading:
             assert isinstance(geometry, shapely.geometry.Polygon)
             assert geometry.bounds == expected
 
+    @pytest.mark.parametrize(
+        ["geojson", "expected"],
+        [
+            (
+                {"type": "Polygon", "coordinates": [[(1, 1), (3, 1), (2, 3), (1, 1)]]},
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
+                        "properties": {},
+                    },
+                ],
+            ),
+            (
+                {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
+                        "properties": {},
+                    },
+                ],
+            ),
+            (
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                    "properties": {"id": "12_3"},
+                },
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
+                        "properties": {"id": "12_3"},
+                    },
+                ],
+            ),
+            (
+                {
+                    "type": "FeatureCollection",
+                    "features": [
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "Polygon", "coordinates": [[(1, 1), (3, 1), (2, 3), (1, 1)]]},
+                            "properties": {"id": 1},
+                        },
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                            "properties": {"id": 2},
+                        },
+                    ],
+                },
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
+                        "properties": {"id": 1},
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
+                        "properties": {"id": 2},
+                    },
+                ],
+            ),
+        ],
+    )
+    def test_to_vector_cube(self, api100, geojson, expected):
+        res = api100.check_result(
+            {
+                "vc": {
+                    "process_id": "to_vector_cube",
+                    "arguments": {"data": geojson},
+                    "result": True,
+                }
+            }
+        )
+        assert res.json == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": expected,
+            }
+        )
+
+    @pytest.mark.parametrize(
+        ["geojson", "expected"],
+        [
+            (
+                {"type": "Point", "coordinates": (1, 2)},
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Point", "coordinates": [1, 2]},
+                        "properties": {},
+                    },
+                ],
+            ),
+            (
+                {"type": "Polygon", "coordinates": [[(1, 1), (3, 1), (2, 3), (1, 1)]]},
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
+                        "properties": {},
+                    },
+                ],
+            ),
+            (
+                {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
+                        "properties": {},
+                    },
+                ],
+            ),
+            (
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                    "properties": {"id": "12_3"},
+                },
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
+                        "properties": {"id": "12_3"},
+                    },
+                ],
+            ),
+            (
+                {
+                    "type": "FeatureCollection",
+                    "features": [
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "Polygon", "coordinates": [[(1, 1), (3, 1), (2, 3), (1, 1)]]},
+                            "properties": {"id": 1},
+                        },
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                            "properties": {"id": 2},
+                        },
+                    ],
+                },
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
+                        "properties": {"id": 1},
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
+                        "properties": {"id": 2},
+                    },
+                ],
+            ),
+        ],
+    )
+    def test_load_geojson(self, api100, geojson, expected):
+        # TODO: cover `properties` parameter
+        res = api100.check_result(
+            {"vc": {"process_id": "load_geojson", "arguments": {"data": geojson}, "result": True}}
+        )
+        assert res.json == DictSubSet({"type": "FeatureCollection", "features": expected})
+
+    @pytest.mark.parametrize(
+        ["geometry", "expected"],
+        [
+            (
+                {"type": "Point", "coordinates": (1, 2)},
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Point", "coordinates": [1, 2]},
+                        "properties": {},
+                    },
+                ],
+            ),
+            (
+                {"type": "Polygon", "coordinates": [[(1, 1), (3, 1), (2, 3), (1, 1)]]},
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
+                        "properties": {},
+                    },
+                ],
+            ),
+            (
+                {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
+                        "properties": {},
+                    },
+                ],
+            ),
+            (
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                    "properties": {"id": "12_3"},
+                },
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
+                        "properties": {"id": "12_3"},
+                    },
+                ],
+            ),
+            (
+                {
+                    "type": "FeatureCollection",
+                    "features": [
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "Polygon", "coordinates": [[(1, 1), (3, 1), (2, 3), (1, 1)]]},
+                            "properties": {"id": 1},
+                        },
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
+                            "properties": {"id": 2},
+                        },
+                    ],
+                },
+                [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
+                        "properties": {"id": 1},
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
+                        "properties": {"id": 2},
+                    },
+                ],
+            ),
+        ],
+    )
+    def test_load_url_geojson(self, api100, geometry, expected, tmp_path):
+        (tmp_path / "geometry.json").write_text(json.dumps(geometry))
+        with ephemeral_fileserver(tmp_path) as fileserver_root:
+            url = f"{fileserver_root}/geometry.json"
+            res = api100.check_result(
+                {
+                    "load": {
+                        "process_id": "load_url",
+                        "arguments": {"url": url, "format": "GeoJSON"},
+                        "result": True,
+                    }
+                }
+            )
+        assert res.json == DictSubSet({"type": "FeatureCollection", "features": expected})
+
 
 def test_no_nested_JSONResult(api):
     api.set_auth_bearer_token()
@@ -1855,6 +2241,7 @@ def test_user_defined_process_required_parameter(api100, udp_registry):
 
 @pytest.mark.parametrize("set_parameter", [False, True])
 def test_udp_udf_reduce_dimension(api100, udp_registry, set_parameter):
+    # TODO: eliminate this test?
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     spec = api100.load_json("udp/udf_reduce_dimension.json")
     udp_registry.save(user_id=TEST_USER, process_id="udf_reduce_dimension", spec=spec)
@@ -1880,6 +2267,217 @@ def test_udp_udf_reduce_dimension(api100, udp_registry, set_parameter):
     assert env.collect_parameters()["udfparam"] == expected_param
 
 
+class TestParameterHandingUdpWithUdf:
+    """
+    Tests for parameter handling with UDP doing a reduce_dimension/apply/apply_dimension/... and a UDF
+    """
+
+    def _build_udp(
+        self,
+        parent: str,
+        *,
+        parent_context: Optional[dict] = None,
+        udf_context: Optional[dict] = None,
+    ) -> dict:
+        """Build UDP as dict"""
+        run_udf_args = {"data": {"from_parameter": "data"}, "udf": "print('hello world')", "runtime": "Python"}
+        if udf_context:
+            run_udf_args["context"] = udf_context
+
+        child = {"process_graph": {"runudf1": {"process_id": "run_udf", "arguments": run_udf_args, "result": True}}}
+
+        parent_args = {
+            "data": {"from_parameter": "data"},
+        }
+        if parent in ["reduce_dimension", "apply_dimension"]:
+            parent_args["dimension"] = "bands"
+        elif parent in ["apply_neighborhood"]:
+            parent_args["size"] = [
+                {"dimension": "x", "value": 128, "unit": "px"},
+                {"dimension": "y", "value": 128, "unit": "px"},
+            ]
+            parent_args["overlap"] = [
+                {"dimension": "x", "value": 16, "unit": "px"},
+                {"dimension": "y", "value": 16, "unit": "px"},
+            ]
+        if parent in ["reduce_dimension"]:
+            parent_args["reducer"] = child
+        elif parent in ["apply", "apply_dimension", "apply_neighborhood"]:
+            parent_args["process"] = child
+        else:
+            raise ValueError(parent)
+        if parent_context:
+            parent_args["context"] = parent_context
+
+        udp = {
+            "id": "parameterized_udf",
+            "parameters": [
+                {"name": "data", "schema": {"type": "object", "subtype": "raster-cube"}},
+                {
+                    "name": "udp_param",
+                    "schema": {"type": "string"},
+                    "optional": True,
+                    "default": "udp_param_default",
+                },
+            ],
+            "returns": {"schema": {"type": "object", "subtype": "raster-cube"}},
+            "process_graph": {
+                "parent1": {
+                    "process_id": parent,
+                    "arguments": parent_args,
+                    "result": True,
+                }
+            },
+        }
+        return udp
+
+    def _build_process_graph(self, udp_param: Optional[str] = None) -> dict:
+        udp_args = {"data": {"from_node": "loadcollection1"}}
+        if udp_param:
+            udp_args["udp_param"] = udp_param
+        pg = {
+            "loadcollection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+            "parameterizedudf1": {
+                "process_id": "parameterized_udf",
+                "namespace": "user",
+                "arguments": udp_args,
+                "result": True,
+            },
+        }
+        return pg
+
+    @dataclasses.dataclass(frozen=True)
+    class _UseCase:
+        parent_context: Optional[dict]
+        udf_context: Optional[dict]
+        set_udp_parameter: bool
+        expected_context: Optional[dict]
+        expected_udp_param: Optional[str]
+
+    _use_cases = [
+        _UseCase(
+            parent_context=None,
+            udf_context={"udf_param": {"from_parameter": "udp_param"}},
+            set_udp_parameter=False,
+            expected_context=None,
+            expected_udp_param="udp_param_default",
+        ),
+        _UseCase(
+            parent_context=None,
+            udf_context={"udf_param": {"from_parameter": "udp_param"}},
+            set_udp_parameter=True,
+            expected_context=None,
+            expected_udp_param="udp_param_123",
+        ),
+        _UseCase(
+            parent_context={"udf_param": {"from_parameter": "udp_param"}},
+            udf_context={"from_parameter": "context"},
+            set_udp_parameter=False,
+            expected_context={"udf_param": "udp_param_default"},
+            expected_udp_param="udp_param_default",
+        ),
+        _UseCase(
+            parent_context={"udf_param": {"from_parameter": "udp_param"}},
+            udf_context={"from_parameter": "context"},
+            set_udp_parameter=True,
+            expected_context={"udf_param": "udp_param_123"},
+            expected_udp_param="udp_param_123",
+        ),
+    ]
+
+    @pytest.mark.parametrize("use_case", _use_cases)
+    def test_reduce_dimension(self, api100, udp_registry, use_case: _UseCase):
+        api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+
+        # Build + register UDP, build process graph and execute.
+        udp = self._build_udp(
+            parent="reduce_dimension", parent_context=use_case.parent_context, udf_context=use_case.udf_context
+        )
+        udp_registry.save(user_id=TEST_USER, process_id="parameterized_udf", spec=udp)
+        pg = self._build_process_graph(udp_param="udp_param_123" if use_case.set_udp_parameter else None)
+        print(f"{udp=})")
+        print(f"{pg=}")
+        _ = api100.result(pg).assert_status_code(200)
+
+        parent_mock: mock.Mock = dummy_backend.get_collection("S2_FOOBAR").reduce_dimension
+        assert parent_mock.mock_calls == [
+            mock.call(reducer=mock.ANY, dimension="bands", context=use_case.expected_context, env=mock.ANY)
+        ]
+        parent_env: EvalEnv = parent_mock.call_args.kwargs["env"]
+        assert parent_env.collect_parameters()["udp_param"] == use_case.expected_udp_param
+
+    @pytest.mark.parametrize("use_case", _use_cases)
+    def test_apply(self, api100, udp_registry, use_case: _UseCase):
+        api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+
+        # Build + register UDP, build process graph and execute.
+        udp = self._build_udp(parent="apply", parent_context=use_case.parent_context, udf_context=use_case.udf_context)
+        udp_registry.save(user_id=TEST_USER, process_id="parameterized_udf", spec=udp)
+        pg = self._build_process_graph(udp_param="udp_param_123" if use_case.set_udp_parameter else None)
+        print(f"{udp=})")
+        print(f"{pg=}")
+        _ = api100.result(pg).assert_status_code(200)
+
+        parent_mock: mock.Mock = dummy_backend.get_collection("S2_FOOBAR").apply
+        assert parent_mock.mock_calls == [mock.call(process=mock.ANY, context=use_case.expected_context, env=mock.ANY)]
+        parent_env: EvalEnv = parent_mock.call_args.kwargs["env"]
+        assert parent_env.collect_parameters()["udp_param"] == use_case.expected_udp_param
+
+    @pytest.mark.parametrize("use_case", _use_cases)
+    def test_apply_dimension(self, api100, udp_registry, use_case: _UseCase):
+        api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+
+        # Build + register UDP, build process graph and execute.
+        udp = self._build_udp(
+            parent="apply_dimension", parent_context=use_case.parent_context, udf_context=use_case.udf_context
+        )
+        udp_registry.save(user_id=TEST_USER, process_id="parameterized_udf", spec=udp)
+        pg = self._build_process_graph(udp_param="udp_param_123" if use_case.set_udp_parameter else None)
+        print(f"{udp=})")
+        print(f"{pg=}")
+        _ = api100.result(pg).assert_status_code(200)
+
+        parent_mock: mock.Mock = dummy_backend.get_collection("S2_FOOBAR").apply_dimension
+        assert parent_mock.mock_calls == [
+            mock.call(
+                process=mock.ANY,
+                dimension="bands",
+                target_dimension=None,
+                context=use_case.expected_context,
+                env=mock.ANY,
+            )
+        ]
+        parent_env: EvalEnv = parent_mock.call_args.kwargs["env"]
+        assert parent_env.collect_parameters()["udp_param"] == use_case.expected_udp_param
+
+    @pytest.mark.parametrize("use_case", _use_cases)
+    def test_apply_neighborhood(self, api100, udp_registry, use_case: _UseCase):
+        api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+
+        # Build + register UDP, build process graph and execute.
+        udp = self._build_udp(
+            parent="apply_neighborhood", parent_context=use_case.parent_context, udf_context=use_case.udf_context
+        )
+        udp_registry.save(user_id=TEST_USER, process_id="parameterized_udf", spec=udp)
+        pg = self._build_process_graph(udp_param="udp_param_123" if use_case.set_udp_parameter else None)
+        print(f"{udp=})")
+        print(f"{pg=}")
+        _ = api100.result(pg).assert_status_code(200)
+
+        parent_mock: mock.Mock = dummy_backend.get_collection("S2_FOOBAR").apply_neighborhood
+        assert parent_mock.mock_calls == [
+            mock.call(
+                process=mock.ANY,
+                size=mock.ANY,
+                overlap=mock.ANY,
+                context=use_case.expected_context,
+                env=mock.ANY,
+            )
+        ]
+        parent_env: EvalEnv = parent_mock.call_args.kwargs["env"]
+        assert parent_env.collect_parameters()["udp_param"] == use_case.expected_udp_param
+
+
 @pytest.mark.parametrize("set_parameter", [False, True])
 def test_udp_apply_neighborhood(api100, udp_registry, set_parameter):
     api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
@@ -1895,15 +2493,17 @@ def test_udp_apply_neighborhood(api100, udp_registry, set_parameter):
             "process_id": "udf_apply_neighborhood", "namespace": "user", "arguments": udp_args, "result": True
         }
     }
+    expected_param = "test_the_udfparam" if set_parameter else "udfparam_default"
 
     response = api100.result(pg).assert_status_code(200)
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.apply_neighborhood.call_count == 1
-    dummy.apply_neighborhood.assert_called_with(process=mock.ANY, size=mock.ANY, overlap=mock.ANY, env=mock.ANY)
+    dummy.apply_neighborhood.assert_called_with(
+        process=mock.ANY, size=mock.ANY, overlap=mock.ANY, env=mock.ANY, context=None
+    )
     args, kwargs = dummy.apply_neighborhood.call_args
     assert "runudf1" in kwargs["process"]
     env: EvalEnv = kwargs["env"]
-    expected_param = "test_the_udfparam" if set_parameter else "udfparam_default"
     assert env.collect_parameters()["udfparam"] == expected_param
 
 
@@ -2148,6 +2748,7 @@ def test_execute_no_cube_logic(api100, process_graph, expected):
         ("text_ends", {"data": "FooBar", "pattern": "Foo"}, False),
         ("text_ends", {"data": "FooBar", "pattern": "bar"}, False),
         ("text_ends", {"data": "FooBar", "pattern": "bar", "case_sensitive": False}, True),
+        # TODO: `text_merge` is deprecated (in favor of `text_concat`)
         ("text_merge", {"data": ["foo", "bar"]}, "foobar"),
         ("text_merge", {"data": ["foo", "bar"], "separator": "--"}, "foo--bar"),
         ("text_merge", {"data": [1, 2, 3], "separator": "/"}, "1/2/3"),
@@ -2947,10 +3548,10 @@ def test_fit_class_random_forest(api100):
                                     "id": "0",
                                     "geometry": geom1,
                                     "properties": {
-                                        "agg~B02": 2.345,
-                                        "agg~B03": None,
-                                        "agg~B04": 2.0,
-                                        "agg~B08": 3.0,
+                                        "B02": 2.345,
+                                        "B03": None,
+                                        "B04": 2.0,
+                                        "B08": 3.0,
                                         "target": 0,
                                     },
                                 }
@@ -2961,10 +3562,10 @@ def test_fit_class_random_forest(api100):
                                     "id": "1",
                                     "geometry": geom2,
                                     "properties": {
-                                        "agg~B02": 4.0,
-                                        "agg~B03": 5.0,
-                                        "agg~B04": 6.0,
-                                        "agg~B08": 7.0,
+                                        "B02": 4.0,
+                                        "B03": 5.0,
+                                        "B04": 6.0,
+                                        "B08": 7.0,
                                         "target": 1,
                                     },
                                 }
@@ -3027,82 +3628,6 @@ def test_if_merge_cubes(api100):
     })
 
 
-@pytest.mark.parametrize(["geojson", "expected"], [
-    (
-            {"type": "Polygon", "coordinates": [[(1, 1), (3, 1), (2, 3), (1, 1)]]},
-            [
-                {
-                    "type": "Feature",
-                    "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
-                    "properties": {},
-                },
-            ],
-    ),
-    (
-            {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
-            [
-                {
-                    "type": "Feature",
-                    "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
-                    "properties": {},
-                },
-            ],
-    ),
-    (
-            {
-                "type": "Feature",
-                "geometry": {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
-                "properties": {"id": "12_3"},
-            },
-            [
-                {
-                    "type": "Feature",
-                    "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
-                    "properties": {"id": "12_3"},
-                },
-            ],
-    ),
-    (
-            {
-                "type": "FeatureCollection",
-                "features": [
-                    {
-                        "type": "Feature",
-                        "geometry": {"type": "Polygon", "coordinates": [[(1, 1), (3, 1), (2, 3), (1, 1)]]},
-                        "properties": {"id": 1},
-                    },
-                    {
-                        "type": "Feature",
-                        "geometry": {"type": "MultiPolygon", "coordinates": [[[(1, 1), (3, 1), (2, 3), (1, 1)]]]},
-                        "properties": {"id": 2},
-                    },
-                ]},
-            [
-                {
-                    "type": "Feature",
-                    "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
-                    "properties": {"id": 1},
-                },
-                {
-                    "type": "Feature",
-                    "geometry": {"type": "MultiPolygon", "coordinates": [[[[1, 1], [3, 1], [2, 3], [1, 1]]]]},
-                    "properties": {"id": 2},
-                },
-            ],
-    ),
-])
-def test_to_vector_cube(api100, geojson, expected):
-    res = api100.check_result({
-        "vc": {
-            "process_id": "to_vector_cube",
-            "arguments": {"data": geojson},
-            "result": True,
-        }
-    })
-    assert res.json == DictSubSet({
-        "type": "FeatureCollection",
-        "features": expected,
-    })
 
 
 def test_vector_buffer_returns_error_on_empty_result_geometry(api):
@@ -3185,3 +3710,284 @@ def test_request_costs_for_failed_request(api, backend_implementation):
     assert env["correlation_id"] == "r-abc123"
 
     get_request_costs.assert_called_with(TEST_USER, "r-abc123", False)
+
+
+class TestVectorCubeRunUDF:
+    """
+    Tests about running UDF based manipulations on vector cubes
+
+    References:
+    - https://github.com/Open-EO/openeo-python-driver/issues/197
+    - https://github.com/Open-EO/openeo-python-driver/pull/200
+    - https://github.com/Open-EO/openeo-geopyspark-driver/issues/437
+    """
+
+    def _build_run_udf_callback(self, udf_code: str) -> dict:
+        udf_code = textwrap.dedent(udf_code)
+        return {
+            "process_graph": {
+                "runudf1": {
+                    "process_id": "run_udf",
+                    "arguments": {
+                        "data": {"from_parameter": "data"},
+                        "udf": udf_code,
+                        "runtime": "Python",
+                    },
+                    "result": True,
+                }
+            },
+        }
+
+    @pytest.mark.parametrize(
+        "dimension",
+        [
+            "properties",
+            "geometries",
+        ],
+    )
+    def test_apply_dimension_run_udf_change_geometry(self, api100, dimension):
+        """VectorCube + apply_dimension + UDF (changing geometry)"""
+        process_graph = {
+            "load": {
+                "process_id": "load_geojson",
+                "arguments": {
+                    "data": load_json("geojson/FeatureCollection02.json"),
+                    "properties": ["pop"],
+                },
+            },
+            "apply_dimension": {
+                "process_id": "apply_dimension",
+                "arguments": {
+                    "data": {"from_node": "load"},
+                    "dimension": dimension,
+                    "process": self._build_run_udf_callback(
+                        """
+                        from openeo.udf import UdfData, FeatureCollection
+                        def process_geometries(udf_data: UdfData) -> UdfData:
+                            [feature_collection] = udf_data.get_feature_collection_list()
+                            gdf = feature_collection.data
+                            gdf["geometry"] = gdf["geometry"].buffer(distance=1, resolution=2)
+                            udf_data.set_feature_collection_list([
+                                FeatureCollection(id="_", data=gdf),
+                            ])
+                        """
+                    ),
+                },
+                "result": True,
+            },
+        }
+        resp = api100.check_result(process_graph)
+        assert resp.json == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "geometry": ApproxGeoJSONByBounds(0, 0, 4, 4, types=["Polygon"], abs=0.1),
+                        "properties": {"id": "first", "pop": 1234},
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": ApproxGeoJSONByBounds(2, 1, 6, 5, types=["Polygon"], abs=0.1),
+                        "properties": {"id": "second", "pop": 5678},
+                    },
+                ],
+            }
+        )
+
+    @pytest.mark.parametrize(
+        "dimension",
+        [
+            # TODO: this "dimension="properties" use case does not strictly follow the openEO API spec
+            #       `apply_dimension` only allows changing the cardinality of the provided dimension ("properties"),
+            #       not any other dimension ("geometries" here).
+            "properties",
+            "geometries",
+        ],
+    )
+    def test_apply_dimension_run_udf_filter_on_geometries(self, api100, dimension):
+        """
+        Test to use `apply_dimension(dimension="...", process=UDF)` to filter out certain
+        entries from geometries dimension based on geometry (e.g. intersection with another geometry)
+        """
+        process_graph = {
+            "load": {
+                "process_id": "load_geojson",
+                "arguments": {
+                    "data": load_json("geojson/FeatureCollection10.json"),
+                    "properties": ["pop"],
+                },
+            },
+            "apply_dimension": {
+                "process_id": "apply_dimension",
+                "arguments": {
+                    "data": {"from_node": "load"},
+                    "dimension": dimension,
+                    "process": self._build_run_udf_callback(
+                        """
+                        from openeo.udf import UdfData, FeatureCollection
+                        import shapely.geometry
+                        def process_geometries(udf_data: UdfData) -> UdfData:
+                            [feature_collection] = udf_data.get_feature_collection_list()
+                            gdf = feature_collection.data
+                            to_intersect = shapely.geometry.box(4, 3, 8, 4)
+                            gdf = gdf[gdf["geometry"].intersects(to_intersect)]
+                            udf_data.set_feature_collection_list([
+                                FeatureCollection(id="_", data=gdf),
+                            ])
+                        """
+                    ),
+                },
+                "result": True,
+            },
+        }
+        resp = api100.check_result(process_graph)
+        assert resp.json == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "geometry": ApproxGeoJSONByBounds(3, 2, 5, 4, types=["Polygon"], abs=0.1),
+                        "properties": {"id": "second", "pop": 456},
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": ApproxGeoJSONByBounds(6, 2, 12, 6, types=["Polygon"], abs=0.1),
+                        "properties": {"id": "third", "pop": 789},
+                    },
+                ],
+            }
+        )
+
+    @pytest.mark.parametrize(
+        "dimension",
+        [
+            # TODO: this "dimension="properties" use case does not strictly follow the openEO API spec
+            #       `apply_dimension` only allows changing the cardinality of the provided dimension ("properties"),
+            #       not any other dimension ("geometries" here).
+            "properties",
+            "geometries",
+        ],
+    )
+    def test_apply_dimension_run_udf_filter_on_properties(self, api100, dimension):
+        """
+        Test to use `apply_dimension(dimension="...", process=UDF)` to filter out certain
+        entries from geometries dimension, based on feature properties
+
+        Note in case of dimension="properties":
+            strictly speaking, this approach draws outside the lines of the openEO API spec
+            as apply_dimension only allows changing the cardinality of the provided dimension ("properties" in this case),
+            not any other dimension (like "geometries" in this case).
+        """
+        process_graph = {
+            "load": {
+                "process_id": "load_geojson",
+                "arguments": {
+                    "data": load_json("geojson/FeatureCollection10.json"),
+                    "properties": ["pop"],
+                },
+            },
+            "apply_dimension": {
+                "process_id": "apply_dimension",
+                "arguments": {
+                    "data": {"from_node": "load"},
+                    "dimension": dimension,
+                    "process": self._build_run_udf_callback(
+                        """
+                        from openeo.udf import UdfData, FeatureCollection
+                        import shapely.geometry
+                        def process_geometries(udf_data: UdfData) -> UdfData:
+                            [feature_collection] = udf_data.get_feature_collection_list()
+                            gdf = feature_collection.data
+                            gdf = gdf[gdf["pop"] > 500]
+                            udf_data.set_feature_collection_list([
+                                FeatureCollection(id="_", data=gdf),
+                            ])
+                        """
+                    ),
+                },
+                "result": True,
+            },
+        }
+        resp = api100.check_result(process_graph)
+        assert resp.json == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "geometry": ApproxGeoJSONByBounds(6.0, 2.0, 12.0, 6.0, types=["Polygon"], abs=0.1),
+                        "properties": {"id": "third", "pop": 789},
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": ApproxGeoJSONByBounds(-2.0, 7.0, 5.0, 14.0, types=["Polygon"], abs=0.1),
+                        "properties": {"id": "fourth", "pop": 101112},
+                    },
+                ],
+            }
+        )
+
+    @pytest.mark.parametrize(
+        "dimension",
+        [
+            "properties",
+            # TODO: this "dimension="geometries" use case does not strictly follow the openEO API spec
+            #       `apply_dimension` only allows changing the cardinality of the provided dimension ("geometries"),
+            #       not any other dimension ("properties" here).
+            "geometries",
+        ],
+    )
+    def test_apply_dimension_run_udf_add_properties(self, api100, dimension):
+        """
+        Test to use `apply_dimension(dimension="...", process=UDF)` to add properties
+        """
+        process_graph = {
+            "load": {
+                "process_id": "load_geojson",
+                "arguments": {
+                    "data": load_json("geojson/FeatureCollection02.json"),
+                    "properties": ["pop"],
+                },
+            },
+            "apply_dimension": {
+                "process_id": "apply_dimension",
+                "arguments": {
+                    "data": {"from_node": "load"},
+                    "dimension": dimension,
+                    "process": self._build_run_udf_callback(
+                        """
+                        from openeo.udf import UdfData, FeatureCollection
+                        import shapely.geometry
+                        def process_geometries(udf_data: UdfData) -> UdfData:
+                            [feature_collection] = udf_data.get_feature_collection_list()
+                            gdf = feature_collection.data
+                            gdf["poppop"] = gdf["pop"] ** 2
+                            udf_data.set_feature_collection_list([
+                                FeatureCollection(id="_", data=gdf),
+                            ])
+                        """
+                    ),
+                },
+                "result": True,
+            },
+        }
+        resp = api100.check_result(process_graph)
+        assert resp.json == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "geometry": ApproxGeoJSONByBounds(1.0, 1.0, 3.0, 3.0, types=["Polygon"], abs=0.1),
+                        "properties": {"id": "first", "pop": 1234, "poppop": 1234 * 1234},
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": ApproxGeoJSONByBounds(3.0, 2.0, 5.0, 4.0, types=["Polygon"], abs=0.1),
+                        "properties": {"id": "second", "pop": 5678, "poppop": 5678 * 5678},
+                    },
+                ],
+            }
+        )

@@ -3,20 +3,26 @@ import io
 import logging
 import os
 import time
+from typing import Optional
 from unittest import mock
 
 import flask
 import pytest
 import pythonjsonlogger.jsonlogger
 
+import openeo_driver.config.load
 import openeo_driver.dummy.dummy_config
 from openeo_driver.backend import UserDefinedProcesses
 from openeo_driver.config import OpenEoBackendConfig
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
-from openeo_driver.server import build_backend_deploy_metadata
 from openeo_driver.testing import UrllibMocker
-from openeo_driver.util.logging import FlaskUserIdLogging, FlaskRequestCorrelationIdLogging, BatchJobLoggingFilter, \
-    LOGGING_CONTEXT_FLASK, LOGGING_CONTEXT_BATCH_JOB
+from openeo_driver.util.logging import (
+    LOGGING_CONTEXT_BATCH_JOB,
+    LOGGING_CONTEXT_FLASK,
+    BatchJobLoggingFilter,
+    FlaskRequestCorrelationIdLogging,
+    FlaskUserIdLogging,
+)
 from openeo_driver.views import build_app
 
 pytest_plugins = "pytester"
@@ -31,8 +37,29 @@ def pytest_configure(config):
     os.environ["OPENEO_BACKEND_CONFIG"] = openeo_driver.dummy.dummy_config.__file__
 
 
-@pytest.fixture(scope="module")
-def backend_implementation() -> DummyBackendImplementation:
+@pytest.fixture
+def backend_config_overrides() -> Optional[dict]:
+    # No overrides by default
+    return None
+
+
+@pytest.fixture
+def backend_config(backend_config_overrides) -> OpenEoBackendConfig:
+    """
+    Fixture to get the default OpenEoBackendConfig and optionally override some fields
+    during the lifetime of a test through parameterization of the `backend_config_overrides` fixture.
+    """
+    if backend_config_overrides is None:
+        yield openeo_driver.config.load.get_backend_config()
+    else:
+        with openeo_driver.config.load._backend_config_getter._pytest_override_context(
+            overrides=backend_config_overrides
+        ):
+            yield openeo_driver.config.load.get_backend_config()
+
+
+@pytest.fixture
+def backend_implementation(backend_config) -> DummyBackendImplementation:
     return DummyBackendImplementation()
 
 
@@ -43,16 +70,12 @@ def udp_registry(backend_implementation) -> UserDefinedProcesses:
 
 # TODO: move this to dummy config file
 TEST_APP_CONFIG = dict(
-    OPENEO_TITLE="openEO Unit Test Dummy Backend",
     TESTING=True,
     SERVER_NAME='oeo.net',
-    OPENEO_BACKEND_DEPLOY_METADATA=build_backend_deploy_metadata(
-        packages=["openeo", "openeo_driver"]
-    ),
 )
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def flask_app(backend_implementation) -> flask.Flask:
     app = build_app(
         backend_implementation=backend_implementation,

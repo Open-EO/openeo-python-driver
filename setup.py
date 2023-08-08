@@ -24,7 +24,7 @@ tests_require = [
     "openeo_udf>=1.0.0rc3",
     "boto3[s3]>=1.26.17",
     "moto>=4.0.10",
-    "time-machine",
+    "time-machine>=2.8.0",
     "netCDF4>=1.5.4",
     "re-assert",
     "pyarrow>=10.0.0",
@@ -60,6 +60,7 @@ setup(
         "python-json-logger>=2.0.0",
         "deprecated>=1.2.12",
         "importlib_resources; python_version<'3.10'",
+        "attrs",
     ],
     extras_require={
         "dev": tests_require,

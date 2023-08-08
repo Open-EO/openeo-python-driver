@@ -110,7 +110,7 @@ def test_eval_stack_parameters():
     s1 = s0.push(parameters={"color": "red", "size": 1})
     s2 = s1.push({"parameters": {"size": 3}})
     s3 = s2.push(user="alice")
-    s4 = s3.push(parameters={"color": "green", "height": 88})
+    s4 = s3.push_parameters({"color": "green", "height": 88})
     assert s0.collect_parameters() == {}
     assert s1.collect_parameters() == {"color": "red", "size": 1}
     assert s2.collect_parameters() == {"color": "red", "size": 3}

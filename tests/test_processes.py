@@ -1,7 +1,16 @@
+import re
+
 import pytest
 
-from openeo_driver.errors import ProcessUnsupportedException, ProcessParameterRequiredException
-from openeo_driver.processes import ProcessSpec, ProcessRegistry, ProcessRegistryException
+from openeo_driver.datacube import DriverDataCube
+from openeo_driver.errors import (
+    FileTypeInvalidException,
+    OpenEOApiException,
+    ProcessParameterInvalidException,
+    ProcessParameterRequiredException,
+    ProcessUnsupportedException,
+)
+from openeo_driver.processes import ProcessArgs, ProcessRegistry, ProcessRegistryException, ProcessSpec
 
 
 def test_process_spec_basic_040():
@@ -392,7 +401,7 @@ def test_process_registry_add_simple_function():
 
     assert process(args={"x": 2, "y": 3}, env=None) == 5
     assert process(args={"x": 2}, env=None) == 102
-    with pytest.raises(ProcessParameterRequiredException):
+    with pytest.raises(ProcessParameterRequiredException, match="Process 'add' parameter 'x' is required."):
         _ = process(args={}, env=None)
 
 
@@ -408,5 +417,249 @@ def test_process_registry_add_simple_function_with_name():
     assert process(args={"value": True, "accept": 3}, env=None) == 3
     assert process(args={"value": False, "accept": 3}, env=None) is None
     assert process(args={"value": False, "accept": 3, "reject": 5}, env=None) == 5
-    with pytest.raises(ProcessParameterRequiredException):
+    with pytest.raises(ProcessParameterRequiredException, match="Process 'if' parameter 'value' is required."):
         _ = process(args={}, env=None)
+
+
+def test_process_registry_add_simple_function_with_spec():
+    reg = ProcessRegistry(argument_names=["args", "env"])
+
+    @reg.add_simple_function(spec={"id": "something_custom"})
+    def something_custom(x: int, y: int = 123):
+        return x + y
+
+    process = reg.get_function("something_custom")
+
+    assert process(args={"x": 5, "y": 3}, env=None) == 8
+    assert process(args={"x": 5}, env=None) == 128
+    with pytest.raises(
+        ProcessParameterRequiredException, match="Process 'something_custom' parameter 'x' is required."
+    ):
+        _ = process(args={}, env=None)
+
+
+class TestProcessArgs:
+    def test_dict(self):
+        args = ProcessArgs({"foo": "bar"}, process_id="wibble")
+        assert isinstance(args, dict)
+
+    def test_get_required(self):
+        args = ProcessArgs({"foo": "bar"}, process_id="wibble")
+        assert args.get_required("foo") == "bar"
+        with pytest.raises(ProcessParameterRequiredException, match="Process 'wibble' parameter 'other' is required."):
+            _ = args.get_required("other")
+
+    def test_get_required_with_type(self):
+        args = ProcessArgs({"color": "red", "size": 5}, process_id="wibble")
+        assert args.get_required("color", expected_type=str) == "red"
+        assert args.get_required("color", expected_type=(str, int)) == "red"
+        assert args.get_required("size", expected_type=int) == 5
+        assert args.get_required("size", expected_type=(str, int)) == 5
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'color' in process 'wibble' is invalid: Expected <class 'openeo_driver.datacube.DriverDataCube'> but got <class 'str'>."
+            ),
+        ):
+            _ = args.get_required("color", expected_type=DriverDataCube)
+
+    def test_get_required_with_validator(self):
+        args = ProcessArgs({"color": "red", "size": 5}, process_id="wibble")
+        assert args.get_required("color", expected_type=str, validator=lambda v: len(v) == 3) == "red"
+        assert (
+            args.get_required(
+                "color", expected_type=str, validator=ProcessArgs.validator_one_of(["red", "green", "blue"])
+            )
+            == "red"
+        )
+        assert args.get_required("size", expected_type=int, validator=lambda v: v % 3 == 2) == 5
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'color' in process 'wibble' is invalid: Failed validation."
+            ),
+        ):
+            _ = args.get_required("color", expected_type=str, validator=lambda v: len(v) == 10)
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape("The value passed for parameter 'size' in process 'wibble' is invalid: Failed validation."),
+        ):
+            _ = args.get_required("size", expected_type=int, validator=lambda v: v % 3 == 1)
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'color' in process 'wibble' is invalid: Must be one of ['yellow', 'violet'] but got 'red'."
+            ),
+        ):
+            _ = args.get_required(
+                "color", expected_type=str, validator=ProcessArgs.validator_one_of(["yellow", "violet"])
+            )
+
+    def test_get_optional(self):
+        args = ProcessArgs({"foo": "bar"}, process_id="wibble")
+        assert args.get_optional("foo") == "bar"
+        assert args.get_optional("other") is None
+        assert args.get_optional("foo", 123) == "bar"
+        assert args.get_optional("other", 123) == 123
+
+    def test_get_optional_callable_default(self):
+        args = ProcessArgs({"foo": "bar"}, process_id="wibble")
+        assert args.get_optional("foo", default=lambda: 123) == "bar"
+        assert args.get_optional("other", default=lambda: 123) == 123
+
+        # Possible, but probably a bad idea:
+        default = [1, 2, 3].pop
+        assert args.get_optional("other", default=default) == 3
+        assert args.get_optional("other", default=default) == 2
+
+    def test_get_optional_with_type(self):
+        args = ProcessArgs({"foo": "bar"}, process_id="wibble")
+        assert args.get_optional("foo", expected_type=str) == "bar"
+        assert args.get_optional("foo", expected_type=(str, int)) == "bar"
+        assert args.get_optional("other", expected_type=str) is None
+        assert args.get_optional("foo", 123, expected_type=(str, int)) == "bar"
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'foo' in process 'wibble' is invalid: Expected <class 'openeo_driver.datacube.DriverDataCube'> but got <class 'str'>."
+            ),
+        ):
+            _ = args.get_optional("foo", expected_type=DriverDataCube)
+
+    def test_get_optional_with_validator(self):
+        args = ProcessArgs({"foo": "bar"}, process_id="wibble")
+        assert args.get_optional("foo", validator=lambda s: all(c.lower() for c in s)) == "bar"
+        assert args.get_optional("foo", validator=ProcessArgs.validator_one_of(["bar", "meh"])) == "bar"
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape("The value passed for parameter 'foo' in process 'wibble' is invalid: Failed validation."),
+        ):
+            _ = args.get_optional("foo", validator=lambda s: all(c.isupper() for c in s))
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'foo' in process 'wibble' is invalid: Must be one of ['nope', 'meh'] but got 'bar'."
+            ),
+        ):
+            _ = args.get_optional("foo", validator=ProcessArgs.validator_one_of(["nope", "meh"]))
+
+    def test_get_deep(self):
+        args = ProcessArgs({"foo": {"bar": {"color": "red", "size": {"x": 5, "y": 8}}}}, process_id="wibble")
+        assert args.get_deep("foo", "bar") == {"color": "red", "size": {"x": 5, "y": 8}}
+        assert args.get_deep("foo", "bar", "color") == "red"
+        assert args.get_deep("foo", "bar", "size", "y") == 8
+
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match="The value passed for parameter 'foo' in process 'wibble' is invalid: step='z'",
+        ):
+            _ = args.get_deep("foo", "bar", "size", "z")
+
+    def test_get_deep_with_type(self):
+        args = ProcessArgs({"foo": {"bar": {"color": "red", "size": {"x": 5, "y": 8}}}}, process_id="wibble")
+        assert args.get_deep("foo", "bar", "color", expected_type=str) == "red"
+        assert args.get_deep("foo", "bar", "color", expected_type=(str, int)) == "red"
+        assert args.get_deep("foo", "bar", "size", "x", expected_type=(str, int)) == 5
+
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'foo' in process 'wibble' is invalid: Expected (<class 'openeo_driver.datacube.DriverDataCube'>, <class 'str'>) but got <class 'int'>."
+            ),
+        ):
+            _ = args.get_deep("foo", "bar", "size", "x", expected_type=(DriverDataCube, str))
+
+    def test_get_deep_with_validator(self):
+        args = ProcessArgs({"foo": {"bar": {"color": "red", "size": {"x": 5, "y": 8}}}}, process_id="wibble")
+        assert args.get_deep("foo", "bar", "size", "x", validator=lambda v: v % 5 == 0) == 5
+
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape("The value passed for parameter 'foo' in process 'wibble' is invalid: Failed validation."),
+        ):
+            _ = args.get_deep("foo", "bar", "size", "y", validator=lambda v: v % 5 == 0)
+
+    def test_get_aliased(self):
+        args = ProcessArgs({"size": 5, "color": "red"}, process_id="wibble")
+        assert args.get_aliased(["size", "dimensions"]) == 5
+        assert args.get_aliased(["dimensions", "size"]) == 5
+        assert args.get_aliased(["size", "color"]) == 5
+        assert args.get_aliased(["color", "size"]) == "red"
+        with pytest.raises(
+            ProcessParameterRequiredException,
+            match=re.escape("Process 'wibble' parameter '['shape', 'height']' is required."),
+        ):
+            _ = args.get_aliased(["shape", "height"])
+
+    def test_get_subset(self):
+        args = ProcessArgs({"size": 5, "color": "red", "shape": "circle"}, process_id="wibble")
+        assert args.get_subset(["size", "color"]) == {"size": 5, "color": "red"}
+        assert args.get_subset(["size", "height"]) == {"size": 5}
+        assert args.get_subset(["meh"]) == {}
+        assert args.get_subset(["color"], aliases={"shape": "form"}) == {"color": "red", "form": "circle"}
+        assert args.get_subset(["color"], aliases={"foo": "bar"}) == {"color": "red"}
+
+    def test_get_enum(self):
+        args = ProcessArgs({"size": 5, "color": "red"}, process_id="wibble")
+        assert args.get_enum("color", options=["red", "green", "blue"]) == "red"
+        assert args.get_enum("size", options={3, 5, 8}) == 5
+
+        with pytest.raises(ProcessParameterRequiredException, match="Process 'wibble' parameter 'shape' is required."):
+            _ = args.get_enum("shape", options=["circle", "square"])
+
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'color' in process 'wibble' is invalid: Invalid enum value 'red'. Expected one of ['R', 'G', 'B']."
+            ),
+        ):
+            _ = args.get_enum("color", options=["R", "G", "B"])
+
+    def test_validator_geojson_dict(self):
+        polygon = {"type": "Polygon", "coordinates": [[1, 2]]}
+        args = ProcessArgs({"geometry": polygon, "color": "red"}, process_id="wibble")
+
+        validator = ProcessArgs.validator_geojson_dict()
+        assert args.get_required("geometry", validator=validator) == polygon
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'color' in process 'wibble' is invalid: Invalid GeoJSON: JSON object (mapping/dictionary) expected, but got str."
+            ),
+        ):
+            _ = args.get_required("color", validator=validator)
+
+        validator = ProcessArgs.validator_geojson_dict(allowed_types=["FeatureCollection"])
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'geometry' in process 'wibble' is invalid: Invalid GeoJSON: Found type 'Polygon', but expects one of ['FeatureCollection']."
+            ),
+        ):
+            _ = args.get_required("geometry", validator=validator)
+
+    @pytest.mark.parametrize(
+        ["formats"],
+        [
+            (["GeoJSON", "CSV"],),
+            ({"GeoJSON": {}, "CSV": {}},),
+        ],
+    )
+    def test_validator_file_format(self, formats):
+        args = ProcessArgs(
+            {"format1": "GeoJSON", "format2": "geojson", "format3": "TooExotic"},
+            process_id="wibble",
+        )
+
+        validator = ProcessArgs.validator_file_format(formats=formats)
+
+        assert args.get_required("format1", validator=validator) == "GeoJSON"
+        assert args.get_required("format2", validator=validator) == "geojson"
+
+        with pytest.raises(
+            OpenEOApiException,
+            match=re.escape("Invalid file format 'TooExotic'. Allowed formats: GeoJSON, CSV"),
+        ) as exc_info:
+            _ = args.get_required("format3", validator=validator)
+
+        assert exc_info.value.code == "FormatUnsuitable"

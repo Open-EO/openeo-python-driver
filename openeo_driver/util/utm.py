@@ -1,11 +1,13 @@
-import math
-from functools import partial
+import logging
 from typing import Tuple, Union
 
+import math
 import pyproj
 import shapely.ops
 from pyproj import Geod
 from shapely.geometry.base import BaseGeometry
+
+_log = logging.getLogger(__name__)
 
 
 def auto_utm_epsg(lon: float, lat: float) -> int:
@@ -83,6 +85,7 @@ def area_in_square_meters(geometry: BaseGeometry, crs: Union[str, pyproj.CRS]):
     :return: The area in square meters.
     """
     if isinstance(crs, str):
+        _log.warning(f"Deprecated '+init' conversion of {crs=}")
         crs = "+init=" + crs  # TODO: this is deprecated
     geometry_lat_lon = geometry_to_crs(geometry, crs, pyproj.crs.CRS.from_epsg(4326))
     geod = Geod(ellps="WGS84")

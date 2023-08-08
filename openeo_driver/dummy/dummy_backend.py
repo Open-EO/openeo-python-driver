@@ -181,17 +181,21 @@ class DummyDataCube(DriverDataCube):
         self.apply_tiles = Mock(name="apply_tiles", return_value=self)
         self.apply_tiles_spatiotemporal = Mock(name="apply_tiles_spatiotemporal", return_value=self)
 
-        # Create mock methods for remaining data cube methods that are not yet defined
-        already_defined = set(DummyDataCube.__dict__.keys()).union(self.__dict__.keys())
+        # Create mock methods for remaining DriverDataCube methods that are not yet defined directly by DummyDataCube
+        to_keep = set(DummyDataCube.__dict__.keys()).union(self.__dict__.keys())
+        to_keep.update(m for m in DriverDataCube.__dict__.keys() if m.startswith("_"))
+        to_keep.update(["get_dimension_names"])
         for name, method in DriverDataCube.__dict__.items():
-            if not name.startswith('_') and name not in already_defined and callable(method):
+            if not name in to_keep and callable(method):
                 setattr(self, name, Mock(name=name, return_value=self))
 
         for name in [n for n, m in DummyDataCube.__dict__.items() if getattr(m, '_mock_side_effect', False)]:
             setattr(self, name, Mock(side_effect=getattr(self, name)))
 
     @mock_side_effect
-    def reduce_dimension(self, reducer, dimension: str, context: Any, env: EvalEnv) -> 'DummyDataCube':
+    def reduce_dimension(
+        self, reducer, *, dimension: str, context: Optional[dict] = None, env: EvalEnv
+    ) -> "DummyDataCube":
         return DummyDataCube(self.metadata.reduce_dimension(dimension_name=dimension))
 
     @mock_side_effect
@@ -263,7 +267,7 @@ class DummyDataCube(DriverDataCube):
                 coords=coords,
                 name="aggregate_spatial",
             )
-            return geometries.with_cube(cube=cube, flatten_prefix="agg")
+            return geometries.with_cube(cube=cube)
         elif isinstance(geometries, str):
             geometries = [geometry for geometry in DelayedVector(geometries).geometries]
             n_geometries = assert_polygon_sequence(geometries)
@@ -649,7 +653,13 @@ class DummyBatchJobs(BatchJobs):
         if (job_id, user_id) in self._job_result_registry:
             return self._job_result_registry[(job_id, user_id)]
         else:
-            return super().get_result_metadata(job_id=job_id, user_id=user_id)
+            result_md = super().get_result_metadata(job_id=job_id, user_id=user_id)
+            result_md = BatchJobResultMetadata(
+                assets=result_md.assets,
+                links=result_md.links,
+                providers=self._get_providers(job_id=job_id, user_id=user_id),
+            )
+            return result_md
 
     def get_result_assets(self, job_id: str, user_id: str) -> Dict[str, dict]:
         if (

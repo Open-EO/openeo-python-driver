@@ -3,11 +3,17 @@ import inspect
 import warnings
 from collections import namedtuple
 from pathlib import Path
-from typing import Callable, Dict, List, Tuple, Optional
+from typing import Any, Callable, Collection, Dict, List, Optional, Tuple, Union
 
-from openeo_driver.errors import ProcessUnsupportedException
+from openeo_driver.errors import (
+    OpenEOApiException,
+    ProcessParameterInvalidException,
+    ProcessParameterRequiredException,
+    ProcessUnsupportedException,
+)
 from openeo_driver.specs import SPECS_ROOT
-from openeo_driver.utils import read_json, EvalEnv
+from openeo_driver.util.geometry import validate_geojson_basic
+from openeo_driver.utils import EvalEnv, read_json
 
 
 class ProcessParameter:
@@ -178,17 +184,20 @@ class ProcessRegistry:
         )
         return f
 
-    def add_simple_function(self, f: Callable = None, name: str = None):
+    def add_simple_function(
+        self, f: Optional[Callable] = None, name: Optional[str] = None, spec: Optional[dict] = None
+    ):
         """
         Register a simple function that uses normal arguments instead of `args: dict, env: EvalEnv`:
         wrap it in a wrapper that automatically extracts these arguments
         :param f:
         :param name: process_id (when guessing from `f.__name__` doesn't work)
+        :param spec: optional spec dict
         :return:
         """
         if f is None:
             # Called as parameterized decorator
-            return functools.partial(self.add_simple_function, name=name)
+            return functools.partial(self.add_simple_function, name=name, spec=spec)
 
         process_id = name or f.__name__
         # Detect arguments without and with defaults
@@ -201,18 +210,19 @@ class ProcessRegistry:
             else:
                 defaults[param.name] = param.default
 
-        # TODO: avoid this local import, e.g. by encapsulating all extrac_ functions in some kind of ProcessArgs object
-        from openeo_driver.ProcessGraphDeserializer import extract_arg
-
         # TODO: can we generalize this assumption?
         assert self._argument_names == ["args", "env"]
 
-        def wrapped(args: dict, env: EvalEnv):
-            kwargs = {a: extract_arg(args, a, process_id=process_id) for a in required}
-            kwargs.update({a: args.get(a, d) for a, d in defaults.items()})
+        # TODO: option to also pass `env: EvalEnv` to `f`?
+        def wrapped(args: Union[dict, ProcessArgs], env: EvalEnv):
+            args = ProcessArgs.cast(args, process_id=process_id)
+            # TODO: optional type checks based on type annotations too?
+            kwargs = {a: args.get_required(name=a) for a in required}
+            kwargs.update({a: args.get_optional(a, default=d) for a, d in defaults.items()})
             return f(**kwargs)
 
-        self.add_process(name=process_id, function=wrapped, spec=self.load_predefined_spec(process_id))
+        spec = spec or self.load_predefined_spec(process_id)
+        self.add_process(name=process_id, function=wrapped, spec=spec)
         return f
 
     def add_hidden(self, f: Callable, name: str = None, namespace: str = DEFAULT_NAMESPACE):
@@ -253,3 +263,219 @@ class ProcessRegistry:
         if not self.contains(name, namespace) or self._get(name, namespace).function is None:
             raise ProcessUnsupportedException(process=name, namespace=namespace)
         return self._get(name, namespace).function
+
+
+# Type annotation for an argument value
+ArgumentValue = Any
+
+
+class ProcessArgs(dict):
+    """
+    Wrapper for process argument extraction with proper exception throwing.
+
+    Implemented as `dict` subclass to stay backwards compatible,
+    but with additional methods for compact extraction
+    """
+
+    def __init__(self, args: dict, process_id: Optional[str] = None):
+        super().__init__(args)
+        self.process_id = process_id
+
+    @classmethod
+    def cast(cls, args: Union[dict, "ProcessArgs"], process_id: Optional[str] = None):
+        if isinstance(args, ProcessArgs):
+            assert args.process_id == process_id
+        else:
+            args = ProcessArgs(args=args, process_id=process_id)
+        return args
+
+    def get_required(
+        self,
+        name: str,
+        *,
+        expected_type: Optional[Union[type, Tuple[type, ...]]] = None,
+        validator: Optional[Callable[[Any], bool]] = None,
+    ) -> ArgumentValue:
+        """
+        Get a required argument by name.
+
+        Originally: `extract_arg`.
+        """
+        # TODO: add option for type check too
+        try:
+            value = self[name]
+        except KeyError:
+            raise ProcessParameterRequiredException(process=self.process_id, parameter=name) from None
+        self._check_value(name=name, value=value, expected_type=expected_type, validator=validator)
+        return value
+
+    def _check_value(
+        self,
+        *,
+        name: str,
+        value: Any,
+        expected_type: Optional[Union[type, Tuple[type, ...]]] = None,
+        validator: Optional[Callable[[Any], bool]] = None,
+    ):
+        if expected_type:
+            if not isinstance(value, expected_type):
+                raise ProcessParameterInvalidException(
+                    parameter=name, process=self.process_id, reason=f"Expected {expected_type} but got {type(value)}."
+                )
+        if validator:
+            try:
+                valid = validator(value)
+                reason = "Failed validation."
+            except OpenEOApiException:
+                # Preserve original OpenEOApiException
+                raise
+            except Exception as e:
+                valid = False
+                reason = str(e)
+            if not valid:
+                raise ProcessParameterInvalidException(parameter=name, process=self.process_id, reason=reason)
+
+    def get_optional(
+        self,
+        name: str,
+        default: Union[Any, Callable[[], Any]] = None,
+        *,
+        expected_type: Optional[Union[type, Tuple[type, ...]]] = None,
+        validator: Optional[Callable[[Any], bool]] = None,
+    ) -> ArgumentValue:
+        """
+        Get an optional argument with default
+
+        :param name: argument name
+        :param default: default value or a function/factory to generate the default value
+        :param expected_type: expected class (or list of multiple options) the value should be (unless it's None)
+        :param validator: optional validation callable
+        """
+        if name in self:
+            value = self.get(name)
+        else:
+            value = default() if callable(default) else default
+        if value is not None:
+            self._check_value(name=name, value=value, expected_type=expected_type, validator=validator)
+
+        return value
+
+    def get_deep(
+        self,
+        *steps: str,
+        expected_type: Optional[Union[type, Tuple[type, ...]]] = None,
+        validator: Optional[Callable[[Any], bool]] = None,
+    ) -> ArgumentValue:
+        """
+        Walk recursively through a dictionary to get to a value.
+
+        Originally: `extract_deep`
+        """
+        # TODO: current implementation requires the argument. Allow it to be optional too?
+        value = self
+        for step in steps:
+            keys = [step] if not isinstance(step, list) else step
+            for key in keys:
+                if key in value:
+                    value = value[key]
+                    break
+            else:
+                raise ProcessParameterInvalidException(process=self.process_id, parameter=steps[0], reason=f"{step=}")
+
+        self._check_value(name=steps[0], value=value, expected_type=expected_type, validator=validator)
+        return value
+
+    def get_aliased(self, names: List[str]) -> ArgumentValue:
+        """
+        Get argument by list of (legacy/fallback/...) names.
+
+        Originally: `extract_arg_list`.
+        """
+        # TODO: support for default value?
+        for name in names:
+            if name in self:
+                return self[name]
+        raise ProcessParameterRequiredException(process=self.process_id, parameter=str(names))
+
+    def get_subset(self, names: List[str], aliases: Optional[Dict[str, str]] = None) -> Dict[str, ArgumentValue]:
+        """
+        Extract subset of given argument names (where available) from given dictionary,
+        possibly handling legacy aliases
+
+        Originally: `extract_args_subset`
+
+        :param names: keys to extract
+        :param aliases: mapping of (legacy) alias to target key
+        :return:
+        """
+        kwargs = {k: self[k] for k in names if k in self}
+        if aliases:
+            for alias, key in aliases.items():
+                if alias in self and key not in kwargs:
+                    kwargs[key] = self[alias]
+        return kwargs
+
+    def get_enum(self, name: str, options: Collection[ArgumentValue]) -> ArgumentValue:
+        """
+        Get argument by name and check if it belongs to given set of (enum) values.
+
+        Originally: `extract_arg_enum`
+        """
+        value = self.get_required(name=name)
+        if value not in options:
+            raise ProcessParameterInvalidException(
+                parameter=name,
+                process=self.process_id,
+                reason=f"Invalid enum value {value!r}. Expected one of {options}.",
+            )
+        return value
+
+    @staticmethod
+    def validator_one_of(options: list, show_value: bool = True):
+        """Build a validator function that check that the value is in given list"""
+
+        def validator(value):
+            if value not in options:
+                if show_value:
+                    message = f"Must be one of {options!r} but got {value!r}."
+                else:
+                    message = f"Must be one of {options!r}."
+                raise ValueError(message)
+            return True
+
+        return validator
+
+    @staticmethod
+    def validator_file_format(formats: Union[List[str], Dict[str, dict]]):
+        """
+        Build validator for input/output format (case-insensitive check)
+
+        :param formats list of valid formats, or dictionary with formats as keys
+        """
+        formats = list(formats)
+        options = set(f.lower() for f in formats)
+
+        def validator(value: str):
+            if value.lower() not in options:
+                raise OpenEOApiException(
+                    message=f"Invalid file format {value!r}. Allowed formats: {', '.join(formats)}",
+                    code="FormatUnsuitable",
+                    status_code=400,
+                )
+            return True
+
+        return validator
+
+    @staticmethod
+    def validator_geojson_dict(
+        allowed_types: Optional[Collection[str]] = None,
+    ):
+        """Build validator to verify that provided structure looks like a GeoJSON-style object"""
+
+        def validator(value):
+            issues = validate_geojson_basic(value=value, allowed_types=allowed_types, raise_exception=False)
+            if issues:
+                raise ValueError(f"Invalid GeoJSON: {', '.join(issues)}.")
+            return True
+
+        return validator

@@ -70,6 +70,12 @@ class EvalEnv:
             d = {**self._parent.collect(key=key), **d}
         return d
 
+    def push_parameters(self, parameters: dict) -> "EvalEnv":
+        """
+        Shortcut method to push parameters, allowing quick discovery of places where parameters are pushed.
+        """
+        return self.push(parameters=parameters)
+
     def collect_parameters(self) -> dict:
         """Collect single dict of all parameters"""
         return self.collect("parameters")

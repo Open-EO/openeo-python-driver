@@ -4,8 +4,6 @@ file extension, mimetype, fiona driver
 """
 from typing import Optional, Iterable, Dict
 
-from openeo_driver.errors import FileTypeInvalidException
-
 
 class FormatInfo:
     """Simple container of input/output format information: format code, mimetype, ..."""

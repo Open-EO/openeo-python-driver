@@ -1,4 +1,6 @@
+import contextlib
 import math
+from typing import List, Union
 
 import pyproj
 import pytest
@@ -9,18 +11,18 @@ from shapely.geometry.base import BaseGeometry
 from shapely.geos import WKTWriter
 
 from openeo_driver.util.geometry import (
-    geojson_to_multipolygon,
-    reproject_bounding_box,
-    spatial_extent_union,
-    GeometryBufferer,
-    as_geojson_feature,
-    as_geojson_feature_collection,
-    reproject_geometry,
     BoundingBox,
     BoundingBoxException,
     CrsRequired,
+    GeometryBufferer,
+    as_geojson_feature,
+    as_geojson_feature_collection,
+    geojson_to_multipolygon,
+    reproject_bounding_box,
+    reproject_geometry,
+    spatial_extent_union,
+    validate_geojson_basic,
 )
-
 
 from ..data import get_path
 
@@ -746,3 +748,169 @@ class TestBoundingBox:
 
         bbox = BoundingBox(-72, -13, -71, -12, crs="EPSG:4326")
         assert bbox.best_utm() == 32719
+
+
+class TestValidateGeoJSON:
+    @staticmethod
+    @contextlib.contextmanager
+    def _checker(expected_issue: Union[str, None], raise_exception: bool):
+        """
+        Helper context manager to easily check a validate_geojson_basic result
+        for both raise_exception modes:
+
+        - "exception mode": context manger __exit__ phase checks result
+        - "return issue mode": returned `check` function should be used inside context manageer body
+        """
+        checked = False
+
+        def check(result: List[str]):
+            """Check validation result in case no actual exception was thrown"""
+            nonlocal checked
+            checked = True
+            if expected_issue:
+                if raise_exception:
+                    pytest.fail("Exception should have been raised")
+                if not result:
+                    pytest.fail("No issue was reported")
+                assert expected_issue in "\n".join(result)
+            else:
+                if result:
+                    pytest.fail(f"Unexpected issue reported: {result}")
+
+        try:
+            yield check
+        except Exception as e:
+            # Check validation result in case of actual exception
+            if not raise_exception:
+                pytest.fail(f"Unexpected {e!r}: issue should be returned")
+            if not expected_issue:
+                pytest.fail(f"Unexpected {e!r}: no issue expected")
+            assert expected_issue in str(e)
+        else:
+            # No exception was thrown: check that the `check` function has been called.
+            if not checked:
+                raise RuntimeError("`check` function was not used")
+
+    @pytest.mark.parametrize(
+        ["value", "expected_issue"],
+        [
+            ("nope nope", "JSON object (mapping/dictionary) expected, but got str"),
+            (123, "JSON object (mapping/dictionary) expected, but got int"),
+            ({}, "No 'type' field"),
+            ({"type": 123}, "Invalid 'type' type: int"),
+            ({"type": {"Poly": "gon"}}, "Invalid 'type' type: dict"),
+            ({"type": "meh"}, "Invalid type 'meh'"),
+            ({"type": "Point"}, "No 'coordinates' field (type 'Point')"),
+            ({"type": "Point", "coordinates": [1, 2]}, None),
+            ({"type": "Polygon"}, "No 'coordinates' field (type 'Polygon')"),
+            ({"type": "Polygon", "coordinates": [[1, 2]]}, None),
+            ({"type": "MultiPolygon"}, "No 'coordinates' field (type 'MultiPolygon')"),
+            ({"type": "MultiPolygon", "coordinates": [[[1, 2]]]}, None),
+            ({"type": "GeometryCollection", "coordinates": []}, "No 'geometries' field (type 'GeometryCollection')"),
+            ({"type": "GeometryCollection", "geometries": []}, None),
+            ({"type": "Feature", "coordinates": []}, "No 'geometry' field (type 'Feature')"),
+            ({"type": "Feature", "geometry": {}}, "No 'properties' field (type 'Feature')"),
+            ({"type": "Feature", "geometry": {}, "properties": {}}, "No 'type' field"),
+            (
+                {"type": "Feature", "geometry": {"type": "Polygon"}, "properties": {}},
+                "No 'coordinates' field (type 'Polygon')",
+            ),
+            (
+                {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[1, 2]]}, "properties": {}},
+                None,
+            ),
+            (
+                {"type": "Feature", "geometry": {"type": "Polygonnnnn", "coordinates": [[1, 2]]}, "properties": {}},
+                "Found type 'Polygonnnnn', but expects one of ",
+            ),
+            ({"type": "FeatureCollection"}, "No 'features' field (type 'FeatureCollection')"),
+            ({"type": "FeatureCollection", "features": []}, None),
+            ({"type": "FeatureCollection", "features": [{"type": "Feature"}]}, "No 'geometry' field (type 'Feature')"),
+            (
+                {"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {}}]},
+                "No 'properties' field (type 'Feature')",
+            ),
+            (
+                {"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {}, "properties": {}}]},
+                "No 'type' field",
+            ),
+            (
+                {
+                    "type": "FeatureCollection",
+                    "features": [{"type": "Feature", "geometry": {"type": "Polygon"}, "properties": {}}],
+                },
+                "No 'coordinates' field (type 'Polygon')",
+            ),
+            (
+                {
+                    "type": "FeatureCollection",
+                    "features": [
+                        {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[1, 2]]}, "properties": {}},
+                        {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[3, 4]]}, "properties": {}},
+                    ],
+                },
+                None,
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("raise_exception", [False, True])
+    def test_validate_geojson_basic(self, value, expected_issue, raise_exception):
+        with self._checker(expected_issue=expected_issue, raise_exception=raise_exception) as check:
+            result = validate_geojson_basic(value, raise_exception=raise_exception)
+            check(result)
+
+    @pytest.mark.parametrize(
+        ["value", "allowed_types", "expected_issue"],
+        [
+            (
+                {"type": "Point", "coordinates": [1, 2]},
+                {"Polygon", "MultiPolygon"},
+                "Found type 'Point', but expects one of ['MultiPolygon', 'Polygon']",
+            ),
+            ({"type": "Polygon", "coordinates": [[1, 2]]}, {"Polygon", "MultiPolygon"}, None),
+            ({"type": "MultiPolygon", "coordinates": [[[1, 2]]]}, {"Polygon", "MultiPolygon"}, None),
+            (
+                {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[1, 2]]}, "properties": {}},
+                {"Polygon", "MultiPolygon"},
+                "Found type 'Feature', but expects one of ['MultiPolygon', 'Polygon']",
+            ),
+            (
+                {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[1, 2]]}, "properties": {}},
+                {"Feature"},
+                None,
+            ),
+            (
+                {
+                    "type": "FeatureCollection",
+                    "features": [
+                        {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[1, 2]]}, "properties": {}},
+                        {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[3, 4]]}, "properties": {}},
+                    ],
+                },
+                {"Polygon", "MultiPolygon"},
+                "Found type 'FeatureCollection', but expects one of ['MultiPolygon', 'Polygon']",
+            ),
+            (
+                {
+                    "type": "FeatureCollection",
+                    "features": [
+                        {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[1, 2]]}, "properties": {}},
+                        {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[3, 4]]}, "properties": {}},
+                    ],
+                },
+                {"FeatureCollection"},
+                None,
+            ),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "raise_exception",
+        [
+            False,
+            True,
+        ],
+    )
+    def test_validate_geojson_basic_allowed_types(self, value, allowed_types, expected_issue, raise_exception):
+        with self._checker(expected_issue=expected_issue, raise_exception=raise_exception) as check:
+            result = validate_geojson_basic(value, allowed_types=allowed_types, raise_exception=raise_exception)
+            check(result)

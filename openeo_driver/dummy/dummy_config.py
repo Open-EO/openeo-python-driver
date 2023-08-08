@@ -1,4 +1,5 @@
 from openeo_driver.config import OpenEoBackendConfig
+from openeo_driver.server import build_backend_deploy_metadata
 from openeo_driver.users.oidc import OidcProvider
 
 oidc_providers = [
@@ -29,6 +30,28 @@ oidc_providers = [
         title="Local Keycloak",
         issuer="http://localhost:9090/auth/realms/master",
         scopes=["openid"],
+    ),
+    OidcProvider(
+        id="terrascope",
+        issuer="https://sso.vgt.vito.be/auth/realms/terrascope",
+        scopes=["openid", "email"],
+        title="Terrascope",
+        description="VITO Terrascope (Keycloak based)",
+        default_clients=[
+            {
+                "id": "openeo-default-client",
+                "grant_types": [
+                    "authorization_code+pkce",
+                    "urn:ietf:params:oauth:grant-type:device_code+pkce",
+                    "refresh_token",
+                ],
+                "redirect_urls": [
+                    "https://editor.openeo.org",
+                    "http://localhost:1410",
+                    "http://localhost:1410/",
+                ],
+            }
+        ],
     ),
     # Allow testing the dummy backend with EGI
     OidcProvider(
@@ -66,6 +89,11 @@ def _valid_basic_auth(username: str, password: str) -> bool:
 
 config = OpenEoBackendConfig(
     id="dummy",
+    capabilities_title="Dummy openEO Backend",
+    capabilities_description="Dummy openEO backend provided by [openeo-python-driver](https://github.com/Open-EO/openeo-python-driver).",
+    capabilities_backend_version="1.2.3-foo",
+    capabilities_deploy_metadata=build_backend_deploy_metadata(packages=["openeo", "openeo_driver"]),
+    processing_facility="Dummy openEO API",
     oidc_providers=oidc_providers,
     valid_basic_auth=_valid_basic_auth,
 )

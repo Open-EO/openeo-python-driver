@@ -6,28 +6,29 @@ import calendar
 import datetime
 import logging
 import math
+import re
 import tempfile
 import time
 import warnings
 from pathlib import Path
-from typing import Dict, Callable, List, Union, Tuple, Any, Iterable
+from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
 
-import pandas as pd
 import geopandas as gpd
 import numpy as np
+import openeo.udf
 import openeo_processes
+import pandas as pd
 import pyproj
 import requests
-from dateutil.relativedelta import relativedelta
-from requests.structures import CaseInsensitiveDict
-from shapely.geometry import shape, GeometryCollection, shape, mapping, MultiPolygon
+import shapely.geometry
 import shapely.ops
-
-import openeo.udf
+from dateutil.relativedelta import relativedelta
 from openeo.capabilities import ComparableVersion
-from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphVisitException
+from openeo.internal.process_graph_visitor import ProcessGraphVisitException, ProcessGraphVisitor
 from openeo.metadata import CollectionMetadata, MetadataException
-from openeo.util import load_json, rfc3339, deep_get, str_truncate
+from openeo.util import deep_get, load_json, rfc3339, str_truncate
+from shapely.geometry import GeometryCollection, MultiPolygon, mapping, shape
+
 from openeo_driver import dry_run
 from openeo_driver.backend import (
     UserDefinedProcessMetadata,
@@ -44,21 +45,23 @@ from openeo_driver.datacube import (
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint
-from openeo_driver.errors import ProcessParameterRequiredException, ProcessParameterInvalidException, \
-    FeatureUnsupportedException, OpenEOApiException, ProcessGraphInvalidException, FileTypeInvalidException, \
-    ProcessUnsupportedException, CollectionNotFoundException
-from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE
+from openeo_driver.errors import (
+    ProcessParameterRequiredException,
+    ProcessParameterInvalidException,
+    FeatureUnsupportedException,
+    OpenEOApiException,
+    ProcessGraphInvalidException,
+    ProcessUnsupportedException,
+    CollectionNotFoundException,
+)
+from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE, ProcessArgs
 from openeo_driver.save_result import JSONResult, SaveResult, AggregatePolygonResult, NullResult, \
     to_save_result, AggregatePolygonSpatialResult, MlModelResult
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.util.date_math import month_shift
-from openeo_driver.util.geometry import (
-    geojson_to_geometry,
-    geojson_to_multipolygon,
-    spatial_extent_union,
-)
+from openeo_driver.util.geometry import geojson_to_geometry, geojson_to_multipolygon, spatial_extent_union
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
-from openeo_driver.utils import smart_bool, EvalEnv
+from openeo_driver.utils import EvalEnv, smart_bool
 
 _log = logging.getLogger(__name__)
 
@@ -246,10 +249,13 @@ class SimpleProcessing(Processing):
         return self._registry_cache[spec]
 
     def get_basic_env(self, api_version=None) -> EvalEnv:
-        return EvalEnv({
-            "backend_implementation": OpenEoBackendImplementation(processing=self),
-            "version": api_version or "1.0.0",  # TODO: get better default api version from somewhere?
-        })
+        return EvalEnv(
+            {
+                "backend_implementation": OpenEoBackendImplementation(processing=self),
+                "version": api_version or "1.0.0",  # TODO: get better default api version from somewhere?
+                "node_caching": False,
+            }
+        )
 
     def evaluate(self, process_graph: dict, env: EvalEnv = None):
         return evaluate(process_graph=process_graph, env=env or self.get_basic_env(), do_dry_run=False)
@@ -397,70 +403,20 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
     return processGraph
 
 
-def extract_arg(args: dict, name: str, process_id='n/a'):
-    """Get process argument by name."""
-    # TODO: support optional default value for optional parameters?
-    try:
-        return args[name]
-    except KeyError:
-        # TODO: automate argument extraction directly from process spec instead of these exract_* functions?
-        raise ProcessParameterRequiredException(process=process_id, parameter=name)
+def _as_process_args(args: Union[dict, ProcessArgs], process_id: str = "n/a") -> ProcessArgs:
+    """Adapter for legacy style args"""
+    if not isinstance(args, ProcessArgs):
+        args = ProcessArgs(args, process_id=process_id)
+    elif process_id not in {args.process_id, "n/a"}:
+        _log.warning(f"Inconsistent {process_id=} in extract_arg(): expected {args.process_id=}")
+    return args
 
 
-def extract_arg_list(args: dict, names: list):
-    """Get process argument by list of (legacy/fallback/...) names."""
-    for name in names:
-        if name in args:
-            return args[name]
-    # TODO: find out process id for proper error message?
-    raise ProcessParameterRequiredException(process='n/a', parameter=str(names))
+def extract_arg(args: ProcessArgs, name: str, process_id="n/a"):
+    # TODO: eliminate this function, use `ProcessArgs.get_required()` directly
+    return _as_process_args(args, process_id=process_id).get_required(name=name)
 
 
-def extract_deep(args: dict, *steps, process_id: str = "n/a"):
-    """
-    Walk recursively through a dictionary to get to a value.
-    Also support trying multiple (legacy/fallback/...) keys at a certain level: specify step as a list of options
-    """
-    value = args
-    for step in steps:
-        keys = [step] if not isinstance(step, list) else step
-        for key in keys:
-            if key in value:
-                value = value[key]
-                break
-        else:
-            # TODO: find out process id for proper error message?
-            raise ProcessParameterInvalidException(process=process_id, parameter=steps[0], reason=step)
-    return value
-
-
-def extract_args_subset(args: dict, keys: List[str], aliases: Dict[str, str] = None) -> dict:
-    """
-    Extract subset of given keys (where available) from given dictionary,
-    possibly handling legacy aliases
-
-    :param args: dictionary of arguments
-    :param keys: keys to extract
-    :param aliases: mapping of (legacy) alias to target key
-    :return:
-    """
-    kwargs = {k: args[k] for k in keys if k in args}
-    if aliases:
-        for alias, key in aliases.items():
-            if alias in args and key not in kwargs:
-                kwargs[key] = args[alias]
-    return kwargs
-
-
-def extract_arg_enum(args: dict, name: str, enum_values: Union[set, list, tuple], process_id='n/a'):
-    """Get process argument by name and check if it is proper enum value."""
-    # TODO: support optional default value for optional parameters?
-    value = extract_arg(args=args, name=name, process_id=process_id)
-    if value not in enum_values:
-        raise ProcessParameterInvalidException(
-            parameter=name, process=process_id, reason=f"Invalid enum value {value!r}"
-        )
-    return value
 
 def _align_extent(extent,collection_id,env):
     metadata = None
@@ -713,40 +669,30 @@ def vector_buffer(args: Dict, env: EvalEnv) -> dict:
 
 
 @process_registry_100.add_function
-def apply_neighborhood(args: dict, env: EvalEnv) -> DriverDataCube:
-    process = extract_deep(args, "process", "process_graph")
-    size = extract_arg(args, 'size')
-    overlap = extract_arg(args, 'overlap')
-    # TODO: pass context?
-    context = args.get('context', {})
-    data_cube = extract_arg(args, 'data')
-    if not isinstance(data_cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="apply_neighborhood",
-            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
-        )
-    return data_cube.apply_neighborhood(process=process, size=size, overlap=overlap, env=env)
+def apply_neighborhood(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    data_cube = args.get_required("data", expected_type=DriverDataCube)
+    process = args.get_deep("process", "process_graph", expected_type=dict)
+    size = args.get_required("size")
+    overlap = args.get_optional("overlap")
+    context = args.get_optional("context", default=None)
+    return data_cube.apply_neighborhood(process=process, size=size, overlap=overlap, env=env, context=context)
 
 @process
-def apply_dimension(args: Dict, env: EvalEnv) -> DriverDataCube:
-    process = extract_deep(args, 'process', "process_graph")
-    dimension = extract_arg(args, 'dimension')
-    target_dimension = args.get('target_dimension',None)
-    data_cube = extract_arg(args, 'data')
-    context = args.get('context',None)
-    if not isinstance(data_cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="apply_dimension",
-            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
-        )
+def apply_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    data_cube = args.get_required("data", expected_type=(DriverDataCube, DriverVectorCube))
+    process = args.get_deep("process", "process_graph", expected_type=dict)
+    dimension = args.get_required(
+        "dimension", expected_type=str, validator=ProcessArgs.validator_one_of(data_cube.get_dimension_names())
+    )
+    target_dimension = args.get_optional("target_dimension", default=None, expected_type=str)
+    context = args.get_optional("context", default=None)
 
-    # do check_dimension here for error handling
-    dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="apply_dimension")
-
-    transformed_collection = data_cube.apply_dimension(process, dimension,target_dimension=target_dimension,context=context)
-    if target_dimension is not None and target_dimension not in transformed_collection.metadata.dimension_names():
-        transformed_collection.rename_dimension(dimension, target_dimension)
-    return transformed_collection
+    cube = data_cube.apply_dimension(
+        process=process, dimension=dimension, target_dimension=target_dimension, context=context, env=env
+    )
+    if target_dimension is not None and target_dimension not in cube.metadata.dimension_names():
+        cube = cube.rename_dimension(dimension, target_dimension)
+    return cube
 
 
 @process
@@ -789,49 +735,34 @@ def load_ml_model(args: dict, env: EvalEnv) -> DriverMlModel:
 
 
 @process
-def apply(args: dict, env: EvalEnv) -> DriverDataCube:
+def apply(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     """
     Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
     """
-    if ComparableVersion("1.0.0").or_higher(env["version"]):
-        apply_pg = extract_deep(args, "process", "process_graph")
-        data_cube = extract_arg(args, 'data','apply')
-        context = args.get('context',{})
-
-        return data_cube.apply(process=apply_pg, context=context)
-    else:
-        return _evaluate_sub_process_graph(args, 'process', parent_process='apply', env=env)
+    data_cube = args.get_required("data", expected_type=DriverDataCube)
+    apply_pg = args.get_deep("process", "process_graph", expected_type=dict)
+    context = args.get_optional("context", default=None)
+    return data_cube.apply(process=apply_pg, context=context, env=env)
 
 
 @process_registry_100.add_function
-def reduce_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
-    data_cube: DriverDataCube = extract_arg(args, "data")
-    reduce_pg = extract_deep(args, "reducer", "process_graph", process_id="reduce_dimension")
-    dimension = extract_arg(args, 'dimension')
-    context = args.get("context")
-    if not isinstance(data_cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="reduce_dimension",
-            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
-        )
-
-    # do check_dimension here for error handling
-    dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process="reduce_dimension")
+def reduce_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    data_cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
+    dimension = args.get_required(
+        "dimension", expected_type=str, validator=ProcessArgs.validator_one_of(data_cube.get_dimension_names())
+    )
+    context = args.get_optional("context", default=None)
     return data_cube.reduce_dimension(reducer=reduce_pg, dimension=dimension, context=context, env=env)
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/chunk_polygon.json"))
-def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
-    import shapely
-    reduce_pg = extract_deep(args, "process", "process_graph")
-    chunks = extract_arg(args, 'chunks')
-    mask_value = args.get('mask_value', None)
-    data_cube = extract_arg(args, 'data')
-    if not isinstance(data_cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="chunk_polygon",
-            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
-        )
+def chunk_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    data_cube = args.get_required("data", expected_type=DriverDataCube)
+    reduce_pg = args.get_deep("process", "process_graph", expected_type=dict)
+    chunks = args.get_required("chunks")
+    mask_value = args.get_optional("mask_value", default=None)
+    context = args.get_optional("context", default=None)
 
     # Chunks parameter check.
     # TODO #114 EP-3981 normalize first to vector cube and simplify logic
@@ -863,7 +794,7 @@ def chunk_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     if not isinstance(mask_value, float) and mask_value is not None:
         reason = "mask_value parameter is not of type float. Actual type: {m!s}".format(m=type(mask_value))
         raise ProcessParameterInvalidException(parameter='mask_value', process='chunk_polygon', reason=reason)
-    return data_cube.chunk_polygon(reducer=reduce_pg, chunks=polygon, mask_value=mask_value, env=env)
+    return data_cube.chunk_polygon(reducer=reduce_pg, chunks=polygon, mask_value=mask_value, context=context, env=env)
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/fit_class_random_forest.json"))
@@ -929,18 +860,14 @@ def predict_catboost(args: dict, env: EvalEnv) -> SaveResult:
 def predict_probabilities(args: dict, env: EvalEnv) -> SaveResult:
     pass
 
+
 @process
-def add_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
-    data_cube = extract_arg(args, 'data')
-    if not isinstance(data_cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="add_dimension",
-            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
-        )
+def add_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    data_cube = args.get_required("data", expected_type=DriverDataCube)
     return data_cube.add_dimension(
-        name=extract_arg(args, 'name'),
-        label=extract_arg_list(args, ['label', 'value']),
-        type=args.get("type", "other"),
+        name=args.get_required("name", expected_type=str),
+        label=args.get_required("label", expected_type=str),
+        type=args.get_optional("type", default="other", expected_type=str),
     )
 
 
@@ -990,75 +917,35 @@ def rename_labels(args: dict, env: EvalEnv) -> DriverDataCube:
     )
 
 
-def _check_dimension(cube: DriverDataCube, dim: str, process: str):
-    """
-    Helper to check/validate the requested and available dimensions of a cube.
-
-    :return: tuple (requested dimension, name of band dimension, name of temporal dimension)
-    """
-    # Note: large part of this is support/adapting for old client
-    # (pre https://github.com/Open-EO/openeo-python-client/issues/93)
-    # TODO remove this legacy support when not necessary anymore
-    metadata = cube.metadata
-    try:
-        band_dim = metadata.band_dimension.name
-    except MetadataException:
-        band_dim = None
-    try:
-        temporal_dim = metadata.temporal_dimension.name
-    except MetadataException:
-        temporal_dim = None
-
-    if dim not in metadata.dimension_names():
-        if dim in ["spectral_bands", "bands"] and band_dim:
-            _log.warning("Probably old client requesting band dimension {d!r},"
-                         " but actual band dimension name is {n!r}".format(d=dim, n=band_dim))
-            dim = band_dim
-        elif dim == "temporal" and temporal_dim:
-            _log.warning("Probably old client requesting temporal dimension {d!r},"
-                         " but actual temporal dimension name is {n!r}".format(d=dim, n=temporal_dim))
-            dim = temporal_dim
-        else:
-            raise ProcessParameterInvalidException(
-                parameter="dimension", process=process,
-                reason="got {d!r}, but should be one of {n!r}".format(d=dim, n=metadata.dimension_names()))
-
-    return dim, band_dim, temporal_dim
-
-
 @process
-def aggregate_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
-    data_cube = extract_arg(args, 'data')
-    if not isinstance(data_cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="aggregate_temporal",
-            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
-        )
+def aggregate_temporal(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    data_cube = args.get_required("data", expected_type=DriverDataCube)
+    intervals = args.get_required("intervals")
+    reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
+    labels = args.get_optional("labels", default=None)
+    dimension = args.get_optional(
+        "dimension",
+        default=lambda: data_cube.metadata.temporal_dimension.name,
+        validator=ProcessArgs.validator_one_of(data_cube.get_dimension_names()),
+    )
+    context = args.get_optional("context", default=None)
 
-    reduce_pg = extract_deep(args, "reducer", "process_graph")
-    context = args.get('context', None)
-    intervals = extract_arg(args, 'intervals')
-    labels = args.get('labels', None)
-
-    dimension = _get_time_dim_or_default(args, data_cube)
-    return data_cube.aggregate_temporal(intervals=intervals,labels=labels,reducer=reduce_pg, dimension=dimension, context=context)
+    return data_cube.aggregate_temporal(
+        intervals=intervals, labels=labels, reducer=reduce_pg, dimension=dimension, context=context
+    )
 
 
 @process_registry_100.add_function
-def aggregate_temporal_period(args: dict, env: EvalEnv) -> DriverDataCube:
-    data_cube = extract_arg(args, 'data')
-    if not isinstance(data_cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="aggregate_temporal_period",
-            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
-        )
-
-    reduce_pg = extract_deep(args, "reducer", "process_graph")
-
-    context = args.get('context', None)
-    period = extract_arg(args, 'period')
-
-    dimension = _get_time_dim_or_default(args, data_cube, "aggregate_temporal_period")
+def aggregate_temporal_period(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    data_cube = args.get_required("data", expected_type=DriverDataCube)
+    period = args.get_required("period")
+    reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
+    dimension = args.get_optional(
+        "dimension",
+        default=lambda: data_cube.metadata.temporal_dimension.name,
+        validator=ProcessArgs.validator_one_of(data_cube.get_dimension_names()),
+    )
+    context = args.get_optional("context", default=None)
 
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
@@ -1135,55 +1022,14 @@ def _period_to_intervals(start, end, period) -> List[Tuple[pd.Timestamp, pd.Time
     return intervals
 
 
-def _get_time_dim_or_default(args, data_cube, process_id =  "aggregate_temporal"):
-    dimension = args.get('dimension', None)
-    if dimension is not None:
-        dimension, _, _ = _check_dimension(cube=data_cube, dim=dimension, process=process_id)
-    else:
-        # default: there is a single temporal dimension
-        try:
-            dimension = data_cube.metadata.temporal_dimension.name
-        except MetadataException:
-            raise ProcessParameterInvalidException(
-                parameter="dimension", process=process_id,
-                reason="No dimension was set, and no temporal dimension could be found. Available dimensions: {n!r}".format(
-                    n=data_cube.metadata.dimension_names()))
-    # do check_dimension here for error handling
-    dimension, band_dim, temporal_dim = _check_dimension(cube=data_cube, dim=dimension, process=process_id)
-    return dimension
-
-
-def _evaluate_sub_process_graph(args: dict, name: str, parent_process: str, env: EvalEnv) -> DriverDataCube:
-    """
-    Helper function to unwrap and evaluate a sub-process_graph
-
-    :param args: arguments dictionary
-    :param name: argument name of sub-process_graph
-    :return:
-    """
-    pg = extract_deep(args, name, ["process_graph", "callback"])
-    env = env.push(parameters=args, parent_process=parent_process)
-    return evaluate(pg, env=env, do_dry_run=False)
-
-
-@process_registry_040.add_function
-def aggregate_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
-    return _evaluate_sub_process_graph(args, 'reducer', parent_process='aggregate_polygon', env=env)
-
-
 @process_registry_100.add_function
-def aggregate_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
-    reduce_pg = extract_deep(args, "reducer", "process_graph")
-    cube = extract_arg(args, 'data')
-    if not isinstance(cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="aggregate_spatial",
-            reason=f"Invalid data type {type(cube)!r} expected raster-cube."
-        )
+def aggregate_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube = args.get_required("data", expected_type=DriverDataCube)
+    reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
     # TODO: drop `target_dimension`? see https://github.com/Open-EO/openeo-processes/issues/366
-    target_dimension = args.get('target_dimension', None)
+    target_dimension = args.get_optional("target_dimension", default=None)
 
-    geoms = extract_arg(args, 'geometries')
+    geoms = args.get_required("geometries")
     # TODO #114: convert all cases to DriverVectorCube first and just work with that
     if isinstance(geoms, DriverVectorCube):
         geoms = geoms
@@ -1414,18 +1260,13 @@ def ndvi(args: dict, env: EvalEnv) -> DriverDataCube:
 
 
 @process
-def resample_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
-    image_collection = extract_arg(args, 'data')
-    resolution = args.get('resolution', 0)
-    projection = args.get('projection', None)
-    method = args.get('method', 'near')
-    align = args.get('align', 'lower-left')
-    if not isinstance(image_collection, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="resample_spatial",
-            reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
-        )
-    return image_collection.resample_spatial(resolution=resolution, projection=projection, method=method, align=align)
+def resample_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    resolution = args.get_optional("resolution", 0)
+    projection = args.get_optional("projection", None)
+    method = args.get_optional("method", "near")
+    align = args.get_optional("align", "lower-left")
+    return cube.resample_spatial(resolution=resolution, projection=projection, method=method, align=align)
 
 
 @process
@@ -1442,20 +1283,13 @@ def resample_cube_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
 
 
 @process
-def merge_cubes(args: dict, env: EvalEnv) -> DriverDataCube:
-    cube1 = extract_arg(args, 'cube1')
-    cube2 = extract_arg(args, 'cube2')
-    overlap_resolver = args.get('overlap_resolver')
-    for cube, param_str in [(cube1, "cube1"), (cube2, "cube2")]:
-        if not isinstance(cube, DriverDataCube):
-            raise ProcessParameterInvalidException(
-                parameter=param_str, process="merge_cubes",
-                reason=f"Invalid data type {type(cube)!r} expected raster-cube."
-            )
+def merge_cubes(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube1 = args.get_required("cube1", expected_type=DriverDataCube)
+    cube2 = args.get_required("cube2", expected_type=DriverDataCube)
     # TODO raise check if cubes overlap and raise exception if resolver is missing
     resolver_process = None
-    if overlap_resolver:
-        pg = extract_arg_list(overlap_resolver, ["process_graph", "callback"])
+    if "overlap_resolver" in args:
+        pg = args.get_deep("overlap_resolver", "process_graph")
         if len(pg) != 1:
             raise ProcessParameterInvalidException(
                 parameter='overlap_resolver', process='merge_cubes',
@@ -1479,7 +1313,7 @@ def run_udf(args: dict, env: EvalEnv):
 
     if isinstance(data, SupportsRunUdf) and data.supports_udf(udf=udf, runtime=runtime):
         _log.info(f"run_udf: data of type {type(data)} has direct run_udf support")
-        return data.run_udf(udf=udf, runtime=runtime, context=context)
+        return data.run_udf(udf=udf, runtime=runtime, context=context, env=env)
 
     # TODO #114 add support for DriverVectorCube
     if isinstance(data, AggregatePolygonResult):
@@ -1552,9 +1386,71 @@ def constant(args: dict, env: EvalEnv):
     return args["x"]
 
 
-def apply_process(process_id: str, args: dict, namespace: Union[str, None], env: EvalEnv):
+def flatten_children_node_types(process_graph: Union[dict, list]):
+    children_node_types = set()
+
+    def recurse(graph):
+        process_id = graph["node"]["process_id"]
+        children_node_types.add(process_id)
+
+        arguments = graph["node"]["arguments"]
+        for arg_name in arguments:
+            arg_value = arguments[arg_name]
+            if isinstance(arg_value, dict) and "node" in arg_value:
+                recurse(arg_value)
+
+    recurse(process_graph)
+    return children_node_types
+
+def flatten_children_node_names(process_graph: Union[dict, list]):
+    children_node_names = set()
+
+    def recurse(graph):
+        process_id = graph["from_node"]
+        children_node_names.add(process_id)
+
+        arguments = graph["node"]["arguments"]
+        for arg_name in arguments:
+            arg_value = arguments[arg_name]
+            if isinstance(arg_value, dict) and "node" in arg_value:
+                recurse(arg_value)
+
+    recurse(process_graph)
+    return children_node_names
+
+
+def check_subgraph_for_data_mask_optimization(args: dict) -> bool:
+    """
+    Check if it is safe to early apply a mask on load_collection. When the mask is applied early,
+    some data tiles may be discarded before being loaded. But there may be no special filters between
+    the load_collection and the mask node.
+    """
+    whitelist = {
+        "drop_dimension",
+        "filter_bands",
+        "filter_bbox",
+        "filter_spatial",
+        "filter_temporal",
+        "load_collection",
+    }
+
+    children_node_types = flatten_children_node_types(args["data"])
+    # If children_node_types exists only out of whitelisted nodes, an intersection should have no effect.
+    if len(children_node_types.intersection(whitelist)) != len(children_node_types):
+        return False
+
+    data_children_node_names = flatten_children_node_names(args["data"])
+    mask_children_node_names = flatten_children_node_names(args["mask"])
+    if not data_children_node_names.isdisjoint(mask_children_node_names):
+        # To avoid an issue in integration tests:
+        _log.info("Overlap between data and mask node. Will not pre-apply mask on load_collections.")
+        return False
+
+    return True
+
+
+def apply_process(process_id: str, args: dict, namespace: Union[str, None], env: EvalEnv) -> DriverDataCube:
     _log.debug(f"apply_process {process_id} with {args}")
-    parent_process = env.get('parent_process')
     parameters = env.collect_parameters()
 
     if process_id == "mask" and args.get("replacement", None) is None \
@@ -1563,9 +1459,15 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         # evaluate the mask
         _log.debug(f"data_mask: convert_node(mask_node): {mask_node}")
         the_mask = convert_node(mask_node, env=env)
-        _log.debug(f"data_mask: env.push: {the_mask}")
-        env = env.push(data_mask=the_mask)
-        args = {"data": convert_node(args["data"], env=env), "mask": the_mask}
+        dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
+        if not dry_run_tracer and check_subgraph_for_data_mask_optimization(args):
+            if not env.get("data_mask"):
+                _log.debug(f"data_mask: env.push: {the_mask}")
+                env = env.push(data_mask=the_mask)
+                the_data = convert_node(args["data"], env=env)
+                return the_data  # masking happens in scala when loading data
+        the_data = convert_node(args["data"], env=env)
+        args = {"data": the_data, "mask": the_mask}
     elif process_id == "if":
         #special handling: we only want to evaluate the branch that gets accepted
         value = args.get("value")
@@ -1578,69 +1480,6 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         args = {name: convert_node(expr, env=env) for (name, expr) in sorted(args.items())}
 
     # when all arguments and dependencies are resolved, we can run the process
-    if parent_process == "apply":
-        # TODO EP-3404 this code path is for version <1.0.0, soon to be deprecated
-        image_collection = extract_arg_list(args, ['x', 'data'])
-        if not isinstance(image_collection, DriverDataCube):
-            raise ProcessParameterInvalidException(
-                parameter="[x, data]", process="apply_process",
-                reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
-            )
-        if process_id == "run_udf":
-            udf, runtime = _get_udf(args, env=env)
-            # TODO replace non-standard apply_tiles with standard "reduce_dimension" https://github.com/Open-EO/openeo-python-client/issues/140
-            return image_collection.apply_tiles(udf, {}, runtime)
-        else:
-            # TODO : add support for `apply` with non-trivial child process graphs #EP-3404
-            return image_collection.apply(process_id, args)
-    elif parent_process == 'apply_dimension':
-        # TODO EP-3285 this code path is for version <1.0.0, soon to be deprecated
-        image_collection = extract_arg(args, 'data', process_id=process_id)
-        if not isinstance(image_collection, DriverDataCube):
-            raise ProcessParameterInvalidException(
-                parameter="data", process="apply_process",
-                reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
-            )
-        dimension = parameters.get('dimension', None) # By default, applies the the process on all pixel values (as apply does).
-        target_dimension = parameters.get('target_dimension', None)
-        dimension, band_dim, temporal_dim = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
-        transformed_collection = None
-        if process_id == "run_udf":
-            udf, runtime = _get_udf(args, env=env)
-            context = args.get("context",{})
-            if dimension == temporal_dim:
-                transformed_collection = image_collection.apply_tiles_spatiotemporal(udf,context)
-            else:
-                # TODO replace non-standard apply_tiles with standard "reduce_dimension" https://github.com/Open-EO/openeo-python-client/issues/140
-                transformed_collection = image_collection.apply_tiles(udf,context,runtime)
-        else:
-            transformed_collection = image_collection.apply_dimension(process_id, dimension)
-        if target_dimension is not None:
-            transformed_collection.rename_dimension(dimension, target_dimension)
-        return transformed_collection
-    elif parent_process == 'aggregate_temporal':
-        # TODO EP-3285 this code path is for version <1.0.0, soon to be deprecated
-        image_collection = extract_arg(args, 'data', process_id=process_id)
-        if not isinstance(image_collection, DriverDataCube):
-            raise ProcessParameterInvalidException(
-                parameter="data", process="apply_process",
-                reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
-            )
-        intervals = extract_arg(parameters, 'intervals')
-        labels = extract_arg(parameters, 'labels')
-        dimension = parameters.get('dimension', None)
-        if dimension is not None:
-            dimension, _, _ = _check_dimension(cube=image_collection, dim=dimension, process=parent_process)
-        else:
-            #default: there is a single temporal dimension
-            try:
-                dimension = image_collection.metadata.temporal_dimension.name
-            except MetadataException:
-                raise ProcessParameterInvalidException(
-                    parameter="dimension", process=process_id,
-                    reason="No dimension was set, and no temporal dimension could be found. Available dimensions: {n!r}".format( n= image_collection.metadata.dimension_names()))
-        return image_collection.aggregate_temporal(intervals, labels, process_id, dimension)
-
     if namespace and any(namespace.startswith(p) for p in ["http://", "https://"]):
         # TODO: HTTPS only by default and config to also allow HTTP (e.g. for localhost dev and testing)
         # TODO: security aspects: only allow for certain users, only allow whitelisted domains, ...?
@@ -1670,7 +1509,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
 
     process_registry = env.backend_implementation.processing.get_process_registry(api_version=env["version"])
     process_function = process_registry.get_function(process_id, namespace=namespace)
-    return process_function(args=args, env=env)
+    return process_function(args=ProcessArgs(args, process_id=process_id), env=env)
 
 
 @non_standard_process(
@@ -1703,26 +1542,24 @@ def read_vector(args: Dict, env: EvalEnv) -> DelayedVector:
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/load_uploaded_files.json"))
-def load_uploaded_files(args: dict, env: EvalEnv) -> Union[DriverVectorCube,DriverDataCube]:
+def load_uploaded_files(args: ProcessArgs, env: EvalEnv) -> Union[DriverVectorCube, DriverDataCube]:
     # TODO #114 EP-3981 process name is still under discussion https://github.com/Open-EO/openeo-processes/issues/322
-    paths = extract_arg(args, 'paths', process_id="load_uploaded_files")
-    format = extract_arg(args, 'format', process_id="load_uploaded_files")
-    options = args.get("options", {})
+    paths = args.get_required("paths", expected_type=list)
+    format = args.get_required(
+        "format",
+        expected_type=str,
+        validator=ProcessArgs.validator_file_format(formats=env.backend_implementation.file_formats()["input"]),
+    )
+    options = args.get_optional("options", default={})
 
-    input_formats = CaseInsensitiveDict(env.backend_implementation.file_formats()["input"])
-    if format not in input_formats:
-        raise FileTypeInvalidException(type=format, types=", ".join(input_formats.keys()))
-
-    if format.lower() in {"geojson", "esri shapefile", "gpkg", "parquet"}:
+    if DriverVectorCube.from_fiona_supports(format):
         return DriverVectorCube.from_fiona(paths, driver=format, options=options)
     elif format.lower() in {"GTiff"}:
-        if(len(paths)!=1):
-            raise FeatureUnsupportedException(f"load_uploaded_files only supports a single raster of format {format!r}, you provided {paths}")
-        kwargs = dict(
-            glob_pattern=paths[0],
-            format=format,
-            options=options
-        )
+        if len(paths) != 1:
+            raise FeatureUnsupportedException(
+                f"load_uploaded_files only supports a single raster of format {format!r}, you provided {paths}"
+            )
+        kwargs = dict(glob_pattern=paths[0], format=format, options=options)
         dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
         if dry_run_tracer:
             return dry_run_tracer.load_disk_data(**kwargs)
@@ -1744,12 +1581,45 @@ def load_uploaded_files(args: dict, env: EvalEnv) -> Union[DriverVectorCube,Driv
     .returns("vector-cube", schema={"type": "object", "subtype": "vector-cube"})
 )
 def to_vector_cube(args: Dict, env: EvalEnv):
-    # TODO: standardization of something like this? https://github.com/Open-EO/openeo-processes/issues/346
+    _log.warning("Experimental process `to_vector_cube` is deprecated, use `load_geojson` instead")
+    # TODO: remove this experimental/deprecated process
     data = extract_arg(args, "data", process_id="to_vector_cube")
     if isinstance(data, dict) and data.get("type") in {"Polygon", "MultiPolygon", "Feature", "FeatureCollection"}:
         return env.backend_implementation.vector_cube_cls.from_geojson(data)
-    # TODO: support more inputs: string with geojson, string with WKT, list of WKT, string with URL to GeoJSON, ...
     raise FeatureUnsupportedException(f"Converting {type(data)} to vector cube is not supported")
+
+
+@process_registry_100.add_function(spec=read_spec("openeo-processes/2.x/proposals/load_geojson.json"))
+def load_geojson(args: ProcessArgs, env: EvalEnv) -> DriverVectorCube:
+    data = args.get_required(
+        "data",
+        validator=ProcessArgs.validator_geojson_dict(
+            # TODO: also allow LineString and MultiLineString?
+            allowed_types=["Point", "MultiPoint", "Polygon", "MultiPolygon", "Feature", "FeatureCollection"]
+        ),
+    )
+    # TODO: better default value for `properties`? https://github.com/Open-EO/openeo-processes/issues/448
+    properties = args.get_optional("properties", default=[], expected_type=(list, tuple))
+    vector_cube = env.backend_implementation.vector_cube_cls.from_geojson(data, columns_for_cube=properties)
+    return vector_cube
+
+
+@process_registry_100.add_function(spec=read_spec("openeo-processes/2.x/proposals/load_url.json"))
+def load_url(args: ProcessArgs, env: EvalEnv) -> DriverVectorCube:
+    # TODO: Follow up possible `load_url` changes https://github.com/Open-EO/openeo-processes/issues/450 ?
+    url = args.get_required("url", expected_type=str, validator=re.compile("^https?://").match)
+    format = args.get_required(
+        "format",
+        expected_type=str,
+        validator=ProcessArgs.validator_file_format(formats=env.backend_implementation.file_formats()["input"]),
+    )
+    options = args.get_optional("options", default={})
+
+    if DriverVectorCube.from_fiona_supports(format):
+        # TODO: for GeoJSON (and related) support `properties` option like load_geojson? https://github.com/Open-EO/openeo-processes/issues/450
+        return DriverVectorCube.from_fiona(paths=[url], driver=format, options=options)
+    else:
+        raise FeatureUnsupportedException(f"Loading format {format!r} is not supported")
 
 
 @non_standard_process(
@@ -1824,7 +1694,7 @@ def _evaluate_process_graph_process(
                 args[name] = param["default"]
             else:
                 raise ProcessParameterRequiredException(process=process_id, parameter=name)
-    env = env.push(parameters=args)
+    env = env.push_parameters(args)
     return evaluate(process_graph, env=env, do_dry_run=False)
 
 
@@ -1910,6 +1780,8 @@ def sleep(args: Dict, env: EvalEnv):
         .param('data', description="Data cube containing multi-spectral optical top of atmosphere reflectances to be corrected.", schema={"type": "object", "subtype": "raster-cube"})
         .param(name='method', description="The atmospheric correction method to use. To get reproducible results, you have to set a specific method.\n\nSet to `null` to allow the back-end to choose, which will improve portability, but reduce reproducibility as you *may* get different results if you run the processes multiple times.",                      schema={"type": "string"}, required=False)
         .param(name='elevation_model', description="The digital elevation model to use, leave empty to allow the back-end to make a suitable choice.", schema={"type": "string"}, required=False)
+         # TODO #91 the following parameters deviate from the official atmospheric_correction spec
+         # TODO: process parameters should be snake_case, not camelCase
         .param(name='missionId', description="non-standard mission Id, currently defaults to sentinel2",                      schema={"type": "string"}, required=False)
         .param(name='sza',       description="non-standard if set, overrides sun zenith angle values [deg]",                  schema={"type": "number"}, required=False)
         .param(name='vza',       description="non-standard if set, overrides sensor zenith angle values [deg]",               schema={"type": "number"}, required=False)
@@ -1917,53 +1789,60 @@ def sleep(args: Dict, env: EvalEnv):
         .param(name='gnd',       description="non-standard if set, overrides ground elevation [km]",                          schema={"type": "number"}, required=False)
         .param(name='aot',       description="non-standard if set, overrides aerosol optical thickness [], usually 0.1..0.2", schema={"type": "number"}, required=False)
         .param(name='cwv',       description="non-standard if set, overrides water vapor [], usually 0..7",                   schema={"type": "number"}, required=False)
+        # TODO: process parameters should be snake_case, not camelCase
         .param(name='appendDebugBands', description="non-standard if set to 1, saves debug bands",                            schema={"type": "number"}, required=False)
         .returns(description="the corrected data as a data cube", schema={"type": "object", "subtype": "raster-cube"})
 )
-def atmospheric_correction(args: Dict, env: EvalEnv) -> object:
-    image_collection = extract_arg(args, 'data')
-    method = args.get('method', None)
-    elevation_model = args.get('elevation_model', None)
-    missionId = args.get('missionId',None)
-    sza = args.get('sza',None)
-    vza = args.get('vza',None)
-    raa = args.get('raa',None)
-    gnd = args.get('gnd',None)
-    aot = args.get('aot',None)
-    cwv = args.get('cwv',None)
-    appendDebugBands = args.get('appendDebugBands',None)
-    if not isinstance(image_collection, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="atmospheric_correction",
-            reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
-        )
-    return image_collection.atmospheric_correction(method,elevation_model, missionId, sza, vza, raa, gnd, aot, cwv, appendDebugBands)
+def atmospheric_correction(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    method = args.get_optional("method", expected_type=str)
+    elevation_model = args.get_optional("elevation_model", expected_type=str)
+    mission_id = args.get_optional("missionId", expected_type=str)
+    sza = args.get_optional("sza", expected_type=float)
+    vza = args.get_optional("vza", expected_type=float)
+    raa = args.get_optional("raa", expected_type=float)
+    gnd = args.get_optional("gnd", expected_type=float)
+    aot = args.get_optional("aot", expected_type=float)
+    cwv = args.get_optional("cwv", expected_type=float)
+    append_debug_bands = args.get_optional("appendDebugBands", expected_type=int)
+    return cube.atmospheric_correction(
+        method=method,
+        elevation_model=elevation_model,
+        options={
+            "mission_id": mission_id,
+            "sza": sza,
+            "vza": vza,
+            "raa": raa,
+            "gnd": gnd,
+            "aot": aot,
+            "cwv": cwv,
+            "append_debug_bands": append_debug_bands,
+        },
+    )
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/sar_backscatter.json"))
-def sar_backscatter(args: Dict, env: EvalEnv):
-    cube: DriverDataCube = extract_arg(args, 'data')
-    kwargs = extract_args_subset(
-        args, keys=["coefficient", "elevation_model", "mask", "contributing_area", "local_incidence_angle",
-                    "ellipsoid_incidence_angle", "noise_removal", "options"]
+def sar_backscatter(args: ProcessArgs, env: EvalEnv):
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    kwargs = args.get_subset(
+        names=[
+            "coefficient",
+            "elevation_model",
+            "mask",
+            "contributing_area",
+            "local_incidence_angle",
+            "ellipsoid_incidence_angle",
+            "noise_removal",
+            "options",
+        ]
     )
-    if not isinstance(cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="sar_backscatter",
-            reason=f"Invalid data type {type(cube)!r} expected raster-cube."
-        )
     return cube.sar_backscatter(SarBackscatterArgs(**kwargs))
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/resolution_merge.json"))
-def resolution_merge(args: Dict, env: EvalEnv):
-    cube: DriverDataCube = extract_arg(args, 'data')
-    kwargs = extract_args_subset(args, keys=["method", "high_resolution_bands", "low_resolution_bands", "options"])
-    if not isinstance(cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="resolution_merge",
-            reason=f"Invalid data type {type(cube)!r} expected raster-cube."
-        )
+def resolution_merge(args: ProcessArgs, env: EvalEnv):
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    kwargs = args.get_subset(names=["method", "high_resolution_bands", "low_resolution_bands", "options"])
     return cube.resolution_merge(ResolutionMergeArgs(**kwargs))
 
 
@@ -2038,11 +1917,10 @@ def array_interpolate_linear(args: Dict, env: EvalEnv) -> str:
     pass
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/date_shift.json"))
-def date_shift(args: Dict, env: EvalEnv) -> str:
-    date = rfc3339.parse_date_or_datetime(extract_arg(args, "date"))
-    value = int(extract_arg(args, "value"))
-    unit_values = {"year", "month", "week", "day", "hour", "minute", "second", "millisecond"}
-    unit = extract_arg_enum(args, "unit", enum_values=unit_values, process_id="date_shift")
+def date_shift(args: ProcessArgs, env: EvalEnv) -> str:
+    date = rfc3339.parse_date_or_datetime(args.get_required("date", expected_type=str))
+    value = int(args.get_required("value", expected_type=int))
+    unit = args.get_enum("unit", options={"year", "month", "week", "day", "hour", "minute", "second", "millisecond"})
     if unit == "millisecond":
         raise FeatureUnsupportedException(message="Millisecond unit is not supported in date_shift")
     shifted = date + relativedelta(**{unit + "s": value})
@@ -2149,16 +2027,11 @@ def text_merge(
     return str(separator).join(str(d) for d in data)
 
 
-# TODO #195 #196 use official spec instead of custom  openeo-processes/experimental/text_concat.json
-@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/text_concat.json"))
+@process_registry_100.add_simple_function(spec=read_spec("openeo-processes/2.x/text_concat.json"))
 def text_concat(
-    args: Dict,
-    env: EvalEnv
-    # data: List[Union[str, int, float, bool, None]],
-    # separator: Union[str, int, float, bool, None] = ""
+    data: List[Union[str, int, float, bool, None]],
+    separator: str = "",
 ) -> str:
-    data = extract_arg(args, "data")
-    separator = args.get("separator", "")
     return str(separator).join(str(d) for d in data)
 
 

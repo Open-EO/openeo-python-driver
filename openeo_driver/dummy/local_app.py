@@ -6,7 +6,6 @@ import logging
 import os
 import sys
 
-import openeo_driver
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
 from openeo_driver.server import run_gunicorn
 from openeo_driver.util.logging import get_logging_config, setup_logging, show_log_level
@@ -19,11 +18,6 @@ def create_app():
     # "create_app" factory for Flask Application discovery
     # see https://flask.palletsprojects.com/en/2.1.x/cli/#application-discovery
     app = build_app(backend_implementation=DummyBackendImplementation())
-    app.config.from_mapping(
-        OPENEO_TITLE="Local Dummy Backend",
-        OPENEO_DESCRIPTION="Local openEO API using dummy backend",
-        OPENEO_BACKEND_VERSION=openeo_driver.__version__,
-    )
     return app
 
 

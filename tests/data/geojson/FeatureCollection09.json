@@ -1,8 +1,26 @@
 {
-"type": "FeatureCollection",
-"name": "FeatureCollections09",
-"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::32634" } },
-"features": [
-{ "type": "Feature", "properties": { }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 546500.734324475633912, 8998496.532106472179294 ], [ 547068.869181835558265, 8998522.909413514658809 ], [ 546964.038438386865892, 9000767.116470934823155 ], [ 546397.169007838820107, 9000740.796458588913083 ], [ 546500.734324475633912, 8998496.532106472179294 ] ] ] } }
-]
+  "type": "FeatureCollection",
+  "name": "FeatureCollections09",
+  "crs": {
+    "type": "name",
+    "properties": {"name": "urn:ogc:def:crs:EPSG::32634"}
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [546500.7343244756, 8998496.532106472],
+            [547068.8691818356, 8998522.909413515],
+            [546964.0384383869, 9000767.116470935],
+            [546397.1690078388, 9000740.796458589],
+            [546500.7343244756, 8998496.532106472]
+          ]
+        ]
+      }
+    }
+  ]
 }
