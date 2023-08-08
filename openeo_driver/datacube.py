@@ -676,7 +676,7 @@ class DriverVectorCube:
                     raise ValueError(
                         f"UDF should return single feature collection but got {result_features and len(result_features)}"
                     )
-                return DriverVectorCube(geometries=result_features[0].data)
+                return DriverVectorCube.from_geodataframe(result_features[0].data)
 
         raise FeatureUnsupportedException(
             message=f"DriverVectorCube.apply_dimension with {dimension=} and {bool(single_run_udf)=}"

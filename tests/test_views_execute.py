@@ -3763,7 +3763,7 @@ class TestVectorCubeRunUDF:
                     "process": self._build_run_udf_callback(
                         """
                         from openeo.udf import UdfData, FeatureCollection
-                        def process_geometries(udf_data: UdfData) -> UdfData:
+                        def process_vector_cube(udf_data: UdfData) -> UdfData:
                             [feature_collection] = udf_data.get_feature_collection_list()
                             gdf = feature_collection.data
                             gdf["geometry"] = gdf["geometry"].buffer(distance=1, resolution=2)
@@ -3827,7 +3827,7 @@ class TestVectorCubeRunUDF:
                         """
                         from openeo.udf import UdfData, FeatureCollection
                         import shapely.geometry
-                        def process_geometries(udf_data: UdfData) -> UdfData:
+                        def process_vector_cube(udf_data: UdfData) -> UdfData:
                             [feature_collection] = udf_data.get_feature_collection_list()
                             gdf = feature_collection.data
                             to_intersect = shapely.geometry.box(4, 3, 8, 4)
@@ -3896,8 +3896,7 @@ class TestVectorCubeRunUDF:
                     "process": self._build_run_udf_callback(
                         """
                         from openeo.udf import UdfData, FeatureCollection
-                        import shapely.geometry
-                        def process_geometries(udf_data: UdfData) -> UdfData:
+                        def process_vector_cube(udf_data: UdfData) -> UdfData:
                             [feature_collection] = udf_data.get_feature_collection_list()
                             gdf = feature_collection.data
                             gdf = gdf[gdf["pop"] > 500]
@@ -3959,8 +3958,7 @@ class TestVectorCubeRunUDF:
                     "process": self._build_run_udf_callback(
                         """
                         from openeo.udf import UdfData, FeatureCollection
-                        import shapely.geometry
-                        def process_geometries(udf_data: UdfData) -> UdfData:
+                        def process_vector_cube(udf_data: UdfData) -> UdfData:
                             [feature_collection] = udf_data.get_feature_collection_list()
                             gdf = feature_collection.data
                             gdf["poppop"] = gdf["pop"] ** 2
