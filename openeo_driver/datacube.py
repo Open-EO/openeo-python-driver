@@ -422,11 +422,17 @@ class DriverVectorCube:
         return cls(geometries=gpd.GeoDataFrame(geometry=geometry))
 
     def _as_geopandas_df(
-        self, flatten_prefix: Optional[str] = None, flatten_name_joiner: str = "~"
+        self,
+        flatten_prefix: Optional[str] = None,
+        flatten_name_joiner: str = "~",
+        include_properties=True,
+        only_numeric=False,
     ) -> gpd.GeoDataFrame:
         """Join geometries and cube as a geopandas dataframe"""
         # TODO: avoid copy?
         df = self._geometries.copy(deep=True)
+        if not include_properties:
+            df = df.drop(columns=[c for c in df.columns if c != df.geometry.name])
         if self._cube is not None and not self._cube.attrs.get(self.CUBE_ATTR_VECTOR_CUBE_DUMMY):
             assert self._cube.dims[0] == self.DIM_GEOMETRIES
             # TODO: better way to combine cube with geometries
@@ -436,6 +442,8 @@ class DriverVectorCube:
                 log.info(f"Flattened cube component of vector cube to {stacked.shape[1]} properties")
                 name_prefix = [flatten_prefix] if flatten_prefix else []
                 for p in stacked.indexes["prop"]:
+                    if only_numeric and type(stacked.sel(prop=p)[0].item()) not in [int, float]:
+                        continue
                     name = flatten_name_joiner.join(str(x) for x in name_prefix + list(p))
                     # TODO: avoid column collisions?
                     df[name] = stacked.sel(prop=p)
