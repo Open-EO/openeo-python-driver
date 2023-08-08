@@ -382,6 +382,11 @@ class DriverVectorCube:
             df.crs = CRS.from_epsg(4326)
         return cls.from_geodataframe(df, columns_for_cube=columns_for_cube)
 
+    def write_to_parquet(self, path: str, flatten_prefix: Optional[str] = None):
+        return self._as_geopandas_df(
+            flatten_prefix=flatten_prefix, include_properties=False, only_numeric=True
+        ).to_parquet(path)
+
     @classmethod
     def from_geojson(
         cls,
