@@ -219,7 +219,10 @@ class DriverVectorCube:
     - optional xarray DataArray for holding the data cube data (homogeneously typed and rigorously indexed/gridded)
     These components are "joined" on the GeoPandas dataframe's index and DataArray first dimension
     """
-    DIM_GEOMETRIES = "geometries"
+
+    # Note: the geometry _dimension_ is called "geometry" per https://github.com/Open-EO/openeo-api/issues/479,
+    #       while some other internal aspects/attributes confusingly might be called "geometries".
+    DIM_GEOMETRY = "geometry"
     DIM_BANDS = "bands"
     DIM_PROPERTIES = "properties"
     COLUMN_SELECTION_ALL = "all"
@@ -241,8 +244,8 @@ class DriverVectorCube:
         """
         # TODO #114 EP-3981: lazy loading (like DelayedVector)?
         if cube is not None:
-            if cube.dims[0] != self.DIM_GEOMETRIES:
-                log.error(f"First cube dim should be {self.DIM_GEOMETRIES!r} but got dims {cube.dims!r}")
+            if cube.dims[0] != self.DIM_GEOMETRY:
+                log.error(f"First cube dim should be {self.DIM_GEOMETRY!r} but got dims {cube.dims!r}")
                 raise VectorCubeError("Cube's first dimension is invalid.")
             if not geometries.index.equals(cube.indexes[cube.dims[0]]):
                 log.error(f"Invalid VectorCube components {geometries.index=} != {cube.indexes[cube.dims[0]]=}")
@@ -313,9 +316,9 @@ class DriverVectorCube:
             # TODO: leverage pandas `to_xarray` and xarray `to_array` instead of this manual building?
             cube: xarray.DataArray = xarray.DataArray(
                 data=cube_df.values,
-                dims=[cls.DIM_GEOMETRIES, dimension_name],
+                dims=[cls.DIM_GEOMETRY, dimension_name],
                 coords={
-                    cls.DIM_GEOMETRIES: data.geometry.index.to_list(),
+                    cls.DIM_GEOMETRY: data.geometry.index.to_list(),
                     dimension_name: cube_df.columns,
                 },
             )
@@ -325,8 +328,8 @@ class DriverVectorCube:
             # Use 1D dummy cube of NaN values
             cube: xarray.DataArray = xarray.DataArray(
                 data=numpy.full(shape=[data.shape[0]], fill_value=numpy.nan),
-                dims=[cls.DIM_GEOMETRIES],
-                coords={cls.DIM_GEOMETRIES: data.geometry.index.to_list()},
+                dims=[cls.DIM_GEOMETRY],
+                coords={cls.DIM_GEOMETRY: data.geometry.index.to_list()},
                 attrs={cls.CUBE_ATTR_VECTOR_CUBE_DUMMY: True},
             )
             return cls(geometries=data, cube=cube)
@@ -428,7 +431,7 @@ class DriverVectorCube:
         # TODO: avoid copy?
         df = self._geometries.copy(deep=True)
         if self._cube is not None and not self._cube.attrs.get(self.CUBE_ATTR_VECTOR_CUBE_DUMMY):
-            assert self._cube.dims[0] == self.DIM_GEOMETRIES
+            assert self._cube.dims[0] == self.DIM_GEOMETRY
             # TODO: better way to combine cube with geometries
             # Flatten multiple (non-geometry) dimensions from cube to new properties in geopandas dataframe
             if self._cube.dims[1:]:
@@ -528,21 +531,21 @@ class DriverVectorCube:
 
         cube = self._cube
         # TODO: more flexible temporal/band dimension detection?
-        if cube.dims == (self.DIM_GEOMETRIES, "t"):
+        if cube.dims == (self.DIM_GEOMETRY, "t"):
             # Add single band dimension
             cube = cube.expand_dims({"bands": ["band"]}, axis=-1)
-        if cube.dims == (self.DIM_GEOMETRIES, "t", "bands"):
-            cube = cube.transpose("t", self.DIM_GEOMETRIES, "bands")
+        if cube.dims == (self.DIM_GEOMETRY, "t", "bands"):
+            cube = cube.transpose("t", self.DIM_GEOMETRY, "bands")
             timeseries = {
                 t.item(): t_slice.values.tolist()
                 for t, t_slice in zip(cube.coords["t"], cube)
             }
             return AggregatePolygonResult(timeseries=timeseries, regions=self)
-        elif cube.dims == (self.DIM_GEOMETRIES, "bands"):
+        elif cube.dims == (self.DIM_GEOMETRY, "bands"):
             # This covers the legacy `AggregatePolygonSpatialResult` code path,
             # but as AggregatePolygonSpatialResult's constructor expects a folder of CSV file(s),
             # we keep it simple here with a basic JSONResult result.
-            cube = cube.transpose(self.DIM_GEOMETRIES, "bands")
+            cube = cube.transpose(self.DIM_GEOMETRY, "bands")
             return JSONResult(data=cube.values.tolist())
         raise ValueError(
             f"Unsupported cube configuration {cube.dims} for _write_legacy_aggregate_polygon_result_json"
@@ -550,7 +553,7 @@ class DriverVectorCube:
 
     def get_dimension_names(self) -> List[str]:
         if self._cube is None:
-            return [self.DIM_GEOMETRIES]
+            return [self.DIM_GEOMETRY]
         else:
             return list(str(d) for d in self._cube.dims)
 
@@ -591,8 +594,8 @@ class DriverVectorCube:
 
     def get_xarray_cube_basics(self) -> Tuple[tuple, dict]:
         """Get initial dims/coords for xarray DataArray construction"""
-        dims = (self.DIM_GEOMETRIES,)
-        coords = {self.DIM_GEOMETRIES: self._geometries.index.to_list()}
+        dims = (self.DIM_GEOMETRY,)
+        coords = {self.DIM_GEOMETRY: self._geometries.index.to_list()}
         return dims, coords
 
     def __eq__(self, other):
@@ -649,7 +652,7 @@ class DriverVectorCube:
                     message="Vector cube `apply_dimension` process does not reference `data` parameter."
                 )
             if (
-                dimension == self.DIM_GEOMETRIES
+                dimension == self.DIM_GEOMETRY
                 or (dimension in {self.DIM_BANDS, self.DIM_PROPERTIES}.intersection(self.get_dimension_names()))
                 and target_dimension is None
             ):

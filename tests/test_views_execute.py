@@ -3742,7 +3742,7 @@ class TestVectorCubeRunUDF:
         "dimension",
         [
             "properties",
-            "geometries",
+            "geometry",
         ],
     )
     def test_apply_dimension_run_udf_change_geometry(self, api100, dimension):
@@ -3802,7 +3802,7 @@ class TestVectorCubeRunUDF:
             #       `apply_dimension` only allows changing the cardinality of the provided dimension ("properties"),
             #       not any other dimension ("geometries" here).
             "properties",
-            "geometries",
+            "geometry",
         ],
     )
     def test_apply_dimension_run_udf_filter_on_geometries(self, api100, dimension):
@@ -3867,7 +3867,7 @@ class TestVectorCubeRunUDF:
             #       `apply_dimension` only allows changing the cardinality of the provided dimension ("properties"),
             #       not any other dimension ("geometries" here).
             "properties",
-            "geometries",
+            "geometry",
         ],
     )
     def test_apply_dimension_run_udf_filter_on_properties(self, api100, dimension):
@@ -3932,10 +3932,10 @@ class TestVectorCubeRunUDF:
         "dimension",
         [
             "properties",
-            # TODO: this "dimension="geometries" use case does not strictly follow the openEO API spec
-            #       `apply_dimension` only allows changing the cardinality of the provided dimension ("geometries"),
+            # TODO: this "dimension="geometry" use case does not strictly follow the openEO API spec
+            #       `apply_dimension` only allows changing the cardinality of the provided dimension ("geometry"),
             #       not any other dimension ("properties" here).
-            "geometries",
+            "geometry",
         ],
     )
     def test_apply_dimension_run_udf_add_properties(self, api100, dimension):

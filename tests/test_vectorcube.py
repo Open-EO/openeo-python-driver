@@ -123,9 +123,9 @@ class TestDriverVectorCube:
                 "numerical",
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["pop"], "dims": ("properties",)},
                     },
                     "data": [[1234], [5678]],
@@ -136,9 +136,9 @@ class TestDriverVectorCube:
                 "all",
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["id", "pop"], "dims": ("properties",)},
                     },
                     "data": [["first", 1234], ["second", 5678]],
@@ -149,9 +149,9 @@ class TestDriverVectorCube:
                 [],
                 {
                     "name": None,
-                    "dims": ("geometries",),
+                    "dims": ("geometry",),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                     },
                     "data": [IsNan(), IsNan()],
                     "attrs": {"vector_cube_dummy": True},
@@ -161,9 +161,9 @@ class TestDriverVectorCube:
                 ["pop", "id"],
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["pop", "id"], "dims": ("properties",)},
                     },
                     "data": [[1234, "first"], [5678, "second"]],
@@ -174,9 +174,9 @@ class TestDriverVectorCube:
                 ["pop", "color"],
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["pop", "color"], "dims": ("properties",)},
                     },
                     "data": [[1234.0, IsNan()], [5678.0, IsNan()]],
@@ -187,9 +187,9 @@ class TestDriverVectorCube:
                 ["color"],
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["color"], "dims": ("properties",)},
                     },
                     "data": [[IsNan()], [IsNan()]],
@@ -337,9 +337,9 @@ class TestDriverVectorCube:
             }
         )
         cube = vc.get_cube()
-        assert cube.dims == ("geometries", "properties")
+        assert cube.dims == ("geometry", "properties")
         assert cube.shape == (2, 1)
-        assert {k: list(v.values) for k, v in cube.coords.items()} == {"geometries": [0, 1], "properties": ["pop"]}
+        assert {k: list(v.values) for k, v in cube.coords.items()} == {"geometry": [0, 1], "properties": ["pop"]}
 
     @pytest.mark.parametrize(
         ["columns_for_cube", "expected_cube"],
@@ -348,9 +348,9 @@ class TestDriverVectorCube:
                 "numerical",
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["pop"], "dims": ("properties",)},
                     },
                     "data": [[1234], [5678]],
@@ -361,9 +361,9 @@ class TestDriverVectorCube:
                 "all",
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["id", "pop"], "dims": ("properties",)},
                     },
                     "data": [["first", 1234], ["second", 5678]],
@@ -374,9 +374,9 @@ class TestDriverVectorCube:
                 [],
                 {
                     "name": None,
-                    "dims": ("geometries",),
+                    "dims": ("geometry",),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                     },
                     "data": [IsNan(), IsNan()],
                     "attrs": {"vector_cube_dummy": True},
@@ -386,9 +386,9 @@ class TestDriverVectorCube:
                 ["id"],
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["id"], "dims": ("properties",)},
                     },
                     "data": [["first"], ["second"]],
@@ -399,9 +399,9 @@ class TestDriverVectorCube:
                 ["pop", "id"],
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["pop", "id"], "dims": ("properties",)},
                     },
                     "data": [[1234, "first"], [5678, "second"]],
@@ -412,9 +412,9 @@ class TestDriverVectorCube:
                 ["color"],
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["color"], "dims": ("properties",)},
                     },
                     "data": [[IsNan()], [IsNan()]],
@@ -425,9 +425,9 @@ class TestDriverVectorCube:
                 ["pop", "color"],
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["pop", "color"], "dims": ("properties",)},
                     },
                     "data": [[1234, IsNan()], [5678, IsNan()]],
@@ -900,9 +900,9 @@ class TestDriverVectorCube:
             },
             "cube": {
                 "name": None,
-                "dims": ("geometries", "properties"),
+                "dims": ("geometry", "properties"),
                 "coords": {
-                    "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                    "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                     "properties": {"attrs": {}, "data": ["pop", "popone", "poppop"], "dims": ("properties",)},
                 },
                 "data": [[1234, 1235, 1522756], [5678, 5679, 32239684]],
