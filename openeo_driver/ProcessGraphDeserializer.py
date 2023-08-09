@@ -1213,9 +1213,9 @@ def filter_spatial(args: Dict, env: EvalEnv) -> DriverDataCube:
 
 
 @process
-def filter_bands(args: Dict, env: EvalEnv) -> DriverDataCube:
-    cube = extract_arg(args, 'data')
-    if not isinstance(cube, DriverDataCube):
+def filter_bands(args: Dict, env: EvalEnv) -> Union[DriverDataCube, DriverVectorCube]:
+    cube: Union[DriverDataCube, DriverVectorCube] = extract_arg(args, "data")
+    if not isinstance(cube, DriverDataCube) and not isinstance(cube, DriverVectorCube):
         raise ProcessParameterInvalidException(
             parameter="data", process="filter_bands", reason=f"Invalid data type {type(cube)!r} expected raster-cube."
         )

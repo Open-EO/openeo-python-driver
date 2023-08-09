@@ -250,6 +250,9 @@ class DriverVectorCube:
         self._geometries: gpd.GeoDataFrame = geometries
         self._cube = cube
 
+    def filter_bands(self, bands) -> "DriverVectorCube":
+        self._cube.sel(dim_name=[bands])
+
     def with_cube(self, cube: xarray.DataArray) -> "DriverVectorCube":
         """Create new vector cube with same geometries but new cube"""
         log.info(f"Creating vector cube with new cube {cube.name!r}")
