@@ -1140,6 +1140,38 @@ def test_load_collection_properties(dry_run_env, dry_run_tracer):
     ]
 
 
+def test_load_stac_properties(dry_run_env, dry_run_tracer):
+    properties = {
+        "platform": {
+            "process_graph": {
+                "eq1": {
+                    "process_id": "eq",
+                    "arguments": {
+                        "x": {"from_parameter": "value"},
+                        "y": "S2A"
+                    },
+                    "result": True
+                }
+            }
+        }
+    }
+
+    pg = {
+        "ls": {
+            "process_id": "load_stac", "arguments": {"url": "https://example.org/collections/S2", "properties": properties},
+            "result": True
+        }
+    }
+
+    evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+
+    assert source_constraints == [
+        (("load_stac", ("https://example.org/collections/S2", (("platform", (("eq", "S2A"),),),))), {"properties": properties}),
+    ]
+
+
 @pytest.mark.parametrize(["arguments", "expected"], [
     (
             {},
