@@ -3742,7 +3742,7 @@ class TestVectorCubeRunUDF:
         "dimension",
         [
             "properties",
-            "geometries",
+            "geometry",
         ],
     )
     def test_apply_dimension_run_udf_change_geometry(self, api100, dimension):
@@ -3763,7 +3763,7 @@ class TestVectorCubeRunUDF:
                     "process": self._build_run_udf_callback(
                         """
                         from openeo.udf import UdfData, FeatureCollection
-                        def process_geometries(udf_data: UdfData) -> UdfData:
+                        def process_vector_cube(udf_data: UdfData) -> UdfData:
                             [feature_collection] = udf_data.get_feature_collection_list()
                             gdf = feature_collection.data
                             gdf["geometry"] = gdf["geometry"].buffer(distance=1, resolution=2)
@@ -3802,7 +3802,7 @@ class TestVectorCubeRunUDF:
             #       `apply_dimension` only allows changing the cardinality of the provided dimension ("properties"),
             #       not any other dimension ("geometries" here).
             "properties",
-            "geometries",
+            "geometry",
         ],
     )
     def test_apply_dimension_run_udf_filter_on_geometries(self, api100, dimension):
@@ -3827,7 +3827,7 @@ class TestVectorCubeRunUDF:
                         """
                         from openeo.udf import UdfData, FeatureCollection
                         import shapely.geometry
-                        def process_geometries(udf_data: UdfData) -> UdfData:
+                        def process_vector_cube(udf_data: UdfData) -> UdfData:
                             [feature_collection] = udf_data.get_feature_collection_list()
                             gdf = feature_collection.data
                             to_intersect = shapely.geometry.box(4, 3, 8, 4)
@@ -3867,7 +3867,7 @@ class TestVectorCubeRunUDF:
             #       `apply_dimension` only allows changing the cardinality of the provided dimension ("properties"),
             #       not any other dimension ("geometries" here).
             "properties",
-            "geometries",
+            "geometry",
         ],
     )
     def test_apply_dimension_run_udf_filter_on_properties(self, api100, dimension):
@@ -3896,8 +3896,7 @@ class TestVectorCubeRunUDF:
                     "process": self._build_run_udf_callback(
                         """
                         from openeo.udf import UdfData, FeatureCollection
-                        import shapely.geometry
-                        def process_geometries(udf_data: UdfData) -> UdfData:
+                        def process_vector_cube(udf_data: UdfData) -> UdfData:
                             [feature_collection] = udf_data.get_feature_collection_list()
                             gdf = feature_collection.data
                             gdf = gdf[gdf["pop"] > 500]
@@ -3933,10 +3932,10 @@ class TestVectorCubeRunUDF:
         "dimension",
         [
             "properties",
-            # TODO: this "dimension="geometries" use case does not strictly follow the openEO API spec
-            #       `apply_dimension` only allows changing the cardinality of the provided dimension ("geometries"),
+            # TODO: this "dimension="geometry" use case does not strictly follow the openEO API spec
+            #       `apply_dimension` only allows changing the cardinality of the provided dimension ("geometry"),
             #       not any other dimension ("properties" here).
-            "geometries",
+            "geometry",
         ],
     )
     def test_apply_dimension_run_udf_add_properties(self, api100, dimension):
@@ -3959,8 +3958,7 @@ class TestVectorCubeRunUDF:
                     "process": self._build_run_udf_callback(
                         """
                         from openeo.udf import UdfData, FeatureCollection
-                        import shapely.geometry
-                        def process_geometries(udf_data: UdfData) -> UdfData:
+                        def process_vector_cube(udf_data: UdfData) -> UdfData:
                             [feature_collection] = udf_data.get_feature_collection_list()
                             gdf = feature_collection.data
                             gdf["poppop"] = gdf["pop"] ** 2
