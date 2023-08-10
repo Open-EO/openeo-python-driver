@@ -1239,6 +1239,42 @@ class TestBatchJobs:
             resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
         resp.assert_error(400, "JobNotFinished")
 
+    def test_get_job_results_unfinished_with_partial_explicitly_false(self, api):
+        with self._fresh_job_registry(next_job_id="job-345"):
+            resp = api.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results?partial=false", headers=self.AUTH_HEADER)
+        resp.assert_error(400, "JobNotFinished")
+
+    def test_get_job_results_unfinished_with_partial_true(self, api):
+        with self._fresh_job_registry(next_job_id="job-345"):
+            resp: ApiResponse = api.get(
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results?partial=true", headers=self.AUTH_HEADER
+            )
+        resp.assert_status_code(200)
+
+        job_result = resp.json
+        assert "openeo:status" in job_result
+        assert job_result["openeo:status"] == "running"
+
+        import pprint
+        from pystac.validation import validate_dict, validate_all
+        from pystac.errors import STACLocalValidationError
+
+        try:
+            val_result = validate_dict(job_result)
+            breakpoint()
+            pprint.pprint(val_result)
+        except STACLocalValidationError as stac_exc:
+            print(stac_exc)
+            raise
+
+        try:
+            val_result = validate_all(job_result, href=resp.response.request.url)
+            breakpoint()
+            pprint.pprint(val_result)
+        except STACLocalValidationError as stac_exc:
+            print(stac_exc)
+            raise
+
     def test_get_job_results_100(self, api100):
         with self._fresh_job_registry(next_job_id="job-362"):
             dummy_backend.DummyBatchJobs._update_status(

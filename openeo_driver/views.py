@@ -888,7 +888,12 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs/<job_id>/results', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def list_job_results(job_id, user: User):
-        return _list_job_results(job_id, user.user_id)
+        partial = request.args.get("partial", False)
+        if partial in ["true", True]:
+            partial = True
+        else:
+            partial = False
+        return _list_job_results(job_id, user.user_id, partial)
 
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results/<user_base64>/<secure_key>', methods=['GET'])
@@ -899,10 +904,26 @@ def register_views_batch_jobs(
         signer.verify_job_results(signature=secure_key, job_id=job_id, user_id=user_id, expires=expires)
         return _list_job_results(job_id, user_id)
 
-    def _list_job_results(job_id, user_id):
+    def _list_job_results(job_id, user_id, partial=False):
+        to_datetime = Rfc3339(propagate_none=True).datetime
+
         job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
         if job_info.status != JOB_STATUS.FINISHED:
-            raise JobNotFinishedException()
+            if not partial:
+                raise JobNotFinishedException()
+            else:
+                result = {
+                    "openeo:status": "running",
+                    "type": "Catalog",
+                    "stac_version": "1.0.0",
+                    "id": job_id,
+                    "title": job_info.title or "Unfinished batch job {job_id}",
+                    "description": job_info.description or f"Results for batch job {job_id}",
+                    "license": "proprietary",  # TODO?
+                    "summaries": {"instruments": job_info.instruments},
+                    "links": [],
+                }
+                return jsonify(result)
 
         result_metadata = backend_implementation.batch_jobs.get_result_metadata(
             job_id=job_id, user_id=user_id
@@ -971,7 +992,6 @@ def register_views_batch_jobs(
             }
 
             if TREAT_JOB_RESULTS_V100_LIKE_V110 or requested_api_version().at_least("1.1.0"):
-                to_datetime = Rfc3339(propagate_none=True).datetime
                 ml_model_metadata = None
 
                 def job_result_item_url(item_id) -> str:
