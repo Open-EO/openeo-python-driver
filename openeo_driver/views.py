@@ -1,4 +1,5 @@
 import copy
+import datetime as dt
 import functools
 import json
 import logging
@@ -914,13 +915,18 @@ def register_views_batch_jobs(
             else:
                 result = {
                     "openeo:status": "running",
-                    "type": "Catalog",
+                    "type": "Collection",
                     "stac_version": "1.0.0",
                     "id": job_id,
                     "title": job_info.title or "Unfinished batch job {job_id}",
                     "description": job_info.description or f"Results for batch job {job_id}",
                     "license": "proprietary",  # TODO?
-                    "summaries": {"instruments": job_info.instruments},
+                    "extent": {
+                        "spatial": {"bbox": [[-180, -90, 180, 90]]},
+                        "temporal": {
+                            "interval": [[to_datetime(dt.datetime.utcnow()), to_datetime(dt.datetime.utcnow())]]
+                        },
+                    },
                     "links": [],
                 }
                 return jsonify(result)

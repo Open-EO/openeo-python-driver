@@ -1261,7 +1261,6 @@ class TestBatchJobs:
 
         try:
             val_result = validate_dict(job_result)
-            breakpoint()
             pprint.pprint(val_result)
         except STACLocalValidationError as stac_exc:
             print(stac_exc)
@@ -1269,7 +1268,6 @@ class TestBatchJobs:
 
         try:
             val_result = validate_all(job_result, href=resp.response.request.url)
-            breakpoint()
             pprint.pprint(val_result)
         except STACLocalValidationError as stac_exc:
             print(stac_exc)
