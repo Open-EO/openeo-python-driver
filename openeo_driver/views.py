@@ -907,6 +907,25 @@ def register_views_batch_jobs(
     def _list_job_results(job_id, user_id, partial=False):
         to_datetime = Rfc3339(propagate_none=True).datetime
 
+        def job_results_canonical_url() -> str:
+            signer = get_backend_config().url_signer
+            if not signer:
+                return url_for(".list_job_results", job_id=job_id, _external=True)
+
+            expires = signer.get_expires()
+            secure_key = signer.sign_job_results(job_id=job_id, user_id=user_id, expires=expires)
+            user_base64 = user_id_b64_encode(user_id)
+            # TODO: also encrypt user id?
+            # TODO: encode all stuff (signature, userid, expiry) in a single blob in the URL
+            return url_for(
+                ".list_job_results_signed",
+                job_id=job_id,
+                user_base64=user_base64,
+                expires=expires,
+                secure_key=secure_key,
+                _external=True,
+            )
+
         job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
         if job_info.status != JOB_STATUS.FINISHED:
             if not partial:
@@ -926,7 +945,13 @@ def register_views_batch_jobs(
                             "interval": [[to_datetime(dt.datetime.utcnow()), to_datetime(dt.datetime.utcnow())]]
                         },
                     },
-                    "links": [],
+                    "links": [
+                        {
+                            "rel": "canonical",
+                            "href": job_results_canonical_url(),
+                            "type": "application/json",
+                        }
+                    ],
                 }
                 return jsonify(result)
 
@@ -943,23 +968,6 @@ def register_views_batch_jobs(
         TREAT_JOB_RESULTS_V100_LIKE_V110 = smart_bool(os.environ.get("TREAT_JOB_RESULTS_V100_LIKE_V110", "0"))
 
         if requested_api_version().at_least("1.0.0"):
-            def job_results_canonical_url() -> str:
-                signer = get_backend_config().url_signer
-                if not signer:
-                    return url_for('.list_job_results', job_id=job_id, _external=True)
-
-                expires = signer.get_expires()
-                secure_key = signer.sign_job_results(
-                    job_id=job_id, user_id=user_id, expires=expires
-                )
-                user_base64 = user_id_b64_encode(user_id)
-                # TODO: also encrypt user id?
-                # TODO: encode all stuff (signature, userid, expiry) in a single blob in the URL
-                return url_for(
-                    '.list_job_results_signed',
-                    job_id=job_id, user_base64=user_base64, expires=expires, secure_key=secure_key, _external=True
-                )
-
             links: List[dict] = result_metadata.links or job_info.links or []
 
             if not any(l.get("rel") == "self" for l in links):
