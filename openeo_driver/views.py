@@ -890,10 +890,7 @@ def register_views_batch_jobs(
     @auth_handler.requires_bearer_auth
     def list_job_results(job_id, user: User):
         partial = request.args.get("partial", False)
-        if partial in ["true", True]:
-            partial = True
-        else:
-            partial = False
+        partial = True if partial in ["true", True] else False
         return _list_job_results(job_id, user.user_id, partial)
 
     @api_endpoint
@@ -903,7 +900,9 @@ def register_views_batch_jobs(
         signer = get_backend_config().url_signer
         user_id = user_id_b64_decode(user_base64)
         signer.verify_job_results(signature=secure_key, job_id=job_id, user_id=user_id, expires=expires)
-        return _list_job_results(job_id, user_id)
+        partial = request.args.get("partial", False)
+        partial = True if partial in ["true", True] else False
+        return _list_job_results(job_id, user_id, partial)
 
     def _list_job_results(job_id, user_id, partial=False):
         to_datetime = Rfc3339(propagate_none=True).datetime
