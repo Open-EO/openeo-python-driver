@@ -1665,9 +1665,7 @@ class TestBatchJobs:
             resp = api100.get(f"/jobs/{job_id}/results?partial=true", headers=self.AUTH_HEADER)
 
             resp.assert_status_code(200)
-            expected_canonical_url = (
-                f"http://oeo.net/openeo/1.0.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/05cb8b78f20c68a5aa9eb05249928d24"
-            )
+            expected_canonical_url = f"http://oeo.net/openeo/1.0.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/05cb8b78f20c68a5aa9eb05249928d24?partial=true"
             assert resp.json == DictSubSet(
                 {
                     "openeo:status": "running",
@@ -1783,9 +1781,7 @@ class TestBatchJobs:
             )
 
             resp.assert_status_code(200)
-            expected_canonical_url = (
-                f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/05cb8b78f20c68a5aa9eb05249928d24"
-            )
+            expected_canonical_url = f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/05cb8b78f20c68a5aa9eb05249928d24?partial=true"
             assert resp.json == DictSubSet(
                 {
                     "openeo:status": "running",
@@ -1896,7 +1892,7 @@ class TestBatchJobs:
             resp = api100.get(f"/jobs/{job_id}/results?partial=true", headers=self.AUTH_HEADER)
             resp.assert_status_code(200)
 
-            expected_canonical_url = f"http://oeo.net/openeo/1.0.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/9fea29cd94195399cc4d902388a3c32c?expires=2234"
+            expected_canonical_url = f"http://oeo.net/openeo/1.0.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/9fea29cd94195399cc4d902388a3c32c?expires=2234&partial=true"
             assert resp.json == DictSubSet(
                 {
                     "openeo:status": "running",
@@ -2017,7 +2013,7 @@ class TestBatchJobs:
             resp.assert_status_code(200)
 
             job_result = resp.json
-            expected_canonical_url = f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/9fea29cd94195399cc4d902388a3c32c?expires=2234"
+            expected_canonical_url = f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/9fea29cd94195399cc4d902388a3c32c?expires=2234&partial=true"
             assert resp.json == DictSubSet(
                 {
                     "openeo:status": "running",
