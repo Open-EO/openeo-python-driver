@@ -1640,6 +1640,38 @@ class TestBatchJobs:
             }
 
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
+    def test_get_job_results_signed_100_unfinished_and_partial_false(self, api100, flask_app, backend_config_overrides):
+        with self._fresh_job_registry():
+            dummy_backend.DummyBatchJobs._update_status(
+                job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="running"
+            )
+            resp = api100.get(
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results?partial=false", headers=self.AUTH_HEADER
+            )
+            resp.assert_error(400, "JobNotFinished")
+
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
+    def test_get_job_results_signed_100_unfinished_and_partial_true(self, api100, flask_app, backend_config_overrides):
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
+        with self._fresh_job_registry():
+            dummy_backend.DummyBatchJobs._update_status(job_id=job_id, user_id=TEST_USER, status="running")
+            resp = api100.get(f"/jobs/{job_id}/results?partial=true", headers=self.AUTH_HEADER)
+
+            resp.assert_status_code(200)
+            assert resp.json == DictSubSet(
+                {
+                    "openeo:status": "running",
+                    "type": "Collection",
+                    "stac_version": "1.0.0",
+                    "id": job_id,
+                    "title": "Unfinished batch job {job_id}",
+                    "description": f"Results for batch job {job_id}",
+                    "license": "proprietary",
+                    "links": [],
+                }
+            )
+
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
     def test_get_job_results_signed_110(self, api110, flask_app, backend_config_overrides):
         with self._fresh_job_registry():
             dummy_backend.DummyBatchJobs._update_status(
@@ -1813,6 +1845,44 @@ class TestBatchJobs:
                 "stac_version": "0.9.0",
                 "type": "Feature",
             }
+
+    @mock.patch("time.time", mock.MagicMock(return_value=1234))
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
+    def test_get_job_results_signed_with_expiration_100_unfinished_and_partial_false(
+        self, api100, flask_app, backend_config_overrides
+    ):
+        with self._fresh_job_registry():
+            dummy_backend.DummyBatchJobs._update_status(
+                job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="running"
+            )
+            resp = api100.get(
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results?partial=false", headers=self.AUTH_HEADER
+            )
+            resp.assert_error(400, "JobNotFinished")
+
+    @mock.patch("time.time", mock.MagicMock(return_value=1234))
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
+    def test_get_job_results_signed_with_expiration_100_unfinished_and_partial_true(
+        self, api100, flask_app, backend_config_overrides
+    ):
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
+        with self._fresh_job_registry():
+            dummy_backend.DummyBatchJobs._update_status(job_id=job_id, user_id=TEST_USER, status="running")
+            resp = api100.get(f"/jobs/{job_id}/results?partial=true", headers=self.AUTH_HEADER)
+            resp.assert_status_code(200)
+
+            assert resp.json == DictSubSet(
+                {
+                    "openeo:status": "running",
+                    "type": "Collection",
+                    "stac_version": "1.0.0",
+                    "id": job_id,
+                    "title": "Unfinished batch job {job_id}",
+                    "description": f"Results for batch job {job_id}",
+                    "license": "proprietary",
+                    "links": [],
+                }
+            )
 
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
