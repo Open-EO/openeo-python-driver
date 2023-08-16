@@ -251,7 +251,7 @@ class DriverVectorCube:
         self._cube = cube
 
     def filter_bands(self, bands) -> "DriverVectorCube":
-        self._cube.sel(dim_name=[bands])
+        return self.with_cube(self._cube.sel({self.DIM_PROPERTIES: bands}))
 
     def with_cube(self, cube: xarray.DataArray) -> "DriverVectorCube":
         """Create new vector cube with same geometries but new cube"""
