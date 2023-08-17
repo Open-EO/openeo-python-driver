@@ -1239,6 +1239,38 @@ class TestBatchJobs:
             resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
         resp.assert_error(400, "JobNotFinished")
 
+    def test_get_job_results_unfinished_with_partial_explicitly_false(self, api):
+        with self._fresh_job_registry(next_job_id="job-345"):
+            resp = api.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results?partial=false", headers=self.AUTH_HEADER)
+        resp.assert_error(400, "JobNotFinished")
+
+    def test_get_job_results_unfinished_with_partial_true(self, api):
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
+        with self._fresh_job_registry(next_job_id="job-345"):
+            resp: ApiResponse = api.get(f"/jobs/{job_id}/results?partial=true", headers=self.AUTH_HEADER)
+        resp.assert_status_code(200)
+
+        job_result = resp.json
+        expected_canonical_url = f"http://oeo.net/openeo/{api.api_version}/jobs/{job_id}/results"
+        assert job_result == DictSubSet(
+            {
+                "openeo:status": "running",
+                "type": "Collection",
+                "stac_version": "1.0.0",
+                "id": job_id,
+                "title": "Unfinished batch job {job_id}",
+                "description": f"Results for batch job {job_id}",
+                "license": "proprietary",
+                "links": [
+                    {
+                        "rel": "canonical",
+                        "href": expected_canonical_url,
+                        "type": "application/json",
+                    }
+                ],
+            }
+        )
+
     def test_get_job_results_100(self, api100):
         with self._fresh_job_registry(next_job_id="job-362"):
             dummy_backend.DummyBatchJobs._update_status(
@@ -1615,6 +1647,45 @@ class TestBatchJobs:
             }
 
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
+    def test_get_job_results_signed_100_unfinished_and_partial_false(self, api100, flask_app, backend_config_overrides):
+        with self._fresh_job_registry():
+            dummy_backend.DummyBatchJobs._update_status(
+                job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="running"
+            )
+            resp = api100.get(
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results?partial=false", headers=self.AUTH_HEADER
+            )
+            resp.assert_error(400, "JobNotFinished")
+
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
+    def test_get_job_results_signed_100_unfinished_and_partial_true(self, api100, flask_app, backend_config_overrides):
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
+        with self._fresh_job_registry():
+            dummy_backend.DummyBatchJobs._update_status(job_id=job_id, user_id=TEST_USER, status="running")
+            resp = api100.get(f"/jobs/{job_id}/results?partial=true", headers=self.AUTH_HEADER)
+
+            resp.assert_status_code(200)
+            expected_canonical_url = f"http://oeo.net/openeo/1.0.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/05cb8b78f20c68a5aa9eb05249928d24?partial=true"
+            assert resp.json == DictSubSet(
+                {
+                    "openeo:status": "running",
+                    "type": "Collection",
+                    "stac_version": "1.0.0",
+                    "id": job_id,
+                    "title": "Unfinished batch job {job_id}",
+                    "description": f"Results for batch job {job_id}",
+                    "license": "proprietary",
+                    "links": [
+                        {
+                            "rel": "canonical",
+                            "href": expected_canonical_url,
+                            "type": "application/json",
+                        }
+                    ],
+                }
+            )
+
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
     def test_get_job_results_signed_110(self, api110, flask_app, backend_config_overrides):
         with self._fresh_job_registry():
             dummy_backend.DummyBatchJobs._update_status(
@@ -1687,6 +1758,49 @@ class TestBatchJobs:
                 "type": "Collection",
             }
 
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
+    def test_get_job_results_signed_110_unfinished_and_partial_false(self, api110, flask_app, backend_config_overrides):
+        with self._fresh_job_registry():
+            dummy_backend.DummyBatchJobs._update_status(
+                job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="running"
+            )
+            resp = api110.get(
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results?partial=false", headers=self.AUTH_HEADER
+            )
+            resp.assert_error(400, "JobNotFinished")
+
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
+    def test_get_job_results_signed_110_unfinished_and_partial_true(self, api110, flask_app, backend_config_overrides):
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
+        with self._fresh_job_registry():
+            dummy_backend.DummyBatchJobs._update_status(
+                job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="running"
+            )
+            resp: ApiResponse = api110.get(
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results?partial=true", headers=self.AUTH_HEADER
+            )
+
+            resp.assert_status_code(200)
+            expected_canonical_url = f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/05cb8b78f20c68a5aa9eb05249928d24?partial=true"
+            assert resp.json == DictSubSet(
+                {
+                    "openeo:status": "running",
+                    "type": "Collection",
+                    "stac_version": "1.0.0",
+                    "id": job_id,
+                    "title": "Unfinished batch job {job_id}",
+                    "description": f"Results for batch job {job_id}",
+                    "license": "proprietary",
+                    "links": [
+                        {
+                            "rel": "canonical",
+                            "href": expected_canonical_url,
+                            "type": "application/json",
+                        }
+                    ],
+                }
+            )
+
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
     def test_get_job_results_signed_with_expiration_100(self, api100, flask_app, backend_config_overrides):
@@ -1752,6 +1866,51 @@ class TestBatchJobs:
                 "stac_version": "0.9.0",
                 "type": "Feature",
             }
+
+    @mock.patch("time.time", mock.MagicMock(return_value=1234))
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
+    def test_get_job_results_signed_with_expiration_100_unfinished_and_partial_false(
+        self, api100, flask_app, backend_config_overrides
+    ):
+        with self._fresh_job_registry():
+            dummy_backend.DummyBatchJobs._update_status(
+                job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="running"
+            )
+            resp = api100.get(
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results?partial=false", headers=self.AUTH_HEADER
+            )
+            resp.assert_error(400, "JobNotFinished")
+
+    @mock.patch("time.time", mock.MagicMock(return_value=1234))
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
+    def test_get_job_results_signed_with_expiration_100_unfinished_and_partial_true(
+        self, api100, flask_app, backend_config_overrides
+    ):
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
+        with self._fresh_job_registry():
+            dummy_backend.DummyBatchJobs._update_status(job_id=job_id, user_id=TEST_USER, status="running")
+            resp = api100.get(f"/jobs/{job_id}/results?partial=true", headers=self.AUTH_HEADER)
+            resp.assert_status_code(200)
+
+            expected_canonical_url = f"http://oeo.net/openeo/1.0.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/9fea29cd94195399cc4d902388a3c32c?expires=2234&partial=true"
+            assert resp.json == DictSubSet(
+                {
+                    "openeo:status": "running",
+                    "type": "Collection",
+                    "stac_version": "1.0.0",
+                    "id": job_id,
+                    "title": "Unfinished batch job {job_id}",
+                    "description": f"Results for batch job {job_id}",
+                    "license": "proprietary",
+                    "links": [
+                        {
+                            "rel": "canonical",
+                            "href": expected_canonical_url,
+                            "type": "application/json",
+                        }
+                    ],
+                }
+            )
 
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
@@ -1830,6 +1989,49 @@ class TestBatchJobs:
                     }
                 }
             }
+
+    @mock.patch("time.time", mock.MagicMock(return_value=1234))
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
+    def test_get_job_results_signed_with_expiration_110_unfinished_and_partial_false(
+        self, api110, flask_app, backend_config_overrides
+    ):
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
+        with self._fresh_job_registry(next_job_id="job-373"):
+            dummy_backend.DummyBatchJobs._update_status(job_id=job_id, user_id=TEST_USER, status="running")
+            resp = api110.get(f"/jobs/{job_id}/results?partial=false", headers=self.AUTH_HEADER)
+            resp.assert_error(400, "JobNotFinished")
+
+    @mock.patch("time.time", mock.MagicMock(return_value=1234))
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
+    def test_get_job_results_signed_with_expiration_110_unfinished_and_partial_true(
+        self, api110, flask_app, backend_config_overrides
+    ):
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
+        with self._fresh_job_registry(next_job_id="job-373"):
+            dummy_backend.DummyBatchJobs._update_status(job_id=job_id, user_id=TEST_USER, status="running")
+            resp = api110.get(f"/jobs/{job_id}/results?partial=true", headers=self.AUTH_HEADER)
+            resp.assert_status_code(200)
+
+            job_result = resp.json
+            expected_canonical_url = f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/9fea29cd94195399cc4d902388a3c32c?expires=2234&partial=true"
+            assert resp.json == DictSubSet(
+                {
+                    "openeo:status": "running",
+                    "type": "Collection",
+                    "stac_version": "1.0.0",
+                    "id": job_id,
+                    "title": "Unfinished batch job {job_id}",
+                    "description": f"Results for batch job {job_id}",
+                    "license": "proprietary",
+                    "links": [
+                        {
+                            "rel": "canonical",
+                            "href": expected_canonical_url,
+                            "type": "application/json",
+                        }
+                    ],
+                }
+            )
 
     def test_get_job_results_custom_links(self, api100):
         with self._fresh_job_registry(next_job_id="job-362"):

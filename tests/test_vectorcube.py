@@ -10,7 +10,7 @@ from shapely.geometry import MultiPolygon, Point, Polygon
 
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.errors import OpenEOApiException
-from openeo_driver.testing import ApproxGeometry, DictSubSet, IsNan
+from openeo_driver.testing import ApproxGeometry, DictSubSet, IsNan, ApproxGeoJSONByBounds
 from openeo_driver.util.geometry import as_geojson_feature_collection
 from openeo_driver.utils import EvalEnv
 
@@ -123,9 +123,9 @@ class TestDriverVectorCube:
                 "numerical",
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["pop"], "dims": ("properties",)},
                     },
                     "data": [[1234], [5678]],
@@ -136,9 +136,9 @@ class TestDriverVectorCube:
                 "all",
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["id", "pop"], "dims": ("properties",)},
                     },
                     "data": [["first", 1234], ["second", 5678]],
@@ -149,9 +149,9 @@ class TestDriverVectorCube:
                 [],
                 {
                     "name": None,
-                    "dims": ("geometries",),
+                    "dims": ("geometry",),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                     },
                     "data": [IsNan(), IsNan()],
                     "attrs": {"vector_cube_dummy": True},
@@ -161,9 +161,9 @@ class TestDriverVectorCube:
                 ["pop", "id"],
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["pop", "id"], "dims": ("properties",)},
                     },
                     "data": [[1234, "first"], [5678, "second"]],
@@ -174,9 +174,9 @@ class TestDriverVectorCube:
                 ["pop", "color"],
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["pop", "color"], "dims": ("properties",)},
                     },
                     "data": [[1234.0, IsNan()], [5678.0, IsNan()]],
@@ -187,9 +187,9 @@ class TestDriverVectorCube:
                 ["color"],
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["color"], "dims": ("properties",)},
                     },
                     "data": [[IsNan()], [IsNan()]],
@@ -337,9 +337,9 @@ class TestDriverVectorCube:
             }
         )
         cube = vc.get_cube()
-        assert cube.dims == ("geometries", "properties")
+        assert cube.dims == ("geometry", "properties")
         assert cube.shape == (2, 1)
-        assert {k: list(v.values) for k, v in cube.coords.items()} == {"geometries": [0, 1], "properties": ["pop"]}
+        assert {k: list(v.values) for k, v in cube.coords.items()} == {"geometry": [0, 1], "properties": ["pop"]}
 
     @pytest.mark.parametrize(
         ["columns_for_cube", "expected_cube"],
@@ -348,9 +348,9 @@ class TestDriverVectorCube:
                 "numerical",
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["pop"], "dims": ("properties",)},
                     },
                     "data": [[1234], [5678]],
@@ -361,9 +361,9 @@ class TestDriverVectorCube:
                 "all",
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["id", "pop"], "dims": ("properties",)},
                     },
                     "data": [["first", 1234], ["second", 5678]],
@@ -374,9 +374,9 @@ class TestDriverVectorCube:
                 [],
                 {
                     "name": None,
-                    "dims": ("geometries",),
+                    "dims": ("geometry",),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                     },
                     "data": [IsNan(), IsNan()],
                     "attrs": {"vector_cube_dummy": True},
@@ -386,9 +386,9 @@ class TestDriverVectorCube:
                 ["id"],
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["id"], "dims": ("properties",)},
                     },
                     "data": [["first"], ["second"]],
@@ -399,9 +399,9 @@ class TestDriverVectorCube:
                 ["pop", "id"],
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["pop", "id"], "dims": ("properties",)},
                     },
                     "data": [[1234, "first"], [5678, "second"]],
@@ -412,9 +412,9 @@ class TestDriverVectorCube:
                 ["color"],
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["color"], "dims": ("properties",)},
                     },
                     "data": [[IsNan()], [IsNan()]],
@@ -425,9 +425,9 @@ class TestDriverVectorCube:
                 ["pop", "color"],
                 {
                     "name": None,
-                    "dims": ("geometries", "properties"),
+                    "dims": ("geometry", "properties"),
                     "coords": {
-                        "geometries": {"attrs": {}, "data": [0, 1], "dims": ("geometries",)},
+                        "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
                         "properties": {"attrs": {}, "data": ["pop", "color"], "dims": ("properties",)},
                     },
                     "data": [[1234, IsNan()], [5678, IsNan()]],
@@ -808,7 +808,7 @@ class TestDriverVectorCube:
         udf = textwrap.dedent(
             """
             from openeo.udf import UdfData, FeatureCollection
-            def process_geometries(udf_data: UdfData) -> UdfData:
+            def process_vector_cube(udf_data: UdfData) -> UdfData:
                 [feature_collection] = udf_data.get_feature_collection_list()
                 gdf = feature_collection.data
                 gdf["geometry"] = gdf["geometry"].buffer(distance=1, resolution=2)
@@ -850,3 +850,62 @@ class TestDriverVectorCube:
                 ],
             }
         )
+
+    @pytest.mark.parametrize("dimension", ["bands", "properties"])
+    def test_apply_dimension_run_udf_add_properties(self, gdf, backend_implementation, dimension):
+        vc = DriverVectorCube.from_geodataframe(gdf, dimension_name=dimension)
+        udf = textwrap.dedent(
+            """
+            from openeo.udf import UdfData, FeatureCollection
+            def process_vector_cube(udf_data: UdfData) -> UdfData:
+                [feature_collection] = udf_data.get_feature_collection_list()
+                gdf = feature_collection.data
+                gdf["popone"] = gdf["pop"] + 1
+                gdf["poppop"] = gdf["pop"] ** 2
+                udf_data.set_feature_collection_list([
+                    FeatureCollection(id="_", data=gdf),
+                ])
+            """
+        )
+        callback = {
+            "runudf1": {
+                "process_id": "run_udf",
+                "arguments": {"data": {"from_parameter": "data"}, "udf": udf, "runtime": "Python"},
+                "result": True,
+            }
+        }
+        env = EvalEnv({"backend_implementation": backend_implementation})
+        result = vc.apply_dimension(process=callback, dimension=dimension, env=env)
+        assert isinstance(result, DriverVectorCube)
+        assert result.to_internal_json() == {
+            "geometries": {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "geometry": ApproxGeoJSONByBounds(1, 1, 3, 3, types=["Polygon"], abs=0.01),
+                        "id": "0",
+                        "properties": {"id": "first", "pop": 1234, "popone": 1235, "poppop": 1522756},
+                        "bbox": pytest.approx((1, 1, 3, 3), abs=0.01),
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": ApproxGeoJSONByBounds(3, 2, 5, 4, types=["Polygon"], abs=0.01),
+                        "id": "1",
+                        "properties": {"id": "second", "pop": 5678, "popone": 5679, "poppop": 32239684},
+                        "bbox": pytest.approx((3, 2, 5, 4), abs=0.01),
+                    },
+                ],
+                "bbox": pytest.approx((1, 1, 5, 4), abs=0.01),
+            },
+            "cube": {
+                "name": None,
+                "dims": ("geometry", "properties"),
+                "coords": {
+                    "geometry": {"attrs": {}, "data": [0, 1], "dims": ("geometry",)},
+                    "properties": {"attrs": {}, "data": ["pop", "popone", "poppop"], "dims": ("properties",)},
+                },
+                "data": [[1234, 1235, 1522756], [5678, 5679, 32239684]],
+                "attrs": {},
+            },
+        }

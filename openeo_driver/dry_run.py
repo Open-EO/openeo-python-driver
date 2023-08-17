@@ -152,6 +152,14 @@ class DataSource(DataTraceBase):
         """Factory for a `load_result` DataSource."""
         return cls(process="load_result", arguments=(job_id,))
 
+    @classmethod
+    def load_stac(cls, url: str, properties={}) -> 'DataSource':
+        """Factory for a `load_stac` DataSource."""
+        exact_property_matches = {property_name: filter_properties.extract_literal_match(condition)
+                                  for property_name, condition in properties.items()}
+
+        return cls(process="load_stac", arguments=(url, exact_property_matches))
+
 
 class DataTrace(DataTraceBase):
     """
@@ -263,6 +271,24 @@ class DryRunDataTracer:
             cube = cube.filter_bbox(**arguments["spatial_extent"])
         if "bands" in arguments:
             cube = cube.filter_bands(arguments["bands"])
+
+        return cube
+
+    def load_stac(self, url: str, arguments: dict) -> 'DryRunDataCube':
+        properties = arguments.get("properties", {})
+
+        trace = DataSource.load_stac(url=url, properties=properties)
+        self.add_trace(trace)
+
+        cube = DryRunDataCube(traces=[trace], data_tracer=self)
+        if "temporal_extent" in arguments:
+            cube = cube.filter_temporal(*arguments["temporal_extent"])
+        if "spatial_extent" in arguments:
+            cube = cube.filter_bbox(**arguments["spatial_extent"])
+        if "bands" in arguments:
+            cube = cube.filter_bands(arguments["bands"])
+        if properties:
+            cube = cube.filter_properties(properties)
 
         return cube
 

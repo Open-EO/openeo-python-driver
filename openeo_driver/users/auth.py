@@ -168,7 +168,10 @@ class HttpAuthHandler:
             raise TokenInvalidException
         return User(
             user_id=user_id,
-            internal_auth_data={"authentication_method": "basic"},
+            internal_auth_data={
+                "authentication_method": "basic",
+                "access_token": access_token,  # usage: see resolve_oidc_access_token()
+            },
         )
 
     @staticmethod
@@ -207,7 +210,8 @@ class HttpAuthHandler:
                 "oidc_provider_id": oidc_provider.id,
                 "oidc_provider_title": oidc_provider.title,
                 "oidc_issuer": oidc_provider.issuer,
-                "access_token": access_token,  # TODO: document where access token is used/required?
+                # used for e.g. access to SHub APIs on CDSE, load_stac(unsigned_job_results_url) workaround, ...
+                "access_token": access_token,
             }
 
             userinfo = self._get_userinfo(oidc_provider=oidc_provider, access_token=access_token)
