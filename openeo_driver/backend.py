@@ -718,6 +718,11 @@ class OpenEoBackendImplementation:
     def load_ml_model(self, job_id: str) -> DriverMlModel:
         raise NotImplementedError
 
+    def vector_to_raster(
+        self, input_vector_cube: DriverVectorCube, target_raster_cube: DriverDataCube
+    ) -> DriverDataCube:
+        raise NotImplementedError
+
     def visit_process_graph(self, process_graph: dict) -> ProcessGraphVisitor:
         """Create a process graph visitor and accept given process graph"""
         return ProcessGraphVisitor().accept_process_graph(process_graph)
