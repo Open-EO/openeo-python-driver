@@ -463,9 +463,11 @@ class DriverVectorCube:
 
         return df
 
-    def to_geojson(self, flatten_prefix: Optional[str] = None) -> dict:
+    def to_geojson(self, flatten_prefix: Optional[str] = None, include_properties=True) -> dict:
         """Export as GeoJSON FeatureCollection."""
-        return shapely.geometry.mapping(self._as_geopandas_df(flatten_prefix=flatten_prefix))
+        return shapely.geometry.mapping(
+            self._as_geopandas_df(flatten_prefix=flatten_prefix, include_properties=include_properties)
+        )
 
     def to_wkt(self) -> List[str]:
         wkts = [str(g) for g in self._geometries.geometry]
