@@ -1,3 +1,4 @@
+import json
 import textwrap
 
 import geopandas
@@ -850,6 +851,22 @@ class TestDriverVectorCube:
                 ],
             }
         )
+
+    def test_filter_bands(self):
+        path = str(get_path("geojson/FeatureCollection02.json"))
+        with open(path) as f:
+            geojson = json.load(f)
+        input_vector_cube = DriverVectorCube.from_geojson(
+            geojson, columns_for_cube=DriverVectorCube.COLUMN_SELECTION_ALL
+        )
+        assert input_vector_cube.get_cube().shape == (2, 2)
+        output_cube = input_vector_cube.filter_bands(["id"])
+        cube = output_cube.get_cube()
+        assert cube.dims == ("geometry", "properties")
+        labels = cube.properties.values
+        assert len(labels) == 1
+        assert labels[0] == "id"
+        assert cube.shape == (2, 1)
 
     @pytest.mark.parametrize("dimension", ["bands", "properties"])
     def test_apply_dimension_run_udf_add_properties(self, gdf, backend_implementation, dimension):
