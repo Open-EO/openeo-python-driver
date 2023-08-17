@@ -2035,6 +2035,35 @@ def text_concat(
     return str(separator).join(str(d) for d in data)
 
 
+@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/load_stac.json"))
+def load_stac(args: Dict, env: EvalEnv) -> DriverDataCube:
+    url = extract_arg(args, "url", process_id="load_stac")
+
+    arguments = {}
+    if args.get("temporal_extent"):
+        arguments["temporal_extent"] = _extract_temporal_extent(
+            args, field="temporal_extent", process_id="load_stac"
+        )
+    if args.get("spatial_extent"):
+        arguments["spatial_extent"] = _extract_bbox_extent(
+            args, field="spatial_extent", process_id="load_stac", handle_geojson=True
+        )
+    if args.get("bands"):
+        arguments["bands"] = extract_arg(args, "bands", process_id="load_stac")
+    if args.get("properties"):
+        arguments["properties"] = extract_arg(args, 'properties', process_id="load_collection")
+
+    dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
+    if dry_run_tracer:
+        return dry_run_tracer.load_stac(url, arguments)
+    else:
+        source_id = dry_run.DataSource.load_stac(url, properties=arguments.get("properties", {})).get_source_id()
+        load_params = _extract_load_parameters(env, source_id=source_id)
+        load_params.update(arguments)
+
+        return env.backend_implementation.load_stac(url=url, load_params=load_params, env=env)
+
+
 @process_registry_100.add_simple_function(name="if")
 def if_(value: Union[bool, None], accept, reject=None):
     return accept if value else reject
