@@ -1213,9 +1213,9 @@ def filter_spatial(args: Dict, env: EvalEnv) -> DriverDataCube:
 
 
 @process
-def filter_bands(args: Dict, env: EvalEnv) -> DriverDataCube:
-    cube = extract_arg(args, 'data')
-    if not isinstance(cube, DriverDataCube):
+def filter_bands(args: Dict, env: EvalEnv) -> Union[DriverDataCube, DriverVectorCube]:
+    cube: Union[DriverDataCube, DriverVectorCube] = extract_arg(args, "data")
+    if not isinstance(cube, DriverDataCube) and not isinstance(cube, DriverVectorCube):
         raise ProcessParameterInvalidException(
             parameter="data", process="filter_bands", reason=f"Invalid data type {type(cube)!r} expected raster-cube."
         )
@@ -1655,6 +1655,30 @@ def raster_to_vector(args: Dict, env: EvalEnv):
             reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
         )
     return image_collection.raster_to_vector()
+
+
+@non_standard_process(
+    ProcessSpec("vector_to_raster", description="Creates a raster cube as output based on a vector cube. The values in the output raster cube are based on the numeric properties in the input vector cube.")
+        .param('data', description="A vector data cube.", schema={"type": "object", "subtype": "vector-cube"})
+        .param('target_data_cube', description = "A raster data cube used as reference.", schema = {"type": "object", "subtype": "raster-cube"})
+        .returns("raster-cube", schema={"type": "object", "subtype": "raster-cube"})
+)
+def vector_to_raster(args: dict, env: EvalEnv) -> DriverDataCube:
+    input_vector_cube = extract_arg(args, "data")
+    target_data_cube = extract_arg(args, "target_data_cube")
+    if not isinstance(input_vector_cube, DriverVectorCube):
+        raise ProcessParameterInvalidException(
+            parameter="data",
+            process="vector_to_raster",
+            reason=f"Invalid data type {type(input_vector_cube)!r} expected vector-cube.",
+        )
+    if not isinstance(target_data_cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="target_data_cube",
+            process="vector_to_raster",
+            reason=f"Invalid data type {type(target_data_cube)!r} expected raster-cube.",
+        )
+    return env.backend_implementation.vector_to_raster(input_vector_cube, target_data_cube)
 
 
 def _get_udf(args, env: EvalEnv) -> Tuple[str, str]:

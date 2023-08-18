@@ -253,6 +253,9 @@ class DriverVectorCube:
         self._geometries: gpd.GeoDataFrame = geometries
         self._cube = cube
 
+    def filter_bands(self, bands) -> "DriverVectorCube":
+        return self.with_cube(self._cube.sel({self.DIM_PROPERTIES: bands}))
+
     def with_cube(self, cube: xarray.DataArray) -> "DriverVectorCube":
         """Create new vector cube with same geometries but new cube"""
         log.info(f"Creating vector cube with new cube {cube.name!r}")
@@ -385,6 +388,13 @@ class DriverVectorCube:
             df.crs = CRS.from_epsg(4326)
         return cls.from_geodataframe(df, columns_for_cube=columns_for_cube)
 
+    def write_to_parquet(
+        self, path: str, flatten_prefix: Optional[str] = None, include_properties=True, only_numeric=True
+    ):
+        return self._as_geopandas_df(
+            flatten_prefix=flatten_prefix, include_properties=include_properties, only_numeric=only_numeric
+        ).to_parquet(path)
+
     @classmethod
     def from_geojson(
         cls,
@@ -425,11 +435,17 @@ class DriverVectorCube:
         return cls(geometries=gpd.GeoDataFrame(geometry=geometry))
 
     def _as_geopandas_df(
-        self, flatten_prefix: Optional[str] = None, flatten_name_joiner: str = "~"
+        self,
+        flatten_prefix: Optional[str] = None,
+        flatten_name_joiner: str = "~",
+        include_properties=True,
+        only_numeric=False,
     ) -> gpd.GeoDataFrame:
         """Join geometries and cube as a geopandas dataframe"""
         # TODO: avoid copy?
         df = self._geometries.copy(deep=True)
+        if not include_properties:
+            df = df.drop(columns=[c for c in df.columns if c != df.geometry.name])
         if self._cube is not None and not self._cube.attrs.get(self.CUBE_ATTR_VECTOR_CUBE_DUMMY):
             assert self._cube.dims[0] == self.DIM_GEOMETRY
             # TODO: better way to combine cube with geometries
@@ -439,6 +455,8 @@ class DriverVectorCube:
                 log.info(f"Flattened cube component of vector cube to {stacked.shape[1]} properties")
                 name_prefix = [flatten_prefix] if flatten_prefix else []
                 for p in stacked.indexes["prop"]:
+                    if only_numeric and type(stacked.sel(prop=p)[0].item()) not in [int, float]:
+                        continue
                     name = flatten_name_joiner.join(str(x) for x in name_prefix + list(p))
                     # TODO: avoid column collisions?
                     df[name] = stacked.sel(prop=p)
@@ -448,9 +466,11 @@ class DriverVectorCube:
 
         return df
 
-    def to_geojson(self, flatten_prefix: Optional[str] = None) -> dict:
+    def to_geojson(self, flatten_prefix: Optional[str] = None, include_properties=True) -> dict:
         """Export as GeoJSON FeatureCollection."""
-        return shapely.geometry.mapping(self._as_geopandas_df(flatten_prefix=flatten_prefix))
+        return shapely.geometry.mapping(
+            self._as_geopandas_df(flatten_prefix=flatten_prefix, include_properties=include_properties)
+        )
 
     def to_wkt(self) -> List[str]:
         wkts = [str(g) for g in self._geometries.geometry]
