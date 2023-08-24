@@ -438,14 +438,14 @@ class DriverVectorCube:
         self,
         flatten_prefix: Optional[str] = None,
         flatten_name_joiner: str = "~",
-        include_properties=True,
-        only_numeric=False,
+        include_properties: bool = True,
+        only_numeric: bool = False,
     ) -> gpd.GeoDataFrame:
         """Join geometries and cube as a geopandas dataframe"""
         # TODO: avoid copy?
         df = self._geometries.copy(deep=True)
         if not include_properties:
-            df = df.drop(columns=[c for c in df.columns if c != df.geometry.name])
+            df = df[[df.geometry.name]]
         if self._cube is not None and not self._cube.attrs.get(self.CUBE_ATTR_VECTOR_CUBE_DUMMY):
             assert self._cube.dims[0] == self.DIM_GEOMETRY
             # TODO: better way to combine cube with geometries
@@ -466,7 +466,7 @@ class DriverVectorCube:
 
         return df
 
-    def to_geojson(self, flatten_prefix: Optional[str] = None, include_properties=True) -> dict:
+    def to_geojson(self, flatten_prefix: Optional[str] = None, include_properties: bool = True) -> dict:
         """Export as GeoJSON FeatureCollection."""
         return shapely.geometry.mapping(
             self._as_geopandas_df(flatten_prefix=flatten_prefix, include_properties=include_properties)

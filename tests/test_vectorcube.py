@@ -78,6 +78,54 @@ class TestDriverVectorCube:
             ]
         })
 
+    @pytest.mark.parametrize(
+        ["with_cube", "include_properties", "expected_properties"],
+        [
+            (False, False, ({}, {})),
+            (False, True, ({"id": "first", "pop": 1234}, {"id": "second", "pop": 5678})),
+            (True, False, ({"red": 1, "green": 2}, {"red": 3, "green": 4})),
+            (
+                True,
+                True,
+                (
+                    {"id": "first", "pop": 1234, "red": 1, "green": 2},
+                    {"id": "second", "pop": 5678, "red": 3, "green": 4},
+                ),
+            ),
+        ],
+    )
+    def test_to_geojson_include_properties(self, gdf, with_cube, include_properties, expected_properties):
+        vc = DriverVectorCube(gdf)
+        if with_cube:
+            dims, coords = vc.get_xarray_cube_basics()
+            dims += ("bands",)
+            coords["bands"] = ["red", "green"]
+            cube = xarray.DataArray(data=[[1, 2], [3, 4]], dims=dims, coords=coords)
+            vc = vc.with_cube(cube)
+
+        p1, p2 = expected_properties
+        assert vc.to_geojson(include_properties=include_properties) == DictSubSet(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "Polygon", "coordinates": (((1, 1), (3, 1), (2, 3), (1, 1)),)},
+                            "properties": p1,
+                        }
+                    ),
+                    DictSubSet(
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "Polygon", "coordinates": (((4, 2), (5, 4), (3, 4), (4, 2)),)},
+                            "properties": p2,
+                        }
+                    ),
+                ],
+            }
+        )
+
     def test_to_wkt(self, gdf):
         vc = DriverVectorCube(gdf)
         assert vc.to_wkt() == (
