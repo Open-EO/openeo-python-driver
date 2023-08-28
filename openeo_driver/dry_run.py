@@ -41,7 +41,8 @@ import shapely.geometry.base
 from shapely.geometry import Point, Polygon, MultiPolygon, GeometryCollection
 from shapely.geometry.base import BaseGeometry
 
-from openeo.metadata import CollectionMetadata, DimensionAlreadyExistsException, Band
+from openeo.metadata import (CollectionMetadata, DimensionAlreadyExistsException, Band, SpatialDimension,
+                             TemporalDimension, BandDimension)
 from openeo_driver import filter_properties
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
@@ -280,7 +281,17 @@ class DryRunDataTracer:
         trace = DataSource.load_stac(url=url, properties=properties)
         self.add_trace(trace)
 
-        cube = DryRunDataCube(traces=[trace], data_tracer=self)
+        metadata = CollectionMetadata(
+            {},
+            dimensions=[
+                SpatialDimension(name="x", extent=[]),
+                SpatialDimension(name="y", extent=[]),
+                TemporalDimension(name="t", extent=[]),
+                BandDimension(name="bands", bands=[Band("unknown")]),
+            ],
+        )
+
+        cube = DryRunDataCube(traces=[trace], data_tracer=self, metadata=metadata)
         if "temporal_extent" in arguments:
             cube = cube.filter_temporal(*arguments["temporal_extent"])
         if "spatial_extent" in arguments:
