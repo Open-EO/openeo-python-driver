@@ -1678,6 +1678,9 @@ def vector_to_raster(args: dict, env: EvalEnv) -> DriverDataCube:
             process="vector_to_raster",
             reason=f"Invalid data type {type(target_data_cube)!r} expected raster-cube.",
         )
+    dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
+    if dry_run_tracer:
+        return None
     return env.backend_implementation.vector_to_raster(input_vector_cube, target_data_cube)
 
 
