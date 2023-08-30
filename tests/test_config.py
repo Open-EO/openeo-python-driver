@@ -1,14 +1,17 @@
 import json
 import random
 import textwrap
+import unittest.mock
 from pathlib import Path
+from typing import List, Optional
 
 import attrs.exceptions
 import pytest
 
 import openeo_driver.config.load
-from openeo_driver.config import ConfigException, OpenEoBackendConfig, get_backend_config
+from openeo_driver.config import ConfigException, OpenEoBackendConfig, get_backend_config, from_env, from_env_list
 from openeo_driver.config.load import load_from_py_file
+import openeo_driver.config.env
 from .conftest import enhanced_logging
 
 
@@ -156,3 +159,116 @@ def test_add_mandatory_fields():
 def test_pytest_override_context(backend_config, backend_config_overrides, expected_id):
     config = get_backend_config()
     assert config.id == expected_id
+
+
+class TestFromEnv:
+    def test_from_env_basic(self, monkeypatch):
+        @attrs.frozen(kw_only=True)
+        class Config:
+            color: str = attrs.field(factory=from_env("COLOR", default="red"))
+
+        assert Config().color == "red"
+        monkeypatch.setenv("COLOR", "blue")
+        assert Config().color == "blue"
+
+    def test_from_env_no_default(self, monkeypatch):
+        @attrs.frozen(kw_only=True)
+        class Config:
+            color: Optional[str] = attrs.field(factory=from_env("COLOR"))
+
+        assert Config().color is None
+        monkeypatch.setenv("COLOR", "blue")
+        assert Config().color == "blue"
+
+    def test_to_list(self):
+        assert openeo_driver.config.env.to_list("") == []
+        assert openeo_driver.config.env.to_list("  ") == []
+        assert openeo_driver.config.env.to_list(" , ") == []
+        assert openeo_driver.config.env.to_list("foo") == ["foo"]
+        assert openeo_driver.config.env.to_list("foo,bar") == ["foo", "bar"]
+        assert openeo_driver.config.env.to_list(" foo , bar ") == ["foo", "bar"]
+        assert openeo_driver.config.env.to_list(" foo , ,bar ") == ["foo", "bar"]
+
+    def test_from_env_list_basic(self, monkeypatch):
+        @attrs.frozen(kw_only=True)
+        class Config:
+            colors: List[str] = attrs.field(factory=from_env_list("COLORS", default="red,blue"))
+
+        conf = Config()
+        assert conf.colors == ["red", "blue"]
+
+        conf = Config(colors=["green"])
+        assert conf.colors == ["green"]
+
+        monkeypatch.setenv("COLORS", "purple,yellow")
+
+        conf = Config()
+        assert conf.colors == ["purple", "yellow"]
+
+        conf = Config(colors=["green"])
+        assert conf.colors == ["green"]
+
+    @pytest.mark.parametrize(
+        ["default", "env_value", "expected_from_default", "expected_from_env"],
+        [
+            ("red", "purple", ["red"], ["purple"]),
+            ("red,blue", "purple,yellow", ["red", "blue"], ["purple", "yellow"]),
+            (" red, blue", "\tpurple, \n, yellow", ["red", "blue"], ["purple", "yellow"]),
+            (" ", "   ", [], []),
+        ],
+    )
+    def test_from_env_list_splitting(self, monkeypatch, default, env_value, expected_from_default, expected_from_env):
+        @attrs.frozen(kw_only=True)
+        class Config:
+            colors: List[str] = attrs.Factory(from_env_list("COLORS", default=default))
+
+        assert Config().colors == expected_from_default
+
+        monkeypatch.setenv("COLORS", env_value)
+
+        assert Config().colors == expected_from_env
+
+    @pytest.mark.parametrize(
+        ["env_value", "strip", "expected"],
+        [
+            ("", False, []),
+            ("", True, []),
+            ("  ", False, ["  "]),
+            ("  ", True, []),
+            (" green, yellow , ", False, [" green", " yellow ", " "]),
+            (" green, yellow , ", True, ["green", "yellow"]),
+        ],
+    )
+    def test_from_env_list_strip(self, monkeypatch, env_value, strip, expected):
+        @attrs.frozen(kw_only=True)
+        class Config:
+            colors: List[str] = attrs.Factory(from_env_list("COLORS", default="red,blue", strip=strip))
+
+        monkeypatch.setenv("COLORS", env_value)
+
+        assert Config().colors == expected
+
+    @pytest.mark.parametrize(
+        ["default", "separator"],
+        [
+            ("red,blue", ","),
+            ("red:blue", ":"),
+            ("red : blue", ":"),
+            ("/ red / blue/ ", "/"),
+        ],
+    )
+    def test_from_env_list_separator(self, monkeypatch, default, separator):
+        @attrs.frozen(kw_only=True)
+        class Config:
+            colors: List[str] = attrs.Factory(from_env_list("COLORS", default=default, separator=separator))
+
+        assert Config().colors == ["red", "blue"]
+
+    def test_from_env_list_default_as_list(self, monkeypatch):
+        """What if default is already list?"""
+
+        @attrs.frozen(kw_only=True)
+        class Config:
+            colors: List[str] = attrs.Factory(from_env_list("COLORS", default=["red", "blue"]))
+
+        assert Config().colors == ["red", "blue"]
