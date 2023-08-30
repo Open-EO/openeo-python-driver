@@ -1094,7 +1094,7 @@ def register_views_batch_jobs(
                             "ml-model:prediction_type": [prediction_type] if prediction_type is not None else [],
                             "ml-model:architecture": [architecture] if architecture is not None else [],
                         })
-            elif not TREAT_JOB_RESULTS_V100_LIKE_V110:
+            else:
                 result = {
                     "type": "Feature",
                     "stac_version": "0.9.0",
