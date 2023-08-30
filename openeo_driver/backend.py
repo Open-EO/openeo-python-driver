@@ -268,39 +268,40 @@ class BatchJobMetadata(NamedTuple):
     created: datetime
 
     # Optional fields (with default)
-    process: dict = None  # TODO: also encapsulate this "process graph with metadata" struct (instead of free-form dict)?
-    job_options: dict = None
-    title: str = None
-    description: str = None
-    progress: float = None
-    updated: datetime = None
-    plan: str = None
-    costs: float = None
-    budget: float = None
-    started: datetime = None
-    finished: datetime = None
+
+    process: Optional[dict] = None  # TODO: better encapsulation of this "process graph with metadata" structure?
+    job_options: Optional[dict] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    progress: Optional[float] = None
+    updated: Optional[datetime] = None
+    plan: Optional[str] = None
+    costs: Optional[float] = None
+    budget: Optional[float] = None
+    started: Optional[datetime] = None
+    finished: Optional[datetime] = None
     # TODO #191 Deprecated in favor of general "usage" field
-    duration_: timedelta = None
+    duration_: Optional[timedelta] = None
     # TODO #191 Deprecated in favor of general "usage" field
-    memory_time_megabyte: timedelta = None
+    memory_time_megabyte: Optional[timedelta] = None
     # TODO #191 Deprecated in favor of general "usage" field
-    cpu_time: timedelta = None
+    cpu_time: Optional[timedelta] = None
     # TODO #190 most fields below are not batch job metadata, but batch job *result* metadata:
     #      move these to BatchJobResultMetadata for better separation of concerns
-    geometry: dict = None
-    bbox: List[float] = None
+    geometry: Optional[dict] = None
+    bbox: Optional[List[float]] = None
     # TODO: #190 start_datetime is actually not metadata of batch job itself, but of the result (assets)
-    start_datetime: datetime = None
+    start_datetime: Optional[datetime] = None
     # TODO: #190 end_datetime is actually not metadata of batch job itself, but of the result (assets)
-    end_datetime: datetime = None
-    instruments: List[str] = None
-    epsg: int = None
+    end_datetime: Optional[datetime] = None
+    instruments: Optional[List[str]] = None
+    epsg: Optional[int] = None
     # TODO: #190 openEO API associates `links` with the job *result* metadata, not the job itself
-    links: List[Dict] = None
-    usage: Dict = None
+    links: Optional[List[Dict]] = None
+    usage: Optional[Dict] = None
     # TODO #190 the STAC projection extension fields "proj:..." are not batch job metadata, but batch job *result* metadata:
-    proj_shape: List[int] = None
-    proj_bbox: List[int] = None
+    proj_shape: Optional[List[int]] = None
+    proj_bbox: Optional[List[int]] = None
 
     @property
     def duration(self) -> Union[timedelta, None]:
