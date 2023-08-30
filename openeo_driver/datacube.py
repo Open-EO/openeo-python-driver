@@ -357,7 +357,7 @@ class DriverVectorCube:
         columns_for_cube = (options or {}).get("columns_for_cube", cls.COLUMN_SELECTION_NUMERICAL)
         # TODO #114 EP-3981: lazy loading like/with DelayedVector
         # note for GeoJSON: will consider Feature.id as well as Feature.properties.id
-        if "parquet" == driver.lower():
+        if driver and "parquet" == driver.lower():
             return cls.from_parquet(paths=paths, columns_for_cube=columns_for_cube)
         else:
             gdf = gpd.read_file(paths[0], driver=driver)
