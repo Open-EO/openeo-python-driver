@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, List, Optional, Tuple, Union
 
 from deprecated import deprecated
-from openeo.util import rfc3339
+from openeo.util import rfc3339, Rfc3339
 
 
 _log = logging.getLogger(__name__)
@@ -295,8 +295,9 @@ def extract_namedtuple_fields_from_dict(
     converters = {}
     if convert_datetime:
         converters[datetime.datetime] = lambda v: rfc3339.parse_datetime(v)
+        converters[Optional[datetime.datetime]] = lambda v: Rfc3339(propagate_none=True).parse_datetime(v)
     if convert_timedelta:
-        converters[datetime.timedelta] = lambda v: datetime.timedelta(seconds=v)
+        converters[datetime.timedelta] = lambda v: datetime.timedelta(seconds=v)  # TODO: assumes always seconds?
 
     if converters:
         for k in result:

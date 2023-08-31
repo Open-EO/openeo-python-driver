@@ -149,9 +149,11 @@ def test_batch_job_metadata_from_api_dict_auto_conversions():
         "status": "running",
         "created": "2021-06-18T12:34:56Z",
         "updated": "2021-06-20T20:20:20Z",
+        "usage": {"memory": {"value": 2000, "unit": "mb-seconds"}},
     })
     assert job.created == datetime.datetime(2021, 6, 18, 12, 34, 56)
     assert job.updated == datetime.datetime(2021, 6, 20, 20, 20, 20)
+    assert job.memory_time_megabyte == datetime.timedelta(seconds=2000)  # not actually auto-converted
 
     # Full round trip check
     assert job == BatchJobMetadata.from_api_dict(job.to_api_dict())
