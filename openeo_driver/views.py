@@ -1143,6 +1143,12 @@ def register_views_batch_jobs(
     def _download_job_result(
         job_id: str, filename: str, user_id: str
     ) -> flask.Response:
+        if request.range and request.range.units != "bytes":
+            raise OpenEOApiException(
+                code="BadRequest", status_code=400,
+                message=f"Invalid Range unit {request.range.units}; supported is: bytes"
+            )
+
         results = backend_implementation.batch_jobs.get_result_assets(
             job_id=job_id, user_id=user_id
         )
@@ -1150,16 +1156,15 @@ def register_views_batch_jobs(
             raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
         result = results[filename]
         if result.get("href", "").startswith("s3://"):
-            return _stream_from_s3(result["href"], result)
+            return _stream_from_s3(result["href"], result, request.headers.get("Range"))
         elif "output_dir" in result:
             out_dir_url = result["output_dir"]
             if out_dir_url.startswith("s3://"):
                 # TODO: Would be nice if we could use the s3:// URL directly without splitting into bucket and key.
                 # Ignoring the "s3://" at the start makes it easier to split into the bucket and the rest.
-                resp = _stream_from_s3(f"{out_dir_url}/{filename}", result)
+                resp = _stream_from_s3(f"{out_dir_url}/{filename}", result, request.headers.get("Range"))
             else:
                 resp = send_from_directory(result["output_dir"], filename, mimetype=result.get("type"))
-                # TODO: does the S3 side also support 'Accept-Ranges'? Does it need it?
                 resp.headers['Accept-Ranges'] = 'bytes'
             return resp
         elif "json_response" in result:
@@ -1168,16 +1173,18 @@ def register_views_batch_jobs(
             _log.error(f"Unsupported job result: {result!r}")
             raise InternalException("Unsupported job result")
 
-    def _stream_from_s3(s3_url, result):
+    def _stream_from_s3(s3_url, result, bytes_range: Optional[str]):
         bucket, folder = s3_url[5:].split("/", 1)
         s3_instance = _s3_client()
-        s3_file_object = s3_instance.get_object(Bucket=bucket, Key=folder)
+        s3_file_object = s3_instance.get_object(Bucket=bucket, Key=folder, **dict_no_none(Range=bytes_range))
         body = s3_file_object["Body"]
         resp = flask.Response(
             response=body.iter_chunks(STREAM_CHUNK_SIZE_DEFAULT),
-            status=200,
-            mimetype=result.get("type")
+            status=206 if bytes_range else 200,
+            mimetype=result.get("type"),
         )
+        resp.headers['Accept-Ranges'] = 'bytes'
+        resp.headers['Content-Length'] = s3_file_object['ContentLength']
         return resp
 
     @api_endpoint

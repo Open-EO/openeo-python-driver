@@ -2145,21 +2145,57 @@ class TestBatchJobs:
         self, api, tmp_path, flask_app, backend_config_overrides
     ):
         output_root = Path(tmp_path)
+        output = output_root / "07024ee9-7847-4b8a-b260-6c879a2b3cdc" / "output.tiff"
+        output.parent.mkdir(parents=True)
+        with output.open('wb') as f:
+            f.write(b'tiffdata')
+
         jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
         with self._fresh_job_registry(output_root=output_root, jobs=jobs):
-            output = output_root / "07024ee9-7847-4b8a-b260-6c879a2b3cdc" / "output.tiff"
-            output.parent.mkdir(parents=True)
-            with output.open('wb') as f:
-                f.write(b'tiffdata')
-
             head_resp = api.head('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
             assert head_resp.assert_status_code(200).data == b''
             assert head_resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
             assert head_resp.headers['Accept-Ranges'] == 'bytes'
+            assert head_resp.headers['Content-Length'] == '8'
 
-            get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
+            full_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
+            assert full_get_resp.assert_status_code(200).data == b'tiffdata'
+            assert full_get_resp.headers['Content-Length'] == '8'
+
+            ranged_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
                                headers={'Range': "bytes=0-3"})
-            assert get_resp.assert_status_code(206).data == b'tiff'
+            assert ranged_get_resp.assert_status_code(206).data == b'tiff'
+            assert ranged_get_resp.headers['Content-Length'] == '4'
+
+    @mock.patch("time.time", mock.MagicMock(return_value=1234))
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
+    def test_download_result_with_s3_object_storage_with_expiration_supports_range_request(
+            self, api, mock_s3_resource, backend_config_overrides):
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
+        s3_bucket_name = "openeo-test-bucket"
+        output_root = f"s3://{s3_bucket_name}/some-data-dir"
+        s3_key = f"some-data-dir/{job_id}/output.tiff"
+
+        s3_bucket = create_s3_bucket(mock_s3_resource, s3_bucket_name)
+        s3_bucket.put_object(Key=s3_key, Body=b'tiffdata')
+
+        jobs = {job_id: {"status": "finished"}}
+        with self._fresh_job_registry(output_root=output_root, jobs=jobs):
+            head_resp = api.head('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
+            assert head_resp.assert_status_code(200).data == b''
+            assert head_resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
+            assert head_resp.headers['Accept-Ranges'] == 'bytes'
+            assert head_resp.headers['Content-Length'] == '8'
+
+            full_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
+            assert full_get_resp.assert_status_code(200).data == b'tiffdata'
+            assert full_get_resp.headers['Content-Length'] == '8'
+
+            ranged_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
+                                      headers={'Range': "bytes=0-3"})
+            assert ranged_get_resp.assert_status_code(206).data == b'tiff'
+            assert ranged_get_resp.headers['Content-Length'] == '4'
+
 
     @mock.patch("time.time", mock.MagicMock(return_value=3456))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
