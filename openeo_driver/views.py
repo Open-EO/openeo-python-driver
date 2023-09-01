@@ -10,6 +10,7 @@ import textwrap
 from collections import namedtuple, defaultdict
 from typing import Callable, Tuple, List, Optional
 
+import botocore.exceptions
 import flask
 import flask_cors
 import numpy as np
@@ -1145,8 +1146,8 @@ def register_views_batch_jobs(
     ) -> flask.Response:
         if request.range and request.range.units != "bytes":
             raise OpenEOApiException(
-                code="BadRequest", status_code=400,
-                message=f"Invalid Range unit {request.range.units}; supported is: bytes"
+                code="RangeNotSatisfiable", status_code=416,
+                message=f"Unsupported Range unit {request.range.units}; supported is: bytes"
             )
 
         results = backend_implementation.batch_jobs.get_result_assets(
@@ -1176,16 +1177,26 @@ def register_views_batch_jobs(
     def _stream_from_s3(s3_url, result, bytes_range: Optional[str]):
         bucket, folder = s3_url[5:].split("/", 1)
         s3_instance = _s3_client()
-        s3_file_object = s3_instance.get_object(Bucket=bucket, Key=folder, **dict_no_none(Range=bytes_range))
-        body = s3_file_object["Body"]
-        resp = flask.Response(
-            response=body.iter_chunks(STREAM_CHUNK_SIZE_DEFAULT),
-            status=206 if bytes_range else 200,
-            mimetype=result.get("type"),
-        )
-        resp.headers['Accept-Ranges'] = 'bytes'
-        resp.headers['Content-Length'] = s3_file_object['ContentLength']
-        return resp
+
+        try:
+            s3_file_object = s3_instance.get_object(Bucket=bucket, Key=folder, **dict_no_none(Range=bytes_range))
+            body = s3_file_object["Body"]
+            resp = flask.Response(
+                response=body.iter_chunks(STREAM_CHUNK_SIZE_DEFAULT),
+                status=206 if bytes_range else 200,
+                mimetype=result.get("type"),
+            )
+            resp.headers['Accept-Ranges'] = 'bytes'
+            resp.headers['Content-Length'] = s3_file_object['ContentLength']
+            return resp
+        except botocore.exceptions.ClientError as e:
+            if e.response.get("ResponseMetadata").get("HTTPStatusCode") == 416:  # best effort really
+                raise OpenEOApiException(
+                    code="RangeNotSatisfiable", status_code=416,
+                    message=f"Invalid Range {bytes_range}"
+                )
+
+            raise e
 
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results/items/<user_base64>/<secure_key>/<item_id>', methods=['GET'])

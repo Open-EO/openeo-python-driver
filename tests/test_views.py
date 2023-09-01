@@ -2167,6 +2167,10 @@ class TestBatchJobs:
             assert ranged_get_resp.assert_status_code(206).data == b'tiff'
             assert ranged_get_resp.headers['Content-Length'] == '4'
 
+            out_of_range_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
+                                            headers={'Range': "bytes=8-10"})
+            out_of_range_get_resp.assert_status_code(416)
+
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
     def test_download_result_with_s3_object_storage_with_expiration_supports_range_request(
@@ -2196,6 +2200,9 @@ class TestBatchJobs:
             assert ranged_get_resp.assert_status_code(206).data == b'tiff'
             assert ranged_get_resp.headers['Content-Length'] == '4'
 
+            out_of_range_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
+                                            headers={'Range': "bytes=8-10"})
+            out_of_range_get_resp.assert_status_code(416)
 
     @mock.patch("time.time", mock.MagicMock(return_value=3456))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
