@@ -2081,6 +2081,34 @@ def test_load_disk_data(api):
     assert params["spatial_extent"] == {"west": 3, "south": 50, "east": 6, "north": 51, "crs": "EPSG:4326"}
 
 
+def test_load_disk_data_and_reduce_dimension(api):
+    """https://github.com/Open-EO/openeo-geopyspark-driver/issues/500"""
+    pg = {
+        "loaddiskdata": {
+            "process_id": "load_disk_data",
+            "arguments": {
+                "format": "GTiff",
+                "glob_pattern": "/data/MTDA/CGS_S2/CGS_S2_FAPAR/2019/04/24/*/*/10M/*_FAPAR_10M_V102.tif",
+                "options": {"date_regex": ".*_(\\d{4})(\\d{2})(\\d{2})T.*"},
+            },
+        },
+        "reducedimension": {
+            "process_id": "reduce_dimension",
+            "arguments": {
+                "data": {"from_node": "loaddiskdata"},
+                "dimension": "t",
+                "reducer": {
+                    "process_graph": {
+                        "sum": {"process_id": "sum", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+                    }
+                },
+            },
+            "result": True,
+        },
+    }
+    api.check_result(pg)
+
+
 def test_mask_with_vector_file(api):
     process_graph = api.load_json(
         "mask_with_vector_file.json",

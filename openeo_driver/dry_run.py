@@ -258,8 +258,17 @@ class DryRunDataTracer:
         """Create a DryRunDataCube from a `load_disk_data` process."""
         trace = DataSource.load_disk_data(glob_pattern=glob_pattern, format=format, options=options)
         self.add_trace(trace)
-        # TODO: metadata?
-        return DryRunDataCube(traces=[trace], data_tracer=self)
+        # Note: naive assumptions about the actual data cube dimensions here.
+        metadata = CollectionMetadata(
+            {},
+            dimensions=[
+                SpatialDimension(name="x", extent=[]),
+                SpatialDimension(name="y", extent=[]),
+                TemporalDimension(name="t", extent=[]),
+                BandDimension(name="bands", bands=[Band("unknown")]),
+            ],
+        )
+        return DryRunDataCube(traces=[trace], data_tracer=self, metadata=metadata)
 
     def load_result(self, job_id: str, arguments: dict) -> 'DryRunDataCube':
         trace = DataSource.load_result(job_id=job_id)

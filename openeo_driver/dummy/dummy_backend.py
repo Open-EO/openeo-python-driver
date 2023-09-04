@@ -15,7 +15,7 @@ from shapely.geometry.collection import GeometryCollection
 
 from openeo.api.logs import normalize_log_level
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
-from openeo.metadata import CollectionMetadata, Band
+from openeo.metadata import CollectionMetadata, Band, SpatialDimension, TemporalDimension, BandDimension
 import openeo.udf
 from openeo_driver.ProcessGraphDeserializer import ConcreteProcessing
 from openeo_driver.backend import (
@@ -848,7 +848,16 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
             self, format: str, glob_pattern: str, options: dict, load_params: LoadParameters, env: EvalEnv
     ) -> DummyDataCube:
         _register_load_collection_call(glob_pattern, load_params)
-        return DummyDataCube()
+        metadata = CollectionMetadata(
+            {},
+            dimensions=[
+                SpatialDimension(name="x", extent=[]),
+                SpatialDimension(name="y", extent=[]),
+                TemporalDimension(name="t", extent=[]),
+                BandDimension(name="bands", bands=[Band("unknown")]),
+            ],
+        )
+        return DummyDataCube(metadata=metadata)
 
     def load_result(self, job_id: str, user_id: Optional[str], load_params: LoadParameters,
                     env: EvalEnv) -> DummyDataCube:
