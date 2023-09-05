@@ -64,7 +64,7 @@ setup(
     ],
     extras_require={
         "dev": tests_require,
-        "s3": ["boto3[s3]>=1.26.17"],
+        "s3": ["boto3[s3]>=1.26.17", "botocore"],
         "vault": ["hvac>=1.0.2"],
     },
     classifiers=[

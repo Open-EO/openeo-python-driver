@@ -10,7 +10,6 @@ import textwrap
 from collections import namedtuple, defaultdict
 from typing import Callable, Tuple, List, Optional
 
-import botocore.exceptions
 import flask
 import flask_cors
 import numpy as np
@@ -1175,6 +1174,8 @@ def register_views_batch_jobs(
             raise InternalException("Unsupported job result")
 
     def _stream_from_s3(s3_url, result, bytes_range: Optional[str]):
+        import botocore.exceptions
+
         bucket, folder = s3_url[5:].split("/", 1)
         s3_instance = _s3_client()
 
