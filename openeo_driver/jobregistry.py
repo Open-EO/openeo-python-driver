@@ -449,6 +449,11 @@ class ElasticJobRegistry(JobRegistryInterface):
             job_id=job_id, data={"dependency_usage": str(dependency_usage)}
         )
 
+    def set_usage(self, job_id: str, costs: float, usage: dict) -> JobDict:
+        return self._update(
+            job_id=job_id, data={"costs": costs, "usage": usage}
+        )
+
     def set_proxy_user(self, job_id: str, proxy_user: str) -> JobDict:
         return self._update(job_id=job_id, data={"proxy_user": proxy_user})
 
