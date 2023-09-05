@@ -115,6 +115,9 @@ class JobRegistryInterface:
     def set_application_id(self, job_id: str, application_id: str) -> JobDict:
         raise NotImplementedError
 
+    def set_usage(self, job_id: str, costs: float, usage: dict) -> JobDict:
+        raise NotImplementedError
+
     def list_user_jobs(
         self, user_id: str, fields: Optional[List[str]] = None
     ) -> List[JobDict]:
