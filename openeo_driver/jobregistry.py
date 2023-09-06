@@ -115,6 +115,9 @@ class JobRegistryInterface:
     def set_application_id(self, job_id: str, application_id: str) -> JobDict:
         raise NotImplementedError
 
+    def set_usage(self, job_id: str, costs: float, usage: dict) -> JobDict:
+        raise NotImplementedError
+
     def list_user_jobs(
         self, user_id: str, fields: Optional[List[str]] = None
     ) -> List[JobDict]:
@@ -447,6 +450,11 @@ class ElasticJobRegistry(JobRegistryInterface):
     def set_dependency_usage(self, job_id: str, dependency_usage: Decimal) -> JobDict:
         return self._update(
             job_id=job_id, data={"dependency_usage": str(dependency_usage)}
+        )
+
+    def set_usage(self, job_id: str, costs: float, usage: dict) -> JobDict:
+        return self._update(
+            job_id=job_id, data={"costs": costs, "usage": usage}
         )
 
     def set_proxy_user(self, job_id: str, proxy_user: str) -> JobDict:

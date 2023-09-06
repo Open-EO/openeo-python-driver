@@ -547,6 +547,7 @@ class TestElasticJobRegistry:
 
         ejr.set_proxy_user(job_id="job-123", proxy_user="john")
         assert patch_mock.call_count == 1
+
     def test_set_application_id(self, requests_mock, oidc_mock, ejr):
         handler = self._handle_patch_jobs(
             oidc_mock=oidc_mock, expected_data={"application_id": "app-456"}
@@ -558,6 +559,22 @@ class TestElasticJobRegistry:
         ejr.set_application_id(job_id="job-123", application_id="app-456")
         assert patch_mock.call_count == 1
 
+    def test_set_usage(self, requests_mock, oidc_mock, ejr):
+        handler = self._handle_patch_jobs(
+            oidc_mock=oidc_mock, expected_data={"costs": 22, "usage": {
+                "cpu": {"value": 3283, "unit": "cpu-seconds"},
+                "memory": {"value": 8040202, "unit": "mb-seconds"},
+                "sentinelhub": {"value": 108.33333656191826, "unit": "sentinelhub_processing_unit"}}}
+        )
+        patch_mock = requests_mock.patch(
+            f"{self.EJR_API_URL}/jobs/job-123", json=handler
+        )
+
+        ejr.set_usage(job_id="job-123", costs=22, usage={
+            "cpu": {"value": 3283, "unit": "cpu-seconds"},
+            "memory": {"value": 8040202, "unit": "mb-seconds"},
+            "sentinelhub": {"value": 108.33333656191826, "unit": "sentinelhub_processing_unit"}})
+        assert patch_mock.call_count == 1
 
     def test_just_log_errors(self, caplog):
         with ElasticJobRegistry.just_log_errors("some math"):
