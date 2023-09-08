@@ -151,7 +151,9 @@ def build_app(
 
     @app.after_request
     def _after_request(response):
-        backend_implementation.after_request(FlaskRequestCorrelationIdLogging.get_request_id())
+        request_id = FlaskRequestCorrelationIdLogging.get_request_id()
+        backend_implementation.after_request(request_id)
+        response.headers["Request-Id"] = request_id
         return response
 
     if error_handling:

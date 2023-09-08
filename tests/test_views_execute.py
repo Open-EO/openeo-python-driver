@@ -4017,3 +4017,16 @@ class TestVectorCubeRunUDF:
                 ],
             }
         )
+
+
+def test_request_id_in_response_header(api):
+    result = api.check_result({
+        'collection': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2_FAPAR_CLOUDCOVER'},
+            'result': True
+        }
+    })
+
+    request_id = result.headers["Request-Id"]
+    assert request_id.startswith("r-"), request_id
