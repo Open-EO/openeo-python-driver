@@ -446,10 +446,13 @@ class UrllibMocker:
             pass
 
     def __init__(self):
-        self.responses: Dict[Tuple[str, str], "Response"] = {}
+        self.response_callbacks: Dict[Tuple[str, str], Callable[[urllib.request.Request], Response]] = {}
 
-    def register(self, method: str, url: str, response: "Response"):
-        self.responses[method, url] = response
+    def register(self, method: str, url: str,
+                 response: Union[Response, Callable[[urllib.request.Request], Response]]):
+        response_callback = response if isinstance(response, Callable) else lambda req: response
+        self.response_callbacks[method, url] = response_callback
+        self.response_callbacks[method, self._drop_query_string(url)] = response_callback
 
     def get(self, url, data, code=200):
         """Register a response for a GET request"""
@@ -457,11 +460,17 @@ class UrllibMocker:
 
     def _http_open(self, req: urllib.request.Request):
         """Request handler mock"""
-        key = (req.get_method(), req.full_url)
-        if key in self.responses:
-            return self.responses[key]
-        else:
-            return self.Response(code=404, msg="Not Found")
+        for match_url in [req.full_url, self._drop_query_string(req.full_url)]:
+            key = (req.get_method(), match_url)
+
+            if key in self.response_callbacks:
+                return self.response_callbacks[key](req)
+
+        return self.Response(code=404, msg="Not Found")
+
+    @staticmethod
+    def _drop_query_string(url: str):
+        return url.split("?")[0]
 
     @contextlib.contextmanager
     def patch(self):

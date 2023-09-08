@@ -183,6 +183,20 @@ class TestUrllibMocker:
 
         assert data == b"hello world"
 
+    def test_register_response_callback(self, urllib_mock: UrllibMocker):
+        def return_request_param(req: urllib.request.Request):
+            from urllib.parse import urlparse, parse_qs
+
+            param_value = parse_qs(urlparse(req.full_url).query)["bar"][0]
+            return UrllibMocker.Response(data=param_value)
+
+        urllib_mock.register("GET", "http://a.test/foo", response=return_request_param)
+
+        r = urllib.request.urlopen("http://a.test/foo?bar=baz")
+        data = r.read()
+
+        assert data == b"baz"
+
 
 def test_ephemeral_fileserver(tmp_path):
     (tmp_path / "hello.txt").write_text("Hello world!")
