@@ -387,14 +387,6 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
                 return parameters[processGraph['from_parameter']]
             except KeyError:
                 raise ProcessParameterRequiredException(process="n/a", parameter=processGraph['from_parameter'])
-        elif 'from_argument' in processGraph:
-            # 0.4-style argument referencer (equivalent with 1.0-style "from_parameter")
-            argument_reference = processGraph.get('from_argument')
-            # backwards compatibility for clients that still use 'dimension_data', can be removed when clients are upgraded
-            if argument_reference == 'dimension_data':
-                argument_reference = 'data'
-            parameters = env.collect_parameters()
-            return parameters.get(argument_reference)
         else:
             # TODO: Don't apply `convert_node` for some special cases (e.g. geojson objects)?
             return {k:convert_node(v, env=env) for k,v in processGraph.items()}
