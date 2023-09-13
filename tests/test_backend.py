@@ -66,11 +66,6 @@ def test_user_defined_process_metadata_from_dict_no_id():
         _ = UserDefinedProcessMetadata.from_dict({"process_graph": {"foo": {"process_id": "foo"}}})
 
 
-def test_user_defined_process_metadata_from_dict_no_pg():
-    with pytest.raises(KeyError):
-        _ = UserDefinedProcessMetadata.from_dict({"id": "enhance"})
-
-
 def test_user_defined_process_metadata_from_dict_extra():
     udp = UserDefinedProcessMetadata.from_dict({
         "id": "enhance",

@@ -2587,7 +2587,6 @@ class TestUserDefinedProcesses:
         assert udp == {
             "id": "udp1",
             "process_graph": {'add23': {'process_id': 'add', 'arguments': {'x': 2, 'y': 3}, 'result': True}},
-            "public": False
         }
 
     def test_get_udp_public(self, api100, udp_store):

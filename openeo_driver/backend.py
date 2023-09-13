@@ -508,13 +508,15 @@ class UserDefinedProcessMetadata(NamedTuple):
     """
     Container for user-defined process metadata.
     """
-    process_graph: dict
     id: str
+    # Note: "process_graph" is optional for multiple UDP listings (`GET /process_graphs`),
+    # but required for full, single UDP metadata requests (`GET /process_graphs/{process_graph_id}`)
+    process_graph: Optional[dict] = None
     parameters: List[dict] = None
-    returns: dict = None
-    summary: str = None
-    description: str = None
-    links: list = None
+    returns: Optional[dict] = None
+    summary: Optional[str] = None
+    description: Optional[str] = None
+    links: Optional[list] = None
     public: bool = False  # Note: experimental non-standard flag
 
     @classmethod
@@ -534,24 +536,28 @@ class UserDefinedProcesses(MicroService):
 
     def get(self, user_id: str, process_id: str) -> Union[UserDefinedProcessMetadata, None]:
         """
+        Fetch metadata of given UDP. Return None if not found.
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-custom-process
         """
         raise NotImplementedError
 
     def get_for_user(self, user_id: str) -> List[UserDefinedProcessMetadata]:
         """
+        List user's UDPs
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-custom-processes
         """
         raise NotImplementedError
 
     def save(self, user_id: str, process_id: str, spec: dict) -> None:
         """
+        Store new UDP
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/store-custom-process
         """
         raise NotImplementedError
 
     def delete(self, user_id: str, process_id: str) -> None:
         """
+        Remove UDP
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/delete-custom-process
         """
         raise NotImplementedError

@@ -1592,6 +1592,7 @@ def register_views_udp(
         return {
             'processes': [_jsonable_udp_metadata(udp, full=False) for udp in user_udps],
             # TODO: pagination links?
+            # TODO: allow backend_implementation to define links?
             "links": [],
         }
 
@@ -1620,6 +1621,9 @@ def _jsonable_udp_metadata(metadata: UserDefinedProcessMetadata, full=True, user
                 "title": f"Public URL for user-defined process {metadata.id!r}"
             }
         ]
+    elif "public" in d and not d["public"]:
+        # Don't include non-standard "public" field when false to stay closer to standard API
+        del d["public"]
 
     return dict_no_none(**d)
 
