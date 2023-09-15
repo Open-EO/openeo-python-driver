@@ -54,7 +54,9 @@ class DriverDataCube:
     """Base class for "driver" side raster data cubes."""
 
     def __init__(self, metadata: CollectionMetadata = None):
-        self.metadata = metadata or CollectionMetadata(metadata={})
+        self.metadata = (
+            metadata if isinstance(metadata, CollectionMetadata) else CollectionMetadata(metadata=metadata or {})
+        )
 
     def __eq__(self, o: object) -> bool:
         if o.__class__ == self.__class__:
