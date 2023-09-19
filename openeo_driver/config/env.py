@@ -8,10 +8,6 @@ from typing import Optional, Union, Callable, List, Mapping
 import attrs
 
 
-def _get_env() -> Mapping:
-    return os.environ
-
-
 def from_env(var: str, *, default=None) -> Callable[[], Optional[str]]:
     """
     Attrs default factory to get a value from an env var
@@ -36,14 +32,14 @@ def from_env(var: str, *, default=None) -> Callable[[], Optional[str]]:
     """
 
     def get():
-        value = _get_env().get(var, default=default)
+        value = os.environ.get(var, default=default)
         return value
 
     return get
 
 
 def to_list(value: str, *, strip: bool = True, separator: str = ",") -> List[str]:
-    """Split a string to a list, properly handling leading/trailing whitespace and empty items"""
+    """Split a string to a list, properly handling leading/trailing whitespace and empty items."""
     result = value.split(separator)
     if strip:
         result = [s.strip() for s in result]
@@ -51,18 +47,19 @@ def to_list(value: str, *, strip: bool = True, separator: str = ",") -> List[str
     return result
 
 
-def from_env_list(
+def from_env_as_list(
     var: str, *, default: Union[str, List[str]] = "", strip: bool = True, separator: str = ","
 ) -> Callable[[], List[str]]:
     """
     Attrs default factory to get a list from an env var
+    (properly handling leading/trailing whitespace and empty items).
 
     Usage example:
 
         >>> @attrs.define
         ... class Config:
         ...    colors: List[str] = attrs.field(
-        ...        factory=from_env_list("COLORS", default="red,blue")
+        ...        factory=from_env_as_list("COLORS", default="red,blue")
         ...    )
 
         >>> Config().colors
@@ -81,7 +78,7 @@ def from_env_list(
     """
 
     def get():
-        value = _get_env().get(var, default=default)
+        value = os.environ.get(var, default=default)
         if isinstance(value, str):
             value = to_list(value, strip=strip, separator=separator)
         return value

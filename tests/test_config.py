@@ -9,7 +9,7 @@ import attrs.exceptions
 import pytest
 
 import openeo_driver.config.load
-from openeo_driver.config import ConfigException, OpenEoBackendConfig, get_backend_config, from_env, from_env_list
+from openeo_driver.config import ConfigException, OpenEoBackendConfig, get_backend_config, from_env, from_env_as_list
 from openeo_driver.config.load import load_from_py_file
 import openeo_driver.config.env
 from .conftest import enhanced_logging
@@ -192,7 +192,7 @@ class TestFromEnv:
     def test_from_env_list_basic(self, monkeypatch):
         @attrs.frozen(kw_only=True)
         class Config:
-            colors: List[str] = attrs.field(factory=from_env_list("COLORS", default="red,blue"))
+            colors: List[str] = attrs.field(factory=from_env_as_list("COLORS", default="red,blue"))
 
         conf = Config()
         assert conf.colors == ["red", "blue"]
@@ -220,7 +220,7 @@ class TestFromEnv:
     def test_from_env_list_splitting(self, monkeypatch, default, env_value, expected_from_default, expected_from_env):
         @attrs.frozen(kw_only=True)
         class Config:
-            colors: List[str] = attrs.Factory(from_env_list("COLORS", default=default))
+            colors: List[str] = attrs.Factory(from_env_as_list("COLORS", default=default))
 
         assert Config().colors == expected_from_default
 
@@ -242,7 +242,7 @@ class TestFromEnv:
     def test_from_env_list_strip(self, monkeypatch, env_value, strip, expected):
         @attrs.frozen(kw_only=True)
         class Config:
-            colors: List[str] = attrs.Factory(from_env_list("COLORS", default="red,blue", strip=strip))
+            colors: List[str] = attrs.Factory(from_env_as_list("COLORS", default="red,blue", strip=strip))
 
         monkeypatch.setenv("COLORS", env_value)
 
@@ -260,7 +260,7 @@ class TestFromEnv:
     def test_from_env_list_separator(self, monkeypatch, default, separator):
         @attrs.frozen(kw_only=True)
         class Config:
-            colors: List[str] = attrs.Factory(from_env_list("COLORS", default=default, separator=separator))
+            colors: List[str] = attrs.Factory(from_env_as_list("COLORS", default=default, separator=separator))
 
         assert Config().colors == ["red", "blue"]
 
@@ -269,6 +269,6 @@ class TestFromEnv:
 
         @attrs.frozen(kw_only=True)
         class Config:
-            colors: List[str] = attrs.Factory(from_env_list("COLORS", default=["red", "blue"]))
+            colors: List[str] = attrs.Factory(from_env_as_list("COLORS", default=["red", "blue"]))
 
         assert Config().colors == ["red", "blue"]
