@@ -891,9 +891,9 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs/<job_id>/results', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def list_job_results(job_id, user: User):
-        partial = request.args.get("partial", False)
-        partial = True if partial in ["true", True] else False
-        return _list_job_results(job_id, user.user_id, partial)
+        # TODO: How is "partial" encoded? Also see https://github.com/Open-EO/openeo-api/issues/509
+        partial = str(request.args.get("partial")).lower() in {"true", "1"}
+        return _list_job_results(job_id, user.user_id, partial=partial)
 
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results/<user_base64>/<secure_key>', methods=['GET'])
@@ -902,12 +902,12 @@ def register_views_batch_jobs(
         signer = get_backend_config().url_signer
         user_id = user_id_b64_decode(user_base64)
         signer.verify_job_results(signature=secure_key, job_id=job_id, user_id=user_id, expires=expires)
-        partial = request.args.get("partial", False)
-        partial = True if partial in ["true", True] else False
+        # TODO: How is "partial" encoded? Also see https://github.com/Open-EO/openeo-api/issues/509
+        partial = str(request.args.get("partial")).lower() in {"true", "1"}
         with TimingLogger(f"_list_job_results({job_id=}, {user_id=}, {partial=})", _log):
-            return _list_job_results(job_id, user_id, partial)
+            return _list_job_results(job_id, user_id, partial=partial)
 
-    def _list_job_results(job_id, user_id, partial=False):
+    def _list_job_results(job_id, user_id, *, partial: bool = False):
         to_datetime = Rfc3339(propagate_none=True).datetime
 
         def job_results_canonical_url() -> str:
@@ -921,7 +921,6 @@ def register_views_batch_jobs(
             # TODO: also encrypt user id?
             # TODO: encode all stuff (signature, userid, expiry) in a single blob in the URL
 
-            query_string = "?partial=true" if partial else ""
             if partial:
                 return url_for(
                     ".list_job_results_signed",
