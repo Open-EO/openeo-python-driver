@@ -64,7 +64,7 @@ EXPECTED_PROVIDERS = [
         "1.1.0",
     ]
 )
-def api_version(request):
+def api_version(request) -> str:
     return request.param
 
 
@@ -952,11 +952,11 @@ class TestCollections:
         metadata = api.get('/collections/S2_FOOBAR').assert_status_code(200).json
         assert '_private' not in metadata
 
-    def test_collections_detail_invalid_collection(self, api):
+    def test_collection_full_metadata_invalid_collection(self, api):
         error = api.get('/collections/FOOBOO').assert_error(404, "CollectionNotFound").json
         assert error["message"] == "Collection 'FOOBOO' does not exist."
 
-    def test_collections_detail(self, api):
+    def test_collection_full_metadata(self, api, api_version):
         collection = api.get('/collections/S2_FOOBAR').assert_status_code(200).json
         assert collection['id'] == 'S2_FOOBAR'
         assert collection['description'] == 'S2_FOOBAR'
@@ -992,11 +992,66 @@ class TestCollections:
                 'temporal': ['2019-01-01T00:00:00Z', None]
             }
 
-    def test_collections_detail_caching(self, api):
+        assert collection["links"] == [
+            {"rel": "root", "href": f"http://oeo.net/openeo/{api_version}/collections"},
+            {"rel": "parent", "href": f"http://oeo.net/openeo/{api_version}/collections"},
+            {"rel": "self", "href": f"http://oeo.net/openeo/{api_version}/collections/S2_FOOBAR"},
+        ]
+
+    @pytest.mark.parametrize(
+        ["orig", "expected"],
+        [
+            (
+                [],
+                lambda api_version: [
+                    {"rel": "root", "href": f"http://oeo.net/openeo/{api_version}/collections"},
+                    {"rel": "parent", "href": f"http://oeo.net/openeo/{api_version}/collections"},
+                    {"rel": "self", "href": f"http://oeo.net/openeo/{api_version}/collections/S2_WITH_LINKS"},
+                ],
+            ),
+            (
+                [
+                    {"rel": "root", "href": "https://s2.test/foobar"},
+                    {"rel": "about", "href": "https://s2.test/about"},
+                ],
+                lambda api_version: [
+                    {"rel": "root", "href": "https://s2.test/foobar"},
+                    {"rel": "about", "href": "https://s2.test/about"},
+                    {"rel": "parent", "href": f"http://oeo.net/openeo/{api_version}/collections"},
+                    {"rel": "self", "href": f"http://oeo.net/openeo/{api_version}/collections/S2_WITH_LINKS"},
+                ],
+            ),
+            (
+                [
+                    {"rel": "root", "href": "https://s2.test/foobar"},
+                    {"rel": "parent", "href": "https://s2.test/about"},
+                    {"rel": "self", "href": "https://s2.test/s2"},
+                ],
+                lambda api_version: [
+                    {"rel": "root", "href": "https://s2.test/foobar"},
+                    {"rel": "parent", "href": "https://s2.test/about"},
+                    {"rel": "self", "href": "https://s2.test/s2"},
+                ],
+            ),
+        ],
+    )
+    def test_collection_full_metadata_links(self, api, api_version, backend_implementation, orig, expected):
+        extra_collections = {
+            "S2_WITH_LINKS": {
+                "id": "S2_WITH_LINKS",
+                "links": orig,
+            }
+        }
+        with backend_implementation.catalog.patch_collections(extra_collections):
+            collection = api.get("/collections/S2_WITH_LINKS").assert_status_code(200).json
+        assert collection["id"] == "S2_WITH_LINKS"
+        assert collection["links"] == expected(api_version)
+
+    def test_collection_full_metadata_caching(self, api):
         resp = api.get('/collections/S2_FOOBAR').assert_status_code(200)
         assert resp.headers["Cache-Control"] == "max-age=900, public"
 
-    def test_collections_detail_invalid_caching(self, api):
+    def test_collection_full_metadata_invalid_caching(self, api):
         resp = api.get('/collections/FOOBOO').assert_error(404, "CollectionNotFound")
         assert "Cache-Control" not in resp.headers
 

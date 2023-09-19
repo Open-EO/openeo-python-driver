@@ -4,6 +4,7 @@ from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import List, Dict, Union, Tuple, Optional, Iterable, Any, Sequence
+import unittest.mock
 from unittest.mock import Mock
 
 import flask
@@ -558,7 +559,6 @@ class DummyCatalog(CollectionCatalog):
     def __init__(self):
         super().__init__(all_metadata=self._COLLECTIONS)
 
-
     def load_collection(self, collection_id: str, load_params: LoadParameters, env: EvalEnv) -> DummyDataCube:
         return self._load_collection_cached(collection_id,load_params,WhiteListEvalEnv(env,[]))
 
@@ -573,6 +573,10 @@ class DummyCatalog(CollectionCatalog):
 
         _collections[collection_id] = image_collection
         return image_collection
+
+    def patch_collections(self, extra_collections: dict):
+        """Context manager to (temporarily) add a collection with metadata to the catalog."""
+        return unittest.mock.patch.dict(self._catalog, extra_collections)
 
 
 class DummyProcessing(ConcreteProcessing):

@@ -1704,7 +1704,19 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
             STAC_EXTENSION.EO,
         ],
     )
-    metadata.setdefault("links", [])
+
+    links = metadata.get("links", [])
+    link_rels = {lk.get("rel") for lk in links}
+    if "root" not in link_rels and flask.current_app:
+        links.append({"rel": "root", "href": url_for("openeo.collections", _external=True)})
+    if "parent" not in link_rels and flask.current_app:
+        links.append({"rel": "parent", "href": url_for("openeo.collections", _external=True)})
+    if "self" not in link_rels and flask.current_app:
+        links.append(
+            {"rel": "self", "href": url_for("openeo.collection_by_id", collection_id=collection_id, _external=True)}
+        )
+    metadata["links"] = links
+
     metadata.setdefault("description", collection_id)
     metadata.setdefault("license", "proprietary")
     # Warn about missing fields where simple defaults are not feasible.
@@ -1748,10 +1760,13 @@ def register_views_catalog(
             _normalize_collection_metadata(metadata=m, api_version=requested_api_version(), full=False)
             for m in backend_implementation.catalog.get_all_metadata()
         ]
-        return jsonify({
-            'collections': metadata,
-            'links': []
-        })
+        return jsonify(
+            {
+                "collections": metadata,
+                # TODO: how to allow customizing this "links" field?
+                "links": [],
+            }
+        )
 
     @api_endpoint
     @blueprint.route('/collections/<collection_id>', methods=['GET'])
