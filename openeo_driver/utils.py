@@ -213,6 +213,9 @@ class dict_item:
     "Descriptor" trick to easily add attribute-style access
     to standard dictionary items (with optional default values).
 
+    Note: instead of this simple trick, consider using any of the more standard, widely used solutions
+    like dataclasses from Python stdlib, or something like attrs (https://www.attrs.org).
+
     Create an attribute in a custom dict subclass that accesses
     the dict value keyed by the attribute's name:
 
@@ -250,6 +253,9 @@ class dict_item:
 
     This class implements the descriptor protocol.
     """
+
+    # TODO: deprecate usage of this descriptor trick and migrate to dataclasses or attrs
+
     _DEFAULT_UNSET = object()
 
     def __init__(self, default=_DEFAULT_UNSET):
