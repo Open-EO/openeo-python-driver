@@ -9,7 +9,14 @@ import attrs.exceptions
 import pytest
 
 import openeo_driver.config.load
-from openeo_driver.config import ConfigException, OpenEoBackendConfig, get_backend_config, from_env, from_env_as_list
+from openeo_driver.config import (
+    ConfigException,
+    OpenEoBackendConfig,
+    get_backend_config,
+    from_env,
+    from_env_as_list,
+    default_from_env_as_list,
+)
 from openeo_driver.config.load import load_from_py_file
 import openeo_driver.config.env
 from .conftest import enhanced_logging
@@ -272,3 +279,34 @@ class TestFromEnv:
             colors: List[str] = attrs.Factory(from_env_as_list("COLORS", default=["red", "blue"]))
 
         assert Config().colors == ["red", "blue"]
+
+    def test_default_from_env_as_list_basic(self, monkeypatch):
+        @attrs.frozen(kw_only=True)
+        class Config:
+            colors: List[str] = default_from_env_as_list("COLORS", default="red,blue")
+
+        conf = Config()
+        assert conf.colors == ["red", "blue"]
+
+        conf = Config(colors=["green"])
+        assert conf.colors == ["green"]
+
+        monkeypatch.setenv("COLORS", "purple,yellow")
+
+        conf = Config()
+        assert conf.colors == ["purple", "yellow"]
+
+        conf = Config(colors=["green"])
+        assert conf.colors == ["green"]
+
+    def test_default_from_env_as_list_empy(self, monkeypatch):
+        @attrs.frozen(kw_only=True)
+        class Config:
+            colors: List[str] = default_from_env_as_list("COLORS")
+
+        assert Config().colors == []
+
+        monkeypatch.setenv("COLORS", "")
+        assert Config().colors == []
+
+        assert Config(colors=[]).colors == []

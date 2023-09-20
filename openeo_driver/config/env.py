@@ -39,7 +39,7 @@ def from_env(var: str, *, default=None) -> Callable[[], Optional[str]]:
 
 
 def to_list(value: str, *, strip: bool = True, separator: str = ",") -> List[str]:
-    """Split a string to a list, properly handling leading/trailing whitespace and empty items."""
+    """Split a string to a list, properly stripping leading/trailing whitespace and skipping empty items."""
     result = value.split(separator)
     if strip:
         result = [s.strip() for s in result]
@@ -52,7 +52,7 @@ def from_env_as_list(
 ) -> Callable[[], List[str]]:
     """
     Attrs default factory to get a list from an env var
-    (properly handling leading/trailing whitespace and empty items).
+    (automatically splitting with separator, stripping leading/trailing whitespace and skipping empty items):
 
     Usage example:
 
@@ -84,3 +84,31 @@ def from_env_as_list(
         return value
 
     return get
+
+
+def default_from_env_as_list(
+    var: str, *, default: Union[str, List[str]] = "", strip: bool = True, separator: str = ","
+):
+    """
+    Build an attrs default value that, by default, takes the value of given environment variable
+    and splits it into a list (automatically stripping leading/trailing whitespace and skipping empty items):
+
+        >>> @attrs.define
+        ... class Config:
+        ...    colors: List[str] = default_from_env_as_list("COLORS")
+
+        >>> Config().colors
+        []
+        >>> os.environ["COLORS"] = "blue,black"
+        >>> Config().color
+        ["blue", "black"]
+        >>> Config(colors=["green", "white"]).colors
+        ["green", "white"]
+
+    :param var: env var name
+    :param default: fallback value to parse if env var is not set
+    :param strip: whether to strip surrounding whitespace
+    :param separator: item separator
+    :return: default value to use for attributes in a `@attrs.define` class
+    """
+    return attrs.field(factory=from_env_as_list(var=var, default=default, strip=strip, separator=separator))
