@@ -750,10 +750,12 @@ def reduce_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/chunk_polygon.json"))
 def chunk_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    # TODO #229 deprecate this process and promote the "apply_polygon" name.
+    #       See https://github.com/Open-EO/openeo-processes/issues/287, https://github.com/Open-EO/openeo-processes/pull/298
     data_cube = args.get_required("data", expected_type=DriverDataCube)
     reduce_pg = args.get_deep("process", "process_graph", expected_type=dict)
     chunks = args.get_required("chunks")
-    mask_value = args.get_optional("mask_value", default=None)
+    mask_value = args.get_optional("mask_value", expected_type=(int, float), default=None)
     context = args.get_optional("context", default=None)
 
     # Chunks parameter check.
@@ -782,10 +784,6 @@ def chunk_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
         reason = "Polygon {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
         raise ProcessParameterInvalidException(parameter='chunks', process='chunk_polygon', reason=reason)
 
-    # Mask_value parameter check.
-    if not isinstance(mask_value, float) and mask_value is not None:
-        reason = "mask_value parameter is not of type float. Actual type: {m!s}".format(m=type(mask_value))
-        raise ProcessParameterInvalidException(parameter='mask_value', process='chunk_polygon', reason=reason)
     return data_cube.chunk_polygon(reducer=reduce_pg, chunks=polygon, mask_value=mask_value, context=context, env=env)
 
 
