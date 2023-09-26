@@ -223,13 +223,20 @@ class ElasticJobRegistry(JobRegistryInterface):
         self._api_url = api_url
         self._authenticator: Optional[OidcClientCredentialsAuthenticator] = None
         self._cache = TtlCache(default_ttl=60 * 60)
-        self._session = session or requests.Session()
 
+        if session:
+            self._session = session
+        else:
+            self._session = requests.Session()
+            self.set_user_agent()
+
+        self._debug_show_curl = _debug_show_curl
+
+    def set_user_agent(self):
         user_agent = f"openeo_driver-{openeo_driver._version.__version__}/{self.__class__.__name__}"
         if self._backend_id:
             user_agent += f"/{self._backend_id}"
         self._session.headers["User-Agent"] = user_agent
-        self._debug_show_curl = _debug_show_curl
 
     @property
     def backend_id(self) -> str:
