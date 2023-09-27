@@ -165,9 +165,9 @@ def _decode_json_lines(lines: Union[List[str], str], strict: bool = True) -> Lis
     for line in lines:
         try:
             result.append(json.loads(line))
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
             if strict:
-                raise
+                raise ValueError(f"Failed to JSON-decode {line!r}") from e
     return result
 
 
