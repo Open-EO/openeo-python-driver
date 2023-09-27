@@ -31,28 +31,6 @@ oidc_providers = [
         issuer="http://localhost:9090/auth/realms/master",
         scopes=["openid"],
     ),
-    OidcProvider(
-        id="terrascope",
-        issuer="https://sso.vgt.vito.be/auth/realms/terrascope",
-        scopes=["openid", "email"],
-        title="Terrascope",
-        description="VITO Terrascope (Keycloak based)",
-        default_clients=[
-            {
-                "id": "openeo-default-client",
-                "grant_types": [
-                    "authorization_code+pkce",
-                    "urn:ietf:params:oauth:grant-type:device_code+pkce",
-                    "refresh_token",
-                ],
-                "redirect_urls": [
-                    "https://editor.openeo.org",
-                    "http://localhost:1410",
-                    "http://localhost:1410/",
-                ],
-            }
-        ],
-    ),
     # Allow testing the dummy backend with EGI
     OidcProvider(
         id="egi",
