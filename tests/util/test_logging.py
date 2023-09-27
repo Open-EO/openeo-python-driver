@@ -2,13 +2,14 @@ import json
 import logging
 import re
 import traceback
-from typing import List
+from typing import List, Union
 
 import flask
 import pytest
+import re_assert
 from re_assert import Matches
 
-from openeo_driver.testing import caplog_with_custom_formatter
+from openeo_driver.testing import DictSubSet, caplog_with_custom_formatter
 from openeo_driver.util.logging import (
     LOGGING_CONTEXT_BATCH_JOB,
     LOGGING_CONTEXT_FLASK,
@@ -20,6 +21,9 @@ from openeo_driver.util.logging import (
 )
 
 from ..conftest import enhanced_logging
+
+
+_log = logging.getLogger(__name__)
 
 
 def test_filter_flask_request_correlation_id_logging():
@@ -156,19 +160,23 @@ def test_user_id_trim():
     assert user_id_trim("536e61f6fb8489946ab99ed3a028") == "536e61f6..."
 
 
-def _decode_json_lines(lines: List[str]) -> List[dict]:
+def _decode_json_lines(lines: Union[List[str], str], strict: bool = True) -> List[dict]:
+    """Decode JSON lines data (one JSON dump per line)."""
+    if isinstance(lines, str):
+        lines = lines.strip("\n").split("\n")
     result = []
     for line in lines:
         try:
             result.append(json.loads(line))
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as e:
+            # Unfortunately we can't be strict about decode errors at the moment.
+            # Also see https://github.com/Open-EO/openeo-python-driver/issues/230
+            _log.warning(f"JSON decode failed on {line=}")
     return result
 
 
 def test_setup_logging_capture_warnings(pytester):
-    pytester.makepyfile(
-        main="""
+    script = """
         import logging
         import warnings
         from openeo_driver.util.logging import get_logging_config, setup_logging
@@ -186,7 +194,7 @@ def test_setup_logging_capture_warnings(pytester):
         if __name__ == "__main__":
             main()
     """
-    )
+    pytester.makepyfile(main=script)
     result = pytester.runpython("main.py")
 
     records = _decode_json_lines(result.errlines)
@@ -197,9 +205,162 @@ def test_setup_logging_capture_warnings(pytester):
     assert any(r["levelname"] == "INFO" and "That's all" in r["message"] for r in records)
 
 
+def test_setup_logging_default(pytester):
+    script = """
+        import logging
+        import warnings
+        from openeo_driver.util.logging import get_logging_config, setup_logging
+
+        _log = logging.getLogger(__name__)
+
+        def main():
+            setup_logging(get_logging_config())
+            _log.warning("Hello warning")
+            _log.info("Hello info")
+
+        if __name__ == "__main__":
+            main()
+    """
+    pytester.makepyfile(main=script)
+    result = pytester.runpython("main.py")
+
+    assert result.outlines == []
+    assert result.errlines == [
+        re_assert.Matches(r"\[[0-9-]+ [0-9:,]+\] \d+ WARNING in __main__:9 Hello warning"),
+        re_assert.Matches(r"\[[0-9-]+ [0-9:,]+\] \d+ INFO in __main__:10 Hello info"),
+    ]
+
+
+def test_setup_logging_basic(pytester):
+    script = """
+        import logging
+        import warnings
+        from openeo_driver.util.logging import get_logging_config, setup_logging, LOG_HANDLER_STDERR_BASIC
+
+        _log = logging.getLogger(__name__)
+
+        def main():
+            logging_config = get_logging_config(root_handlers=[LOG_HANDLER_STDERR_BASIC])
+            setup_logging(logging_config)
+            _log.warning("Hello warning")
+            _log.info("Hello info")
+
+        if __name__ == "__main__":
+            main()
+        """
+    pytester.makepyfile(main=script)
+    result = pytester.runpython("main.py")
+
+    assert result.outlines == []
+    assert result.errlines == [
+        re_assert.Matches(r"\[[0-9-]+ [0-9:,]+\] \d+ WARNING in __main__:10 Hello warning"),
+        re_assert.Matches(r"\[[0-9-]+ [0-9:,]+\] \d+ INFO in __main__:11 Hello info"),
+    ]
+
+
+def test_setup_logging_stderr_json(pytester):
+    script = """
+        import logging
+        import warnings
+        from openeo_driver.util.logging import get_logging_config, setup_logging, LOG_HANDLER_STDERR_JSON
+
+        _log = logging.getLogger(__name__)
+
+        def main():
+            logging_config = get_logging_config(root_handlers=[LOG_HANDLER_STDERR_JSON])
+            setup_logging(logging_config)
+            _log.warning("Hello warning")
+            _log.info("Hello info")
+
+        if __name__ == "__main__":
+            main()
+        """
+    pytester.makepyfile(main=script)
+    result = pytester.runpython("main.py")
+
+    assert result.outlines == []
+    stderr_records = _decode_json_lines(result.errlines)
+    assert stderr_records == [
+        DictSubSet({"levelname": "WARNING", "message": "Hello warning", "filename": "main.py", "lineno": 10}),
+        DictSubSet({"levelname": "INFO", "message": "Hello info", "filename": "main.py", "lineno": 11}),
+    ]
+
+
+def test_setup_logging_file_json(pytester, tmp_path):
+    log_file = tmp_path / "openeo.log"
+    script = f"""
+        import logging
+        import warnings
+        from openeo_driver.util.logging import get_logging_config, setup_logging, LOG_HANDLER_FILE_JSON
+
+        _log = logging.getLogger(__name__)
+
+        def main():
+            logging_config = get_logging_config(
+                root_handlers=[LOG_HANDLER_FILE_JSON],
+                log_file={str(log_file)!r}
+            )
+            setup_logging(logging_config)
+            _log.warning("Hello warning")
+            _log.info("Hello info")
+
+        if __name__ == "__main__":
+            main()
+        """
+    pytester.makepyfile(main=script)
+    result = pytester.runpython("main.py")
+
+    assert result.outlines == []
+    assert result.errlines == []
+    assert _decode_json_lines(log_file.read_text()) == [
+        DictSubSet({"levelname": "WARNING", "message": "Hello warning", "filename": "main.py", "lineno": 13}),
+        DictSubSet({"levelname": "INFO", "message": "Hello info", "filename": "main.py", "lineno": 14}),
+    ]
+
+
+def test_setup_logging_rotating_file_json(pytester, tmp_path):
+    log_file = tmp_path / "openeo.log"
+    script = f"""
+        import logging
+        import warnings
+        from openeo_driver.util.logging import get_logging_config, setup_logging, LOG_HANDLER_ROTATING_FILE_JSON
+
+        _log = logging.getLogger(__name__)
+
+        def main():
+            logging_config = get_logging_config(
+                root_handlers=[LOG_HANDLER_ROTATING_FILE_JSON],
+                log_file={str(log_file)!r},
+                rotating_file_max_bytes=1024,
+            )
+            setup_logging(logging_config)
+
+            for i in range(10):
+                _log.warning(f"Hello warning {{i}}")
+
+        if __name__ == "__main__":
+            main()
+        """
+    pytester.makepyfile(main=script)
+    result = pytester.runpython("main.py")
+
+    assert result.outlines == []
+    assert result.errlines == []
+
+    # Log file has rolled over
+    assert _decode_json_lines(log_file.read_text())[0] == DictSubSet(
+        {"message": re_assert.Matches("Hello warning [3-9]")},
+    )
+    # Backup has first log entry
+    backup = log_file.with_suffix(".log.1")
+    assert backup.exists()
+    assert _decode_json_lines(backup.read_text())[0] == DictSubSet(
+        {"message": "Hello warning 0"},
+    )
+
+
 def test_setup_logging_capture_threading_exceptions(pytester):
-    pytester.makepyfile(
-        main="""
+    script = """
         import logging
         import threading
         from openeo_driver.util.logging import get_logging_config, setup_logging
@@ -223,7 +384,7 @@ def test_setup_logging_capture_threading_exceptions(pytester):
         if __name__ == "__main__":
             main()
     """
-    )
+    pytester.makepyfile(main=script)
     result = pytester.runpython("main.py")
 
     records = _decode_json_lines(result.errlines)
@@ -239,8 +400,7 @@ def test_setup_logging_capture_threading_exceptions(pytester):
     reason="When running test in PyDev debugger, pydev catches the exceptions we want to leave uncaught."
 )
 def test_setup_logging_capture_unhandled_exceptions(pytester):
-    pytester.makepyfile(
-        main="""
+    script = """
         import logging
         import threading
         from openeo_driver.util.logging import get_logging_config, setup_logging
@@ -255,7 +415,7 @@ def test_setup_logging_capture_unhandled_exceptions(pytester):
         if __name__ == "__main__":
             main()
     """
-    )
+    pytester.makepyfile(main=script)
     result = pytester.runpython("main.py")
 
     records = _decode_json_lines(result.errlines)
