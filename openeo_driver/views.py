@@ -956,9 +956,11 @@ def register_views_batch_jobs(
                 elif job_info.status == JOB_STATUS.CANCELED:
                     openeo_status = "canceled"
                 elif job_info.status == JOB_STATUS.QUEUED:
-                    openeo_status = "queued"
+                    openeo_status = "running"
                 elif job_info.status == JOB_STATUS.CREATED:
-                    openeo_status = "created"
+                    openeo_status = "running"
+                else:
+                    raise AssertionError(f"unexpected job status: {job_info.status!r}")
 
                 result = {
                     "openeo:status": openeo_status,
