@@ -20,23 +20,13 @@ _log = logging.getLogger(__name__)
 LOGGING_CONTEXT_FLASK = "flask"
 LOGGING_CONTEXT_BATCH_JOB = "batch_job"
 
-LOG_FORMAT_BASIC = "[%(asctime)s] %(process)s %(levelname)s in %(name)s:%(lineno)s %(message)s"
-
 # This fake `format` string is the JsonFormatter way to list expected fields in json records
 # Note: JsonFormatter will output `extra` properties like 'job_id' even if they're not included in
 # its `format` string (https://github.com/madzak/python-json-logger/issues/97)
 JSON_LOGGER_DEFAULT_FORMAT = "%(message)s %(levelname)s %(name)s %(created)s %(filename)s %(lineno)s %(process)s"
 
-LOG_HANDLER_STDERR_BASIC = "basic"
-LOG_HANDLER_STDERR_WSGI = "wsgi"
-LOG_HANDLER_STDERR_JSON = "stderr_json"
-LOG_HANDLER_STDOUT_JSON = "stdout_json"
-LOG_HANDLER_FILE_JSON = "file_json"
-LOG_HANDLER_ROTATING_FILE_JSON = "rotating_file_json"
-
 
 def get_logging_config(
-    *,
     root_handlers: Optional[List[str]] = None,
     loggers: Optional[Dict[str, dict]] = None,
     handler_default_level: str = "DEBUG",
@@ -44,8 +34,6 @@ def get_logging_config(
     root_level: str = "INFO",
     log_file: Optional[Union[str, Path]] = None,
     log_dir: Optional[Union[str, Path]] = None,
-    rotating_file_max_bytes: int = 10 * 1024 * 1024,
-    rotating_file_backup_count: int = 1,
 ) -> dict:
     """Construct logging config dict to be loaded with `logging.config.dictConfig`"""
 
@@ -80,19 +68,12 @@ def get_logging_config(
         "version": 1,
         "root": {
             "level": root_level,
-            # TODO: `get_logging_config` is also used outside of WSGI contexts: use LOG_HANDLER_STDERR_BASIC by default
-            "handlers": (root_handlers or [LOG_HANDLER_STDERR_WSGI]),
+            # TODO: `get_logging_config` is also used outside of WSGI contexts so we need a better default handler here
+            "handlers": (root_handlers or ["wsgi"]),
         },
         "loggers": loggers,
         "handlers": {
-            # Simple basic handler: basic format on stderr
-            LOG_HANDLER_STDERR_BASIC: {
-                "class": "logging.StreamHandler",
-                "stream": "ext://sys.stderr",
-                "level": handler_default_level,
-                "formatter": "basic",
-            },
-            LOG_HANDLER_STDERR_WSGI: {
+            "wsgi": {
                 "class": "logging.StreamHandler",
                 "stream": "ext://flask.logging.wsgi_errors_stream",
                 "level": handler_default_level,
@@ -106,35 +87,26 @@ def get_logging_config(
                 "filters": json_filters,
                 "formatter": "json",
             },
-            LOG_HANDLER_STDERR_JSON: {
+            "stderr_json": {
                 "class": "logging.StreamHandler",
                 "stream": "ext://sys.stderr",
                 "level": handler_default_level,
                 "filters": json_filters,
                 "formatter": "json",
             },
-            LOG_HANDLER_STDOUT_JSON: {
+            "stdout_json": {
                 "class": "logging.StreamHandler",
                 "stream": "ext://sys.stdout",
                 "level": handler_default_level,
                 "filters": json_filters,
                 "formatter": "json",
             },
-            LOG_HANDLER_FILE_JSON: {
+            "file_json": {
                 "class": "logging.FileHandler",
                 "filename": log_file,
                 "level": handler_default_level,
                 "filters": json_filters,
                 "formatter": "json",
-            },
-            LOG_HANDLER_ROTATING_FILE_JSON: {
-                "class": "logging.handlers.RotatingFileHandler",
-                "filename": log_file,
-                "level": handler_default_level,
-                "filters": json_filters,
-                "formatter": "json",
-                "maxBytes": rotating_file_max_bytes,
-                "backupCount": rotating_file_max_bytes,
             },
             # TODO: allow adding custom handlers (e.g. rotating file)
         },
@@ -146,7 +118,7 @@ def get_logging_config(
         "formatters": {
             "basic": {
                 "()": UtcFormatter,
-                "format": LOG_FORMAT_BASIC,
+                "format": "[%(asctime)s] %(process)s %(levelname)s in %(name)s: %(message)s",
             },
             "json": {
                 "()": pythonjsonlogger.jsonlogger.JsonFormatter,
