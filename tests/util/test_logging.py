@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+import textwrap
 import traceback
 from typing import List, Union
 
@@ -169,11 +170,53 @@ def _decode_json_lines(lines: Union[List[str], str], strict: bool = True) -> Lis
         try:
             result.append(json.loads(line))
         except json.JSONDecodeError as e:
-            # Unfortunately we can't be strict about decode errors at the moment.
-            # Also see https://github.com/Open-EO/openeo-python-driver/issues/230
-            _log.warning(f"JSON decode failed on {line=}")
+            if strict:
+                raise ValueError(f"Failed to JSON-decode {line!r}") from e
+            else:
+                _log.warning(f"JSON decode failed on {line=}")
     return result
 
+
+def _strip_jenkins_distutils_hack_warnings(stderr: Union[str, List[str]]) -> Union[str, List[str]]:
+    """
+    Strip weird errors from stderr on jenkins due to old setuptools version
+    Also see https://github.com/Open-EO/openeo-python-driver/issues/230 and GDD-2879
+    """
+    # TODO: eliminate this workaround
+    as_list = isinstance(stderr, list)
+    if as_list:
+        stderr = "\n".join(stderr)
+    stderr = re.sub(
+        r"Error processing line 1 of\s+/[\w/.-]+/distutils-precedence\.pth:"
+        r"\s+Traceback.*AttributeError: module '_distutils_hack' has no attribute 'ensure_shim'"
+        r"\s+Remainder of file ignored\n?",
+        repl="",
+        string=stderr,
+        flags=re.DOTALL,
+    )
+    if as_list:
+        stderr = stderr.split("\n") if stderr else []
+    return stderr
+
+
+def test_strip_jenkins_distutils_hack_warnings():
+    stderr = textwrap.dedent(
+        """
+        Foo
+        Error processing line 1 of
+        /usr/local/lib/python3.8/site-packages/distutils-precedence.pth:
+
+          Traceback (most recent call last):
+            File "/usr/lib64/python3.8/site.py", line 169, in addpackage
+              exec(line)
+            File "<string>", line 1, in <module>
+          AttributeError: module '_distutils_hack' has no attribute 'ensure_shim'
+
+        Remainder of file ignored
+        bar
+    """
+    )
+    assert _strip_jenkins_distutils_hack_warnings(stderr) == "\nFoo\nbar\n"
 
 def test_setup_logging_capture_warnings(pytester):
     script = """
@@ -197,7 +240,7 @@ def test_setup_logging_capture_warnings(pytester):
     pytester.makepyfile(main=script)
     result = pytester.runpython("main.py")
 
-    records = _decode_json_lines(result.errlines)
+    records = _decode_json_lines(_strip_jenkins_distutils_hack_warnings(result.errlines))
     assert any(
         r["levelname"] == "WARNING" and "UserWarning: Attention please" in r["message"]
         for r in records
@@ -225,7 +268,7 @@ def test_setup_logging_default(pytester):
     result = pytester.runpython("main.py")
 
     assert result.outlines == []
-    assert result.errlines == [
+    assert _strip_jenkins_distutils_hack_warnings(result.errlines) == [
         re_assert.Matches(r"\[[0-9-]+ [0-9:,]+\] \d+ WARNING in __main__:9 Hello warning"),
         re_assert.Matches(r"\[[0-9-]+ [0-9:,]+\] \d+ INFO in __main__:10 Hello info"),
     ]
@@ -252,7 +295,7 @@ def test_setup_logging_basic(pytester):
     result = pytester.runpython("main.py")
 
     assert result.outlines == []
-    assert result.errlines == [
+    assert _strip_jenkins_distutils_hack_warnings(result.errlines) == [
         re_assert.Matches(r"\[[0-9-]+ [0-9:,]+\] \d+ WARNING in __main__:10 Hello warning"),
         re_assert.Matches(r"\[[0-9-]+ [0-9:,]+\] \d+ INFO in __main__:11 Hello info"),
     ]
@@ -279,7 +322,7 @@ def test_setup_logging_stderr_json(pytester):
     result = pytester.runpython("main.py")
 
     assert result.outlines == []
-    stderr_records = _decode_json_lines(result.errlines)
+    stderr_records = _decode_json_lines(_strip_jenkins_distutils_hack_warnings(result.errlines))
     assert stderr_records == [
         DictSubSet({"levelname": "WARNING", "message": "Hello warning", "filename": "main.py", "lineno": 10}),
         DictSubSet({"levelname": "INFO", "message": "Hello info", "filename": "main.py", "lineno": 11}),
@@ -311,7 +354,7 @@ def test_setup_logging_file_json(pytester, tmp_path):
     result = pytester.runpython("main.py")
 
     assert result.outlines == []
-    assert result.errlines == []
+    assert _strip_jenkins_distutils_hack_warnings(result.errlines) == []
     assert _decode_json_lines(log_file.read_text()) == [
         DictSubSet({"levelname": "WARNING", "message": "Hello warning", "filename": "main.py", "lineno": 13}),
         DictSubSet({"levelname": "INFO", "message": "Hello info", "filename": "main.py", "lineno": 14}),
@@ -345,7 +388,7 @@ def test_setup_logging_rotating_file_json(pytester, tmp_path):
     result = pytester.runpython("main.py")
 
     assert result.outlines == []
-    assert result.errlines == []
+    assert _strip_jenkins_distutils_hack_warnings(result.errlines) == []
 
     # Log file has rolled over
     assert _decode_json_lines(log_file.read_text())[0] == DictSubSet(
@@ -387,7 +430,7 @@ def test_setup_logging_capture_threading_exceptions(pytester):
     pytester.makepyfile(main=script)
     result = pytester.runpython("main.py")
 
-    records = _decode_json_lines(result.errlines)
+    records = _decode_json_lines(_strip_jenkins_distutils_hack_warnings(result.errlines))
     assert any(
         r["levelname"] == "ERROR" and "ZeroDivisionError in thread" in r["message"]
         for r in records
@@ -418,7 +461,7 @@ def test_setup_logging_capture_unhandled_exceptions(pytester):
     pytester.makepyfile(main=script)
     result = pytester.runpython("main.py")
 
-    records = _decode_json_lines(result.errlines)
+    records = _decode_json_lines(_strip_jenkins_distutils_hack_warnings(result.errlines))
     assert any(
         r["levelname"] == "ERROR" and "Unhandled ZeroDivisionError exception" in r["message"]
         for r in records
