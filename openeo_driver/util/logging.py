@@ -27,11 +27,20 @@ LOG_FORMAT_BASIC = "[%(asctime)s] %(process)s %(levelname)s in %(name)s:%(lineno
 # its `format` string (https://github.com/madzak/python-json-logger/issues/97)
 JSON_LOGGER_DEFAULT_FORMAT = "%(message)s %(levelname)s %(name)s %(created)s %(filename)s %(lineno)s %(process)s"
 
+
+# Basic (like default logging): simple text format (on stderr)
 LOG_HANDLER_STDERR_BASIC = "basic"
+# Text format logging on stdout
+LOG_HANDLER_STDOUT_BASIC = "stdout_basic"
+# Flask-style WSGI logging (text format on stderr)
 LOG_HANDLER_STDERR_WSGI = "wsgi"
+# JSON-logging on stderr
 LOG_HANDLER_STDERR_JSON = "stderr_json"
+# JSON-logging on stdout
 LOG_HANDLER_STDOUT_JSON = "stdout_json"
+# JSON-logging to a file
 LOG_HANDLER_FILE_JSON = "file_json"
+# JSON-logging to a rotating/rolling file
 LOG_HANDLER_ROTATING_FILE_JSON = "rotating_file_json"
 
 
@@ -92,6 +101,12 @@ def get_logging_config(
                 "level": handler_default_level,
                 "formatter": "basic",
             },
+            LOG_HANDLER_STDOUT_BASIC: {
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stdout",
+                "level": handler_default_level,
+                "formatter": "basic",
+            },
             LOG_HANDLER_STDERR_WSGI: {
                 "class": "logging.StreamHandler",
                 "stream": "ext://flask.logging.wsgi_errors_stream",
@@ -134,7 +149,7 @@ def get_logging_config(
                 "filters": json_filters,
                 "formatter": "json",
                 "maxBytes": rotating_file_max_bytes,
-                "backupCount": rotating_file_max_bytes,
+                "backupCount": rotating_file_backup_count,
             },
             # TODO: allow adding custom handlers (e.g. rotating file)
         },
