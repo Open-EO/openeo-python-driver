@@ -948,8 +948,21 @@ def register_views_batch_jobs(
             if not partial:
                 raise JobNotFinishedException()
             else:
+                if job_info.status == JOB_STATUS.RUNNING:
+                    openeo_status = "running"
+                elif job_info.status == JOB_STATUS.ERROR:
+                    openeo_status = "error"
+                elif job_info.status == JOB_STATUS.CANCELED:
+                    openeo_status = "canceled"
+                elif job_info.status == JOB_STATUS.QUEUED:
+                    openeo_status = "running"
+                elif job_info.status == JOB_STATUS.CREATED:
+                    openeo_status = "running"
+                else:
+                    raise AssertionError(f"unexpected job status: {job_info.status!r}")
+
                 result = {
-                    "openeo:status": "running",
+                    "openeo:status": openeo_status,
                     "type": "Collection",
                     "stac_version": "1.0.0",
                     "id": job_id,
@@ -1082,6 +1095,7 @@ def register_views_batch_jobs(
                         "providers": providers or None,
                         "links": links,
                         "assets": assets,
+                        "openeo:status": "finished",
                     }
                 )
 
@@ -1106,7 +1120,8 @@ def register_views_batch_jobs(
                     "id": job_info.id,
                     "properties": _properties_from_job_info(job_info),
                     "assets": assets,
-                    "links": links
+                    "links": links,
+                    "openeo:status": "finished",
                 }
                 if providers:
                     result["providers"] = providers
