@@ -83,6 +83,9 @@ class JobRegistryInterface:
     def get_job(self, job_id: str) -> JobDict:
         raise NotImplementedError
 
+    def delete_job(self, job_id: str) -> None:
+        raise NotImplementedError
+
     def set_status(
         self,
         job_id: str,
@@ -280,7 +283,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         use_auth: bool = True,
         expected_status: int = 200,
         logging_extra: Optional[dict] = None,
-    ) -> Union[dict, list]:
+    ) -> Union[dict, list, None]:
         """Do an HTTP request to Elastic Job Tracker service."""
         with TimingLogger(
             logger=(lambda m: self.logger.debug(m, extra=logging_extra)),
@@ -320,7 +323,9 @@ class ElasticJobRegistry(JobRegistryInterface):
                 raise EjrHttpError.from_response(response=response)
             else:
                 response.raise_for_status()
-            return response.json()
+
+            if response.content:
+                return response.json()
 
     def _as_curl(self, method: str, url: str, data: dict, headers: dict):
         cmd = ["curl", "-i", "-X", method.upper()]
@@ -407,10 +412,18 @@ class ElasticJobRegistry(JobRegistryInterface):
             raise JobNotFoundException(job_id=job_id)
         else:
             summary = [{k: j.get(k) for k in ["user_id", "created"]} for j in jobs]
-            _log.error(
-                f"Found multiple ({len(jobs)}) jobs for {job_id=}: {repr_truncate(summary, width=200)}"
-            )
+            self.logger.error(f"Found multiple ({len(jobs)}) jobs for {job_id=}: {repr_truncate(summary, width=200)}")
             raise InternalException(message=f"Found {len(jobs)} jobs for {job_id=}")
+
+    def delete_job(self, job_id: str) -> None:
+        try:
+            self._do_request(method="DELETE", path=f"/jobs/{job_id}")
+            logging_extra = {"job_id": job_id}
+            self.logger.info(f"EJR deleted {job_id=}", extra=logging_extra)
+        except EjrHttpError as e:
+            if e.status_code == 404:
+                raise JobNotFoundException(job_id=job_id) from e
+            raise e
 
     def set_status(
         self,
@@ -571,7 +584,7 @@ class CliApp:
         cli_create.add_argument("--process-graph", help="JSON representation of process graph")
         cli_create.set_defaults(func=self.create_dummy_job)
 
-        cli_set_status = subparsers.add_parser("set_status", help="Set status of a job")
+        cli_set_status = subparsers.add_parser("set-status", help="Set status of a job")
         cli_set_status.add_argument("job_id", help="Job id")
         cli_set_status.add_argument("status", help="New status (queued, running, ...)")
         cli_set_status.set_defaults(func=self.set_status)
@@ -585,6 +598,10 @@ class CliApp:
         )
         cli_get_job.add_argument("job_id")
         cli_get_job.set_defaults(func=self.get_job)
+
+        cli_delete = subparsers.add_parser("delete", help="Mark job as deleted")
+        cli_delete.add_argument("job_id", help="Job id")
+        cli_delete.set_defaults(func=self.delete_job)
 
         return cli.parse_args()
 
@@ -683,6 +700,13 @@ class CliApp:
         ejr = self._get_job_registry(cli_args=args)
         result = ejr.set_status(job_id=args.job_id, status=args.status)
         pprint.pprint(result)
+
+    def delete_job(self, args: argparse.Namespace):
+        job_id = args.job_id
+        ejr = self._get_job_registry(cli_args=args)
+        ejr.delete_job(job_id=job_id)
+        print(f"Deleted {job_id}")
+
 
 
 if __name__ == "__main__":

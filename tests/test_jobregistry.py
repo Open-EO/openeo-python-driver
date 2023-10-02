@@ -351,6 +351,21 @@ class TestElasticJobRegistry:
         with pytest.raises(JobNotFoundException):
             _ = ejr.get_job(job_id="job-123")
 
+    def test_delete_job(self, requests_mock, oidc_mock, ejr):
+        delete_mock = requests_mock.delete(f"{self.EJR_API_URL}/jobs/job-123", status_code=200, content=b"")
+        _ = ejr.delete_job(job_id="job-123")
+        assert delete_mock.call_count == 1
+
+    def test_delete_job_not_found(self, requests_mock, oidc_mock, ejr):
+        delete_mock = requests_mock.delete(
+            f"{self.EJR_API_URL}/jobs/job-123",
+            status_code=404,
+            json={"statusCode": 404, "message": "Could not find job with job-123", "error": "Not Found"},
+        )
+        with pytest.raises(JobNotFoundException):
+            _ = ejr.delete_job(job_id="job-123")
+        assert delete_mock.call_count == 1
+
     def test_get_job_multiple_results(self, requests_mock, oidc_mock, ejr):
         def post_jobs_search(request, context):
             """Handler of `POST /jobs/search"""
