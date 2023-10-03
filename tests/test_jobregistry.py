@@ -1,6 +1,6 @@
 import logging
 import urllib.parse
-from typing import Union, Optional, List
+from typing import Callable, List, Optional, Sequence, Union
 from unittest import mock
 
 import pytest
@@ -8,8 +8,8 @@ import requests
 import requests_mock
 import time_machine
 from openeo.rest.auth.testing import OidcMock
-from openeo_driver.errors import JobNotFoundException, InternalException
 
+from openeo_driver.errors import InternalException, JobNotFoundException
 from openeo_driver.jobregistry import (
     DEPENDENCY_STATUS,
     JOB_STATUS,
@@ -18,13 +18,7 @@ from openeo_driver.jobregistry import (
     ElasticJobRegistry,
     ElasticJobRegistryCredentials,
 )
-from openeo_driver.testing import (
-    DictSubSet,
-    RegexMatcher,
-    ListSubSet,
-    IgnoreOrder,
-    caplog_with_custom_formatter,
-)
+from openeo_driver.testing import DictSubSet, IgnoreOrder, ListSubSet, RegexMatcher, caplog_with_custom_formatter
 
 DUMMY_PROCESS = {
     "summary": "calculate 3+5, please",
@@ -316,26 +310,44 @@ class TestElasticJobRegistry:
         with pytest.raises(EjrError) as e:
             _ = ejr.create_job(process=DUMMY_PROCESS, user_id="john")
 
-    def test_get_job(self, requests_mock, oidc_mock, ejr):
-        def post_jobs_search(request, context):
-            """Handler of `POST /jobs/search"""
+    def _build_handler_post_jobs_search_single_job_lookup(
+        self,
+        *,
+        job_id: str = "job-123",
+        backend_id: str = "unittests",
+        user_id: str = "john",
+        status: str = "created",
+        source_fields: Sequence[str] = ("job_id", "user_id", "created", "status", "updated", "*"),
+        oidc_mock: OidcMock,
+    ) -> Callable:
+        """
+        Build handler for 'POST /jobs/search for a single job lookup.
+        """
+
+        def handler(request, context):
             assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
             assert request.json() == {
                 "query": {
                     "bool": {
                         "filter": [
-                            {"term": {"backend_id": "unittests"}},
-                            {"term": {"job_id": "job-123"}},
+                            {"term": {"backend_id": backend_id}},
+                            {"term": {"job_id": job_id}},
                         ]
                     }
                 },
-                "_source": IgnoreOrder(
-                    ["job_id", "user_id", "created", "status", "updated", "*"]
-                ),
+                "_source": IgnoreOrder(list(source_fields)),
             }
-            return [{"job_id": "job-123", "user_id": "john", "status": "created"}]
+            return [{"job_id": job_id, "user_id": user_id, "status": status}]
 
-        requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=post_jobs_search)
+        return handler
+
+    def test_get_job(self, requests_mock, oidc_mock, ejr):
+        requests_mock.post(
+            f"{self.EJR_API_URL}/jobs/search",
+            json=self._build_handler_post_jobs_search_single_job_lookup(
+                job_id="job-123", user_id="john", status="created", oidc_mock=oidc_mock
+            ),
+        )
 
         result = ejr.get_job(job_id="job-123")
         assert result == {"job_id": "job-123", "user_id": "john", "status": "created"}
@@ -365,6 +377,58 @@ class TestElasticJobRegistry:
         with pytest.raises(JobNotFoundException):
             _ = ejr.delete_job(job_id="job-123")
         assert delete_mock.call_count == 1
+
+    def test_delete_job_with_verification_direct(self, requests_mock, oidc_mock, ejr, caplog):
+        caplog.set_level(logging.DEBUG)
+
+        delete_mock = requests_mock.delete(f"{self.EJR_API_URL}/jobs/job-123", status_code=200, content=b"")
+        # Empty search response
+        search_mock = requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=[])
+
+        _ = ejr.delete_job(job_id="job-123")
+        assert delete_mock.call_count == 1
+        assert search_mock.call_count == 1
+
+        log_messages = caplog.messages
+        for expected in [
+            "EJR deleted job_id='job-123'",
+            "_verify_job_existence job_id='job-123' exists=False backoff=0",
+        ]:
+            assert expected in log_messages
+
+    def test_delete_job_with_verification_backoff(self, requests_mock, oidc_mock, ejr, caplog):
+        caplog.set_level(logging.DEBUG)
+
+        delete_mock = requests_mock.delete(f"{self.EJR_API_URL}/jobs/job-123", status_code=200, content=b"")
+        search_mock = requests_mock.post(
+            f"{self.EJR_API_URL}/jobs/search",
+            [
+                # First attempt: still found
+                {
+                    "json": self._build_handler_post_jobs_search_single_job_lookup(
+                        job_id="job-123",
+                        user_id="john",
+                        status="created",
+                        oidc_mock=oidc_mock,
+                        source_fields=["job_id", "user_id", "created", "status", "updated"],
+                    )
+                },
+                # Second attempt: not found anymore
+                {"json": []},
+            ],
+        )
+
+        _ = ejr.delete_job(job_id="job-123")
+        assert delete_mock.call_count == 1
+        assert search_mock.call_count == 2
+
+        log_messages = caplog.messages
+        for expected in [
+            "EJR deleted job_id='job-123'",
+            "_verify_job_existence job_id='job-123' exists=False backoff=0",
+            "_verify_job_existence job_id='job-123' exists=False backoff=0.1",
+        ]:
+            assert expected in log_messages
 
     def test_get_job_multiple_results(self, requests_mock, oidc_mock, ejr):
         def post_jobs_search(request, context):

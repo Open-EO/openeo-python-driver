@@ -235,6 +235,8 @@ class ElasticJobRegistry(JobRegistryInterface):
             self.set_user_agent()
 
         self._debug_show_curl = _debug_show_curl
+        # TODO: expose this as constructor arg or even config?
+        self._verification_backoffs = [0, 0.1, 1.0]
 
     def set_user_agent(self):
         user_agent = f"openeo_driver-{openeo_driver._version.__version__}/{self.__class__.__name__}"
@@ -388,7 +390,9 @@ class ElasticJobRegistry(JobRegistryInterface):
         }
         with self._with_extra_logging(job_id=job_id):
             self.logger.info(f"EJR creating {job_id=} {created=}")
-            return self._do_request("POST", "/jobs", json=job_data, expected_status=201)
+            result = self._do_request("POST", "/jobs", json=job_data, expected_status=201)
+            self._verify_job_existence(job_id=job_id, exists=True)
+            return result
 
     def get_job(self, job_id: str, fields: Optional[List[str]] = None) -> JobDict:
         with self._with_extra_logging(job_id=job_id):
@@ -426,6 +430,33 @@ class ElasticJobRegistry(JobRegistryInterface):
                 if e.status_code == 404:
                     raise JobNotFoundException(job_id=job_id) from e
                 raise e
+            self._verify_job_existence(job_id=job_id, exists=False)
+
+    def _verify_job_existence(self, job_id: str, exists: bool = True):
+        """
+        Verify that EJR committed the job creation/deletion
+        :param job_id: job id
+        :param exists: whether the job should exist (after creation) or not exist (after deletion)
+        :return:
+        """
+        if not self._verification_backoffs:
+            return
+        for backoff in self._verification_backoffs:
+            self.logger.debug(f"_verify_job_existence {job_id=} {exists=} {backoff=}")
+            time.sleep(backoff)
+            try:
+                self.get_job(job_id=job_id, fields=["job_id"])
+                if exists:
+                    return
+            except JobNotFoundException:
+                if not exists:
+                    return
+            except Exception as e:
+                # TODO: fail hard instead of just logging?
+                self.logger.exception(f"Unexpected error while verifying {job_id=} {exists=}: {e=}")
+                return
+        # TODO: fail hard instead of just logging?
+        self.logger.error(f"Failed to verify {job_id=} {exists=}")
 
     def set_status(
         self,
