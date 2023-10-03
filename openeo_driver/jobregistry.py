@@ -9,7 +9,7 @@ import shlex
 import time
 import typing
 from decimal import Decimal
-from typing import Any, Dict, List, NamedTuple, Optional, Union
+from typing import Any, Dict, List, NamedTuple, Optional, Union, Sequence
 
 import requests
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcClientInfo, OidcProviderInfo
@@ -235,8 +235,6 @@ class ElasticJobRegistry(JobRegistryInterface):
             self.set_user_agent()
 
         self._debug_show_curl = _debug_show_curl
-        # TODO: expose this as constructor arg or even config?
-        self._verification_backoffs = [0, 0.1, 1.0]
 
     def set_user_agent(self):
         user_agent = f"openeo_driver-{openeo_driver._version.__version__}/{self.__class__.__name__}"
@@ -391,7 +389,6 @@ class ElasticJobRegistry(JobRegistryInterface):
         with self._with_extra_logging(job_id=job_id):
             self.logger.info(f"EJR creating {job_id=} {created=}")
             result = self._do_request("POST", "/jobs", json=job_data, expected_status=201)
-            self._verify_job_existence(job_id=job_id, exists=True)
             return result
 
     def get_job(self, job_id: str, fields: Optional[List[str]] = None) -> JobDict:
@@ -432,16 +429,16 @@ class ElasticJobRegistry(JobRegistryInterface):
                 raise e
             self._verify_job_existence(job_id=job_id, exists=False)
 
-    def _verify_job_existence(self, job_id: str, exists: bool = True):
+    def _verify_job_existence(self, job_id: str, exists: bool = True, backoffs: Sequence[float] = (0, 0.1, 1.0)):
         """
         Verify that EJR committed the job creation/deletion
         :param job_id: job id
         :param exists: whether the job should exist (after creation) or not exist (after deletion)
         :return:
         """
-        if not self._verification_backoffs:
+        if not backoffs:
             return
-        for backoff in self._verification_backoffs:
+        for backoff in backoffs:
             self.logger.debug(f"_verify_job_existence {job_id=} {exists=} {backoff=}")
             time.sleep(backoff)
             try:

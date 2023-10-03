@@ -670,7 +670,6 @@ class TestElasticJobRegistry:
         """Check that job_id logging is passed through as logging extra in appropriate places"""
         caplog.set_level(logging.DEBUG)
 
-
         job_id = "j-123"
 
         def post_jobs(request, context):
