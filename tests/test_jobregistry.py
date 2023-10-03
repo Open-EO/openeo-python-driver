@@ -606,10 +606,6 @@ class TestElasticJobRegistry:
         """Check that job_id logging is passed through as logging extra in appropriate places"""
         caplog.set_level(logging.DEBUG)
 
-        class Formatter:
-            def format(self, record: logging.LogRecord):
-                job_id = getattr(record, "job_id", None)
-                return f"{record.name}:{job_id}:{record.message}"
 
         job_id = "j-123"
 
@@ -623,6 +619,12 @@ class TestElasticJobRegistry:
 
         requests_mock.post(f"{self.EJR_API_URL}/jobs", json=post_jobs)
         requests_mock.patch(f"{self.EJR_API_URL}/jobs/{job_id}", json=patch_job)
+        requests_mock.delete(f"{self.EJR_API_URL}/jobs/{job_id}", status_code=200, content=b"")
+
+        class Formatter:
+            def format(self, record: logging.LogRecord):
+                job_id = getattr(record, "job_id", None)
+                return f"{record.name}:{job_id}:{record.message}"
 
         with caplog_with_custom_formatter(caplog=caplog, format=Formatter()):
             with time_machine.travel("2020-01-02 03:04:05+00", tick=False):
@@ -634,6 +636,9 @@ class TestElasticJobRegistry:
                 ejr.set_application_id(job_id=job_id, application_id="app-123")
             with time_machine.travel("2020-01-02 03:44:55+00", tick=False):
                 ejr.set_status(job_id=job_id, status=JOB_STATUS.RUNNING)
+
+            with time_machine.travel("2020-01-03 12:00:00+00", tick=False):
+                ejr.delete_job(job_id=job_id)
 
         logs = caplog.text.strip().split("\n")
 
@@ -652,5 +657,31 @@ class TestElasticJobRegistry:
             "openeo_driver.jobregistry.elastic:j-123:EJR update job_id='j-123' data={'status': 'running', 'updated': '2020-01-02T03:44:55Z'}",
             "openeo_driver.jobregistry.elastic:j-123:EJR response on `PATCH /jobs/j-123`: 200",
             "openeo_driver.jobregistry.elastic:j-123:EJR Request `PATCH /jobs/j-123`: end 2020-01-02 03:44:55, elapsed 0:00:00",
+            # delete
+            "openeo_driver.jobregistry.elastic:j-123:EJR Request `DELETE /jobs/j-123`: start 2020-01-03 12:00:00",
+            "openeo_driver.jobregistry.elastic:j-123:EJR deleted job_id='j-123'",
         ]:
             assert expected in logs
+
+    def test_with_extra_logging(self, requests_mock, oidc_mock, ejr, caplog):
+        """Test that "extra logging fields" (like job_id) do not leak outside of context"""
+        caplog.set_level(logging.INFO)
+
+        class Formatter:
+            def format(self, record: logging.LogRecord):
+                job_id = getattr(record, "job_id", None)
+                return f"{record.name} [{job_id}] {record.message}"
+
+        with caplog_with_custom_formatter(caplog=caplog, format=Formatter()):
+            # Trigger failure during _with_extra_logging
+            requests_mock.post(f"{self.EJR_API_URL}/jobs/search", status_code=500)
+            with pytest.raises(EjrHttpError):
+                _ = ejr.get_job(job_id="job-123")
+
+            # Health check should not be logged with job id in logs
+            requests_mock.get(f"{self.EJR_API_URL}/health", json={"ok": "yep"})
+            ejr.health_check(use_auth=False, log=True)
+
+        logs = caplog.text.strip().split("\n")
+        assert "openeo_driver.jobregistry.elastic [job-123] EJR get job data job_id='job-123'" in logs
+        assert "openeo_driver.jobregistry.elastic [None] EJR health check {'ok': 'yep'}" in logs
