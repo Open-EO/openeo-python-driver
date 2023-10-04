@@ -1,6 +1,6 @@
 import logging
 import urllib.parse
-from typing import Union, Optional, List
+from typing import Callable, List, Optional, Sequence, Union
 from unittest import mock
 
 import pytest
@@ -8,8 +8,8 @@ import requests
 import requests_mock
 import time_machine
 from openeo.rest.auth.testing import OidcMock
-from openeo_driver.errors import JobNotFoundException, InternalException
 
+from openeo_driver.errors import InternalException, JobNotFoundException
 from openeo_driver.jobregistry import (
     DEPENDENCY_STATUS,
     JOB_STATUS,
@@ -18,13 +18,7 @@ from openeo_driver.jobregistry import (
     ElasticJobRegistry,
     ElasticJobRegistryCredentials,
 )
-from openeo_driver.testing import (
-    DictSubSet,
-    RegexMatcher,
-    ListSubSet,
-    IgnoreOrder,
-    caplog_with_custom_formatter,
-)
+from openeo_driver.testing import DictSubSet, IgnoreOrder, ListSubSet, RegexMatcher, caplog_with_custom_formatter
 
 DUMMY_PROCESS = {
     "summary": "calculate 3+5, please",
@@ -316,26 +310,44 @@ class TestElasticJobRegistry:
         with pytest.raises(EjrError) as e:
             _ = ejr.create_job(process=DUMMY_PROCESS, user_id="john")
 
-    def test_get_job(self, requests_mock, oidc_mock, ejr):
-        def post_jobs_search(request, context):
-            """Handler of `POST /jobs/search"""
+    def _build_handler_post_jobs_search_single_job_lookup(
+        self,
+        *,
+        job_id: str = "job-123",
+        backend_id: str = "unittests",
+        user_id: str = "john",
+        status: str = "created",
+        source_fields: Sequence[str] = ("job_id", "user_id", "created", "status", "updated", "*"),
+        oidc_mock: OidcMock,
+    ) -> Callable:
+        """
+        Build handler for 'POST /jobs/search for a single job lookup.
+        """
+
+        def handler(request, context):
             assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
             assert request.json() == {
                 "query": {
                     "bool": {
                         "filter": [
-                            {"term": {"backend_id": "unittests"}},
-                            {"term": {"job_id": "job-123"}},
+                            {"term": {"backend_id": backend_id}},
+                            {"term": {"job_id": job_id}},
                         ]
                     }
                 },
-                "_source": IgnoreOrder(
-                    ["job_id", "user_id", "created", "status", "updated", "*"]
-                ),
+                "_source": IgnoreOrder(list(source_fields)),
             }
-            return [{"job_id": "job-123", "user_id": "john", "status": "created"}]
+            return [{"job_id": job_id, "user_id": user_id, "status": status}]
 
-        requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=post_jobs_search)
+        return handler
+
+    def test_get_job(self, requests_mock, oidc_mock, ejr):
+        requests_mock.post(
+            f"{self.EJR_API_URL}/jobs/search",
+            json=self._build_handler_post_jobs_search_single_job_lookup(
+                job_id="job-123", user_id="john", status="created", oidc_mock=oidc_mock
+            ),
+        )
 
         result = ejr.get_job(job_id="job-123")
         assert result == {"job_id": "job-123", "user_id": "john", "status": "created"}
@@ -365,6 +377,58 @@ class TestElasticJobRegistry:
         with pytest.raises(JobNotFoundException):
             _ = ejr.delete_job(job_id="job-123")
         assert delete_mock.call_count == 1
+
+    def test_delete_job_with_verification_direct(self, requests_mock, oidc_mock, ejr, caplog):
+        caplog.set_level(logging.DEBUG)
+
+        delete_mock = requests_mock.delete(f"{self.EJR_API_URL}/jobs/job-123", status_code=200, content=b"")
+        # Empty search response
+        search_mock = requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=[])
+
+        _ = ejr.delete_job(job_id="job-123")
+        assert delete_mock.call_count == 1
+        assert search_mock.call_count == 1
+
+        log_messages = caplog.messages
+        for expected in [
+            "EJR deleted job_id='job-123'",
+            "_verify_job_existence job_id='job-123' exists=False backoff=0",
+        ]:
+            assert expected in log_messages
+
+    def test_delete_job_with_verification_backoff(self, requests_mock, oidc_mock, ejr, caplog):
+        caplog.set_level(logging.DEBUG)
+
+        delete_mock = requests_mock.delete(f"{self.EJR_API_URL}/jobs/job-123", status_code=200, content=b"")
+        search_mock = requests_mock.post(
+            f"{self.EJR_API_URL}/jobs/search",
+            [
+                # First attempt: still found
+                {
+                    "json": self._build_handler_post_jobs_search_single_job_lookup(
+                        job_id="job-123",
+                        user_id="john",
+                        status="created",
+                        oidc_mock=oidc_mock,
+                        source_fields=["job_id", "user_id", "created", "status", "updated"],
+                    )
+                },
+                # Second attempt: not found anymore
+                {"json": []},
+            ],
+        )
+
+        _ = ejr.delete_job(job_id="job-123")
+        assert delete_mock.call_count == 1
+        assert search_mock.call_count == 2
+
+        log_messages = caplog.messages
+        for expected in [
+            "EJR deleted job_id='job-123'",
+            "_verify_job_existence job_id='job-123' exists=False backoff=0",
+            "_verify_job_existence job_id='job-123' exists=False backoff=0.1",
+        ]:
+            assert expected in log_messages
 
     def test_get_job_multiple_results(self, requests_mock, oidc_mock, ejr):
         def post_jobs_search(request, context):
@@ -606,11 +670,6 @@ class TestElasticJobRegistry:
         """Check that job_id logging is passed through as logging extra in appropriate places"""
         caplog.set_level(logging.DEBUG)
 
-        class Formatter:
-            def format(self, record: logging.LogRecord):
-                job_id = getattr(record, "job_id", None)
-                return f"{record.name}:{job_id}:{record.message}"
-
         job_id = "j-123"
 
         def post_jobs(request, context):
@@ -623,6 +682,12 @@ class TestElasticJobRegistry:
 
         requests_mock.post(f"{self.EJR_API_URL}/jobs", json=post_jobs)
         requests_mock.patch(f"{self.EJR_API_URL}/jobs/{job_id}", json=patch_job)
+        requests_mock.delete(f"{self.EJR_API_URL}/jobs/{job_id}", status_code=200, content=b"")
+
+        class Formatter:
+            def format(self, record: logging.LogRecord):
+                job_id = getattr(record, "job_id", None)
+                return f"{record.name}:{job_id}:{record.message}"
 
         with caplog_with_custom_formatter(caplog=caplog, format=Formatter()):
             with time_machine.travel("2020-01-02 03:04:05+00", tick=False):
@@ -634,6 +699,9 @@ class TestElasticJobRegistry:
                 ejr.set_application_id(job_id=job_id, application_id="app-123")
             with time_machine.travel("2020-01-02 03:44:55+00", tick=False):
                 ejr.set_status(job_id=job_id, status=JOB_STATUS.RUNNING)
+
+            with time_machine.travel("2020-01-03 12:00:00+00", tick=False):
+                ejr.delete_job(job_id=job_id)
 
         logs = caplog.text.strip().split("\n")
 
@@ -652,5 +720,31 @@ class TestElasticJobRegistry:
             "openeo_driver.jobregistry.elastic:j-123:EJR update job_id='j-123' data={'status': 'running', 'updated': '2020-01-02T03:44:55Z'}",
             "openeo_driver.jobregistry.elastic:j-123:EJR response on `PATCH /jobs/j-123`: 200",
             "openeo_driver.jobregistry.elastic:j-123:EJR Request `PATCH /jobs/j-123`: end 2020-01-02 03:44:55, elapsed 0:00:00",
+            # delete
+            "openeo_driver.jobregistry.elastic:j-123:EJR Request `DELETE /jobs/j-123`: start 2020-01-03 12:00:00",
+            "openeo_driver.jobregistry.elastic:j-123:EJR deleted job_id='j-123'",
         ]:
             assert expected in logs
+
+    def test_with_extra_logging(self, requests_mock, oidc_mock, ejr, caplog):
+        """Test that "extra logging fields" (like job_id) do not leak outside of context"""
+        caplog.set_level(logging.INFO)
+
+        class Formatter:
+            def format(self, record: logging.LogRecord):
+                job_id = getattr(record, "job_id", None)
+                return f"{record.name} [{job_id}] {record.message}"
+
+        with caplog_with_custom_formatter(caplog=caplog, format=Formatter()):
+            # Trigger failure during _with_extra_logging
+            requests_mock.post(f"{self.EJR_API_URL}/jobs/search", status_code=500)
+            with pytest.raises(EjrHttpError):
+                _ = ejr.get_job(job_id="job-123")
+
+            # Health check should not be logged with job id in logs
+            requests_mock.get(f"{self.EJR_API_URL}/health", json={"ok": "yep"})
+            ejr.health_check(use_auth=False, log=True)
+
+        logs = caplog.text.strip().split("\n")
+        assert "openeo_driver.jobregistry.elastic [job-123] EJR get job data job_id='job-123'" in logs
+        assert "openeo_driver.jobregistry.elastic [None] EJR health check {'ok': 'yep'}" in logs
