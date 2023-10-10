@@ -43,7 +43,13 @@ from openeo_driver.utils import EvalEnv
 from .data import TEST_DATA_ROOT, get_path, load_json
 
 
-@pytest.fixture(params=["1.0.0"])
+@pytest.fixture(
+    params=[
+        "1.0",
+        # "1.1",
+        "1.2",
+    ]
+)
 def api_version(request):
     return request.param
 
@@ -52,7 +58,11 @@ def api_version(request):
 def api(api_version, client, backend_implementation) -> ApiTester:
     dummy_backend.reset(backend_implementation)
 
-    data_root = TEST_DATA_ROOT / "pg" / (".".join(api_version.split(".")[:2]))
+    if api_version.startswith("1."):
+        # For now, use "pg/1.0" for all 1.x API requests (no need to differentiate yet)
+        data_root = TEST_DATA_ROOT / "pg" / "1.0"
+    else:
+        raise ValueError(api_version)
     return ApiTester(api_version=api_version, client=client, data_root=data_root)
 
 
@@ -2781,6 +2791,8 @@ def test_execute_no_cube_logic(api, process_graph, expected):
     ],
 )
 def test_text_processes(api, process_id, arguments, expected):
+    if process_id == "text_merge" and api.api_version_compare >= "1.2":
+        pytest.skip("text_merge is dropped since API version 1.2")
     # TODO: null propagation (`text_begins(data=null,...) -> null`) can not be tested at the moment
     pg = {"t": {"process_id": process_id, "arguments": arguments, "result":True}}
     assert api.result(pg).assert_status_code(200).json == expected
@@ -3531,6 +3543,8 @@ def test_vector_buffer_ogc_crs84(api, distance, unit, expected):
 
 
 def test_load_result(api):
+    if api.api_version_compare >= "1.2":
+        pytest.skip("load_result is dropped since API version 1.2")
     api.check_result("load_result.json")
     params = dummy_backend.last_load_collection_call("99a605a0-1a10-4ba9-abc1-6898544e25fc")
 
@@ -3538,9 +3552,18 @@ def test_load_result(api):
 
 
 def test_chunk_polygon(api):
+    if api.api_version_compare >= "1.2":
+        pytest.skip("chunk_polygon is dropped since API version 1.2")
+
     api.check_result("chunk_polygon.json")
     params = dummy_backend.last_load_collection_call("S2_FOOBAR")
-    assert params["spatial_extent"] == {'west': 1.0, 'south': 5.0, 'east': 12.0, 'north': 16.0, 'crs': 'EPSG:4326'}
+    assert params["spatial_extent"] == {"west": 1.0, "south": 5.0, "east": 12.0, "north": 16.0, "crs": "EPSG:4326"}
+
+
+def test_apply_polygon(api):
+    api.check_result("apply_polygon.json")
+    params = dummy_backend.last_load_collection_call("S2_FOOBAR")
+    assert params["spatial_extent"] == {"west": 1.0, "south": 5.0, "east": 12.0, "north": 16.0, "crs": "EPSG:4326"}
 
 
 def test_fit_class_random_forest(api):
