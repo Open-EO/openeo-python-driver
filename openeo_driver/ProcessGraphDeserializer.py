@@ -327,9 +327,8 @@ def evaluate(
     """
 
     if 'version' not in env:
-        # TODO: make this a hard error, and stop defaulting to 0.4.0.
-        warnings.warn("Blindly assuming 0.4.0")
-        env = env.push({"version": "0.4.0"})
+        _log.warning("No version in `evaluate()` env. Blindly assuming 1.0.0.")
+        env = env.push({"version": "1.0.0"})
 
     top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
     result_node = process_graph[top_level_node]

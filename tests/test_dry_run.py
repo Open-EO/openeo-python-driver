@@ -1219,7 +1219,7 @@ def test_evaluate_predefined_property(backend_implementation):
         "lc": {"process_id": "load_collection", "arguments": {"id": "TERRASCOPE_S2_FAPAR_V2"}, "result": True},
     }
 
-    env = EvalEnv(dict(backend_implementation=backend_implementation))
+    env = EvalEnv(dict(backend_implementation=backend_implementation, version="1.0.0"))
     evaluate(pg, do_dry_run=True, env=env)
 
 
