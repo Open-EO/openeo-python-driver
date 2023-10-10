@@ -56,13 +56,6 @@ def api(api_version, client, backend_implementation) -> ApiTester:
     return ApiTester(api_version=api_version, client=client, data_root=data_root)
 
 
-@pytest.fixture
-def api100(client,backend_implementation) -> ApiTester:
-    dummy_backend.reset(backend_implementation)
-    data_root = TEST_DATA_ROOT / "pg" / "1.0"
-    return ApiTester(api_version="1.0.0", client=client, data_root=data_root)
-
-
 # Major.minor version of current python
 CURRENT_PY3x = f"{sys.version_info.major}.{sys.version_info.minor}"
 
@@ -360,13 +353,13 @@ def test_load_collection_spatial_extent_geojson(api, spatial_extent, expected):
     assert params["spatial_extent"] == expected
 
 
-def test_execute_apply_unary(api100):
-    api100.check_result("apply_unary.json")
+def test_execute_apply_unary(api):
+    api.check_result("apply_unary.json")
     assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").apply.call_count == 1
 
 
-def test_execute_apply_unary_parent_scope(api100):
-    api100.check_result(
+def test_execute_apply_unary_parent_scope(api):
+    api.check_result(
         "apply_unary.json",
         preprocess=preprocess_check_and_replace('"from_parameter": "x"', '"from_parameter": "data"')
     )
@@ -374,16 +367,16 @@ def test_execute_apply_unary_parent_scope(api100):
 
 #
 @pytest.mark.skip('parameter checking of callback graphs now happens somewhere else')
-def test_execute_apply_unary_invalid_from_parameter(api100):
-    resp = api100.result(
+def test_execute_apply_unary_invalid_from_parameter(api):
+    resp = api.result(
         "apply_unary.json",
         preprocess=preprocess_check_and_replace('"from_parameter": "x"', '"from_parameter": "1nv8l16"')
     )
     resp.assert_error(400, "ProcessParameterRequired")
 
 
-def test_execute_apply_run_udf_100(api100):
-    api100.check_result("apply_run_udf.json")
+def test_execute_apply_run_udf_100(api):
+    api.check_result("apply_run_udf.json")
     assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").apply.call_count == 1
 
 
@@ -453,8 +446,8 @@ def test_apply_dimension_temporal_run_udf_invalid_temporal_dimension(api):
     )
 
 
-def test_apply_neighborhood(api100):
-    api100.check_result(
+def test_apply_neighborhood(api):
+    api.check_result(
         "apply_neighborhood.json"
     )
     load_parameters = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
@@ -494,8 +487,8 @@ def test_execute_merge_cubes(api):
     assert args[1:] == ('or',)
 
 
-def test_execute_resample_and_merge_cubes(api100):
-    api100.check_result("resample_and_merge_cubes.json")
+def test_execute_resample_and_merge_cubes(api):
+    api.check_result("resample_and_merge_cubes.json")
     dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
     last_load_collection_call = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
     assert last_load_collection_call.target_crs == "AUTO:42001"
@@ -506,8 +499,8 @@ def test_execute_resample_and_merge_cubes(api100):
     assert args[1:] == ('or',)
 
 
-def test_execute_merge_cubes_and_reduce(api100):
-    api100.check_result("merge_cubes_and_reduce.json")
+def test_execute_merge_cubes_and_reduce(api):
+    api.check_result("merge_cubes_and_reduce.json")
     dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
     assert dummy.reduce_dimension.call_count == 1
     args, kwargs = dummy.reduce_dimension.call_args
@@ -816,7 +809,7 @@ def test_mask_polygon(api):
             shapely.geometry.MultiPolygon
     ),
 ])
-def test_mask_polygon_types(api100, mask, expected):
+def test_mask_polygon_types(api, mask, expected):
     pg = {
         "lc1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "mask1": {"process_id": "mask_polygon", "arguments": {
@@ -824,14 +817,14 @@ def test_mask_polygon_types(api100, mask, expected):
             "mask": mask
         }, "result": True}
     }
-    api100.check_result(pg)
+    api.check_result(pg)
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.mask_polygon.call_count == 1
     args, kwargs = dummy.mask_polygon.call_args
     assert isinstance(kwargs['mask'], expected)
 
 
-def test_mask_polygon_vector_cube(api100):
+def test_mask_polygon_vector_cube(api):
     path = str(get_path("geojson/FeatureCollection02.json"))
     pg = {
         "lc1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
@@ -845,14 +838,14 @@ def test_mask_polygon_vector_cube(api100):
             "result": True
         }
     }
-    api100.check_result(pg)
+    api.check_result(pg)
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.mask_polygon.call_count == 1
     args, kwargs = dummy.mask_polygon.call_args
     assert isinstance(kwargs['mask'], shapely.geometry.MultiPolygon)
 
 
-def test_data_mask_optimized(api100):
+def test_data_mask_optimized(api):
     pg = {
         "load_collection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "load_collection2": {"process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}},
@@ -869,13 +862,13 @@ def test_data_mask_optimized(api100):
             "result": True
         }
     }
-    api100.check_result(pg)
+    api.check_result(pg)
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     # Even with filter_bands, the load_collection optimization should work
     # mask does not need to be called when it is already applied in load_collection
     assert dummy.mask.call_count == 0
 
-def test_data_mask_use_data_twice(api100):
+def test_data_mask_use_data_twice(api):
     pg = {
         "load_collection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "load_collection2": {"process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}},
@@ -903,13 +896,13 @@ def test_data_mask_use_data_twice(api100):
             "result": True
         }
     }
-    api100.check_result(pg)
+    api.check_result(pg)
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     # Not handling overlaps between mask and data nodes.
     # A load_collection under the data node could be used twice and would not be pre-masked correctly.
     assert dummy.mask.call_count == 1
 
-def test_data_mask_unoptimized(api100):
+def test_data_mask_unoptimized(api):
     pg = {
         "load_collection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "load_collection2": {"process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}},
@@ -930,13 +923,13 @@ def test_data_mask_unoptimized(api100):
             "result": True
         }
     }
-    api100.check_result(pg)
+    api.check_result(pg)
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.mask.call_count == 1
 
 
-def test_aggregate_temporal_period(api100):
-    api100.check_result("aggregate_temporal_period_max.json")
+def test_aggregate_temporal_period(api):
+    api.check_result("aggregate_temporal_period_max.json")
 
 
 def test_aggregate_temporal_max(api):
@@ -992,8 +985,8 @@ def test_aggregate_spatial(api):
     )
 
 
-def test_execute_aggregate_spatial_spatial_cube(api100):
-    resp = api100.check_result("aggregate_spatial_spatial_cube.json")
+def test_execute_aggregate_spatial_spatial_cube(api):
+    resp = api.check_result("aggregate_spatial_spatial_cube.json")
     assert resp.json == [[2.345, None], [2.0, 3.0]]
 
 
@@ -1002,18 +995,18 @@ def test_execute_aggregate_spatial_spatial_cube(api100):
     (1234, "Invalid type: <class 'int'> (1234)"),
     (["a", "list"], "Invalid type: <class 'list'> (['a', 'list'])")
 ])
-def test_aggregate_spatial_invalid_geometry(api100, geometries, expected):
-    pg = api100.load_json("aggregate_spatial.json")
+def test_aggregate_spatial_invalid_geometry(api, geometries, expected):
+    pg = api.load_json("aggregate_spatial.json")
     assert pg["aggregate_spatial"]["arguments"]["geometries"]
     pg["aggregate_spatial"]["arguments"]["geometries"] = geometries
-    _ = api100.result(pg).assert_error(400, "ProcessParameterInvalid", expected)
+    _ = api.result(pg).assert_error(400, "ProcessParameterInvalid", expected)
 
 
 @pytest.mark.parametrize(["feature_collection_test_path"], [
     ["geojson/FeatureCollection02.json"],
     ["geojson/FeatureCollection05.json"]
 ])
-def test_aggregate_spatial_vector_cube_basic(api100, feature_collection_test_path):
+def test_aggregate_spatial_vector_cube_basic(api, feature_collection_test_path):
     path = get_path(feature_collection_test_path)
     pg = {
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "bands": ["B02", "B03", "B04"]}},
@@ -1037,7 +1030,7 @@ def test_aggregate_spatial_vector_cube_basic(api100, feature_collection_test_pat
             "result": True
         },
     }
-    res = api100.check_result(pg)
+    res = api.check_result(pg)
 
     params = dummy_backend.last_load_collection_call("S2_FOOBAR")
     assert params["spatial_extent"] == {"west": 1, "south": 1, "east": 5, "north": 4, "crs": "EPSG:4326"}
@@ -1181,7 +1174,7 @@ def test_aggregate_spatial_vector_cube_basic(api100, feature_collection_test_pat
     ),
 ])
 def test_aggregate_spatial_vector_cube_dimensions(
-        api100, info, preprocess_pg, aggregate_data, p1_properties, p2_properties
+        api, info, preprocess_pg, aggregate_data, p1_properties, p2_properties
 ):
     path = get_path("geojson/FeatureCollection02.json")
     pg = {
@@ -1213,7 +1206,7 @@ def test_aggregate_spatial_vector_cube_dimensions(
         },
     }
     pg.update(preprocess_pg)
-    res = api100.check_result(pg)
+    res = api.check_result(pg)
 
     params = dummy_backend.last_load_collection_call("S2_FOOBAR")
     assert params["spatial_extent"] == {"west": 1, "south": 1, "east": 5, "north": 4, "crs": "EPSG:4326"}
@@ -1236,9 +1229,9 @@ def test_aggregate_spatial_vector_cube_dimensions(
     })
 
 
-def test_create_wmts_100(api100):
-    api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
-    process_graph = api100.load_json("filter_temporal.json")
+def test_create_wmts_100(api):
+    api.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+    process_graph = api.load_json("filter_temporal.json")
     post_data = {
         "type": 'WMTS',
         "process": {
@@ -1249,7 +1242,7 @@ def test_create_wmts_100(api100):
         "title": "My Service",
         "description": "Service description"
     }
-    resp = api100.post('/services', json=post_data).assert_status_code(201)
+    resp = api.post('/services', json=post_data).assert_status_code(201)
     assert resp.headers['OpenEO-Identifier'] == 'c63d6c27-c4c2-4160-b7bd-9e32f582daec'
     assert resp.headers['Location'].endswith("/services/c63d6c27-c4c2-4160-b7bd-9e32f582daec")
 
@@ -1297,7 +1290,7 @@ def test_read_vector_no_load_collection_spatial_extent(api):
             return udf_data
     """,
 ])
-def test_run_udf_on_vector_read_vector(api100, udf_code):
+def test_run_udf_on_vector_read_vector(api, udf_code):
     udf_code = textwrap.dedent(udf_code)
     process_graph = {
         "get_vector_data": {
@@ -1314,7 +1307,7 @@ def test_run_udf_on_vector_read_vector(api100, udf_code):
             "result": True,
         },
     }
-    resp = api100.check_result(process_graph)
+    resp = api.check_result(process_graph)
     assert resp.json == [
         {
             "type": "Polygon",
@@ -1342,7 +1335,7 @@ def test_run_udf_on_vector_read_vector(api100, udf_code):
     """,
     ],
 )
-def test_run_udf_on_vector_get_geometries(api100, udf_code):
+def test_run_udf_on_vector_get_geometries(api, udf_code):
     udf_code = textwrap.dedent(udf_code)
     process_graph = {
         "get_vector_data": {
@@ -1359,7 +1352,7 @@ def test_run_udf_on_vector_get_geometries(api100, udf_code):
             "result": True,
         },
     }
-    resp = api100.check_result(process_graph)
+    resp = api.check_result(process_graph)
     assert resp.json == [
         {
             "type": "Polygon",
@@ -1387,7 +1380,7 @@ def test_run_udf_on_vector_get_geometries(api100, udf_code):
     """,
     ],
 )
-def test_run_udf_on_vector_load_uploaded_files(api100, udf_code):
+def test_run_udf_on_vector_load_uploaded_files(api, udf_code):
     """https://github.com/Open-EO/openeo-python-driver/issues/197"""
     udf_code = textwrap.dedent(udf_code)
     process_graph = {
@@ -1405,7 +1398,7 @@ def test_run_udf_on_vector_load_uploaded_files(api100, udf_code):
             "result": True,
         },
     }
-    resp = api100.check_result(process_graph)
+    resp = api.check_result(process_graph)
     assert resp.json == [None, None]
 
 
@@ -1432,13 +1425,13 @@ def test_run_udf_on_vector_load_uploaded_files(api100, udf_code):
             ])
     """,
 ])
-def test_run_udf_on_json(api100, udf_code):
+def test_run_udf_on_json(api, udf_code):
     udf_code = textwrap.dedent(udf_code)
-    process_graph = api100.load_json(
+    process_graph = api.load_json(
         "run_udf_on_timeseries.json",
         preprocess=lambda s: s.replace('"PLACEHOLDER_UDF"', repr(udf_code))
     )
-    resp = api100.check_result(process_graph)
+    resp = api.check_result(process_graph)
     assert resp.json == {
         "len": 2,
         "keys": ["2015-07-06T00:00:00Z", "2015-08-22T00:00:00Z"],
@@ -1467,7 +1460,7 @@ def test_run_udf_on_json(api100, udf_code):
             data.set_structured_data_list(res)
     """,
 ])
-def test_run_udf_on_list(api100, udf_code):
+def test_run_udf_on_list(api, udf_code):
     udf_code = textwrap.dedent(udf_code)
     process_graph = {
         "udf": {
@@ -1480,7 +1473,7 @@ def test_run_udf_on_list(api100, udf_code):
             "result": True
         }
     }
-    resp = api100.check_result(process_graph)
+    resp = api.check_result(process_graph)
     assert resp.json == [1, 4, 9, 25, 64]
 
 
@@ -1503,7 +1496,7 @@ def test_run_udf_on_list(api100, udf_code):
     (None, CURRENT_PY3x, ("InvalidRuntime", "Unsupported UDF runtime None. Should be one of ['Python', 'Python-Jep']"),
      ),
 ])
-def test_run_udf_on_list_runtimes(api100, runtime, version, failure):
+def test_run_udf_on_list_runtimes(api, runtime, version, failure):
     udf_code = textwrap.dedent("""
         from openeo.udf import UdfData, StructuredData
         def transform(data: UdfData) -> UdfData:
@@ -1525,7 +1518,7 @@ def test_run_udf_on_list_runtimes(api100, runtime, version, failure):
             "result": True
         }
     }
-    resp = api100.result(process_graph)
+    resp = api.result(process_graph)
     if failure:
         error_code, message = failure
         resp.assert_error(400, error_code=error_code, message=message)
@@ -1534,11 +1527,11 @@ def test_run_udf_on_list_runtimes(api100, runtime, version, failure):
 
 
 
-def test_process_reference_as_argument(api100):
-    process_graph = api100.load_json(
+def test_process_reference_as_argument(api):
+    process_graph = api.load_json(
         "process_reference_as_argument.json"
     )
-    resp = api100.check_result(process_graph)
+    resp = api.check_result(process_graph)
     print(resp.json)
 
 
@@ -1869,8 +1862,8 @@ class TestVectorCubeLoading:
             ),
         ],
     )
-    def test_to_vector_cube(self, api100, geojson, expected):
-        res = api100.check_result(
+    def test_to_vector_cube(self, api, geojson, expected):
+        res = api.check_result(
             {
                 "vc": {
                     "process_id": "to_vector_cube",
@@ -1964,9 +1957,9 @@ class TestVectorCubeLoading:
             ),
         ],
     )
-    def test_load_geojson(self, api100, geojson, expected):
+    def test_load_geojson(self, api, geojson, expected):
         # TODO: cover `properties` parameter
-        res = api100.check_result(
+        res = api.check_result(
             {"vc": {"process_id": "load_geojson", "arguments": {"data": geojson}, "result": True}}
         )
         assert res.json == DictSubSet({"type": "FeatureCollection", "features": expected})
@@ -2049,11 +2042,11 @@ class TestVectorCubeLoading:
             ),
         ],
     )
-    def test_load_url_geojson(self, api100, geometry, expected, tmp_path):
+    def test_load_url_geojson(self, api, geometry, expected, tmp_path):
         (tmp_path / "geometry.json").write_text(json.dumps(geometry))
         with ephemeral_fileserver(tmp_path) as fileserver_root:
             url = f"{fileserver_root}/geometry.json"
-            res = api100.check_result(
+            res = api.check_result(
                 {
                     "load": {
                         "process_id": "load_url",
@@ -2133,12 +2126,12 @@ def test_aggregate_feature_collection_no_load_collection_spatial_extent(api):
 
 
 @pytest.mark.parametrize("auth", [True, False])
-def test_post_result_process_100(api100, client, auth):
+def test_post_result_process_100(api, client, auth):
     if auth:
-        api100.set_auth_bearer_token()
-    response = api100.post(
+        api.set_auth_bearer_token()
+    response = api.post(
         path='/result',
-        json=api100.get_process_graph_dict(api100.load_json("basic.json")),
+        json=api.get_process_graph_dict(api.load_json("basic.json")),
     )
     if auth:
         response.assert_status_code(200).assert_content()
@@ -2171,8 +2164,8 @@ def test_fuzzy_mask(api):
     api.check_result("fuzzy_mask.json")
 
 
-def test_fuzzy_mask_parent_scope(api100):
-    api100.check_result(
+def test_fuzzy_mask_parent_scope(api):
+    api.check_result(
         "fuzzy_mask.json",
         preprocess=preprocess_check_and_replace('"from_parameter": "x"', '"from_parameter": "data"')
     )
@@ -2182,33 +2175,33 @@ def test_fuzzy_mask_add_dim(api):
     api.check_result("fuzzy_mask_add_dim.json")
 
 
-def test_rename_labels(api100):
-    api100.check_result("rename_labels.json")
+def test_rename_labels(api):
+    api.check_result("rename_labels.json")
 
 
 @pytest.mark.parametrize("namespace", ["user", None, "_undefined"])
-def test_user_defined_process_bbox_mol_basic(api100, namespace, udp_registry):
-    api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
-    bbox_mol_spec = api100.load_json("udp/bbox_mol.json")
+def test_user_defined_process_bbox_mol_basic(api, namespace, udp_registry):
+    api.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+    bbox_mol_spec = api.load_json("udp/bbox_mol.json")
     udp_registry.save(user_id=TEST_USER, process_id="bbox_mol", spec=bbox_mol_spec)
-    pg = api100.load_json("udp_bbox_mol_basic.json")
+    pg = api.load_json("udp_bbox_mol_basic.json")
     if namespace != "_undefined":
         pg["bboxmol1"]["namespace"] = namespace
     elif "namespace" in pg["bboxmol1"]:
         del pg["bboxmol1"]["namespace"]
-    api100.check_result(pg)
+    api.check_result(pg)
     params = dummy_backend.last_load_collection_call('S2_FOOBAR')
     assert params["spatial_extent"] == {"west": 5.05, "south": 51.2, "east": 5.1, "north": 51.23, "crs": 'EPSG:4326'}
 
 
 @pytest.mark.parametrize("namespace", ["backend", "foobar"])
-def test_user_defined_process_bbox_mol_basic_other_namespace(api100, udp_registry, namespace):
-    api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
-    bbox_mol_spec = api100.load_json("udp/bbox_mol.json")
+def test_user_defined_process_bbox_mol_basic_other_namespace(api, udp_registry, namespace):
+    api.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+    bbox_mol_spec = api.load_json("udp/bbox_mol.json")
     udp_registry.save(user_id=TEST_USER, process_id="bbox_mol", spec=bbox_mol_spec)
-    pg = api100.load_json("udp_bbox_mol_basic.json")
+    pg = api.load_json("udp_bbox_mol_basic.json")
     pg["bboxmol1"]["namespace"] = namespace
-    api100.result(pg).assert_error(status_code=400, error_code="ProcessUnsupported")
+    api.result(pg).assert_error(status_code=400, error_code="ProcessUnsupported")
 
 
 @pytest.mark.parametrize(["udp_args", "expected_start_date", "expected_end_date"], [
@@ -2218,10 +2211,10 @@ def test_user_defined_process_bbox_mol_basic_other_namespace(api100, udp_registr
     ({"start_date": "2019-08-08", "end_date": "2019-12-12"}, "2019-08-08", "2019-12-12"),
 ])
 def test_user_defined_process_date_window(
-        api100, udp_registry, udp_args, expected_start_date, expected_end_date
+        api, udp_registry, udp_args, expected_start_date, expected_end_date
 ):
-    api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
-    spec = api100.load_json("udp/date_window.json")
+    api.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+    spec = api.load_json("udp/date_window.json")
     udp_registry.save(user_id=TEST_USER, process_id="date_window", spec=spec)
 
     pg = {
@@ -2240,14 +2233,14 @@ def test_user_defined_process_date_window(
         }
     }
 
-    api100.check_result(pg)
+    api.check_result(pg)
     params = dummy_backend.last_load_collection_call('S2_FOOBAR')
     assert params["temporal_extent"] == (expected_start_date, expected_end_date)
 
 
-def test_user_defined_process_required_parameter(api100, udp_registry):
-    api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
-    spec = api100.load_json("udp/date_window.json")
+def test_user_defined_process_required_parameter(api, udp_registry):
+    api.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+    spec = api.load_json("udp/date_window.json")
     udp_registry.save(user_id=TEST_USER, process_id="date_window", spec=spec)
 
     pg = {
@@ -2263,15 +2256,15 @@ def test_user_defined_process_required_parameter(api100, udp_registry):
         }
     }
 
-    response = api100.result(pg)
+    response = api.result(pg)
     response.assert_error(400, "ProcessParameterRequired", message="parameter 'data' is required")
 
 
 @pytest.mark.parametrize("set_parameter", [False, True])
-def test_udp_udf_reduce_dimension(api100, udp_registry, set_parameter):
+def test_udp_udf_reduce_dimension(api, udp_registry, set_parameter):
     # TODO: eliminate this test?
-    api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
-    spec = api100.load_json("udp/udf_reduce_dimension.json")
+    api.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+    spec = api.load_json("udp/udf_reduce_dimension.json")
     udp_registry.save(user_id=TEST_USER, process_id="udf_reduce_dimension", spec=spec)
 
     udp_args = {"data": {"from_node": "loadcollection1"}}
@@ -2284,7 +2277,7 @@ def test_udp_udf_reduce_dimension(api100, udp_registry, set_parameter):
         }
     }
 
-    response = api100.result(pg).assert_status_code(200)
+    response = api.result(pg).assert_status_code(200)
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.reduce_dimension.call_count == 1
     dummy.reduce_dimension.assert_called_with(reducer=mock.ANY, dimension="bands", context=None, env=mock.ANY)
@@ -2414,8 +2407,8 @@ class TestParameterHandingUdpWithUdf:
     ]
 
     @pytest.mark.parametrize("use_case", _use_cases)
-    def test_reduce_dimension(self, api100, udp_registry, use_case: _UseCase):
-        api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+    def test_reduce_dimension(self, api, udp_registry, use_case: _UseCase):
+        api.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
 
         # Build + register UDP, build process graph and execute.
         udp = self._build_udp(
@@ -2425,7 +2418,7 @@ class TestParameterHandingUdpWithUdf:
         pg = self._build_process_graph(udp_param="udp_param_123" if use_case.set_udp_parameter else None)
         print(f"{udp=})")
         print(f"{pg=}")
-        _ = api100.result(pg).assert_status_code(200)
+        _ = api.result(pg).assert_status_code(200)
 
         parent_mock: mock.Mock = dummy_backend.get_collection("S2_FOOBAR").reduce_dimension
         assert parent_mock.mock_calls == [
@@ -2435,8 +2428,8 @@ class TestParameterHandingUdpWithUdf:
         assert parent_env.collect_parameters()["udp_param"] == use_case.expected_udp_param
 
     @pytest.mark.parametrize("use_case", _use_cases)
-    def test_apply(self, api100, udp_registry, use_case: _UseCase):
-        api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+    def test_apply(self, api, udp_registry, use_case: _UseCase):
+        api.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
 
         # Build + register UDP, build process graph and execute.
         udp = self._build_udp(parent="apply", parent_context=use_case.parent_context, udf_context=use_case.udf_context)
@@ -2444,7 +2437,7 @@ class TestParameterHandingUdpWithUdf:
         pg = self._build_process_graph(udp_param="udp_param_123" if use_case.set_udp_parameter else None)
         print(f"{udp=})")
         print(f"{pg=}")
-        _ = api100.result(pg).assert_status_code(200)
+        _ = api.result(pg).assert_status_code(200)
 
         parent_mock: mock.Mock = dummy_backend.get_collection("S2_FOOBAR").apply
         assert parent_mock.mock_calls == [mock.call(process=mock.ANY, context=use_case.expected_context, env=mock.ANY)]
@@ -2452,8 +2445,8 @@ class TestParameterHandingUdpWithUdf:
         assert parent_env.collect_parameters()["udp_param"] == use_case.expected_udp_param
 
     @pytest.mark.parametrize("use_case", _use_cases)
-    def test_apply_dimension(self, api100, udp_registry, use_case: _UseCase):
-        api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+    def test_apply_dimension(self, api, udp_registry, use_case: _UseCase):
+        api.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
 
         # Build + register UDP, build process graph and execute.
         udp = self._build_udp(
@@ -2463,7 +2456,7 @@ class TestParameterHandingUdpWithUdf:
         pg = self._build_process_graph(udp_param="udp_param_123" if use_case.set_udp_parameter else None)
         print(f"{udp=})")
         print(f"{pg=}")
-        _ = api100.result(pg).assert_status_code(200)
+        _ = api.result(pg).assert_status_code(200)
 
         parent_mock: mock.Mock = dummy_backend.get_collection("S2_FOOBAR").apply_dimension
         assert parent_mock.mock_calls == [
@@ -2479,8 +2472,8 @@ class TestParameterHandingUdpWithUdf:
         assert parent_env.collect_parameters()["udp_param"] == use_case.expected_udp_param
 
     @pytest.mark.parametrize("use_case", _use_cases)
-    def test_apply_neighborhood(self, api100, udp_registry, use_case: _UseCase):
-        api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+    def test_apply_neighborhood(self, api, udp_registry, use_case: _UseCase):
+        api.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
 
         # Build + register UDP, build process graph and execute.
         udp = self._build_udp(
@@ -2490,7 +2483,7 @@ class TestParameterHandingUdpWithUdf:
         pg = self._build_process_graph(udp_param="udp_param_123" if use_case.set_udp_parameter else None)
         print(f"{udp=})")
         print(f"{pg=}")
-        _ = api100.result(pg).assert_status_code(200)
+        _ = api.result(pg).assert_status_code(200)
 
         parent_mock: mock.Mock = dummy_backend.get_collection("S2_FOOBAR").apply_neighborhood
         assert parent_mock.mock_calls == [
@@ -2507,9 +2500,9 @@ class TestParameterHandingUdpWithUdf:
 
 
 @pytest.mark.parametrize("set_parameter", [False, True])
-def test_udp_apply_neighborhood(api100, udp_registry, set_parameter):
-    api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
-    spec = api100.load_json("udp/udf_apply_neighborhood.json")
+def test_udp_apply_neighborhood(api, udp_registry, set_parameter):
+    api.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+    spec = api.load_json("udp/udf_apply_neighborhood.json")
     udp_registry.save(user_id=TEST_USER, process_id="udf_apply_neighborhood", spec=spec)
 
     udp_args = {"data": {"from_node": "loadcollection1"}}
@@ -2523,7 +2516,7 @@ def test_udp_apply_neighborhood(api100, udp_registry, set_parameter):
     }
     expected_param = "test_the_udfparam" if set_parameter else "udfparam_default"
 
-    response = api100.result(pg).assert_status_code(200)
+    response = api.result(pg).assert_status_code(200)
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.apply_neighborhood.call_count == 1
     dummy.apply_neighborhood.assert_called_with(
@@ -2535,18 +2528,18 @@ def test_udp_apply_neighborhood(api100, udp_registry, set_parameter):
     assert env.collect_parameters()["udfparam"] == expected_param
 
 
-def test_user_defined_process_udp_vs_pdp_priority(api100, udp_registry):
-    api100.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+def test_user_defined_process_udp_vs_pdp_priority(api, udp_registry):
+    api.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     # First without a defined "ndvi" UDP
-    api100.check_result("udp_ndvi.json")
+    api.check_result("udp_ndvi.json")
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.ndvi.call_count == 1
     dummy.ndvi.assert_called_with(nir=None, red=None, target_band=None)
     assert dummy.reduce_dimension.call_count == 0
 
     # Overload ndvi with UDP.
-    udp_registry.save(user_id=TEST_USER, process_id="ndvi", spec=api100.load_json("udp/myndvi.json"))
-    api100.check_result("udp_ndvi.json")
+    udp_registry.save(user_id=TEST_USER, process_id="ndvi", spec=api.load_json("udp/myndvi.json"))
+    api.check_result("udp_ndvi.json")
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.ndvi.call_count == 1
     assert dummy.reduce_dimension.call_count == 1
@@ -2684,11 +2677,11 @@ def test_discard_result(api):
             (400, "ProcessGraphInvalid", "Invalid process graph specified."),
     ),
 ])
-def test_evaluate_process_from_url(api100, requests_mock, namespace, url_mocks, expected_error):
+def test_evaluate_process_from_url(api, requests_mock, namespace, url_mocks, expected_error):
     for url, value in url_mocks.items():
         if isinstance(value, str):
             if value.endswith(".json"):
-                bbox_mol_spec = api100.load_json(value)
+                bbox_mol_spec = api.load_json(value)
                 requests_mock.get(url, json=bbox_mol_spec)
             else:
                 requests_mock.get(url, text=value)
@@ -2703,11 +2696,11 @@ def test_evaluate_process_from_url(api100, requests_mock, namespace, url_mocks, 
             raise ValueError(value)
 
     # Evaluate process graph (with URL namespace)
-    pg = api100.load_json("udp_bbox_mol_basic.json")
+    pg = api.load_json("udp_bbox_mol_basic.json")
     assert pg["bboxmol1"]["process_id"] == "bbox_mol"
     pg["bboxmol1"]["namespace"] = namespace
 
-    res = api100.result(pg)
+    res = api.result(pg)
     if expected_error:
         status_code, error_code, message = expected_error
         res.assert_error(status_code=status_code, error_code=error_code, message=message)
@@ -2717,9 +2710,9 @@ def test_evaluate_process_from_url(api100, requests_mock, namespace, url_mocks, 
         assert params["spatial_extent"] == {"west": 5.05, "south": 51.2, "east": 5.1, "north": 51.23, "crs": 'EPSG:4326'}
 
 
-def test_execute_no_cube_1_plus_2(api100):
+def test_execute_no_cube_1_plus_2(api):
     # Calculator as a service!
-    res = api100.result({
+    res = api.result({
         "add1": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}
     })
     assert res.assert_status_code(200).json == 3
@@ -2739,8 +2732,8 @@ def test_execute_no_cube_1_plus_2(api100):
     ({"pi1": {"process_id": "pi", "arguments": {}, "result": True}}, math.pi),
     ({"e1": {"process_id": "e", "arguments": {}, "result": True}}, math.e),
 ])
-def test_execute_no_cube_just_math(api100, process_graph, expected):
-    assert api100.result(process_graph).assert_status_code(200).json == pytest.approx(expected,0.0001)
+def test_execute_no_cube_just_math(api, process_graph, expected):
+    assert api.result(process_graph).assert_status_code(200).json == pytest.approx(expected,0.0001)
 
 
 @pytest.mark.parametrize(["process_graph", "expected"], [
@@ -2758,8 +2751,8 @@ def test_execute_no_cube_just_math(api100, process_graph, expected):
     # ({"any1": {"process_id": "any", "arguments": {"data": [False, True, False]}, "result": True}}, True),
     # ({"all1": {"process_id": "all", "arguments": {"data": [False, True, False]}, "result": True}}, False),
 ])
-def test_execute_no_cube_logic(api100, process_graph, expected):
-    assert api100.result(process_graph).assert_status_code(200).json == expected
+def test_execute_no_cube_logic(api, process_graph, expected):
+    assert api.result(process_graph).assert_status_code(200).json == expected
 
 
 @pytest.mark.parametrize(
@@ -2787,10 +2780,10 @@ def test_execute_no_cube_logic(api100, process_graph, expected):
         ("text_concat", {"data": [1, "b"], "separator": 0}, "10b"),
     ],
 )
-def test_text_processes(api100, process_id, arguments, expected):
+def test_text_processes(api, process_id, arguments, expected):
     # TODO: null propagation (`text_begins(data=null,...) -> null`) can not be tested at the moment
     pg = {"t": {"process_id": process_id, "arguments": arguments, "result":True}}
-    assert api100.result(pg).assert_status_code(200).json == expected
+    assert api.result(pg).assert_status_code(200).json == expected
 
 
 @pytest.mark.parametrize(["process_graph", "expected"], [
@@ -2817,11 +2810,11 @@ def test_text_processes(api100, process_id, arguments, expected):
             [2, 8, 2, 8, 2, 8]
     ),
 ])
-def test_execute_no_cube_just_arrays(api100, process_graph, expected):
-    assert api100.result(process_graph).assert_status_code(200).json == expected
+def test_execute_no_cube_just_arrays(api, process_graph, expected):
+    assert api.result(process_graph).assert_status_code(200).json == expected
 
 
-def test_execute_no_cube_dynamic_args(api100):
+def test_execute_no_cube_dynamic_args(api):
     pg = {
         "loadcollection1": {'process_id': 'load_collection', 'arguments': {'id': 'S2_FOOBAR'}},
         "add1": {"process_id": "add", "arguments": {"x": 2.5, "y": 5.25}},
@@ -2836,14 +2829,14 @@ def test_execute_no_cube_dynamic_args(api100):
             "result": True
         }
     }
-    api100.check_result(pg)
+    api.check_result(pg)
     apply_kernel_mock = dummy_backend.get_collection("S2_FOOBAR").apply_kernel
     args, kwargs = apply_kernel_mock.call_args
     assert kwargs["factor"] == 7.75
 
 
 @pytest.mark.parametrize(["border", "expected"], [(0, 0), ("0", 0), ])
-def test_execute_apply_kernel_border(api100, border, expected):
+def test_execute_apply_kernel_border(api, border, expected):
     pg = {
         "lc1": {'process_id': 'load_collection', 'arguments': {'id': 'S2_FOOBAR'}},
         "ak1": {
@@ -2856,7 +2849,7 @@ def test_execute_apply_kernel_border(api100, border, expected):
             "result": True
         }
     }
-    api100.check_result(pg)
+    api.check_result(pg)
     apply_kernel_mock = dummy_backend.get_collection("S2_FOOBAR").apply_kernel
     args, kwargs = apply_kernel_mock.call_args
     assert kwargs["border"] == expected
@@ -2865,7 +2858,7 @@ def test_execute_apply_kernel_border(api100, border, expected):
 # TODO: test using dynamic arguments in bbox_filter (not possible yet: see EP-3509)
 
 
-def test_execute_EP3509_process_order(api100):
+def test_execute_EP3509_process_order(api):
     pg = {
         "loadcollection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "start": {"process_id": "constant", "arguments": {"x": "2020-02-02"}},
@@ -2889,7 +2882,7 @@ def test_execute_EP3509_process_order(api100):
             "data": {"from_node": "filterbands1"}, "kernel": [1]
         }, "result": True}
     }
-    api100.check_result(pg)
+    api.check_result(pg)
     params = dummy_backend.last_load_collection_call("S2_FOOBAR")
     assert params["temporal_extent"] == ("2020-02-02", "2020-03-03")
     assert params["spatial_extent"] == {"west": 5, "east": 6, "south": 50, "north": 51, "crs": "EPSG:4326"}
@@ -2954,9 +2947,9 @@ def test_execute_EP3509_issue38_leaking_band_filter(api, pg, ndvi_expected, mask
     assert dummy_backend.last_load_collection_call("S2_FOOBAR").get("bands") == mask_expected
 
 
-def test_reduce_add_reduce_dim(api100):
+def test_reduce_add_reduce_dim(api):
     """Test reduce_dimension -> add_dimension -> reduce_dimension"""
-    content = api100.check_result("reduce_add_reduce_dimension.json")
+    content = api.check_result("reduce_add_reduce_dimension.json")
     dummy = dummy_backend.get_collection("S2_FOOBAR")
 
     assert dummy.reduce_dimension.call_count == 1
@@ -2966,8 +2959,8 @@ def test_reduce_add_reduce_dim(api100):
     assert names == ["x", "y", "t"]
 
 
-def test_reduce_drop_dimension(api100):
-    content = api100.check_result({
+def test_reduce_drop_dimension(api):
+    content = api.check_result({
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "drop": {
             "process_id": "drop_dimension",
@@ -2988,8 +2981,8 @@ def test_reduce_drop_dimension(api100):
     assert names == ["x", "y", "t"]
 
 
-def test_reduce_dimension_labels(api100):
-    res = api100.check_result({
+def test_reduce_dimension_labels(api):
+    res = api.check_result({
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "drop": {
             "process_id": "dimension_labels",
@@ -3006,8 +2999,8 @@ def test_reduce_dimension_labels(api100):
     ({"data": {"from_node": "l"}, "name": "foo", "label": "bar"}, "other"),
     ({"data": {"from_node": "l"}, "name": "foo", "label": "bar", "type": "bands"}, "bands"),
 ])
-def test_add_dimension_type_argument(api100, arguments, expected):
-    api100.check_result({
+def test_add_dimension_type_argument(api, arguments, expected):
+    api.check_result({
         "l": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "s": {"process_id": "add_dimension", "arguments": arguments, "result": True}
     })
@@ -3015,8 +3008,8 @@ def test_add_dimension_type_argument(api100, arguments, expected):
     dummy.add_dimension.assert_called_with(name="foo", label="bar", type=expected)
 
 
-def test_add_dimension_duplicate(api100):
-    res = api100.result({
+def test_add_dimension_duplicate(api):
+    res = api.result({
         "l": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "a1": {
             "process_id": "add_dimension",
@@ -3046,8 +3039,8 @@ def test_save_result_gtiff_mimetype(api, format, expected):
     assert res.headers["Content-type"] == expected
 
 
-def test_execute_load_collection_sar_backscatter_defaults(api100):
-    api100.check_result({
+def test_execute_load_collection_sar_backscatter_defaults(api):
+    api.check_result({
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}
@@ -3067,8 +3060,8 @@ def test_execute_load_collection_sar_backscatter_defaults(api100):
     )
 
 
-def test_execute_load_collection_sar_backscatter_none_values(api100):
-    api100.check_result({
+def test_execute_load_collection_sar_backscatter_none_values(api):
+    api.check_result({
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}
@@ -3090,8 +3083,8 @@ def test_execute_load_collection_sar_backscatter_none_values(api100):
     )
 
 
-def test_execute_load_collection_sar_backscatter(api100):
-    api100.check_result({
+def test_execute_load_collection_sar_backscatter(api):
+    api.check_result({
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}
@@ -3117,9 +3110,9 @@ def test_execute_load_collection_sar_backscatter(api100):
     )
 
 
-def test_execute_load_collection_sar_backscatter_compatibility(api100):
+def test_execute_load_collection_sar_backscatter_compatibility(api):
     # assert that we can differentiate between collections that are sar_backscatter compatible and those that are not
-    api100.check_result({
+    api.check_result({
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": "S2_FAPAR_CLOUDCOVER"},
@@ -3130,7 +3123,7 @@ def test_execute_load_collection_sar_backscatter_compatibility(api100):
     assert params.sar_backscatter is None
 
 
-def test_execute_load_collection_custom_properties(api100):
+def test_execute_load_collection_custom_properties(api):
     def get_props(direction="DESCENDING"):
         return {
             "orbitDirection": {
@@ -3161,7 +3154,7 @@ def test_execute_load_collection_custom_properties(api100):
         }
     }
 
-    api100.check_result(pg)
+    api.check_result(pg)
     params = dummy_backend.all_load_collection_calls("S2_FAPAR_CLOUDCOVER")
     print(params)
     assert len(params) == 2
@@ -3169,9 +3162,9 @@ def test_execute_load_collection_custom_properties(api100):
     assert params[1].properties == asc_props
 
 
-def test_execute_load_collection_custom_cloud_mask(api100):
+def test_execute_load_collection_custom_cloud_mask(api):
     # assert that we can differentiate between collections that are sar_backscatter compatible and those that are not
-    api100.check_result({
+    api.check_result({
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": "S2_FAPAR_CLOUDCOVER"},
@@ -3196,8 +3189,8 @@ def test_execute_load_collection_custom_cloud_mask(api100):
     assert params.bands == None
 
 
-def test_execute_load_collection_custom_l1c_cloud_mask(api100):
-    api100.check_result({
+def test_execute_load_collection_custom_l1c_cloud_mask(api):
+    api.check_result({
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": "S2_FAPAR_CLOUDCOVER"},
@@ -3214,8 +3207,8 @@ def test_execute_load_collection_custom_l1c_cloud_mask(api100):
     assert params.bands is None
 
 
-def test_execute_load_collection_resolution_merge(api100):
-    api100.check_result({
+def test_execute_load_collection_resolution_merge(api):
+    api.check_result({
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": "S2_FOOBAR"}
@@ -3242,7 +3235,7 @@ def test_execute_load_collection_resolution_merge(api100):
     )
 
 
-def test_execute_custom_process_by_process_graph_minimal(api100):
+def test_execute_custom_process_by_process_graph_minimal(api):
     process_id = generate_unique_test_process_id()
     # Register a custom process with minimal process graph
     process_spec = {
@@ -3253,7 +3246,7 @@ def test_execute_custom_process_by_process_graph_minimal(api100):
     }
     custom_process_from_process_graph(process_spec=process_spec)
     # Apply process
-    res = api100.check_result({
+    res = api.check_result({
         "do_math": {
             "process_id": process_id,
             "arguments": {"x": 2},
@@ -3263,15 +3256,15 @@ def test_execute_custom_process_by_process_graph_minimal(api100):
     assert res == 3
 
 
-def test_execute_custom_process_by_process_graph(api100):
+def test_execute_custom_process_by_process_graph(api):
     process_id = generate_unique_test_process_id()
 
     # Register a custom process with process graph
-    process_spec = api100.load_json("add_and_multiply.json")
+    process_spec = api.load_json("add_and_multiply.json")
     process_spec["id"] = process_id
     custom_process_from_process_graph(process_spec=process_spec)
     # Apply process
-    res = api100.check_result({
+    res = api.check_result({
         "do_math": {
             "process_id": process_id,
             "arguments": {"data": 2},
@@ -3281,10 +3274,10 @@ def test_execute_custom_process_by_process_graph(api100):
     assert res == 25
 
 
-def test_execute_custom_process_by_process_graph_json(api100, tmp_path):
+def test_execute_custom_process_by_process_graph_json(api, tmp_path):
     process_id = generate_unique_test_process_id()
 
-    process_spec = api100.load_json("add_and_multiply.json")
+    process_spec = api.load_json("add_and_multiply.json")
     process_spec["id"] = process_id
     path = tmp_path / f"{process_id}.json"
     with path.open("w") as f:
@@ -3294,7 +3287,7 @@ def test_execute_custom_process_by_process_graph_json(api100, tmp_path):
     custom_process_from_process_graph(path)
 
     # Apply process
-    res = api100.check_result({
+    res = api.check_result({
         "do_math": {
             "process_id": process_id,
             "arguments": {"data": 2},
@@ -3304,15 +3297,15 @@ def test_execute_custom_process_by_process_graph_json(api100, tmp_path):
     assert res == 25
 
 
-def test_execute_custom_process_by_process_graph_namespaced(api100):
+def test_execute_custom_process_by_process_graph_namespaced(api):
     process_id = generate_unique_test_process_id()
 
     # Register a custom process with process graph
-    process_spec = api100.load_json("add_and_multiply.json")
+    process_spec = api.load_json("add_and_multiply.json")
     process_spec["id"] = process_id
     custom_process_from_process_graph(process_spec=process_spec, namespace="madmath")
     # Apply process
-    res = api100.check_result({
+    res = api.check_result({
         "do_math": {
             "process_id": process_id,
             "namespace": "madmath",
@@ -3323,8 +3316,8 @@ def test_execute_custom_process_by_process_graph_namespaced(api100):
     assert res == 30
 
 
-def test_normalized_difference(api100):
-    res = api100.check_result({
+def test_normalized_difference(api):
+    res = api.check_result({
         "do_math": {
             "process_id": "normalized_difference",
             "arguments": {"x": 3, "y": 5},
@@ -3334,8 +3327,8 @@ def test_normalized_difference(api100):
     assert res == -0.25
 
 
-def test_ard_normalized_radar_backscatter(api100):
-    api100.check_result({
+def test_ard_normalized_radar_backscatter(api):
+    api.check_result({
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": "S2_FOOBAR"}
@@ -3362,8 +3355,8 @@ def test_ard_normalized_radar_backscatter(api100):
     assert kwargs == {}
 
 
-def test_ard_normalized_radar_backscatter_without_optional_arguments(api100):
-    api100.check_result({
+def test_ard_normalized_radar_backscatter_without_optional_arguments(api):
+    api.check_result({
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": "S2_FOOBAR"}
@@ -3408,7 +3401,7 @@ def test_ard_normalized_radar_backscatter_without_optional_arguments(api100):
     ("2018-01-01T00:01:02Z", 24 * 60 + 1, "minute", "2018-01-02T00:02:02Z"),
     ("2018-01-01T00:01:02Z", -2, "minute", "2017-12-31T23:59:02Z"),
 ])
-def test_date_shift(api100, date, value, unit, expected):
+def test_date_shift(api, date, value, unit, expected):
     pg = {
         "dateshift1": {
             "process_id": "date_shift",
@@ -3416,7 +3409,7 @@ def test_date_shift(api100, date, value, unit, expected):
             "result": True,
         }
     }
-    res = api100.result(pg).assert_status_code(200).json
+    res = api.result(pg).assert_status_code(200).json
     assert res == expected
 
 
@@ -3480,7 +3473,7 @@ def test_date_shift(api100, date, value, unit, expected):
             "FeatureCollection", (4.43568898, 51.09100882, 4.53429533, 51.20899105),
     ),
 ])
-def test_vector_buffer(api100, buf, unit, repr_geom, expected_type, bounds):
+def test_vector_buffer(api, buf, unit, repr_geom, expected_type, bounds):
     pg = {
         "vectorbuffer1": {
             "process_id": "vector_buffer",
@@ -3488,7 +3481,7 @@ def test_vector_buffer(api100, buf, unit, repr_geom, expected_type, bounds):
             "result": True,
         }
     }
-    res = api100.result(pg).assert_status_code(200).json
+    res = api.result(pg).assert_status_code(200).json
     assert res["type"] == expected_type
     if res["type"] == "FeatureCollection":
         res_gs = gpd.GeoSeries([shapely.geometry.shape(feat["geometry"]) for feat in res["features"]])
@@ -3502,7 +3495,7 @@ def test_vector_buffer(api100, buf, unit, repr_geom, expected_type, bounds):
     (+10, "meter", [5.5970, 50.8467, 5.6049, 50.8526]),
     (1, "kilometer", [5.5860, 50.8395, 5.6163, 50.8596]),
 ])
-def test_vector_buffer_non_epsg4326(api100, distance, unit, expected):
+def test_vector_buffer_non_epsg4326(api, distance, unit, expected):
     geometry = load_json("geojson/FeatureCollection03.json")
     pg = {
         "vectorbuffer1": {
@@ -3511,7 +3504,7 @@ def test_vector_buffer_non_epsg4326(api100, distance, unit, expected):
             "result": True,
         }
     }
-    res = api100.result(pg).assert_status_code(200).json
+    res = api.result(pg).assert_status_code(200).json
     assert res["type"] == "FeatureCollection"
     res_gs = gpd.GeoSeries([shapely.geometry.shape(feat["geometry"]) for feat in res["features"]])
     assert res_gs.total_bounds == pytest.approx(expected, abs=0.0001)
@@ -3522,7 +3515,7 @@ def test_vector_buffer_non_epsg4326(api100, distance, unit, expected):
     (+10, "meter", [5.0141, 51.1736, 5.0176, 51.1771]),
     (1, "kilometer", [4.9999, 51.1647, 5.0318, 51.1860]),
 ])
-def test_vector_buffer_ogc_crs84(api100, distance, unit, expected):
+def test_vector_buffer_ogc_crs84(api, distance, unit, expected):
     geometry = load_json("geojson/FeatureCollection04.json")
     pg = {
         "vectorbuffer1": {
@@ -3531,27 +3524,27 @@ def test_vector_buffer_ogc_crs84(api100, distance, unit, expected):
             "result": True,
         }
     }
-    res = api100.result(pg).assert_status_code(200).json
+    res = api.result(pg).assert_status_code(200).json
     assert res["type"] == "FeatureCollection"
     res_gs = gpd.GeoSeries([shapely.geometry.shape(feat["geometry"]) for feat in res["features"]])
     assert res_gs.total_bounds == pytest.approx(expected, abs=0.0001)
 
 
-def test_load_result(api100):
-    api100.check_result("load_result.json")
+def test_load_result(api):
+    api.check_result("load_result.json")
     params = dummy_backend.last_load_collection_call("99a605a0-1a10-4ba9-abc1-6898544e25fc")
 
     assert params["temporal_extent"] == ('2019-09-22', '2019-09-22')
 
 
-def test_chunk_polygon(api100):
-    api100.check_result("chunk_polygon.json")
+def test_chunk_polygon(api):
+    api.check_result("chunk_polygon.json")
     params = dummy_backend.last_load_collection_call("S2_FOOBAR")
     assert params["spatial_extent"] == {'west': 1.0, 'south': 5.0, 'east': 12.0, 'north': 16.0, 'crs': 'EPSG:4326'}
 
 
-def test_fit_class_random_forest(api100):
-    res = api100.check_result("fit_class_random_forest.json")
+def test_fit_class_random_forest(api):
+    res = api.check_result("fit_class_random_forest.json")
 
     geom1 = {
         "type": "Polygon",
@@ -3630,8 +3623,8 @@ def test_fit_class_random_forest(api100):
     )
 
 
-def test_if_merge_cubes(api100):
-    api100.check_result({
+def test_if_merge_cubes(api):
+    api.check_result({
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {
@@ -3773,7 +3766,7 @@ class TestVectorCubeRunUDF:
             "geometry",
         ],
     )
-    def test_apply_dimension_run_udf_change_geometry(self, api100, dimension):
+    def test_apply_dimension_run_udf_change_geometry(self, api, dimension):
         """VectorCube + apply_dimension + UDF (changing geometry)"""
         process_graph = {
             "load": {
@@ -3804,7 +3797,7 @@ class TestVectorCubeRunUDF:
                 "result": True,
             },
         }
-        resp = api100.check_result(process_graph)
+        resp = api.check_result(process_graph)
         assert resp.json == DictSubSet(
             {
                 "type": "FeatureCollection",
@@ -3833,7 +3826,7 @@ class TestVectorCubeRunUDF:
             "geometry",
         ],
     )
-    def test_apply_dimension_run_udf_filter_on_geometries(self, api100, dimension):
+    def test_apply_dimension_run_udf_filter_on_geometries(self, api, dimension):
         """
         Test to use `apply_dimension(dimension="...", process=UDF)` to filter out certain
         entries from geometries dimension based on geometry (e.g. intersection with another geometry)
@@ -3869,7 +3862,7 @@ class TestVectorCubeRunUDF:
                 "result": True,
             },
         }
-        resp = api100.check_result(process_graph)
+        resp = api.check_result(process_graph)
         assert resp.json == DictSubSet(
             {
                 "type": "FeatureCollection",
@@ -3898,7 +3891,7 @@ class TestVectorCubeRunUDF:
             "geometry",
         ],
     )
-    def test_apply_dimension_run_udf_filter_on_properties(self, api100, dimension):
+    def test_apply_dimension_run_udf_filter_on_properties(self, api, dimension):
         """
         Test to use `apply_dimension(dimension="...", process=UDF)` to filter out certain
         entries from geometries dimension, based on feature properties
@@ -3937,7 +3930,7 @@ class TestVectorCubeRunUDF:
                 "result": True,
             },
         }
-        resp = api100.check_result(process_graph)
+        resp = api.check_result(process_graph)
         assert resp.json == DictSubSet(
             {
                 "type": "FeatureCollection",
@@ -3966,7 +3959,7 @@ class TestVectorCubeRunUDF:
             "geometry",
         ],
     )
-    def test_apply_dimension_run_udf_add_properties(self, api100, dimension):
+    def test_apply_dimension_run_udf_add_properties(self, api, dimension):
         """
         Test to use `apply_dimension(dimension="...", process=UDF)` to add properties
         """
@@ -3999,7 +3992,7 @@ class TestVectorCubeRunUDF:
                 "result": True,
             },
         }
-        resp = api100.check_result(process_graph)
+        resp = api.check_result(process_graph)
         assert resp.json == DictSubSet(
             {
                 "type": "FeatureCollection",
