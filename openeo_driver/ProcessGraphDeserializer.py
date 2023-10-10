@@ -66,24 +66,8 @@ from openeo_driver.utils import EvalEnv, smart_bool
 _log = logging.getLogger(__name__)
 
 # Set up process registries (version dependent)
-# TODO #47 remove 0.4.0 support
-process_registry_040 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/0.4', argument_names=["args", "env"])
 process_registry_100 = ProcessRegistry(spec_root=SPECS_ROOT / 'openeo-processes/1.x', argument_names=["args", "env"])
-
-# Bootstrap with some mathematical/logical processes
-# TODO #47 remove 0.4.0 support
-process_registry_040.add_spec_by_name(
-    'array_contains', 'array_element',
-    'count', 'first', 'last', 'order', 'rearrange', 'sort',
-    'between', 'eq', 'gt', 'gte', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
-    'and', 'not', 'or', 'xor',
-    'absolute', 'clip', 'divide', 'extrema', 'int', 'max', 'mean',
-    'median', 'min', 'mod', 'multiply', 'power', 'product', 'quantiles', 'sd', 'sgn', 'sqrt',
-    'subtract', 'sum', 'variance', 'e', 'pi', 'exp', 'ln', 'log',
-    'ceil', 'floor', 'int', 'round',
-    'arccos', 'arcosh', 'arcsin', 'arctan', 'arctan2', 'arsinh', 'artanh', 'cos', 'cosh', 'sin', 'sinh', 'tan', 'tanh',
-    'count', 'first', 'last', 'max', 'mean', 'median', 'min', 'product', 'sd', 'sum', 'variance'
-)
+# TODO #195 support openeo-processes 2.x
 
 
 def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List[str]):
@@ -144,20 +128,14 @@ ProcessFunction = Callable[[dict, EvalEnv], Any]
 
 def process(f: ProcessFunction) -> ProcessFunction:
     """Decorator for registering a process function in the process registries"""
-    process_registry_040.add_function(f)
     process_registry_100.add_function(f)
     return f
-
-
-# Decorator for registering deprecate/old process functions
-deprecated_process = process_registry_040.add_deprecated
 
 
 def non_standard_process(spec: ProcessSpec) -> Callable[[ProcessFunction], ProcessFunction]:
     """Decorator for registering non-standard process functions"""
 
     def decorator(f: ProcessFunction) -> ProcessFunction:
-        process_registry_040.add_function(f=f, spec=spec.to_dict_040())
         process_registry_100.add_function(f=f, spec=spec.to_dict_100())
         return f
 
@@ -166,7 +144,6 @@ def non_standard_process(spec: ProcessSpec) -> Callable[[ProcessFunction], Proce
 
 def custom_process(f: ProcessFunction):
     """Decorator for custom processes (e.g. in custom_processes.py)."""
-    process_registry_040.add_hidden(f)
     process_registry_100.add_hidden(f)
     return f
 
@@ -270,8 +247,9 @@ class ConcreteProcessing(Processing):
     def get_process_registry(self, api_version: Union[str, ComparableVersion]) -> ProcessRegistry:
         if ComparableVersion("1.0.0").or_higher(api_version):
             return process_registry_100
+            # TODO #195 support openeo-processes 2.x
         else:
-            return process_registry_040
+            raise OpenEOApiException(message=f"No process support for openEO version {api_version}")
 
     def evaluate(self, process_graph: dict, env: EvalEnv = None):
         return evaluate(process_graph=process_graph, env=env)
@@ -1043,22 +1021,6 @@ def aggregate_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
             parameter="geometries", process="aggregate_spatial", reason=f"Invalid type: {type(geoms)} ({geoms!r})"
         )
     return cube.aggregate_spatial(geometries=geoms, reducer=reduce_pg, target_dimension=target_dimension)
-
-
-@process_registry_040.add_function(name="mask")
-def mask_04(args: dict, env: EvalEnv) -> DriverDataCube:
-    mask = extract_arg(args, 'mask')
-    replacement = args.get('replacement', None)
-    cube = extract_arg(args, 'data')
-    if isinstance(mask, DriverDataCube):
-        image_collection = cube.mask(mask=mask, replacement=replacement)
-    else:
-        polygon = mask.geometries[0] if isinstance(mask, DelayedVector) else shape(mask)
-        if polygon.area == 0:
-            reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
-            raise ProcessParameterInvalidException(parameter='mask', process='mask', reason=reason)
-        image_collection = cube.mask_polygon(mask=polygon, replacement=replacement)
-    return image_collection
 
 
 @process_registry_100.add_function
