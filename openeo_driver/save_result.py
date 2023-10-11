@@ -556,7 +556,6 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
 
     def to_csv(self, destination=None):
         csv_paths = glob.glob(self._csv_dir + "/*.csv")
-        print(csv_paths)
         # TODO: assumption there is only one CSV?
         if(destination == None):
             return csv_paths[0]
