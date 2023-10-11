@@ -38,11 +38,9 @@ def test_aggregate_polygon_result_basic(tmp_path):
     assert ["red", "green", "blue"] == [b['name'] for b in theAsset['bands']]
 
     timeseries_ds = xr.open_dataset(filename)
-    print(timeseries_ds)
     assert_array_equal(timeseries_ds.red.coords['t'].data, np.asarray([ np.datetime64('2019-10-15T08:15:45'),np.datetime64('2019-11-11T01:11:11')]))
     timeseries_ds.red.sel(feature=1)
     timeseries_ds.red.sel( t='2019-10-16')
-    print(timeseries_ds)
     assert_array_equal(
         4, timeseries_ds.red.sel(feature=1).sel(t="2019-10-15T08:15:45").data
     )
@@ -146,7 +144,6 @@ def test_aggregate_polygon_result_CSV(tmp_path):
     assert 100.0 == theAsset['raster:bands'][0]["statistics"]['valid_percent']
 
     timeseries_ds = xr.open_dataset(filename)
-    print(timeseries_ds)
 
     assert_array_equal(timeseries_ds.red.coords['t'].data, np.asarray([ np.datetime64('2017-09-05T00:00:00'),np.datetime64('2017-09-06T00:00:00')]))
 

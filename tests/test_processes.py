@@ -615,6 +615,43 @@ class TestProcessArgs:
         ):
             _ = args.get_enum("color", options=["R", "G", "B"])
 
+    def test_validator_generic(self):
+        args = ProcessArgs({"size": 11}, process_id="wibble")
+
+        validator = ProcessArgs.validator_generic(lambda v: v > 1, error_message="Should be stricly positive.")
+        value = args.get_required("size", expected_type=int, validator=validator)
+        assert value == 11
+
+        validator = ProcessArgs.validator_generic(lambda v: v % 2 == 0, error_message="Should be even.")
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape("The value passed for parameter 'size' in process 'wibble' is invalid: Should be even."),
+        ):
+            _ = args.get_required("size", expected_type=int, validator=validator)
+
+        validator = ProcessArgs.validator_generic(
+            lambda v: v % 2 == 0, error_message="Should be even but got {actual}."
+        )
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'size' in process 'wibble' is invalid: Should be even but got 11."
+            ),
+        ):
+            _ = args.get_required("size", expected_type=int, validator=validator)
+
+    def test_validator_one_of(self):
+        args = ProcessArgs({"color": "red", "size": 5}, process_id="wibble")
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=re.escape(
+                "The value passed for parameter 'color' in process 'wibble' is invalid: Must be one of ['yellow', 'violet'] but got 'red'."
+            ),
+        ):
+            _ = args.get_required(
+                "color", expected_type=str, validator=ProcessArgs.validator_one_of(["yellow", "violet"])
+            )
+
     def test_validator_geojson_dict(self):
         polygon = {"type": "Polygon", "coordinates": [[1, 2]]}
         args = ProcessArgs({"geometry": polygon, "color": "red"}, process_id="wibble")

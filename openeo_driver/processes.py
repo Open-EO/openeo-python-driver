@@ -57,6 +57,7 @@ class ProcessSpec:
 
     def to_dict_040(self) -> dict:
         """Generate process spec as (JSON-able) dictionary (API 0.4.0 style)."""
+        # TODO #47 drop this
         if len(self._parameters) == 0:
             warnings.warn("Process with no parameters")
         assert self._returns is not None
@@ -142,7 +143,8 @@ class ProcessRegistry:
         if self.contains(name, namespace):
             raise ProcessRegistryException(f"Process {name!r} already defined in namespace {namespace!r}")
         if spec:
-            assert name == spec['id']
+            if name != spec["id"]:
+                raise ProcessRegistryException(f"Process {name!r} has unexpected id {spec['id']!r}")
         if function and self._argument_names:
             sig = inspect.signature(function)
             arg_names = [n for n, p in sig.parameters.items() if p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD]
@@ -188,7 +190,7 @@ class ProcessRegistry:
         self, f: Optional[Callable] = None, name: Optional[str] = None, spec: Optional[dict] = None
     ):
         """
-        Register a simple function that uses normal arguments instead of `args: dict, env: EvalEnv`:
+        Register a simple function that uses normal arguments instead of `args: ProcessArgs, env: EvalEnv`:
         wrap it in a wrapper that automatically extracts these arguments
         :param f:
         :param name: process_id (when guessing from `f.__name__` doesn't work)
@@ -265,8 +267,9 @@ class ProcessRegistry:
         return self._get(name, namespace).function
 
 
-# Type annotation for an argument value
+# Type annotation aliases
 ArgumentValue = Any
+Validator = Callable[[Any], bool]
 
 
 class ProcessArgs(dict):
@@ -294,7 +297,7 @@ class ProcessArgs(dict):
         name: str,
         *,
         expected_type: Optional[Union[type, Tuple[type, ...]]] = None,
-        validator: Optional[Callable[[Any], bool]] = None,
+        validator: Optional[Validator] = None,
     ) -> ArgumentValue:
         """
         Get a required argument by name.
@@ -315,7 +318,7 @@ class ProcessArgs(dict):
         name: str,
         value: Any,
         expected_type: Optional[Union[type, Tuple[type, ...]]] = None,
-        validator: Optional[Callable[[Any], bool]] = None,
+        validator: Optional[Validator] = None,
     ):
         if expected_type:
             if not isinstance(value, expected_type):
@@ -323,9 +326,9 @@ class ProcessArgs(dict):
                     parameter=name, process=self.process_id, reason=f"Expected {expected_type} but got {type(value)}."
                 )
         if validator:
+            reason = None
             try:
                 valid = validator(value)
-                reason = "Failed validation."
             except OpenEOApiException:
                 # Preserve original OpenEOApiException
                 raise
@@ -333,7 +336,9 @@ class ProcessArgs(dict):
                 valid = False
                 reason = str(e)
             if not valid:
-                raise ProcessParameterInvalidException(parameter=name, process=self.process_id, reason=reason)
+                raise ProcessParameterInvalidException(
+                    parameter=name, process=self.process_id, reason=reason or "Failed validation."
+                )
 
     def get_optional(
         self,
@@ -341,7 +346,7 @@ class ProcessArgs(dict):
         default: Union[Any, Callable[[], Any]] = None,
         *,
         expected_type: Optional[Union[type, Tuple[type, ...]]] = None,
-        validator: Optional[Callable[[Any], bool]] = None,
+        validator: Optional[Validator] = None,
     ) -> ArgumentValue:
         """
         Get an optional argument with default
@@ -364,7 +369,7 @@ class ProcessArgs(dict):
         self,
         *steps: str,
         expected_type: Optional[Union[type, Tuple[type, ...]]] = None,
-        validator: Optional[Callable[[Any], bool]] = None,
+        validator: Optional[Validator] = None,
     ) -> ArgumentValue:
         """
         Walk recursively through a dictionary to get to a value.
@@ -431,10 +436,26 @@ class ProcessArgs(dict):
         return value
 
     @staticmethod
-    def validator_one_of(options: list, show_value: bool = True):
-        """Build a validator function that check that the value is in given list"""
+    def validator_generic(condition: Callable[[Any], bool], error_message: str) -> Validator:
+        """
+        Build validator function based on a condition (another validator)
+        and a custom error message when validation returns False.
+        (supports interpolation of actual value with "{actual}").
+        """
 
         def validator(value):
+            valid = condition(value)
+            if not valid:
+                raise ValueError(error_message.format(actual=value))
+            return valid
+
+        return validator
+
+    @staticmethod
+    def validator_one_of(options: list, show_value: bool = True) -> Validator:
+        """Build a validator function that check that the value is in given list"""
+
+        def validator(value) -> bool:
             if value not in options:
                 if show_value:
                     message = f"Must be one of {options!r} but got {value!r}."
@@ -446,7 +467,7 @@ class ProcessArgs(dict):
         return validator
 
     @staticmethod
-    def validator_file_format(formats: Union[List[str], Dict[str, dict]]):
+    def validator_file_format(formats: Union[List[str], Dict[str, dict]]) -> Validator:
         """
         Build validator for input/output format (case-insensitive check)
 
@@ -455,7 +476,7 @@ class ProcessArgs(dict):
         formats = list(formats)
         options = set(f.lower() for f in formats)
 
-        def validator(value: str):
+        def validator(value: str) -> bool:
             if value.lower() not in options:
                 raise OpenEOApiException(
                     message=f"Invalid file format {value!r}. Allowed formats: {', '.join(formats)}",
@@ -469,10 +490,10 @@ class ProcessArgs(dict):
     @staticmethod
     def validator_geojson_dict(
         allowed_types: Optional[Collection[str]] = None,
-    ):
+    ) -> Validator:
         """Build validator to verify that provided structure looks like a GeoJSON-style object"""
 
-        def validator(value):
+        def validator(value) -> bool:
             issues = validate_geojson_basic(value=value, allowed_types=allowed_types, raise_exception=False)
             if issues:
                 raise ValueError(f"Invalid GeoJSON: {', '.join(issues)}.")
