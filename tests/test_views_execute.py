@@ -1542,7 +1542,6 @@ def test_process_reference_as_argument(api):
         "process_reference_as_argument.json"
     )
     resp = api.check_result(process_graph)
-    print(resp.json)
 
 
 def test_load_collection_without_spatial_extent_incorporates_read_vector_extent(api):
@@ -2426,8 +2425,6 @@ class TestParameterHandingUdpWithUdf:
         )
         udp_registry.save(user_id=TEST_USER, process_id="parameterized_udf", spec=udp)
         pg = self._build_process_graph(udp_param="udp_param_123" if use_case.set_udp_parameter else None)
-        print(f"{udp=})")
-        print(f"{pg=}")
         _ = api.result(pg).assert_status_code(200)
 
         parent_mock: mock.Mock = dummy_backend.get_collection("S2_FOOBAR").reduce_dimension
@@ -2445,8 +2442,6 @@ class TestParameterHandingUdpWithUdf:
         udp = self._build_udp(parent="apply", parent_context=use_case.parent_context, udf_context=use_case.udf_context)
         udp_registry.save(user_id=TEST_USER, process_id="parameterized_udf", spec=udp)
         pg = self._build_process_graph(udp_param="udp_param_123" if use_case.set_udp_parameter else None)
-        print(f"{udp=})")
-        print(f"{pg=}")
         _ = api.result(pg).assert_status_code(200)
 
         parent_mock: mock.Mock = dummy_backend.get_collection("S2_FOOBAR").apply
@@ -2464,8 +2459,6 @@ class TestParameterHandingUdpWithUdf:
         )
         udp_registry.save(user_id=TEST_USER, process_id="parameterized_udf", spec=udp)
         pg = self._build_process_graph(udp_param="udp_param_123" if use_case.set_udp_parameter else None)
-        print(f"{udp=})")
-        print(f"{pg=}")
         _ = api.result(pg).assert_status_code(200)
 
         parent_mock: mock.Mock = dummy_backend.get_collection("S2_FOOBAR").apply_dimension
@@ -2491,8 +2484,6 @@ class TestParameterHandingUdpWithUdf:
         )
         udp_registry.save(user_id=TEST_USER, process_id="parameterized_udf", spec=udp)
         pg = self._build_process_graph(udp_param="udp_param_123" if use_case.set_udp_parameter else None)
-        print(f"{udp=})")
-        print(f"{pg=}")
         _ = api.result(pg).assert_status_code(200)
 
         parent_mock: mock.Mock = dummy_backend.get_collection("S2_FOOBAR").apply_neighborhood
@@ -3168,7 +3159,6 @@ def test_execute_load_collection_custom_properties(api):
 
     api.check_result(pg)
     params = dummy_backend.all_load_collection_calls("S2_FAPAR_CLOUDCOVER")
-    print(params)
     assert len(params) == 2
     assert params[0].properties == properties
     assert params[1].properties == asc_props
@@ -3727,7 +3717,6 @@ def test_request_costs_for_successful_request(api, backend_implementation):
         })
 
     assert load_collection.call_count == 1
-    print(load_collection.call_args)
 
     env = load_collection.call_args[1]["env"]
     assert env["correlation_id"] == "r-abc123"
@@ -3748,7 +3737,6 @@ def test_request_costs_for_failed_request(api, backend_implementation):
         }).assert_status_code(500)
 
     assert load_collection.call_count == 1
-    print(load_collection.call_args)
 
     env = load_collection.call_args[1]["env"]
     assert env["correlation_id"] == "r-abc123"

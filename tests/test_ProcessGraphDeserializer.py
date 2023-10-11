@@ -13,7 +13,6 @@ from openeo_driver.errors import ProcessParameterRequiredException
 
 def test_period_to_intervals():
     weekly_intervals = _period_to_intervals("2021-06-08", "2021-06-24", "week")
-    print(list(weekly_intervals))
     weekly_intervals = [(i[0].isoformat(), i[1].isoformat()) for i in weekly_intervals]
     assert 3 == len(weekly_intervals)
     assert weekly_intervals[0] == ('2021-06-06T00:00:00', '2021-06-13T00:00:00')
@@ -59,7 +58,6 @@ def test_period_to_intervals_monthly_tz():
 
 def test_period_to_intervals_yearly():
     intervals = _period_to_intervals("2018-06-08", "2021-08-24", "year")
-    print(list(intervals))
     intervals = [(i[0].isoformat(), i[1].isoformat()) for i in intervals]
     assert 4 == len(intervals)
     assert intervals[0] == ('2018-01-01T00:00:00', '2019-01-01T00:00:00')
@@ -70,7 +68,6 @@ def test_period_to_intervals_yearly():
 
 def test_period_to_intervals_monthly_full_year():
     intervals = _period_to_intervals("2020-01-01", "2021-01-01", "month")
-    print(list(intervals))
     intervals = [(i[0].isoformat(), i[1].isoformat()) for i in intervals]
     assert 12 == len(intervals)
     assert intervals[0] == ('2020-01-01T00:00:00', '2020-02-01T00:00:00')
@@ -81,7 +78,6 @@ def test_period_to_intervals_monthly_full_year():
 
 def test_period_to_intervals_daily():
     intervals = _period_to_intervals("2021-06-08", "2021-06-11", "day")
-    print(list(intervals))
     intervals = [(i[0].isoformat(), i[1].isoformat()) for i in intervals]
     assert 4 == len(intervals)
     assert intervals[0] == ('2021-06-07T00:00:00', '2021-06-08T00:00:00')
@@ -92,7 +88,6 @@ def test_period_to_intervals_daily():
 
 def test_period_to_intervals_dekad():
     intervals = _period_to_intervals("2021-06-08", "2021-07-20", "dekad")
-    print(list(intervals))
     intervals = [(i[0].isoformat(), i[1].isoformat()) for i in intervals]
     assert 5 == len(intervals)
     assert intervals[0] == ('2021-06-01T00:00:00', '2021-06-11T00:00:00')
@@ -104,7 +99,6 @@ def test_period_to_intervals_dekad():
 
 def test_period_to_intervals_dekad_first_of_month():
     intervals = _period_to_intervals("2021-06-01", "2021-07-20", "dekad")
-    print(list(intervals))
     intervals = [(i[0].isoformat(), i[1].isoformat()) for i in intervals]
     assert 5 == len(intervals)
     assert intervals[0] == ('2021-06-01T00:00:00', '2021-06-11T00:00:00')
