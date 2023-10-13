@@ -19,6 +19,7 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+- Start returning "OpenEO-Costs-experimental" header on synchronous processing responses
 
 ## 0.71.0
 

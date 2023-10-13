@@ -3706,28 +3706,31 @@ def test_vector_buffer_returns_error_on_empty_result_geometry(api):
 
 
 @pytest.mark.parametrize(
-    ["request_costs", "expected_user_kwargs"],
+    ["request_costs", "expected_user_kwargs", "expected_costs_header"],
     [
         (
             # Legacy mode: user_id
-            lambda user_id, request_id, success: 1.234,
+            lambda user_id, request_id, success: 1234,
             {"user_id": TEST_USER},
+            "1234",
         ),
         (
             # Default backend_implementation.request_costs
             None,
             {"user_id": TEST_USER, "user": User(TEST_USER, internal_auth_data={"authentication_method": "basic"})},
+            None,
         ),
         (
-            # New mode,
-            lambda user, request_id, success: 1.234,
+            # New mode: User object,
+            lambda user, request_id, success: 1234,
             {"user": User(TEST_USER, internal_auth_data={"authentication_method": "basic"})},
+            "1234",
         ),
     ],
 )
 @pytest.mark.parametrize("success", [False, True])
 def test_synchronous_processing_request_costs(
-    api, backend_implementation, request_costs, expected_user_kwargs, success
+    api, backend_implementation, request_costs, expected_user_kwargs, success, expected_costs_header
 ):
     if request_costs is None:
         request_costs = backend_implementation.request_costs
@@ -3742,11 +3745,17 @@ def test_synchronous_processing_request_costs(
     ) as load_collection, mock.patch.object(
         FlaskRequestCorrelationIdLogging, "_build_request_id", return_value="r-abc123"
     ), mock.patch.object(
-        backend_implementation, "request_costs", wraps=request_costs, autospec=request_costs
+        backend_implementation, "request_costs", side_effect=request_costs, autospec=request_costs
     ) as get_request_costs:
-        api.result(
+        resp = api.result(
             {"lc": {"process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}, "result": True}}
-        ).assert_status_code(200 if success else 500)
+        )
+        if success:
+            resp.assert_status_code(200)
+            if expected_costs_header:
+                assert resp.headers["OpenEO-Costs-experimental"] == expected_costs_header
+        else:
+            resp.assert_status_code(500)
 
     assert load_collection.call_count == 1
 

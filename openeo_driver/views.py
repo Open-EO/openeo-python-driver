@@ -641,9 +641,13 @@ def register_views_processing(
                     result = to_save_result(data=result)
                 response = result.create_flask_response()
 
-            # not all costs are accounted for so don't expose in "OpenEO-Costs" yet
-            backend_implementation.request_costs(success=True, **request_costs_kwargs)
+            costs = backend_implementation.request_costs(success=True, **request_costs_kwargs)
+            if costs:
+                # TODO not all costs are accounted for so don't expose in "OpenEO-Costs" yet
+                response.headers["OpenEO-Costs-experimental"] = costs
+
         except Exception:
+            # TODO: also send "OpenEO-Costs" header on failure
             backend_implementation.request_costs(success=False, **request_costs_kwargs)
             raise
 
