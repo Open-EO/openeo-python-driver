@@ -4,6 +4,7 @@ import base64
 
 
 class User:
+    __slots__ = ("user_id", "info", "internal_auth_data", "_roles", "_default_plan")
     # TODO more fields
     def __init__(
         self,
@@ -22,6 +23,9 @@ class User:
 
     def __str__(self):
         return self.user_id
+
+    def __eq__(self, other):
+        return type(self) is type(other) and all(getattr(self, k) == getattr(other, k) for k in self.__slots__)
 
     def get_name(self):
         """Best effort name extraction"""

@@ -1,6 +1,7 @@
 import copy
 import datetime as dt
 import functools
+import inspect
 import json
 import logging
 import os
@@ -567,7 +568,7 @@ def _extract_process_graph(post_data: dict) -> dict:
             # API v0.4 style
             pg = post_data['process_graph']
     except (KeyError, TypeError) as e:
-        raise ProcessGraphMissingException
+        raise ProcessGraphMissingException from e
     if not isinstance(pg, dict):
         # TODO: more validity checks for (flat) process graph?
         raise ProcessGraphInvalidException
@@ -614,8 +615,14 @@ def register_views_processing(
             'node_caching': False
         })
 
-        request_costs = functools.partial(backend_implementation.request_costs,
-                                          user_id=user.user_id, request_id=request_id)
+        request_costs_kwargs = {"request_id": request_id}
+        # TODO clean up this is temporary measure to support old (user_id) and new style (user)
+        #      request_costs signatures simultaneously.
+        request_costs_parameters = inspect.signature(backend_implementation.request_costs).parameters
+        if "user_id" in request_costs_parameters:
+            request_costs_kwargs["user_id"] = user.user_id
+        if "user" in request_costs_parameters:
+            request_costs_kwargs["user"] = user
 
         try:
             result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)
@@ -635,9 +642,9 @@ def register_views_processing(
                 response = result.create_flask_response()
 
             # not all costs are accounted for so don't expose in "OpenEO-Costs" yet
-            request_costs(success=True)
+            backend_implementation.request_costs(success=True, **request_costs_kwargs)
         except Exception:
-            request_costs(success=False)
+            backend_implementation.request_costs(success=False, **request_costs_kwargs)
             raise
 
         return response

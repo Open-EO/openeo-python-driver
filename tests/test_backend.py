@@ -7,6 +7,7 @@ from openeo.capabilities import ComparableVersion
 from openeo_driver.backend import CollectionCatalog, LoadParameters, UserDefinedProcessMetadata, ServiceMetadata, \
     BatchJobMetadata, not_implemented, is_not_implemented, OpenEoBackendImplementation
 from openeo_driver.errors import CollectionNotFoundException
+from openeo_driver.users import User
 
 
 def test_collection_catalog_basic():
@@ -227,6 +228,11 @@ def test_not_implemented():
     assert is_not_implemented(meh) is True
 
 
-def test_request_costs():
+def test_request_costs_user_id():
     backend = OpenEoBackendImplementation()
     assert backend.request_costs(user_id="someuser", request_id="r-abc123", success=True) is None
+
+
+def test_request_costs_user():
+    backend = OpenEoBackendImplementation()
+    assert backend.request_costs(user=User(user_id="someuser"), request_id="r-abc123", success=True) is None

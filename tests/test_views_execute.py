@@ -35,6 +35,7 @@ from openeo_driver.testing import (
     preprocess_check_and_replace,
     preprocess_regex_check_and_replace,
 )
+from openeo_driver.users import User
 from openeo_driver.util.geometry import as_geojson_feature, as_geojson_feature_collection
 from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.util.logging import FlaskRequestCorrelationIdLogging
@@ -3704,44 +3705,57 @@ def test_vector_buffer_returns_error_on_empty_result_geometry(api):
                               " Buffering with distance -10 meter resulted in empty geometries at position(s) [0]")
 
 
-def test_request_costs_for_successful_request(api, backend_implementation):
-    with mock.patch.object(backend_implementation.catalog, "load_collection", side_effect=backend_implementation.catalog.load_collection) as load_collection, \
-            mock.patch.object(FlaskRequestCorrelationIdLogging, "_build_request_id", return_value="r-abc123"), \
-            mock.patch.object(backend_implementation, "request_costs", wraps=backend_implementation.request_costs, autospec=True) as get_request_costs:
-        api.check_result({
-            'collection': {
-                'process_id': 'load_collection',
-                'arguments': {'id': 'S2_FAPAR_CLOUDCOVER'},
-                'result': True
-            }
-        })
+@pytest.mark.parametrize(
+    ["request_costs", "expected_user_kwargs"],
+    [
+        (
+            # Legacy mode: user_id
+            lambda user_id, request_id, success: 1.234,
+            {"user_id": TEST_USER},
+        ),
+        (
+            # Default backend_implementation.request_costs
+            None,
+            {"user_id": TEST_USER, "user": User(TEST_USER, internal_auth_data={"authentication_method": "basic"})},
+        ),
+        (
+            # New mode,
+            lambda user, request_id, success: 1.234,
+            {"user": User(TEST_USER, internal_auth_data={"authentication_method": "basic"})},
+        ),
+    ],
+)
+@pytest.mark.parametrize("success", [False, True])
+def test_synchronous_processing_request_costs(
+    api, backend_implementation, request_costs, expected_user_kwargs, success
+):
+    if request_costs is None:
+        request_costs = backend_implementation.request_costs
+
+    if success:
+        side_effect = backend_implementation.catalog.load_collection
+    else:
+        side_effect = Exception("nope")
+
+    with mock.patch.object(
+        backend_implementation.catalog, "load_collection", side_effect=side_effect
+    ) as load_collection, mock.patch.object(
+        FlaskRequestCorrelationIdLogging, "_build_request_id", return_value="r-abc123"
+    ), mock.patch.object(
+        backend_implementation, "request_costs", wraps=request_costs, autospec=request_costs
+    ) as get_request_costs:
+        api.result(
+            {"lc": {"process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}, "result": True}}
+        ).assert_status_code(200 if success else 500)
 
     assert load_collection.call_count == 1
 
     env = load_collection.call_args[1]["env"]
     assert env["correlation_id"] == "r-abc123"
 
-    get_request_costs.assert_called_with(TEST_USER, "r-abc123", True)
+    expected = {"success": success, "request_id": "r-abc123", **expected_user_kwargs}
+    get_request_costs.assert_called_with(**expected)
 
-
-def test_request_costs_for_failed_request(api, backend_implementation):
-    with mock.patch.object(backend_implementation.catalog, "load_collection", side_effect=Exception("whoa")) as load_collection, \
-            mock.patch.object(FlaskRequestCorrelationIdLogging, "_build_request_id", return_value="r-abc123"), \
-            mock.patch.object(backend_implementation, "request_costs", wraps=backend_implementation.request_costs, autospec=True) as get_request_costs:
-        api.result({
-            'collection': {
-                'process_id': 'load_collection',
-                'arguments': {'id': 'S2_FAPAR_CLOUDCOVER'},
-                'result': True
-            }
-        }).assert_status_code(500)
-
-    assert load_collection.call_count == 1
-
-    env = load_collection.call_args[1]["env"]
-    assert env["correlation_id"] == "r-abc123"
-
-    get_request_costs.assert_called_with(TEST_USER, "r-abc123", False)
 
 
 class TestVectorCubeRunUDF:

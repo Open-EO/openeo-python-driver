@@ -54,3 +54,25 @@ class TestUser:
         assert user.get_default_plan() is None
         user.set_default_plan("premium")
         assert user.get_default_plan() == "premium"
+
+    def test_user_eq(self):
+        assert User("alice") == User("alice")
+        assert User("alice") != User("bob")
+        assert User("a1", info={"fullname": "Alice"}) == User("a1", info={"fullname": "Alice"})
+        assert User("a1", info={"fullname": "Alice"}) != User("a1", info={"color": "red"})
+
+        u1 = User("Alice")
+        u2 = User("Alice")
+        assert u1 == u2
+        u1.add_role("admin")
+        assert u1 != u2
+        u2.add_role("admin")
+        assert u1 == u2
+
+        u1 = User("Alice")
+        u2 = User("Alice")
+        assert u1 == u2
+        u1.set_default_plan("premium")
+        assert u1 != u2
+        u2.set_default_plan("premium")
+        assert u1 == u2

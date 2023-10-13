@@ -20,6 +20,9 @@ and start a new "In Progress" section above it.
 ## In progress
 
 
+## 0.71.0
+
+- `OpenEoBackendImplementation.request_costs()`: add support for passing User object (related to [Open-EO/openeo-geopyspark-driver#531](https://github.com/Open-EO/openeo-geopyspark-driver/issues/531))
 
 ## 0.70.0
 
