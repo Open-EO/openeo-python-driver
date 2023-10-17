@@ -1435,12 +1435,12 @@ def register_views_batch_jobs(
                     yield sep + json.dumps(log)
                     sep = ","
 
-            except Exception as e:
+            except Exception as e:  # TODO: narrower except clause
                 # TODO: because of chunked response, we can not update already sent 200 HTTP status code.
                 #       We could however wait sending the status based on successfully getting first log item.
                 _log.error(f"Log collection for job {job_id} failed", exc_info=True)
                 log = {
-                    "id": "-1", "code": "Internal", "level": "error",
+                    "id": "", "code": "Internal", "level": "error",
                     "message": f"Log collection failed: {e!r}"
                 }
                 yield sep + json.dumps(log)
