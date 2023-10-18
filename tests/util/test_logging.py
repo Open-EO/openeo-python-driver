@@ -3,7 +3,7 @@ import logging
 import re
 import textwrap
 import traceback
-from typing import List, Union
+from typing import List, Union, Optional
 
 import flask
 import pytest
@@ -16,6 +16,7 @@ from openeo_driver.util.logging import (
     LOGGING_CONTEXT_FLASK,
     BatchJobLoggingFilter,
     FlaskRequestCorrelationIdLogging,
+    ContextBasedExtraInjectingFilter,
     FlaskUserIdLogging,
     just_log_exceptions,
     user_id_trim,
@@ -587,3 +588,151 @@ def test_just_log_exceptions_extra(caplog):
 
     expected = "[Foo:bar] ERROR In context 'untitled': caught RuntimeError('Nope')\n"
     assert caplog.text == expected
+
+
+class TestContextBasedExtraInjectingFilter:
+    def _build_script(self, src: str, json_fields: Optional[List[str]] = None) -> str:
+        """Helper to build script with some common imports and logging setup"""
+        json_format = " ".join(f"%({f})s" for f in json_fields or ["levelname", "message"])
+        setup = f"""
+            import logging
+            import pythonjsonlogger.jsonlogger
+            from openeo_driver.util.logging import ContextBasedExtraInjectingFilter
+
+            root_loger = logging.getLogger()
+            root_loger.setLevel(logging.INFO)
+            handler = logging.StreamHandler()
+            handler.setFormatter(pythonjsonlogger.jsonlogger.JsonFormatter({json_format!r}))
+            handler.addFilter(ContextBasedExtraInjectingFilter())
+            root_loger.addHandler(handler)
+        """
+        return textwrap.dedent(setup) + "\n" + textwrap.dedent(src)
+
+    def test_basic(self, pytester):
+        script = self._build_script(
+            """
+            def do_work():
+                log = logging.getLogger("bar")
+                log.warning("Working here!")
+
+            logger = logging.getLogger("foo")
+            logger.info("Hello")
+            with ContextBasedExtraInjectingFilter.with_extra_logging(job_id="job-42"):
+                logger.info("Let's do some work")
+                do_work()
+            logger.info("kthxbye")
+            """,
+            json_fields=["levelname", "name", "message"],
+        )
+        pytester.makepyfile(main=script)
+        result = pytester.runpython("main.py")
+
+        records = _decode_json_lines(_strip_jenkins_distutils_hack_warnings(result.errlines))
+        assert records == [
+            {"levelname": "INFO", "name": "foo", "message": "Hello"},
+            {"levelname": "INFO", "name": "foo", "message": "Let's do some work", "job_id": "job-42"},
+            {"levelname": "WARNING", "name": "bar", "message": "Working here!", "job_id": "job-42"},
+            {"levelname": "INFO", "name": "foo", "message": "kthxbye"},
+        ]
+
+    def test_nesting(self, pytester):
+        """
+        Test that nesting context is supported: extra fields are added/removed properly
+        """
+        script = self._build_script(
+            """
+            logger = logging.getLogger("foo")
+            logger.info("Hello")
+            with ContextBasedExtraInjectingFilter.with_extra_logging(user="john"):
+                jobs = ["job-123", "job-456"]
+                logger.info(f"Found jobs {jobs}")
+                for job_id in jobs:
+                    with ContextBasedExtraInjectingFilter.with_extra_logging(job_id=job_id):
+                        logger.info(f"Handling {job_id}")
+            logger.info("kthxbye")
+            """,
+            json_fields=["message"],
+        )
+        pytester.makepyfile(main=script)
+        result = pytester.runpython("main.py")
+
+        records = _decode_json_lines(_strip_jenkins_distutils_hack_warnings(result.errlines))
+        assert records == [
+            {"message": "Hello"},
+            {"message": "Found jobs ['job-123', 'job-456']", "user": "john"},
+            {"message": "Handling job-123", "user": "john", "job_id": "job-123"},
+            {"message": "Handling job-456", "user": "john", "job_id": "job-456"},
+            {"message": "kthxbye"},
+        ]
+
+    def test_nesting_override(self, pytester):
+        """
+        Test that overriding by nesting context is supported
+        """
+        script = self._build_script(
+            """
+            logger = logging.getLogger("foo")
+            with ContextBasedExtraInjectingFilter.with_extra_logging(user="alice"):
+                logger.info("Who knows Alice?")
+                with ContextBasedExtraInjectingFilter.with_extra_logging(user="bob"):
+                    logger.info("Greetings from Bob")
+                logger.info(f"That was fun")
+            logger.info("kthxbye")
+            """,
+            json_fields=["message"],
+        )
+        pytester.makepyfile(main=script)
+        result = pytester.runpython("main.py")
+
+        records = _decode_json_lines(_strip_jenkins_distutils_hack_warnings(result.errlines))
+        assert records == [
+            {"message": "Who knows Alice?", "user": "alice"},
+            {"message": "Greetings from Bob", "user": "bob"},
+            {"message": "That was fun", "user": "alice"},
+            {"message": "kthxbye"},
+        ]
+
+    def test_error_handling(self, pytester):
+        """
+        Test that extra logging fields are properly cleaned up when an exception occurs in context body
+        """
+        script = self._build_script(
+            """
+            logger = logging.getLogger("foo")
+
+            def main():
+                logger.info("Hello")
+                for job_id in ["job-123", "job-0"]:
+                    with ContextBasedExtraInjectingFilter.with_extra_logging(job_id=job_id):
+                        logger.info(f"Handling {job_id}")
+                        try:
+                            rate = 4 / int(job_id.split("-")[1])
+                            logger.info(f"rate: {rate:.2f}")
+                        except Exception:
+                            logger.error(f"Something went wrong with {job_id}")
+                            raise
+                logger.info("kthxbye")
+
+            if __name__ == "__main__":
+                try:
+                    main()
+                except Exception:
+                    logger.error("main failed")
+        """
+        )
+        pytester.makepyfile(main=script)
+        result = pytester.runpython("main.py")
+
+        records = _decode_json_lines(_strip_jenkins_distutils_hack_warnings(result.errlines))
+        assert records == [
+            {"levelname": "INFO", "message": "Hello"},
+            {"levelname": "INFO", "message": "Handling job-123", "job_id": "job-123"},
+            {"levelname": "INFO", "message": "rate: 0.03", "job_id": "job-123"},
+            {"levelname": "INFO", "message": "Handling job-0", "job_id": "job-0"},
+            # This error log contains "job_id" field
+            {"levelname": "ERROR", "message": "Something went wrong with job-0", "job_id": "job-0"},
+            # This error log doesn't (it's cleaned up properly)
+            {"levelname": "ERROR", "message": "main failed"},
+        ]
+
+    # TODO: test threading behaviour
