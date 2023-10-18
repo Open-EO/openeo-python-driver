@@ -16,6 +16,7 @@ from openeo_driver.util.logging import (
     LOGGING_CONTEXT_FLASK,
     BatchJobLoggingFilter,
     FlaskRequestCorrelationIdLogging,
+    ContextBasedExtraInjectingFilter,
     FlaskUserIdLogging,
     just_log_exceptions,
     user_id_trim,
@@ -587,3 +588,46 @@ def test_just_log_exceptions_extra(caplog):
 
     expected = "[Foo:bar] ERROR In context 'untitled': caught RuntimeError('Nope')\n"
     assert caplog.text == expected
+
+
+class TestContextBasedExtraInjectingFilter:
+    def test_basic(self, pytester):
+        script = """
+            import logging
+            import pythonjsonlogger.jsonlogger
+            from openeo_driver.util.logging import ContextBasedExtraInjectingFilter
+
+            root_loger = logging.getLogger()
+            root_loger.setLevel(logging.INFO)
+            handler = logging.StreamHandler()
+            handler.setFormatter(pythonjsonlogger.jsonlogger.JsonFormatter("%(message)s %(levelname)s %(name)s"))
+            handler.addFilter(ContextBasedExtraInjectingFilter())
+            root_loger.addHandler(handler)
+
+            logger = logging.getLogger("foo")
+            logger.info("Hello")
+
+            def do_work():
+                log = logging.getLogger("bar")
+                log.warning("Working here!")
+
+            with ContextBasedExtraInjectingFilter.with_extra_logging(job_id="job-42"):
+                logger.info("Let's do some work")
+                do_work()
+
+            logger.info("kthxbye")
+        """
+        pytester.makepyfile(main=script)
+        result = pytester.runpython("main.py")
+
+        records = _decode_json_lines(_strip_jenkins_distutils_hack_warnings(result.errlines))
+        assert records == [
+            {"levelname": "INFO", "name": "foo", "message": "Hello"},
+            {"levelname": "INFO", "name": "foo", "message": "Let's do some work", "job_id": "job-42"},
+            {"levelname": "WARNING", "name": "bar", "message": "Working here!", "job_id": "job-42"},
+            {"levelname": "INFO", "name": "foo", "message": "kthxbye"},
+        ]
+
+    # TODO: test nesting
+    # TODO: test threading behaviour
+    # TODO: test behaviour when exception is raised
