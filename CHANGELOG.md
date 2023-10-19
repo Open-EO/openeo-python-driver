@@ -19,7 +19,13 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+
+## 0.72.0
+
 - Start returning "OpenEO-Costs-experimental" header on synchronous processing responses
+- Extract client credentials access token fetch logic from ElasticJobRegistry
+  into `ClientCredentialsAccessTokenHelper` to make it reusable (e.g. for ETL API as well)
+  ([Open-EO/openeo-geopyspark-driver#531](https://github.com/Open-EO/openeo-geopyspark-driver/issues/531))
 
 ## 0.71.0
 

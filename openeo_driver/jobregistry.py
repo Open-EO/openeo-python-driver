@@ -1,6 +1,5 @@
 import argparse
 import contextlib
-import datetime as dt
 import json
 import logging
 import os
@@ -9,17 +8,15 @@ import shlex
 import time
 import typing
 from decimal import Decimal
-from typing import Any, Dict, List, NamedTuple, Optional, Union, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import requests
-from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcClientInfo, OidcProviderInfo
 from openeo.rest.connection import url_join
 from openeo.util import TimingLogger, repr_truncate, rfc3339
 
 import openeo_driver._version
-from openeo_driver.datastructs import secretive_repr
 from openeo_driver.errors import InternalException, JobNotFoundException
-from openeo_driver.util.caching import TtlCache
+from openeo_driver.util.auth import ClientCredentials, ClientCredentialsAccessTokenHelper
 from openeo_driver.util.logging import just_log_exceptions
 from openeo_driver.utils import generate_unique_id
 
@@ -167,41 +164,35 @@ class EjrHttpError(EjrError):
         )
 
 
-class ElasticJobRegistryCredentials(NamedTuple):
-    """Container of Elastic Job Registry related credentials."""
-
-    oidc_issuer: str
-    client_id: str
-    client_secret: str
-    __repr__ = __str__ = secretive_repr()
-
-    @classmethod
-    def from_mapping(cls, data: typing.Mapping, *, strict: bool = True) -> Union["ElasticJobRegistryCredentials", None]:
-        """Build from mapping/dict/config"""
-        args = {"oidc_issuer", "client_id", "client_secret"}
-        try:
-            return cls(**{a: data[a] for a in args})
-        except KeyError:
-            if strict:
-                missing = args.difference(data.keys())
-                raise EjrError(f"Failed building {cls.__name__} from mapping: missing {missing!r}") from None
-
+class ElasticJobRegistryCredentials(ClientCredentials):
+    # Legacy alias/wrapper for ClientCredentials+get_ejr_credentials_from_env
+    # TODO remove when unused
     @classmethod
     def from_env(
         cls, env: Optional[typing.Mapping] = None, *, strict: bool = True
-    ) -> Union["ElasticJobRegistryCredentials", None]:
-        env = env or os.environ
-        env_var_mapping = {
-            "oidc_issuer": "OPENEO_EJR_OIDC_ISSUER",
-            "client_id": "OPENEO_EJR_OIDC_CLIENT_ID",
-            "client_secret": "OPENEO_EJR_OIDC_CLIENT_SECRET",
-        }
-        try:
-            return cls(**{a: env[e] for a, e in env_var_mapping.items()})
-        except KeyError:
-            if strict:
-                missing = set(env_var_mapping.values()).difference(env.keys())
-                raise EjrError(f"Failed building {cls.__name__} from env: missing {missing!r}") from None
+    ) -> Union[ClientCredentials, None]:
+        return get_ejr_credentials_from_env(env=env, strict=strict)
+
+
+def get_ejr_credentials_from_env(
+    env: Optional[typing.Mapping] = None, *, strict: bool = True
+) -> Union[ClientCredentials, None]:
+    # TODO only really used in openeo-geopyspark-driver atm
+    # TODO Generalize this functionality (map env vars to NamedTuple) in some way?
+    env = env or os.environ
+    env_var_mapping = {
+        "oidc_issuer": "OPENEO_EJR_OIDC_ISSUER",
+        "client_id": "OPENEO_EJR_OIDC_CLIENT_ID",
+        "client_secret": "OPENEO_EJR_OIDC_CLIENT_SECRET",
+    }
+    try:
+        kwargs = {a: env[e] for a, e in env_var_mapping.items()}
+    except KeyError:
+        if strict:
+            missing = set(env_var_mapping.values()).difference(env.keys())
+            raise EjrError(f"Failed building {ClientCredentials.__name__} from env: missing {missing!r}") from None
+    else:
+        return ClientCredentials(**kwargs)
 
 
 class ElasticJobRegistry(JobRegistryInterface):
@@ -225,8 +216,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         self.logger.info(f"Creating ElasticJobRegistry with {backend_id=} and {api_url=}")
         self._backend_id: Optional[str] = backend_id
         self._api_url = api_url
-        self._authenticator: Optional[OidcClientCredentialsAuthenticator] = None
-        self._cache = TtlCache(default_ttl=60 * 60)
+        self._access_token_helper = ClientCredentialsAccessTokenHelper(session=session)
 
         if session:
             self._session = session
@@ -260,34 +250,9 @@ class ElasticJobRegistry(JobRegistryInterface):
         assert self._backend_id
         return self._backend_id
 
-    def setup_auth_oidc_client_credentials(
-        self, credentials: ElasticJobRegistryCredentials
-    ) -> None:
+    def setup_auth_oidc_client_credentials(self, credentials: ClientCredentials) -> None:
         """Set up OIDC client credentials authentication."""
-        self.logger.info(
-            f"Setting up EJR OIDC Client Credentials Authentication with {credentials.client_id=}, {credentials.oidc_issuer=}, {len(credentials.client_secret)=}"
-        )
-        oidc_provider = OidcProviderInfo(
-            issuer=credentials.oidc_issuer, requests_session=self._session
-        )
-        client_info = OidcClientInfo(
-            client_id=credentials.client_id,
-            provider=oidc_provider,
-            client_secret=credentials.client_secret,
-        )
-        self._authenticator = OidcClientCredentialsAuthenticator(
-            client_info=client_info, requests_session=self._session
-        )
-
-    def _get_access_token(self) -> str:
-        if not self._authenticator:
-            raise EjrError("No authentication set up")
-        with TimingLogger(
-            title=f"Requesting EJR OIDC access_token ({self._authenticator.__class__.__name__})",
-            logger=self.logger.info,
-        ):
-            tokens = self._authenticator.get_tokens()
-        return tokens.access_token
+        self._access_token_helper.setup_credentials(credentials)
 
     def _do_request(
         self,
@@ -301,12 +266,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         with TimingLogger(logger=self.logger.debug, title=f"EJR Request `{method} {path}`"):
             headers = {}
             if use_auth:
-                access_token = self._cache.get_or_call(
-                    key="api_access_token",
-                    callback=self._get_access_token,
-                    # TODO: finetune/optimize caching TTL? Detect TTl/expiry from JWT access token itself?
-                    ttl=30 * 60,
-                )
+                access_token = self._access_token_helper.get_access_token()
                 headers["Authorization"] = f"Bearer {access_token}"
 
             url = url_join(self._api_url, path)
@@ -672,7 +632,7 @@ class CliApp:
                     " through environment variable `VAULT_TOKEN`"
                     " or local file `~/.vault-token` (e.g. created with `vault login -method=ldap username=john`)."
                 )
-            credentials = ElasticJobRegistryCredentials.from_mapping(secret["data"]["data"])
+            credentials = ClientCredentials.from_mapping(secret["data"]["data"])
             ejr.setup_auth_oidc_client_credentials(credentials=credentials)
         return ejr
 

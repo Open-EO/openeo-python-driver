@@ -46,7 +46,7 @@ setup(
         "flask",
         "werkzeug>=1.0.1,<2.3.0",  # https://github.com/Open-EO/openeo-python-driver/issues/187
         "requests>=2.28.0",
-        "openeo>=0.24.0.a2.dev",
+        "openeo>=0.24.0.a3.dev",
         "openeo_processes==0.0.4",  # 0.0.4 is special build/release, also see https://github.com/Open-EO/openeo-python-driver/issues/152
         "gunicorn>=20.0.1",
         "numpy>=1.22.0",
