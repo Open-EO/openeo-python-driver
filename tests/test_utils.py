@@ -2,6 +2,7 @@ import re
 import typing
 
 import pytest
+import time_machine
 
 from openeo_driver.testing import RegexMatcher
 from openeo_driver.utils import (
@@ -279,3 +280,10 @@ def test_get_package_versions_na():
 def test_generate_uuid():
     assert re.match("^[0-9a-f]{32}$", generate_unique_id())
     assert re.match("^j-[0-9a-f]{32}$", generate_unique_id("j"))
+
+
+def test_generate_uuid_date_prefix():
+    with time_machine.travel("2022-12-14T12:34:56Z"):
+        job_id = generate_unique_id("j")
+        assert re.match("^j-[0-9a-f]{32}$", generate_unique_id("j"))
+        assert job_id.startswith("j-20221214123456")

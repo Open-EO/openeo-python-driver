@@ -330,12 +330,15 @@ def generate_uuid(prefix: Optional[str] = None) -> str:
     return generate_unique_id(prefix)
 
 
-def generate_unique_id(prefix: Optional[str] = None) -> str:
+def generate_unique_id(prefix: Optional[str] = None, date_prefix: bool = True) -> str:
     """
     Generate a random, unique identifier, to be used as job id, request id
     correlation id, error id, ...
     """
     id = uuid.uuid4().hex
+    if date_prefix:
+        date_repr = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d%H%M%S")
+        id = f"{date_repr}{id[len(date_repr):]}"
     if prefix:
         id = f"{prefix}-{id}"
     return id
