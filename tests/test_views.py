@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import urllib.parse
 from contextlib import ExitStack, contextmanager
 from datetime import datetime, timedelta
@@ -10,6 +11,7 @@ from unittest import mock
 import boto3
 import flask
 import pytest
+import re_assert
 import werkzeug.exceptions
 from moto import mock_s3
 
@@ -92,18 +94,6 @@ def api_from_backend_implementation(
     client = app.test_client()
     api = ApiTester(api_version=api_version, client=client, data_root=data_root)
     return api
-
-
-def mock_uuid4(value: str = "abc123"):
-    class UUIDMock():
-        def __str__(self):
-            return value
-
-        @property
-        def hex(self):
-            return value
-
-    return mock.patch("uuid.uuid4", new=UUIDMock)
 
 
 TEST_AWS_REGION_NAME = 'eu-central-1'
@@ -351,13 +341,15 @@ class TestGeneral:
 
     def test_error_handling_generic(self, api, caplog):
         caplog.set_level(logging.WARNING)
-        with mock_uuid4(value="t3st"):
-            resp = api.get("/_debug/error")
-        assert (resp.status_code, resp.json) == (500, {
-            "code": "Internal",
-            "message": "Server error: Exception('Computer says no.')",
-            "id": "r-t3st",
-        })
+        resp = api.get("/_debug/error")
+        assert (resp.status_code, resp.json) == (
+            500,
+            {
+                "code": "Internal",
+                "message": "Server error: Exception('Computer says no.')",
+                "id": re_assert.Matches("r-[0-9a-f]{32}"),
+            },
+        )
         assert caplog.record_tuples == [
             (
                 "openeo_driver.views.error",
@@ -368,13 +360,15 @@ class TestGeneral:
 
     def test_error_handling_not_implemented_error(self, api, caplog):
         caplog.set_level(logging.WARNING)
-        with mock_uuid4(value="t3st"):
-            resp = api.get("/_debug/error/basic/NotImplementedError")
-        assert (resp.status_code, resp.json) == (500, {
-            "code": "Internal",
-            "message": "Server error: NotImplementedError()",
-            "id": "r-t3st",
-        })
+        resp = api.get("/_debug/error/basic/NotImplementedError")
+        assert (resp.status_code, resp.json) == (
+            500,
+            {
+                "code": "Internal",
+                "message": "Server error: NotImplementedError()",
+                "id": re_assert.Matches("r-[0-9a-f]{32}"),
+            },
+        )
         assert caplog.record_tuples == [
             (
                 "openeo_driver.views.error",
@@ -385,13 +379,15 @@ class TestGeneral:
 
     def test_error_handling_error_summary(self, api, caplog):
         caplog.set_level(logging.WARNING)
-        with mock_uuid4(value="t3st"):
-            resp = api.get("/_debug/error/basic/ErrorSummary")
-        assert (resp.status_code, resp.json) == (500, {
-            "code": "Internal",
-            "message": "Server error: No negatives please.",
-            "id": "r-t3st",
-        })
+        resp = api.get("/_debug/error/basic/ErrorSummary")
+        assert (resp.status_code, resp.json) == (
+            500,
+            {
+                "code": "Internal",
+                "message": "Server error: No negatives please.",
+                "id": re_assert.Matches("r-[0-9a-f]{32}"),
+            },
+        )
         assert caplog.record_tuples == [
             (
                 "openeo_driver.views.error",
@@ -410,15 +406,20 @@ class TestGeneral:
     ])
     def test_error_handling_api_error(self, api, caplog, url, error_status, error_code, error_message):
         caplog.set_level(logging.WARNING)
-        with mock_uuid4(value="t3st"):
-            resp = api.get(url)
+        resp = api.get(url)
         assert resp.status_code == error_status
-        assert resp.json == {"code": error_code, "message": error_message, "id": "r-t3st"}
+        assert resp.json == {"code": error_code, "message": error_message, "id": re_assert.Matches("r-[0-9a-f]{32}")}
         assert caplog.record_tuples == [
             (
                 "openeo_driver.views.error",
                 logging.ERROR,
-                f"OpenEOApiException(status_code={error_status}, code={error_code!r}, message={error_message!r}, id='r-t3st')",
+                re_assert.Matches(
+                    re.escape(
+                        f"OpenEOApiException(status_code={error_status}, code={error_code!r}, message={error_message!r}, id='"
+                    )
+                    + "r-[0-9a-f]{32}"
+                    + re.escape("')")
+                ),
             ),
         ]
 
