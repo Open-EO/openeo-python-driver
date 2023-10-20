@@ -207,7 +207,7 @@ class HttpAuthHandler:
                 "authentication_method": "OIDC",
                 "provider_id": oidc_provider.id,  # TODO: deprecated
                 "oidc_provider_id": oidc_provider.id,
-                "oidc_provider_title": oidc_provider.title,
+                "oidc_provider_title": oidc_provider.title,  # TODO necessary to have title here?
                 "oidc_issuer": oidc_provider.issuer,
                 # used for e.g. access to SHub APIs on CDSE
                 "access_token": access_token,
@@ -223,6 +223,7 @@ class HttpAuthHandler:
             is_client_credentials_token = None
             if self._config.oidc_token_introspection:
                 token_data = self._token_introspection(oidc_provider=oidc_provider, access_token=access_token)
+                internal_auth_data["oidc_access_token_introspection"] = token_data
                 # TODO: better/more robust guessing if this is a client creds based access token
                 if any(
                     token_data[n].startswith("service-account-")
@@ -299,7 +300,8 @@ class HttpAuthHandler:
         token_data = resp.json()
 
         # Basic checks
-        assert token_data["active"]
+        if not token_data.get("active"):
+            raise AccessTokenException(message=f"Access token not active.")
         scope = set(token_data.get("scope", "").split())
         if not scope.issuperset(oidc_provider.scopes):
             raise AccessTokenException(

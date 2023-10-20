@@ -33,6 +33,7 @@ from openeo_driver.errors import OpenEOApiException
 from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, \
     generate_unique_test_process_id, build_basic_http_auth_header, ListSubSet, DictSubSet, RegexMatcher
 from openeo_driver.urlsigning import UrlSigner
+from openeo_driver.users import User
 from openeo_driver.users.auth import HttpAuthHandler, AccessTokenException
 from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.util.logging import LOGGING_CONTEXT_FLASK, FlaskRequestCorrelationIdLogging
@@ -582,11 +583,12 @@ class TestGeneral:
 def oidc_provider(requests_mock):
     oidc_issuer = "https://eoidc.test"
     user_db = {
-        # Access token mapping
-        "j0hn": {"sub": "john"},
-        "4l1c3": {"sub": "Alice"},
-        "b0b": {"sub": "b0b1b08571101437a2"},
-        "c6r01": {"sub": "Carol"},
+        # Access token to introspection data mapping
+        "j0hn": {"sub": "john", "active": True, "scope": "openid", "iss": oidc_issuer, "typ": "Bearer"},
+        "4l1c3": {"sub": "Alice", "active": True, "scope": "openid", "iss": oidc_issuer},
+        "4l1c3.old": {"sub": "Alice", "active": False, "scope": "openid"},
+        "b0b": {"sub": "b0b1b08571101437a2", "active": True, "scope": "openid"},
+        "c6r01": {"sub": "Carol", "active": True, "scope": "openid"},
         "cust0m.cl13nt.j0": {
             "active": True,
             "sub": "s3rv1c36cc-0fj0hn",
@@ -673,14 +675,16 @@ class TestUser:
             {"user_id": "Carol", "roles": ["admin", "devops"]}
         )
 
-    def _get_api_with_client_mapping(
+    def _get_api_with_advanced_token_handling(
         self,
         oidc_token_introspection: bool = True,
         oidc_client_user_map: Optional[dict] = None,
         api_version: str = "1.0.0",
     ):
-        # Because token introspection is not standard yet in,
-        # we can not use the default fixtures.
+        """
+        Special API tester setup with token introspection stuff that is not standard yet
+        or in the default fixtures.
+        """
         provider = OidcProvider(
             id="eoidc",
             issuer="https://eoidc.test",
@@ -700,6 +704,14 @@ class TestUser:
             # error_handling=False,
         )
         flask_app.config.from_mapping(TEST_APP_CONFIG)
+
+        auth_handler = flask_app.extensions["auth_handler"]
+
+        @flask_app.route(f"/openeo/<version>/dump-user-internal-auth-data", methods=["GET"])
+        @auth_handler.requires_bearer_auth
+        def dump_user_internal_auth_data(user: User):
+            return flask.jsonify(user.internal_auth_data)
+
         client = flask_app.test_client()
         return ApiTester(api_version=api_version, client=client, data_root=TEST_DATA_ROOT)
 
@@ -727,7 +739,7 @@ class TestUser:
     def test_oidc_client_to_user_mapping(
         self, oidc_provider, oidc_token_introspection, oidc_client_user_map, access_token, expected
     ):
-        api = self._get_api_with_client_mapping(
+        api = self._get_api_with_advanced_token_handling(
             oidc_token_introspection=oidc_token_introspection, oidc_client_user_map=oidc_client_user_map
         )
         headers = {"Authorization": f"Bearer oidc/eoidc/{access_token}"}
@@ -738,6 +750,79 @@ class TestUser:
             assert response.assert_error(expected.status_code, expected.code, message=expected.message)
         else:
             raise ValueError(expected)
+
+    @pytest.mark.parametrize(
+        ["oidc_token_introspection", "access_token", "expected"],
+        [
+            (
+                False,
+                "j0hn",
+                DictSubSet(
+                    {
+                        "access_token": "j0hn",
+                        "authentication_method": "OIDC",
+                        "oidc_issuer": "https://eoidc.test",
+                        "oidc_provider_id": "eoidc",
+                        "oidc_token_sub": "john",
+                    }
+                ),
+            ),
+            (
+                True,
+                "j0hn",
+                DictSubSet(
+                    {
+                        "access_token": "j0hn",
+                        "authentication_method": "OIDC",
+                        "oidc_access_token_introspection": {
+                            "active": True,
+                            "iss": "https://eoidc.test",
+                            "scope": "openid",
+                            "sub": "john",
+                            "typ": "Bearer",
+                        },
+                        "oidc_issuer": "https://eoidc.test",
+                        "oidc_provider_id": "eoidc",
+                        "oidc_token_sub": "john",
+                    }
+                ),
+            ),
+        ],
+    )
+    def test_internal_auth_data(self, oidc_provider, oidc_token_introspection, access_token, expected):
+        api = self._get_api_with_advanced_token_handling(oidc_token_introspection=oidc_token_introspection)
+        headers = {"Authorization": f"Bearer oidc/eoidc/{access_token}"}
+        response = api.get("/dump-user-internal-auth-data", headers=headers)
+        data = response.assert_status_code(200).json
+        assert data == expected
+
+    @pytest.mark.parametrize(
+        ["access_token", "expected"],
+        [
+            (
+                "4l1c3",
+                DictSubSet(
+                    {
+                        "oidc_access_token_introspection": {
+                            "sub": "Alice",
+                            "active": True,
+                            "scope": "openid",
+                            "iss": "https://eoidc.test",
+                        }
+                    }
+                ),
+            ),
+            ("4l1c3.old", AccessTokenException("Access token not active.")),
+        ],
+    )
+    def test_token_introspection_active(self, oidc_provider, access_token, expected):
+        api = self._get_api_with_advanced_token_handling(oidc_token_introspection=True)
+        headers = {"Authorization": f"Bearer oidc/eoidc/{access_token}"}
+        response = api.get("/dump-user-internal-auth-data", headers=headers)
+        if isinstance(expected, OpenEOApiException):
+            response.assert_error(status_code=expected.status_code, error_code=expected.code, message=expected.message)
+        else:
+            assert response.assert_status_code(200).json == expected
 
 
 class TestLogging:

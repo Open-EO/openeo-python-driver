@@ -185,6 +185,9 @@ def build_app(
         user_access_validation=backend_implementation.user_access_validation,
         config=backend_implementation.config,
     )
+    # Allow access to auth handler from other parts of the app
+    app.extensions["auth_handler"] = auth
+
     api_reg = EndpointRegistry()
     bp = Blueprint("openeo", import_name=__name__)
 
