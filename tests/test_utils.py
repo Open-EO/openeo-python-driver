@@ -286,4 +286,4 @@ def test_generate_uuid_date_prefix():
     with time_machine.travel("2022-12-14T12:34:56Z"):
         job_id = generate_unique_id("j")
         assert re.match("^j-[0-9a-f]{32}$", generate_unique_id("j"))
-        assert job_id.startswith("j-20221214123456")
+        assert job_id.startswith("j-221214")

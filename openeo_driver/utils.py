@@ -337,7 +337,7 @@ def generate_unique_id(prefix: Optional[str] = None, date_prefix: bool = True) -
     """
     id = uuid.uuid4().hex
     if date_prefix:
-        date_repr = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d%H%M%S")
+        date_repr = datetime.datetime.now(datetime.timezone.utc).strftime("%y%m%d")
         id = f"{date_repr}{id[len(date_repr):]}"
     if prefix:
         id = f"{prefix}-{id}"
