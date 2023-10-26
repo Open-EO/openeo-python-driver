@@ -51,6 +51,31 @@ def test_filter_flask_request_correlation_id_logging():
     assert "[123-456] Watch out!" in logs
 
 
+def test_filter_flask_request_correlation_id_logging_overriding():
+    """Don't overwrite existing request id."""
+    with enhanced_logging(format="[%(req_id)s] %(message)s", context=LOGGING_CONTEXT_FLASK) as logs:
+        app = flask.Flask(__name__)
+        log = logging.getLogger(__name__)
+
+        log.info("Setting up app")
+
+        @app.before_request
+        def before_request():
+            FlaskRequestCorrelationIdLogging.before_request()
+
+        @app.route("/hello")
+        def hello():
+            log.warning("Watch out!", extra={FlaskRequestCorrelationIdLogging.LOG_RECORD_ATTR: "hello123"})
+            return "Hello world"
+
+        with app.test_client() as client:
+            client.get("/hello")
+
+    logs = [l for l in logs.getvalue().split("\n")]
+    assert "[no-request] Setting up app" in logs
+    assert "[hello123] Watch out!" in logs
+
+
 def test_filter_flask_user_id_logging():
     with enhanced_logging(format="[%(user_id)s] %(message)s", context=LOGGING_CONTEXT_FLASK) as logs:
         app = flask.Flask(__name__)

@@ -284,7 +284,8 @@ class FlaskRequestCorrelationIdLogging(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
         """Filter a log record (logging.Filter API)."""
-        setattr(record, self.LOG_RECORD_ATTR, self.get_request_id())
+        if not hasattr(record, self.LOG_RECORD_ATTR):
+            setattr(record, self.LOG_RECORD_ATTR, self.get_request_id())
         return True
 
 

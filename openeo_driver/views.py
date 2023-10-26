@@ -1424,6 +1424,7 @@ def register_views_batch_jobs(
     def get_job_logs(job_id, user: User):
         offset = request.args.get("offset")
         level = request.args.get("level")
+        request_id = FlaskRequestCorrelationIdLogging.get_request_id()
         # TODO: implement paging support: `limit`, next/prev/first/last `links`, ...
         logs = backend_implementation.batch_jobs.get_log_entries(
             job_id=job_id, user_id=user.user_id, offset=offset, level=level
@@ -1441,10 +1442,20 @@ def register_views_batch_jobs(
             except Exception as e:  # TODO: narrower except clause
                 # TODO: because of chunked response, we can not update already sent 200 HTTP status code.
                 #       We could however wait sending the status based on successfully getting first log item.
-                _log.error(f"Log collection for job {job_id} failed", exc_info=True)
+                message = f"Log collection for job {job_id} failed."
+                _log.error(
+                    message,
+                    exc_info=True,
+                    # Explicitly set request id in this error log obtained outside of this generator.
+                    # Due to the streaming response building, the flask request context is already gone at this point
+                    # and the standard on-the-fly filtering of `FlaskRequestCorrelationIdLogging` wouldn't work.
+                    extra={FlaskRequestCorrelationIdLogging.LOG_RECORD_ATTR: request_id},
+                )
                 log = {
-                    "id": "", "code": "Internal", "level": "error",
-                    "message": f"Log collection failed: {e!r}"
+                    "id": "",  # TODO: use request_id here?
+                    "code": "Internal",
+                    "level": "error",
+                    "message": f"{message} (req_id: {request_id}) {e!r} ",
                 }
                 yield sep + json.dumps(log)
 
