@@ -2535,8 +2535,14 @@ class TestBatchJobs:
                 resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs', headers=self.AUTH_HEADER)
                 assert resp.assert_status_code(200).json == {
                     "logs": [
-                        {"id": "", "code": "Internal", "level": "error",
-                         "message": "Log collection failed: RuntimeError('nope')"}
+                        {
+                            "id": "",
+                            "code": "Internal",
+                            "level": "error",
+                            "message": re_assert.Matches(
+                                r"Log collection for job 07024ee9-7847-4b8a-b260-6c879a2b3cdc failed. \(req_id: r-[0-9a-f]{32}\) RuntimeError\('nope'\)"
+                            ),
+                        }
                     ],
                     "links": []
                 }

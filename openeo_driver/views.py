@@ -1455,7 +1455,7 @@ def register_views_batch_jobs(
                     "id": "",  # TODO: use request_id here?
                     "code": "Internal",
                     "level": "error",
-                    "message": f"{message} (req_id: {request_id}) {e!r} ",
+                    "message": f"{message} (req_id: {request_id}) {e!r}",
                 }
                 yield sep + json.dumps(log)
 
