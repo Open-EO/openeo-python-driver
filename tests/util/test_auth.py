@@ -43,17 +43,20 @@ class TestClientCredentials:
     @pytest.mark.parametrize(
         "data",
         [
-            "Klient@https://oidc.test/",
-            "Klient:s3cr3t:https://oidc.test/",
-            "Klient@s3cr3t@https://oidc.test/",
-            "foo:bar:meh@https://oidc.test/",
+            "Klient@https://oidc.test/auth/realms/test",
+            "Klient:$ecret!:https://oidc.test/auth/realms/test",
+            "Klient@$ecret!@https://oidc.test/auth/realms/test",
+            "Klient:Klient:$ecret!@https://oidc.test/auth/realms/test",
+            "SECRET",
         ],
     )
-    def test_get_from_credentials_string_strictness(self, data):
+    def test_get_from_credentials_string_strictness(self, data, caplog):
         with pytest.raises(
-            ValueError, match=re.escape(f"Failed parsing ClientCredentials from credentials string '{data}'")
-        ):
+            ValueError, match=re.compile("Failed parsing ClientCredentials from credentials string$")
+        ) as exc_info:
             _ = ClientCredentials.from_credentials_string(data)
+        assert "$ecret!" not in repr(exc_info.value)
+        assert "$ecret!" not in caplog.text
 
         assert ClientCredentials.from_credentials_string(data, strict=False) is None
 

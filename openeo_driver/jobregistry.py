@@ -179,6 +179,7 @@ def get_ejr_credentials_from_env(
 ) -> Union[ClientCredentials, None]:
     # TODO only really used in openeo-geopyspark-driver atm
     # TODO Generalize this functionality (map env vars to NamedTuple) in some way?
+    # TODO: also support single env var mode with `ClientCredentials.from_credentials_string`
     env = env or os.environ
     env_var_mapping = {
         "oidc_issuer": "OPENEO_EJR_OIDC_ISSUER",

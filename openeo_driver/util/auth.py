@@ -8,6 +8,7 @@ from typing import Mapping, NamedTuple, Optional, Union
 
 import requests
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcClientInfo, OidcProviderInfo
+from openeo.util import repr_truncate, str_truncate
 
 from openeo_driver.datastructs import secretive_repr
 
@@ -53,7 +54,10 @@ class ClientCredentials(NamedTuple):
                 client_secret=match.group("client_secret"),
             )
         elif strict:
-            raise ValueError(f"Failed parsing {cls.__name__} from credentials string {credentials!r}")
+            # Avoid logging of secret
+            creds_repr = str_truncate(credentials, width=min(8, len(credentials) // 4))
+            _log.error(f"Failed parsing {cls.__name__} from credentials string {creds_repr!r} {len(credentials)=}")
+            raise ValueError(f"Failed parsing {cls.__name__} from credentials string")
 
 
 class _AccessTokenCache(NamedTuple):
