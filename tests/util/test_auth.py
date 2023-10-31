@@ -1,4 +1,5 @@
 import logging
+import re
 
 import pytest
 from openeo.rest.auth.testing import OidcMock
@@ -34,6 +35,27 @@ class TestClientCredentials:
             _ = ClientCredentials.from_mapping(data)
         creds = ClientCredentials.from_mapping(data, strict=False)
         assert creds is None
+
+    def test_get_from_credentials_string(self):
+        creds = ClientCredentials.from_credentials_string("Klient:s3cr3t@https://oidc.test/")
+        assert creds == ("https://oidc.test/", "Klient", "s3cr3t")
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            "Klient@https://oidc.test/",
+            "Klient:s3cr3t:https://oidc.test/",
+            "Klient@s3cr3t@https://oidc.test/",
+            "foo:bar:meh@https://oidc.test/",
+        ],
+    )
+    def test_get_from_credentials_string_strictness(self, data):
+        with pytest.raises(
+            ValueError, match=re.escape(f"Failed parsing ClientCredentials from credentials string '{data}'")
+        ):
+            _ = ClientCredentials.from_credentials_string(data)
+
+        assert ClientCredentials.from_credentials_string(data, strict=False) is None
 
 
 class TestClientCredentialsAccessTokenHelper:

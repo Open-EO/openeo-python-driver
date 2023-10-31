@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import re
+
 import time
 from typing import Mapping, NamedTuple, Optional, Union
 
@@ -35,6 +37,23 @@ class ClientCredentials(NamedTuple):
                 raise ValueError(f"Failed building {cls.__name__} from mapping: missing {missing!r}") from None
         else:
             return cls(**kwargs)
+
+    @classmethod
+    def from_credentials_string(cls, credentials: str, *, strict: bool = True) -> Union[ClientCredentials, None]:
+        """
+        Parse a credentials string of the form `{client_id}:{client_secret}@{oidc_issuer}` (old school basic auth URL style))
+        This single string format simplifies specifying credentials through env vars
+        as only one env var is necessary instead of three.
+        """
+        match = re.match(r"^(?P<client_id>[^:]+):(?P<client_secret>[^:@]+)@(?P<oidc_issuer>https?://.+)$", credentials)
+        if match:
+            return ClientCredentials(
+                oidc_issuer=match.group("oidc_issuer"),
+                client_id=match.group("client_id"),
+                client_secret=match.group("client_secret"),
+            )
+        elif strict:
+            raise ValueError(f"Failed parsing {cls.__name__} from credentials string {credentials!r}")
 
 
 class _AccessTokenCache(NamedTuple):
