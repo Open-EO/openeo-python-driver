@@ -164,16 +164,6 @@ class EjrHttpError(EjrError):
         )
 
 
-class ElasticJobRegistryCredentials(ClientCredentials):
-    # Legacy alias/wrapper for ClientCredentials+get_ejr_credentials_from_env
-    # TODO remove when unused
-    @classmethod
-    def from_env(
-        cls, env: Optional[typing.Mapping] = None, *, strict: bool = True
-    ) -> Union[ClientCredentials, None]:
-        return get_ejr_credentials_from_env(env=env, strict=strict)
-
-
 def get_ejr_credentials_from_env(
     env: Optional[typing.Mapping] = None, *, strict: bool = True
 ) -> Union[ClientCredentials, None]:
