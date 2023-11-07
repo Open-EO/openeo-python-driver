@@ -513,7 +513,7 @@ def register_views_auth(
         auth_handler: HttpAuthHandler
 ):
 
-    if backend_implementation.enable_basic_auth:
+    if backend_implementation.config.enable_basic_auth:
         @api_endpoint
         @blueprint.route("/credentials/basic", methods=["GET"])
         @auth_handler.requires_http_basic_auth
@@ -524,7 +524,7 @@ def register_views_auth(
                 resp["user_id"] = user_id
             return jsonify(resp)
 
-    if backend_implementation.enable_oidc_auth:
+    if backend_implementation.config.enable_oidc_auth:
         @api_endpoint
         @blueprint.route("/credentials/oidc", methods=["GET"])
         @auth_handler.public

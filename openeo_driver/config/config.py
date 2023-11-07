@@ -36,6 +36,9 @@ class OpenEoBackendConfig:
     processing_facility: str = "openEO"
     processing_software: str = "openeo-python-driver"
 
+    enable_basic_auth: bool = True
+    enable_oidc_auth: bool = True
+
     oidc_providers: List[OidcProvider] = attrs.Factory(list)
 
     oidc_token_introspection: bool = False

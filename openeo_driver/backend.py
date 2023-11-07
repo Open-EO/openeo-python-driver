@@ -669,8 +669,6 @@ class OpenEoBackendImplementation:
     """
     Simple container of all openEo "microservices"
     """
-    enable_basic_auth = True
-    enable_oidc_auth = True
 
     # Overridable vector cube implementation
     vector_cube_cls = DriverVectorCube

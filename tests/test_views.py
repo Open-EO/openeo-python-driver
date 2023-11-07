@@ -241,35 +241,33 @@ class TestGeneral:
         assert endpoints["/file_formats"] == ["GET"]
         assert "/output_formats" not in endpoints
 
-    def test_capabilities_no_basic_auth(self):
-        backend_implementation = DummyBackendImplementation()
+    @pytest.mark.parametrize("enable_basic_auth", [False, True])
+    def test_capabilities_basic_auth_disabled(self, enable_basic_auth):
+        config = OpenEoBackendConfig(enable_basic_auth=enable_basic_auth)
+        backend_implementation = DummyBackendImplementation(config=config)
         api100 = api_from_backend_implementation(backend_implementation)
         capabilities = api100.get("/").assert_status_code(200).json
         endpoints = {e["path"] for e in capabilities["endpoints"]}
-        assert "/credentials/basic" in endpoints
-        api100.get("/credentials/basic").assert_error(401, "AuthenticationRequired")
+        if enable_basic_auth:
+            assert "/credentials/basic" in endpoints
+            api100.get("/credentials/basic").assert_error(401, "AuthenticationRequired")
+        else:
+            assert "/credentials/basic" not in endpoints
+            api100.get("/credentials/basic").assert_error(404, "NotFound")
 
-        backend_implementation.enable_basic_auth = False
+    @pytest.mark.parametrize("enable_oidc_auth", [False, True])
+    def test_capabilities_oidc_auth_default(self, enable_oidc_auth):
+        config = OpenEoBackendConfig(enable_oidc_auth=enable_oidc_auth)
+        backend_implementation = DummyBackendImplementation(config=config)
         api100 = api_from_backend_implementation(backend_implementation)
         capabilities = api100.get("/").assert_status_code(200).json
         endpoints = {e["path"] for e in capabilities["endpoints"]}
-        assert "/credentials/basic" not in endpoints
-        api100.get("/credentials/basic").assert_error(404, "NotFound")
-
-    def test_capabilities_no_oidc_auth(self):
-        backend_implementation = DummyBackendImplementation()
-        api100 = api_from_backend_implementation(backend_implementation)
-        capabilities = api100.get("/").assert_status_code(200).json
-        endpoints = {e["path"] for e in capabilities["endpoints"]}
-        assert "/credentials/oidc" in endpoints
-        api100.get("/credentials/oidc").assert_status_code(200)
-
-        backend_implementation.enable_oidc_auth = False
-        api100 = api_from_backend_implementation(backend_implementation)
-        capabilities = api100.get("/").assert_status_code(200).json
-        endpoints = {e["path"] for e in capabilities["endpoints"]}
-        assert "/credentials/oidc" not in endpoints
-        api100.get("/credentials/oidc").assert_error(404, "NotFound")
+        if enable_oidc_auth:
+            assert "/credentials/oidc" in endpoints
+            api100.get("/credentials/oidc").assert_status_code(200)
+        else:
+            assert "/credentials/oidc" not in endpoints
+            api100.get("/credentials/oidc").assert_error(404, "NotFound")
 
     def test_capabilities_processing_software(self, api100):
         capabilities = api100.get('/').assert_status_code(200).json
