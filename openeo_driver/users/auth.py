@@ -118,8 +118,12 @@ class HttpAuthHandler:
             _log.warning("Invalid bearer token {b!r}".format(b=bearer))
             raise TokenInvalidException
         if bearer_type == 'basic':
+            if not self._config.enable_basic_auth:
+                raise AuthenticationSchemeInvalidException(message="Basic authentication is not supported.")
             return self.resolve_basic_access_token(access_token=access_token)
         elif bearer_type == 'oidc' and provider_id in self._oidc_providers:
+            if not self._config.enable_oidc_auth:
+                raise AuthenticationSchemeInvalidException(message="OIDC authentication is not supported.")
             oidc_provider = self._oidc_providers[provider_id]
             return self.resolve_oidc_access_token(oidc_provider=oidc_provider, access_token=access_token)
         else:
@@ -148,7 +152,9 @@ class HttpAuthHandler:
         """
         username, password = self.parse_basic_auth_header(request)
         _log.info(f"Handling basic auth for user {username!r}")
-        if not get_backend_config().valid_basic_auth(username, password):
+        if not (self._config.enable_basic_auth and self._config.valid_basic_auth):
+            raise AuthenticationSchemeInvalidException(message="Basic authentication is not supported.")
+        if not self._config.valid_basic_auth(username, password):
             raise CredentialsInvalidException
         # TODO real resolving of given user name to user_id?
         user_id = username
@@ -157,12 +163,13 @@ class HttpAuthHandler:
 
     @staticmethod
     def build_basic_access_token(user_id: str) -> str:
-        # TODO: generate real access token and link to user in some key value store
+        # TODO: generate real verifiable access token and link to user in some key value store
         return base64.urlsafe_b64encode(user_id.encode("utf-8")).decode("ascii")
 
     def resolve_basic_access_token(self, access_token: str) -> User:
         try:
             # Resolve token to user id
+            # TODO: verify that access token is valid, has not expired, etc.
             user_id = base64.urlsafe_b64decode(access_token.encode('ascii')).decode('utf-8')
         except Exception:
             raise TokenInvalidException

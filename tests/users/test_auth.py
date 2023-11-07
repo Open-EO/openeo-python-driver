@@ -5,6 +5,7 @@ import requests.exceptions
 from flask import Flask, jsonify, Response, request
 
 from openeo_driver.backend import OidcProvider
+from openeo_driver.config import OpenEoBackendConfig
 from openeo_driver.errors import OpenEOApiException, PermissionsInsufficientException, TokenInvalidException
 from openeo_driver.testing import build_basic_http_auth_header, DictSubSet
 from openeo_driver.users import User
@@ -21,10 +22,10 @@ def oidc_provider(requests_mock) -> OidcProvider:
 
 
 @pytest.fixture()
-def app(oidc_provider):
+def app(oidc_provider, backend_config):
     """Fixture for a flask app with some public and some auth requiring handlers"""
     app = Flask("__test__")
-    auth = HttpAuthHandler(oidc_providers=[oidc_provider])
+    auth = HttpAuthHandler(oidc_providers=[oidc_provider], config=backend_config)
     app.config["auth_handler"] = auth
 
     @app.route("/public/hello")
@@ -119,6 +120,31 @@ def test_basic_auth_invalid_password(app):
 
 
 @pytest.mark.parametrize(
+    ["backend_config_overrides", "expected"],
+    [
+        (
+            {"enable_basic_auth": False},
+            (
+                403,
+                DictSubSet(
+                    {"code": "AuthenticationSchemeInvalid", "message": "Basic authentication is not supported."}
+                ),
+            ),
+        ),
+        (
+            {"enable_basic_auth": True},
+            (200, b"hello basic"),
+        ),
+    ],
+)
+def test_basic_auth_disabled(app, backend_config_overrides, expected):
+    with app.test_client() as client:
+        headers = {"Authorization": build_basic_http_auth_header("Alice", "alice123")}
+        resp = client.get("/basic/hello", headers=headers)
+        assert (resp.status_code, resp.json or resp.data) == expected
+
+
+@pytest.mark.parametrize(
     ["username", "password"],
     [
         ("Alice", "alice123"),
@@ -171,6 +197,31 @@ def test_bearer_auth_basic_invalid_token_prefix(app, url):
         response = client.get(url, headers=headers)
         assert_invalid_token_failure(response)
 
+
+@pytest.mark.parametrize(
+    ["backend_config_overrides", "expected"],
+    [
+        (
+            {"enable_basic_auth": False},
+            (
+                403,
+                DictSubSet(
+                    {"code": "AuthenticationSchemeInvalid", "message": "Basic authentication is not supported."}
+                ),
+            ),
+        ),
+        (
+            {"enable_basic_auth": True},
+            (200, b"hello Alice"),
+        ),
+    ],
+)
+def test_bearer_auth_basic_disabled(app, backend_config_overrides, expected):
+    with app.test_client() as client:
+        access_token = HttpAuthHandler.build_basic_access_token(user_id="Alice")
+        headers = {"Authorization": f"Bearer basic//{access_token}"}
+        resp = client.get("/personal/hello", headers=headers)
+        assert (resp.status_code, resp.json or resp.data) == expected
 
 @pytest.mark.parametrize(
     ["url", "expected_data"],
@@ -230,6 +281,39 @@ def test_bearer_auth_oidc_token_resolve_problems(app, requests_mock, oidc_provid
         assert resp.status_code == api_error.status_code
         assert resp.json["code"] == api_error.code
         assert resp.json["message"] == api_error.message
+
+
+@pytest.mark.parametrize(
+    ["backend_config_overrides", "expected"],
+    [
+        (
+            {"enable_oidc_auth": False},
+            (
+                403,
+                DictSubSet({"code": "AuthenticationSchemeInvalid", "message": "OIDC authentication is not supported."}),
+            ),
+        ),
+        (
+            {"enable_oidc_auth": True},
+            (200, b"hello oidcuser"),
+        ),
+    ],
+)
+def test_bearer_auth_oidc_disabled(app, requests_mock, oidc_provider, expected):
+    def userinfo(request, context):
+        """Fake OIDC /userinfo endpoint handler"""
+        _, _, token = request.headers["Authorization"].partition("Bearer ")
+        user_id = token.split(".")[1]
+        return json.dumps({"sub": user_id})
+
+    requests_mock.get(oidc_provider.issuer + "/userinfo", text=userinfo)
+
+    with app.test_client() as client:
+        # Note: user id is "hidden" in access token
+        oidc_access_token = "kcneududhey8rmxje3uhs.oidcuser.o94h4oe9djdndjeu3rkrnmlxpds834r"
+        headers = {"Authorization": "Bearer oidc/{p}/{a}".format(p=oidc_provider.id, a=oidc_access_token)}
+        resp = client.get("/personal/hello", headers=headers)
+        assert (resp.status_code, resp.json or resp.data) == expected
 
 
 @pytest.mark.parametrize(["url", "expected_data"], [

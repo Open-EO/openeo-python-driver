@@ -73,5 +73,6 @@ config = OpenEoBackendConfig(
     capabilities_deploy_metadata=build_backend_deploy_metadata(packages=["openeo", "openeo_driver"]),
     processing_facility="Dummy openEO API",
     oidc_providers=oidc_providers,
+    enable_basic_auth=True,
     valid_basic_auth=_valid_basic_auth,
 )

@@ -19,6 +19,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.79.0
+
+- Disable basic auth support by default ([#90](https://github.com/Open-EO/openeo-python-driver/issues/90))
+
 ## 0.78.0
 
 - `OpenEoBackendConfig`: make showing stack trace on `_load` configurable

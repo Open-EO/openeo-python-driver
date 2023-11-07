@@ -41,7 +41,11 @@ class OpenEoBackendConfig:
     processing_facility: str = "openEO"
     processing_software: str = "openeo-python-driver"
 
-    enable_basic_auth: bool = True
+    # TODO: merge `enable_basic_auth` and `valid_basic_auth` into a single config field.
+    enable_basic_auth: bool = False
+    # `valid_basic_auth`: function that takes a username and password and returns a boolean indicating if password is correct.
+    valid_basic_auth: Optional[Callable[[str, str], bool]] = None
+
     enable_oidc_auth: bool = True
 
     oidc_providers: List[OidcProvider] = attrs.Factory(list)
@@ -54,9 +58,6 @@ class OpenEoBackendConfig:
     # but could also identify a OIDC client authenticated through the client credentials grant.
     # TODO: allow it to be a callable instead of a dictionary?
     oidc_user_map: Dict[Tuple[str, str], dict] = attrs.Factory(dict)
-
-    # TODO #90 #186: eliminate simple password scheme
-    valid_basic_auth: Callable[[str, str], bool] = lambda u, p: p == f"{u}123"
 
     # General Flask related settings
     # (e.g. see https://flask.palletsprojects.com/en/2.3.x/config/#builtin-configuration-values)
