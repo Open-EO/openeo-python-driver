@@ -31,7 +31,7 @@ DUMMY_PROCESS = {
 }
 
 
-def test_get_ejr_credentials_from_env(monkeypatch):
+def test_get_ejr_credentials_from_env_legacy(monkeypatch):
     monkeypatch.setenv("OPENEO_EJR_OIDC_ISSUER", "https://id.example")
     monkeypatch.setenv("OPENEO_EJR_OIDC_CLIENT_ID", "c-9876")
     monkeypatch.setenv("OPENEO_EJR_OIDC_CLIENT_SECRET", "!@#$%%")
@@ -39,13 +39,36 @@ def test_get_ejr_credentials_from_env(monkeypatch):
     assert creds == ("https://id.example", "c-9876", "!@#$%%")
 
 
-def test_get_ejr_credentials_from_env_strictness(monkeypatch):
+def test_get_ejr_credentials_from_env_compact(monkeypatch):
+    monkeypatch.setenv("OPENEO_EJR_OIDC_CLIENT_CREDENTIALS", "c-534:!f00ba>@https://id2.example")
+    creds = get_ejr_credentials_from_env()
+    assert creds == ("https://id2.example", "c-534", "!f00ba>")
+
+
+def test_get_ejr_credentials_from_env_both(monkeypatch):
+    monkeypatch.setenv("OPENEO_EJR_OIDC_ISSUER", "https://id.example")
+    monkeypatch.setenv("OPENEO_EJR_OIDC_CLIENT_ID", "c-9876")
+    monkeypatch.setenv("OPENEO_EJR_OIDC_CLIENT_SECRET", "!@#$%%")
+    monkeypatch.setenv("OPENEO_EJR_OIDC_CLIENT_CREDENTIALS", "c-534:!f00ba>@https://id2.example")
+    creds = get_ejr_credentials_from_env()
+    assert creds == ("https://id2.example", "c-534", "!f00ba>")
+
+
+def test_get_ejr_credentials_from_env_strictness_legacy(monkeypatch):
     monkeypatch.setenv("OPENEO_EJR_OIDC_ISSUER", "https://id.example")
     monkeypatch.setenv("OPENEO_EJR_OIDC_CLIENT_ID", "c-9876")
     with pytest.raises(
         EjrError,
         match="Failed building ClientCredentials from env: missing {'OPENEO_EJR_OIDC_CLIENT_SECRET'}",
     ):
+        _ = get_ejr_credentials_from_env()
+    creds = get_ejr_credentials_from_env(strict=False)
+    assert creds is None
+
+
+def test_get_ejr_credentials_from_env_strictness_compact(monkeypatch):
+    monkeypatch.setenv("OPENEO_EJR_OIDC_CLIENT_CREDENTIALS", "c-534@https://id2.example")
+    with pytest.raises(ValueError, match="Failed parsing ClientCredentials from credentials string"):
         _ = get_ejr_credentials_from_env()
     creds = get_ejr_credentials_from_env(strict=False)
     assert creds is None

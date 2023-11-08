@@ -169,8 +169,17 @@ def get_ejr_credentials_from_env(
 ) -> Union[ClientCredentials, None]:
     # TODO only really used in openeo-geopyspark-driver atm
     # TODO Generalize this functionality (map env vars to NamedTuple) in some way?
-    # TODO: also support single env var mode with `ClientCredentials.from_credentials_string`
     env = env or os.environ
+
+    if os.environ.get("OPENEO_EJR_OIDC_CLIENT_CREDENTIALS"):
+        creds = ClientCredentials.from_credentials_string(
+            os.environ["OPENEO_EJR_OIDC_CLIENT_CREDENTIALS"], strict=strict
+        )
+        if creds:
+            _log.debug("Got EJR credentials from env var (compact style)")
+            return creds
+
+    # TODO: deprecate this legacy code path
     env_var_mapping = {
         "oidc_issuer": "OPENEO_EJR_OIDC_ISSUER",
         "client_id": "OPENEO_EJR_OIDC_CLIENT_ID",
@@ -183,6 +192,7 @@ def get_ejr_credentials_from_env(
             missing = set(env_var_mapping.values()).difference(env.keys())
             raise EjrError(f"Failed building {ClientCredentials.__name__} from env: missing {missing!r}") from None
     else:
+        _log.debug("Got EJR credentials from env vars (legacy style)")
         return ClientCredentials(**kwargs)
 
 
