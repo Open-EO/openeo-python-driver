@@ -1,3 +1,4 @@
+import os
 from typing import Callable, Dict, List, Optional, Tuple
 
 import attrs
@@ -24,6 +25,10 @@ class OpenEoBackendConfig:
 
     # identifier for this config
     id: Optional[str] = None
+
+    # Generic indicator describing the environment the code is deployed in
+    # (e.g. "prod", "dev", "staging", "test", "integration", ...)
+    deploy_env: str = os.environ.get("OPENEO_DEPLOY_ENV") or os.environ.get("OPENEO_ENV") or "dev"
 
     capabilities_service_id: Optional[str] = None
     capabilities_title: str = "Untitled openEO Backend"
