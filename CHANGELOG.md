@@ -19,6 +19,15 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.76.1
+
+- Attempt to workaround issue with in-place process graph modification
+  and process registry process spec JSON (re)encoding ([Open-EO/openeo-geopyspark-driver#567](https://github.com/Open-EO/openeo-geopyspark-driver/issues/567))
+
+## 0.76.0
+
+- Add `OpenEoBackendConfig.deploy_env`
+
 ## 0.75.0
 
 - Move `enable_basic_auth`/`enable_oidc_auth` to `OpenEoBackendConfig`
