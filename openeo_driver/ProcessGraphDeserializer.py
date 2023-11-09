@@ -3,6 +3,7 @@
 # pylint: disable=unused-argument
 
 import calendar
+import copy
 import datetime
 import logging
 import math
@@ -347,6 +348,8 @@ def evaluate(
 ) -> Union[DriverDataCube, Any]:
     """
     Converts the json representation of a (part of a) process graph into the corresponding Python data cube.
+
+    Warning: this function could manipulate the given process graph dict in-place (see `convert_node`).
     """
 
     if "version" not in env:
@@ -379,6 +382,11 @@ def evaluate(
 
 
 def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
+    """
+
+    Warning: this function could manipulate the given process graph dict in-place,
+    e.g. by adding a "result_cache" key (see lower).
+    """
     if isinstance(processGraph, dict):
         if 'process_id' in processGraph:
             process_id = processGraph['process_id']
@@ -396,6 +404,8 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
                     if isinstance(comparison,bool) and comparison:
                         _log.info(f"Reusing an already evaluated subgraph for process {process_id}")
                         return cached
+                # TODO: this manipulates the process graph, while we often assume it's immutable.
+                #       Adding complex data structures could also interfere with attempts to (re)encode the process graph as JSON again.
                 processGraph["result_cache"] = process_result
             return process_result
         elif 'node' in processGraph:
@@ -1735,6 +1745,9 @@ def _evaluate_process_graph_process(
             else:
                 raise ProcessParameterRequiredException(process=process_id, parameter=name)
     env = env.push_parameters(args)
+
+    # Make a deep copy of the process graph (as the `evaluate` pipeline might modify it)
+    process_graph = copy.deepcopy(process_graph)
     return evaluate(process_graph, env=env, do_dry_run=False)
 
 
