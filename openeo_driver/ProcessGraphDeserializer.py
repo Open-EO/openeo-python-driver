@@ -517,6 +517,9 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
 
     params = LoadParameters()
     params.temporal_extent = constraints.get("temporal_extent", ["1970-01-01", "2070-01-01"])
+    labels_args = constraints.get("filter_labels", {})
+    if("dimension" in labels_args and labels_args["dimension"] == "t"):
+        params.filter_temporal_labels = labels_args.get("condition")
     params.spatial_extent = constraints.get("spatial_extent", {})
     params.global_extent = global_extent
     params.bands = constraints.get("bands", None)
@@ -1166,6 +1169,16 @@ def filter_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
     extent = _extract_temporal_extent(args, field="extent", process_id="filter_temporal")
     return cube.filter_temporal(start=extent[0], end=extent[1])
 
+@process
+def filter_labels(args: dict, env: EvalEnv) -> DriverDataCube:
+    cube = extract_arg(args, 'data')
+    if not isinstance(cube, DriverDataCube):
+        raise ProcessParameterInvalidException(
+            parameter="data", process="filter_labels",
+            reason=f"Invalid data type {type(cube)!r} expected cube."
+        )
+    extent = _extract_temporal_extent(args, field="extent", process_id="filter_temporal")
+    return cube.filter_labels(start=extent[0], end=extent[1])
 
 def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox", handle_geojson=False) -> dict:
     extent = extract_arg(args, name=field, process_id=process_id)

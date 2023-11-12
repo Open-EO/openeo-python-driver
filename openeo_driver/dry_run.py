@@ -391,7 +391,7 @@ class DryRunDataTracer:
 
             for op in [
                 "temporal_extent", "spatial_extent", "_weak_spatial_extent", "bands", "aggregate_spatial",
-                "sar_backscatter", "process_type", "custom_cloud_mask", "properties", "filter_spatial"
+                "sar_backscatter", "process_type", "custom_cloud_mask", "properties", "filter_spatial", "filter_labels"
             ]:
                 # 1 some processes can not be skipped when pushing filters down,
                 # so find the subgraph that no longer contains these blockers
@@ -516,6 +516,9 @@ class DryRunDataCube(DriverDataCube):
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
         # TODO: this method should be deprecated (limited to single asset) in favor of write_assets (supports multiple assets)
         return self._process("save_result", {"format": format, "options": format_options})
+
+    def filter_labels(self, condition: dict,dimension: str, context: Optional[dict] = None, env: EvalEnv = None ) -> 'DryRunDataCube':
+        return self._process("filter_labels", arguments=dict(condition=condition, dimension=dimension,context=context))
 
     def mask(self, mask: 'DryRunDataCube', replacement=None) -> 'DryRunDataCube':
         # TODO: if mask cube has no temporal or bbox extent: copy from self?
