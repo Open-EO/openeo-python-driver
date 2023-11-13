@@ -162,6 +162,7 @@ class LoadParameters(dict):
     temporal_extent = dict_item(default=(None, None))
     spatial_extent = dict_item(default={})
     global_extent = dict_item(default={})
+    filter_temporal_labels = dict_item(default=None)
     bands = dict_item(default=None)
     properties = dict_item(default={})
     # TODO: rename this to filter_spatial_geometries (because it is used for load_collection-time filtering)?
