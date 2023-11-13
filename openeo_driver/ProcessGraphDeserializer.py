@@ -1169,7 +1169,8 @@ def filter_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
     extent = _extract_temporal_extent(args, field="extent", process_id="filter_temporal")
     return cube.filter_temporal(start=extent[0], end=extent[1])
 
-@process
+@process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/filter_labels.json"))
+@process_registry_2xx.add_function(spec=read_spec("openeo-processes/2.x/proposals/filter_labels.json"))
 def filter_labels(args: dict, env: EvalEnv) -> DriverDataCube:
     cube = extract_arg(args, 'data')
     if not isinstance(cube, DriverDataCube):
@@ -1177,8 +1178,8 @@ def filter_labels(args: dict, env: EvalEnv) -> DriverDataCube:
             parameter="data", process="filter_labels",
             reason=f"Invalid data type {type(cube)!r} expected cube."
         )
-    extent = _extract_temporal_extent(args, field="extent", process_id="filter_temporal")
-    return cube.filter_labels(start=extent[0], end=extent[1])
+
+    return cube.filter_labels(condition=extract_arg(args,"condition"),dimension=extract_arg(args,"dimension"),context=args.get("context",None),env=env)
 
 def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox", handle_geojson=False) -> dict:
     extent = extract_arg(args, name=field, process_id=process_id)
