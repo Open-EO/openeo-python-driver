@@ -19,6 +19,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.77.2
+
+- fixup "polygons" argument of "apply_polygon" ([#229](https://github.com/Open-EO/openeo-python-driver/issues/229))
+
 ## 0.76.1
 
 - Attempt to workaround issue with in-place process graph modification

@@ -789,9 +789,7 @@ def reduce_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 @process_registry_100.add_function(
     spec=read_spec("openeo-processes/experimental/chunk_polygon.json"), name="chunk_polygon"
 )
-@process_registry_100.add_function(spec=read_spec("openeo-processes/2.x/proposals/apply_polygon.json"))
-@process_registry_2xx.add_function(spec=read_spec("openeo-processes/2.x/proposals/apply_polygon.json"))
-def apply_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+def chunk_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     # TODO #229 deprecate this process and promote the "apply_polygon" name.
     #       See https://github.com/Open-EO/openeo-processes/issues/287, https://github.com/Open-EO/openeo-processes/pull/298
     data_cube = args.get_required("data", expected_type=DriverDataCube)
@@ -827,6 +825,46 @@ def apply_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
         raise ProcessParameterInvalidException(parameter='chunks', process='chunk_polygon', reason=reason)
 
     return data_cube.chunk_polygon(reducer=reduce_pg, chunks=polygon, mask_value=mask_value, context=context, env=env)
+
+
+@process_registry_100.add_function(spec=read_spec("openeo-processes/2.x/proposals/apply_polygon.json"))
+@process_registry_2xx.add_function(spec=read_spec("openeo-processes/2.x/proposals/apply_polygon.json"))
+def apply_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    data_cube = args.get_required("data", expected_type=DriverDataCube)
+    process = args.get_deep("process", "process_graph", expected_type=dict)
+    polygons = args.get_required("polygons")
+    mask_value = args.get_optional("mask_value", expected_type=(int, float), default=None)
+    context = args.get_optional("context", default=None)
+
+    # TODO #114 EP-3981 normalize first to vector cube and simplify logic
+    # TODO: this logic (copied from original chunk_polygon implementation) coerces the input polygons
+    #       to a single MultiPolygon of pure (non-multi) polygons, which is conceptually wrong.
+    #       Instead it should normalize to a feature collection or vector cube.
+    if isinstance(polygons, DelayedVector):
+        polygons = list(polygons.geometries)
+        for p in polygons:
+            if not isinstance(p, shapely.geometry.Polygon):
+                reason = "{m!s} is not a polygon.".format(m=p)
+                raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
+        polygon = MultiPolygon(polygons)
+    elif isinstance(polygons, shapely.geometry.base.BaseGeometry):
+        polygon = MultiPolygon(polygons)
+    elif isinstance(polygons, dict):
+        polygon = geojson_to_multipolygon(polygons)
+        if isinstance(polygon, shapely.geometry.Polygon):
+            polygon = MultiPolygon([polygon])
+    elif isinstance(polygons, str):
+        # Delayed vector is not supported yet.
+        reason = "Polygon of type string is not yet supported."
+        raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
+    else:
+        reason = "Polygon type is not supported."
+        raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
+    if polygon.area == 0:
+        reason = "Polygon {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
+        raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
+
+    return data_cube.apply_polygon(polygons=polygon, process=process, mask_value=mask_value, context=context, env=env)
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/fit_class_random_forest.json"))

@@ -1,3 +1,4 @@
+from __future__ import annotations
 import abc
 import inspect
 import io
@@ -125,8 +126,22 @@ class DriverDataCube:
         env: EvalEnv,
         context: Optional[dict] = None,
     ) -> "DriverDataCube":
-        # TODO: rename/update `chunk_polygon` to `apply_polygon` (https://github.com/Open-EO/openeo-processes/pull/298)
+        # TODO #229 drop this deprecated API once unused (replaced by `apply_polygon`) (https://github.com/Open-EO/openeo-processes/pull/298)
         self._not_implemented()
+
+    def apply_polygon(
+        self,
+        *,
+        # TODO #229 better type for `polygons` arg: should be vector cube or feature collection like construct
+        polygons: shapely.geometry.base.BaseGeometry,
+        process: dict,
+        mask_value: Optional[float] = None,
+        context: Optional[dict] = None,
+        env: EvalEnv,
+    ) -> DriverDataCube:
+        # TODO #229 remove this temporary adapter to deprecated `chunk_polygon` method.
+        return self.chunk_polygon(reducer=process, chunks=polygons, mask_value=mask_value, env=env, context=context)
+        # self._not_implemented()
 
     def add_dimension(self, name: str, label, type: str = "other") -> 'DriverDataCube':
         self._not_implemented()
