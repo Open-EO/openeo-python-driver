@@ -138,7 +138,7 @@ class TestGeneral:
         assert by_api_version == {
             "1.0.0": {"api_version": "1.0.0", "production": True, "url": "http://oeo.net/openeo/1.0/"},
             "1.1.0": {"api_version": "1.1.0", "production": True, "url": "http://oeo.net/openeo/1.1/"},
-            "1.2.0": {"api_version": "1.2.0", "production": False, "url": "http://oeo.net/openeo/1.2/"},
+            "1.2.0": {"api_version": "1.2.0", "production": True, "url": "http://oeo.net/openeo/1.2/"},
         }
         assert resp.headers["Cache-Control"] == "max-age=900, public"
 
@@ -154,13 +154,18 @@ class TestGeneral:
         for url in [v["url"] for v in resp.json["versions"]]:
             assert url.startswith(expected)
 
-    @pytest.mark.parametrize(["url", "expected_version"], [
-        ("/openeo/1.0/", "1.0.0"),
-        ("/openeo/1.0.0/", "1.0.0"),
-        ("/openeo/1.1/", "1.1.0"),
-        ("/openeo/1.1.0/", "1.1.0"),
-        ("/openeo/", "1.1.0"),
-    ])
+    @pytest.mark.parametrize(
+        ["url", "expected_version"],
+        [
+            ("/openeo/1.0/", "1.0.0"),
+            ("/openeo/1.0.0/", "1.0.0"),
+            ("/openeo/1.1/", "1.1.0"),
+            ("/openeo/1.1.0/", "1.1.0"),
+            ("/openeo/1.2/", "1.2.0"),
+            ("/openeo/1/", "1.2.0"),
+            ("/openeo/", "1.2.0"),
+        ],
+    )
     def test_versioned_urls(self, client, url, expected_version):
         resp = client.get(url)
         assert resp.status_code == 200
