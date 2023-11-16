@@ -11,6 +11,7 @@ import shapely.ops
 from shapely.geometry import MultiPolygon, Polygon
 from shapely.geometry.base import BaseGeometry
 
+from openeo.util import repr_truncate
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.util.utm import auto_utm_epsg, auto_utm_epsg_for_geometry
 
@@ -78,7 +79,7 @@ def validate_geojson_basic(
     return []
 
 
-def validate_geojson_coordinates(geojson):
+def validate_geojson_coordinates(geojson: dict):
     def _validate_coordinates(coordinates, initial_run=True):
         max_evaluations = 20
         message = f"Failed to parse Geojson. Coordinates are invalid."
@@ -119,6 +120,11 @@ def validate_geojson_coordinates(geojson):
                 _validate_geometry_collection(feature["geometry"])
             else:
                 _validate_coordinates(feature["geometry"]["coordinates"])
+
+    if not isinstance(geojson, dict):
+        raise ValueError(f"Invalid GeoJSON: not a dict: {repr_truncate(geojson)}")
+    if "type" not in geojson:
+        raise ValueError(f"Invalid GeoJSON: missing 'type' field: {repr_truncate(geojson)}")
 
     if geojson["type"] == "Feature":
         geojson = geojson["geometry"]
