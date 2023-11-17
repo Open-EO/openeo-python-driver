@@ -11,6 +11,7 @@ import numpy
 import pytest
 import requests
 
+from openeo_driver.config import get_backend_config
 from openeo_driver.testing import (
     ApiTester,
     ApproxGeoJSONByBounds,
@@ -22,6 +23,7 @@ from openeo_driver.testing import (
     UrllibMocker,
     approxify,
     caplog_with_custom_formatter,
+    config_overrides,
     ephemeral_fileserver,
     preprocess_check_and_replace,
 )
@@ -348,3 +350,52 @@ class TestApproxGeoJSONByBounds:
         expected = ApproxGeoJSONByBounds(1, 1, 3, 4, types=["MultiPolygon"], abs=0.1)
         assert geometry != expected
         assert "Wrong type 'Polygon'" in repr(expected)
+
+
+class TestConfigOverrides:
+    def test_baseline(self):
+        assert get_backend_config().id == "openeo-python-driver-dummy"
+
+    def test_context(self):
+        assert get_backend_config().id == "openeo-python-driver-dummy"
+        with config_overrides(id="hello-inline-context"):
+            assert get_backend_config().id == "hello-inline-context"
+        assert get_backend_config().id == "openeo-python-driver-dummy"
+
+    def test_context_nesting(self):
+        assert get_backend_config().id == "openeo-python-driver-dummy"
+        with config_overrides(id="hello-inline-context"):
+            assert get_backend_config().id == "hello-inline-context"
+            with config_overrides(id="hello-again"):
+                assert get_backend_config().id == "hello-again"
+            assert get_backend_config().id == "hello-inline-context"
+        assert get_backend_config().id == "openeo-python-driver-dummy"
+
+    @pytest.fixture
+    def special_stuff(self):
+        with config_overrides(id="hello-fixture"):
+            yield
+
+    def test_fixture(self, special_stuff):
+        assert get_backend_config().id == "hello-fixture"
+
+    def test_fixture_and_context(self, special_stuff):
+        assert get_backend_config().id == "hello-fixture"
+        with config_overrides(id="hello-inline-context"):
+            assert get_backend_config().id == "hello-inline-context"
+        assert get_backend_config().id == "hello-fixture"
+
+    @config_overrides(id="hello-decorator")
+    def test_decorator(self):
+        assert get_backend_config().id == "hello-decorator"
+
+    @config_overrides(id="hello-decorator")
+    def test_decorator_and_context(self):
+        assert get_backend_config().id == "hello-decorator"
+        with config_overrides(id="hello-inline-context"):
+            assert get_backend_config().id == "hello-inline-context"
+        assert get_backend_config().id == "hello-decorator"
+
+    @config_overrides(id="hello-decorator")
+    def test_decorator_vs_fixture(self, special_stuff):
+        assert get_backend_config().id == "hello-decorator"

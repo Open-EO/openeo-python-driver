@@ -158,12 +158,12 @@ def test_add_mandatory_fields():
 @pytest.mark.parametrize(
     ["backend_config_overrides", "expected_id"],
     [
-        (None, "dummy"),
-        ({}, "dummy"),
+        (None, "openeo-python-driver-dummy"),
+        ({}, "openeo-python-driver-dummy"),
         ({"id": "overridden!"}, "overridden!"),
     ],
 )
-def test_pytest_override_context(backend_config, backend_config_overrides, expected_id):
+def test_backend_config_overrides(backend_config, backend_config_overrides, expected_id):
     config = get_backend_config()
     assert config.id == expected_id
 

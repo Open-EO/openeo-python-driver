@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Callable, Collection, Dict, Optional, Pattern, Tuple, Union
 from unittest import mock
 
+import attrs
 import openeo
 import openeo.processes
 import pytest
@@ -24,6 +25,7 @@ from flask.testing import FlaskClient
 from openeo.capabilities import ComparableVersion
 from werkzeug.datastructures import Headers
 
+from openeo_driver.config.load import ConfigGetter, _backend_config_getter
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.util.geometry import as_geojson_feature, as_geojson_feature_collection
 from openeo_driver.utils import generate_unique_id
@@ -667,3 +669,35 @@ def ephemeral_fileserver(path: Union[Path, str], host: str = "localhost", port: 
         server_process.join(timeout=2)
         _log.info(f"ephemeral_fileserver: terminated with exitcode={server_process.exitcode}")
         server_process.close()
+
+
+def config_overrides(config_getter: ConfigGetter = _backend_config_getter, **kwargs):
+    """
+    *Only to be used in tests*
+
+    `mock.patch` based mocker to override the config returned by `get_backend_config()`
+
+    Can be used as context manager
+
+        >>> with config_overrides(id="foobar"):
+        ...     ...
+
+    in a fixture (as context manager):
+
+        >>> @pytest.fixture
+        ... def custom_setup()
+        ...     with config_overrides(id="foobar"):
+        ...         yield
+
+    or as test function decorator
+
+        >>> @config_overrides(id="foobar")
+        ... def test_stuff():
+    """
+    orig_config = config_getter.get()
+    config_kwargs = {
+        **attrs.asdict(orig_config, recurse=False),
+        **kwargs,
+    }
+    overriden_config = config_getter.expected_class(**config_kwargs)
+    return mock.patch.object(config_getter, "_config", new=overriden_config)

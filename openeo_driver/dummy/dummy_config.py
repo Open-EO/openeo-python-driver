@@ -66,7 +66,7 @@ def _valid_basic_auth(username: str, password: str) -> bool:
 
 
 config = OpenEoBackendConfig(
-    id="dummy",
+    id="openeo-python-driver-dummy",
     capabilities_title="Dummy openEO Backend",
     capabilities_description="Dummy openEO backend provided by [openeo-python-driver](https://github.com/Open-EO/openeo-python-driver).",
     capabilities_backend_version="1.2.3-foo",

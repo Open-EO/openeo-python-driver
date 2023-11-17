@@ -15,7 +15,7 @@ import openeo_driver.dummy.dummy_config
 from openeo_driver.backend import UserDefinedProcesses
 from openeo_driver.config import OpenEoBackendConfig
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
-from openeo_driver.testing import UrllibMocker
+from openeo_driver.testing import UrllibMocker, config_overrides
 from openeo_driver.util.logging import (
     LOGGING_CONTEXT_BATCH_JOB,
     LOGGING_CONTEXT_FLASK,
@@ -52,9 +52,7 @@ def backend_config(backend_config_overrides) -> OpenEoBackendConfig:
     if backend_config_overrides is None:
         yield openeo_driver.config.load.get_backend_config()
     else:
-        with openeo_driver.config.load._backend_config_getter._pytest_override_context(
-            overrides=backend_config_overrides
-        ):
+        with config_overrides(**backend_config_overrides):
             yield openeo_driver.config.load.get_backend_config()
 
 
