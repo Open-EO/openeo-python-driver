@@ -83,7 +83,7 @@ class DriverDataCube:
     def filter_bands(self, bands) -> 'DriverDataCube':
         self._not_implemented()
 
-    def filter_labels(self, condition: dict,dimensin: str, context: Optional[dict] = None, env: EvalEnv = None ) -> 'DriverDataCube':
+    def filter_labels(self, condition: dict,dimension: str, context: Optional[dict] = None, env: EvalEnv = None ) -> 'DriverDataCube':
         self._not_implemented()
 
     def apply(self, process: dict, *, context: Optional[dict] = None, env: EvalEnv) -> "DriverDataCube":
