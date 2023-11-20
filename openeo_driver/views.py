@@ -1721,7 +1721,7 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
                         dim["extent"] = interval
 
     # Make sure some required fields are set.
-    metadata.setdefault("stac_version", "0.9.0" if api_version.at_least("1.0.0") else "0.6.2")
+    metadata.setdefault("stac_version", "0.9.0")
     metadata.setdefault(
         "stac_extensions",
         [
@@ -1748,16 +1748,10 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
     # Warn about missing fields where simple defaults are not feasible.
     fallbacks = {
         "extent": {"spatial": {"bbox": [default_bbox]}, "temporal": {"interval": [default_temporal_interval]}},
-    } if api_version.at_least("1.0.0") else {
-        "extent": {"spatial": default_bbox, "temporal": default_temporal_interval},
     }
     if full:
-        if api_version.at_least("1.0.0"):
-            fallbacks["cube:dimensions"] = {}
-            fallbacks["summaries"] = {}
-        else:
-            fallbacks["properties"] = {}
-            fallbacks["other_properties"] = {}
+        fallbacks["cube:dimensions"] = {}
+        fallbacks["summaries"] = {}
 
     for key, value in fallbacks.items():
         if key not in metadata:
