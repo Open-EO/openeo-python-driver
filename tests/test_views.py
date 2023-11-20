@@ -852,44 +852,6 @@ class TestCollections:
         errors = [r.getMessage() for r in caplog.records if r.levelno == logging.ERROR]
         assert any("should have 'id' field" in m for m in errors)
 
-    def test_normalize_collection_metadata_minimal_040(self, caplog):
-        assert _normalize_collection_metadata({"id": "foobar"}, api_version=ComparableVersion("0.4.2")) == {
-            "id": "foobar",
-            "stac_version": "0.6.2",
-            "stac_extensions": [
-                "https://stac-extensions.github.io/datacube/v2.2.0/schema.json",
-                "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
-            ],
-            "description": "foobar",
-            "extent": {"spatial": [0, 0, 0, 0], "temporal": [None, None]},
-            "license": "proprietary",
-            "links": [],
-        }
-        warnings = set(r.getMessage() for r in caplog.records if r.levelno == logging.WARN)
-        assert warnings == {"Collection 'foobar' metadata does not have field 'extent'."}
-
-    def test_normalize_collection_metadata_minimal_full_040(self, caplog):
-        assert _normalize_collection_metadata({"id": "foobar"}, api_version=ComparableVersion("0.4.2"), full=True) == {
-            "id": "foobar",
-            "stac_version": "0.6.2",
-            "stac_extensions": [
-                "https://stac-extensions.github.io/datacube/v2.2.0/schema.json",
-                "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
-            ],
-            "description": "foobar",
-            "extent": {"spatial": [0, 0, 0, 0], "temporal": [None, None]},
-            "license": "proprietary",
-            "properties": {},
-            "other_properties": {},
-            "links": [],
-        }
-        warnings = set(r.getMessage() for r in caplog.records if r.levelno == logging.WARN)
-        assert warnings == {
-            "Collection 'foobar' metadata does not have field 'extent'.",
-            "Collection 'foobar' metadata does not have field 'other_properties'.",
-            "Collection 'foobar' metadata does not have field 'properties'.",
-        }
-
     def test_normalize_collection_metadata_minimal_100(self, caplog):
         assert _normalize_collection_metadata({"id": "foobar"}, api_version=ComparableVersion("1.0.0")) == {
             "id": "foobar",
@@ -961,24 +923,6 @@ class TestCollections:
             }, 'summaries': {},
             'links': [],
         }
-
-    def test_normalize_collection_metadata_dimensions_and_bands_040(self, caplog):
-        metadata = {
-            "id": "foobar",
-            "cube:dimensions": {
-                "x": {"type": "spatial"},
-                "b": {"type": "bands", "values": ["B02", "B03"]}
-            },
-            "summaries": {
-                "eo:bands": [{"name": "B02"}, {"name": "B03"}]
-            }
-        }
-        res = _normalize_collection_metadata(metadata, api_version=ComparableVersion("0.4.0"), full=True)
-        assert res["properties"]["cube:dimensions"] == {
-            "x": {"type": "spatial"},
-            "b": {"type": "bands", "values": ["B02", "B03"]}
-        }
-        assert res["properties"]["eo:bands"] == [{"name": "B02"}, {"name": "B03"}]
 
     def test_normalize_collection_metadata_dimensions_and_bands_100(self, caplog):
         metadata = {

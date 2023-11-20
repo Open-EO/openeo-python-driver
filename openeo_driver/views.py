@@ -1679,46 +1679,34 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
     extent_temporal_100 = deep_get(metadata, "extent", "temporal", "interval", default=None)
     extent_temporal_040 = deep_get(metadata, "extent", "temporal", default=None)
     rfc3339_dt = Rfc3339(propagate_none=True).datetime
-    if api_version.below("1.0.0"):
-        if full and not cube_dims_040 and cube_dims_100:
-            metadata.setdefault("properties", {})
-            metadata["properties"]["cube:dimensions"] = cube_dims_100
-        if full and not eo_bands_040 and eo_bands_100:
-            metadata.setdefault("properties", {})
-            metadata["properties"]["eo:bands"] = eo_bands_100
-        if extent_spatial_100:
-            metadata["extent"]["spatial"] = extent_spatial_100[0]
-        if extent_temporal_100 or extent_spatial_040:
-            metadata["extent"]["temporal"] = [rfc3339_dt(v) for v in (extent_temporal_100[0] or extent_temporal_040)]
-    else:
-        if full and not cube_dims_100 and cube_dims_040:
-            _log.warning("Collection metadata 'cube:dimensions' in API 0.4 style instead of 1.0 style")
-            metadata["cube:dimensions"] = cube_dims_040
-        if full and not eo_bands_100 and eo_bands_040:
-            _log.warning("Collection metadata 'eo:bands' in API 0.4 style instead of 1.0 style")
-            metadata.setdefault("summaries", {})
-            metadata["summaries"]["eo:bands"] = eo_bands_040
-        if not extent_spatial_100 and extent_spatial_040:
-            _log.warning("Collection metadata 'extent': 'spatial' in API 0.4 style instead of 1.0 style")
-            metadata["extent"]["spatial"] = {}
-            metadata["extent"]["spatial"]["bbox"] = [extent_spatial_040]
-        if not extent_temporal_100 and extent_temporal_040:
-            _log.warning("Collection metadata 'extent': 'temporal' in API 0.4 style instead of 1.0 style")
-            metadata["extent"]["temporal"] = {}
-            metadata["extent"]["temporal"]["interval"] = [[rfc3339_dt(v) for v in extent_temporal_040]]
-        elif extent_temporal_100:
-            metadata["extent"]["temporal"]["interval"] = [[rfc3339_dt(v) for v in r] for r in extent_temporal_100]
-        if full:
-            bbox = deep_get(metadata, "extent", "spatial", "bbox", default=[default_bbox])[0]
-            interval = deep_get(metadata, "extent", "temporal", "interval", default=[default_temporal_interval])[0]
-            for _, dim in metadata.get("cube:dimensions", {}).items():
-                if "extent" not in dim:
-                    if dim.get("type") == "spatial" and dim.get("axis") == "x":
-                        dim["extent"] = bbox[0::2]
-                    elif dim.get("type") == "spatial" and dim.get("axis") == "y":
-                        dim["extent"] = bbox[1::2]
-                    elif dim.get("type") == "temporal":
-                        dim["extent"] = interval
+    if full and not cube_dims_100 and cube_dims_040:
+        _log.warning("Collection metadata 'cube:dimensions' in API 0.4 style instead of 1.0 style")
+        metadata["cube:dimensions"] = cube_dims_040
+    if full and not eo_bands_100 and eo_bands_040:
+        _log.warning("Collection metadata 'eo:bands' in API 0.4 style instead of 1.0 style")
+        metadata.setdefault("summaries", {})
+        metadata["summaries"]["eo:bands"] = eo_bands_040
+    if not extent_spatial_100 and extent_spatial_040:
+        _log.warning("Collection metadata 'extent': 'spatial' in API 0.4 style instead of 1.0 style")
+        metadata["extent"]["spatial"] = {}
+        metadata["extent"]["spatial"]["bbox"] = [extent_spatial_040]
+    if not extent_temporal_100 and extent_temporal_040:
+        _log.warning("Collection metadata 'extent': 'temporal' in API 0.4 style instead of 1.0 style")
+        metadata["extent"]["temporal"] = {}
+        metadata["extent"]["temporal"]["interval"] = [[rfc3339_dt(v) for v in extent_temporal_040]]
+    elif extent_temporal_100:
+        metadata["extent"]["temporal"]["interval"] = [[rfc3339_dt(v) for v in r] for r in extent_temporal_100]
+    if full:
+        bbox = deep_get(metadata, "extent", "spatial", "bbox", default=[default_bbox])[0]
+        interval = deep_get(metadata, "extent", "temporal", "interval", default=[default_temporal_interval])[0]
+        for _, dim in metadata.get("cube:dimensions", {}).items():
+            if "extent" not in dim:
+                if dim.get("type") == "spatial" and dim.get("axis") == "x":
+                    dim["extent"] = bbox[0::2]
+                elif dim.get("type") == "spatial" and dim.get("axis") == "y":
+                    dim["extent"] = bbox[1::2]
+                elif dim.get("type") == "temporal":
+                    dim["extent"] = interval
 
     # Make sure some required fields are set.
     metadata.setdefault("stac_version", "0.9.0")
