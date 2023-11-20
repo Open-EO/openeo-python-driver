@@ -1009,159 +1009,148 @@ def register_views_batch_jobs(
         #   This is a bit of an ugly temporary hack, to aid in testing and comparing.
         TREAT_JOB_RESULTS_V100_LIKE_V110 = smart_bool(os.environ.get("TREAT_JOB_RESULTS_V100_LIKE_V110", "0"))
 
-        if requested_api_version().at_least("1.0.0"):
-            links: List[dict] = result_metadata.links or job_info.links or []
+        links: List[dict] = result_metadata.links or job_info.links or []
 
-            if not any(l.get("rel") == "self" for l in links):
-                links.append(
-                    {
-                        "rel": "self",
-                        "href": url_for(
-                            ".list_job_results", job_id=job_id, _external=True
-                        ),  # MUST be absolute
-                        "type": "application/json",
-                    }
+        if not any(l.get("rel") == "self" for l in links):
+            links.append(
+                {
+                    "rel": "self",
+                    "href": url_for(".list_job_results", job_id=job_id, _external=True),  # MUST be absolute
+                    "type": "application/json",
+                }
+            )
+        if not any(l.get("rel") == "canonical" for l in links):
+            links.append(
+                {
+                    "rel": "canonical",
+                    "href": job_results_canonical_url(),
+                    "type": "application/json",
+                }
+            )
+        if not any(l.get("rel") == "card4l-document" for l in links):
+            links.append(
+                {
+                    "rel": "card4l-document",
+                    # TODO: avoid hardcoding this specific URL?
+                    "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
+                    "type": "application/pdf",
+                }
+            )
+
+        assets = {
+            filename: _asset_object(job_id, user_id, filename, asset_metadata, job_info)
+            for filename, asset_metadata in result_assets.items()
+            if asset_metadata.get("asset", True)
+        }
+
+        if TREAT_JOB_RESULTS_V100_LIKE_V110 or requested_api_version().at_least("1.1.0"):
+            ml_model_metadata = None
+
+            def job_result_item_url(item_id) -> str:
+                signer = get_backend_config().url_signer
+                if not signer:
+                    return url_for(".get_job_result_item", job_id=job_id, item_id=item_id, _external=True)
+
+                expires = signer.get_expires()
+                secure_key = signer.sign_job_item(job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
+                user_base64 = user_id_b64_encode(user_id)
+                return url_for(
+                    ".get_job_result_item_signed",
+                    job_id=job_id,
+                    user_base64=user_base64,
+                    secure_key=secure_key,
+                    item_id=item_id,
+                    expires=expires,
+                    _external=True,
                 )
-            if not any(l.get("rel") == "canonical" for l in links):
-                links.append(
-                    {
-                        "rel": "canonical",
-                        "href": job_results_canonical_url(),
-                        "type": "application/json",
-                    }
-                )
-            if not any(l.get("rel") == "card4l-document" for l in links):
-                links.append(
-                    {
-                        "rel": "card4l-document",
-                        # TODO: avoid hardcoding this specific URL?
-                        "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
-                        "type": "application/pdf",
-                    }
-                )
 
-            assets = {
-                filename: _asset_object(job_id, user_id, filename, asset_metadata,job_info)
-                for filename, asset_metadata in result_assets.items()
-                if asset_metadata.get("asset", True)
-            }
-
-            if TREAT_JOB_RESULTS_V100_LIKE_V110 or requested_api_version().at_least("1.1.0"):
-                ml_model_metadata = None
-
-                def job_result_item_url(item_id) -> str:
-                    signer = get_backend_config().url_signer
-                    if not signer:
-                        return url_for('.get_job_result_item', job_id=job_id, item_id=item_id, _external=True)
-
-                    expires = signer.get_expires()
-                    secure_key = signer.sign_job_item(
-                        job_id=job_id, user_id=user_id, item_id=item_id, expires=expires
+            for filename, metadata in result_assets.items():
+                if "data" in metadata.get("roles", []) and "geotiff" in metadata.get("type", ""):
+                    links.append(
+                        {"rel": "item", "href": job_result_item_url(item_id=filename), "type": stac_item_media_type}
                     )
-                    user_base64 = user_id_b64_encode(user_id)
-                    return url_for(
-                        '.get_job_result_item_signed',
-                        job_id=job_id, user_base64=user_base64, secure_key=secure_key, item_id=item_id, expires=expires,
-                        _external=True)
+                elif metadata.get("ml_model_metadata", False):
+                    # TODO: Currently we only support one ml_model per batch job.
+                    ml_model_metadata = metadata
+                    links.append(
+                        {"rel": "item", "href": job_result_item_url(item_id=filename), "type": "application/json"}
+                    )
 
-                for filename, metadata in result_assets.items():
-                    if "data" in metadata.get("roles", []) and "geotiff" in metadata.get("type", ""):
-                        links.append({
-                            "rel": "item",
-                            "href": job_result_item_url(item_id=filename),
-                            "type": stac_item_media_type
-                        })
-                    elif metadata.get('ml_model_metadata', False):
-                        # TODO: Currently we only support one ml_model per batch job.
-                        ml_model_metadata = metadata
-                        links.append({
-                                "rel": "item",
-                                "href": job_result_item_url(item_id=filename),
-                                "type": "application/json"
-                        })
-
-                result = dict_no_none(
-                    {
-                        "type": "Collection",
-                        "stac_version": "1.0.0",
-                        "stac_extensions": [
-                            STAC_EXTENSION.EO,
-                            STAC_EXTENSION.FILEINFO,
-                            STAC_EXTENSION.PROCESSING,
-                            STAC_EXTENSION.PROJECTION
-                        ],
-                        "id": job_id,
-                        "title": job_info.title,
-                        "description": job_info.description or f"Results for batch job {job_id}",
-                        "license": "proprietary",  # TODO?
-                        "extent": {
-                            "spatial": {"bbox": [job_info.bbox]},
-                            "temporal": {
-                                "interval": [[to_datetime(job_info.start_datetime), to_datetime(job_info.end_datetime)]]
-                            },
+            result = dict_no_none(
+                {
+                    "type": "Collection",
+                    "stac_version": "1.0.0",
+                    "stac_extensions": [
+                        STAC_EXTENSION.EO,
+                        STAC_EXTENSION.FILEINFO,
+                        STAC_EXTENSION.PROCESSING,
+                        STAC_EXTENSION.PROJECTION,
+                    ],
+                    "id": job_id,
+                    "title": job_info.title,
+                    "description": job_info.description or f"Results for batch job {job_id}",
+                    "license": "proprietary",  # TODO?
+                    "extent": {
+                        "spatial": {"bbox": [job_info.bbox]},
+                        "temporal": {
+                            "interval": [[to_datetime(job_info.start_datetime), to_datetime(job_info.end_datetime)]]
                         },
-                        "summaries" : {
-                            "instruments":job_info.instruments
-                        },
-                        "providers": providers or None,
-                        "links": links,
-                        "assets": assets,
-                        "openeo:status": "finished",
-                    }
-                )
+                    },
+                    "summaries": {"instruments": job_info.instruments},
+                    "providers": providers or None,
+                    "links": links,
+                    "assets": assets,
+                    "openeo:status": "finished",
+                }
+            )
 
-                if ml_model_metadata is not None:
-                    result["stac_extensions"].extend(ml_model_metadata.get("stac_extensions", []))
-                    if "summaries" not in result.keys():
-                        result["summaries"] = {}
-                    if "properties" in ml_model_metadata.keys():
-                        ml_model_properties = ml_model_metadata["properties"]
-                        learning_approach = ml_model_properties.get("ml-model:learning_approach", None)
-                        prediction_type = ml_model_properties.get("ml-model:prediction_type", None)
-                        architecture = ml_model_properties.get("ml-model:architecture", None)
-                        result["summaries"].update({
+            if ml_model_metadata is not None:
+                result["stac_extensions"].extend(ml_model_metadata.get("stac_extensions", []))
+                if "summaries" not in result.keys():
+                    result["summaries"] = {}
+                if "properties" in ml_model_metadata.keys():
+                    ml_model_properties = ml_model_metadata["properties"]
+                    learning_approach = ml_model_properties.get("ml-model:learning_approach", None)
+                    prediction_type = ml_model_properties.get("ml-model:prediction_type", None)
+                    architecture = ml_model_properties.get("ml-model:architecture", None)
+                    result["summaries"].update(
+                        {
                             "ml-model:learning_approach": [learning_approach] if learning_approach is not None else [],
                             "ml-model:prediction_type": [prediction_type] if prediction_type is not None else [],
                             "ml-model:architecture": [architecture] if architecture is not None else [],
-                        })
-            else:
-                result = {
-                    "type": "Feature",
-                    "stac_version": "0.9.0",
-                    "id": job_info.id,
-                    "properties": _properties_from_job_info(job_info),
-                    "assets": assets,
-                    "links": links,
-                    "openeo:status": "finished",
-                }
-                if providers:
-                    result["providers"] = providers
-
-                geometry = job_info.geometry
-                result["geometry"] = geometry
-                if geometry:
-                    result["bbox"] = job_info.bbox
-
-                result["stac_extensions"] = [
-                    STAC_EXTENSION.PROCESSING,
-                    STAC_EXTENSION.CARD4LOPTICAL,
-                    STAC_EXTENSION.FILEINFO,
-                ]
-
-                if any("eo:bands" in asset_object for asset_object in result["assets"].values()):
-                    result["stac_extensions"].append(STAC_EXTENSION.EO)
-
-                if any(key.startswith("proj:") for key in result["properties"]) or any(
-                    key.startswith("proj:") for key in result["assets"]
-                ):
-                    result["stac_extensions"].append(STAC_EXTENSION.PROJECTION)
+                        }
+                    )
         else:
-            # TODO #47 drop pre-1.0.0 API support
             result = {
-                "links": [
-                    {"href": _job_result_download_url(job_id, user_id, filename)} for filename in result_assets.keys()
-                ]
+                "type": "Feature",
+                "stac_version": "0.9.0",
+                "id": job_info.id,
+                "properties": _properties_from_job_info(job_info),
+                "assets": assets,
+                "links": links,
+                "openeo:status": "finished",
             }
+            if providers:
+                result["providers"] = providers
+
+            geometry = job_info.geometry
+            result["geometry"] = geometry
+            if geometry:
+                result["bbox"] = job_info.bbox
+
+            result["stac_extensions"] = [
+                STAC_EXTENSION.PROCESSING,
+                STAC_EXTENSION.CARD4LOPTICAL,
+                STAC_EXTENSION.FILEINFO,
+            ]
+
+            if any("eo:bands" in asset_object for asset_object in result["assets"].values()):
+                result["stac_extensions"].append(STAC_EXTENSION.EO)
+
+            if any(key.startswith("proj:") for key in result["properties"]) or any(
+                key.startswith("proj:") for key in result["assets"]
+            ):
+                result["stac_extensions"].append(STAC_EXTENSION.PROJECTION)
 
         # TODO "OpenEO-Costs" header?
         return jsonify(result)
