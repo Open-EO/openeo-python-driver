@@ -41,6 +41,15 @@ TEST_USER_AUTH_HEADER = {
 TIFF_DUMMY_DATA = b'T1f7D6t6l0l' * 1000
 
 
+class DummyUser:
+    __slots__ = ["user_id", "bearer_token", "auth_header"]
+
+    def __init__(self, user_id: str = "alice2000"):
+        self.user_id = user_id
+        self.bearer_token = "basic//" + HttpAuthHandler.build_basic_access_token(user_id=self.user_id)
+        self.auth_header = {"Authorization": f"Bearer {self.bearer_token}"}
+
+
 def read_file(path: Union[Path, str], mode='r') -> str:
     """Get contents of given file as text string."""
     # TODO deprecated, just use Path(path).read_text(encoding="utf-8")
@@ -185,7 +194,12 @@ class ApiTester:
 
     def set_auth_bearer_token(self, token: str = TEST_USER_BEARER_TOKEN):
         """Authentication: set bearer token header for all requests."""
-        self.default_request_headers["Authorization"] = "Bearer " + token
+        self.default_request_headers["Authorization"] = f"Bearer {token}"
+
+    def ensure_auth_header(self):
+        """Set a default authorization header if none set up yet."""
+        if not self.default_request_headers.get("Authorization"):
+            self.set_auth_bearer_token()
 
     def get(self, path: str, headers: dict = None) -> ApiResponse:
         """Do versioned GET request, given non-versioned path"""
@@ -282,7 +296,7 @@ class ApiTester:
             process_graph = process_graph.flat_graph()
         assert isinstance(process_graph, dict)
         data = self.get_process_graph_dict(process_graph)
-        self.set_auth_bearer_token()
+        self.ensure_auth_header()
         response = self.post(path=path, json=data)
         return response
 
@@ -299,14 +313,16 @@ class ApiTester:
         response = self.result(process_graph=process_graph, path=path, preprocess=preprocess)
         return response.assert_status_code(200).assert_content()
 
-    def validation(self, process_graph: Union[dict, str], preprocess: Callable = None, do_auth: bool = True) -> ApiResponse:
+    def validation(
+        self, process_graph: Union[dict, str], preprocess: Callable = None, ensure_auth: bool = True
+    ) -> ApiResponse:
         """Post a process_graph (as dict or by filename) and run validation."""
         if isinstance(process_graph, str):
             # Assume it is a file name
             process_graph = self.load_json(process_graph, preprocess=preprocess)
         data = {'process_graph': process_graph}
-        if do_auth:
-            self.set_auth_bearer_token()
+        if ensure_auth:
+            self.ensure_auth_header()
         response = self.post(path="/validation", json=data)
         # "Please note that a validation always returns with HTTP status code 200."
         response.assert_status_code(200)
