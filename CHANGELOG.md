@@ -19,6 +19,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.78.0
+
+- `OpenEoBackendConfig`: make showing stack trace on `_load` configurable
+
 ## 0.77.4
 
 - Flag `/openeo/1.2` API version as production ready ([#195](https://github.com/Open-EO/openeo-python-driver/issues/195))

@@ -64,16 +64,17 @@ class ConfigGetter:
     def __init__(self):
         self._config: Optional[OpenEoBackendConfig] = None
 
-    def __call__(self, force_reload: bool = False) -> OpenEoBackendConfig:
+    def __call__(self, force_reload: bool = False, *, show_stack: bool = True) -> OpenEoBackendConfig:
         """Syntactic sugar to lazy load the config with function call."""
-        return self.get(force_reload=force_reload)
+        # TODO: eliminate this syntactic sugar to simplify the surface area of this class
+        return self.get(force_reload=force_reload, show_stack=show_stack)
 
-    def get(self, force_reload: bool = False) -> OpenEoBackendConfig:
+    def get(self, force_reload: bool = False, *, show_stack: bool = True) -> OpenEoBackendConfig:
         """Lazy load the config."""
         if self._config is None:
-            self._config = self._load(reason="lazy_load")
+            self._config = self._load(reason="lazy_load", show_stack=show_stack)
         elif force_reload:
-            self._config = self._load(reason="force_reload")
+            self._config = self._load(reason="force_reload", show_stack=show_stack)
 
         return self._config
 
@@ -83,13 +84,14 @@ class ConfigGetter:
         """
         return importlib_resources.as_file(importlib_resources.files("openeo_driver.config") / "default.py")
 
-    def _load(self, reason: Optional[str] = None) -> OpenEoBackendConfig:
+    def _load(self, *, reason: Optional[str] = None, show_stack: bool = True) -> OpenEoBackendConfig:
         """Load the config from config file."""
         with self._default_config() as default_config:
             config_path = os.environ.get(self.OPENEO_BACKEND_CONFIG) or default_config
             config = load_from_py_file(path=config_path, variable="config", expected_class=self.expected_class)
         config_id = getattr(config, "id", None)
-        _log.info(f"Loaded config {config_id=} from {config_path=} ({reason=})", stack_info=True)
+        # Use `stack_info=True` to show stacktrace of where the config loading triggered from
+        _log.info(f"Loaded config {config_id=} from {config_path=} ({reason=})", stack_info=show_stack)
         return config
 
     def flush(self):
