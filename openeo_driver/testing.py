@@ -689,9 +689,9 @@ def ephemeral_fileserver(path: Union[Path, str], host: str = "localhost", port: 
 
 def config_overrides(config_getter: ConfigGetter = _backend_config_getter, **kwargs):
     """
-    *Only to be used in tests*
+    *Only to be used in unit tests*
 
-    `mock.patch` based mocker to override the config returned by `get_backend_config()`
+    `mock.patch` based mocker to override the config returned by `get_backend_config()` at run time
 
     Can be used as context manager
 

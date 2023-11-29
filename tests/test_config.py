@@ -15,8 +15,8 @@ from openeo_driver.config import (
     get_backend_config,
     from_env,
     from_env_as_list,
-    default_from_env_as_list,
 )
+from openeo_driver.config.env import default_from_env_as_list
 from openeo_driver.config.load import load_from_py_file
 import openeo_driver.config.env
 from .conftest import enhanced_logging
@@ -172,7 +172,7 @@ class TestFromEnv:
     def test_from_env_basic(self, monkeypatch):
         @attrs.frozen(kw_only=True)
         class Config:
-            color: str = attrs.field(factory=from_env("COLOR", default="red"))
+            color: str = attrs.Factory(from_env("COLOR", default="red"))
 
         assert Config().color == "red"
         monkeypatch.setenv("COLOR", "blue")
@@ -181,7 +181,7 @@ class TestFromEnv:
     def test_from_env_no_default(self, monkeypatch):
         @attrs.frozen(kw_only=True)
         class Config:
-            color: Optional[str] = attrs.field(factory=from_env("COLOR"))
+            color: Optional[str] = attrs.Factory(from_env("COLOR"))
 
         assert Config().color is None
         monkeypatch.setenv("COLOR", "blue")
@@ -199,7 +199,7 @@ class TestFromEnv:
     def test_from_env_list_basic(self, monkeypatch):
         @attrs.frozen(kw_only=True)
         class Config:
-            colors: List[str] = attrs.field(factory=from_env_as_list("COLORS", default="red,blue"))
+            colors: List[str] = attrs.Factory(from_env_as_list("COLORS", default="red,blue"))
 
         conf = Config()
         assert conf.colors == ["red", "blue"]
@@ -215,6 +215,24 @@ class TestFromEnv:
         conf = Config(colors=["green"])
         assert conf.colors == ["green"]
 
+    def test_from_env_list_none_handling(self, monkeypatch):
+        @attrs.frozen(kw_only=True)
+        class Config:
+            colors: Optional[List[str]] = attrs.Factory(from_env_as_list("COLORS", default=None))
+
+        assert Config().colors is None
+        assert Config(colors=None).colors is None
+        assert Config(colors=[]).colors == []
+        assert Config(colors=["green"]).colors == ["green"]
+
+        monkeypatch.setenv("COLORS", "")
+        assert Config().colors == []
+        assert Config(colors=["green"]).colors == ["green"]
+
+        monkeypatch.setenv("COLORS", "purple,yellow")
+        assert Config().colors == ["purple", "yellow"]
+        assert Config(colors=["green"]).colors == ["green"]
+
     @pytest.mark.parametrize(
         ["default", "env_value", "expected_from_default", "expected_from_env"],
         [
@@ -222,6 +240,7 @@ class TestFromEnv:
             ("red,blue", "purple,yellow", ["red", "blue"], ["purple", "yellow"]),
             (" red, blue", "\tpurple, \n, yellow", ["red", "blue"], ["purple", "yellow"]),
             (" ", "   ", [], []),
+            (None, "purple", None, ["purple"]),
         ],
     )
     def test_from_env_list_splitting(self, monkeypatch, default, env_value, expected_from_default, expected_from_env):
