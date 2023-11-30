@@ -1,5 +1,5 @@
 import json
-from typing import Callable
+from typing import Callable, Union
 
 from pathlib import Path
 
@@ -11,7 +11,7 @@ def get_path(filename: str) -> Path:
     return TEST_DATA_ROOT / filename
 
 
-def load_json(filename: str, preprocess: Callable = None) -> dict:
+def load_json(filename: Union[str, Path], preprocess: Callable = None) -> dict:
     """Parse data from JSON file"""
     with get_path(filename).open("r") as f:
         data = f.read()

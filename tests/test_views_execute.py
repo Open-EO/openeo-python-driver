@@ -1417,6 +1417,48 @@ def test_run_udf_on_vector_load_uploaded_files(api, udf_code):
     "udf_code",
     [
         """
+        from openeo_udf.api.datacube import DataCube  # Old style openeo_udf API
+        def fct_buffer(udf_data: UdfData):
+            gdf = udf_data.feature_collection_list[0].data
+            gdf = gdf.buffer(1)
+            udf_data.feature_collection_list = [FeatureCollection(id="", data=gdf)]
+            return udf_data
+        """,
+        """
+        from openeo.udf import UdfData, FeatureCollection
+        def fct_buffer(udf_data: UdfData):
+            gdf = udf_data.feature_collection_list[0].data
+            gdf = gdf.buffer(1)
+            udf_data.feature_collection_list = [FeatureCollection(id="_", data=gdf)]
+            return udf_data
+        """,
+    ],
+)
+def test_run_udf_on_vector_inline_geojson(api, udf_code):
+    udf_code = textwrap.dedent(udf_code)
+    geometry = load_json(get_path("geojson/FeatureCollection02.json"))
+    process_graph = {
+        "udf": {
+            "process_id": "run_udf",
+            "arguments": {
+                "data": geometry,
+                "udf": udf_code,
+                "runtime": "Python",
+            },
+            "result": True,
+        },
+    }
+    resp = api.check_result(process_graph)
+    assert resp.json == [
+        ApproxGeoJSONByBounds(0, 0, 4, 4, types=["Polygon"], abs=0.01),
+        ApproxGeoJSONByBounds(2, 1, 6, 5, types=["Polygon"], abs=0.01),
+    ]
+
+
+@pytest.mark.parametrize(
+    "udf_code",
+    [
+        """
         from openeo_udf.api.udf_data import UdfData  # Old style openeo_udf API
         from openeo_udf.api.structured_data import StructuredData  # Old style openeo_udf API
         def fct_buffer(udf_data: UdfData):
