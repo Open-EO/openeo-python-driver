@@ -16,6 +16,7 @@ from openeo_driver.utils import (
     get_package_versions,
     generate_unique_id,
     WhiteListEvalEnv,
+    filter_supported_kwargs,
 )
 
 
@@ -287,3 +288,21 @@ def test_generate_uuid_date_prefix():
         job_id = generate_unique_id("j")
         assert re.match("^j-[0-9a-f]{32}$", generate_unique_id("j"))
         assert job_id.startswith("j-221214")
+
+
+def test_filter_supported_kwargs_basic():
+    def fun(x, y: int, foo=None):
+        return x + y
+
+    assert filter_supported_kwargs(fun) == {}
+    assert filter_supported_kwargs(fun, x=1, y=2) == {"x": 1, "y": 2}
+    assert filter_supported_kwargs(fun, x=1, y=2, z=3, foo=4, bar=5) == {"x": 1, "y": 2, "foo": 4}
+
+
+def test_filter_supported_kwargs_parameter_types():
+    def fun(x, /, y, *args, z=None, **kwargs):
+        return x + y + z
+
+    assert filter_supported_kwargs(fun) == {}
+    assert filter_supported_kwargs(fun, x=1, y=2, z=3) == {"y": 2, "z": 3}
+    assert filter_supported_kwargs(fun, x=1, y=2, z=3, args=(4, 44), kwargs={"foo": 5}) == {"y": 2, "z": 3}

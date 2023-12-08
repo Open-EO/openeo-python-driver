@@ -604,8 +604,13 @@ class DummyBatchJobs(BatchJobs):
         return generate_unique_id(prefix="j")
 
     def create_job(
-            self, user_id: str, process: dict, api_version: str,
-            metadata: dict, job_options: dict = None
+        self,
+        user_id: str,
+        user: User,
+        process: dict,
+        api_version: str,
+        metadata: dict,
+        job_options: Optional[dict] = None,
     ) -> BatchJobMetadata:
         job_id = self.generate_job_id()
         job_info = BatchJobMetadata(

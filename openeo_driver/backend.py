@@ -392,8 +392,14 @@ class BatchJobs(MicroService):
         self._get_proxy_user: Callable[[User], Optional[str]] = lambda user: None
 
     def create_job(
-            self, user_id: str, process: dict, api_version: str,
-            metadata: dict, job_options: dict = None
+        self,
+        *,
+        user_id: str,  # TODO: deprecate `user_id` in favor of `user`?
+        user: User,
+        process: dict,
+        api_version: str,
+        metadata: dict,
+        job_options: Optional[dict] = None,
     ) -> BatchJobMetadata:
         # TODO: why return a full BatchJobMetadata? only job id is used
         raise NotImplementedError

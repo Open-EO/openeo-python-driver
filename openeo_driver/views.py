@@ -35,7 +35,7 @@ from openeo_driver.save_result import SaveResult, to_save_result
 from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.util.logging import FlaskRequestCorrelationIdLogging
-from openeo_driver.utils import EvalEnv, smart_bool, generate_unique_id
+from openeo_driver.utils import EvalEnv, smart_bool, generate_unique_id, filter_supported_kwargs
 
 _log = logging.getLogger(__name__)
 
@@ -618,11 +618,13 @@ def register_views_processing(
         request_costs_kwargs = {"request_id": request_id}
         # TODO clean up this is temporary measure to support old (user_id) and new style (user)
         #      request_costs signatures simultaneously.
-        request_costs_parameters = inspect.signature(backend_implementation.request_costs).parameters
-        if "user_id" in request_costs_parameters:
-            request_costs_kwargs["user_id"] = user.user_id
-        if "user" in request_costs_parameters:
-            request_costs_kwargs["user"] = user
+        request_costs_kwargs.update(
+            filter_supported_kwargs(
+                callable=backend_implementation.request_costs,
+                user_id=user.user_id,
+                user=user,
+            )
+        )
 
         try:
             result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)
@@ -805,7 +807,11 @@ def register_views_batch_jobs(
             if len(job_options)==0:
                 job_options = None
         job_info = backend_implementation.batch_jobs.create_job(
-            user_id=user.user_id,
+            **filter_supported_kwargs(
+                callable=backend_implementation.batch_jobs.create_job,
+                user_id=user.user_id,
+                user=user,
+            ),
             process=process,
             api_version=g.api_version,
             metadata={k: post_data[k] for k in metadata_keywords if k in post_data},
