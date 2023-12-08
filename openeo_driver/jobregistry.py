@@ -5,6 +5,8 @@ import logging
 import os
 import pprint
 import shlex
+import textwrap
+
 import time
 import typing
 from decimal import Decimal
@@ -524,19 +526,29 @@ class ElasticJobRegistry(JobRegistryInterface):
 
 class CliApp:
     """
-    Simple toy CLI to Elastic Job Registry API for development and testing
+    Simple CLI to Elastic Job Registry API for testing, development and debugging
 
     Example usage:
 
         # First: log in to vault to get a vault token (for obtaining EJR credentials)
         vault login -method=ldap username=john
 
+        # Dummy usage:
         # Create a dummy job for user
         python openeo_driver/jobregistry.py create john
         # List jobs from user
-        python openeo_driver/jobregistry.py list john
+        python openeo_driver/jobregistry.py list-user john
+        # Get job metadata
+        python openeo_driver/jobregistry.py get j-231208662fa3450da54e1987394f7ed0
 
+        # Real usage, e.g. with backend id 'mep-dev', specidied through `--backend-id` option
+        # List jobs from a user
+        python openeo_driver/jobregistry.py list-user --backend-id mep-dev abc123@egi.eu
+        # Get all metadata from a job
+        python openeo_driver/jobregistry.py get --backend-id mep-dev j-231206cbc43a4ae6a3fe58173c0f45f6
     """
+
+    _DEFAULT_BACKEND_ID = "test_cli"
 
     def __init__(self, environ: Optional[dict] = None):
         self.environ = environ or os.environ
@@ -550,7 +562,9 @@ class CliApp:
         cli_args.func(cli_args)
 
     def _parse_cli(self) -> argparse.Namespace:
-        cli = argparse.ArgumentParser()
+        cli = argparse.ArgumentParser(
+            description=textwrap.dedent(self.__doc__), formatter_class=argparse.RawTextHelpFormatter
+        )
 
         cli.add_argument("-v", "--verbose", action="count", default=0)
         cli.add_argument("--show-curl", action="store_true")
@@ -565,11 +579,13 @@ class CliApp:
         health_check.set_defaults(func=self.health_check)
 
         cli_list_user = subparsers.add_parser("list-user", help="List jobs for given user.")
+        cli_list_user.add_argument("--backend-id", help="Backend id to filter on.")
         cli_list_user.add_argument("user_id", help="User id to filter on.")
         cli_list_user.set_defaults(func=self.list_user_jobs)
 
         cli_create = subparsers.add_parser("create", help="Create a new job.")
-        cli_create.add_argument("user_id", help="User id.")
+        cli_create.add_argument("--backend-id", help="Backend-id to create the job for.")
+        cli_create.add_argument("user_id", help="User id to create the job for.")
         cli_create.add_argument("--process-graph", help="JSON representation of process graph")
         cli_create.set_defaults(func=self.create_dummy_job)
 
@@ -579,12 +595,11 @@ class CliApp:
         cli_set_status.set_defaults(func=self.set_status)
 
         cli_list_active = subparsers.add_parser("list-active", help="List active jobs.")
-        cli_list_active.add_argument("--backend-id", help="Override back-end ID")
+        cli_list_active.add_argument("--backend-id", help="Backend id to filter on.")
         cli_list_active.set_defaults(func=self.list_active_jobs)
 
-        cli_get_job = subparsers.add_parser(
-            "get", help="Get job metadata of a single job"
-        )
+        cli_get_job = subparsers.add_parser("get", help="Get job metadata of a single job")
+        cli_get_job.add_argument("--backend-id", help="Backend id to filter on.")
         cli_get_job.add_argument("job_id")
         cli_get_job.set_defaults(func=self.get_job)
 
@@ -594,13 +609,16 @@ class CliApp:
 
         return cli.parse_args()
 
-    def _get_job_registry(
-        self, backend_id: Optional[str] = None, setup_auth=True, cli_args: Optional[argparse.Namespace] = None
-    ) -> ElasticJobRegistry:
+    def _get_job_registry(self, setup_auth=True, cli_args: Optional[argparse.Namespace] = None) -> ElasticJobRegistry:
         api_url = self.environ.get("OPENEO_EJR_API", "https://jobregistry.openeo.vito.be")
+        if "backend_id" in cli_args and cli_args.backend_id:
+            backend_id = cli_args.backend_id
+        else:
+            _log.warning("No backend id specified, using default %r", self._DEFAULT_BACKEND_ID)
+            backend_id = self._DEFAULT_BACKEND_ID
         ejr = ElasticJobRegistry(
             api_url=api_url,
-            backend_id=backend_id or "test_cli",
+            backend_id=backend_id,
             _debug_show_curl=cli_args.show_curl if cli_args else False,
         )
 
@@ -650,7 +668,7 @@ class CliApp:
         pprint.pp(jobs)
 
     def list_active_jobs(self, args: argparse.Namespace):
-        ejr = self._get_job_registry(backend_id=args.backend_id, cli_args=args)
+        ejr = self._get_job_registry(cli_args=args)
         # TODO: option to return more fields?
         jobs = ejr.list_active_jobs()
         print(f"Found {len(jobs)} active jobs (backend {ejr.backend_id!r}):")
