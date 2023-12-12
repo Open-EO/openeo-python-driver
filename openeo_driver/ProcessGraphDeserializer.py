@@ -2045,6 +2045,11 @@ def date_shift(args: ProcessArgs, env: EvalEnv) -> str:
     return rfc3339.normalize(shifted)
 
 
+@process_registry_2xx.add_function(spec=read_spec("openeo-processes/2.x/proposals/date_between.json"))
+def date_between(args: ProcessArgs, env: EvalEnv) -> bool:
+    raise NotImplementedError
+
+
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/array_concat.json"))
 @process_registry_2xx.add_function
 def array_concat(args: ProcessArgs, env: EvalEnv) -> list:
