@@ -472,7 +472,7 @@ class UrllibMocker:
         self.response_callbacks[method, url] = response_callback
         self.response_callbacks[method, self._drop_query_string(url)] = response_callback
 
-    def get(self, url, data, code=200):
+    def get(self, url, data: Union[bytes, str, Path], code=200):
         """Register a response for a GET request"""
         self.register(method="GET", url=url, response=self.Response(data=data, code=code))
 

@@ -200,15 +200,27 @@ class TestUrllibMocker:
         assert data == b"baz"
 
 
-def test_ephemeral_fileserver(tmp_path):
+def test_ephemeral_fileserver_requests(tmp_path):
     (tmp_path / "hello.txt").write_text("Hello world!")
 
     with ephemeral_fileserver(path=tmp_path) as root_url:
         resp = requests.get(f"{root_url}/hello.txt")
         assert (resp.status_code, resp.text) == (200, "Hello world!")
 
-    with pytest.raises(requests.exceptions.ConnectionError):
+    with pytest.raises(requests.exceptions.ConnectionError, match="Connection refused"):
         _ = requests.get(f"{root_url}/hello.txt")
+
+
+def test_ephemeral_fileserver_urllib(tmp_path):
+    (tmp_path / "hello.txt").write_text("Hello world!")
+
+    with ephemeral_fileserver(path=tmp_path) as root_url:
+        with urllib.request.urlopen(f"{root_url}/hello.txt") as resp:
+            data = resp.read()
+            assert resp.status, data == (200, "Hello world!")
+
+    with pytest.raises(urllib.error.URLError, match="Connection refused"):
+        _ = urllib.request.urlopen(f"{root_url}/hello.txt")
 
 
 def test_ephemeral_fileserver_subprocess(tmp_path):
