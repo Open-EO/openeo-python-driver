@@ -2719,8 +2719,27 @@ def test_discard_result(api):
             "https://oeo.test/u/42/udp/bbox_mol",
             {"https://oeo.test/u/42/udp/bbox_mol": '{"foo": invalid json'},
             (400, "ProcessGraphInvalid", "Invalid process graph specified."),
-    ),
-])
+        ),
+        (
+            "https://share.example/u42/bbox_mol.json",
+            {
+                "https://share.example/u42/bbox_mol.json": load_json(
+                    "pg/1.0/udp/bbox_mol.json", preprocess=lambda t: t.replace("bbox_mol", "BBox_Mol")
+                )
+            },
+            None,
+        ),
+        (
+            "https://share.example/u42/bbox_mol.json",
+            {
+                "https://share.example/u42/bbox_mol.json": load_json(
+                    "pg/1.0/udp/bbox_mol.json", preprocess=lambda t: t.replace("bbox_mol", "BoundingBox-Mol")
+                )
+            },
+            (400, "ProcessGraphInvalid", "Invalid process graph specified."),
+        ),
+    ],
+)
 def test_evaluate_process_from_url(api, requests_mock, namespace, url_mocks, expected_error):
     for url, value in url_mocks.items():
         if isinstance(value, str):
