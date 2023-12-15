@@ -41,6 +41,22 @@ class TtlCache:
     def get_or_call(
         self, key: CacheKey, callback: Callable[[], Any], ttl: Optional[float] = None
     ) -> Any:
+        """
+        Try to get item from cache. If not available or expired: call callback to build it and store result in cache.
+
+        This method allows to implement typicall cache usage pattern in a single call:
+
+            item = cache.get_or_call(
+                key="foo",
+                callback=lambda: expensive_operation(iterations=10000)
+            )
+
+        :param key: key to store item at (can be a simple string,
+            or something more complex like a tuple of strings/ints)
+        :param callback: item builder to call when item is not in cache or expired
+        :param ttl: optionally override default TTL
+        :return: item (from cache or freshly built)
+        """
         if self.contains(key):
             value = self._cache[key][0]
         else:
