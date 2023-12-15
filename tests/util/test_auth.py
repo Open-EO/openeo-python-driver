@@ -17,7 +17,7 @@ class TestClientCredentials:
 
     def test_repr(self):
         creds = ClientCredentials(oidc_issuer="https://oidc.test/", client_id="c123", client_secret="@#$")
-        expected = "ClientCredentials(oidc_issuer='https://oidc.test/', client_id='c123', client_secret='***')"
+        expected = "ClientCredentials(oidc_issuer='https://oidc.test/', client_id='c123')"
         assert repr(creds) == expected
         assert str(creds) == expected
 
@@ -99,5 +99,5 @@ class TestClientCredentialsAccessTokenHelper:
         ]
         assert (
             setup_log
-            == "Setting up ClientCredentialsAccessTokenHelper with ClientCredentials(oidc_issuer='https://oidc.test', client_id='client123', client_secret='***')"
+            == "Setting up ClientCredentialsAccessTokenHelper with ClientCredentials(oidc_issuer='https://oidc.test', client_id='client123')"
         )

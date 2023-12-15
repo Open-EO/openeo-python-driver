@@ -2,15 +2,12 @@ from __future__ import annotations
 
 import logging
 import re
-
 import time
 from typing import Mapping, NamedTuple, Optional, Union
 
 import requests
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcClientInfo, OidcProviderInfo
-from openeo.util import repr_truncate, str_truncate
-
-from openeo_driver.datastructs import secretive_repr
+from openeo.util import str_truncate
 
 _log = logging.getLogger(__name__)
 
@@ -24,7 +21,11 @@ class ClientCredentials(NamedTuple):
     oidc_issuer: str
     client_id: str
     client_secret: str
-    __repr__ = __str__ = secretive_repr()
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(oidc_issuer={self.oidc_issuer!r}, client_id={self.client_id!r})"
+
+    __str__ = __repr__
 
     @classmethod
     def from_mapping(cls, data: Mapping, *, strict: bool = True) -> Union[ClientCredentials, None]:
