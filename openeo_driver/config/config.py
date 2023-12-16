@@ -68,3 +68,6 @@ class OpenEoBackendConfig:
     )
 
     url_signer: Optional[UrlSigner] = None
+
+    collection_exclusion_list: Dict[str,List[str]]  = {} # e.g. {"1.1.0":["my_collection_id"]}
+    processes_exclusion_list: Dict[str,List[str]] = {} # e.g. {"1.1.0":["my_process_id"]}

@@ -668,6 +668,9 @@ def register_views_processing(
     def processes():
         process_registry = backend_implementation.processing.get_process_registry(api_version=requested_api_version())
         processes = process_registry.get_specs()
+        exclusion_list = get_backend_config().processes_exclusion_list
+        processes = _filter_by_id(processes, exclusion_list)
+
         return jsonify({'processes': processes, 'links': []})
 
     @api_endpoint
@@ -1761,6 +1764,10 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
 
     return metadata
 
+def _filter_by_id(metadata, exclusion_list):
+    if requested_api_version().to_string() in exclusion_list:
+        metadata = [m for m in metadata if m["id"] not in exclusion_list[requested_api_version().to_string()]]
+    return metadata
 
 def register_views_catalog(
         blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
@@ -1774,6 +1781,8 @@ def register_views_catalog(
             _normalize_collection_metadata(metadata=m, api_version=requested_api_version(), full=False)
             for m in backend_implementation.catalog.get_all_metadata()
         ]
+        exclusion_list = get_backend_config().collection_exclusion_list
+        metadata = _filter_by_id(metadata, exclusion_list)
         return jsonify(
             {
                 "collections": metadata,

@@ -500,6 +500,15 @@ class TestGeneral:
         for process in processes:
             assert all(k in process for k in expected_keys)
 
+    @pytest.mark.parametrize("backend_config_overrides", [{"processes_exclusion_list": {"1.0.0":["merge_cubes"]}}])
+    def test_processes_exclusion(self, api, backend_config_overrides):
+        resp = api.get('/processes').assert_status_code(200).json
+        ids = [c["id"] for c in resp["processes"]]
+        if(api.api_version == "1.0.0"):
+            assert "merge_cubes" not in ids
+        else:
+            assert "merge_cubes" in ids
+
     def test_process_details(self, api100):
         spec = api100.get("/processes/backend/add").assert_status_code(200).json
         assert spec["id"] == "add"
@@ -970,6 +979,17 @@ class TestCollections:
             assert 'license' in collection
             assert 'extent' in collection
             assert 'links' in collection
+
+    @pytest.mark.parametrize("backend_config_overrides", [{"collection_exclusion_list": {"1.0.0":["S2_FOOBAR"]}}])
+    def test_collections_exclusion(self, api, backend_config_overrides):
+
+        resp = api.get('/collections').assert_status_code(200).json
+        ids = [c["id"] for c in resp["collections"]]
+        if(api.api_version == "1.0.0"):
+            assert "S2_FOOBAR" not in ids
+        else:
+            assert "S2_FOOBAR" in ids
+
 
     def test_collections_caching(self, api):
         resp = api.get('/collections').assert_status_code(200)
