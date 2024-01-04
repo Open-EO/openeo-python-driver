@@ -284,6 +284,14 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
                 mimetype=IOFORMATS.get_mimetype(self.format),
             )
 
+        if self.is_format('parquet'):  # TODO: support this as well? What about the time dimension?
+            filename = self.to_geoparquet()
+            return send_from_directory(
+                os.path.dirname(filename),
+                os.path.basename(filename),
+                mimetype=IOFORMATS.get_mimetype(self.format),
+            )
+
         return super().create_flask_response()
 
     def _create_point_timeseries_xarray(self, feature_ids, timestamps, lats, lons, averages_by_feature):
@@ -485,6 +493,12 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
             "ranges": ranges
         }
 
+    def to_geoparquet(self) -> str:
+        filename = get_temp_file(suffix=".parquet")
+        # TODO: do something with self._regions and self.get_data() like in self.to_netcdf()
+        self._regions.write_to_parquet(path=filename)
+        return filename
+
 
 class AggregatePolygonResultCSV(AggregatePolygonResult):
     # TODO #71 #114 EP-3981 port this to proper vector cube support
@@ -572,8 +586,8 @@ class AggregatePolygonSpatialResult(SaveResult):
 
     DEFAULT_FORMAT = "JSON"
 
-    def __init__(self, csv_dir: Union[str, Path], regions: GeometryCollection, metadata: CollectionMetadata = None,
-                 format: Optional[str] = None, options: Optional[dict] = None):
+    def __init__(self, csv_dir: Union[str, Path], regions: Union[GeometryCollection, DriverVectorCube],
+                 metadata: CollectionMetadata = None, format: Optional[str] = None, options: Optional[dict] = None):
         super().__init__(format, options)
         self._csv_dir = Path(csv_dir)
         self._regions = regions
@@ -605,8 +619,37 @@ class AggregatePolygonSpatialResult(SaveResult):
                 os.path.basename(csv_path),
                 mimetype=IOFORMATS.get_mimetype(self.format),
             )
+        elif self.is_format("parquet"):
+            filename = self.to_geoparquet()
+            return send_from_directory(
+                os.path.dirname(filename),
+                os.path.basename(filename),
+                mimetype=IOFORMATS.get_mimetype(self.format),
+            )
         else:
-            raise FeatureUnsupportedException(f"Unsupported output format {self.format}; supported are: JSON and CSV")
+            raise FeatureUnsupportedException(f"Unsupported output format {self.format};"
+                                              f" supported are: JSON, CSV and Parquet")
+
+    def to_geoparquet(self, destination: Optional[str] = None) -> str:
+        filename = destination or get_temp_file(suffix=".parquet")
+
+        # TODO: support other geometry types?
+        if not isinstance(self._regions, DriverVectorCube):
+            raise NotImplementedError(type(self._regions))
+
+        # TODO: avoid accessing _geometries to combine _regions and CSV
+        gdf = self._regions._geometries
+        gdf['feature_index'] = gdf.index
+
+        stats = pd.read_csv(self._csv_path())
+
+        (gdf
+         .join(stats.set_index('feature_index'), on='feature_index')
+         .rename(columns=lambda col_name: col_name.replace("(", "_").replace(")", ""))  # TODO: generalize this naming restriction workaround?
+         .drop(columns="feature_index")
+         .to_parquet(filename))
+
+        return filename
 
     def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
         # TODO: There is something wrong here: arg is called `directory`,
