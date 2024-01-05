@@ -118,7 +118,14 @@ class JobRegistryInterface:
     def set_application_id(self, job_id: str, application_id: str) -> JobDict:
         raise NotImplementedError
 
+    # TODO: with the introduction of set_results_metadata, is this method still necessary?
+    #  https://github.com/Open-EO/openeo-geopyspark-driver/issues/632
     def set_usage(self, job_id: str, costs: float, usage: dict) -> JobDict:
+        raise NotImplementedError
+
+    # TODO: improve name?
+    def set_results_metadata(self, job_id: str, costs: Optional[float], usage: dict,
+                             results_metadata: Dict[str, Any]) -> JobDict:
         raise NotImplementedError
 
     def list_user_jobs(
@@ -514,6 +521,15 @@ class ElasticJobRegistry(JobRegistryInterface):
         }
         return self._search(query=query, fields=fields)
 
+    def set_results_metadata(
+        self, job_id: str, costs: Optional[float], usage: dict, results_metadata: Dict[str, Any]
+    ) -> JobDict:
+        return self._update(job_id=job_id, data={
+            "costs": costs,
+            "usage": usage,
+            "results_metadata": results_metadata,
+        })
+
     @staticmethod
     def just_log_errors(name: str = "EJR"):
         """
@@ -713,7 +729,6 @@ class CliApp:
         ejr = self._get_job_registry(cli_args=args)
         ejr.delete_job(job_id=job_id)
         print(f"Deleted {job_id}")
-
 
 
 if __name__ == "__main__":

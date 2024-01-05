@@ -645,6 +645,34 @@ class TestElasticJobRegistry:
             "sentinelhub": {"value": 108.33333656191826, "unit": "sentinelhub_processing_unit"}})
         assert patch_mock.call_count == 1
 
+    def test_set_results_metadata(self, requests_mock, oidc_mock, ejr):
+        handler = self._handle_patch_jobs(
+            oidc_mock=oidc_mock, expected_data={
+                "costs": 22,
+                "usage": {
+                    "cpu": {"value": 3283, "unit": "cpu-seconds"},
+                    "memory": {"value": 8040202, "unit": "mb-seconds"},
+                    "sentinelhub": {"value": 108.33333656191826, "unit": "sentinelhub_processing_unit"}
+                },
+                "results_metadata": {
+                    "unique_process_ids": ["load_stac"]
+                },
+            }
+        )
+        patch_mock = requests_mock.patch(
+            f"{self.EJR_API_URL}/jobs/job-123", json=handler
+        )
+
+        ejr.set_results_metadata(job_id="job-123", costs=22,
+                                 usage={
+                                     "cpu": {"value": 3283, "unit": "cpu-seconds"},
+                                     "memory": {"value": 8040202, "unit": "mb-seconds"},
+                                     "sentinelhub": {"value": 108.33333656191826, "unit": "sentinelhub_processing_unit"}
+                                 },
+                                 results_metadata={"unique_process_ids": ["load_stac"]},
+                                 )
+        assert patch_mock.call_count == 1
+
     def test_just_log_errors(self, caplog):
         with ElasticJobRegistry.just_log_errors("some math"):
             x = (2 + 3) / 0
