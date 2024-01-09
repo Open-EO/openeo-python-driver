@@ -223,6 +223,9 @@ class ElasticJobRegistry(JobRegistryInterface):
         session: Optional[requests.Session] = None,
         _debug_show_curl: bool = False,
     ):
+        if api_url is None:
+            raise ValueError(api_url)
+
         self.logger.info(f"Creating ElasticJobRegistry with {backend_id=} and {api_url=}")
         self._backend_id: Optional[str] = backend_id
         self._api_url = api_url
