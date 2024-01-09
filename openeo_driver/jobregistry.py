@@ -13,6 +13,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 import requests
+from deprecated.classic import deprecated
 from openeo.rest.connection import url_join
 from openeo.util import TimingLogger, repr_truncate, rfc3339
 
@@ -118,8 +119,7 @@ class JobRegistryInterface:
     def set_application_id(self, job_id: str, application_id: str) -> JobDict:
         raise NotImplementedError
 
-    # TODO: with the introduction of set_results_metadata, is this method still necessary?
-    #  https://github.com/Open-EO/openeo-geopyspark-driver/issues/632
+    @deprecated("call set_results_metadata instead", version="0.81.0")
     def set_usage(self, job_id: str, costs: float, usage: dict) -> JobDict:
         raise NotImplementedError
 
