@@ -463,14 +463,18 @@ class TestElasticJobRegistry:
         ["fields", "expected_fields"],
         [
             (None, ["job_id", "user_id", "created", "status", "updated"]),
-            (
-                ["created", "started"],
-                ["job_id", "user_id", "created", "status", "updated", "started"],
-            ),
+            (["created", "started"], ["job_id", "user_id", "created", "status", "updated", "started"]),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ["max_age", "additional_filters"],
+        [
+            (None, []),
+            (7, [{"range": {"created": {"gte": "now-7d"}}}]),
         ],
     )
     def test_list_active_jobs(
-        self, requests_mock, oidc_mock, ejr, fields, expected_fields
+        self, requests_mock, oidc_mock, ejr, fields, expected_fields, max_age, additional_filters
     ):
         def post_jobs_search(request, context):
             """Handler of `POST /jobs/search"""
@@ -481,7 +485,7 @@ class TestElasticJobRegistry:
                         "filter": [
                             {"term": {"backend_id": "unittests"}},
                             {"terms": {"status": ["created", "queued", "running"]}},
-                            {"range": {"created": {"gte": "now-7d"}}},
+                            *additional_filters,
                         ]
                     }
                 },
@@ -493,7 +497,7 @@ class TestElasticJobRegistry:
             ]
 
         requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=post_jobs_search)
-        result = ejr.list_active_jobs(fields=fields)
+        result = ejr.list_active_jobs(max_age=max_age, fields=fields)
         assert result == [
             {"job_id": "job-123", "user_id": "alice"},
             {"job_id": "job-456", "user_id": "bob"},

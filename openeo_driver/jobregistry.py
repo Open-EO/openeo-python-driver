@@ -146,7 +146,7 @@ class JobRegistryInterface:
         List active jobs (created, queued, running)
 
         :param max_age: optional filter to only return recently created jobs:
-            maximum number of days creation date.
+            creation date is at most max_age days ago.
         :param fields: job metadata fields that should be included in result
         """
         # TODO: option for job metadata fields that should be included in result
@@ -513,12 +513,13 @@ class ElasticJobRegistry(JobRegistryInterface):
         self, max_age: Optional[int] = None, fields: Optional[List[str]] = None
     ) -> List[JobDict]:
         active = [JOB_STATUS.CREATED, JOB_STATUS.QUEUED, JOB_STATUS.RUNNING]
+        additional_filters = [{"range": {"created": {"gte": f"now-{max_age}d"}}}] if max_age is not None else []
         query = {
             "bool": {
                 "filter": [
                     {"term": {"backend_id": self.backend_id}},
                     {"terms": {"status": active}},
-                    {"range": {"created": {"gte": f"now-{max_age or 7}d"}}},
+                    *additional_filters,
                 ]
             },
         }
@@ -688,7 +689,7 @@ class CliApp:
     def list_active_jobs(self, args: argparse.Namespace):
         ejr = self._get_job_registry(cli_args=args)
         # TODO: option to return more fields?
-        jobs = ejr.list_active_jobs()
+        jobs = ejr.list_active_jobs(max_age=7)
         print(f"Found {len(jobs)} active jobs (backend {ejr.backend_id!r}):")
         pprint.pp(jobs)
 
