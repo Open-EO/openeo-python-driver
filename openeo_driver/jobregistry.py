@@ -539,7 +539,6 @@ class ElasticJobRegistry(JobRegistryInterface):
         Shortcut to easily and compactly guard all experimental, new ElasticJobRegistry logic
         with a "just_log_errors" context.
         """
-        # TODO #153: remove all usage when ElasticJobRegistry is ready for production
         return just_log_exceptions(log=ElasticJobRegistry.logger.warning, name=name)
 
 
