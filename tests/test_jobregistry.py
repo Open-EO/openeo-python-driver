@@ -503,6 +503,47 @@ class TestElasticJobRegistry:
             {"job_id": "job-456", "user_id": "bob"},
         ]
 
+    @pytest.mark.parametrize(
+        ["fields", "expected_fields"],
+        [
+            (None, ["job_id", "user_id", "created", "status", "updated"]),
+            (["created", "started"], ["job_id", "user_id", "created", "status", "updated", "started"]),
+        ],
+    )
+    def test_list_trackable_jobs(
+        self, requests_mock, oidc_mock, ejr, fields, expected_fields,
+    ):
+        def post_jobs_search(request, context):
+            """Handler of `POST /jobs/search"""
+            assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
+            assert request.json() == {
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {"term": {"backend_id": "unittests"}},
+                            {"terms": {"status": ["created", "queued", "running"]}},
+                        ],
+                        "must": {
+                            "exists": {
+                                "field": "application_id"
+                            }
+                        }
+                    }
+                },
+                "_source": IgnoreOrder(expected_fields),
+            }
+            return [
+                {"job_id": "job-123", "user_id": "alice"},
+                {"job_id": "job-456", "user_id": "bob"},
+            ]
+
+        requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=post_jobs_search)
+        result = ejr.list_trackable_jobs(fields)
+        assert result == [
+            {"job_id": "job-123", "user_id": "alice"},
+            {"job_id": "job-456", "user_id": "bob"},
+        ]
+
     def _handle_patch_jobs(
         self, oidc_mock: OidcMock, expected_data: Union[dict, DictSubSet]
     ):

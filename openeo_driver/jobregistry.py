@@ -152,6 +152,12 @@ class JobRegistryInterface:
         # TODO: option for job metadata fields that should be included in result
         raise NotImplementedError
 
+    def list_trackable_jobs(self, fields: Optional[List[str]] = None) -> List[JobDict]:
+        """
+        List jobs that should be considered in a job tracker run: created/queued/running with an application_id
+        """
+        raise NotImplementedError
+
 
 class EjrError(Exception):
     """Elastic Job Registry error (base class)."""
@@ -521,6 +527,22 @@ class ElasticJobRegistry(JobRegistryInterface):
                     {"terms": {"status": active}},
                     *additional_filters,
                 ]
+            },
+        }
+        return self._search(query=query, fields=fields)
+
+    def list_trackable_jobs(self, fields: Optional[List[str]] = None) -> List[JobDict]:
+        query = {
+            "bool": {
+                "filter": [
+                    {"term": {"backend_id": self.backend_id}},
+                    {"terms": {"status": [JOB_STATUS.CREATED, JOB_STATUS.QUEUED, JOB_STATUS.RUNNING]}},
+                ],
+                "must": {
+                    "exists": {  # excludes null values as well as property missing altogether
+                        "field": "application_id"
+                    }
+                }
             },
         }
         return self._search(query=query, fields=fields)
