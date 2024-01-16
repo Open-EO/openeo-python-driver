@@ -19,8 +19,6 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
-- Block sync request with too large extent. Use batch-job instead for those. ([#616](https://github.com/Open-EO/openeo-geopyspark-driver/issues/616))
-
 ## 0.80.0
 
 - Add `User` argument to `GpsBatchJobs.create_job()`
