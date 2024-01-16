@@ -629,7 +629,7 @@ def register_views_processing(
         try:
             env_validate = env.push({
                 "allow_check_missing_products": False,
-                "sync_job": True,
+                "large_layer_threshold_in_pixels": 1e12,  # Huge threshold
             })
             errors = backend_implementation.processing.validate(process_graph=process_graph, env=env_validate)
             errors = list(filter(lambda x: x["code"] == "ExtentTooLarge", errors))
