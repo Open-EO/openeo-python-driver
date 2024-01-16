@@ -629,7 +629,8 @@ def register_views_processing(
         try:
             env_validate = env.push({
                 "allow_check_missing_products": False,
-                "large_layer_threshold_in_pixels": 1e8,  # Smaller threshold for sync jobs
+                # test with mini threshold to make see if tests fail:
+                "large_layer_threshold_in_pixels": 0,  # 1e8,  # Smaller threshold for sync jobs
             })
             errors = backend_implementation.processing.validate(process_graph=process_graph, env=env_validate)
             errors = list(filter(lambda x: x["code"] == "ExtentTooLarge", errors))
@@ -637,7 +638,7 @@ def register_views_processing(
                 errors_messages = map(lambda x: x["message"], errors)
                 raise OpenEOApiException(
                     code="ExtentTooLarge", status_code=400,
-                    message=f"Errors: {','.join(errors_messages)}"
+                    message=f"Errors: {','.join(map(lambda x: x['message'], errors_messages))}"
                 )
 
             result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)
