@@ -31,7 +31,7 @@ tests_require = [
 ]
 
 setup(
-    name="openeo_driver",
+    name="openeo_driver_phase_out_zkjobregistry",
     version=version,
     author="Jeroen Dries",
     author_email="jeroen.dries@vito.be",
