@@ -651,6 +651,8 @@ def vector_buffer(args: Dict, env: EvalEnv) -> dict:
             geoms = [shape(geom) for geom in geometry["geometries"]]
         elif geometry_type in {"Polygon", "MultiPolygon", "Point", "MultiPoint", "LineString"}:
             geoms = [shape(geometry)]
+        elif geometry_type == "Feature":
+            geoms = [shape(geometry["geometry"])]
         else:
             raise ProcessParameterInvalidException(
                 parameter="geometry", process="vector_buffer", reason=f"Invalid geometry type {geometry_type}."
