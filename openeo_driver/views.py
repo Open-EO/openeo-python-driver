@@ -27,9 +27,19 @@ from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefined
 from openeo_driver.config import get_backend_config, OpenEoBackendConfig
 from openeo_driver.constants import STAC_EXTENSION
 from openeo_driver.datacube import DriverMlModel
-from openeo_driver.errors import OpenEOApiException, ProcessGraphMissingException, ServiceNotFoundException, \
-    FilePathInvalidException, ProcessGraphNotFoundException, FeatureUnsupportedException, ProcessUnsupportedException, \
-    JobNotFinishedException, ProcessGraphInvalidException, InternalException
+from openeo_driver.errors import (
+    OpenEOApiException,
+    ProcessGraphMissingException,
+    ServiceNotFoundException,
+    FilePathInvalidException,
+    ProcessGraphNotFoundException,
+    FeatureUnsupportedException,
+    ProcessUnsupportedException,
+    JobNotFinishedException,
+    ProcessGraphInvalidException,
+    InternalException,
+    ProcessGraphComplexityException,
+)
 from openeo_driver.jobregistry import JOB_STATUS
 from openeo_driver.save_result import SaveResult, to_save_result
 from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
@@ -627,6 +637,21 @@ def register_views_processing(
         )
 
         try:
+            try:
+                sync_processing_issues = list(
+                    backend_implementation.processing.verify_for_synchronous_processing(
+                        process_graph=process_graph, env=env
+                    )
+                )
+            except Exception as e:
+                _log.exception(f"Unexpected error while verifying synchronous processing: {e}")
+            else:
+                if sync_processing_issues:
+                    raise ProcessGraphComplexityException(
+                        message=ProcessGraphComplexityException.message
+                        + f" Reasons: {' '.join(sync_processing_issues)}"
+                    )
+
             result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)
             _log.info(f"`POST /result`: {type(result)}")
 

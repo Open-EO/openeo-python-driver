@@ -4167,3 +4167,26 @@ def test_request_id_in_response_header(api):
 
     request_id = result.headers["Request-Id"]
     assert request_id.startswith("r-"), request_id
+
+
+def test_verify_for_synchronous_processing(api):
+    pg = {"lc": {"process_id": "load_collection", "arguments": {"id": "S2_NO_SYNC_PROCESSING"}, "result": True}}
+    res = api.result(pg)
+    res.assert_error(
+        400,
+        "ProcessGraphComplexity",
+        message="The process is too complex for for synchronous processing. Please use a batch job instead. Reasons: Collection 'S2_NO_SYNC_PROCESSING' is not available for synchronous processing.",
+    )
+
+
+def test_verify_for_synchronous_processing_failure(api, caplog):
+    pg = {
+        "lc": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FAIL_VERIFY_FOR_SYNC_PROCESSING"},
+            "result": True,
+        }
+    }
+    res = api.result(pg)
+    res.assert_status_code(200)
+    assert "Unexpected error while verifying synchronous processing: Nope, catch this" in caplog.text
