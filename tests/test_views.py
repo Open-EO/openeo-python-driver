@@ -276,10 +276,10 @@ class TestGeneral:
 
     def test_capabilities_processing_software(self, api100):
         capabilities = api100.get('/').assert_status_code(200).json
-        # assert capabilities["processing:software"] == {
-        #     "openeo": RegexMatcher(r"0.\d+\.\d+"),
-        #     "openeo_driver": RegexMatcher(r"0.\d+\.\d+"),
-        # }
+        assert capabilities["processing:software"] == {
+            "openeo": RegexMatcher(r"0.\d+\.\d+"),
+            "openeo_driver": RegexMatcher(r"0.\d+\.\d+"),
+        }
         assert any("stac-extensions.github.io/processing" in e for e in capabilities.get("stac_extensions", []))
 
     def test_conformance(self, api100):
