@@ -463,14 +463,18 @@ class TestElasticJobRegistry:
         ["fields", "expected_fields"],
         [
             (None, ["job_id", "user_id", "created", "status", "updated"]),
-            (
-                ["created", "started"],
-                ["job_id", "user_id", "created", "status", "updated", "started"],
-            ),
+            (["created", "started"], ["job_id", "user_id", "created", "status", "updated", "started"]),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ["max_age", "additional_filters"],
+        [
+            (None, []),
+            (7, [{"range": {"created": {"gte": "now-7d"}}}]),
         ],
     )
     def test_list_active_jobs(
-        self, requests_mock, oidc_mock, ejr, fields, expected_fields
+        self, requests_mock, oidc_mock, ejr, fields, expected_fields, max_age, additional_filters
     ):
         def post_jobs_search(request, context):
             """Handler of `POST /jobs/search"""
@@ -481,7 +485,7 @@ class TestElasticJobRegistry:
                         "filter": [
                             {"term": {"backend_id": "unittests"}},
                             {"terms": {"status": ["created", "queued", "running"]}},
-                            {"range": {"created": {"gte": "now-7d"}}},
+                            *additional_filters,
                         ]
                     }
                 },
@@ -493,7 +497,48 @@ class TestElasticJobRegistry:
             ]
 
         requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=post_jobs_search)
-        result = ejr.list_active_jobs(fields=fields)
+        result = ejr.list_active_jobs(max_age=max_age, fields=fields)
+        assert result == [
+            {"job_id": "job-123", "user_id": "alice"},
+            {"job_id": "job-456", "user_id": "bob"},
+        ]
+
+    @pytest.mark.parametrize(
+        ["fields", "expected_fields"],
+        [
+            (None, ["job_id", "user_id", "created", "status", "updated"]),
+            (["created", "started"], ["job_id", "user_id", "created", "status", "updated", "started"]),
+        ],
+    )
+    def test_list_trackable_jobs(
+        self, requests_mock, oidc_mock, ejr, fields, expected_fields,
+    ):
+        def post_jobs_search(request, context):
+            """Handler of `POST /jobs/search"""
+            assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
+            assert request.json() == {
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {"term": {"backend_id": "unittests"}},
+                            {"terms": {"status": ["created", "queued", "running"]}},
+                        ],
+                        "must": {
+                            "exists": {
+                                "field": "application_id"
+                            }
+                        }
+                    }
+                },
+                "_source": IgnoreOrder(expected_fields),
+            }
+            return [
+                {"job_id": "job-123", "user_id": "alice"},
+                {"job_id": "job-456", "user_id": "bob"},
+            ]
+
+        requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=post_jobs_search)
+        result = ejr.list_trackable_jobs(fields)
         assert result == [
             {"job_id": "job-123", "user_id": "alice"},
             {"job_id": "job-456", "user_id": "bob"},
@@ -643,6 +688,34 @@ class TestElasticJobRegistry:
             "cpu": {"value": 3283, "unit": "cpu-seconds"},
             "memory": {"value": 8040202, "unit": "mb-seconds"},
             "sentinelhub": {"value": 108.33333656191826, "unit": "sentinelhub_processing_unit"}})
+        assert patch_mock.call_count == 1
+
+    def test_set_results_metadata(self, requests_mock, oidc_mock, ejr):
+        handler = self._handle_patch_jobs(
+            oidc_mock=oidc_mock, expected_data={
+                "costs": 22,
+                "usage": {
+                    "cpu": {"value": 3283, "unit": "cpu-seconds"},
+                    "memory": {"value": 8040202, "unit": "mb-seconds"},
+                    "sentinelhub": {"value": 108.33333656191826, "unit": "sentinelhub_processing_unit"}
+                },
+                "results_metadata": {
+                    "unique_process_ids": ["load_stac"]
+                },
+            }
+        )
+        patch_mock = requests_mock.patch(
+            f"{self.EJR_API_URL}/jobs/job-123", json=handler
+        )
+
+        ejr.set_results_metadata(job_id="job-123", costs=22,
+                                 usage={
+                                     "cpu": {"value": 3283, "unit": "cpu-seconds"},
+                                     "memory": {"value": 8040202, "unit": "mb-seconds"},
+                                     "sentinelhub": {"value": 108.33333656191826, "unit": "sentinelhub_processing_unit"}
+                                 },
+                                 results_metadata={"unique_process_ids": ["load_stac"]},
+                                 )
         assert patch_mock.call_count == 1
 
     def test_just_log_errors(self, caplog):
