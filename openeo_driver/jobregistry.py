@@ -119,7 +119,7 @@ class JobRegistryInterface:
     def set_application_id(self, job_id: str, application_id: str) -> JobDict:
         raise NotImplementedError
 
-    @deprecated("call set_results_metadata instead", version="0.81.0")
+    @deprecated("call set_results_metadata instead", version="0.82.0")
     def set_usage(self, job_id: str, costs: float, usage: dict) -> JobDict:
         raise NotImplementedError
 
