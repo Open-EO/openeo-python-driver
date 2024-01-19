@@ -19,7 +19,17 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
-- Block sync request with too large extent. Use batch-job instead for those. ([#616](https://github.com/Open-EO/openeo-geopyspark-driver/issues/616))
+## 0.83.0
+
+- Add `Processing.verify_for_synchronous_processing` API ([#248](https://github.com/Open-EO/openeo-python-driver/issues/248))
+
+## 0.82.0
+
+- Support EJR replacing ZkJobRegistry
+
+## 0.81.0
+
+- ~~Block sync request with too large extent. Use batch-job instead for those. ([Open-EO/openeo-geopyspark-driver#616](https://github.com/Open-EO/openeo-geopyspark-driver/issues/616))~~
 
 ## 0.80.0
 
