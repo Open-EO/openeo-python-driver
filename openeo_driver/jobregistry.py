@@ -389,6 +389,7 @@ class ElasticJobRegistry(JobRegistryInterface):
                 assert job["job_id"] == job_id, f"{job['job_id']=} != {job_id=}"
                 return job
             elif len(jobs) == 0:
+                self.logger.warning(f"Found no jobs for {job_id=}")
                 raise JobNotFoundException(job_id=job_id)
             else:
                 summary = [{k: j.get(k) for k in ["user_id", "created"]} for j in jobs]
