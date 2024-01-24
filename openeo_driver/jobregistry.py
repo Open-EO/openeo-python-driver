@@ -640,6 +640,10 @@ class CliApp:
         cli_list_active.add_argument("--backend-id", help="Backend id to filter on.")
         cli_list_active.set_defaults(func=self.list_active_jobs)
 
+        cli_list_active = subparsers.add_parser("list-trackable", help="List trackable jobs.")
+        cli_list_active.add_argument("--backend-id", help="Backend id to filter on.")
+        cli_list_active.set_defaults(func=self.list_trackable_jobs)
+
         cli_get_job = subparsers.add_parser("get", help="Get job metadata of a single job")
         cli_get_job.add_argument("--backend-id", help="Backend id to filter on.")
         cli_get_job.add_argument("job_id")
@@ -714,6 +718,13 @@ class CliApp:
         # TODO: option to return more fields?
         jobs = ejr.list_active_jobs(max_age=7)
         print(f"Found {len(jobs)} active jobs (backend {ejr.backend_id!r}):")
+        pprint.pp(jobs)
+
+    def list_trackable_jobs(self, args: argparse.Namespace):
+        ejr = self._get_job_registry(cli_args=args)
+        # TODO: option to return more fields?
+        jobs = ejr.list_trackable_jobs()
+        print(f"Found {len(jobs)} trackable jobs (backend {ejr.backend_id!r}):")
         pprint.pp(jobs)
 
     def create_dummy_job(self, args: argparse.Namespace):
