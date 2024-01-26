@@ -603,7 +603,7 @@ class AggregatePolygonSpatialResult(SaveResult):
             return send_from_directory(
                 os.path.dirname(csv_path),
                 os.path.basename(csv_path),
-                mimetypes=IOFORMATS.get_mimetype(self.format),
+                mimetype=IOFORMATS.get_mimetype(self.format),
             )
         else:
             raise FeatureUnsupportedException(f"Unsupported output format {self.format}; supported are: JSON and CSV")
