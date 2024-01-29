@@ -23,7 +23,7 @@ tests_require = [
     "astroid>=2.4.0",
     "openeo_udf>=1.0.0rc3",
     "boto3[s3]>=1.26.17",
-    "moto>=5.0.0",
+    "moto[s3]>=5.0.0",
     "time-machine>=2.8.0",
     "netCDF4>=1.5.4",
     "re-assert",
