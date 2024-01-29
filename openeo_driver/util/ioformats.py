@@ -52,5 +52,6 @@ IOFORMATS = _FormatDb([
     FormatInfo("CSV", "text/csv"),
     FormatInfo("ESRI Shapefile", "x-gis/x-shapefile", extension="shp", multi_file=True),
     FormatInfo("GPKG", "application/geopackage+sqlite3"),
+    FormatInfo("Parquet", "application/parquet; profile=geo"),
     # TODO: support more formats
 ])

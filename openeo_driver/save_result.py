@@ -11,6 +11,7 @@ from tempfile import mkstemp
 from typing import Union, Dict, List, Optional, Any
 from zipfile import ZipFile
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import typing
@@ -248,6 +249,10 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
             filename = str(Path(directory) / "timeseries.csv")
             self.to_csv(filename)
             asset["type"] = "text/csv"
+        elif self.is_format('parquet'):
+            filename = str(Path(directory) / "timeseries.parquet")
+            self.to_geoparquet(filename)
+            asset["type"] = "application/parquet; profile=geo"
         else:
             import json
             with open(filename, 'w') as f:
@@ -285,7 +290,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
                 mimetype=IOFORMATS.get_mimetype(self.format),
             )
 
-        if self.is_format('parquet'):  # TODO: support this as well? What about the time dimension?
+        if self.is_format('parquet'):
             filename = self.to_geoparquet()
             return send_from_directory(
                 os.path.dirname(filename),
@@ -494,10 +499,23 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
             "ranges": ranges
         }
 
-    def to_geoparquet(self) -> str:
-        filename = get_temp_file(suffix=".parquet")
-        # TODO: do something with self._regions and self.get_data() like in self.to_netcdf()
-        self._regions.write_to_parquet(path=filename)
+    def to_geoparquet(self, destination: Optional[str] = None) -> str:
+        filename = destination or get_temp_file(suffix=".parquet")
+
+        flattened = []
+        n_band_values = None
+        for timestamp, features in self.get_data().items():
+            for feature_index, band_values in enumerate(features):
+                n_band_values = len(band_values)
+                flattened.append((timestamp, feature_index, *band_values))
+
+        stats = pd.DataFrame.from_records(flattened,
+                                          columns=['date', 'feature_index'] + [f"band_{i}" for i in
+                                                                               range(n_band_values)])
+
+        gdf = self._regions._geometries
+
+        gpd.GeoDataFrame(stats.join(gdf, on='feature_index')).to_parquet(filename)
         return filename
 
 
