@@ -1,3 +1,4 @@
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
@@ -18,6 +19,10 @@ and start a new "In Progress" section above it.
 
 
 ## In progress
+
+## 0.84.0
+
+- Support spatial vector cube from aggregate_spatial as GeoParquet (https://github.com/Open-EO/openeo-geopyspark-driver/issues/623)
 
 ## 0.83.0
 
