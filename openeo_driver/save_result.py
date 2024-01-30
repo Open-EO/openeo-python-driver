@@ -1,6 +1,7 @@
 import glob
 import os
 import pathlib
+import re
 import tempfile
 import warnings
 import logging
@@ -645,7 +646,7 @@ class AggregatePolygonSpatialResult(SaveResult):
 
         (gdf
          .join(stats.set_index('feature_index'), on='feature_index')
-         .rename(columns=lambda col_name: col_name.replace("(", "_").replace(")", ""))  # TODO: generalize this naming restriction workaround?
+         .rename(columns=lambda col_name: re.sub(r"\W", "_", col_name))  # adhere to naming restriction [A-Za-z0-9_]
          .to_parquet(filename))
 
         return filename
