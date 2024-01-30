@@ -13,6 +13,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 import requests
+from deprecated.classic import deprecated
 from openeo.rest.connection import url_join
 from openeo.util import TimingLogger, repr_truncate, rfc3339
 
@@ -118,7 +119,13 @@ class JobRegistryInterface:
     def set_application_id(self, job_id: str, application_id: str) -> JobDict:
         raise NotImplementedError
 
+    @deprecated("call set_results_metadata instead", version="0.82.0")
     def set_usage(self, job_id: str, costs: float, usage: dict) -> JobDict:
+        raise NotImplementedError
+
+    # TODO: improve name?
+    def set_results_metadata(self, job_id: str, costs: Optional[float], usage: dict,
+                             results_metadata: Dict[str, Any]) -> JobDict:
         raise NotImplementedError
 
     def list_user_jobs(
@@ -139,10 +146,16 @@ class JobRegistryInterface:
         List active jobs (created, queued, running)
 
         :param max_age: optional filter to only return recently created jobs:
-            maximum number of days creation date.
+            creation date is at most max_age days ago.
         :param fields: job metadata fields that should be included in result
         """
         # TODO: option for job metadata fields that should be included in result
+        raise NotImplementedError
+
+    def list_trackable_jobs(self, fields: Optional[List[str]] = None) -> List[JobDict]:
+        """
+        List jobs that should be considered in a job tracker run: created/queued/running with an application_id
+        """
         raise NotImplementedError
 
 
@@ -216,6 +229,9 @@ class ElasticJobRegistry(JobRegistryInterface):
         session: Optional[requests.Session] = None,
         _debug_show_curl: bool = False,
     ):
+        if not api_url:
+            raise ValueError(api_url)
+
         self.logger.info(f"Creating ElasticJobRegistry with {backend_id=} and {api_url=}")
         self._backend_id: Optional[str] = backend_id
         self._api_url = api_url
@@ -373,6 +389,7 @@ class ElasticJobRegistry(JobRegistryInterface):
                 assert job["job_id"] == job_id, f"{job['job_id']=} != {job_id=}"
                 return job
             elif len(jobs) == 0:
+                self.logger.warning(f"Found no jobs for {job_id=}")
                 raise JobNotFoundException(job_id=job_id)
             else:
                 summary = [{k: j.get(k) for k in ["user_id", "created"]} for j in jobs]
@@ -503,16 +520,42 @@ class ElasticJobRegistry(JobRegistryInterface):
         self, max_age: Optional[int] = None, fields: Optional[List[str]] = None
     ) -> List[JobDict]:
         active = [JOB_STATUS.CREATED, JOB_STATUS.QUEUED, JOB_STATUS.RUNNING]
+        additional_filters = [{"range": {"created": {"gte": f"now-{max_age}d"}}}] if max_age is not None else []
         query = {
             "bool": {
                 "filter": [
                     {"term": {"backend_id": self.backend_id}},
                     {"terms": {"status": active}},
-                    {"range": {"created": {"gte": f"now-{max_age or 7}d"}}},
+                    *additional_filters,
                 ]
             },
         }
         return self._search(query=query, fields=fields)
+
+    def list_trackable_jobs(self, fields: Optional[List[str]] = None) -> List[JobDict]:
+        query = {
+            "bool": {
+                "filter": [
+                    {"term": {"backend_id": self.backend_id}},
+                    {"terms": {"status": [JOB_STATUS.CREATED, JOB_STATUS.QUEUED, JOB_STATUS.RUNNING]}},
+                ],
+                "must": {
+                    "exists": {  # excludes null values as well as property missing altogether
+                        "field": "application_id"
+                    }
+                }
+            },
+        }
+        return self._search(query=query, fields=fields)
+
+    def set_results_metadata(
+        self, job_id: str, costs: Optional[float], usage: dict, results_metadata: Dict[str, Any]
+    ) -> JobDict:
+        return self._update(job_id=job_id, data={
+            "costs": costs,
+            "usage": usage,
+            "results_metadata": results_metadata,
+        })
 
     @staticmethod
     def just_log_errors(name: str = "EJR"):
@@ -520,7 +563,6 @@ class ElasticJobRegistry(JobRegistryInterface):
         Shortcut to easily and compactly guard all experimental, new ElasticJobRegistry logic
         with a "just_log_errors" context.
         """
-        # TODO #153: remove all usage when ElasticJobRegistry is ready for production
         return just_log_exceptions(log=ElasticJobRegistry.logger.warning, name=name)
 
 
@@ -598,6 +640,10 @@ class CliApp:
         cli_list_active.add_argument("--backend-id", help="Backend id to filter on.")
         cli_list_active.set_defaults(func=self.list_active_jobs)
 
+        cli_list_active = subparsers.add_parser("list-trackable", help="List trackable jobs.")
+        cli_list_active.add_argument("--backend-id", help="Backend id to filter on.")
+        cli_list_active.set_defaults(func=self.list_trackable_jobs)
+
         cli_get_job = subparsers.add_parser("get", help="Get job metadata of a single job")
         cli_get_job.add_argument("--backend-id", help="Backend id to filter on.")
         cli_get_job.add_argument("job_id")
@@ -670,8 +716,15 @@ class CliApp:
     def list_active_jobs(self, args: argparse.Namespace):
         ejr = self._get_job_registry(cli_args=args)
         # TODO: option to return more fields?
-        jobs = ejr.list_active_jobs()
+        jobs = ejr.list_active_jobs(max_age=7)
         print(f"Found {len(jobs)} active jobs (backend {ejr.backend_id!r}):")
+        pprint.pp(jobs)
+
+    def list_trackable_jobs(self, args: argparse.Namespace):
+        ejr = self._get_job_registry(cli_args=args)
+        # TODO: option to return more fields?
+        jobs = ejr.list_trackable_jobs()
+        print(f"Found {len(jobs)} trackable jobs (backend {ejr.backend_id!r}):")
         pprint.pp(jobs)
 
     def create_dummy_job(self, args: argparse.Namespace):
@@ -713,7 +766,6 @@ class CliApp:
         ejr = self._get_job_registry(cli_args=args)
         ejr.delete_job(job_id=job_id)
         print(f"Deleted {job_id}")
-
 
 
 if __name__ == "__main__":

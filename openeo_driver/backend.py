@@ -594,6 +594,14 @@ class Processing(MicroService):
     def run_udf(self, udf: str, data: openeo.udf.UdfData) -> openeo.udf.UdfData:
         raise NotImplementedError
 
+    def verify_for_synchronous_processing(self, process_graph: dict, env: EvalEnv = None) -> Iterable[str]:
+        """
+        Verify that the given process graph can be executed synchronously.
+        Return list/iterable of reasons describing why synchronous processing is not possible.
+        An empty list/iterable indicates the process graph can be executed synchronously.
+        """
+        return []
+
 
 class ErrorSummary(Exception):
     # TODO: this is specific for openeo-geopyspark-driver: can we avoid defining it in openeo-python-driver?

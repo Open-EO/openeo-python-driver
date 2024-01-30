@@ -3477,66 +3477,115 @@ def test_date_shift(api, date, value, unit, expected):
     assert res == expected
 
 
-@pytest.mark.parametrize(["buf", "unit", "repr_geom", "expected_type", "bounds"], [
-    # Template to calculate expected bounds of single geometries:
-    #       import geopandas as gpd
-    #       shape = Point(5.1, 51.22)
-    #       series = gpd.GeoSeries([shape], crs=4326)
-    #       buffered = series.to_crs(32631).buffer(100).to_crs(4326)
-    #       print(buffered.iloc[0].bounds)
-    (
-            100, "meter", {"type": "Point", "coordinates": (5.1, 51.22)},
-            "Polygon", (5.098569060859835, 51.219101388461105, 5.101430937032029, 51.22089861137662),
-    ),
-    (
-            1000, "meter", {"type": "Point", "coordinates": (5.1, 51.22)},
-            "Polygon", (5.085690513968438, 51.21101387730941, 5.114309275218151, 51.22898610646433),
-    ),
-    (
-            100, "kilometer", {"type": "Point", "coordinates": (5.1, 51.22)},
-            "Polygon", (3.668246824769951, 50.321307522288016, 6.529646150453797, 52.11853021385508),
-    ),
-    (
-            100, "meter", {"type": "MultiPoint", "coordinates": ((5.1, 51.22), (5.11, 51.23))},
-            "MultiPolygon", (5.098569060859835, 51.219101388461105, 5.111431237949069, 51.23089860406231),
-    ),
-    (
-            750, "meter", {"type": "MultiPoint", "coordinates": ((5.1, 51.22), (5.11, 51.23))},
-            "Polygon", (5.089267905161828, 51.213260409503235, 5.120734232861271, 51.23673952650676),
-    ),
-    (
-            100, "meter", {"type": "LineString", "coordinates": ((5.1, 51.22), (5.11, 51.23))},
-            "Polygon", (5.09856905615526, 51.21910138452717, 5.111431257271536, 51.23089861521429),
-    ),
-    (
-            100, "meter", load_json("geojson/Polygon01.json"),
-            "Polygon", (5.0985703229820665, 51.19910120996896, 5.141430817509717, 51.23089799863948),
-    ),
-    (
-            -500, "meter", load_json("geojson/Polygon01.json"),
-            "Polygon", (5.1084522374601145, 51.206647698484225, 5.129458164090344, 51.222687097228174),
-    ),
-    (
-            1, "kilometer", load_json("geojson/Polygon01.json"),
-            "Polygon", (5.087874843800581, 51.19113803453279, 5.154275007454256, 51.23894705603116),
-    ),
-    (
-            100, "meter", load_json("geojson/MultiPolygon01.json"),
-            "MultiPolygon", (5.098787598453318, 51.19911380673043, 5.141427521031006, 51.2408707459342),
-    ),
-    (
-            500, "meter", load_json("geojson/MultiPolygon01.json"),
-            "Polygon", (5.092851581512912, 51.19550604834508, 5.147157170251627, 51.244493919231424,)
-    ),
-    (
-            1000, "meter", load_json("geojson/FeatureCollection01.json"),
-            "FeatureCollection", (4.43568898, 51.09100882, 4.53429533, 51.20899105),
-    ),
-    (
-            1000, "meter", str(get_path("geojson/FeatureCollection01.json")),
-            "FeatureCollection", (4.43568898, 51.09100882, 4.53429533, 51.20899105),
-    ),
-])
+@pytest.mark.parametrize(
+    ["buf", "unit", "repr_geom", "expected_type", "bounds"],
+    [
+        # Template to calculate expected bounds of single geometries:
+        #       import geopandas as gpd
+        #       shape = Point(5.1, 51.22)
+        #       series = gpd.GeoSeries([shape], crs=4326)
+        #       buffered = series.to_crs(32631).buffer(100).to_crs(4326)
+        #       print(buffered.iloc[0].bounds)
+        (
+            100,
+            "meter",
+            {"type": "Point", "coordinates": (5.1, 51.22)},
+            "Polygon",
+            (5.098569060859835, 51.219101388461105, 5.101430937032029, 51.22089861137662),
+        ),
+        (
+            1000,
+            "meter",
+            {"type": "Point", "coordinates": (5.1, 51.22)},
+            "Polygon",
+            (5.085690513968438, 51.21101387730941, 5.114309275218151, 51.22898610646433),
+        ),
+        (
+            100,
+            "kilometer",
+            {"type": "Point", "coordinates": (5.1, 51.22)},
+            "Polygon",
+            (3.668246824769951, 50.321307522288016, 6.529646150453797, 52.11853021385508),
+        ),
+        (
+            100,
+            "meter",
+            {"type": "MultiPoint", "coordinates": ((5.1, 51.22), (5.11, 51.23))},
+            "MultiPolygon",
+            (5.098569060859835, 51.219101388461105, 5.111431237949069, 51.23089860406231),
+        ),
+        (
+            750,
+            "meter",
+            {"type": "MultiPoint", "coordinates": ((5.1, 51.22), (5.11, 51.23))},
+            "Polygon",
+            (5.089267905161828, 51.213260409503235, 5.120734232861271, 51.23673952650676),
+        ),
+        (
+            100,
+            "meter",
+            {"type": "LineString", "coordinates": ((5.1, 51.22), (5.11, 51.23))},
+            "Polygon",
+            (5.09856905615526, 51.21910138452717, 5.111431257271536, 51.23089861521429),
+        ),
+        (
+            100,
+            "meter",
+            load_json("geojson/Polygon01.json"),
+            "Polygon",
+            (5.0985703229820665, 51.19910120996896, 5.141430817509717, 51.23089799863948),
+        ),
+        (
+            -500,
+            "meter",
+            load_json("geojson/Polygon01.json"),
+            "Polygon",
+            (5.1084522374601145, 51.206647698484225, 5.129458164090344, 51.222687097228174),
+        ),
+        (
+            1,
+            "kilometer",
+            load_json("geojson/Polygon01.json"),
+            "Polygon",
+            (5.087874843800581, 51.19113803453279, 5.154275007454256, 51.23894705603116),
+        ),
+        (
+            100,
+            "meter",
+            load_json("geojson/MultiPolygon01.json"),
+            "MultiPolygon",
+            (5.098787598453318, 51.19911380673043, 5.141427521031006, 51.2408707459342),
+        ),
+        (
+            500,
+            "meter",
+            load_json("geojson/MultiPolygon01.json"),
+            "Polygon",
+            (5.092851581512912, 51.19550604834508, 5.147157170251627, 51.244493919231424),
+        ),
+        (
+            1000,
+            "meter",
+            load_json("geojson/Feature01.json"),
+            "Polygon",
+            (0.9910, 0.9910, 3.009, 3.009),
+        ),
+        (
+            1000,
+            "meter",
+            load_json("geojson/FeatureCollection01.json"),
+            "FeatureCollection",
+            (4.43568898, 51.09100882, 4.53429533, 51.20899105),
+        ),
+        (
+            1000,
+            "meter",
+            str(get_path("geojson/FeatureCollection01.json")),
+            "FeatureCollection",
+            (4.43568898, 51.09100882, 4.53429533, 51.20899105),
+        ),
+    ],
+)
 def test_vector_buffer(api, buf, unit, repr_geom, expected_type, bounds):
     pg = {
         "vectorbuffer1": {
@@ -4118,3 +4167,26 @@ def test_request_id_in_response_header(api):
 
     request_id = result.headers["Request-Id"]
     assert request_id.startswith("r-"), request_id
+
+
+def test_verify_for_synchronous_processing(api):
+    pg = {"lc": {"process_id": "load_collection", "arguments": {"id": "S2_NO_SYNC_PROCESSING"}, "result": True}}
+    res = api.result(pg)
+    res.assert_error(
+        400,
+        "ProcessGraphComplexity",
+        message="The process is too complex for for synchronous processing. Please use a batch job instead. Reasons: Collection 'S2_NO_SYNC_PROCESSING' is not available for synchronous processing.",
+    )
+
+
+def test_verify_for_synchronous_processing_failure(api, caplog):
+    pg = {
+        "lc": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FAIL_VERIFY_FOR_SYNC_PROCESSING"},
+            "result": True,
+        }
+    }
+    res = api.result(pg)
+    res.assert_status_code(200)
+    assert "Unexpected error while verifying synchronous processing: Nope, catch this" in caplog.text

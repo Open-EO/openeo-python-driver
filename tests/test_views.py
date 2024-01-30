@@ -13,7 +13,7 @@ import flask
 import pytest
 import re_assert
 import werkzeug.exceptions
-from moto import mock_s3
+import moto
 
 from openeo.capabilities import ComparableVersion
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
@@ -113,7 +113,7 @@ def aws_credentials(monkeypatch):
 
 @pytest.fixture(scope='function')
 def mock_s3_resource(aws_credentials):
-    with mock_s3():
+    with moto.mock_aws():
         yield boto3.resource("s3", region_name=TEST_AWS_REGION_NAME)
 
 
