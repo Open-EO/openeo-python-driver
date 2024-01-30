@@ -646,7 +646,6 @@ class AggregatePolygonSpatialResult(SaveResult):
         (gdf
          .join(stats.set_index('feature_index'), on='feature_index')
          .rename(columns=lambda col_name: col_name.replace("(", "_").replace(")", ""))  # TODO: generalize this naming restriction workaround?
-         .drop(columns="feature_index")
          .to_parquet(filename))
 
         return filename

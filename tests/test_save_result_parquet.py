@@ -18,6 +18,7 @@ def test_save_aggregate_polygon_spatial_result(tmp_path):
 
     assert gpd.read_parquet(output_file).to_dict('list') == {
         'geometry': [Polygon([(1, 1), (3, 1), (2, 3), (1, 1)]), Polygon([(4, 2), (5, 4), (3, 4), (4, 2)])],
+        'feature_index': [0, 1],
         'id': ['first', 'second'],
         'pop': [1234, 5678],
         'avg_band_0': [4646.262612301313, 4645.719597475695],
