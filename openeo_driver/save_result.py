@@ -1,6 +1,5 @@
 import glob
 import os
-import pathlib
 import re
 import tempfile
 import warnings
@@ -235,24 +234,24 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         """
         # TODO: There is something wrong here: arg is called `directory`,
         #       but implementation and actual usage handles it as a file path (take parent to get directory)
-        directory = pathlib.Path(directory).parent
-        filename = str(Path(directory)/"timeseries.json")
+        directory = Path(directory).parent
+        filename = str(directory / "timeseries.json")
         asset = {
             "roles": ["data"],
             "type": "application/json"
         }
         if self.is_format('netcdf', 'ncdf'):
-            filename = str(Path(directory) / "timeseries.nc")
+            filename = str(directory / "timeseries.nc")
             self.to_netcdf(filename)
-            asset["type"] = "application/x-netcdf"
+            asset["type"] = IOFORMATS.get_mimetype(self.format)
         elif self.is_format('csv'):
-            filename = str(Path(directory) / "timeseries.csv")
+            filename = str(directory / "timeseries.csv")
             self.to_csv(filename)
-            asset["type"] = "text/csv"
+            asset["type"] = IOFORMATS.get_mimetype(self.format)
         elif self.is_format('parquet'):
-            filename = str(Path(directory) / "timeseries.parquet")
+            filename = str(directory / "timeseries.parquet")
             self.to_geoparquet(filename)
-            asset["type"] = "application/parquet; profile=geo"
+            asset["type"] = IOFORMATS.get_mimetype(self.format)
         else:
             import json
             with open(filename, 'w') as f:
@@ -262,14 +261,13 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
             bands = [b._asdict() for b in self._metadata.bands]
             asset["bands"] = bands
 
-        the_file = pathlib.Path(filename)
+        the_file = Path(filename)
         if the_file.exists():
             size_in_bytes = the_file.stat().st_size
             asset["file:size"] = size_in_bytes
 
         if self.raster_bands is not None:
             asset["raster:bands"] = self.raster_bands
-
 
         return {str(Path(filename).name): asset}
 
@@ -513,6 +511,11 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
                                           columns=['date', 'feature_index'] + [f"band_{i}" for i in
                                                                                range(n_band_values)])
 
+        # TODO: support other geometry types?
+        if not isinstance(self._regions, DriverVectorCube):
+            raise NotImplementedError(type(self._regions))
+
+        # TODO: avoid accessing _geometries to combine _regions and CSV
         gdf = self._regions._geometries
 
         gpd.GeoDataFrame(stats.join(gdf, on='feature_index')).to_parquet(filename)
@@ -672,27 +675,27 @@ class AggregatePolygonSpatialResult(SaveResult):
     def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
         # TODO: There is something wrong here: arg is called `directory`,
         #       but implementation and actual usage handles it as a file path (take parent to get directory)
-        directory = pathlib.Path(directory).parent
+        directory = Path(directory).parent
 
         asset = {
             "roles": ["data"]
         }
 
         if self.is_format("json"):
-            asset["type"] = "application/json"
-            filename = str(Path(directory) / "timeseries.json")
+            filename = str(directory / "timeseries.json")
+            asset["type"] = IOFORMATS.get_mimetype(self.format)
 
             import json
             with open(filename, 'w') as f:
                 json.dump(self.prepare_for_json(), f)
         elif self.is_format("csv"):
-            filename = str(Path(directory) / "timeseries.csv")
-            asset["type"] = "text/csv"
+            filename = str(directory / "timeseries.csv")
+            asset["type"] = IOFORMATS.get_mimetype(self.format)
 
             copy(self._csv_path(), filename)
         elif self.is_format("parquet"):
-            filename = str(Path(directory) / "timeseries.parquet")
-            asset["type"] = "application/parquet; profile=geo"
+            filename = str(directory / "timeseries.parquet")
+            asset["type"] = IOFORMATS.get_mimetype(self.format)
 
             self.to_geoparquet(destination=filename)
         else:
