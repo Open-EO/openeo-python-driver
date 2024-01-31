@@ -22,7 +22,7 @@ and start a new "In Progress" section above it.
 
 ## 0.84.0
 
-- Support spatial vector cube from aggregate_spatial as GeoParquet (https://github.com/Open-EO/openeo-geopyspark-driver/issues/623)
+- Support GeoParquet output format for `aggregate_spatial` (https://github.com/Open-EO/openeo-geopyspark-driver/issues/623)
 
 ## 0.83.0
 
