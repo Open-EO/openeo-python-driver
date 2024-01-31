@@ -1,6 +1,6 @@
 import glob
 import os
-import pathlib
+import re
 import tempfile
 import warnings
 import logging
@@ -10,6 +10,7 @@ from tempfile import mkstemp
 from typing import Union, Dict, List, Optional, Any
 from zipfile import ZipFile
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import typing
@@ -233,20 +234,24 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         """
         # TODO: There is something wrong here: arg is called `directory`,
         #       but implementation and actual usage handles it as a file path (take parent to get directory)
-        directory = pathlib.Path(directory).parent
-        filename = str(Path(directory)/"timeseries.json")
+        directory = Path(directory).parent
+        filename = str(directory / "timeseries.json")
         asset = {
             "roles": ["data"],
             "type": "application/json"
         }
         if self.is_format('netcdf', 'ncdf'):
-            filename = str(Path(directory) / "timeseries.nc")
+            filename = str(directory / "timeseries.nc")
             self.to_netcdf(filename)
-            asset["type"] = "application/x-netcdf"
+            asset["type"] = IOFORMATS.get_mimetype(self.format)
         elif self.is_format('csv'):
-            filename = str(Path(directory) / "timeseries.csv")
+            filename = str(directory / "timeseries.csv")
             self.to_csv(filename)
-            asset["type"] = "text/csv"
+            asset["type"] = IOFORMATS.get_mimetype(self.format)
+        elif self.is_format('parquet'):
+            filename = str(directory / "timeseries.parquet")
+            self.to_geoparquet(filename)
+            asset["type"] = IOFORMATS.get_mimetype(self.format)
         else:
             import json
             with open(filename, 'w') as f:
@@ -256,14 +261,13 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
             bands = [b._asdict() for b in self._metadata.bands]
             asset["bands"] = bands
 
-        the_file = pathlib.Path(filename)
+        the_file = Path(filename)
         if the_file.exists():
             size_in_bytes = the_file.stat().st_size
             asset["file:size"] = size_in_bytes
 
         if self.raster_bands is not None:
             asset["raster:bands"] = self.raster_bands
-
 
         return {str(Path(filename).name): asset}
 
@@ -278,6 +282,14 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
 
         if self.is_format('csv'):
             filename = self.to_csv()
+            return send_from_directory(
+                os.path.dirname(filename),
+                os.path.basename(filename),
+                mimetype=IOFORMATS.get_mimetype(self.format),
+            )
+
+        if self.is_format('parquet'):
+            filename = self.to_geoparquet()
             return send_from_directory(
                 os.path.dirname(filename),
                 os.path.basename(filename),
@@ -485,6 +497,30 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
             "ranges": ranges
         }
 
+    def to_geoparquet(self, destination: Optional[str] = None) -> str:
+        filename = destination or get_temp_file(suffix=".parquet")
+
+        flattened = []
+        n_band_values = None
+        for timestamp, features in self.get_data().items():
+            for feature_index, band_values in enumerate(features):
+                n_band_values = len(band_values)
+                flattened.append((timestamp, feature_index, *band_values))
+
+        stats = pd.DataFrame.from_records(flattened,
+                                          columns=['date', 'feature_index'] + [f"band_{i}" for i in
+                                                                               range(n_band_values)])
+
+        # TODO: support other geometry types?
+        if not isinstance(self._regions, DriverVectorCube):
+            raise NotImplementedError(type(self._regions))
+
+        # TODO: avoid accessing _geometries to combine _regions and CSV
+        gdf = self._regions._geometries
+
+        gpd.GeoDataFrame(stats.join(gdf, on='feature_index')).to_parquet(filename)
+        return filename
+
 
 class AggregatePolygonResultCSV(AggregatePolygonResult):
     # TODO #71 #114 EP-3981 port this to proper vector cube support
@@ -572,8 +608,8 @@ class AggregatePolygonSpatialResult(SaveResult):
 
     DEFAULT_FORMAT = "JSON"
 
-    def __init__(self, csv_dir: Union[str, Path], regions: GeometryCollection, metadata: CollectionMetadata = None,
-                 format: Optional[str] = None, options: Optional[dict] = None):
+    def __init__(self, csv_dir: Union[str, Path], regions: Union[GeometryCollection, DriverVectorCube],
+                 metadata: CollectionMetadata = None, format: Optional[str] = None, options: Optional[dict] = None):
         super().__init__(format, options)
         self._csv_dir = Path(csv_dir)
         self._regions = regions
@@ -603,34 +639,68 @@ class AggregatePolygonSpatialResult(SaveResult):
             return send_from_directory(
                 os.path.dirname(csv_path),
                 os.path.basename(csv_path),
-                mimetypes=IOFORMATS.get_mimetype(self.format),
+                mimetype=IOFORMATS.get_mimetype(self.format),
+            )
+        elif self.is_format("parquet"):
+            filename = self.to_geoparquet()
+            return send_from_directory(
+                os.path.dirname(filename),
+                os.path.basename(filename),
+                mimetype=IOFORMATS.get_mimetype(self.format),
             )
         else:
-            raise FeatureUnsupportedException(f"Unsupported output format {self.format}; supported are: JSON and CSV")
+            raise FeatureUnsupportedException(f"Unsupported output format {self.format};"
+                                              f" supported are: JSON, CSV and GeoParquet")
+
+    def to_geoparquet(self, destination: Optional[str] = None) -> str:
+        filename = destination or get_temp_file(suffix=".parquet")
+
+        # TODO: support other geometry types?
+        if not isinstance(self._regions, DriverVectorCube):
+            raise NotImplementedError(type(self._regions))
+
+        # TODO: avoid accessing _geometries to combine _regions and CSV
+        gdf = self._regions._geometries
+        gdf['feature_index'] = gdf.index
+
+        stats = pd.read_csv(self._csv_path())
+
+        (gdf
+         .join(stats.set_index('feature_index'), on='feature_index')
+         .rename(columns=lambda col_name: re.sub(r"\W", "_", col_name))  # adhere to naming restriction [A-Za-z0-9_]
+         .to_parquet(filename))
+
+        return filename
 
     def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
         # TODO: There is something wrong here: arg is called `directory`,
         #       but implementation and actual usage handles it as a file path (take parent to get directory)
-        directory = pathlib.Path(directory).parent
+        directory = Path(directory).parent
 
         asset = {
             "roles": ["data"]
         }
 
         if self.is_format("json"):
-            asset["type"] = "application/json"
-            filename = str(Path(directory) / "timeseries.json")
+            filename = str(directory / "timeseries.json")
+            asset["type"] = IOFORMATS.get_mimetype(self.format)
 
             import json
             with open(filename, 'w') as f:
                 json.dump(self.prepare_for_json(), f)
         elif self.is_format("csv"):
-            filename = str(Path(directory) / "timeseries.csv")
-            asset["type"] = "text/csv"
+            filename = str(directory / "timeseries.csv")
+            asset["type"] = IOFORMATS.get_mimetype(self.format)
 
             copy(self._csv_path(), filename)
+        elif self.is_format("parquet"):
+            filename = str(directory / "timeseries.parquet")
+            asset["type"] = IOFORMATS.get_mimetype(self.format)
+
+            self.to_geoparquet(destination=filename)
         else:
-            raise FeatureUnsupportedException(f"Unsupported output format {self.format}; supported are: JSON and CSV")
+            raise FeatureUnsupportedException(f"Unsupported output format {self.format};"
+                                              f" supported are: JSON, CSV and GeoParquet")
 
         asset["href"] = filename
 
