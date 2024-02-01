@@ -30,8 +30,17 @@ from openeo_driver.config import OpenEoBackendConfig
 from openeo_driver.dummy import dummy_backend, dummy_config
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
 from openeo_driver.errors import OpenEOApiException
-from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, \
-    generate_unique_test_process_id, build_basic_http_auth_header, ListSubSet, DictSubSet, RegexMatcher
+from openeo_driver.testing import (
+    ApiTester,
+    TEST_USER,
+    ApiResponse,
+    TEST_USER_AUTH_HEADER,
+    generate_unique_test_process_id,
+    build_basic_http_auth_header,
+    ListSubSet,
+    DictSubSet,
+    RegexMatcher,
+)
 from openeo_driver.urlsigning import UrlSigner
 from openeo_driver.users import User
 from openeo_driver.users.auth import HttpAuthHandler, AccessTokenException
@@ -87,8 +96,7 @@ def api110(client) -> ApiTester:
 
 
 def api_from_backend_implementation(
-        backend_implementation: OpenEoBackendImplementation,
-        api_version="1.0.0", data_root=TEST_DATA_ROOT
+    backend_implementation: OpenEoBackendImplementation, api_version="1.0.0", data_root=TEST_DATA_ROOT
 ) -> ApiTester:
     app: flask.Flask = build_app(backend_implementation)
     app.config.from_mapping(TEST_APP_CONFIG)
@@ -97,9 +105,10 @@ def api_from_backend_implementation(
     return api
 
 
-TEST_AWS_REGION_NAME = 'eu-central-1'
+TEST_AWS_REGION_NAME = "eu-central-1"
 
-@pytest.fixture(scope='function')
+
+@pytest.fixture(scope="function")
 def aws_credentials(monkeypatch):
     """Mocked AWS Credentials and related environment variables for moto/boto3."""
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
@@ -111,7 +120,7 @@ def aws_credentials(monkeypatch):
     monkeypatch.setenv("SWIFT_BUCKET", "openeo-test-bucket")
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope="function")
 def mock_s3_resource(aws_credentials):
     with moto.mock_aws():
         yield boto3.resource("s3", region_name=TEST_AWS_REGION_NAME)
@@ -119,7 +128,7 @@ def mock_s3_resource(aws_credentials):
 
 def create_s3_bucket(s3_resource, bucket_name):
     bucket = s3_resource.Bucket(bucket_name)
-    bucket.create(CreateBucketConfiguration={'LocationConstraint': TEST_AWS_REGION_NAME})
+    bucket.create(CreateBucketConfiguration={"LocationConstraint": TEST_AWS_REGION_NAME})
     return bucket
 
 
@@ -129,7 +138,7 @@ class TestGeneral:
     """
 
     def test_well_known_openeo(self, client):
-        resp = client.get('/.well-known/openeo')
+        resp = client.get("/.well-known/openeo")
         assert resp.status_code == 200
         versions = resp.json["versions"]
         # in .well-known/openeo there should only be one item per api_version (no aliases)
@@ -143,14 +152,17 @@ class TestGeneral:
         assert resp.headers["Cache-Control"] == "max-age=900, public"
 
     def test_versioned_well_known_openeo(self, api):
-        api.get('/.well-known/openeo').assert_error(404, "NotFound")
+        api.get("/.well-known/openeo").assert_error(404, "NotFound")
 
-    @pytest.mark.parametrize(["headers", "expected"], [
-        ({}, "http://oeo.net/"),
-        ({"X-Forwarded-Proto": "https"}, "https://oeo.net/"),
-    ])
+    @pytest.mark.parametrize(
+        ["headers", "expected"],
+        [
+            ({}, "http://oeo.net/"),
+            ({"X-Forwarded-Proto": "https"}, "https://oeo.net/"),
+        ],
+    )
     def test_https_proxy_handling(self, client, headers, expected):
-        resp = client.get('/.well-known/openeo', headers=headers)
+        resp = client.get("/.well-known/openeo", headers=headers)
         for url in [v["url"] for v in resp.json["versions"]]:
             assert url.startswith(expected)
 
@@ -174,7 +186,7 @@ class TestGeneral:
         assert capabilities["api_version"] == expected_version
 
     def test_capabilities_100(self, api100):
-        capabilities = api100.get('/').assert_status_code(200).json
+        capabilities = api100.get("/").assert_status_code(200).json
         assert capabilities["api_version"] == "1.0.0"
         assert capabilities["stac_version"] == "0.9.0"
         assert capabilities["title"] == "Dummy openEO Backend"
@@ -196,9 +208,9 @@ class TestGeneral:
         assert get_link("conformance")["href"] == "http://oeo.net/openeo/1.0.0/conformance"
 
     def test_capabilities_invalid_api_version(self, client):
-        resp = ApiResponse(client.get('/openeo/0.0.0/'))
-        resp.assert_error(501, 'UnsupportedApiVersion')
-        assert "Unsupported version component in URL: '0.0.0'" in resp.json['message']
+        resp = ApiResponse(client.get("/openeo/0.0.0/"))
+        resp.assert_error(501, "UnsupportedApiVersion")
+        assert "Unsupported version component in URL: '0.0.0'" in resp.json["message"]
 
     def test_capabilities_endpoints(self, api100):
         capabilities = api100.get("/").assert_status_code(200).json
@@ -222,7 +234,7 @@ class TestGeneral:
         assert endpoints["/validation"] == ["POST"]
 
     def test_capabilities_caching(self, api):
-        headers = api.get('/').assert_status_code(200).headers
+        headers = api.get("/").assert_status_code(200).headers
         assert headers["Cache-Control"] == "max-age=900, public"
         assert "Expires" in headers
 
@@ -237,7 +249,6 @@ class TestGeneral:
         capabilities = api.get("/").assert_status_code(200).json
         endpoints = {e["path"]: sorted(e["methods"]) for e in capabilities["endpoints"]}
         assert "/validation" not in endpoints
-
 
     def test_capabilities_endpoints_issue_28_v100(self, api100):
         """https://github.com/Open-EO/openeo-python-driver/issues/28"""
@@ -275,7 +286,7 @@ class TestGeneral:
             api100.get("/credentials/oidc").assert_error(404, "NotFound")
 
     def test_capabilities_processing_software(self, api100):
-        capabilities = api100.get('/').assert_status_code(200).json
+        capabilities = api100.get("/").assert_status_code(200).json
         assert capabilities["processing:software"] == {
             "openeo": RegexMatcher(r"0.\d+\.\d+"),
             "openeo_driver": RegexMatcher(r"0.\d+\.\d+"),
@@ -283,10 +294,18 @@ class TestGeneral:
         assert any("stac-extensions.github.io/processing" in e for e in capabilities.get("stac_extensions", []))
 
     def test_conformance(self, api100):
-        res = api100.get('/conformance').assert_status_code(200).json
+        res = api100.get("/conformance").assert_status_code(200).json
         assert "conformsTo" in res
 
-    @pytest.mark.parametrize("path", ["/", "/collections", "/processes", "/jobs", ])
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/",
+            "/collections",
+            "/processes",
+            "/jobs",
+        ],
+    )
     def test_cors_headers_options(self, api, path):
         # Mimic browser's OPTION request
         api.client.environ_base["HTTP_ORIGIN"] = "https://editor.openeo.org"
@@ -320,7 +339,7 @@ class TestGeneral:
         response = api.post(
             "/jobs",
             headers=TEST_USER_AUTH_HEADER,
-            json={"process": pg} if api.api_version_compare.at_least("1.0.0") else pg
+            json={"process": pg} if api.api_version_compare.at_least("1.0.0") else pg,
         )
         resp = response.assert_status_code(201).response
         # General CORS headers
@@ -334,8 +353,8 @@ class TestGeneral:
             headers=TEST_USER_AUTH_HEADER,
             json={
                 "id": "oneplustwo",
-                "process_graph": {"a": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}}
-            }
+                "process_graph": {"a": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}},
+            },
         )
         resp = response.assert_status_code(200).response
         # General CORS headers
@@ -400,14 +419,17 @@ class TestGeneral:
             )
         ]
 
-    @pytest.mark.parametrize(["url", "error_status", "error_code", "error_message"], [
-        ("/_debug/error/api", 500, "Internal", "Computer says no."),
-        ("/_debug/error/api/404/CollectionNotFound", 404, "CollectionNotFound", "Computer says no."),
-        ("/_debug/error/http", 500, "Internal", "500 Internal Server Error: Computer says no."),
-        ("/_debug/error/http/404", 404, "NotFound", "404 Not Found: Computer says no."),
-        ("/_debug/error/http/501", 501, "Internal", "501 Not Implemented: Computer says no."),
-        ("/invalid/url", 404, "NotFound", f"404 Not Found: {werkzeug.exceptions.NotFound.description}"),
-    ])
+    @pytest.mark.parametrize(
+        ["url", "error_status", "error_code", "error_message"],
+        [
+            ("/_debug/error/api", 500, "Internal", "Computer says no."),
+            ("/_debug/error/api/404/CollectionNotFound", 404, "CollectionNotFound", "Computer says no."),
+            ("/_debug/error/http", 500, "Internal", "500 Internal Server Error: Computer says no."),
+            ("/_debug/error/http/404", 404, "NotFound", "404 Not Found: Computer says no."),
+            ("/_debug/error/http/501", 501, "Internal", "501 Not Implemented: Computer says no."),
+            ("/invalid/url", 404, "NotFound", f"404 Not Found: {werkzeug.exceptions.NotFound.description}"),
+        ],
+    )
     def test_error_handling_api_error(self, api, caplog, url, error_status, error_code, error_message):
         caplog.set_level(logging.WARNING)
         resp = api.get(url)
@@ -428,21 +450,21 @@ class TestGeneral:
         ]
 
     def test_health_basic(self, api):
-        resp = api.get('/health').assert_status_code(200).json
+        resp = api.get("/health").assert_status_code(200).json
         assert resp == {"health": "OK"}
 
     def test_health_dict(self, api, backend_implementation):
         with mock.patch.object(backend_implementation, "health_check") as health_check:
             health_check.return_value = {"status": "OK", "color": "green"}
-            resp = api.get('/health').assert_status_code(200).json
+            resp = api.get("/health").assert_status_code(200).json
             assert resp == {"status": "OK", "color": "green"}
 
     def test_health_flask_response(self, api, flask_app, backend_implementation):
         with mock.patch.object(backend_implementation, "health_check") as health_check:
-            health_check.return_value = flask_app.make_response((
-                '{"code": "meh"}', 500, {"Content-type": "application/json"}
-            ))
-            api.get('/health').assert_error(500, "meh")
+            health_check.return_value = flask_app.make_response(
+                ('{"code": "meh"}', 500, {"Content-type": "application/json"})
+            )
+            api.get("/health").assert_error(500, "meh")
 
     def test_health_dynamic(self, api, backend_implementation):
         def health(options: Optional[dict] = None):
@@ -452,59 +474,72 @@ class TestGeneral:
             }
 
         with mock.patch.object(backend_implementation, "health_check", new=health):
-            resp = api.get('/health').assert_status_code(200).json
+            resp = api.get("/health").assert_status_code(200).json
             assert resp == {"status": "OK", "color": "green"}
-            resp = api.get('/health?color=blue').assert_status_code(200).json
+            resp = api.get("/health?color=blue").assert_status_code(200).json
             assert resp == {"status": "OK", "color": "blue"}
-            resp = api.get('/health?shape=square&color=red').assert_status_code(200).json
+            resp = api.get("/health?shape=square&color=red").assert_status_code(200).json
             assert resp == {"status": "OK", "color": "red"}
 
-
     def test_credentials_oidc_100(self, api100):
-        resp = api100.get('/credentials/oidc').assert_status_code(200).json
-        assert resp == {'providers': ListSubSet([
-            {'id': 'testprovider', 'issuer': 'https://oidc.test', 'scopes': ['openid'], 'title': 'Test'},
-            DictSubSet({
-                'id': 'eoidc', 'issuer': 'https://eoidc.test', 'scopes': ['openid'],
-                'default_clients': [{
-                    'id': 'badcafef00d',
-                    'grant_types': ['urn:ietf:params:oauth:grant-type:device_code+pkce', 'refresh_token']}],
-            }),
-            DictSubSet({'id': 'local'})
-        ])}
-
+        resp = api100.get("/credentials/oidc").assert_status_code(200).json
+        assert resp == {
+            "providers": ListSubSet(
+                [
+                    {"id": "testprovider", "issuer": "https://oidc.test", "scopes": ["openid"], "title": "Test"},
+                    DictSubSet(
+                        {
+                            "id": "eoidc",
+                            "issuer": "https://eoidc.test",
+                            "scopes": ["openid"],
+                            "default_clients": [
+                                {
+                                    "id": "badcafef00d",
+                                    "grant_types": [
+                                        "urn:ietf:params:oauth:grant-type:device_code+pkce",
+                                        "refresh_token",
+                                    ],
+                                }
+                            ],
+                        }
+                    ),
+                    DictSubSet({"id": "local"}),
+                ]
+            )
+        }
 
     def test_file_formats(self, api100):
-        response = api100.get('/file_formats')
+        response = api100.get("/file_formats")
         resp = response.assert_status_code(200).json
         assert resp == {
-            "input": DictSubSet({
-                "GeoJSON": {"gis_data_types": ["vector"], "parameters": {}},
-            }),
-            "output": DictSubSet({
-                "GTiff": {"title": "GeoTiff", "gis_data_types": ["raster"], "parameters": {}},
-            })
+            "input": DictSubSet(
+                {
+                    "GeoJSON": {"gis_data_types": ["vector"], "parameters": {}},
+                }
+            ),
+            "output": DictSubSet(
+                {
+                    "GTiff": {"title": "GeoTiff", "gis_data_types": ["raster"], "parameters": {}},
+                }
+            ),
         }
         assert response.headers["Cache-Control"] == "max-age=900, public"
 
-    @pytest.mark.parametrize("endpoint", [
-        "/processes",
-        "/processes/backend"
-    ])
+    @pytest.mark.parametrize("endpoint", ["/processes", "/processes/backend"])
     def test_processes(self, api, endpoint):
         resp = api.get(endpoint).assert_status_code(200).json
         processes = resp["processes"]
-        process_ids = set(p['id'] for p in processes)
+        process_ids = set(p["id"] for p in processes)
         assert {"load_collection", "min", "max", "sin", "merge_cubes", "mask"}.issubset(process_ids)
         expected_keys = {"id", "description", "parameters", "returns"}
         for process in processes:
             assert all(k in process for k in expected_keys)
 
-    @pytest.mark.parametrize("backend_config_overrides", [{"processes_exclusion_list": {"1.0.0":["merge_cubes"]}}])
+    @pytest.mark.parametrize("backend_config_overrides", [{"processes_exclusion_list": {"1.0.0": ["merge_cubes"]}}])
     def test_processes_exclusion(self, api, backend_config_overrides):
-        resp = api.get('/processes').assert_status_code(200).json
+        resp = api.get("/processes").assert_status_code(200).json
         ids = [c["id"] for c in resp["processes"]]
-        if(api.api_version == "1.0.0"):
+        if api.api_version == "1.0.0":
             assert "merge_cubes" not in ids
         else:
             assert "merge_cubes" in ids
@@ -521,14 +556,13 @@ class TestGeneral:
     def test_processes_non_standard_atmospheric_correction(self, api):
         if api.api_version_compare.below("1.0.0"):
             pytest.skip()
-        resp = api.get('/processes').assert_status_code(200).json
-        spec, = [p for p in resp["processes"] if p['id'] == "atmospheric_correction"]
+        resp = api.get("/processes").assert_status_code(200).json
+        (spec,) = [p for p in resp["processes"] if p["id"] == "atmospheric_correction"]
         assert spec["summary"] == "Apply atmospheric correction"
         assert spec["categories"] == ["cubes", "optical"]
         assert spec["experimental"] is True
         assert spec["links"][0]["rel"] == "about"
         assert "DigitalElevationModelInvalid" in spec["exceptions"]
-
 
     def test_custom_process_listing(self, api100):
         process_id = generate_unique_test_process_id()
@@ -564,16 +598,17 @@ class TestGeneral:
         assert processes_by_id[process_id] == process_spec
 
         processes = api100.get("/processes").assert_status_code(200).json["processes"]
-        assert "increment" not in set(p['id'] for p in processes)
+        assert "increment" not in set(p["id"] for p in processes)
 
-    @pytest.mark.parametrize(["user_id", "expect_success"], [
-        ("Mark", False),
-        ("John", True),
-    ])
+    @pytest.mark.parametrize(
+        ["user_id", "expect_success"],
+        [
+            ("Mark", False),
+            ("John", True),
+        ],
+    )
     def test_user_access_validation(self, api, user_id, expect_success):
-        headers = {
-            "Authorization": "Bearer basic//" + HttpAuthHandler.build_basic_access_token(user_id=user_id)
-        }
+        headers = {"Authorization": "Bearer basic//" + HttpAuthHandler.build_basic_access_token(user_id=user_id)}
         response = api.get("/jobs", headers=headers)
         if expect_success:
             response.assert_status_code(200)
@@ -649,7 +684,6 @@ def oidc_provider(requests_mock):
 
 
 class TestUser:
-
     def test_no_auth(self, api):
         api.get("/me").assert_error(401, "AuthenticationRequired")
 
@@ -668,24 +702,12 @@ class TestUser:
         api.get("/me", headers={"Authorization": "Bearer oidc/invalid/j0hn"}).assert_error(403, "TokenInvalid")
 
     def test_default_plan(self, api, oidc_provider):
-        response = (
-            api.get("/me", headers={"Authorization": "Bearer oidc/eoidc/4l1c3"})
-            .assert_status_code(200)
-            .json
-        )
-        assert response == DictSubSet(
-            {"user_id": "Alice", "default_plan": "alice-plan"}
-        )
+        response = api.get("/me", headers={"Authorization": "Bearer oidc/eoidc/4l1c3"}).assert_status_code(200).json
+        assert response == DictSubSet({"user_id": "Alice", "default_plan": "alice-plan"})
 
     def test_roles(self, api, oidc_provider):
-        response = (
-            api.get("/me", headers={"Authorization": "Bearer oidc/eoidc/c6r01"})
-            .assert_status_code(200)
-            .json
-        )
-        assert response == DictSubSet(
-            {"user_id": "Carol", "roles": ["admin", "devops"]}
-        )
+        response = api.get("/me", headers={"Authorization": "Bearer oidc/eoidc/c6r01"}).assert_status_code(200).json
+        assert response == DictSubSet({"user_id": "Carol", "roles": ["admin", "devops"]})
 
     def _get_api_with_advanced_token_handling(
         self,
@@ -838,7 +860,6 @@ class TestUser:
 
 
 class TestLogging:
-
     def test_user_id_logging(self, api, oidc_provider):
         with enhanced_logging(json=True, context=LOGGING_CONTEXT_FLASK) as logs:
             # Make request that requires auth (so that we have a user) and fails (so that we have a log to look at)
@@ -854,7 +875,6 @@ class TestLogging:
 
 
 class TestCollections:
-
     def test_normalize_collection_metadata_no_id(self, caplog):
         with pytest.raises(KeyError):
             _normalize_collection_metadata({"foo": "bar"}, api_version=ComparableVersion("1.0.0"))
@@ -896,16 +916,13 @@ class TestCollections:
         assert warnings == {
             "Collection 'foobar' metadata does not have field 'cube:dimensions'.",
             "Collection 'foobar' metadata does not have field 'extent'.",
-            "Collection 'foobar' metadata does not have field 'summaries'."
+            "Collection 'foobar' metadata does not have field 'summaries'.",
         }
 
     def test_normalize_collection_metadata_cube_dimensions_extent_full_100(self, caplog):
         metadata = {
             "id": "foobar",
-            "extent": {
-                "spatial": {"bbox": [[-180, -56, 180, 83]]},
-                "temporal": {"interval": [["2015-07-06", None]]}
-            },
+            "extent": {"spatial": {"bbox": [[-180, -56, 180, 83]]}, "temporal": {"interval": [["2015-07-06", None]]}},
             "cube:dimensions": {
                 "x": {"type": "spatial", "axis": "x"},
                 "y": {"type": "spatial", "axis": "y"},
@@ -924,31 +941,26 @@ class TestCollections:
                 "spatial": {"bbox": [[-180, -56, 180, 83]]},
                 "temporal": {"interval": [["2015-07-06T00:00:00Z", None]]},
             },
-            'license': 'proprietary',
+            "license": "proprietary",
             "cube:dimensions": {
                 "x": {"type": "spatial", "axis": "x", "extent": [-180, 180]},
                 "y": {"type": "spatial", "axis": "y", "extent": [-56, 83]},
                 "t": {"type": "temporal", "extent": ["2015-07-06T00:00:00Z", None]},
-            }, 'summaries': {},
-            'links': [],
+            },
+            "summaries": {},
+            "links": [],
         }
 
     def test_normalize_collection_metadata_dimensions_and_bands_100(self, caplog):
         metadata = {
             "id": "foobar",
             "properties": {
-                "cube:dimensions": {
-                    "x": {"type": "spatial"},
-                    "b": {"type": "bands", "values": ["B02", "B03"]}
-                },
-                "eo:bands": [{"name": "B02"}, {"name": "B03"}]
-            }
+                "cube:dimensions": {"x": {"type": "spatial"}, "b": {"type": "bands", "values": ["B02", "B03"]}},
+                "eo:bands": [{"name": "B02"}, {"name": "B03"}],
+            },
         }
         res = _normalize_collection_metadata(metadata, api_version=ComparableVersion("1.0.0"), full=True)
-        assert res["cube:dimensions"] == {
-            "x": {"type": "spatial"},
-            "b": {"type": "bands", "values": ["B02", "B03"]}
-        }
+        assert res["cube:dimensions"] == {"x": {"type": "spatial"}, "b": {"type": "bands", "values": ["B02", "B03"]}}
         assert res["summaries"]["eo:bands"] == [{"name": "B02"}, {"name": "B03"}]
 
     def test_normalize_collection_metadata_datetime(self, caplog):
@@ -958,91 +970,85 @@ class TestCollections:
                 "temporal": {
                     "interval": [["2009-08-07", "2009-10-11"], ["2011-12-13 14:15:16", None]],
                 }
-            }
+            },
         }
         res = _normalize_collection_metadata(metadata, api_version=ComparableVersion("1.0.0"), full=True)
         assert res["extent"]["temporal"]["interval"] == [
-            ['2009-08-07T00:00:00Z', '2009-10-11T00:00:00Z'],
-            ['2011-12-13T14:15:16Z', None],
+            ["2009-08-07T00:00:00Z", "2009-10-11T00:00:00Z"],
+            ["2011-12-13T14:15:16Z", None],
         ]
 
     def test_collections(self, api):
-        resp = api.get('/collections').assert_status_code(200).json
+        resp = api.get("/collections").assert_status_code(200).json
         assert "links" in resp
         assert "collections" in resp
-        assert 'S2_FAPAR_CLOUDCOVER' in [c['id'] for c in resp['collections']]
-        assert 'S2_FOOBAR' in [c['id'] for c in resp['collections']]
-        for collection in resp['collections']:
-            assert 'id' in collection
-            assert 'stac_version' in collection
-            assert 'description' in collection
-            assert 'license' in collection
-            assert 'extent' in collection
-            assert 'links' in collection
+        assert "S2_FAPAR_CLOUDCOVER" in [c["id"] for c in resp["collections"]]
+        assert "S2_FOOBAR" in [c["id"] for c in resp["collections"]]
+        for collection in resp["collections"]:
+            assert "id" in collection
+            assert "stac_version" in collection
+            assert "description" in collection
+            assert "license" in collection
+            assert "extent" in collection
+            assert "links" in collection
 
-    @pytest.mark.parametrize("backend_config_overrides", [{"collection_exclusion_list": {"1.0.0":["S2_FOOBAR"]}}])
+    @pytest.mark.parametrize("backend_config_overrides", [{"collection_exclusion_list": {"1.0.0": ["S2_FOOBAR"]}}])
     def test_collections_exclusion(self, api, backend_config_overrides):
-
-        resp = api.get('/collections').assert_status_code(200).json
+        resp = api.get("/collections").assert_status_code(200).json
         ids = [c["id"] for c in resp["collections"]]
-        if(api.api_version == "1.0.0"):
+        if api.api_version == "1.0.0":
             assert "S2_FOOBAR" not in ids
         else:
             assert "S2_FOOBAR" in ids
 
-
     def test_collections_caching(self, api):
-        resp = api.get('/collections').assert_status_code(200)
+        resp = api.get("/collections").assert_status_code(200)
         assert resp.headers["Cache-Control"] == "max-age=900, public"
 
     def test_strip_private_fields(self, api):
-        assert '_private' in dummy_backend.DummyCatalog().get_collection_metadata("S2_FOOBAR")
+        assert "_private" in dummy_backend.DummyCatalog().get_collection_metadata("S2_FOOBAR")
         # All metadata
-        collections = api.get('/collections').assert_status_code(200).json["collections"]
-        metadata, = (c for c in collections if c["id"] == "S2_FOOBAR")
-        assert '_private' not in metadata
+        collections = api.get("/collections").assert_status_code(200).json["collections"]
+        (metadata,) = (c for c in collections if c["id"] == "S2_FOOBAR")
+        assert "_private" not in metadata
         # Single collection metadata
-        metadata = api.get('/collections/S2_FOOBAR').assert_status_code(200).json
-        assert '_private' not in metadata
+        metadata = api.get("/collections/S2_FOOBAR").assert_status_code(200).json
+        assert "_private" not in metadata
 
     def test_collection_full_metadata_invalid_collection(self, api):
-        error = api.get('/collections/FOOBOO').assert_error(404, "CollectionNotFound").json
+        error = api.get("/collections/FOOBOO").assert_error(404, "CollectionNotFound").json
         assert error["message"] == "Collection 'FOOBOO' does not exist."
 
     def test_collection_full_metadata(self, api, api_version):
-        collection = api.get('/collections/S2_FOOBAR').assert_status_code(200).json
-        assert collection['id'] == 'S2_FOOBAR'
-        assert collection['description'] == 'S2_FOOBAR'
-        assert collection['license'] == 'free'
+        collection = api.get("/collections/S2_FOOBAR").assert_status_code(200).json
+        assert collection["id"] == "S2_FOOBAR"
+        assert collection["description"] == "S2_FOOBAR"
+        assert collection["license"] == "free"
         cube_dimensions = {
-            'x': {'extent': [2.5, 6.2],
-                  'reference_system': 'AUTO:42001',
-                  'step': 10,
-                  'type': 'spatial'},
-            'y': {'extent': [49.5, 51.5],
-                  'reference_system': 'AUTO:42001',
-                  'step': 10,
-                  'type': 'spatial'},
+            "x": {"extent": [2.5, 6.2], "reference_system": "AUTO:42001", "step": 10, "type": "spatial"},
+            "y": {"extent": [49.5, 51.5], "reference_system": "AUTO:42001", "step": 10, "type": "spatial"},
             "t": {"type": "temporal", "extent": ["2019-01-01", None]},
-            "bands": {"type": "bands", "values": ["B02", "B03", "B04", "B08"]}
+            "bands": {"type": "bands", "values": ["B02", "B03", "B04", "B08"]},
         }
         eo_bands = [
-            {"name": "B02", "common_name": "blue"}, {"name": "B03", "common_name": "green"},
-            {"name": "B04", "common_name": "red"}, {"name": "B08", "common_name": "nir"},
+            {"name": "B02", "common_name": "blue"},
+            {"name": "B03", "common_name": "green"},
+            {"name": "B04", "common_name": "red"},
+            {"name": "B08", "common_name": "nir"},
         ]
         if api.api_version_compare.at_least("1.0.0"):
-            assert collection['stac_version'] == '0.9.0'
-            assert collection['cube:dimensions'] == cube_dimensions
-            assert collection['summaries']['eo:bands'] == eo_bands
-            assert collection['extent']['spatial'] == {'bbox': [[2.5, 49.5, 6.2, 51.5]]}
-            assert collection['extent']['temporal'] == {'interval': [['2019-01-01T00:00:00Z', None]]}
+            assert collection["stac_version"] == "0.9.0"
+            assert collection["cube:dimensions"] == cube_dimensions
+            assert collection["summaries"]["eo:bands"] == eo_bands
+            assert collection["extent"]["spatial"] == {"bbox": [[2.5, 49.5, 6.2, 51.5]]}
+            assert collection["extent"]["temporal"] == {"interval": [["2019-01-01T00:00:00Z", None]]}
         else:
-            assert collection['stac_version'] == '0.6.2'
-            assert collection['properties']['cube:dimensions'] == cube_dimensions
-            assert collection['properties']["eo:bands"] == eo_bands
-            assert collection['extent'] == {
-                'spatial': [2.5, 49.5, 6.2, 51.5],
-                'temporal': ['2019-01-01T00:00:00Z', None]
+            assert collection["stac_version"] == "0.6.2"
+            assert collection["properties"]["cube:dimensions"] == cube_dimensions
+            assert collection["properties"]["eo:bands"] == eo_bands
+            assert collection["extent"] == {
+                "spatial": [2.5, 49.5, 6.2, 51.5],
+                "temporal": ["2019-01-01T00:00:00Z", None],
             }
 
         assert collection["links"] == [
@@ -1101,11 +1107,11 @@ class TestCollections:
         assert collection["links"] == expected(api_version)
 
     def test_collection_full_metadata_caching(self, api):
-        resp = api.get('/collections/S2_FOOBAR').assert_status_code(200)
+        resp = api.get("/collections/S2_FOOBAR").assert_status_code(200)
         assert resp.headers["Cache-Control"] == "max-age=900, public"
 
     def test_collection_full_metadata_invalid_caching(self, api):
-        resp = api.get('/collections/FOOBOO').assert_error(404, "CollectionNotFound")
+        resp = api.get("/collections/FOOBOO").assert_error(404, "CollectionNotFound")
         assert "Cache-Control" not in resp.headers
 
 
@@ -1121,27 +1127,27 @@ class TestBatchJobs:
             # Conditional setup of some mock contexts
             if next_job_id:
                 exit_stack.enter_context(
-                    mock.patch.object(dummy_backend.DummyBatchJobs, 'generate_job_id', return_value=next_job_id)
+                    mock.patch.object(dummy_backend.DummyBatchJobs, "generate_job_id", return_value=next_job_id)
                 )
             if output_root:
                 exit_stack.enter_context(
-                    mock.patch.object(dummy_backend.DummyBatchJobs, '_output_root', return_value=output_root)
+                    mock.patch.object(dummy_backend.DummyBatchJobs, "_output_root", return_value=output_root)
                 )
 
             dummy_backend.DummyBatchJobs._job_registry = {
-                (TEST_USER, '07024ee9-7847-4b8a-b260-6c879a2b3cdc'): BatchJobMetadata(
-                    id='07024ee9-7847-4b8a-b260-6c879a2b3cdc',
-                    status='running',
-                    process={'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
+                (TEST_USER, "07024ee9-7847-4b8a-b260-6c879a2b3cdc"): BatchJobMetadata(
+                    id="07024ee9-7847-4b8a-b260-6c879a2b3cdc",
+                    status="running",
+                    process={"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
                     created=datetime(2017, 1, 1, 9, 32, 12),
                 ),
-                (TEST_USER, '53c71345-09b4-46b4-b6b0-03fd6fe1f199'): BatchJobMetadata(
-                    id='53c71345-09b4-46b4-b6b0-03fd6fe1f199',
+                (TEST_USER, "53c71345-09b4-46b4-b6b0-03fd6fe1f199"): BatchJobMetadata(
+                    id="53c71345-09b4-46b4-b6b0-03fd6fe1f199",
                     title="Your title here.",
                     description="Your description here.",
-                    status='finished',
+                    status="finished",
                     progress=100,
-                    process={'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
+                    process={"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
                     created=datetime(2020, 6, 11, 11, 51, 29),
                     updated=datetime(2020, 6, 11, 11, 55, 15),
                     started=datetime(2020, 6, 11, 11, 55, 9),
@@ -1150,18 +1156,18 @@ class TestBatchJobs:
                     cpu_time=timedelta(seconds=1621),
                     geometry={
                         "type": "Polygon",
-                        "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]]
+                        "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
                     },
                     bbox=[-180, -90, 180, 90],
                     start_datetime=datetime(1981, 4, 24, 3, 0, 0),
                     end_datetime=datetime(1981, 4, 24, 3, 0, 0),
-                    instruments=['MSI'],
+                    instruments=["MSI"],
                     epsg=4326,
-                    plan='some_plan',
+                    plan="some_plan",
                     costs=1.23,
                     budget=4.56,
                     proj_shape=[300, 600],
-                )
+                ),
             }
             dummy_backend.DummyBatchJobs._job_result_registry = {}
 
@@ -1171,23 +1177,28 @@ class TestBatchJobs:
                     dummy_backend.DummyBatchJobs._job_registry[key] = BatchJobMetadata(
                         id=job_id,
                         status=job_settings.get("status", "running"),
-                        process={'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
+                        process={"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
                         created=datetime(2017, 1, 1, 9, 32, 12),
                     )
             yield dummy_backend.DummyBatchJobs._job_registry
 
     def test_create_job_100(self, api100):
         with self._fresh_job_registry(next_job_id="job-245"):
-            resp = api100.post('/jobs', headers=self.AUTH_HEADER, json={
-                'process': {
-                    'process_graph': {"foo": {"process_id": "foo", "arguments": {}}},
-                    'summary': 'my foo job',
+            resp = api100.post(
+                "/jobs",
+                headers=self.AUTH_HEADER,
+                json={
+                    "process": {
+                        "process_graph": {"foo": {"process_id": "foo", "arguments": {}}},
+                        "summary": "my foo job",
+                    },
+                    "title": "Foo job",
+                    "description": "Run the `foo` process!",
                 },
-                "title": "Foo job", "description": "Run the `foo` process!"
-            }).assert_status_code(201)
-        assert resp.headers['Location'] == 'http://oeo.net/openeo/1.0.0/jobs/job-245'
-        assert resp.headers['OpenEO-Identifier'] == 'job-245'
-        job_info = dummy_backend.DummyBatchJobs._job_registry[TEST_USER, 'job-245']
+            ).assert_status_code(201)
+        assert resp.headers["Location"] == "http://oeo.net/openeo/1.0.0/jobs/job-245"
+        assert resp.headers["OpenEO-Identifier"] == "job-245"
+        job_info = dummy_backend.DummyBatchJobs._job_registry[TEST_USER, "job-245"]
         assert job_info.id == "job-245"
         assert job_info.process == {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}}
         assert job_info.status == "created"
@@ -1198,126 +1209,140 @@ class TestBatchJobs:
 
     def test_create_job_100_with_options(self, api100):
         with self._fresh_job_registry(next_job_id="job-256"):
-            resp = api100.post('/jobs', headers=self.AUTH_HEADER, json={
-                'process': {
-                    'process_graph': {"foo": {"process_id": "foo", "arguments": {}}},
-                    'summary': 'my foo job',
+            resp = api100.post(
+                "/jobs",
+                headers=self.AUTH_HEADER,
+                json={
+                    "process": {
+                        "process_graph": {"foo": {"process_id": "foo", "arguments": {}}},
+                        "summary": "my foo job",
+                    },
+                    "job_options": {"driver-memory": "3g", "executor-memory": "5g"},
                 },
-                'job_options': {"driver-memory": "3g", "executor-memory": "5g"},
-            }).assert_status_code(201)
-        assert resp.headers['Location'] == 'http://oeo.net/openeo/1.0.0/jobs/job-256'
-        assert resp.headers['OpenEO-Identifier'] == 'job-256'
-        job_info = dummy_backend.DummyBatchJobs._job_registry[TEST_USER, 'job-256']
+            ).assert_status_code(201)
+        assert resp.headers["Location"] == "http://oeo.net/openeo/1.0.0/jobs/job-256"
+        assert resp.headers["OpenEO-Identifier"] == "job-256"
+        job_info = dummy_backend.DummyBatchJobs._job_registry[TEST_USER, "job-256"]
         assert job_info.job_options == {"driver-memory": "3g", "executor-memory": "5g"}
 
     def test_create_job_100_with_options_inline(self, api100):
         with self._fresh_job_registry(next_job_id="job-256"):
-            resp = api100.post('/jobs', headers=self.AUTH_HEADER, json={
-                'process': {
-                    'process_graph': {"foo": {"process_id": "foo", "arguments": {}}},
-                    'summary': 'my foo job',
+            resp = api100.post(
+                "/jobs",
+                headers=self.AUTH_HEADER,
+                json={
+                    "process": {
+                        "process_graph": {"foo": {"process_id": "foo", "arguments": {}}},
+                        "summary": "my foo job",
+                    },
+                    "driver-memory": "3g",
+                    "executor-memory": "5g",
                 },
-                "driver-memory": "3g", "executor-memory": "5g"
-            }).assert_status_code(201)
-        assert resp.headers['Location'] == 'http://oeo.net/openeo/1.0.0/jobs/job-256'
-        assert resp.headers['OpenEO-Identifier'] == 'job-256'
-        job_info = dummy_backend.DummyBatchJobs._job_registry[TEST_USER, 'job-256']
+            ).assert_status_code(201)
+        assert resp.headers["Location"] == "http://oeo.net/openeo/1.0.0/jobs/job-256"
+        assert resp.headers["OpenEO-Identifier"] == "job-256"
+        job_info = dummy_backend.DummyBatchJobs._job_registry[TEST_USER, "job-256"]
         assert job_info.job_options == {"driver-memory": "3g", "executor-memory": "5g"}
 
     def test_start_job(self, api):
         with self._fresh_job_registry(next_job_id="job-267") as registry:
-            api.post('/jobs', headers=self.AUTH_HEADER, json=api.get_process_graph_dict(
-                {"foo": {"process_id": "foo", "arguments": {}}},
-            )).assert_status_code(201)
-            assert registry[TEST_USER, 'job-267'].status == "created"
-            api.post('/jobs/job-267/results', headers=self.AUTH_HEADER, json={}).assert_status_code(202)
-            assert registry[TEST_USER, 'job-267'].status == "running"
+            api.post(
+                "/jobs",
+                headers=self.AUTH_HEADER,
+                json=api.get_process_graph_dict(
+                    {"foo": {"process_id": "foo", "arguments": {}}},
+                ),
+            ).assert_status_code(201)
+            assert registry[TEST_USER, "job-267"].status == "created"
+            api.post("/jobs/job-267/results", headers=self.AUTH_HEADER, json={}).assert_status_code(202)
+            assert registry[TEST_USER, "job-267"].status == "running"
 
-    @pytest.mark.parametrize(["orig_status", "start"], [
-        ("created", True),
-        ("queued", False),
-        ("running", False),
-        ("finished", False),
-        ("error", False),
-        ("canceled", True)
-    ])
+    @pytest.mark.parametrize(
+        ["orig_status", "start"],
+        [
+            ("created", True),
+            ("queued", False),
+            ("running", False),
+            ("finished", False),
+            ("error", False),
+            ("canceled", True),
+        ],
+    )
     def test_start_job_existing_status(self, api, orig_status, start):
         """Only really start jobs that are started (or canceled)"""
         with self._fresh_job_registry() as registry:
             registry[TEST_USER, "job-267"] = BatchJobMetadata(
-                id="job-267",
-                status=orig_status,
-                created=datetime(2017, 1, 1, 9, 32, 12)
+                id="job-267", status=orig_status, created=datetime(2017, 1, 1, 9, 32, 12)
             )
             # Try to start job
             with mock.patch.object(dummy_backend.DummyBatchJobs, "start_job") as start_job:
-                api.post('/jobs/job-267/results', headers=self.AUTH_HEADER, json={}).assert_status_code(202)
+                api.post("/jobs/job-267/results", headers=self.AUTH_HEADER, json={}).assert_status_code(202)
                 assert start_job.call_count == (1 if start else 0)
 
     def test_start_job_invalid(self, api):
-        resp = api.post('/jobs/deadbeef-f00/results', headers=self.AUTH_HEADER)
+        resp = api.post("/jobs/deadbeef-f00/results", headers=self.AUTH_HEADER)
         resp.assert_error(404, "JobNotFound")
         assert resp.json["message"] == "The batch job 'deadbeef-f00' does not exist."
 
     def test_get_job_info_metrics_100(self, api100):
-        resp = api100.get('/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199', headers=self.AUTH_HEADER)
+        resp = api100.get("/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199", headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).json == {
-            'id': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
-            'title': 'Your title here.',
-            'description': 'Your description here.',
-            'process': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
-            'status': 'finished',
-            'progress': 100,
-            'created': "2020-06-11T11:51:29Z",
-            'updated': "2020-06-11T11:55:15Z",
-            'plan': 'some_plan',
-            'costs': 1.23,
-            'budget': 4.56,
-            'usage': {
-                'cpu': {'value': 1621, 'unit': 'cpu-seconds'},
-                'duration': {'value': 6, 'unit': 'seconds'},
-                'memory': {'value': 18704944, 'unit': 'mb-seconds'}
-            }
+            "id": "53c71345-09b4-46b4-b6b0-03fd6fe1f199",
+            "title": "Your title here.",
+            "description": "Your description here.",
+            "process": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
+            "status": "finished",
+            "progress": 100,
+            "created": "2020-06-11T11:51:29Z",
+            "updated": "2020-06-11T11:55:15Z",
+            "plan": "some_plan",
+            "costs": 1.23,
+            "budget": 4.56,
+            "usage": {
+                "cpu": {"value": 1621, "unit": "cpu-seconds"},
+                "duration": {"value": 6, "unit": "seconds"},
+                "memory": {"value": 18704944, "unit": "mb-seconds"},
+            },
         }
 
     def test_get_job_info_100(self, api100):
         with self._fresh_job_registry():
-            resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc', headers=self.AUTH_HEADER)
+            resp = api100.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc", headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).json == {
-            'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
-            'status': 'running',
-            'created': "2017-01-01T09:32:12Z",
-            'process': {'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
+            "id": "07024ee9-7847-4b8a-b260-6c879a2b3cdc",
+            "status": "running",
+            "created": "2017-01-01T09:32:12Z",
+            "process": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
         }
 
     def test_get_job_info_invalid(self, api):
-        resp = api.get('/jobs/deadbeef-f00', headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
+        resp = api.get("/jobs/deadbeef-f00", headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
         assert resp.json["message"] == "The batch job 'deadbeef-f00' does not exist."
 
     def test_list_user_jobs_100(self, api100):
         with self._fresh_job_registry():
-            resp = api100.get('/jobs', headers=self.AUTH_HEADER)
+            resp = api100.get("/jobs", headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).json == {
             "jobs": [
                 {
-                    'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
-                    'status': 'running',
-                    'created': "2017-01-01T09:32:12Z",
+                    "id": "07024ee9-7847-4b8a-b260-6c879a2b3cdc",
+                    "status": "running",
+                    "created": "2017-01-01T09:32:12Z",
                 },
                 {
-                    'id': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
-                    'title': "Your title here.",
-                    'description': "Your description here.",
-                    'status': 'finished',
-                    'progress': 100,
-                    'created': "2020-06-11T11:51:29Z",
-                    'updated': "2020-06-11T11:55:15Z",
-                    'plan': 'some_plan',
-                    'costs': 1.23,
-                    'budget': 4.56
-                }
+                    "id": "53c71345-09b4-46b4-b6b0-03fd6fe1f199",
+                    "title": "Your title here.",
+                    "description": "Your description here.",
+                    "status": "finished",
+                    "progress": 100,
+                    "created": "2020-06-11T11:51:29Z",
+                    "updated": "2020-06-11T11:55:15Z",
+                    "plan": "some_plan",
+                    "costs": 1.23,
+                    "budget": 4.56,
+                },
             ],
-            "links": []
+            "links": [],
         }
 
     def test_list_user_jobs_100_extra(self, api100):
@@ -1327,24 +1352,30 @@ class TestBatchJobs:
 
         def get_user_jobs(self, user_id: str):
             return {
-                "jobs": [BatchJobMetadata(id='id-123', status='running', created=datetime(2017, 1, 1, 9, 32, 12))],
+                "jobs": [BatchJobMetadata(id="id-123", status="running", created=datetime(2017, 1, 1, 9, 32, 12))],
                 "links": [{"rel": "info", "href": "https://info.test"}],
                 "federation:missing": ["b4"],
                 "something else": "ignore me",
             }
 
-        with mock.patch.object(dummy_backend.DummyBatchJobs, 'get_user_jobs', new=get_user_jobs):
-            resp = api100.get('/jobs', headers=self.AUTH_HEADER)
+        with mock.patch.object(dummy_backend.DummyBatchJobs, "get_user_jobs", new=get_user_jobs):
+            resp = api100.get("/jobs", headers=self.AUTH_HEADER)
 
         assert resp.assert_status_code(200).json == {
-            "jobs": [{'id': 'id-123', 'status': 'running', 'created': "2017-01-01T09:32:12Z", }, ],
+            "jobs": [
+                {
+                    "id": "id-123",
+                    "status": "running",
+                    "created": "2017-01-01T09:32:12Z",
+                },
+            ],
             "links": [{"rel": "info", "href": "https://info.test"}],
             "federation:missing": ["b4"],
         }
 
     def test_get_job_results_unfinished(self, api):
         with self._fresh_job_registry(next_job_id="job-345"):
-            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
+            resp = api.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results", headers=self.AUTH_HEADER)
         resp.assert_error(400, "JobNotFinished")
 
     def test_get_job_results_unfinished_with_partial_explicitly_false(self, api):
@@ -1407,46 +1438,44 @@ class TestBatchJobs:
     def test_get_job_results_100(self, api100):
         with self._fresh_job_registry(next_job_id="job-362"):
             dummy_backend.DummyBatchJobs._update_status(
-                job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="finished")
-            resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
+                job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="finished"
+            )
+            resp = api100.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results", headers=self.AUTH_HEADER)
             assert resp.assert_status_code(200).json == {
-                'assets': {
-                    'output.tiff': {
-                        'roles': ['data'],
-                        'title': 'output.tiff',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff',
-                        'type': 'image/tiff; application=geotiff',
-                        'eo:bands': [{
-                            'name': "NDVI",
-                            'center_wavelength': 1.23
-                        }],
-                        'file:nodata':[123]
+                "assets": {
+                    "output.tiff": {
+                        "roles": ["data"],
+                        "title": "output.tiff",
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff",
+                        "type": "image/tiff; application=geotiff",
+                        "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
+                        "file:nodata": [123],
                     },
-                    'randomforest.model': {
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/randomforest.model',
-                        'roles': ['data'],
-                        'title': 'randomforest.model',
-                        'type': 'application/octet-stream'
+                    "randomforest.model": {
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/randomforest.model",
+                        "roles": ["data"],
+                        "title": "randomforest.model",
+                        "type": "application/octet-stream",
                     },
                 },
-                'geometry': None,
-                'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
-                'links': [
+                "geometry": None,
+                "id": "07024ee9-7847-4b8a-b260-6c879a2b3cdc",
+                "links": [
                     {
                         "rel": "self",
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results",
-                        "type": "application/json"
+                        "type": "application/json",
                     },
                     {
                         "rel": "canonical",
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results",
-                        "type": "application/json"
+                        "type": "application/json",
                     },
                     {
                         "rel": "card4l-document",
                         "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
-                        "type": "application/pdf"
-                    }
+                        "type": "application/pdf",
+                    },
                 ],
                 "properties": {
                     "created": "2017-01-01T09:32:12Z",
@@ -1469,52 +1498,49 @@ class TestBatchJobs:
                 "openeo:status": "finished",
             }
 
-            resp = api100.get('/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results', headers=self.AUTH_HEADER)
+            resp = api100.get("/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results", headers=self.AUTH_HEADER)
 
             assert resp.assert_status_code(200).json == {
-                'assets': {
-                    'output.tiff': {
-                        'roles': ['data'],
-                        'title': 'output.tiff',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.tiff',
-                        'type': 'image/tiff; application=geotiff',
-                        'proj:epsg': 4326,
-                        'proj:shape': [300, 600],
-                        'eo:bands': [{
-                            'name': "NDVI",
-                            'center_wavelength': 1.23
-                        }],
-                        'file:nodata': [123]
+                "assets": {
+                    "output.tiff": {
+                        "roles": ["data"],
+                        "title": "output.tiff",
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.tiff",
+                        "type": "image/tiff; application=geotiff",
+                        "proj:epsg": 4326,
+                        "proj:shape": [300, 600],
+                        "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
+                        "file:nodata": [123],
                     },
-                    'randomforest.model': {
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/randomforest.model',
-                        'roles': ['data'],
-                        'title': 'randomforest.model',
-                        'type': 'application/octet-stream'
+                    "randomforest.model": {
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/randomforest.model",
+                        "roles": ["data"],
+                        "title": "randomforest.model",
+                        "type": "application/octet-stream",
                     },
                 },
-                'geometry': {
+                "geometry": {
                     "type": "Polygon",
-                    "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]]
+                    "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
                 },
-                'bbox': [-180, -90, 180, 90],
-                'id': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
-                'links': [
+                "bbox": [-180, -90, 180, 90],
+                "id": "53c71345-09b4-46b4-b6b0-03fd6fe1f199",
+                "links": [
                     {
                         "rel": "self",
                         "href": "http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results",
-                        "type": "application/json"
+                        "type": "application/json",
                     },
                     {
                         "rel": "canonical",
                         "href": "http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results",
-                        "type": "application/json"
+                        "type": "application/json",
                     },
                     {
                         "rel": "card4l-document",
                         "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
-                        "type": "application/pdf"
-                    }
+                        "type": "application/pdf",
+                    },
                 ],
                 "properties": {
                     "created": "2020-06-11T11:51:29Z",
@@ -1697,11 +1723,12 @@ class TestBatchJobs:
         import numpy as np
 
         results_data = {
-            "output.tiff": {BatchJobs.ASSET_PUBLIC_HREF: "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349",
-                            "asset": True,
-                            "type":"application/tiff",
-                            "nodata":np.nan
-                            }
+            "output.tiff": {
+                BatchJobs.ASSET_PUBLIC_HREF: "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349",
+                "asset": True,
+                "type": "application/tiff",
+                "nodata": np.nan,
+            }
         }
         with self._fresh_job_registry(
             jobs={"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
@@ -1713,8 +1740,8 @@ class TestBatchJobs:
                 "href": "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349",
                 "roles": ["data"],
                 "title": "output.tiff",
-                "file:nodata": ['nan'],
-                "type": "application/tiff"
+                "file:nodata": ["nan"],
+                "type": "application/tiff",
             }
         }
 
@@ -1722,46 +1749,44 @@ class TestBatchJobs:
     def test_get_job_results_signed_100(self, api100, flask_app, backend_config_overrides):
         with self._fresh_job_registry():
             dummy_backend.DummyBatchJobs._update_status(
-                job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
-            resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
+                job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="finished"
+            )
+            resp = api100.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results", headers=self.AUTH_HEADER)
             assert resp.assert_status_code(200).json == {
-                'assets': {
-                    'output.tiff': {
-                        'roles': ['data'],
-                        'title': 'output.tiff',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff',
-                        'type': 'image/tiff; application=geotiff',
-                        'eo:bands': [{
-                            'name': 'NDVI',
-                            'center_wavelength': 1.23
-                        }],
-                        'file:nodata': [123]
+                "assets": {
+                    "output.tiff": {
+                        "roles": ["data"],
+                        "title": "output.tiff",
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
+                        "type": "image/tiff; application=geotiff",
+                        "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
+                        "file:nodata": [123],
                     },
-                    'randomforest.model': {
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model',
-                        'roles': ['data'],
-                        'title': 'randomforest.model',
-                        'type': 'application/octet-stream'
+                    "randomforest.model": {
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model",
+                        "roles": ["data"],
+                        "title": "randomforest.model",
+                        "type": "application/octet-stream",
                     },
                 },
-                'geometry': None,
-                'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
-                'links': [
+                "geometry": None,
+                "id": "07024ee9-7847-4b8a-b260-6c879a2b3cdc",
+                "links": [
                     {
-                        'rel': 'self',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results',
-                        'type': 'application/json'
+                        "rel": "self",
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results",
+                        "type": "application/json",
                     },
                     {
-                        'rel': 'canonical',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/05cb8b78f20c68a5aa9eb05249928d24',
-                        'type': 'application/json'
+                        "rel": "canonical",
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA==/05cb8b78f20c68a5aa9eb05249928d24",
+                        "type": "application/json",
                     },
                     {
-                        'rel': 'card4l-document',
-                        'href': 'http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf',
-                        'type': 'application/pdf'
-                    }
+                        "rel": "card4l-document",
+                        "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
+                        "type": "application/pdf",
+                    },
                 ],
                 "properties": {
                     "created": "2017-01-01T09:32:12Z",
@@ -1814,7 +1839,7 @@ class TestBatchJobs:
             resp = api100.get(f"/jobs/{job_id}/results?partial=true", headers=self.AUTH_HEADER)
 
             resp.assert_status_code(200)
-            expected_canonical_url = f"http://oeo.net/openeo/1.0.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/05cb8b78f20c68a5aa9eb05249928d24?partial=true"
+            expected_canonical_url = f"http://oeo.net/openeo/1.0.0/jobs/{job_id}/results/TXIuVGVzdA==/05cb8b78f20c68a5aa9eb05249928d24?partial=true"
             assert resp.json == DictSubSet(
                 {
                     "openeo:status": expected_openeo_status,
@@ -1855,13 +1880,13 @@ class TestBatchJobs:
                     "output.tiff": {
                         "roles": ["data"],
                         "title": "output.tiff",
-                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
                         "type": "image/tiff; application=geotiff",
                         "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
                         "file:nodata": [123],
                     },
                     "randomforest.model": {
-                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model",
                         "roles": ["data"],
                         "title": "randomforest.model",
                         "type": "application/octet-stream",
@@ -1876,7 +1901,7 @@ class TestBatchJobs:
                     },
                     {
                         "rel": "canonical",
-                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/05cb8b78f20c68a5aa9eb05249928d24",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA==/05cb8b78f20c68a5aa9eb05249928d24",
                         "type": "application/json",
                     },
                     {
@@ -1886,12 +1911,12 @@ class TestBatchJobs:
                     },
                     {
                         "rel": "item",
-                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/TXIuVGVzdA==/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
                         "type": "application/geo+json",
                     },
                     {
                         "rel": "item",
-                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/TXIuVGVzdA%3D%3D/272d7aa46727ee3f11a7211d5be953e4/ml_model_metadata.json",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/TXIuVGVzdA==/272d7aa46727ee3f11a7211d5be953e4/ml_model_metadata.json",
                         "type": "application/json",
                     },
                 ],
@@ -1942,7 +1967,7 @@ class TestBatchJobs:
             )
 
             resp.assert_status_code(200)
-            expected_canonical_url = f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/05cb8b78f20c68a5aa9eb05249928d24?partial=true"
+            expected_canonical_url = f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/TXIuVGVzdA==/05cb8b78f20c68a5aa9eb05249928d24?partial=true"
             assert resp.json == DictSubSet(
                 {
                     "openeo:status": expected_openeo_status,
@@ -1967,46 +1992,44 @@ class TestBatchJobs:
     def test_get_job_results_signed_with_expiration_100(self, api100, flask_app, backend_config_overrides):
         with self._fresh_job_registry():
             dummy_backend.DummyBatchJobs._update_status(
-                job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
-            resp = api100.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
+                job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="finished"
+            )
+            resp = api100.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results", headers=self.AUTH_HEADER)
             assert resp.assert_status_code(200).json == {
-                'assets': {
-                    'output.tiff': {
-                        'roles': ['data'],
-                        'title': 'output.tiff',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
-                        'type': 'image/tiff; application=geotiff',
-                        'eo:bands': [{
-                            'name': 'NDVI',
-                            'center_wavelength': 1.23
-                        }],
-                        'file:nodata': [123]
+                "assets": {
+                    "output.tiff": {
+                        "roles": ["data"],
+                        "title": "output.tiff",
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234",
+                        "type": "image/tiff; application=geotiff",
+                        "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
+                        "file:nodata": [123],
                     },
-                    'randomforest.model': {
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/22b76413158c59acaccc74e74841a473/randomforest.model?expires=2234',
-                        'roles': ['data'],
-                        'title': 'randomforest.model',
-                        'type': 'application/octet-stream'
+                    "randomforest.model": {
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/22b76413158c59acaccc74e74841a473/randomforest.model?expires=2234",
+                        "roles": ["data"],
+                        "title": "randomforest.model",
+                        "type": "application/octet-stream",
                     },
                 },
-                'geometry': None,
-                'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
-                'links': [
+                "geometry": None,
+                "id": "07024ee9-7847-4b8a-b260-6c879a2b3cdc",
+                "links": [
                     {
-                        'rel': 'self',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results',
-                        'type': 'application/json'
+                        "rel": "self",
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results",
+                        "type": "application/json",
                     },
                     {
-                        'rel': 'canonical',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/9fea29cd94195399cc4d902388a3c32c?expires=2234',
-                        'type': 'application/json'
+                        "rel": "canonical",
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA==/9fea29cd94195399cc4d902388a3c32c?expires=2234",
+                        "type": "application/json",
                     },
                     {
-                        'rel': 'card4l-document',
-                        'href': 'http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf',
-                        'type': 'application/pdf'
-                    }
+                        "rel": "card4l-document",
+                        "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
+                        "type": "application/pdf",
+                    },
                 ],
                 "properties": {
                     "created": "2017-01-01T09:32:12Z",
@@ -2063,7 +2086,7 @@ class TestBatchJobs:
             resp = api100.get(f"/jobs/{job_id}/results?partial=true", headers=self.AUTH_HEADER)
             resp.assert_status_code(200)
 
-            expected_canonical_url = f"http://oeo.net/openeo/1.0.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/9fea29cd94195399cc4d902388a3c32c?expires=2234&partial=true"
+            expected_canonical_url = f"http://oeo.net/openeo/1.0.0/jobs/{job_id}/results/TXIuVGVzdA==/9fea29cd94195399cc4d902388a3c32c?expires=2234&partial=true"
             assert resp.json == DictSubSet(
                 {
                     "openeo:status": expected_openeo_status,
@@ -2088,17 +2111,18 @@ class TestBatchJobs:
     def test_get_job_results_signed_with_expiration_110(self, api110, flask_app, backend_config_overrides):
         with self._fresh_job_registry(next_job_id="job-373"):
             dummy_backend.DummyBatchJobs._update_status(
-                job_id='07024ee9-7847-4b8a-b260-6c879a2b3cdc', user_id=TEST_USER, status='finished')
-            resp = api110.get('/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results', headers=self.AUTH_HEADER)
+                job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="finished"
+            )
+            resp = api110.get("/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results", headers=self.AUTH_HEADER)
             assert resp.assert_status_code(200).json == {
                 "type": "Collection",
                 "stac_version": "1.0.0",
                 "stac_extensions": [
                     "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
-                    'https://stac-extensions.github.io/processing/v1.1.0/schema.json',
-                    'https://stac-extensions.github.io/projection/v1.1.0/schema.json',
-                    "https://stac-extensions.github.io/ml-model/v1.0.0/schema.json"
+                    "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
+                    "https://stac-extensions.github.io/projection/v1.1.0/schema.json",
+                    "https://stac-extensions.github.io/ml-model/v1.0.0/schema.json",
                 ],
                 "id": "53c71345-09b4-46b4-b6b0-03fd6fe1f199",
                 "title": "Your title here.",
@@ -2111,53 +2135,54 @@ class TestBatchJobs:
                 "providers": EXPECTED_PROVIDERS,
                 "links": [
                     {
-                        'rel': 'self',
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results',
-                        'type': 'application/json'
+                        "rel": "self",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results",
+                        "type": "application/json",
                     },
                     {
-                        'rel': 'canonical',
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/TXIuVGVzdA%3D%3D/748b8c91160fbb6e137c91d7d33b0c4a?expires=2234',
-                        'type': 'application/json'
+                        "rel": "canonical",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/TXIuVGVzdA==/748b8c91160fbb6e137c91d7d33b0c4a?expires=2234",
+                        "type": "application/json",
                     },
                     {
-                        'rel': 'card4l-document',
-                        'href': 'http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf',
-                        'type': 'application/pdf'
+                        "rel": "card4l-document",
+                        "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
+                        "type": "application/pdf",
                     },
                     {
-                        'rel': 'item',
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
-                        'type': 'application/geo+json'
+                        "rel": "item",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA==/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234",
+                        "type": "application/geo+json",
                     },
                     {
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA%3D%3D/30fac5af7fe96123c923e94c2732f9aa/ml_model_metadata.json?expires=2234',                        'rel': 'item',
-                        'type': 'application/json'
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA==/30fac5af7fe96123c923e94c2732f9aa/ml_model_metadata.json?expires=2234",
+                        "rel": "item",
+                        "type": "application/json",
                     },
                 ],
-                'summaries': {
-                    'instruments': ['MSI'],
-                    'ml-model:architecture': ['random-forest'],
-                    'ml-model:learning_approach': ['supervised'],
-                    'ml-model:prediction_type': ['classification']
+                "summaries": {
+                    "instruments": ["MSI"],
+                    "ml-model:architecture": ["random-forest"],
+                    "ml-model:learning_approach": ["supervised"],
+                    "ml-model:prediction_type": ["classification"],
                 },
-                'assets': {
-                    'output.tiff': {
-                        'title': 'output.tiff',
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
-                        'type': 'image/tiff; application=geotiff',
-                        'proj:epsg': 4326,
-                        'proj:shape': [300, 600],
-                        'eo:bands': [{'center_wavelength': 1.23, 'name': 'NDVI'}],
-                        'file:nodata': [123],
-                        'roles': ['data']
+                "assets": {
+                    "output.tiff": {
+                        "title": "output.tiff",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234",
+                        "type": "image/tiff; application=geotiff",
+                        "proj:epsg": 4326,
+                        "proj:shape": [300, 600],
+                        "eo:bands": [{"center_wavelength": 1.23, "name": "NDVI"}],
+                        "file:nodata": [123],
+                        "roles": ["data"],
                     },
-                    'randomforest.model': {
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA%3D%3D/18fd2346c52945c0caba7b13246f5a63/randomforest.model?expires=2234',
-                        'roles': ['data'],
-                        'title': 'randomforest.model',
-                        'type': 'application/octet-stream'
-                    }
+                    "randomforest.model": {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/18fd2346c52945c0caba7b13246f5a63/randomforest.model?expires=2234",
+                        "roles": ["data"],
+                        "title": "randomforest.model",
+                        "type": "application/octet-stream",
+                    },
                 },
                 "openeo:status": "finished",
             }
@@ -2193,7 +2218,8 @@ class TestBatchJobs:
             resp = api110.get(f"/jobs/{job_id}/results?partial=true", headers=self.AUTH_HEADER)
             resp.assert_status_code(200)
 
-            expected_canonical_url = f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/9fea29cd94195399cc4d902388a3c32c?expires=2234&partial=true"
+            expected_canonical_url = f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/TXIuVGVzdA==/9fea29cd94195399cc4d902388a3c32c?expires=2234&partial=true"
+
             assert resp.json == DictSubSet(
                 {
                     "openeo:status": expected_openeo_status,
@@ -2216,9 +2242,7 @@ class TestBatchJobs:
     def test_get_job_results_custom_links(self, api100):
         with self._fresh_job_registry(next_job_id="job-362"):
             job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
-            dummy_backend.DummyBatchJobs._update_status(
-                job_id=job_id, user_id=TEST_USER, status="finished"
-            )
+            dummy_backend.DummyBatchJobs._update_status(job_id=job_id, user_id=TEST_USER, status="finished")
             dummy_backend.DummyBatchJobs.set_result_metadata(
                 job_id=job_id,
                 user_id=TEST_USER,
@@ -2246,10 +2270,12 @@ class TestBatchJobs:
             )
 
     def test_get_job_results_invalid_job(self, api):
-        api.get('/jobs/deadbeef-f00/results', headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
+        api.get("/jobs/deadbeef-f00/results", headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
 
     def test_download_result_invalid_job(self, api):
-        api.get('/jobs/deadbeef-f00/results/assets/some_file', headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
+        api.get("/jobs/deadbeef-f00/results/assets/some_file", headers=self.AUTH_HEADER).assert_error(
+            404, "JobNotFound"
+        )
 
     def test_download_result(self, api, tmp_path):
         output_root = Path(tmp_path)
@@ -2259,7 +2285,9 @@ class TestBatchJobs:
             output.parent.mkdir(parents=True)
             with output.open("wb") as f:
                 f.write(b"tiffdata")
-            resp = api.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff", headers=self.AUTH_HEADER)
+            resp = api.get(
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff", headers=self.AUTH_HEADER
+            )
         assert resp.assert_status_code(200).data == b"tiffdata"
         assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
 
@@ -2290,18 +2318,20 @@ class TestBatchJobs:
         with self._fresh_job_registry(output_root=output_root, jobs=jobs):
             output = output_root / "07024ee9-7847-4b8a-b260-6c879a2b3cdc" / "output.tiff"
             output.parent.mkdir(parents=True)
-            with output.open('wb') as f:
-                f.write(b'tiffdata')
-            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff')
-        assert resp.assert_status_code(200).data == b'tiffdata'
-        assert resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
+            with output.open("wb") as f:
+                f.write(b"tiffdata")
+            resp = api.get(
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/50afb0cad129e61d415278c4ffcd8a83/output.tiff"
+            )
+        assert resp.assert_status_code(200).data == b"tiffdata"
+        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
 
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
     def test_download_result_signed_invalid(self, api, flask_app, backend_config_overrides):
         jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
         with self._fresh_job_registry(jobs=jobs):
             resp = api.get(
-                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/test123/output.tiff"
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/test123/output.tiff"
             )
         assert resp.assert_error(403, "CredentialsInvalid")
 
@@ -2313,11 +2343,13 @@ class TestBatchJobs:
         with self._fresh_job_registry(output_root=output_root, jobs=jobs):
             output = output_root / "07024ee9-7847-4b8a-b260-6c879a2b3cdc" / "output.tiff"
             output.parent.mkdir(parents=True)
-            with output.open('wb') as f:
-                f.write(b'tiffdata')
-            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
-        assert resp.assert_status_code(200).data == b'tiffdata'
-        assert resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
+            with output.open("wb") as f:
+                f.write(b"tiffdata")
+            resp = api.get(
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234"
+            )
+        assert resp.assert_status_code(200).data == b"tiffdata"
+        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
 
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
@@ -2327,61 +2359,78 @@ class TestBatchJobs:
         output_root = Path(tmp_path)
         output = output_root / "07024ee9-7847-4b8a-b260-6c879a2b3cdc" / "output.tiff"
         output.parent.mkdir(parents=True)
-        with output.open('wb') as f:
-            f.write(b'tiffdata')
+        with output.open("wb") as f:
+            f.write(b"tiffdata")
 
         jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
         with self._fresh_job_registry(output_root=output_root, jobs=jobs):
-            head_resp = api.head('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
-            assert head_resp.assert_status_code(200).data == b''
-            assert head_resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
-            assert head_resp.headers['Accept-Ranges'] == 'bytes'
-            assert head_resp.headers['Content-Length'] == '8'
+            head_resp = api.head(
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234"
+            )
+            assert head_resp.assert_status_code(200).data == b""
+            assert head_resp.headers["Content-Type"] == "image/tiff; application=geotiff"
+            assert head_resp.headers["Accept-Ranges"] == "bytes"
+            assert head_resp.headers["Content-Length"] == "8"
 
-            full_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
-            assert full_get_resp.assert_status_code(200).data == b'tiffdata'
-            assert full_get_resp.headers['Content-Length'] == '8'
+            full_get_resp = api.get(
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234"
+            )
+            assert full_get_resp.assert_status_code(200).data == b"tiffdata"
+            assert full_get_resp.headers["Content-Length"] == "8"
 
-            ranged_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
-                               headers={'Range': "bytes=0-3"})
-            assert ranged_get_resp.assert_status_code(206).data == b'tiff'
-            assert ranged_get_resp.headers['Content-Length'] == '4'
+            ranged_get_resp = api.get(
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234",
+                headers={"Range": "bytes=0-3"},
+            )
+            assert ranged_get_resp.assert_status_code(206).data == b"tiff"
+            assert ranged_get_resp.headers["Content-Length"] == "4"
 
-            out_of_range_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
-                                            headers={'Range': "bytes=8-10"})
+            out_of_range_get_resp = api.get(
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234",
+                headers={"Range": "bytes=8-10"},
+            )
             out_of_range_get_resp.assert_status_code(416)
 
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
     def test_download_result_with_s3_object_storage_with_expiration_supports_range_request(
-            self, api, mock_s3_resource, backend_config_overrides):
+        self, api, mock_s3_resource, backend_config_overrides
+    ):
         job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
         s3_bucket_name = "openeo-test-bucket"
         output_root = f"s3://{s3_bucket_name}/some-data-dir"
         s3_key = f"some-data-dir/{job_id}/output.tiff"
 
         s3_bucket = create_s3_bucket(mock_s3_resource, s3_bucket_name)
-        s3_bucket.put_object(Key=s3_key, Body=b'tiffdata')
+        s3_bucket.put_object(Key=s3_key, Body=b"tiffdata")
 
         jobs = {job_id: {"status": "finished"}}
         with self._fresh_job_registry(output_root=output_root, jobs=jobs):
-            head_resp = api.head('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
-            assert head_resp.assert_status_code(200).data == b''
-            assert head_resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
-            assert head_resp.headers['Accept-Ranges'] == 'bytes'
-            assert head_resp.headers['Content-Length'] == '8'
+            head_resp = api.head(
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234"
+            )
+            assert head_resp.assert_status_code(200).data == b""
+            assert head_resp.headers["Content-Type"] == "image/tiff; application=geotiff"
+            assert head_resp.headers["Accept-Ranges"] == "bytes"
+            assert head_resp.headers["Content-Length"] == "8"
 
-            full_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
-            assert full_get_resp.assert_status_code(200).data == b'tiffdata'
-            assert full_get_resp.headers['Content-Length'] == '8'
+            full_get_resp = api.get(
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234"
+            )
+            assert full_get_resp.assert_status_code(200).data == b"tiffdata"
+            assert full_get_resp.headers["Content-Length"] == "8"
 
-            ranged_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
-                                      headers={'Range': "bytes=0-3"})
-            assert ranged_get_resp.assert_status_code(206).data == b'tiff'
-            assert ranged_get_resp.headers['Content-Length'] == '4'
+            ranged_get_resp = api.get(
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234",
+                headers={"Range": "bytes=0-3"},
+            )
+            assert ranged_get_resp.assert_status_code(206).data == b"tiff"
+            assert ranged_get_resp.headers["Content-Length"] == "4"
 
-            out_of_range_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
-                                            headers={'Range': "bytes=8-10"})
+            out_of_range_get_resp = api.get(
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234",
+                headers={"Range": "bytes=8-10"},
+            )
             out_of_range_get_resp.assert_status_code(416)
 
     @mock.patch("time.time", mock.MagicMock(return_value=3456))
@@ -2390,7 +2439,7 @@ class TestBatchJobs:
         jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
         with self._fresh_job_registry(jobs=jobs):
             resp = api.get(
-                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234"
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234"
             )
         assert resp.assert_error(410, "ResultLinkExpired")
 
@@ -2417,28 +2466,31 @@ class TestBatchJobs:
                 "datetime": "1981-04-24T03:00:00Z",
                 "proj:shape": [300, 600],
             },
-            'links': [{
-                'rel': 'self',
-                'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.tiff',
-                'type': 'application/geo+json'
-            }, {
-                'rel': 'collection',
-                'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results',
-                'type': 'application/json'
-            }],
-            'assets': {
-                'output.tiff': {
-                    'title': 'output.tiff',
-                    'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
-                    'type': 'image/tiff; application=geotiff',
-                    'proj:epsg': 4326,
-                    'proj:shape': [300, 600],
-                    'eo:bands': [{'center_wavelength': 1.23, 'name': 'NDVI'}],
-                    'file:nodata': [123],
-                    'roles': ['data']
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.tiff",
+                    "type": "application/geo+json",
+                },
+                {
+                    "rel": "collection",
+                    "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results",
+                    "type": "application/json",
+                },
+            ],
+            "assets": {
+                "output.tiff": {
+                    "title": "output.tiff",
+                    "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234",
+                    "type": "image/tiff; application=geotiff",
+                    "proj:epsg": 4326,
+                    "proj:shape": [300, 600],
+                    "eo:bands": [{"center_wavelength": 1.23, "name": "NDVI"}],
+                    "file:nodata": [123],
+                    "roles": ["data"],
                 }
             },
-            'collection': '53c71345-09b4-46b4-b6b0-03fd6fe1f199'
+            "collection": "53c71345-09b4-46b4-b6b0-03fd6fe1f199",
         }
         assert resp.headers["Content-Type"] == "application/geo+json"
 
@@ -2451,55 +2503,61 @@ class TestBatchJobs:
             )
         random_id = resp.assert_status_code(200).json["id"]
         assert resp.assert_status_code(200).json == {
-            'id': random_id,
-            'type': 'Feature',
-            'stac_version': '1.0.0',
-            'stac_extensions': ['https://stac-extensions.github.io/ml-model/v1.0.0/schema.json'],
-            'assets': {
-                'model': {
-                    'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/randomforest.model',
-                    'roles': ['ml-model:checkpoint'],
-                    'title': 'org.apache.spark.mllib.tree.model.RandomForestModel',
-                    'type': 'application/octet-stream'
+            "id": random_id,
+            "type": "Feature",
+            "stac_version": "1.0.0",
+            "stac_extensions": ["https://stac-extensions.github.io/ml-model/v1.0.0/schema.json"],
+            "assets": {
+                "model": {
+                    "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/randomforest.model",
+                    "roles": ["ml-model:checkpoint"],
+                    "title": "org.apache.spark.mllib.tree.model.RandomForestModel",
+                    "type": "application/octet-stream",
                 }
             },
-            'bbox': [-179.999, -89.999, 179.999, 89.999],
-            'collection': '53c71345-09b4-46b4-b6b0-03fd6fe1f199',
-            'geometry': {
-                'coordinates': [[[-179.999, -89.999], [179.999, -89.999], [179.999, 89.999], [-179.999, 89.999],
-                                 [-179.999, -89.999]]],
-                'type': 'Polygon'
+            "bbox": [-179.999, -89.999, 179.999, 89.999],
+            "collection": "53c71345-09b4-46b4-b6b0-03fd6fe1f199",
+            "geometry": {
+                "coordinates": [
+                    [
+                        [-179.999, -89.999],
+                        [179.999, -89.999],
+                        [179.999, 89.999],
+                        [-179.999, 89.999],
+                        [-179.999, -89.999],
+                    ]
+                ],
+                "type": "Polygon",
             },
-            'links': [],
-            'properties': {
-                'datetime': None,
-                'end_datetime': '9999-12-31T23:59:59Z',
-                'ml-model:architecture': 'random-forest',
-                'ml-model:learning_approach': 'supervised',
-                'ml-model:prediction_type': 'classification',
-                'ml-model:training-os': 'linux',
-                'ml-model:training-processor-type': 'cpu',
-                'ml-model:type': 'ml-model',
-                'start_datetime': '1970-01-01T00:00:00Z'
+            "links": [],
+            "properties": {
+                "datetime": None,
+                "end_datetime": "9999-12-31T23:59:59Z",
+                "ml-model:architecture": "random-forest",
+                "ml-model:learning_approach": "supervised",
+                "ml-model:prediction_type": "classification",
+                "ml-model:training-os": "linux",
+                "ml-model:training-processor-type": "cpu",
+                "ml-model:type": "ml-model",
+                "start_datetime": "1970-01-01T00:00:00Z",
             },
         }
 
     def test_get_batch_job_logs(self, api):
         with self._fresh_job_registry():
-            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs', headers=self.AUTH_HEADER)
+            resp = api.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs", headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).json == {
-            "logs": [
-                {"id": "1", "level": "info", "message": "hello world"}
-            ],
-            "links": []
+            "logs": [{"id": "1", "level": "info", "message": "hello world"}],
+            "links": [],
         }
 
     def test_get_batch_job_logs_failure(self, api):
         with self._fresh_job_registry():
-            with mock.patch.dict(dummy_backend.DummyBatchJobs._custom_job_logs, {
-                "07024ee9-7847-4b8a-b260-6c879a2b3cdc": [RuntimeError("nope")]
-            }):
-                resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs', headers=self.AUTH_HEADER)
+            with mock.patch.dict(
+                dummy_backend.DummyBatchJobs._custom_job_logs,
+                {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": [RuntimeError("nope")]},
+            ):
+                resp = api.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs", headers=self.AUTH_HEADER)
                 assert resp.assert_status_code(200).json == {
                     "logs": [
                         {
@@ -2511,22 +2569,22 @@ class TestBatchJobs:
                             ),
                         }
                     ],
-                    "links": []
+                    "links": [],
                 }
 
     def test_cancel_job(self, api):
         with self._fresh_job_registry():
-            resp = api.delete('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results', headers=self.AUTH_HEADER)
+            resp = api.delete("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results", headers=self.AUTH_HEADER)
         assert resp.status_code == 204
 
     def test_cancel_job_invalid(self, api):
         with self._fresh_job_registry():
-            resp = api.delete('/jobs/deadbeef-f00/results', headers=self.AUTH_HEADER)
+            resp = api.delete("/jobs/deadbeef-f00/results", headers=self.AUTH_HEADER)
         resp.assert_error(404, "JobNotFound")
 
     def test_delete_job(self, api):
         with self._fresh_job_registry():
-            resp = api.delete('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc', headers=self.AUTH_HEADER)
+            resp = api.delete("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc", headers=self.AUTH_HEADER)
         assert resp.status_code == 204
 
 
@@ -2534,7 +2592,7 @@ class TestSecondaryServices:
     AUTH_HEADER = TEST_USER_AUTH_HEADER
 
     def test_service_types_v100(self, api):
-        resp = api.get('/service_types').assert_status_code(200)
+        resp = api.get("/service_types").assert_status_code(200)
         service_types = resp.json
         assert list(service_types.keys()) == ["WMTS"]
         wmts = service_types["WMTS"]
@@ -2543,36 +2601,45 @@ class TestSecondaryServices:
         assert wmts["links"] == []
 
     def test_create_unsupported_service_type_returns_400_BadRequest(self, api):
-        resp = api.post('/services', json={
-            "process": {"process_graph": {'product_id': 'S2'}},
-            "type": '???',
-        }, headers=self.AUTH_HEADER)
+        resp = api.post(
+            "/services",
+            json={
+                "process": {"process_graph": {"product_id": "S2"}},
+                "type": "???",
+            },
+            headers=self.AUTH_HEADER,
+        )
         resp.assert_status_code(400)
 
     def test_unsupported_services_methods_return_405_MethodNotAllowed(self, api):
-        res = api.put('/services', json={
-            "process": {"process_graph": {'product_id': 'S2'}},
-            "type": 'WMTS',
-        })
+        res = api.put(
+            "/services",
+            json={
+                "process": {"process_graph": {"product_id": "S2"}},
+                "type": "WMTS",
+            },
+        )
         res.assert_status_code(405)
 
     def test_list_services_100(self, api100):
-        metadata = api100.get('/services', headers=self.AUTH_HEADER).json
+        metadata = api100.get("/services", headers=self.AUTH_HEADER).json
         assert metadata == {
-            "services": [{
-                'id': 'wmts-foo',
-                'type': 'WMTS',
-                'enabled': True,
-                'url': 'https://oeo.net/wmts/foo',
-                'title': 'Test service',
-                'created': '2020-04-09T15:05:08Z',
-                'configuration': {'version': '0.5.8'},
-            }],
-            "links": []
+            "services": [
+                {
+                    "id": "wmts-foo",
+                    "type": "WMTS",
+                    "enabled": True,
+                    "url": "https://oeo.net/wmts/foo",
+                    "title": "Test service",
+                    "created": "2020-04-09T15:05:08Z",
+                    "configuration": {"version": "0.5.8"},
+                }
+            ],
+            "links": [],
         }
 
     def test_get_service_metadata_100(self, api100):
-        metadata = api100.get('/services/wmts-foo', headers=self.AUTH_HEADER).json
+        metadata = api100.get("/services/wmts-foo", headers=self.AUTH_HEADER).json
         assert metadata == {
             "id": "wmts-foo",
             "process": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
@@ -2582,41 +2649,41 @@ class TestSecondaryServices:
             "configuration": {"version": "0.5.8"},
             "attributes": {},
             "title": "Test service",
-            'created': '2020-04-09T15:05:08Z',
+            "created": "2020-04-09T15:05:08Z",
         }
 
     def test_get_service_metadata_wrong_id(self, api):
-        api.get('/services/wmts-invalid', headers=self.AUTH_HEADER).assert_error(404, 'ServiceNotFound')
+        api.get("/services/wmts-invalid", headers=self.AUTH_HEADER).assert_error(404, "ServiceNotFound")
 
     def test_services_requires_authentication(self, api):
-        api.get('/services').assert_error(401, 'AuthenticationRequired')
+        api.get("/services").assert_error(401, "AuthenticationRequired")
 
     def test_get_service_requires_authentication(self, api):
-        api.get('/services/wmts-foo').assert_error(401, 'AuthenticationRequired')
+        api.get("/services/wmts-foo").assert_error(401, "AuthenticationRequired")
 
     def test_patch_service_requires_authentication(self, api):
-        api.patch('/services/wmts-foo').assert_error(401, 'AuthenticationRequired')
+        api.patch("/services/wmts-foo").assert_error(401, "AuthenticationRequired")
 
     def test_delete_service_requires_authentication(self, api):
-        api.delete('/services/wmts-foo').assert_error(401, 'AuthenticationRequired')
+        api.delete("/services/wmts-foo").assert_error(401, "AuthenticationRequired")
 
     def test_service_logs_100(self, api):
-        logs = api.get('/services/wmts-foo/logs', headers=self.AUTH_HEADER).json
+        logs = api.get("/services/wmts-foo/logs", headers=self.AUTH_HEADER).json
         assert logs == {
             "logs": [
                 {"id": 3, "level": "info", "message": "Loaded data."},
             ],
-            "links": []
+            "links": [],
         }
 
 
 def test_credentials_basic_no_headers(api):
-    api.get("/credentials/basic").assert_error(401, 'AuthenticationRequired')
+    api.get("/credentials/basic").assert_error(401, "AuthenticationRequired")
 
 
 def test_credentials_basic_wrong_password(api):
     headers = {"Authorization": build_basic_http_auth_header(username="john", password="password123")}
-    api.get("/credentials/basic", headers=headers).assert_error(403, 'CredentialsInvalid')
+    api.get("/credentials/basic", headers=headers).assert_error(403, "CredentialsInvalid")
 
 
 def test_credentials_basic(api):
@@ -2659,7 +2726,7 @@ def test_endpoint_registry():
     # Check metadata
     assert len(result) == 3
     paths, methods, metadatas = zip(*sorted(result))
-    assert paths == ('/foo', '/old', '/secret')
+    assert paths == ("/foo", "/old", "/secret")
     assert methods == ({"GET"},) * 3
     assert metadatas[0].hidden is False
     assert metadatas[0].for_version is None
@@ -2694,7 +2761,7 @@ def test_endpoint_registry_multiple_methods():
     # Check metadata
     assert len(result) == 2
     paths, methods, metadatas = zip(*sorted(result))
-    assert paths == ('/foo', '/foo')
+    assert paths == ("/foo", "/foo")
     assert methods == ({"GET"}, {"POST"})
 
 
@@ -2702,159 +2769,159 @@ def test_endpoint_registry_multiple_methods():
 def udp_store(backend_implementation) -> dummy_backend.DummyUserDefinedProcesses:
     udps = backend_implementation.user_defined_processes
     assert isinstance(udps, dummy_backend.DummyUserDefinedProcesses)
-    udps.reset({
-        ('Mr.Test', 'udp1'): UserDefinedProcessMetadata(
-            id='udp1',
-            process_graph={'add23': {"process_id": "add", "arguments": {"x": 2, "y": 3}, "result": True}},
-        ),
-        ('Mr.Test', 'udp2'): UserDefinedProcessMetadata(
-            id='udp2',
-            process_graph={'add58': {"process_id": "add", "arguments": {"x": 5, "y": 8}, "result": True}},
-            public=True,
-        )
-    })
+    udps.reset(
+        {
+            ("Mr.Test", "udp1"): UserDefinedProcessMetadata(
+                id="udp1",
+                process_graph={"add23": {"process_id": "add", "arguments": {"x": 2, "y": 3}, "result": True}},
+            ),
+            ("Mr.Test", "udp2"): UserDefinedProcessMetadata(
+                id="udp2",
+                process_graph={"add58": {"process_id": "add", "arguments": {"x": 5, "y": 8}, "result": True}},
+                public=True,
+            ),
+        }
+    )
     return udps
 
 
 class TestUserDefinedProcesses:
-
     @pytest.mark.parametrize("body_id", [None, "evi", "meh"])
     def test_add_udp(self, api100, udp_store, body_id):
-        spec = {
-            'parameters': [{'name': 'red'}],
-            'process_graph': {'sub': {}},
-            'public': True
-        }
+        spec = {"parameters": [{"name": "red"}], "process_graph": {"sub": {}}, "public": True}
         if body_id:
             spec["id"] = body_id
-        api100.put('/process_graphs/evi', headers=TEST_USER_AUTH_HEADER, json=spec).assert_status_code(200)
+        api100.put("/process_graphs/evi", headers=TEST_USER_AUTH_HEADER, json=spec).assert_status_code(200)
 
-        new_udp = udp_store._processes['Mr.Test', 'evi']
-        assert new_udp.id == 'evi'
-        assert new_udp.parameters == [{'name': 'red'}]
-        assert new_udp.process_graph == {'sub': {}}
+        new_udp = udp_store._processes["Mr.Test", "evi"]
+        assert new_udp.id == "evi"
+        assert new_udp.parameters == [{"name": "red"}]
+        assert new_udp.process_graph == {"sub": {}}
         assert new_udp.public
 
     def test_add_udp_no_pg(self, api100):
-        spec = {"id": "evi", 'parameters': [{'name': 'red'}]}
-        res = api100.put('/process_graphs/evi', headers=TEST_USER_AUTH_HEADER, json=spec)
+        spec = {"id": "evi", "parameters": [{"name": "red"}]}
+        res = api100.put("/process_graphs/evi", headers=TEST_USER_AUTH_HEADER, json=spec)
         res.assert_error(400, "ProcessGraphMissing")
 
     def test_add_udp_invalid_id(self, api100):
-        spec = {"id": "foob@r", 'process_graph': {'sub': {}}}
-        res = api100.put('/process_graphs/foob@r', headers=TEST_USER_AUTH_HEADER, json=spec)
+        spec = {"id": "foob@r", "process_graph": {"sub": {}}}
+        res = api100.put("/process_graphs/foob@r", headers=TEST_USER_AUTH_HEADER, json=spec)
         res.assert_error(400, "InvalidId")
 
     @pytest.mark.parametrize("body_id", [None, "udp1", "meh"])
     def test_update_udp(self, api100, udp_store, body_id):
-        spec = {
-            'parameters': [{'name': 'blue'}],
-            'process_graph': {'add': {}},
-            'public': True
-        }
+        spec = {"parameters": [{"name": "blue"}], "process_graph": {"add": {}}, "public": True}
         if body_id:
             spec["id"] = body_id
-        api100.put('/process_graphs/udp1', headers=TEST_USER_AUTH_HEADER, json=spec).assert_status_code(200)
+        api100.put("/process_graphs/udp1", headers=TEST_USER_AUTH_HEADER, json=spec).assert_status_code(200)
 
-        modified_udp = udp_store._processes['Mr.Test', 'udp1']
-        assert modified_udp.id == 'udp1'
-        assert modified_udp.process_graph == {'add': {}}
-        assert modified_udp.parameters == [{'name': 'blue'}]
+        modified_udp = udp_store._processes["Mr.Test", "udp1"]
+        assert modified_udp.id == "udp1"
+        assert modified_udp.process_graph == {"add": {}}
+        assert modified_udp.parameters == [{"name": "blue"}]
         assert modified_udp.public
 
     def test_list_udps(self, api100, udp_store):
-        resp = api100.get('/process_graphs', headers=TEST_USER_AUTH_HEADER).assert_status_code(200)
+        resp = api100.get("/process_graphs", headers=TEST_USER_AUTH_HEADER).assert_status_code(200)
 
-        udps = resp.json['processes']
+        udps = resp.json["processes"]
         assert udps == [{"id": "udp1"}, {"id": "udp2"}]
 
     def test_get_udp(self, api100, udp_store):
-        udp = api100.get('/process_graphs/udp1', headers=TEST_USER_AUTH_HEADER).assert_status_code(200).json
+        udp = api100.get("/process_graphs/udp1", headers=TEST_USER_AUTH_HEADER).assert_status_code(200).json
         assert udp == {
             "id": "udp1",
-            "process_graph": {'add23': {'process_id': 'add', 'arguments': {'x': 2, 'y': 3}, 'result': True}},
+            "process_graph": {"add23": {"process_id": "add", "arguments": {"x": 2, "y": 3}, "result": True}},
         }
 
     def test_get_udp_public(self, api100, udp_store):
-        udp = api100.get('/process_graphs/udp2', headers=TEST_USER_AUTH_HEADER).assert_status_code(200).json
+        udp = api100.get("/process_graphs/udp2", headers=TEST_USER_AUTH_HEADER).assert_status_code(200).json
         assert udp == {
             "id": "udp2",
-            "process_graph": {'add58': {'process_id': 'add', 'arguments': {'x': 5, 'y': 8}, 'result': True}},
-            'links': [{
-                'rel': 'canonical',
-                'href': 'http://oeo.net/openeo/1.0.0/processes/u:Mr.Test/udp2',
-                'title': "Public URL for user-defined process 'udp2'"
-            }],
-            "public": True
+            "process_graph": {"add58": {"process_id": "add", "arguments": {"x": 5, "y": 8}, "result": True}},
+            "links": [
+                {
+                    "rel": "canonical",
+                    "href": "http://oeo.net/openeo/1.0.0/processes/u:Mr.Test/udp2",
+                    "title": "Public URL for user-defined process 'udp2'",
+                }
+            ],
+            "public": True,
         }
 
     def test_get_unknown_udp(self, api100, udp_store):
-        res = api100.get('/process_graphs/unknown', headers=TEST_USER_AUTH_HEADER)
+        res = api100.get("/process_graphs/unknown", headers=TEST_USER_AUTH_HEADER)
         res.assert_error(404, "ProcessGraphNotFound")
 
     def test_get_invalid_id(self, api100, udp_store):
-        res = api100.get('/process_graphs/foob@r', headers=TEST_USER_AUTH_HEADER)
-        res.assert_error(400, 'InvalidId')
+        res = api100.get("/process_graphs/foob@r", headers=TEST_USER_AUTH_HEADER)
+        res.assert_error(400, "InvalidId")
 
     def test_delete_udp(self, api100, udp_store):
-        assert ('Mr.Test', 'udp2') in udp_store._processes
+        assert ("Mr.Test", "udp2") in udp_store._processes
 
-        api100.delete('/process_graphs/udp2', headers=TEST_USER_AUTH_HEADER).assert_status_code(204)
+        api100.delete("/process_graphs/udp2", headers=TEST_USER_AUTH_HEADER).assert_status_code(204)
 
-        assert ('Mr.Test', 'udp1') in udp_store._processes
-        assert ('Mr.Test', 'udp2') not in udp_store._processes
+        assert ("Mr.Test", "udp1") in udp_store._processes
+        assert ("Mr.Test", "udp2") not in udp_store._processes
 
     def test_delete_unknown_udp(self, api100, udp_store):
-        res = api100.delete('/process_graphs/unknown', headers=TEST_USER_AUTH_HEADER)
+        res = api100.delete("/process_graphs/unknown", headers=TEST_USER_AUTH_HEADER)
         res.assert_error(404, "ProcessGraphNotFound")
 
     def test_delete_invalid_id(self, api100, udp_store):
-        res = api100.delete('/process_graphs/foob@r', headers=TEST_USER_AUTH_HEADER)
+        res = api100.delete("/process_graphs/foob@r", headers=TEST_USER_AUTH_HEADER)
         res.assert_error(400, "InvalidId")
 
     def test_public_udp(self, api100, udp_store):
-        api100.put('/process_graphs/evi', headers=TEST_USER_AUTH_HEADER, json={
-            'parameters': [{'name': 'red'}],
-            'process_graph': {'sub': {}},
-            'links': [{"rel":"about", "href": "https://wikipedia.test/evi"}],
-            'public': True
-        }).assert_status_code(200)
-        api100.put('/process_graphs/secret', headers=TEST_USER_AUTH_HEADER, json={
-            'parameters': [{'name': 'red'}],
-            'process_graph': {'sub': {}},
-            'public': False
-        }).assert_status_code(200)
+        api100.put(
+            "/process_graphs/evi",
+            headers=TEST_USER_AUTH_HEADER,
+            json={
+                "parameters": [{"name": "red"}],
+                "process_graph": {"sub": {}},
+                "links": [{"rel": "about", "href": "https://wikipedia.test/evi"}],
+                "public": True,
+            },
+        ).assert_status_code(200)
+        api100.put(
+            "/process_graphs/secret",
+            headers=TEST_USER_AUTH_HEADER,
+            json={"parameters": [{"name": "red"}], "process_graph": {"sub": {}}, "public": False},
+        ).assert_status_code(200)
 
         r = api100.get("/processes/u:Mr.Test").assert_status_code(200)
         assert r.json == {
-            "processes": [
-                {"id": "udp2"},
-                {"id": "evi", "parameters": [{"name": "red"}]}
-            ],
+            "processes": [{"id": "udp2"}, {"id": "evi", "parameters": [{"name": "red"}]}],
             "links": [],
         }
 
     def test_public_udp_link(self, api100, udp_store):
-        api100.put('/process_graphs/evi', headers=TEST_USER_AUTH_HEADER, json={
-            'parameters': [{'name': 'red'}],
-            "process_graph": {'add35': {'process_id': 'add', 'arguments': {'x': 3, 'y': 5}, 'result': True}},
-            'links': [{"rel": "about", "href": "https://wikipedia.test/evi"}],
-            'public': True
-        }).assert_status_code(200)
+        api100.put(
+            "/process_graphs/evi",
+            headers=TEST_USER_AUTH_HEADER,
+            json={
+                "parameters": [{"name": "red"}],
+                "process_graph": {"add35": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}},
+                "links": [{"rel": "about", "href": "https://wikipedia.test/evi"}],
+                "public": True,
+            },
+        ).assert_status_code(200)
 
         expected = {
             "id": "evi",
             "parameters": [{"name": "red"}],
-            "process_graph": {'add35': {'process_id': 'add', 'arguments': {'x': 3, 'y': 5}, 'result': True}},
+            "process_graph": {"add35": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}},
             "public": True,
             "links": [
-                {'rel': 'about', 'href': 'https://wikipedia.test/evi'},
+                {"rel": "about", "href": "https://wikipedia.test/evi"},
                 {
-                    'rel': 'canonical',
-                    'href': 'http://oeo.net/openeo/1.0.0/processes/u:Mr.Test/evi',
-                    'title': "Public URL for user-defined process 'evi'"
-                }
-            ]
+                    "rel": "canonical",
+                    "href": "http://oeo.net/openeo/1.0.0/processes/u:Mr.Test/evi",
+                    "title": "Public URL for user-defined process 'evi'",
+                },
+            ],
         }
 
         api100.get("/process_graphs/evi").assert_error(401, "AuthenticationRequired")
@@ -2864,8 +2931,6 @@ class TestUserDefinedProcesses:
         udp = api100.get("/processes/u:Mr.Test/evi").assert_status_code(200).json
         assert udp == expected
 
-
-
     @pytest.mark.parametrize("body_id", [None, "evi", "meh"])
     def test_add_and_get_udp(self, api100, udp_store, body_id):
         spec = {
@@ -2874,7 +2939,7 @@ class TestUserDefinedProcesses:
             "process_graph": {"sub": {}},
             "summary": "evify it",
             "description": "Calculate the EVI",
-            "public": True
+            "public": True,
         }
         if body_id:
             spec["id"] = body_id
