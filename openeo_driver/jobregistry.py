@@ -43,6 +43,29 @@ class JOB_STATUS:
     ERROR = "error"
 
 
+class PARTIAL_JOB_STATUS:
+    RUNNING = "running"
+    CANCELED = "canceled"
+    FINISHED = "finished"
+    ERROR = "error"
+
+    _job_status_to_partial_job_status_mapping = {
+        JOB_STATUS.CREATED: RUNNING,
+        JOB_STATUS.QUEUED: RUNNING,
+        JOB_STATUS.RUNNING: RUNNING,
+        JOB_STATUS.CANCELED: CANCELED,
+        JOB_STATUS.FINISHED: FINISHED,
+        JOB_STATUS.ERROR: ERROR
+    }
+
+    @staticmethod
+    def for_job_status(job_status: str) -> str:
+        try:
+            return PARTIAL_JOB_STATUS._job_status_to_partial_job_status_mapping[job_status]
+        except KeyError:
+            raise AssertionError(f"unexpected job status: {job_status!r}")
+
+
 class DEPENDENCY_STATUS:
     """
     Container of dependency status constants

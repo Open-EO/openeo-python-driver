@@ -40,7 +40,7 @@ from openeo_driver.errors import (
     InternalException,
     ProcessGraphComplexityException,
 )
-from openeo_driver.jobregistry import JOB_STATUS
+from openeo_driver.jobregistry import JOB_STATUS, PARTIAL_JOB_STATUS
 from openeo_driver.save_result import SaveResult, to_save_result
 from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
 from openeo_driver.users.auth import HttpAuthHandler
@@ -993,21 +993,8 @@ def register_views_batch_jobs(
             if not partial:
                 raise JobNotFinishedException()
             else:
-                if job_info.status == JOB_STATUS.RUNNING:
-                    openeo_status = "running"
-                elif job_info.status == JOB_STATUS.ERROR:
-                    openeo_status = "error"
-                elif job_info.status == JOB_STATUS.CANCELED:
-                    openeo_status = "canceled"
-                elif job_info.status == JOB_STATUS.QUEUED:
-                    openeo_status = "running"
-                elif job_info.status == JOB_STATUS.CREATED:
-                    openeo_status = "running"
-                else:
-                    raise AssertionError(f"unexpected job status: {job_info.status!r}")
-
                 result = {
-                    "openeo:status": openeo_status,
+                    "openeo:status": PARTIAL_JOB_STATUS.for_job_status(job_info.status),
                     "type": "Collection",
                     "stac_version": "1.0.0",
                     "id": job_id,
@@ -1134,7 +1121,7 @@ def register_views_batch_jobs(
                     "providers": providers or None,
                     "links": links,
                     "assets": assets,
-                    "openeo:status": "finished",
+                    "openeo:status": PARTIAL_JOB_STATUS.FINISHED,
                 }
             )
 
@@ -1162,7 +1149,7 @@ def register_views_batch_jobs(
                 "properties": _properties_from_job_info(job_info),
                 "assets": assets,
                 "links": links,
-                "openeo:status": "finished",
+                "openeo:status": PARTIAL_JOB_STATUS.FINISHED,
             }
             if providers:
                 result["providers"] = providers

@@ -20,6 +20,9 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.85.0
+- Expose mapping of job status to partial job status (https://github.com/Open-EO/openeo-geopyspark-driver/issues/644)
+
 ## 0.84.0
 
 - Support GeoParquet output format for `aggregate_spatial` (https://github.com/Open-EO/openeo-geopyspark-driver/issues/623)
