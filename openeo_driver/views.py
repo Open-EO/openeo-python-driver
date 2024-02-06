@@ -1086,7 +1086,8 @@ def register_views_batch_jobs(
                 )
 
             for filename, metadata in result_assets.items():
-                if "data" in metadata.get("roles", []) and "geotiff" in metadata.get("type", ""):
+                if ("data" in metadata.get("roles", []) and
+                        any(media_type in metadata.get("type", "") for media_type in ["geotiff", "netcdf"])):
                     links.append(
                         {"rel": "item", "href": job_result_item_url(item_id=filename), "type": stac_item_media_type}
                     )
@@ -1324,7 +1325,7 @@ def register_views_batch_jobs(
         stac_item.update(
             **dict_no_none(
                 {
-                    "epsg": job_info.epsg,
+                    "epsg": job_info.epsg,  # TODO: unexpected at top level, "proj:epsg" property instead?
                 }
             )
         )
