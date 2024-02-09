@@ -1946,7 +1946,7 @@ class TestBatchJobs:
                     },
                     {
                         "rel": "item",
-                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/TXIuVGVzdA==/272d7aa46727ee3f11a7211d5be953e4/ml_model_metadata.json",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/TXIuVGVzdA==/e28f17365e698783574dd313de0d64cd/output.nc",
                         "type": "application/geo+json",
                     },
                     {
