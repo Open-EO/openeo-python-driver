@@ -617,19 +617,22 @@ def _check_geometry_path_assumption(path: str, process: str, parameter: str):
 
 @non_standard_process(
     ProcessSpec(id='vector_buffer', description="Add a buffer around a geometry.")
-        .param(name='geometry', description="Input geometry (GeoJSON object) to add buffer to.",
-               schema={"type": "object", "subtype": "geojson"}, required=True)
+        .param(name='geometries', description="Input geometry (GeoJSON object) to add buffer to.",
+               schema={"type": "object", "subtype": "geojson"})
         .param(name='distance', description="The size of the buffer. Can be negative to subtract the buffer",
                schema={"type": "number"}, required=True)
-        .param(name='unit', description="The unit in which the distance is measured.",
-               schema={"type": "string", "enum": ["meter", "kilometer"]})
         .returns(description="Output geometry (GeoJSON object) with the added or subtracted buffer",
                  schema={"type": "object", "subtype": "geojson"})
 )
 def vector_buffer(args: Dict, env: EvalEnv) -> dict:
-    geometry = extract_arg(args, 'geometry')
+    if("geometry" in args):
+        #old style, not official
+        geometry = extract_arg(args, 'geometry')
+    else:
+        geometry = extract_arg(args, 'geometries')
     distance = extract_arg(args, 'distance')
-    unit = extract_arg(args, 'unit')
+    #unit argument is not official spec
+    unit = args.get("unit","meter")
     input_crs = output_crs = 'epsg:4326'
     buffer_resolution = 3
 
@@ -684,6 +687,7 @@ def vector_buffer(args: Dict, env: EvalEnv) -> dict:
 
     epsg_utmzone = auto_utm_epsg_for_geometry(geoms.geometry[0])
 
+    #TODO in the official spec, we have to throw an exception rather than reproject implicitly
     poly_buff_latlon = geoms.to_crs(epsg_utmzone).buffer(distance, resolution=buffer_resolution).to_crs(output_crs)
 
     empty_result_indices = np.where(poly_buff_latlon.is_empty)[0]

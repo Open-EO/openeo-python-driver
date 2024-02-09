@@ -40,7 +40,7 @@ from openeo_driver.errors import (
     InternalException,
     ProcessGraphComplexityException,
 )
-from openeo_driver.jobregistry import JOB_STATUS
+from openeo_driver.jobregistry import JOB_STATUS, PARTIAL_JOB_STATUS
 from openeo_driver.save_result import SaveResult, to_save_result
 from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
 from openeo_driver.users.auth import HttpAuthHandler
@@ -993,21 +993,8 @@ def register_views_batch_jobs(
             if not partial:
                 raise JobNotFinishedException()
             else:
-                if job_info.status == JOB_STATUS.RUNNING:
-                    openeo_status = "running"
-                elif job_info.status == JOB_STATUS.ERROR:
-                    openeo_status = "error"
-                elif job_info.status == JOB_STATUS.CANCELED:
-                    openeo_status = "canceled"
-                elif job_info.status == JOB_STATUS.QUEUED:
-                    openeo_status = "running"
-                elif job_info.status == JOB_STATUS.CREATED:
-                    openeo_status = "running"
-                else:
-                    raise AssertionError(f"unexpected job status: {job_info.status!r}")
-
                 result = {
-                    "openeo:status": openeo_status,
+                    "openeo:status": PARTIAL_JOB_STATUS.for_job_status(job_info.status),
                     "type": "Collection",
                     "stac_version": "1.0.0",
                     "id": job_id,
@@ -1099,7 +1086,8 @@ def register_views_batch_jobs(
                 )
 
             for filename, metadata in result_assets.items():
-                if "data" in metadata.get("roles", []) and "geotiff" in metadata.get("type", ""):
+                if ("data" in metadata.get("roles", []) and
+                        any(media_type in metadata.get("type", "") for media_type in ["geotiff", "netcdf"])):
                     links.append(
                         {"rel": "item", "href": job_result_item_url(item_id=filename), "type": stac_item_media_type}
                     )
@@ -1134,7 +1122,7 @@ def register_views_batch_jobs(
                     "providers": providers or None,
                     "links": links,
                     "assets": assets,
-                    "openeo:status": "finished",
+                    "openeo:status": PARTIAL_JOB_STATUS.FINISHED,
                 }
             )
 
@@ -1162,7 +1150,7 @@ def register_views_batch_jobs(
                 "properties": _properties_from_job_info(job_info),
                 "assets": assets,
                 "links": links,
-                "openeo:status": "finished",
+                "openeo:status": PARTIAL_JOB_STATUS.FINISHED,
             }
             if providers:
                 result["providers"] = providers
@@ -1337,7 +1325,7 @@ def register_views_batch_jobs(
         stac_item.update(
             **dict_no_none(
                 {
-                    "epsg": job_info.epsg,
+                    "epsg": job_info.epsg,  # TODO: unexpected at top level, "proj:epsg" property instead?
                 }
             )
         )
@@ -1372,7 +1360,7 @@ def register_views_batch_jobs(
         resp.mimetype = stac_item_media_type
         return resp
 
-    def _asset_object(job_id, user_id, filename: str, asset_metadata: dict, job_info:BatchJobMetadata) -> dict:
+    def _asset_object(job_id, user_id, filename: str, asset_metadata: dict, job_info: BatchJobMetadata) -> dict:
         result_dict = dict_no_none({
             "title": asset_metadata.get("title", filename),
             "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or _job_result_download_url(job_id, user_id, filename),
@@ -1402,7 +1390,9 @@ def register_views_batch_jobs(
                     if bands
                     else None,
                     "file:nodata": [
-                        "nan" if nodata != None and np.isnan(nodata) else nodata
+                        # TODO: has since been moved to raster:bands
+                        # TODO: should this really return [null]?
+                        "nan" if nodata is not None and np.isnan(nodata) else nodata
                     ],
                     "proj:bbox": asset_metadata.get("proj:bbox", job_info.proj_bbox),
                     "proj:epsg": asset_metadata.get("proj:epsg", job_info.epsg),

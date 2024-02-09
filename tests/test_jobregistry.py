@@ -11,6 +11,7 @@ from openeo_driver.errors import InternalException, JobNotFoundException
 from openeo_driver.jobregistry import (
     DEPENDENCY_STATUS,
     JOB_STATUS,
+    PARTIAL_JOB_STATUS,
     EjrError,
     EjrHttpError,
     ElasticJobRegistry,
@@ -72,6 +73,15 @@ def test_get_ejr_credentials_from_env_strictness_compact(monkeypatch):
         _ = get_ejr_credentials_from_env()
     creds = get_ejr_credentials_from_env(strict=False)
     assert creds is None
+
+
+def test_get_partial_job_status():
+    assert PARTIAL_JOB_STATUS.for_job_status(JOB_STATUS.CREATED) == 'running'
+    assert PARTIAL_JOB_STATUS.for_job_status(JOB_STATUS.QUEUED) == 'running'
+    assert PARTIAL_JOB_STATUS.for_job_status(JOB_STATUS.RUNNING) == 'running'
+    assert PARTIAL_JOB_STATUS.for_job_status(JOB_STATUS.FINISHED) == 'finished'
+    assert PARTIAL_JOB_STATUS.for_job_status(JOB_STATUS.ERROR) == 'error'
+    assert PARTIAL_JOB_STATUS.for_job_status(JOB_STATUS.CANCELED) == 'canceled'
 
 
 class TestElasticJobRegistry:
