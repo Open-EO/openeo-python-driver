@@ -1,13 +1,10 @@
 """
 Utilities for (lazy) loading of config
 """
-import contextlib
 import logging
 import os
 from pathlib import Path
-from typing import Any, ContextManager, Optional, Union
-
-import attrs
+from typing import Any, ContextManager, Optional, Union, Type
 
 try:
     # Use `importlib_resources` instead of stdlib `importlib.resources`
@@ -59,10 +56,15 @@ class ConfigGetter:
     # Environment variable to point to config file
     OPENEO_BACKEND_CONFIG = "OPENEO_BACKEND_CONFIG"
 
-    expected_class = OpenEoBackendConfig
+    # TODO: this should be set from __init__, but kept for now for backward compatibility
+    expected_class: Type = None
 
-    def __init__(self):
+    def __init__(self, expected_class: Type = OpenEoBackendConfig):
         self._config: Optional[OpenEoBackendConfig] = None
+
+        # TODO: eliminate this if condition when backwards compatibility is not necessary anymore
+        if self.expected_class is None:
+            self.expected_class = expected_class
 
     def __call__(self, force_reload: bool = False, *, show_stack: bool = True) -> OpenEoBackendConfig:
         """Syntactic sugar to lazy load the config with function call."""
