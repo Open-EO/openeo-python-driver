@@ -2491,8 +2491,9 @@ class TestBatchJobs:
                 "https://stac-extensions.github.io/file/v2.1.0/schema.json",
             ],
             "id": "output.tiff",
-            "geometry": None,
-            "bbox": None,
+            "geometry": {"type": "Polygon",
+                         "coordinates": [[[0.0, 50.0], [0.0, 55.0], [5.0, 55.0], [5.0, 50.0], [0.0, 50.0]]]},
+            "bbox": [0.0, 50.0, 5.0, 55.0],
             "epsg": 4326,
             "properties": {
                 "datetime": "1981-04-24T03:00:00Z",
