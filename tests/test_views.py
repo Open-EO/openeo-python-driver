@@ -1420,7 +1420,14 @@ class TestBatchJobs:
                             'name': "NDVI",
                             'center_wavelength': 1.23
                         }],
-                        'file:nodata':[123]
+                        'file:nodata': [123]
+                    },
+                    'output.nc': {
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.nc',
+                        'roles': ['data'],
+                        'title': 'output.nc',
+                        'type': 'application/x-netcdf',
+                        'file:nodata': [-1],
                     },
                     'randomforest.model': {
                         'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/randomforest.model',
@@ -1485,6 +1492,15 @@ class TestBatchJobs:
                             'center_wavelength': 1.23
                         }],
                         'file:nodata': [123]
+                    },
+                    'output.nc': {
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.nc',
+                        'roles': ['data'],
+                        'title': 'output.nc',
+                        'type': 'application/x-netcdf',
+                        'file:nodata': [-1],
+                        'proj:epsg': 4326,
+                        'proj:shape': [300, 600],
                     },
                     'randomforest.model': {
                         'href': 'http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/randomforest.model',
@@ -1570,6 +1586,13 @@ class TestBatchJobs:
                         "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
                         "file:nodata": [123],
                     },
+                    "output.nc": {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.nc",
+                        "roles": ["data"],
+                        "title": "output.nc",
+                        "type": "application/x-netcdf",
+                        "file:nodata": [-1],
+                    },
                     "randomforest.model": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/randomforest.model",
                         "roles": ["data"],
@@ -1597,6 +1620,11 @@ class TestBatchJobs:
                     {
                         "rel": "item",
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/output.tiff",
+                        "type": "application/geo+json",
+                    },
+                    {
+                        "rel": "item",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/output.nc",
                         "type": "application/geo+json",
                     },
                     {
@@ -1638,6 +1666,15 @@ class TestBatchJobs:
                         "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
                         "file:nodata": [123],
                     },
+                    "output.nc": {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.nc",
+                        "roles": ["data"],
+                        "title": "output.nc",
+                        "type": "application/x-netcdf",
+                        "file:nodata": [-1],
+                        "proj:epsg": 4326,
+                        "proj:shape": [300, 600],
+                    },
                     "randomforest.model": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/randomforest.model",
                         "roles": ["data"],
@@ -1665,6 +1702,11 @@ class TestBatchJobs:
                     {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.tiff",
                         "rel": "item",
+                        "type": "application/geo+json",
+                    },
+                    {
+                        "rel": "item",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.nc",
                         "type": "application/geo+json",
                     },
                     {
@@ -1698,9 +1740,8 @@ class TestBatchJobs:
 
         results_data = {
             "output.tiff": {BatchJobs.ASSET_PUBLIC_HREF: "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349",
-                            "asset": True,
-                            "type":"application/tiff",
-                            "nodata":np.nan
+                            "type": "application/tiff",
+                            "nodata": np.nan
                             }
         }
         with self._fresh_job_registry(
@@ -1736,6 +1777,13 @@ class TestBatchJobs:
                             'center_wavelength': 1.23
                         }],
                         'file:nodata': [123]
+                    },
+                    'output.nc': {
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/e28f17365e698783574dd313de0d64cd/output.nc',
+                        'roles': ['data'],
+                        'title': 'output.nc',
+                        'type': 'application/x-netcdf',
+                        'file:nodata': [-1],
                     },
                     'randomforest.model': {
                         'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model',
@@ -1860,6 +1908,13 @@ class TestBatchJobs:
                         "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
                         "file:nodata": [123],
                     },
+                    "output.nc": {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/e28f17365e698783574dd313de0d64cd/output.nc",
+                        "roles": ["data"],
+                        "title": "output.nc",
+                        "type": "application/x-netcdf",
+                        "file:nodata": [-1],
+                    },
                     "randomforest.model": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model",
                         "roles": ["data"],
@@ -1887,6 +1942,11 @@ class TestBatchJobs:
                     {
                         "rel": "item",
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
+                        "type": "application/geo+json",
+                    },
+                    {
+                        "rel": "item",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/TXIuVGVzdA%3D%3D/e28f17365e698783574dd313de0d64cd/output.nc",
                         "type": "application/geo+json",
                     },
                     {
@@ -1981,6 +2041,13 @@ class TestBatchJobs:
                             'center_wavelength': 1.23
                         }],
                         'file:nodata': [123]
+                    },
+                    'output.nc': {
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/3ed7b944c4f9cc88d2c3ef7534a27596/output.nc?expires=2234',
+                        'roles': ['data'],
+                        'title': 'output.nc',
+                        'type': 'application/x-netcdf',
+                        'file:nodata': [-1],
                     },
                     'randomforest.model': {
                         'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/22b76413158c59acaccc74e74841a473/randomforest.model?expires=2234',
@@ -2131,6 +2198,11 @@ class TestBatchJobs:
                         'type': 'application/geo+json'
                     },
                     {
+                        'rel': 'item',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA%3D%3D/a5d63417ff2eac2c632af5abfce6c425/output.nc?expires=2234',
+                        'type': 'application/geo+json'
+                    },
+                    {
                         'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA%3D%3D/30fac5af7fe96123c923e94c2732f9aa/ml_model_metadata.json?expires=2234',                        'rel': 'item',
                         'type': 'application/json'
                     },
@@ -2151,6 +2223,15 @@ class TestBatchJobs:
                         'eo:bands': [{'center_wavelength': 1.23, 'name': 'NDVI'}],
                         'file:nodata': [123],
                         'roles': ['data']
+                    },
+                    'output.nc': {
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA%3D%3D/a5d63417ff2eac2c632af5abfce6c425/output.nc?expires=2234',
+                        'roles': ['data'],
+                        'title': 'output.nc',
+                        'type': 'application/x-netcdf',
+                        'file:nodata': [-1],
+                        'proj:epsg': 4326,
+                        'proj:shape': [300, 600],
                     },
                     'randomforest.model': {
                         'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA%3D%3D/18fd2346c52945c0caba7b13246f5a63/randomforest.model?expires=2234',
@@ -2410,8 +2491,9 @@ class TestBatchJobs:
                 "https://stac-extensions.github.io/file/v2.1.0/schema.json",
             ],
             "id": "output.tiff",
-            "geometry": None,
-            "bbox": None,
+            "geometry": {"type": "Polygon",
+                         "coordinates": [[[0.0, 50.0], [0.0, 55.0], [5.0, 55.0], [5.0, 50.0], [0.0, 50.0]]]},
+            "bbox": [0.0, 50.0, 5.0, 55.0],
             "epsg": 4326,
             "properties": {
                 "datetime": "1981-04-24T03:00:00Z",
