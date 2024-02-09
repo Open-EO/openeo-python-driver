@@ -1360,7 +1360,7 @@ def register_views_batch_jobs(
         resp.mimetype = stac_item_media_type
         return resp
 
-    def _asset_object(job_id, user_id, filename: str, asset_metadata: dict, job_info:BatchJobMetadata) -> dict:
+    def _asset_object(job_id, user_id, filename: str, asset_metadata: dict, job_info: BatchJobMetadata) -> dict:
         result_dict = dict_no_none({
             "title": asset_metadata.get("title", filename),
             "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or _job_result_download_url(job_id, user_id, filename),
@@ -1390,7 +1390,9 @@ def register_views_batch_jobs(
                     if bands
                     else None,
                     "file:nodata": [
-                        "nan" if nodata != None and np.isnan(nodata) else nodata
+                        # TODO: has since been moved to raster:bands
+                        # TODO: should this really return [null]?
+                        "nan" if nodata is not None and np.isnan(nodata) else nodata
                     ],
                     "proj:bbox": asset_metadata.get("proj:bbox", job_info.proj_bbox),
                     "proj:epsg": asset_metadata.get("proj:epsg", job_info.epsg),
