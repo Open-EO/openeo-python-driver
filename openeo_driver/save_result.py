@@ -4,6 +4,7 @@ import re
 import tempfile
 import warnings
 import logging
+from datetime import datetime, date
 from pathlib import Path
 from shutil import copy
 from tempfile import mkstemp
@@ -171,13 +172,24 @@ class JSONResult(SaveResult):
 
         :return: STAC assets dictionary: https://github.com/radiantearth/stac-spec/blob/master/item-spec/item-spec.md#assets
         """
+
+        def json_serial(obj):
+            """JSON serializer for objects not serializable by default json code"""
+
+            if isinstance(obj, (datetime, date)):
+                return obj.isoformat()
+            else:
+                return str(obj)
+
+
+
         # TODO: There is something wrong here: arg is called `directory`,
         #       but implementation and actual usage handles it as a file path (take parent to get directory)
         output_dir = Path(directory).parent
         output_file = output_dir / "result.json"
         with open(output_file, 'w') as f:
             import json
-            json.dump(self.prepare_for_json(), f)
+            json.dump(self.prepare_for_json(), f,default=json_serial)
         return {"result.json":{
             "href":str(output_file),
             "roles": ["data"],
