@@ -1,3 +1,4 @@
+import datetime
 import json
 from pathlib import Path
 
@@ -9,7 +10,7 @@ from shapely.geometry import GeometryCollection, Polygon
 from openeo.metadata import CollectionMetadata
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.save_result import AggregatePolygonResult, SaveResult, AggregatePolygonSpatialResult, \
-    AggregatePolygonResultCSV
+    AggregatePolygonResultCSV, JSONResult
 from .data import load_json, json_normalize, get_path
 
 
@@ -172,3 +173,20 @@ class TestAggregatePolygonSpatialResult:
             [4646.262612301313, 4865.926572218383, 5178.517363510712],
             [4645.719597475695, 4865.467252259935, 5177.803342998465],
         ]
+
+def test_jsonresult(tmp_path):
+
+    the_data = {
+        "bla":"bla",
+        "bla2":np.nan,
+        "bla3":{'bla':'bla'},
+        "bla4":datetime.datetime.fromisocalendar(2020,3,1)
+    }
+    JSONResult(the_data).write_assets(tmp_path/"bla")
+
+    the_path = tmp_path.joinpath("result.json")
+    actual_data = json.load(the_path.open())
+    assert { 'bla': 'bla',
+             'bla2': None,
+             'bla3': {'bla': 'bla'},
+             'bla4': '2020-01-13T00:00:00'} == actual_data

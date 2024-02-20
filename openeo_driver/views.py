@@ -1086,7 +1086,8 @@ def register_views_batch_jobs(
                 )
 
             for filename, metadata in result_assets.items():
-                if "data" in metadata.get("roles", []) and "geotiff" in metadata.get("type", ""):
+                if ("data" in metadata.get("roles", []) and
+                        any(media_type in metadata.get("type", "") for media_type in ["geotiff", "netcdf"])):
                     links.append(
                         {"rel": "item", "href": job_result_item_url(item_id=filename), "type": stac_item_media_type}
                     )
@@ -1213,11 +1214,11 @@ def register_views_batch_jobs(
     def _stream_from_s3(s3_url, result, bytes_range: Optional[str]):
         import botocore.exceptions
 
-        bucket, folder = s3_url[5:].split("/", 1)
+        bucket, key = s3_url[5:].split("/", 1)
         s3_instance = _s3_client()
 
         try:
-            s3_file_object = s3_instance.get_object(Bucket=bucket, Key=folder, **dict_no_none(Range=bytes_range))
+            s3_file_object = s3_instance.get_object(Bucket=bucket, Key=key, **dict_no_none(Range=bytes_range))
             body = s3_file_object["Body"]
             resp = flask.Response(
                 response=body.iter_chunks(STREAM_CHUNK_SIZE_DEFAULT),
@@ -1227,6 +1228,9 @@ def register_views_batch_jobs(
             resp.headers['Accept-Ranges'] = 'bytes'
             resp.headers['Content-Length'] = s3_file_object['ContentLength']
             return resp
+        except s3_instance.exceptions.NoSuchKey:
+            _log.exception(f"No such key: s3://{bucket}/{key}")
+            raise
         except botocore.exceptions.ClientError as e:
             if e.response.get("ResponseMetadata").get("HTTPStatusCode") == 416:  # best effort really
                 raise OpenEOApiException(
@@ -1234,7 +1238,7 @@ def register_views_batch_jobs(
                     message=f"Invalid Range {bytes_range}"
                 )
 
-            raise e
+            raise
 
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results/items/<user_base64>/<secure_key>/<item_id>', methods=['GET'])
@@ -1324,7 +1328,7 @@ def register_views_batch_jobs(
         stac_item.update(
             **dict_no_none(
                 {
-                    "epsg": job_info.epsg,
+                    "epsg": job_info.epsg,  # TODO: unexpected at top level, "proj:epsg" property instead?
                 }
             )
         )
@@ -1359,7 +1363,7 @@ def register_views_batch_jobs(
         resp.mimetype = stac_item_media_type
         return resp
 
-    def _asset_object(job_id, user_id, filename: str, asset_metadata: dict, job_info:BatchJobMetadata) -> dict:
+    def _asset_object(job_id, user_id, filename: str, asset_metadata: dict, job_info: BatchJobMetadata) -> dict:
         result_dict = dict_no_none({
             "title": asset_metadata.get("title", filename),
             "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or _job_result_download_url(job_id, user_id, filename),
@@ -1389,7 +1393,9 @@ def register_views_batch_jobs(
                     if bands
                     else None,
                     "file:nodata": [
-                        "nan" if nodata != None and np.isnan(nodata) else nodata
+                        # TODO: has since been moved to raster:bands
+                        # TODO: should this really return [null]?
+                        "nan" if nodata is not None and np.isnan(nodata) else nodata
                     ],
                     "proj:bbox": asset_metadata.get("proj:bbox", job_info.proj_bbox),
                     "proj:epsg": asset_metadata.get("proj:epsg", job_info.epsg),

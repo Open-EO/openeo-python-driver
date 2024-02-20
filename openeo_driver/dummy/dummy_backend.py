@@ -693,17 +693,23 @@ class DummyBatchJobs(BatchJobs):
             raise JobNotFinishedException
         return {
             "output.tiff": {
-                "asset": True,
                 "output_dir": f"{self._output_root()}/{job_id}",
                 "href": f"{self._output_root()}/{job_id}/output.tiff",
                 "type": "image/tiff; application=geotiff",
                 "roles": ["data"],
                 "bands": [Band(name="NDVI", common_name="NDVI", wavelength_um=1.23)],
                 "nodata": 123,
-                "instruments": "MSI"
+                "instruments": "MSI",
+                "bbox": [0.0, 50.0, 5.0, 55.0],
+                "geometry": {"type": "Polygon",
+                             "coordinates": [[[0.0, 50.0], [0.0, 55.0], [5.0, 55.0], [5.0, 50.0], [0.0, 50.0]]]},
+            },
+            "output.nc": {
+                "roles": ["data"],
+                "type": "application/x-netcdf",
+                "nodata": -1,
             },
             "randomforest.model": {
-                "asset": True,
                 "href": str(Path(job_id) / "randomforest.model"),
             },
             DriverMlModel.METADATA_FILE_NAME: {
