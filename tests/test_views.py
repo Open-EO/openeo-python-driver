@@ -1876,12 +1876,15 @@ class TestBatchJobs:
                 job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="finished"
             )
             resp = api110.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results", headers=self.AUTH_HEADER)
+
+            import pystac
+            stac_validator = pystac.validation.stac_validator.JsonSchemaSTACValidator()
+            stac_validator.validate(resp.json, pystac.STACObjectType.COLLECTION, stac_version="1.0.0", extensions=[])
             assert resp.assert_status_code(200).json == {
                 "description": "Results for batch job 07024ee9-7847-4b8a-b260-6c879a2b3cdc",
-                "extent": {"spatial": {"bbox": [None]}, "temporal": {"interval": [[None, None]]}},
+                "extent": {"spatial": {"bbox": [[-180, -90, 180, 90]]}, "temporal": {"interval": [[None, None]]}},
                 "license": "proprietary",
                 "summaries": {
-                    "instruments": None,
                     "ml-model:architecture": ["random-forest"],
                     "ml-model:learning_approach": ["supervised"],
                     "ml-model:prediction_type": ["classification"],
@@ -2487,6 +2490,10 @@ class TestBatchJobs:
             resp = api110.get(
                 "/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.tiff", headers=self.AUTH_HEADER
             )
+
+        import pystac
+        stac_validator = pystac.validation.stac_validator.JsonSchemaSTACValidator()
+        stac_validator.validate(resp.json, pystac.STACObjectType.ITEM,stac_version="0.9.0",extensions=[])
 
         assert resp.assert_status_code(200).json == {
             "type": "Feature",

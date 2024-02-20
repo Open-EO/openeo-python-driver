@@ -1113,12 +1113,12 @@ def register_views_batch_jobs(
                     "description": job_info.description or f"Results for batch job {job_id}",
                     "license": "proprietary",  # TODO?
                     "extent": {
-                        "spatial": {"bbox": [job_info.bbox]},
+                        "spatial":  {"bbox": [job_info.bbox] if job_info.bbox else [[-180, -90, 180, 90]]},
                         "temporal": {
                             "interval": [[to_datetime(job_info.start_datetime), to_datetime(job_info.end_datetime)]]
                         },
                     },
-                    "summaries": {"instruments": job_info.instruments},
+                    "summaries": {"instruments": job_info.instruments } if job_info.instruments else {},
                     "providers": providers or None,
                     "links": links,
                     "assets": assets,

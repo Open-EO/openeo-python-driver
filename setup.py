@@ -28,6 +28,8 @@ tests_require = [
     "netCDF4>=1.5.4",
     "re-assert",
     "pyarrow>=10.0.0",
+    "pystac",
+    "jsonschema"
 ]
 
 setup(
