@@ -1563,10 +1563,9 @@ class TestBatchJobs:
 
             assert resp.assert_status_code(200).json == {
                 "description": "Results for batch job 07024ee9-7847-4b8a-b260-6c879a2b3cdc",
-                "extent": {"spatial": {"bbox": [None]}, "temporal": {"interval": [[None, None]]}},
+                "extent": {"spatial": {"bbox": [[-180, -90, 180, 90]]}, "temporal": {"interval": [[None, None]]}},
                 "license": "proprietary",
                 "summaries": {
-                    "instruments": None,
                     "ml-model:architecture": ["random-forest"],
                     "ml-model:learning_approach": ["supervised"],
                     "ml-model:prediction_type": ["classification"],
