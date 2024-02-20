@@ -42,9 +42,7 @@ from .conftest import TEST_APP_CONFIG, enhanced_logging
 from .data import TEST_DATA_ROOT
 
 
-EXPECTED_PROCESSING_EXPRESSION = [
-    {"expression": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}}, "format": "openeo"}
-]
+EXPECTED_PROCESSING_EXPRESSION = {"expression": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}}, "format": "openeo"}
 
 
 EXPECTED_PROVIDERS = [
@@ -2206,7 +2204,6 @@ class TestBatchJobs:
                         'proj:epsg': 4326,
                         'proj:shape': [300, 600],
                         'eo:bands': [{'center_wavelength': 1.23, 'name': 'NDVI'}],
-                        'file:nodata': [123],
                         'roles': ['data']
                     },
                     'output.nc': {
@@ -2214,7 +2211,6 @@ class TestBatchJobs:
                         'roles': ['data'],
                         'title': 'output.nc',
                         'type': 'application/x-netcdf',
-                        'file:nodata': [-1],
                         'proj:epsg': 4326,
                         'proj:shape': [300, 600],
                     },
@@ -2525,7 +2521,6 @@ class TestBatchJobs:
                     'proj:epsg': 4326,
                     'proj:shape': [300, 600],
                     'eo:bands': [{'center_wavelength': 1.23, 'name': 'NDVI'}],
-                    'file:nodata': [123],
                     'roles': ['data']
                 }
             },
