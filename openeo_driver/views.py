@@ -1392,11 +1392,6 @@ def register_views_batch_jobs(
                     ]
                     if bands
                     else None,
-                    "file:nodata": [
-                        # TODO: has since been moved to raster:bands
-                        # TODO: should this really return [null]?
-                        "nan" if nodata is not None and np.isnan(nodata) else nodata
-                    ],
                     "proj:bbox": asset_metadata.get("proj:bbox", job_info.proj_bbox),
                     "proj:epsg": asset_metadata.get("proj:epsg", job_info.epsg),
                     "proj:shape": asset_metadata.get("proj:shape", job_info.proj_shape),
