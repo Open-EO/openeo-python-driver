@@ -20,16 +20,20 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.88.0
+
+- job metadata: remove un-official "file:nodata" field ([Open-EO/openeo-geopyspark-driver#588](https://github.com/Open-EO/openeo-geopyspark-driver/issues/588))
+
 ## 0.86.0
 
 - Eliminate need to subclass `ConfigGetter`
 
 ## 0.85.0
-- Expose mapping of job status to partial job status (https://github.com/Open-EO/openeo-geopyspark-driver/issues/644)
+- Expose mapping of job status to partial job status ([Open-EO/openeo-geopyspark-driver#644](https://github.com/Open-EO/openeo-geopyspark-driver/issues/644))
 
 ## 0.84.0
 
-- Support GeoParquet output format for `aggregate_spatial` (https://github.com/Open-EO/openeo-geopyspark-driver/issues/623)
+- Support GeoParquet output format for `aggregate_spatial` ([Open-EO/openeo-geopyspark-driver#623](https://github.com/Open-EO/openeo-geopyspark-driver/issues/623))
 
 ## 0.83.0
 
