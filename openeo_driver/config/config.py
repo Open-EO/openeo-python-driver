@@ -7,6 +7,7 @@ import openeo_driver
 from openeo_driver.server import build_backend_deploy_metadata
 from openeo_driver.urlsigning import UrlSigner
 from openeo_driver.users.oidc import OidcProvider
+from openeo_driver.workspace import Workspace
 
 
 class ConfigException(ValueError):
@@ -69,5 +70,7 @@ class OpenEoBackendConfig:
 
     url_signer: Optional[UrlSigner] = None
 
-    collection_exclusion_list: Dict[str,List[str]]  = {} # e.g. {"1.1.0":["my_collection_id"]}
-    processes_exclusion_list: Dict[str,List[str]] = {} # e.g. {"1.1.0":["my_process_id"]}
+    collection_exclusion_list: Dict[str, List[str]] = {}  # e.g. {"1.1.0":["my_collection_id"]}
+    processes_exclusion_list: Dict[str, List[str]] = {}  # e.g. {"1.1.0":["my_process_id"]}
+
+    workspaces: Dict[str, Workspace] = attrs.Factory(dict)

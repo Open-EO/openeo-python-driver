@@ -730,7 +730,7 @@ def apply_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
 
 @process
-def save_result(args: Dict, env: EvalEnv) -> SaveResult:
+def save_result(args: Dict, env: EvalEnv) -> SaveResult:  # TODO: return type no longer holds
     data = extract_arg(args, 'data')
     format = extract_arg(args, 'format')
     options = args.get('options', {})
@@ -738,7 +738,8 @@ def save_result(args: Dict, env: EvalEnv) -> SaveResult:
     if isinstance(data, SaveResult):
         # TODO: Is this an expected code path? `save_result` should be terminal node in a graph
         #       so chaining `save_result` calls should not be valid
-        data.set_format(format, options)
+        # https://github.com/Open-EO/openeo-geopyspark-driver/issues/295
+        data = data.with_format(format, options)
         if ENV_SAVE_RESULT in env:
             env[ENV_SAVE_RESULT].append(data)
         return data
@@ -2203,6 +2204,19 @@ def load_stac(args: Dict, env: EvalEnv) -> DriverDataCube:
 @process_registry_2xx.add_simple_function(name="if")
 def if_(value: Union[bool, None], accept, reject=None):
     return accept if value else reject
+
+
+# TODO: is it ok to update the submodule?
+@process_registry_2xx.add_function(spec=read_spec("openeo-processes/2.x/proposals/export_workspace.json"))
+def export_workspace(args: ProcessArgs, env: EvalEnv) -> SaveResult:
+    data = args.get_required("data")
+    workspace_id = args.get_required("workspace", expected_type=str)
+    merge = args.get_optional("merge", expected_type=str)
+
+    result = to_save_result(data)
+    result.add_workspace_export(workspace_id, merge=merge)
+
+    return result
 
 
 # Finally: register some fallback implementation if possible

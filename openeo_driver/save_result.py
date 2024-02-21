@@ -1,3 +1,4 @@
+import copy
 import glob
 import os
 import re
@@ -5,7 +6,7 @@ import tempfile
 import warnings
 import logging
 from pathlib import Path
-from shutil import copy
+import shutil
 from tempfile import mkstemp
 from typing import Union, Dict, List, Optional, Any
 from zipfile import ZipFile
@@ -44,6 +45,7 @@ class SaveResult:
     def __init__(self, format: Optional[str] = None, options: Optional[dict] = None):
         self.format = format or self.DEFAULT_FORMAT
         self.options = options or {}
+        self._workspace_exports = []
 
     def is_format(self, *args):
         return self.format.lower() in {f.lower() for f in args}
@@ -51,6 +53,12 @@ class SaveResult:
     def set_format(self, format: str, options: dict = None):
         self.format = format.lower()
         self.options = options or {}
+
+    def with_format(self, format: str, options: dict = None) -> 'SaveResult':
+        shallow_copy = copy.copy(self)
+        shallow_copy.format = format.lower()
+        shallow_copy.options = options or {}
+        return shallow_copy
 
     def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
         raise NotImplementedError
@@ -80,6 +88,27 @@ class SaveResult:
 
     def get_mimetype(self, default="application/octet-stream"):
         return IOFORMATS.get_mimetype(self.format)
+
+    def add_workspace_export(self, workspace_id: str, merge: Optional[str]):
+        # TODO: should probably return a copy as well (~ with_format)
+        self._workspace_exports.append(dict(workspace_id=workspace_id, merge=merge))
+
+    def export_workspace(self, source_files: List[Path], default_merge: str):
+        # TODO: move this somewhere else?
+        from openeo_driver.config import get_backend_config
+
+        for export in self._workspace_exports:
+            workspace = get_backend_config().workspaces[export["workspace_id"]]
+
+            for source_file in source_files:
+                merge = export["merge"]
+
+                if merge is None:
+                    merge = default_merge
+                elif merge == "":
+                    merge = "."
+
+                workspace.write(source_file, merge)
 
 
 def get_temp_file(suffix="", prefix="openeo-pydrvr-"):
@@ -596,7 +625,7 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
         if(destination == None):
             return csv_paths[0]
         else:
-            copy(csv_paths[0],destination)
+            shutil.copy(csv_paths[0], destination)
             return destination
 
 
@@ -692,7 +721,7 @@ class AggregatePolygonSpatialResult(SaveResult):
             filename = str(directory / "timeseries.csv")
             asset["type"] = IOFORMATS.get_mimetype(self.format)
 
-            copy(self._csv_path(), filename)
+            shutil.copy(self._csv_path(), filename)
         elif self.is_format("parquet"):
             filename = str(directory / "timeseries.parquet")
             asset["type"] = IOFORMATS.get_mimetype(self.format)
