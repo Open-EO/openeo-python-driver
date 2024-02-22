@@ -649,7 +649,7 @@ def register_views_processing(
                 if sync_processing_issues:
                     # After this proves to run correctly on many sync jobs, we can throw an error instead.
                     _log.warning(ProcessGraphComplexityException.message
-                                 + f" Reasons: {' '.join(map(lambda x: str(x), sync_processing_issues))}"
+                                 + f" Reasons: {' '.join(sync_processing_issues)}"
                                  )
 
             result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)

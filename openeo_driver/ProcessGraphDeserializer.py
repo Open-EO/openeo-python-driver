@@ -340,17 +340,6 @@ class ConcreteProcessing(Processing):
         """
         return []
 
-    def verify_for_synchronous_processing(self, process_graph: dict, env: EvalEnv = None):
-        env_validate = env.push({
-            "allow_check_missing_products": False,
-            "sync_job": True,
-        })
-        errors = self.validate(process_graph=process_graph, env=env_validate)
-
-        # Only care for certain errors:
-        errors = list(filter(lambda x: x["code"] == "ExtentTooLarge", errors))
-        return errors
-
 
 def evaluate(
         process_graph: dict,
