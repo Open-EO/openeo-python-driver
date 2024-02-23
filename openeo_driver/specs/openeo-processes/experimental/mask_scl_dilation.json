@@ -1,7 +1,7 @@
 {
     "id": "mask_scl_dilation",
     "summary": "Mask clouds by dilating Sen2Cor sceneclassification",
-    "description": "Mask clouds by dilating Sen2Cor sceneclassification. This dilation algorithm removes pixels in the neighbourhood of clouds in a fairly aggresive manner, to avoid any type of contamination. Nevertheless, some outliers can sometimes still remain.",
+    "description": "[Deprecated: consider using to_scl_dilation_mask] Mask clouds by dilating Sen2Cor sceneclassification. This dilation algorithm removes pixels in the neighbourhood of clouds in a fairly aggressive manner, to avoid any type of contamination. Nevertheless, some outliers can sometimes still remain.",
     "categories": [
         "cubes",
         "ard"
@@ -12,7 +12,7 @@
             "name": "data",
             "description": "The source data cube containing Sentinel-2 input.",
             "schema": {
-                "subtype": "raster-cube",
+                "subtype": "datacube",
                 "type": "object"
             }
         },
@@ -34,7 +34,7 @@
     "returns": {
         "description": "Masked data cube",
         "schema": {
-            "subtype": "raster-cube",
+            "subtype": "datacube",
             "type": "object"
         }
     },
