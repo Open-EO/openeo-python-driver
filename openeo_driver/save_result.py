@@ -9,7 +9,7 @@ from datetime import datetime, date
 from pathlib import Path
 import shutil
 from tempfile import mkstemp
-from typing import Union, Dict, List, Optional, Any
+from typing import Callable, Union, Dict, List, Optional, Any
 from zipfile import ZipFile
 
 import geopandas as gpd
@@ -28,6 +28,7 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, FeatureUnsupportedException, InternalException
 from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.utils import replace_nan_values
+from openeo_driver.workspace import Workspace
 
 _log = logging.getLogger(__name__)
 
@@ -94,14 +95,11 @@ class SaveResult:
         # TODO: should probably return a copy as well (~ with_format)
         self._workspace_exports.append(dict(workspace_id=workspace_id, merge=merge))
 
-    def export_workspace(self, source_files: List[Path], default_merge: str):
-        # TODO: move this somewhere else?
-        from openeo_driver.config import get_backend_config
-
+    def export_workspace(self, get_workspace_by_id: Callable[[str], Workspace], files: List[Path], default_merge: str):
         for export in self._workspace_exports:
-            workspace = get_backend_config().workspaces[export["workspace_id"]]
+            workspace = get_workspace_by_id(export["workspace_id"])
 
-            for source_file in source_files:
+            for file in files:
                 merge = export["merge"]
 
                 if merge is None:
@@ -109,7 +107,7 @@ class SaveResult:
                 elif merge == "":
                     merge = "."
 
-                workspace.write(source_file, merge)
+                workspace.import_file(file, merge)
 
 
 def get_temp_file(suffix="", prefix="openeo-pydrvr-"):

@@ -2217,9 +2217,16 @@ def export_workspace(args: ProcessArgs, env: EvalEnv) -> SaveResult:
     workspace_id = args.get_required("workspace", expected_type=str)
     merge = args.get_optional("merge", expected_type=str)
 
-    result = to_save_result(data)
-    result.add_workspace_export(workspace_id, merge=merge)
+    if isinstance(data, SaveResult):
+        result = data
+    else:
+        # TODO: work around save_result returning a data cube instead of a SaveResult (#295)
+        results = env[ENV_SAVE_RESULT]
+        if len(results) != 1:
+            raise FeatureUnsupportedException("only process graphs with a single save_result node are supported")
+        result = results[0]
 
+    result.add_workspace_export(workspace_id, merge=merge)
     return result
 
 
