@@ -1,7 +1,7 @@
 {
     "id": "to_scl_dilation_mask",
     "summary": "Create a mask for clouds by dilating Sen2Cor sceneclassification",
-    "description": "Create a mask for clouds by dilating Sen2Cor sceneclassification. This dilation algorithm removes pixels in the neighbourhood of clouds in a fairly aggresive manner, to avoid any type of contamination. Nevertheless, some outliers can sometimes still remain.",
+    "description": "Create a mask for clouds by dilating Sen2Cor sceneclassification. Requires a datacube with only Sentinel-2 L2A 'SCL' band as input. This dilation algorithm removes pixels in the neighbourhood of clouds in a fairly aggressive manner, to avoid any type of contamination. Nevertheless, some outliers can sometimes still remain.",
     "categories": [
         "cubes",
         "ard"
@@ -12,7 +12,7 @@
           "name": "data",
           "description": "The source data cube containing only the Sentinel-2 SCL band.",
           "schema": {
-              "subtype": "raster-cube",
+              "subtype": "datacube",
               "type": "object"
           }
       },
@@ -69,7 +69,7 @@
     "returns": {
         "description": "SCL dilation mask.",
         "schema": {
-            "subtype": "raster-cube",
+            "subtype": "datacube",
             "type": "object"
         }
     }

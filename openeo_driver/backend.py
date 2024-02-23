@@ -456,7 +456,7 @@ class BatchJobs(MicroService):
                 "roles": ["processor"],
                 "processing:facility": config.processing_facility,
                 "processing:software": {config.processing_software: config.capabilities_backend_version},
-                "processing:expression": [{"format": "openeo", "expression": job.process}],
+                "processing:expression": {"format": "openeo", "expression": job.process},
             }
         ]
 

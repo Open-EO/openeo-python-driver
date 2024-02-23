@@ -7,7 +7,7 @@ import textwrap
 from io import BytesIO
 from pathlib import Path
 from typing import Iterable, Optional
-from unittest import mock
+from unittest import mock, skip
 from zipfile import ZipFile
 
 import geopandas as gpd
@@ -4169,14 +4169,11 @@ def test_request_id_in_response_header(api):
     assert request_id.startswith("r-"), request_id
 
 
-def test_verify_for_synchronous_processing(api):
+def test_verify_for_synchronous_processing(api, caplog):
     pg = {"lc": {"process_id": "load_collection", "arguments": {"id": "S2_NO_SYNC_PROCESSING"}, "result": True}}
-    res = api.result(pg)
-    res.assert_error(
-        400,
-        "ProcessGraphComplexity",
-        message="The process is too complex for for synchronous processing. Please use a batch job instead. Reasons: Collection 'S2_NO_SYNC_PROCESSING' is not available for synchronous processing.",
-    )
+    api.result(pg)
+    assert "The process is too complex for for synchronous processing. Please use a batch job instead. Reasons: Collection 'S2_NO_SYNC_PROCESSING' is not available for synchronous processing." in caplog.text
+
 
 
 def test_verify_for_synchronous_processing_failure(api, caplog):

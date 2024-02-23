@@ -42,9 +42,7 @@ from .conftest import TEST_APP_CONFIG, enhanced_logging
 from .data import TEST_DATA_ROOT
 
 
-EXPECTED_PROCESSING_EXPRESSION = [
-    {"expression": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}}, "format": "openeo"}
-]
+EXPECTED_PROCESSING_EXPRESSION = {"expression": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}}, "format": "openeo"}
 
 
 EXPECTED_PROVIDERS = [
@@ -1419,15 +1417,13 @@ class TestBatchJobs:
                         'eo:bands': [{
                             'name': "NDVI",
                             'center_wavelength': 1.23
-                        }],
-                        'file:nodata': [123]
+                        }]
                     },
                     'output.nc': {
                         'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.nc',
                         'roles': ['data'],
                         'title': 'output.nc',
-                        'type': 'application/x-netcdf',
-                        'file:nodata': [-1],
+                        'type': 'application/x-netcdf'
                     },
                     'randomforest.model': {
                         'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/randomforest.model',
@@ -1490,15 +1486,13 @@ class TestBatchJobs:
                         'eo:bands': [{
                             'name': "NDVI",
                             'center_wavelength': 1.23
-                        }],
-                        'file:nodata': [123]
+                        }]
                     },
                     'output.nc': {
                         'href': 'http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.nc',
                         'roles': ['data'],
                         'title': 'output.nc',
                         'type': 'application/x-netcdf',
-                        'file:nodata': [-1],
                         'proj:epsg': 4326,
                         'proj:shape': [300, 600],
                     },
@@ -1569,10 +1563,9 @@ class TestBatchJobs:
 
             assert resp.assert_status_code(200).json == {
                 "description": "Results for batch job 07024ee9-7847-4b8a-b260-6c879a2b3cdc",
-                "extent": {"spatial": {"bbox": [None]}, "temporal": {"interval": [[None, None]]}},
+                "extent": {"spatial": {"bbox": [[-180, -90, 180, 90]]}, "temporal": {"interval": [[None, None]]}},
                 "license": "proprietary",
                 "summaries": {
-                    "instruments": None,
                     "ml-model:architecture": ["random-forest"],
                     "ml-model:learning_approach": ["supervised"],
                     "ml-model:prediction_type": ["classification"],
@@ -1583,15 +1576,13 @@ class TestBatchJobs:
                         "title": "output.tiff",
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff",
                         "type": "image/tiff; application=geotiff",
-                        "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
-                        "file:nodata": [123],
+                        "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}]
                     },
                     "output.nc": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.nc",
                         "roles": ["data"],
                         "title": "output.nc",
-                        "type": "application/x-netcdf",
-                        "file:nodata": [-1],
+                        "type": "application/x-netcdf"
                     },
                     "randomforest.model": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/randomforest.model",
@@ -1663,15 +1654,13 @@ class TestBatchJobs:
                         "type": "image/tiff; application=geotiff",
                         "proj:epsg": 4326,
                         "proj:shape": [300, 600],
-                        "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
-                        "file:nodata": [123],
+                        "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}]
                     },
                     "output.nc": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.nc",
                         "roles": ["data"],
                         "title": "output.nc",
                         "type": "application/x-netcdf",
-                        "file:nodata": [-1],
                         "proj:epsg": 4326,
                         "proj:shape": [300, 600],
                     },
@@ -1754,7 +1743,6 @@ class TestBatchJobs:
                 "href": "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349",
                 "roles": ["data"],
                 "title": "output.tiff",
-                "file:nodata": ['nan'],
                 "type": "application/tiff"
             }
         }
@@ -1775,15 +1763,13 @@ class TestBatchJobs:
                         'eo:bands': [{
                             'name': 'NDVI',
                             'center_wavelength': 1.23
-                        }],
-                        'file:nodata': [123]
+                        }]
                     },
                     'output.nc': {
                         'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/e28f17365e698783574dd313de0d64cd/output.nc',
                         'roles': ['data'],
                         'title': 'output.nc',
-                        'type': 'application/x-netcdf',
-                        'file:nodata': [-1],
+                        'type': 'application/x-netcdf'
                     },
                     'randomforest.model': {
                         'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model',
@@ -1889,12 +1875,15 @@ class TestBatchJobs:
                 job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="finished"
             )
             resp = api110.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results", headers=self.AUTH_HEADER)
+
+            import pystac
+            stac_validator = pystac.validation.stac_validator.JsonSchemaSTACValidator()
+            stac_validator.validate(resp.json, pystac.STACObjectType.COLLECTION, stac_version="1.0.0", extensions=[])
             assert resp.assert_status_code(200).json == {
                 "description": "Results for batch job 07024ee9-7847-4b8a-b260-6c879a2b3cdc",
-                "extent": {"spatial": {"bbox": [None]}, "temporal": {"interval": [[None, None]]}},
+                "extent": {"spatial": {"bbox": [[-180, -90, 180, 90]]}, "temporal": {"interval": [[None, None]]}},
                 "license": "proprietary",
                 "summaries": {
-                    "instruments": None,
                     "ml-model:architecture": ["random-forest"],
                     "ml-model:learning_approach": ["supervised"],
                     "ml-model:prediction_type": ["classification"],
@@ -1905,15 +1894,13 @@ class TestBatchJobs:
                         "title": "output.tiff",
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
                         "type": "image/tiff; application=geotiff",
-                        "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
-                        "file:nodata": [123],
+                        "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}]
                     },
                     "output.nc": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/e28f17365e698783574dd313de0d64cd/output.nc",
                         "roles": ["data"],
                         "title": "output.nc",
-                        "type": "application/x-netcdf",
-                        "file:nodata": [-1],
+                        "type": "application/x-netcdf"
                     },
                     "randomforest.model": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model",
@@ -2039,15 +2026,13 @@ class TestBatchJobs:
                         'eo:bands': [{
                             'name': 'NDVI',
                             'center_wavelength': 1.23
-                        }],
-                        'file:nodata': [123]
+                        }]
                     },
                     'output.nc': {
                         'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/3ed7b944c4f9cc88d2c3ef7534a27596/output.nc?expires=2234',
                         'roles': ['data'],
                         'title': 'output.nc',
-                        'type': 'application/x-netcdf',
-                        'file:nodata': [-1],
+                        'type': 'application/x-netcdf'
                     },
                     'randomforest.model': {
                         'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/22b76413158c59acaccc74e74841a473/randomforest.model?expires=2234',
@@ -2221,7 +2206,6 @@ class TestBatchJobs:
                         'proj:epsg': 4326,
                         'proj:shape': [300, 600],
                         'eo:bands': [{'center_wavelength': 1.23, 'name': 'NDVI'}],
-                        'file:nodata': [123],
                         'roles': ['data']
                     },
                     'output.nc': {
@@ -2229,7 +2213,6 @@ class TestBatchJobs:
                         'roles': ['data'],
                         'title': 'output.nc',
                         'type': 'application/x-netcdf',
-                        'file:nodata': [-1],
                         'proj:epsg': 4326,
                         'proj:shape': [300, 600],
                     },
@@ -2507,6 +2490,10 @@ class TestBatchJobs:
                 "/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.tiff", headers=self.AUTH_HEADER
             )
 
+        import pystac
+        stac_validator = pystac.validation.stac_validator.JsonSchemaSTACValidator()
+        stac_validator.validate(resp.json, pystac.STACObjectType.ITEM,stac_version="0.9.0",extensions=[])
+
         assert resp.assert_status_code(200).json == {
             "type": "Feature",
             "stac_version": "0.9.0",
@@ -2540,7 +2527,6 @@ class TestBatchJobs:
                     'proj:epsg': 4326,
                     'proj:shape': [300, 600],
                     'eo:bands': [{'center_wavelength': 1.23, 'name': 'NDVI'}],
-                    'file:nodata': [123],
                     'roles': ['data']
                 }
             },

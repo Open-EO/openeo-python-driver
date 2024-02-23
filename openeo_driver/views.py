@@ -647,10 +647,10 @@ def register_views_processing(
                 _log.exception(f"Unexpected error while verifying synchronous processing: {e}")
             else:
                 if sync_processing_issues:
-                    raise ProcessGraphComplexityException(
-                        message=ProcessGraphComplexityException.message
-                        + f" Reasons: {' '.join(sync_processing_issues)}"
-                    )
+                    # After this proves to run correctly on many sync jobs, we can throw an error instead.
+                    _log.warning(ProcessGraphComplexityException.message
+                                 + f" Reasons: {' '.join(sync_processing_issues)}"
+                                 )
 
             result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)
             _log.info(f"`POST /result`: {type(result)}")
@@ -1113,12 +1113,12 @@ def register_views_batch_jobs(
                     "description": job_info.description or f"Results for batch job {job_id}",
                     "license": "proprietary",  # TODO?
                     "extent": {
-                        "spatial": {"bbox": [job_info.bbox]},
+                        "spatial":  {"bbox": [job_info.bbox] if job_info.bbox else [[-180, -90, 180, 90]]},
                         "temporal": {
                             "interval": [[to_datetime(job_info.start_datetime), to_datetime(job_info.end_datetime)]]
                         },
                     },
-                    "summaries": {"instruments": job_info.instruments},
+                    "summaries": {"instruments": job_info.instruments } if job_info.instruments else {},
                     "providers": providers or None,
                     "links": links,
                     "assets": assets,
@@ -1392,11 +1392,6 @@ def register_views_batch_jobs(
                     ]
                     if bands
                     else None,
-                    "file:nodata": [
-                        # TODO: has since been moved to raster:bands
-                        # TODO: should this really return [null]?
-                        "nan" if nodata is not None and np.isnan(nodata) else nodata
-                    ],
                     "proj:bbox": asset_metadata.get("proj:bbox", job_info.proj_bbox),
                     "proj:epsg": asset_metadata.get("proj:epsg", job_info.epsg),
                     "proj:shape": asset_metadata.get("proj:shape", job_info.proj_shape),
