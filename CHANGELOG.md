@@ -20,9 +20,13 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.90.0
+
+- Drop werkzeug<3 constraint ([#243](https://github.com/Open-EO/openeo-python-driver/issues/243))
+
 ## 0.89.0
 
-- Bump Werkzeug dependency to at least 2.3.8 for security issue ([#243](https://github.com/Open-EO/openeo-python-driver/issues/243))
+- Bump Werkzeug dependency to at least 2.3.8 (but below 3.0.0) for security issue ([#243](https://github.com/Open-EO/openeo-python-driver/issues/243))
 
 ## 0.88.0
 
