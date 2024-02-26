@@ -2210,8 +2210,7 @@ def if_(value: Union[bool, None], accept, reject=None):
     return accept if value else reject
 
 
-# TODO: is it ok to update the submodule?
-@process_registry_2xx.add_function(spec=read_spec("openeo-processes/2.x/proposals/export_workspace.json"))
+@process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/export_workspace.json"))
 def export_workspace(args: ProcessArgs, env: EvalEnv) -> SaveResult:
     data = args.get_required("data")
     workspace_id = args.get_required("workspace", expected_type=str)
