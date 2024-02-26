@@ -20,6 +20,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.89.0
+
+- Bump Werkzeug dependency to at least 2.3.8 for security issue ([#243](https://github.com/Open-EO/openeo-python-driver/issues/243))
+
 ## 0.88.0
 
 - job metadata: remove un-official "file:nodata" field ([Open-EO/openeo-geopyspark-driver#588](https://github.com/Open-EO/openeo-geopyspark-driver/issues/588))
