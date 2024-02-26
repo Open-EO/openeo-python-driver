@@ -46,7 +46,7 @@ setup(
     setup_requires=["pytest-runner"],
     tests_require=tests_require,
     install_requires=[
-        "flask",
+        "flask>=2.2.5",
         "werkzeug>=2.3.8,<3.0.0",  # https://github.com/Open-EO/openeo-python-driver/issues/243
         "requests>=2.28.0",
         "openeo>=0.25.0",
