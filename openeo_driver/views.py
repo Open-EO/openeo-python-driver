@@ -247,7 +247,7 @@ def build_app(
     _openeo_endpoint_metadata = api_reg.get_path_metadata(bp)
 
     # Load flask settings from config.
-    app.config.from_object(get_backend_config().flask_settings)
+    app.config.from_mapping(get_backend_config().flask_settings)
 
     return app
 

@@ -588,6 +588,26 @@ class TestGeneral:
 
         backend_implementation.after_request.assert_called_with("r-abc123")
 
+    @pytest.mark.parametrize(
+        ["backend_config_overrides", "expected413"],
+        [
+            ({}, False),
+            ({"flask_settings": {"MAX_CONTENT_LENGTH": 100}}, True),
+        ],
+    )
+    def test_max_content_length(self, api, expected413):
+        pg = {
+            "process": {
+                "process_graph": {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}},
+            },
+            "too": "muuuuuuuch" * 100,
+        }
+        response = api.post("/jobs", headers=TEST_USER_AUTH_HEADER, json=pg)
+        if expected413:
+            response.assert_error(status_code=413, error_code="Internal", message="Request Entity Too Large")
+        else:
+            response.assert_status_code(201)
+
 
 @pytest.fixture
 def oidc_provider(requests_mock):
@@ -1758,7 +1778,7 @@ class TestBatchJobs:
                     'output.tiff': {
                         'roles': ['data'],
                         'title': 'output.tiff',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/50afb0cad129e61d415278c4ffcd8a83/output.tiff',
                         'type': 'image/tiff; application=geotiff',
                         'eo:bands': [{
                             'name': 'NDVI',
@@ -1766,13 +1786,13 @@ class TestBatchJobs:
                         }]
                     },
                     'output.nc': {
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/e28f17365e698783574dd313de0d64cd/output.nc',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/e28f17365e698783574dd313de0d64cd/output.nc',
                         'roles': ['data'],
                         'title': 'output.nc',
                         'type': 'application/x-netcdf'
                     },
                     'randomforest.model': {
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model',
                         'roles': ['data'],
                         'title': 'randomforest.model',
                         'type': 'application/octet-stream'
@@ -1788,7 +1808,7 @@ class TestBatchJobs:
                     },
                     {
                         'rel': 'canonical',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/05cb8b78f20c68a5aa9eb05249928d24',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA==/05cb8b78f20c68a5aa9eb05249928d24',
                         'type': 'application/json'
                     },
                     {
@@ -1848,7 +1868,7 @@ class TestBatchJobs:
             resp = api100.get(f"/jobs/{job_id}/results?partial=true", headers=self.AUTH_HEADER)
 
             resp.assert_status_code(200)
-            expected_canonical_url = f"http://oeo.net/openeo/1.0.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/05cb8b78f20c68a5aa9eb05249928d24?partial=true"
+            expected_canonical_url = f"http://oeo.net/openeo/1.0.0/jobs/{job_id}/results/TXIuVGVzdA==/05cb8b78f20c68a5aa9eb05249928d24?partial=true"
             assert resp.json == DictSubSet(
                 {
                     "openeo:status": expected_openeo_status,
@@ -1892,18 +1912,18 @@ class TestBatchJobs:
                     "output.tiff": {
                         "roles": ["data"],
                         "title": "output.tiff",
-                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
                         "type": "image/tiff; application=geotiff",
                         "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}]
                     },
                     "output.nc": {
-                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/e28f17365e698783574dd313de0d64cd/output.nc",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/e28f17365e698783574dd313de0d64cd/output.nc",
                         "roles": ["data"],
                         "title": "output.nc",
                         "type": "application/x-netcdf"
                     },
                     "randomforest.model": {
-                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model",
                         "roles": ["data"],
                         "title": "randomforest.model",
                         "type": "application/octet-stream",
@@ -1918,7 +1938,7 @@ class TestBatchJobs:
                     },
                     {
                         "rel": "canonical",
-                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/05cb8b78f20c68a5aa9eb05249928d24",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA==/05cb8b78f20c68a5aa9eb05249928d24",
                         "type": "application/json",
                     },
                     {
@@ -1928,17 +1948,17 @@ class TestBatchJobs:
                     },
                     {
                         "rel": "item",
-                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/TXIuVGVzdA==/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
                         "type": "application/geo+json",
                     },
                     {
                         "rel": "item",
-                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/TXIuVGVzdA%3D%3D/e28f17365e698783574dd313de0d64cd/output.nc",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/TXIuVGVzdA==/e28f17365e698783574dd313de0d64cd/output.nc",
                         "type": "application/geo+json",
                     },
                     {
                         "rel": "item",
-                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/TXIuVGVzdA%3D%3D/272d7aa46727ee3f11a7211d5be953e4/ml_model_metadata.json",
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/TXIuVGVzdA==/272d7aa46727ee3f11a7211d5be953e4/ml_model_metadata.json",
                         "type": "application/json",
                     },
                 ],
@@ -1989,7 +2009,7 @@ class TestBatchJobs:
             )
 
             resp.assert_status_code(200)
-            expected_canonical_url = f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/05cb8b78f20c68a5aa9eb05249928d24?partial=true"
+            expected_canonical_url = f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/TXIuVGVzdA==/05cb8b78f20c68a5aa9eb05249928d24?partial=true"
             assert resp.json == DictSubSet(
                 {
                     "openeo:status": expected_openeo_status,
@@ -2021,7 +2041,7 @@ class TestBatchJobs:
                     'output.tiff': {
                         'roles': ['data'],
                         'title': 'output.tiff',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
                         'type': 'image/tiff; application=geotiff',
                         'eo:bands': [{
                             'name': 'NDVI',
@@ -2029,13 +2049,13 @@ class TestBatchJobs:
                         }]
                     },
                     'output.nc': {
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/3ed7b944c4f9cc88d2c3ef7534a27596/output.nc?expires=2234',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/3ed7b944c4f9cc88d2c3ef7534a27596/output.nc?expires=2234',
                         'roles': ['data'],
                         'title': 'output.nc',
                         'type': 'application/x-netcdf'
                     },
                     'randomforest.model': {
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/22b76413158c59acaccc74e74841a473/randomforest.model?expires=2234',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/22b76413158c59acaccc74e74841a473/randomforest.model?expires=2234',
                         'roles': ['data'],
                         'title': 'randomforest.model',
                         'type': 'application/octet-stream'
@@ -2051,7 +2071,7 @@ class TestBatchJobs:
                     },
                     {
                         'rel': 'canonical',
-                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA%3D%3D/9fea29cd94195399cc4d902388a3c32c?expires=2234',
+                        'href': 'http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/TXIuVGVzdA==/9fea29cd94195399cc4d902388a3c32c?expires=2234',
                         'type': 'application/json'
                     },
                     {
@@ -2115,7 +2135,7 @@ class TestBatchJobs:
             resp = api100.get(f"/jobs/{job_id}/results?partial=true", headers=self.AUTH_HEADER)
             resp.assert_status_code(200)
 
-            expected_canonical_url = f"http://oeo.net/openeo/1.0.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/9fea29cd94195399cc4d902388a3c32c?expires=2234&partial=true"
+            expected_canonical_url = f"http://oeo.net/openeo/1.0.0/jobs/{job_id}/results/TXIuVGVzdA==/9fea29cd94195399cc4d902388a3c32c?expires=2234&partial=true"
             assert resp.json == DictSubSet(
                 {
                     "openeo:status": expected_openeo_status,
@@ -2169,7 +2189,7 @@ class TestBatchJobs:
                     },
                     {
                         'rel': 'canonical',
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/TXIuVGVzdA%3D%3D/748b8c91160fbb6e137c91d7d33b0c4a?expires=2234',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/TXIuVGVzdA==/748b8c91160fbb6e137c91d7d33b0c4a?expires=2234',
                         'type': 'application/json'
                     },
                     {
@@ -2179,16 +2199,16 @@ class TestBatchJobs:
                     },
                     {
                         'rel': 'item',
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA==/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
                         'type': 'application/geo+json'
                     },
                     {
                         'rel': 'item',
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA%3D%3D/a5d63417ff2eac2c632af5abfce6c425/output.nc?expires=2234',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA==/a5d63417ff2eac2c632af5abfce6c425/output.nc?expires=2234',
                         'type': 'application/geo+json'
                     },
                     {
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA%3D%3D/30fac5af7fe96123c923e94c2732f9aa/ml_model_metadata.json?expires=2234',                        'rel': 'item',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/TXIuVGVzdA==/30fac5af7fe96123c923e94c2732f9aa/ml_model_metadata.json?expires=2234',                        'rel': 'item',
                         'type': 'application/json'
                     },
                 ],
@@ -2201,7 +2221,7 @@ class TestBatchJobs:
                 'assets': {
                     'output.tiff': {
                         'title': 'output.tiff',
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
                         'type': 'image/tiff; application=geotiff',
                         'proj:epsg': 4326,
                         'proj:shape': [300, 600],
@@ -2209,7 +2229,7 @@ class TestBatchJobs:
                         'roles': ['data']
                     },
                     'output.nc': {
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA%3D%3D/a5d63417ff2eac2c632af5abfce6c425/output.nc?expires=2234',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/a5d63417ff2eac2c632af5abfce6c425/output.nc?expires=2234',
                         'roles': ['data'],
                         'title': 'output.nc',
                         'type': 'application/x-netcdf',
@@ -2217,7 +2237,7 @@ class TestBatchJobs:
                         'proj:shape': [300, 600],
                     },
                     'randomforest.model': {
-                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA%3D%3D/18fd2346c52945c0caba7b13246f5a63/randomforest.model?expires=2234',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/18fd2346c52945c0caba7b13246f5a63/randomforest.model?expires=2234',
                         'roles': ['data'],
                         'title': 'randomforest.model',
                         'type': 'application/octet-stream'
@@ -2257,7 +2277,7 @@ class TestBatchJobs:
             resp = api110.get(f"/jobs/{job_id}/results?partial=true", headers=self.AUTH_HEADER)
             resp.assert_status_code(200)
 
-            expected_canonical_url = f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/TXIuVGVzdA%3D%3D/9fea29cd94195399cc4d902388a3c32c?expires=2234&partial=true"
+            expected_canonical_url = f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/TXIuVGVzdA==/9fea29cd94195399cc4d902388a3c32c?expires=2234&partial=true"
             assert resp.json == DictSubSet(
                 {
                     "openeo:status": expected_openeo_status,
@@ -2356,7 +2376,7 @@ class TestBatchJobs:
             output.parent.mkdir(parents=True)
             with output.open('wb') as f:
                 f.write(b'tiffdata')
-            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/50afb0cad129e61d415278c4ffcd8a83/output.tiff')
+            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/50afb0cad129e61d415278c4ffcd8a83/output.tiff')
         assert resp.assert_status_code(200).data == b'tiffdata'
         assert resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
 
@@ -2365,7 +2385,7 @@ class TestBatchJobs:
         jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
         with self._fresh_job_registry(jobs=jobs):
             resp = api.get(
-                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/test123/output.tiff"
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/test123/output.tiff"
             )
         assert resp.assert_error(403, "CredentialsInvalid")
 
@@ -2379,7 +2399,7 @@ class TestBatchJobs:
             output.parent.mkdir(parents=True)
             with output.open('wb') as f:
                 f.write(b'tiffdata')
-            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
+            resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
         assert resp.assert_status_code(200).data == b'tiffdata'
         assert resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
 
@@ -2396,22 +2416,22 @@ class TestBatchJobs:
 
         jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
         with self._fresh_job_registry(output_root=output_root, jobs=jobs):
-            head_resp = api.head('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
+            head_resp = api.head('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
             assert head_resp.assert_status_code(200).data == b''
             assert head_resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
             assert head_resp.headers['Accept-Ranges'] == 'bytes'
             assert head_resp.headers['Content-Length'] == '8'
 
-            full_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
+            full_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
             assert full_get_resp.assert_status_code(200).data == b'tiffdata'
             assert full_get_resp.headers['Content-Length'] == '8'
 
-            ranged_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
+            ranged_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
                                headers={'Range': "bytes=0-3"})
             assert ranged_get_resp.assert_status_code(206).data == b'tiff'
             assert ranged_get_resp.headers['Content-Length'] == '4'
 
-            out_of_range_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
+            out_of_range_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
                                             headers={'Range': "bytes=8-10"})
             out_of_range_get_resp.assert_status_code(416)
 
@@ -2429,22 +2449,22 @@ class TestBatchJobs:
 
         jobs = {job_id: {"status": "finished"}}
         with self._fresh_job_registry(output_root=output_root, jobs=jobs):
-            head_resp = api.head('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
+            head_resp = api.head('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
             assert head_resp.assert_status_code(200).data == b''
             assert head_resp.headers['Content-Type'] == 'image/tiff; application=geotiff'
             assert head_resp.headers['Accept-Ranges'] == 'bytes'
             assert head_resp.headers['Content-Length'] == '8'
 
-            full_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
+            full_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
             assert full_get_resp.assert_status_code(200).data == b'tiffdata'
             assert full_get_resp.headers['Content-Length'] == '8'
 
-            ranged_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
+            ranged_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
                                       headers={'Range': "bytes=0-3"})
             assert ranged_get_resp.assert_status_code(206).data == b'tiff'
             assert ranged_get_resp.headers['Content-Length'] == '4'
 
-            out_of_range_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
+            out_of_range_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234',
                                             headers={'Range': "bytes=8-10"})
             out_of_range_get_resp.assert_status_code(416)
 
@@ -2478,7 +2498,7 @@ class TestBatchJobs:
         jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
         with self._fresh_job_registry(jobs=jobs):
             resp = api.get(
-                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234"
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234"
             )
         assert resp.assert_error(410, "ResultLinkExpired")
 
@@ -2522,7 +2542,7 @@ class TestBatchJobs:
             'assets': {
                 'output.tiff': {
                     'title': 'output.tiff',
-                    'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA%3D%3D/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
+                    'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
                     'type': 'image/tiff; application=geotiff',
                     'proj:epsg': 4326,
                     'proj:shape': [300, 600],

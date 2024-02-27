@@ -64,7 +64,7 @@ class OpenEoBackendConfig:
     # (e.g. see https://flask.palletsprojects.com/en/2.3.x/config/#builtin-configuration-values)
     flask_settings: dict = attrs.Factory(
         lambda: {
-            "MAX_CONTENT_LENGTH": 1024 * 1024,  # bytes
+            "MAX_CONTENT_LENGTH": 2 * 1024 * 1024,  # bytes
         }
     )
 

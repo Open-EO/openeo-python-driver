@@ -313,7 +313,7 @@ class FlaskUserIdLogging(logging.Filter):
     @classmethod
     def get_user_id(cls) -> Union[str, None]:
         """Get user id as stored in Flask request global `g`."""
-        if flask._app_ctx_stack.top:
+        if flask.g:
             return flask.g.get(cls.FLASK_G_ATTR, None)
 
     def filter(self, record: logging.LogRecord) -> bool:
