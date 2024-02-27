@@ -92,7 +92,8 @@ class SaveResult:
         return IOFORMATS.get_mimetype(self.format)
 
     def add_workspace_export(self, workspace_id: str, merge: Optional[str]):
-        # TODO: should probably return a copy as well (~ with_format)
+        # TODO: should probably return a copy (like with_format) but does not work well with evaluate() returning
+        #  results stored in env[ENV_SAVE_RESULT] instead of what ultimately comes out of the process graph.
         self._workspace_exports.append(dict(workspace_id=workspace_id, merge=merge))
 
     def export_workspace(self, get_workspace_by_id: Callable[[str], Workspace], files: List[Path], default_merge: str):

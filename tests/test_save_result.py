@@ -37,15 +37,20 @@ def test_with_format():
     assert (n.format, n.options) == ("netCDF", {})
 
 
-def test_export_workspace():
+@pytest.mark.parametrize(["merge", "expected_workspace_path"], [
+    ("some/path", "some/path"),
+    ("", "."),
+    (None, "/some/unique/path")
+])
+def test_export_workspace(merge, expected_workspace_path):
     mock_workspace = mock.Mock(spec=Workspace)
 
     r = SaveResult()
-    r.add_workspace_export(workspace_id="some-workspace", merge="some/path")
+    r.add_workspace_export(workspace_id="some-workspace", merge=merge)
     r.export_workspace(get_workspace_by_id=lambda workspace_id: mock_workspace, files=[Path("/some/file")],
-                       default_merge="some/unique/path")
+                       default_merge="/some/unique/path")
 
-    mock_workspace.import_file.assert_called_with(Path("/some/file"), "some/path")
+    mock_workspace.import_file.assert_called_with(Path("/some/file"), expected_workspace_path)
 
 
 def test_aggregate_polygon_result_basic():

@@ -1731,12 +1731,7 @@ def test_invalid_latlon_in_geojson(dry_run_env):
     evaluate(cube.flat_graph(), env=dry_run_env)
 
 
-@pytest.mark.parametrize("merge,expected_workspace_path", [
-    ("some-path", "some-path"),
-    ("", "."),
-    (None, "/some/unique/path")
-])
-def test_export_workspace(dry_run_tracer, backend_implementation, merge, expected_workspace_path):
+def test_export_workspace(dry_run_tracer, backend_implementation):
     mock_workspace = mock.Mock(spec=Workspace)
 
     dry_run_env = EvalEnv({
@@ -1762,7 +1757,7 @@ def test_export_workspace(dry_run_tracer, backend_implementation, merge, expecte
             "arguments": {
                 "data": {"from_node": "saveresult1"},
                 "workspace": "some-workspace",
-                "merge": merge,
+                "merge": "some/path",
             },
             "result": True,
         }
@@ -1776,6 +1771,6 @@ def test_export_workspace(dry_run_tracer, backend_implementation, merge, expecte
                                  files=[Path("file1"), Path("file2")],
                                  default_merge="/some/unique/path")
     mock_workspace.import_file.assert_has_calls([
-        mock.call(Path("file1"), expected_workspace_path),
-        mock.call(Path("file2"), expected_workspace_path),
+        mock.call(Path("file1"), "some/path"),
+        mock.call(Path("file2"), "some/path"),
     ])
