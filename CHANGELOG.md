@@ -23,7 +23,8 @@ and start a new "In Progress" section above it.
 
 ## 0.90.1
 
-- Fix picking up `flask_settings` from OpenEoBackendConfig ([#254](https://github.com/Open-EO/openeo-python-driver/issues/254))
+- Fix picking up `flask_settings` from OpenEoBackendConfig.
+  This introduces/enables a default maximum request size (`MAX_CONTENT_LENGTH`) of 2MB  ([#254](https://github.com/Open-EO/openeo-python-driver/issues/254))
 
 ## 0.90.0
 
