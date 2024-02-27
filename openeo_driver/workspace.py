@@ -1,4 +1,5 @@
 import abc
+import os.path
 import shutil
 from abc import ABC
 from pathlib import Path
@@ -17,5 +18,10 @@ class DiskWorkspace(Workspace):
     def import_file(self,
                     file: Path,
                     merge: str):
-        # TODO: create missing directories?
-        shutil.copy(file, self.root_directory / merge)
+        merge = os.path.normpath(merge)
+        subdirectory = merge[1:] if merge.startswith("/") else merge
+        target_directory = self.root_directory / subdirectory
+        target_directory.relative_to(self.root_directory)  # assert target_directory is in root_directory
+
+        target_directory.mkdir(parents=True, exist_ok=True)
+        shutil.copy(file, target_directory)
