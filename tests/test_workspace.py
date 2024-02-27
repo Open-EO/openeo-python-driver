@@ -11,6 +11,7 @@ from openeo_driver.workspace import DiskWorkspace
     "/subdirectory",
     "path/to/subdirectory",
     "/path/to/subdirectory",
+    ".",
 ])
 def test_disk_workspace(tmp_path, merge):
     workspace = DiskWorkspace(root_directory=tmp_path)
