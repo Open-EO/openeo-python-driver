@@ -1,6 +1,9 @@
+from pathlib import Path
+
 from openeo_driver.config import OpenEoBackendConfig
 from openeo_driver.server import build_backend_deploy_metadata
 from openeo_driver.users.oidc import OidcProvider
+from openeo_driver.workspace import DiskWorkspace
 
 oidc_providers = [
     OidcProvider(
@@ -75,4 +78,5 @@ config = OpenEoBackendConfig(
     oidc_providers=oidc_providers,
     enable_basic_auth=True,
     valid_basic_auth=_valid_basic_auth,
+    workspaces={"tmp": DiskWorkspace(root_directory=Path("/tmp"))},
 )

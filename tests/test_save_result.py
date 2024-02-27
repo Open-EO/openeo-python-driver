@@ -12,7 +12,7 @@ from openeo.metadata import CollectionMetadata
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.save_result import AggregatePolygonResult, SaveResult, AggregatePolygonSpatialResult, \
     AggregatePolygonResultCSV, JSONResult
-from openeo_driver.workspace import Workspace
+from openeo_driver.workspacerepository import WorkspaceRepository
 from .data import load_json, json_normalize, get_path
 
 
@@ -43,11 +43,12 @@ def test_with_format():
     (None, "/some/unique/path")
 ])
 def test_export_workspace(merge, expected_workspace_path):
-    mock_workspace = mock.Mock(spec=Workspace)
+    mock_workspace_repository = mock.Mock(spec=WorkspaceRepository)
+    mock_workspace = mock_workspace_repository.get_by_id.return_value
 
     r = SaveResult()
     r.add_workspace_export(workspace_id="some-workspace", merge=merge)
-    r.export_workspace(get_workspace_by_id=lambda workspace_id: mock_workspace, files=[Path("/some/file")],
+    r.export_workspace(workspace_repository=mock_workspace_repository, files=[Path("/some/file")],
                        default_merge="/some/unique/path")
 
     mock_workspace.import_file.assert_called_with(Path("/some/file"), expected_workspace_path)

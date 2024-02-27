@@ -17,6 +17,7 @@ from openeo_driver.testing import DictSubSet, approxify
 from openeo_driver.util.geometry import as_geojson_feature_collection
 from openeo_driver.utils import EvalEnv
 from openeo_driver.workspace import Workspace
+from openeo_driver.workspacerepository import WorkspaceRepository
 from tests.data import get_path, load_json
 
 
@@ -1732,7 +1733,8 @@ def test_invalid_latlon_in_geojson(dry_run_env):
 
 
 def test_export_workspace(dry_run_tracer, backend_implementation):
-    mock_workspace = mock.Mock(spec=Workspace)
+    mock_workspace_repository = mock.Mock(WorkspaceRepository)
+    mock_workspace = mock_workspace_repository.get_by_id.return_value
 
     dry_run_env = EvalEnv({
         ENV_DRY_RUN_TRACER: dry_run_tracer,
@@ -1767,7 +1769,7 @@ def test_export_workspace(dry_run_tracer, backend_implementation):
 
     assert save_result.is_format("GTiff")
 
-    save_result.export_workspace(lambda workspace_id: mock_workspace,
+    save_result.export_workspace(mock_workspace_repository,
                                  files=[Path("file1"), Path("file2")],
                                  default_merge="/some/unique/path")
     mock_workspace.import_file.assert_has_calls([

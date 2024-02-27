@@ -9,7 +9,7 @@ from datetime import datetime, date
 from pathlib import Path
 import shutil
 from tempfile import mkstemp
-from typing import Callable, Union, Dict, List, Optional, Any
+from typing import Union, Dict, List, Optional, Any
 from zipfile import ZipFile
 
 import geopandas as gpd
@@ -28,7 +28,7 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, FeatureUnsupportedException, InternalException
 from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.utils import replace_nan_values
-from openeo_driver.workspace import Workspace
+from openeo_driver.workspacerepository import WorkspaceRepository
 
 _log = logging.getLogger(__name__)
 
@@ -96,9 +96,9 @@ class SaveResult:
         #  results stored in env[ENV_SAVE_RESULT] instead of what ultimately comes out of the process graph.
         self._workspace_exports.append(dict(workspace_id=workspace_id, merge=merge))
 
-    def export_workspace(self, get_workspace_by_id: Callable[[str], Workspace], files: List[Path], default_merge: str):
+    def export_workspace(self, workspace_repository: WorkspaceRepository, files: List[Path], default_merge: str):
         for export in self._workspace_exports:
-            workspace = get_workspace_by_id(export["workspace_id"])
+            workspace = workspace_repository.get_by_id(export["workspace_id"])
 
             for file in files:
                 merge = export["merge"]

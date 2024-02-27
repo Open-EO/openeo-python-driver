@@ -1,11 +1,10 @@
 import abc
 import os.path
 import shutil
-from abc import ABC
 from pathlib import Path
 
 
-class Workspace(ABC):
+class Workspace(abc.ABC):
     @abc.abstractmethod
     def import_file(self, file: Path, merge: str):
         raise NotImplementedError
