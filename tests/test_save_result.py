@@ -1,6 +1,7 @@
 import datetime
 import json
 from pathlib import Path
+from unittest import mock
 
 import geopandas as gpd
 import numpy as np
@@ -11,6 +12,7 @@ from openeo.metadata import CollectionMetadata
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.save_result import AggregatePolygonResult, SaveResult, AggregatePolygonSpatialResult, \
     AggregatePolygonResultCSV, JSONResult
+from openeo_driver.workspace import Workspace
 from .data import load_json, json_normalize, get_path
 
 
@@ -19,11 +21,31 @@ regions = GeometryCollection([
         Polygon([(6, 1), (1, 7), (9, 9)])
     ])
 
+
 def test_is_format():
     r = SaveResult("GTiff")
     assert r.is_format("gtiff")
     assert r.is_format("gtiff", "geotiff")
     assert not r.is_format("geotiff")
+
+
+def test_with_format():
+    g = SaveResult("GTiff", options={"ZLEVEL": 9})
+    n = g.with_format("netCDF", options={})
+
+    assert (g.format, g.options) == ("GTiff", {"ZLEVEL": 9})
+    assert (n.format, n.options) == ("netCDF", {})
+
+
+def test_export_workspace():
+    mock_workspace = mock.Mock(spec=Workspace)
+
+    r = SaveResult()
+    r.add_workspace_export(workspace_id="some-workspace", merge="some/path")
+    r.export_workspace(get_workspace_by_id=lambda workspace_id: mock_workspace, files=[Path("/some/file")],
+                       default_merge="some/unique/path")
+
+    mock_workspace.import_file.assert_called_with(Path("/some/file"), "some/path")
 
 
 def test_aggregate_polygon_result_basic():

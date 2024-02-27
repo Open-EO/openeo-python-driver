@@ -53,12 +53,12 @@ class SaveResult:
         return self.format.lower() in {f.lower() for f in args}
 
     def set_format(self, format: str, options: dict = None):
-        self.format = format.lower()
+        self.format = format
         self.options = options or {}
 
     def with_format(self, format: str, options: dict = None) -> 'SaveResult':
         shallow_copy = copy.copy(self)
-        shallow_copy.format = format.lower()
+        shallow_copy.format = format
         shallow_copy.options = options or {}
         return shallow_copy
 
