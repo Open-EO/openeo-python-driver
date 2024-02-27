@@ -588,6 +588,26 @@ class TestGeneral:
 
         backend_implementation.after_request.assert_called_with("r-abc123")
 
+    @pytest.mark.parametrize(
+        ["backend_config_overrides", "expected413"],
+        [
+            ({}, False),
+            ({"flask_settings": {"MAX_CONTENT_LENGTH": 100}}, True),
+        ],
+    )
+    def test_max_content_length(self, api, expected413):
+        pg = {
+            "process": {
+                "process_graph": {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}},
+            },
+            "too": "muuuuuuuch" * 100,
+        }
+        response = api.post("/jobs", headers=TEST_USER_AUTH_HEADER, json=pg)
+        if expected413:
+            response.assert_error(status_code=413, error_code="Internal", message="Request Entity Too Large")
+        else:
+            response.assert_status_code(201)
+
 
 @pytest.fixture
 def oidc_provider(requests_mock):

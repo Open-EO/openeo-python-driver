@@ -20,6 +20,11 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+
+## 0.90.1
+
+- Fix picking up `flask_settings` from OpenEoBackendConfig ([#254](https://github.com/Open-EO/openeo-python-driver/issues/254))
+
 ## 0.90.0
 
 - Drop werkzeug<3 constraint ([#243](https://github.com/Open-EO/openeo-python-driver/issues/243))
