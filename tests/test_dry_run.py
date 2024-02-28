@@ -1,5 +1,7 @@
+from pathlib import Path
 import pytest
 import shapely.geometry
+from unittest import mock
 
 from openeo.internal.graph_building import PGNode
 from openeo.rest.datacube import DataCube
@@ -14,6 +16,8 @@ from openeo_driver.dry_run import DryRunDataTracer, DataSource, DataTrace, Proce
 from openeo_driver.testing import DictSubSet, approxify
 from openeo_driver.util.geometry import as_geojson_feature_collection
 from openeo_driver.utils import EvalEnv
+from openeo_driver.workspace import Workspace
+from openeo_driver.workspacerepository import WorkspaceRepository
 from tests.data import get_path, load_json
 
 
@@ -1726,3 +1730,49 @@ def test_invalid_latlon_in_geojson(dry_run_env):
     }
     cube = init_cube.filter_spatial(geometries=multipoint_many_coordinates)
     evaluate(cube.flat_graph(), env=dry_run_env)
+
+
+def test_export_workspace(dry_run_tracer, backend_implementation):
+    mock_workspace_repository = mock.Mock(WorkspaceRepository)
+    mock_workspace = mock_workspace_repository.get_by_id.return_value
+
+    dry_run_env = EvalEnv({
+        ENV_DRY_RUN_TRACER: dry_run_tracer,
+        "backend_implementation": backend_implementation,
+        "version": "2.0.0"
+    })
+
+    pg = {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FOOBAR"},
+        },
+        "saveresult1": {
+            "process_id": "save_result",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "format": "GTiff",
+            },
+        },
+        "exportworkspace1": {
+            "process_id": "export_workspace",
+            "arguments": {
+                "data": {"from_node": "saveresult1"},
+                "workspace": "some-workspace",
+                "merge": "some/path",
+            },
+            "result": True,
+        }
+    }
+
+    save_result = evaluate(pg, env=dry_run_env)
+
+    assert save_result.is_format("GTiff")
+
+    save_result.export_workspace(mock_workspace_repository,
+                                 files=[Path("file1"), Path("file2")],
+                                 default_merge="/some/unique/path")
+    mock_workspace.import_file.assert_has_calls([
+        mock.call(Path("file1"), "some/path"),
+        mock.call(Path("file2"), "some/path"),
+    ])

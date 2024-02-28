@@ -1,6 +1,7 @@
 import datetime
 import json
 from pathlib import Path
+from unittest import mock
 
 import geopandas as gpd
 import numpy as np
@@ -11,6 +12,7 @@ from openeo.metadata import CollectionMetadata
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.save_result import AggregatePolygonResult, SaveResult, AggregatePolygonSpatialResult, \
     AggregatePolygonResultCSV, JSONResult
+from openeo_driver.workspacerepository import WorkspaceRepository
 from .data import load_json, json_normalize, get_path
 
 
@@ -19,11 +21,37 @@ regions = GeometryCollection([
         Polygon([(6, 1), (1, 7), (9, 9)])
     ])
 
+
 def test_is_format():
     r = SaveResult("GTiff")
     assert r.is_format("gtiff")
     assert r.is_format("gtiff", "geotiff")
     assert not r.is_format("geotiff")
+
+
+def test_with_format():
+    g = SaveResult("GTiff", options={"ZLEVEL": 9})
+    n = g.with_format("netCDF", options={})
+
+    assert (g.format, g.options) == ("GTiff", {"ZLEVEL": 9})
+    assert (n.format, n.options) == ("netCDF", {})
+
+
+@pytest.mark.parametrize(["merge", "expected_workspace_path"], [
+    ("some/path", "some/path"),
+    ("", "."),
+    (None, "/some/unique/path")
+])
+def test_export_workspace(merge, expected_workspace_path):
+    mock_workspace_repository = mock.Mock(spec=WorkspaceRepository)
+    mock_workspace = mock_workspace_repository.get_by_id.return_value
+
+    r = SaveResult()
+    r.add_workspace_export(workspace_id="some-workspace", merge=merge)
+    r.export_workspace(workspace_repository=mock_workspace_repository, files=[Path("/some/file")],
+                       default_merge="/some/unique/path")
+
+    mock_workspace.import_file.assert_called_with(Path("/some/file"), expected_workspace_path)
 
 
 def test_aggregate_polygon_result_basic():

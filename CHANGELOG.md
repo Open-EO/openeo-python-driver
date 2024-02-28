@@ -20,6 +20,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.91.0
+
+- Support `export_workspace` process and `DiskWorkspace` implementation ([Open-EO/openeo-geopyspark-driver#676](https://github.com/Open-EO/openeo-geopyspark-driver/issues/676))
+
 
 ## 0.90.1
 

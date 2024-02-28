@@ -1,12 +1,14 @@
+import copy
 import glob
 import os
 import re
 import tempfile
 import warnings
 import logging
+from dataclasses import dataclass
 from datetime import datetime, date
 from pathlib import Path
-from shutil import copy
+import shutil
 from tempfile import mkstemp
 from typing import Union, Dict, List, Optional, Any
 from zipfile import ZipFile
@@ -27,6 +29,7 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, FeatureUnsupportedException, InternalException
 from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.utils import replace_nan_values
+from openeo_driver.workspacerepository import WorkspaceRepository
 
 _log = logging.getLogger(__name__)
 
@@ -45,13 +48,20 @@ class SaveResult:
     def __init__(self, format: Optional[str] = None, options: Optional[dict] = None):
         self.format = format or self.DEFAULT_FORMAT
         self.options = options or {}
+        self._workspace_exports: List['SaveResult._WorkspaceExport'] = []
 
     def is_format(self, *args):
         return self.format.lower() in {f.lower() for f in args}
 
     def set_format(self, format: str, options: dict = None):
-        self.format = format.lower()
+        self.format = format
         self.options = options or {}
+
+    def with_format(self, format: str, options: dict = None) -> 'SaveResult':
+        shallow_copy = copy.copy(self)
+        shallow_copy.format = format
+        shallow_copy.options = options or {}
+        return shallow_copy
 
     def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
         raise NotImplementedError
@@ -81,6 +91,30 @@ class SaveResult:
 
     def get_mimetype(self, default="application/octet-stream"):
         return IOFORMATS.get_mimetype(self.format)
+
+    def add_workspace_export(self, workspace_id: str, merge: Optional[str]):
+        # TODO: should probably return a copy (like with_format) but does not work well with evaluate() returning
+        #  results stored in env[ENV_SAVE_RESULT] instead of what ultimately comes out of the process graph.
+        self._workspace_exports.append(self._WorkspaceExport(workspace_id, merge))
+
+    def export_workspace(self, workspace_repository: WorkspaceRepository, files: List[Path], default_merge: str):
+        for export in self._workspace_exports:
+            workspace = workspace_repository.get_by_id(export.workspace_id)
+
+            for file in files:
+                merge = export.merge
+
+                if merge is None:
+                    merge = default_merge
+                elif merge == "":
+                    merge = "."
+
+                workspace.import_file(file, merge)
+
+    @dataclass
+    class _WorkspaceExport:
+        workspace_id: str
+        merge: str
 
 
 def get_temp_file(suffix="", prefix="openeo-pydrvr-"):
@@ -608,7 +642,7 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
         if(destination == None):
             return csv_paths[0]
         else:
-            copy(csv_paths[0],destination)
+            shutil.copy(csv_paths[0], destination)
             return destination
 
 
@@ -704,7 +738,7 @@ class AggregatePolygonSpatialResult(SaveResult):
             filename = str(directory / "timeseries.csv")
             asset["type"] = IOFORMATS.get_mimetype(self.format)
 
-            copy(self._csv_path(), filename)
+            shutil.copy(self._csv_path(), filename)
         elif self.is_format("parquet"):
             filename = str(directory / "timeseries.parquet")
             asset["type"] = IOFORMATS.get_mimetype(self.format)
