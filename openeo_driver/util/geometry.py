@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 from typing import Any, Collection, List, Mapping, Optional, Sequence, Tuple, Union
 
+import fiona.model
 import pyproj
 import shapely.geometry
 import shapely.ops
@@ -121,7 +122,7 @@ def validate_geojson_coordinates(geojson: dict):
             else:
                 _validate_coordinates(feature["geometry"]["coordinates"])
 
-    if not isinstance(geojson, dict):
+    if not isinstance(geojson, dict) and not isinstance(geojson,fiona.model.Object):
         raise ValueError(f"Invalid GeoJSON: not a dict: {repr_truncate(geojson)}")
     if "type" not in geojson:
         raise ValueError(f"Invalid GeoJSON: missing 'type' field: {repr_truncate(geojson)}")
@@ -202,9 +203,7 @@ def reproject_bounding_box(bbox: dict, from_crs: Optional[str], to_crs: str) -> 
     box = shapely.geometry.box(bbox["west"], bbox["south"], bbox["east"], bbox["north"])
     if from_crs is None:
         from_crs = bbox["crs"]
-    tranformer = pyproj.Transformer.from_crs(
-        crs_from=from_crs, crs_to=to_crs, always_xy=True
-    )
+    tranformer = pyproj.Transformer.from_crs( crs_from=from_crs, crs_to=to_crs, always_xy=True )
     reprojected = shapely.ops.transform(tranformer.transform, box)
     return dict(zip(["west", "south", "east", "north"], reprojected.bounds), crs=to_crs)
 
