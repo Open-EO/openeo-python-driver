@@ -511,6 +511,15 @@ class DriverVectorCube:
     def get_crs(self) -> pyproj.CRS:
         return self._geometries.crs or pyproj.CRS.from_epsg(4326)
 
+    def get_crs_str(self) -> str:
+        """Best effort "CRS as string" representation."""
+        crs = self.get_crs()
+        crs_epsg = crs.to_epsg()
+        if crs_epsg:
+            return f"EPSG:{crs_epsg}"
+        else:
+            return crs.to_proj4()
+
     def write_assets(
             self, directory: Union[str, Path], format: str, options: Optional[dict] = None
     ) -> Dict[str, StacAsset]:

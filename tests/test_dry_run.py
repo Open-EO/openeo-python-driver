@@ -3,8 +3,10 @@ import pytest
 import shapely.geometry
 from unittest import mock
 
+import openeo.processes
 from openeo.internal.graph_building import PGNode
 from openeo.rest.datacube import DataCube
+from openeo.util import BBoxDict
 
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER, _extract_load_parameters, \
@@ -13,12 +15,12 @@ from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer, DataSource, DataTrace, ProcessType
-from openeo_driver.testing import DictSubSet, approxify
+from openeo_driver.testing import DictSubSet, approxify, ephemeral_fileserver
 from openeo_driver.util.geometry import as_geojson_feature_collection
 from openeo_driver.utils import EvalEnv
 from openeo_driver.workspace import Workspace
 from openeo_driver.workspacerepository import WorkspaceRepository
-from tests.data import get_path, load_json
+from tests.data import get_path, load_json, TEST_DATA_ROOT
 
 
 @pytest.fixture
@@ -902,6 +904,54 @@ def test_filter_spatial_delayed_vector(dry_run_env, dry_run_tracer, path, expect
         (shapely.geometry.Polygon, shapely.geometry.MultiPolygon),
     )
     assert constraints["filter_spatial"]["geometries"].bounds == expected
+
+
+@pytest.mark.parametrize(
+    ["url_path", "expected_bounds", "expected_crs"],
+    [
+        (
+            "parquet/mol.pq",
+            tuple(pytest.approx(x, abs=0.0001) for x in (5.078380, 51.181488, 5.126371, 51.21878)),
+            4326,
+        ),
+        (
+            "parquet/mol-utm.pq",
+            tuple(pytest.approx(x, abs=1) for x in (645146, 5672137, 648591, 5676210)),
+            32631,
+        ),
+    ],
+)
+def test_filter_spatial_crs_handling(dry_run_env, dry_run_tracer, url_path, expected_bounds, expected_crs):
+    """Test filter spatial with a Vector cube loaded from geoparquet, possibly in a non LonLat CRS."""
+    with ephemeral_fileserver(TEST_DATA_ROOT) as fileserver_root:
+        url = f"{fileserver_root}/{url_path}"
+
+        cube = DataCube(PGNode("load_collection", id="S2_FOOBAR"), connection=None)
+        geometries = openeo.processes.load_url(url=url, format="Parquet")
+        cube = cube.filter_spatial(geometries=geometries)
+        pg = cube.flat_graph()
+        res = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+
+    src, constraints = source_constraints[0]
+    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    filter_spatial_geometries = constraints["filter_spatial"]["geometries"]
+    assert isinstance(filter_spatial_geometries, DriverVectorCube)
+    assert filter_spatial_geometries.get_bounding_box() == expected_bounds
+    assert filter_spatial_geometries.get_crs().to_epsg() == expected_crs
+
+    load_params = _extract_load_parameters(
+        env=dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints}),
+        source_id=("load_collection", ("S2_FOOBAR", ())),
+    )
+    assert load_params.global_extent == dict(
+        list(zip(["west", "south", "east", "north"], expected_bounds)) + [("crs", f"EPSG:{expected_crs}")],
+    )
+    assert load_params.spatial_extent == dict(
+        list(zip(["west", "south", "east", "north"], expected_bounds)) + [("crs", f"EPSG:{expected_crs}")],
+    )
 
 
 def test_resample_filter_spatial(dry_run_env, dry_run_tracer):

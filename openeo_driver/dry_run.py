@@ -571,12 +571,7 @@ class DryRunDataCube(DriverDataCube):
             # TODO: use proper distance for collection resolution instead of using a default distance?
             # TODO: or eliminate need for buffering in the first place? https://github.com/Open-EO/openeo-python-driver/issues/148
             bbox = geometries.buffer_points(distance=10).get_bounding_box()
-            crs = geometries.get_crs().to_epsg()
-            if(crs is not None):
-                crs = f"EPSG:{crs}"
-            else:
-                crs = geometries.get_crs().to_proj4()
-
+            crs = geometries.get_crs_str()
         elif isinstance(geometries, dict):
             return self._normalize_geometry(geojson_to_geometry(geometries))
         elif isinstance(geometries, str):

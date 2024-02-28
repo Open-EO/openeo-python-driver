@@ -864,6 +864,12 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
                     "gis_data_types": ["raster", "vector"],
                     "parameters": {},
                 },
+                "Parquet": {
+                    "title": "(Geo)Parquet",
+                    "description": "GeoParquet is an efficient binary format, to distribute large amounts of vector data.",
+                    "gis_data_types": ["vector"],
+                    "parameters": {},
+                },
             },
             "output": {
                 "GTiff": {
