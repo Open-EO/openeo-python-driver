@@ -573,7 +573,7 @@ class DryRunDataCube(DriverDataCube):
             bbox = geometries.buffer_points(distance=10).get_bounding_box()
             crs = geometries.get_crs().to_epsg()
             if(crs is not None):
-                crs = f"epsg:{crs}"
+                crs = f"EPSG:{crs}"
             else:
                 crs = geometries.get_crs().to_proj4()
 
