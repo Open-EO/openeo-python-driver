@@ -20,6 +20,12 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.92.0
+
+- Reinstate the `werkzeug<3` constraint. Apparently too many deployments are stuck with a very low Flask version,
+  which is not compatible with Werkzeug 3 ([#243](https://github.com/Open-EO/openeo-python-driver/issues/243)).
+  Pinning this down in openeo-python-driver is unfortunately the most feasible solution for now.
+
 ## 0.91.0
 
 - Support `export_workspace` process and `DiskWorkspace` implementation ([Open-EO/openeo-geopyspark-driver#676](https://github.com/Open-EO/openeo-geopyspark-driver/issues/676))
