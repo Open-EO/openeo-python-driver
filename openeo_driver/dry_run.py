@@ -565,11 +565,18 @@ class DryRunDataCube(DriverDataCube):
         """
         _log.debug(f"_normalize_geometry with {type(geometries)}")
         # TODO #71 #114 EP-3981 normalize to vector cube instead of GeometryCollection
+        crs = "EPSG:4326"
         if isinstance(geometries, DriverVectorCube):
             # TODO: buffer distance of 10m assumes certain resolution (e.g. sentinel2 pixels)
             # TODO: use proper distance for collection resolution instead of using a default distance?
             # TODO: or eliminate need for buffering in the first place? https://github.com/Open-EO/openeo-python-driver/issues/148
             bbox = geometries.buffer_points(distance=10).get_bounding_box()
+            crs = geometries.get_crs().to_epsg()
+            if(crs is not None):
+                crs = f"epsg:{crs}"
+            else:
+                crs = geometries.get_crs().to_proj4()
+
         elif isinstance(geometries, dict):
             return self._normalize_geometry(geojson_to_geometry(geometries))
         elif isinstance(geometries, str):
@@ -598,7 +605,7 @@ class DryRunDataCube(DriverDataCube):
             bbox = geometries.bounds
         else:
             raise ValueError(geometries)
-        bbox = dict(west=bbox[0], south=bbox[1], east=bbox[2], north=bbox[3], crs="EPSG:4326")
+        bbox = dict(west=bbox[0], south=bbox[1], east=bbox[2], north=bbox[3], crs=crs)
         return geometries, bbox
 
     # TODO: #114 this is a workaround until vectorcube is fully upgraded
