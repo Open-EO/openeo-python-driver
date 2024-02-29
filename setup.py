@@ -63,7 +63,7 @@ setup(
         "python-json-logger>=2.0.0",
         "deprecated>=1.2.12",
         "importlib_resources; python_version<'3.10'",
-        "attrs",
+        "attrs>=23.1.0",
         "fiona>=1.9.0",
     ],
     extras_require={
