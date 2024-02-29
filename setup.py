@@ -64,6 +64,7 @@ setup(
         "deprecated>=1.2.12",
         "importlib_resources; python_version<'3.10'",
         "attrs",
+        "fiona>=1.9.0",
     ],
     extras_require={
         "dev": tests_require,
