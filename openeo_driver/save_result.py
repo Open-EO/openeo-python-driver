@@ -544,6 +544,34 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         gpd.GeoDataFrame(stats.join(gdf, on='feature_index')).to_parquet(filename)
         return filename
 
+    def to_driver_vector_cube(self) -> DriverVectorCube:
+        if isinstance(self._regions, GeometryCollection):
+            shapely_geometries: typing.Sequence[BaseGeometry] = [g for g in self._regions]
+            geometries: gpd.GeoDataFrame = gpd.GeoDataFrame(geometry=shapely_geometries)
+        elif isinstance(self._regions, DriverVectorCube):
+            shapely_geometries: typing.Sequence[BaseGeometry] = self._regions.get_geometries()
+            geometries = gpd.GeoDataFrame(geometry=shapely_geometries)
+        else:
+            raise ValueError(f"Unsupported regions type: {type(self._regions)}")
+        # self._data is {timestamp: [geometries, bands]}
+        # Convert to np.array with dimensions (geometries, timestamps, bands)
+        cube: Optional[xarray.DataArray] = None
+        data = self.get_data()
+        if data:
+            timestamps = sorted(self.data.keys())
+            band_count = len(self.data[timestamps[0]][0])
+            data = np.full((len(shapely_geometries), len(timestamps), band_count), np.nan)
+            for t, ts in enumerate(timestamps):
+                for g, polygon_data in enumerate(self.data[ts]):
+                    data[g, t, :] = polygon_data
+            coords = {
+                DriverVectorCube.DIM_GEOMETRY: list(range(len(shapely_geometries))),
+                DriverVectorCube.DIM_TIME: timestamps,
+            }
+            dims = [DriverVectorCube.DIM_GEOMETRY, DriverVectorCube.DIM_TIME, DriverVectorCube.DIM_BANDS]
+            cube = xarray.DataArray(data=data, coords=coords, dims=dims)
+        return DriverVectorCube(geometries=geometries, cube=cube)
+
 
 class AggregatePolygonResultCSV(AggregatePolygonResult):
     # TODO #71 #114 EP-3981 port this to proper vector cube support
