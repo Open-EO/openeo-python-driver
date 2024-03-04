@@ -326,13 +326,16 @@ class TestElasticJobRegistry:
 
         def handler(request, context):
             assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
+            filters = [
+                {"term": {"backend_id": backend_id}},
+                {"term": {"job_id": job_id}},
+            ]
+            if user_id is not None:
+                filters.append({"term": {"user_id": user_id}})
             assert request.json() == {
                 "query": {
                     "bool": {
-                        "filter": [
-                            {"term": {"backend_id": backend_id}},
-                            {"term": {"job_id": job_id}},
-                        ]
+                        "filter": filters
                     }
                 },
                 "_source": IgnoreOrder(list(source_fields)),
@@ -349,7 +352,7 @@ class TestElasticJobRegistry:
             ),
         )
 
-        result = ejr.get_job(job_id="job-123")
+        result = ejr.get_job(job_id="job-123", user_id="john")
         assert result == {"job_id": "job-123", "user_id": "john", "status": "created"}
 
     def test_get_job_not_found(self, requests_mock, oidc_mock, ejr):
@@ -361,38 +364,74 @@ class TestElasticJobRegistry:
         requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=post_jobs_search)
 
         with pytest.raises(JobNotFoundException):
-            _ = ejr.get_job(job_id="job-123")
+            _ = ejr.get_job(job_id="job-123", user_id="john")
 
     def test_delete_job(self, requests_mock, oidc_mock, ejr):
+        search_mock = requests_mock.post(
+            f"{self.EJR_API_URL}/jobs/search", [
+                {"json": self._build_handler_post_jobs_search_single_job_lookup(
+                    job_id="job-123", user_id="john", status="created", oidc_mock=oidc_mock,
+                    source_fields=["job_id", "user_id", "created", "status", "updated"]
+                )},
+                {"json": []}
+            ]
+        )
         delete_mock = requests_mock.delete(f"{self.EJR_API_URL}/jobs/job-123", status_code=200, content=b"")
-        _ = ejr.delete_job(job_id="job-123")
+
+        ejr.delete_job(job_id="job-123", user_id="john")
+        assert search_mock.call_count == 2
         assert delete_mock.call_count == 1
 
+    def test_delete_their_job(self, requests_mock, oidc_mock, ejr):
+        def post_jobs_search(request, context):
+            """Handler of `POST /jobs/search"""
+            assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
+            return []
+
+        search_mock = requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=post_jobs_search)
+
+        with pytest.raises(JobNotFoundException):
+            ejr.delete_job(job_id="job-123", user_id="john")
+        assert search_mock.call_count == 1
+
     def test_delete_job_not_found(self, requests_mock, oidc_mock, ejr):
+        # shouldn't happen, really
+        search_mock = requests_mock.post(
+            f"{self.EJR_API_URL}/jobs/search",
+            json=self._build_handler_post_jobs_search_single_job_lookup(
+                job_id="job-123", user_id="john", status="created", oidc_mock=oidc_mock,
+                source_fields=["job_id", "user_id", "created", "status", "updated"]
+            ),
+        )
         delete_mock = requests_mock.delete(
             f"{self.EJR_API_URL}/jobs/job-123",
             status_code=404,
             json={"statusCode": 404, "message": "Could not find job with job-123", "error": "Not Found"},
         )
         with pytest.raises(JobNotFoundException):
-            _ = ejr.delete_job(job_id="job-123")
+            ejr.delete_job(job_id="job-123", user_id="john")
+        assert search_mock.call_count == 1
         assert delete_mock.call_count == 1
 
     def test_delete_job_with_verification_direct(self, requests_mock, oidc_mock, ejr, caplog):
         caplog.set_level(logging.DEBUG)
 
+        search_mock = requests_mock.post(f"{self.EJR_API_URL}/jobs/search", [
+            {"json": self._build_handler_post_jobs_search_single_job_lookup(  # assert own job
+                job_id="job-123", user_id="john", status="created", oidc_mock=oidc_mock,
+                source_fields=["job_id", "user_id", "created", "status", "updated"])},
+            {"json": []}  # was deleted, empty search response
+        ])
         delete_mock = requests_mock.delete(f"{self.EJR_API_URL}/jobs/job-123", status_code=200, content=b"")
-        # Empty search response
-        search_mock = requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=[])
 
-        _ = ejr.delete_job(job_id="job-123")
+        ejr.delete_job(job_id="job-123", user_id="john")
+        assert search_mock.call_count == 2
         assert delete_mock.call_count == 1
-        assert search_mock.call_count == 1
 
         log_messages = caplog.messages
         for expected in [
             "EJR deleted job_id='job-123'",
-            "_verify_job_existence job_id='job-123' exists=False backoff=0",
+            "_verify_job_existence job_id='job-123' user_id='john' exists=False backoff=0",
         ]:
             assert expected in log_messages
 
@@ -403,7 +442,7 @@ class TestElasticJobRegistry:
         search_mock = requests_mock.post(
             f"{self.EJR_API_URL}/jobs/search",
             [
-                # First attempt: still found
+                # First attempt: assert own job
                 {
                     "json": self._build_handler_post_jobs_search_single_job_lookup(
                         job_id="job-123",
@@ -413,20 +452,30 @@ class TestElasticJobRegistry:
                         source_fields=["job_id", "user_id", "created", "status", "updated"],
                     )
                 },
-                # Second attempt: not found anymore
+                # Second attempt: still found
+                {
+                    "json": self._build_handler_post_jobs_search_single_job_lookup(
+                        job_id="job-123",
+                        user_id="john",
+                        status="created",
+                        oidc_mock=oidc_mock,
+                        source_fields=["job_id", "user_id", "created", "status", "updated"],
+                    )
+                },
+                # Third attempt: not found anymore
                 {"json": []},
             ],
         )
 
-        _ = ejr.delete_job(job_id="job-123")
+        ejr.delete_job(job_id="job-123", user_id="john")
         assert delete_mock.call_count == 1
-        assert search_mock.call_count == 2
+        assert search_mock.call_count == 3
 
         log_messages = caplog.messages
         for expected in [
             "EJR deleted job_id='job-123'",
-            "_verify_job_existence job_id='job-123' exists=False backoff=0",
-            "_verify_job_existence job_id='job-123' exists=False backoff=0.1",
+            "_verify_job_existence job_id='job-123' user_id='john' exists=False backoff=0",
+            "_verify_job_existence job_id='job-123' user_id='john' exists=False backoff=0.1",
         ]:
             assert expected in log_messages
 
@@ -436,7 +485,7 @@ class TestElasticJobRegistry:
             assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
             return [
                 {"job_id": "job-123", "user_id": "alice"},
-                {"job_id": "job-123", "user_id": "bob"},
+                {"job_id": "job-123", "user_id": "alice"},
             ]
 
         requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=post_jobs_search)
@@ -444,7 +493,7 @@ class TestElasticJobRegistry:
         with pytest.raises(
             InternalException, match="Found 2 jobs for job_id='job-123'"
         ):
-            _ = ejr.get_job(job_id="job-123")
+            _ = ejr.get_job(job_id="job-123", user_id="alice")
 
     def test_list_user_jobs(self, requests_mock, oidc_mock, ejr):
         def post_jobs_search(request, context):
@@ -755,6 +804,7 @@ class TestElasticJobRegistry:
 
         requests_mock.post(f"{self.EJR_API_URL}/jobs", json=post_jobs)
         requests_mock.patch(f"{self.EJR_API_URL}/jobs/{job_id}", json=patch_job)
+        requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=[{"job_id": job_id, "user_id": "john"}])
         requests_mock.delete(f"{self.EJR_API_URL}/jobs/{job_id}", status_code=200, content=b"")
 
         class Formatter:
@@ -774,7 +824,7 @@ class TestElasticJobRegistry:
                 ejr.set_status(job_id=job_id, status=JOB_STATUS.RUNNING)
 
             with time_machine.travel("2020-01-03 12:00:00+00", tick=False):
-                ejr.delete_job(job_id=job_id)
+                ejr.delete_job(job_id=job_id, user_id="john")
 
         logs = caplog.text.strip().split("\n")
 
@@ -812,12 +862,12 @@ class TestElasticJobRegistry:
             # Trigger failure during _with_extra_logging
             requests_mock.post(f"{self.EJR_API_URL}/jobs/search", status_code=500)
             with pytest.raises(EjrHttpError):
-                _ = ejr.get_job(job_id="job-123")
+                _ = ejr.get_job(job_id="job-123", user_id="john")
 
             # Health check should not be logged with job id in logs
             requests_mock.get(f"{self.EJR_API_URL}/health", json={"ok": "yep"})
             ejr.health_check(use_auth=False, log=True)
 
         logs = caplog.text.strip().split("\n")
-        assert "openeo_driver.jobregistry.elastic [job-123] EJR get job data job_id='job-123'" in logs
+        assert "openeo_driver.jobregistry.elastic [job-123] EJR get job data job_id='job-123' user_id='john'" in logs
         assert "openeo_driver.jobregistry.elastic [None] EJR health check {'ok': 'yep'}" in logs

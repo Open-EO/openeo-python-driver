@@ -104,10 +104,10 @@ class JobRegistryInterface:
     ) -> JobDict:
         raise NotImplementedError
 
-    def get_job(self, job_id: str) -> JobDict:
+    def get_job(self, job_id: str, user_id: Optional[str] = None) -> JobDict:
         raise NotImplementedError
 
-    def delete_job(self, job_id: str) -> None:
+    def delete_job(self, job_id: str, user_id: Optional[str] = None) -> None:
         raise NotImplementedError
 
     def set_status(
@@ -393,15 +393,20 @@ class ElasticJobRegistry(JobRegistryInterface):
             result = self._do_request("POST", "/jobs", json=job_data, expected_status=201)
             return result
 
-    def get_job(self, job_id: str, fields: Optional[List[str]] = None) -> JobDict:
-        with self._with_extra_logging(job_id=job_id):
-            self.logger.info(f"EJR get job data {job_id=}")
+    def get_job(self, job_id: str, user_id: Optional[str] = None, fields: Optional[List[str]] = None) -> JobDict:
+        with self._with_extra_logging(job_id=job_id, user_id=user_id):
+            self.logger.info(f"EJR get job data {job_id=} {user_id=}")
+
+            filters = [
+                {"term": {"backend_id": self.backend_id}},
+                {"term": {"job_id": job_id}},
+            ]
+            if user_id is not None:
+                filters.append({"term": {"user_id": user_id}})
+
             query = {
                 "bool": {
-                    "filter": [
-                        {"term": {"backend_id": self.backend_id}},
-                        {"term": {"job_id": job_id}},
-                    ]
+                    "filter": filters
                 }
             }
 
@@ -410,29 +415,31 @@ class ElasticJobRegistry(JobRegistryInterface):
             if len(jobs) == 1:
                 job = jobs[0]
                 assert job["job_id"] == job_id, f"{job['job_id']=} != {job_id=}"
+                assert user_id is None or job["user_id"] == user_id, f"{job['user_id']=} != {user_id=}"
                 return job
             elif len(jobs) == 0:
-                self.logger.warning(f"Found no jobs for {job_id=}")
+                self.logger.warning(f"Found no jobs for {job_id=} {user_id=}")
                 raise JobNotFoundException(job_id=job_id)
             else:
                 summary = [{k: j.get(k) for k in ["user_id", "created"]} for j in jobs]
                 self.logger.error(
-                    f"Found multiple ({len(jobs)}) jobs for {job_id=}: {repr_truncate(summary, width=200)}"
+                    f"Found multiple ({len(jobs)}) jobs for {job_id=} {user_id=}: {repr_truncate(summary, width=200)}"
                 )
-                raise InternalException(message=f"Found {len(jobs)} jobs for {job_id=}")
+                raise InternalException(message=f"Found {len(jobs)} jobs for {job_id=} {user_id=}")
 
-    def delete_job(self, job_id: str) -> None:
-        with self._with_extra_logging(job_id=job_id):
+    def delete_job(self, job_id: str, user_id: Optional[str] = None) -> None:
+        with self._with_extra_logging(job_id=job_id, user_id=user_id):
             try:
+                self.get_job(job_id=job_id, user_id=user_id, fields=["job_id"])  # assert own job
                 self._do_request(method="DELETE", path=f"/jobs/{job_id}")
                 self.logger.info(f"EJR deleted {job_id=}")
             except EjrHttpError as e:
                 if e.status_code == 404:
                     raise JobNotFoundException(job_id=job_id) from e
                 raise e
-            self._verify_job_existence(job_id=job_id, exists=False)
+            self._verify_job_existence(job_id=job_id, user_id=user_id, exists=False)
 
-    def _verify_job_existence(self, job_id: str, exists: bool = True, backoffs: Sequence[float] = (0, 0.1, 1.0)):
+    def _verify_job_existence(self, job_id: str, user_id: Optional[str] = None, exists: bool = True, backoffs: Sequence[float] = (0, 0.1, 1.0)):
         """
         Verify that EJR committed the job creation/deletion
         :param job_id: job id
@@ -442,10 +449,10 @@ class ElasticJobRegistry(JobRegistryInterface):
         if not backoffs:
             return
         for backoff in backoffs:
-            self.logger.debug(f"_verify_job_existence {job_id=} {exists=} {backoff=}")
+            self.logger.debug(f"_verify_job_existence {job_id=} {user_id=} {exists=} {backoff=}")
             time.sleep(backoff)
             try:
-                self.get_job(job_id=job_id, fields=["job_id"])
+                self.get_job(job_id=job_id, user_id=user_id, fields=["job_id"])
                 if exists:
                     return
             except JobNotFoundException:
@@ -453,10 +460,10 @@ class ElasticJobRegistry(JobRegistryInterface):
                     return
             except Exception as e:
                 # TODO: fail hard instead of just logging?
-                self.logger.exception(f"Unexpected error while verifying {job_id=} {exists=}: {e=}")
+                self.logger.exception(f"Unexpected error while verifying {job_id=} {user_id=} {exists=}: {e=}")
                 return
         # TODO: fail hard instead of just logging?
-        self.logger.error(f"Failed to verify {job_id=} {exists=}")
+        self.logger.error(f"Failed to verify {job_id=} {user_id=} {exists=}")
 
     def set_status(
         self,
