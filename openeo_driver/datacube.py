@@ -245,6 +245,7 @@ class DriverVectorCube:
     DIM_GEOMETRY = "geometry"
     DIM_BANDS = "bands"
     DIM_PROPERTIES = "properties"
+    DIM_TIME = "t"
     COLUMN_SELECTION_ALL = "all"
     COLUMN_SELECTION_NUMERICAL = "numerical"
 
