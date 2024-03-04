@@ -18,6 +18,7 @@ import typing
 from flask import send_from_directory, jsonify, Response
 from shapely.geometry import GeometryCollection, mapping
 from shapely.geometry.base import BaseGeometry
+import geopandas as gpd
 import xarray
 
 from openeo.metadata import CollectionMetadata
@@ -221,8 +222,18 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
 
     # TODO #71 #114 EP-3981 port this to proper vector cube support
 
-    def __init__(self, timeseries: dict, regions: Union[GeometryCollection, DriverVectorCube],
-                 metadata: CollectionMetadata = None):
+    def __init__(
+        self,
+        timeseries: Dict[int, List[List[Any]]],
+        regions: Union[GeometryCollection, DriverVectorCube],
+        metadata: CollectionMetadata = None,
+    ):
+        """
+        :param timeseries: {timestamp: [geometries, bands]}
+            Where geometries are in the same order as the geometries in 'regions'.
+        :param regions: GeometryCollection or DriverVectorCube
+        :param metadata: CollectionMetadata
+        """
         super().__init__(data=timeseries)
         if not isinstance(regions, (GeometryCollection, DriverVectorCube)):
             # TODO: raise exception instead of warning?
