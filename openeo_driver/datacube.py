@@ -574,15 +574,15 @@ class DriverVectorCube:
 
         cube = self._cube
         # TODO: more flexible temporal/band dimension detection?
-        if cube.dims == (self.DIM_GEOMETRY, "t"):
+        if cube.dims == (self.DIM_GEOMETRY, self.DIM_TIME):
             # Add single band dimension
             cube = cube.expand_dims({"bands": ["band"]}, axis=-1)
-        if cube.dims == (self.DIM_GEOMETRY, "t", "bands"):
-            cube = cube.transpose("t", self.DIM_GEOMETRY, "bands")
-            timeseries = {
-                t.item(): t_slice.values.tolist()
-                for t, t_slice in zip(cube.coords["t"], cube)
-            }
+        if cube.dims == (self.DIM_GEOMETRY, self.DIM_TIME, "bands"):
+            timeseries = {}  # {timestamp: List[List[]]} (geometries, bands)
+            for t, t_slice in cube.groupby(self.DIM_TIME):
+                t: numpy.generic = t
+                t_slice: xarray.DataArray = t_slice  # (geometries, bands)
+                timeseries[t.item()] = t_slice.values.tolist()
             return AggregatePolygonResult(timeseries=timeseries, regions=self)
         elif cube.dims == (self.DIM_GEOMETRY, "bands"):
             # This covers the legacy `AggregatePolygonSpatialResult` code path,
