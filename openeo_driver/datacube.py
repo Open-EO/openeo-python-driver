@@ -474,6 +474,17 @@ class DriverVectorCube:
             # TODO: better way to combine cube with geometries
             # Flatten multiple (non-geometry) dimensions from cube to new properties in geopandas dataframe
             if self._cube.dims[1:]:
+                if self.DIM_TIME in self._cube.dims:
+                    # Ensure dates are in 2017-10-25T11:37:00Z format.
+                    time_coords: list[Any] = list(self._cube.coords[self.DIM_TIME].values)
+                    try:
+                        # TODO: Support datetime, pandas.Timestamp, numpy.datetime64, etc?
+                        self._cube.coords[self.DIM_TIME] = [
+                            pandas.to_datetime(coord).tz_convert("UTC").strftime("%Y-%m-%dT%H:%M:%SZ")
+                            for coord in time_coords
+                        ]
+                    except ValueError:
+                        pass
                 stacked = self._cube.stack(prop=self._cube.dims[1:])
                 log.info(f"Flattened cube component of vector cube to {stacked.shape[1]} properties")
                 name_prefix = [flatten_prefix] if flatten_prefix else []
