@@ -229,6 +229,7 @@ class HttpAuthHandler:
             # Do token inspection for additional info
             is_client_credentials_token = None
             if self._config.oidc_token_introspection:
+                # TODO: is it still necessary to support this kind of detection of client credentials?
                 token_data = self._token_introspection(oidc_provider=oidc_provider, access_token=access_token)
                 internal_auth_data["oidc_access_token_introspection"] = token_data
                 # TODO: better/more robust guessing if this is a client creds based access token
@@ -241,20 +242,20 @@ class HttpAuthHandler:
                     internal_auth_data["oidc_client_credentials_access_token"] = True
                     is_client_credentials_token = True
 
-            # Map token "sub" to user id
+            # Use OIDC "sub" field as user id
+            # Note: this assumes that the risk on "sub" collision across multiple OIDC providers is negligible.
+            # Note: ETL reporting currently requires the "sub" identifier to be used as user id
+            #       (even for service accounts), so no additional user_id mapping is allowed in current setup.
+            user_id = token_sub
+
             oidc_user_map_data = self._config.oidc_user_map.get((oidc_provider.id, token_sub))
             if oidc_user_map_data:
-                _log.debug(f"oidc_user_map user mapping {token_sub=} -> {oidc_user_map_data=}")
+                _log.debug(f"oidc_user_map {oidc_provider.id=} {token_sub=} {oidc_user_map_data=}")
                 internal_auth_data["oidc_user_map_data"] = oidc_user_map_data
-                user_id = oidc_user_map_data["user_id"]
             elif is_client_credentials_token:
                 raise AccessTokenException(
                     message=f"Client credentials access token without user mapping: sub={token_sub!r}."
                 )
-            else:
-                # Default: normal user access token
-                # TODO: do something more than directly using "sub"?
-                user_id = token_sub
 
             return User(user_id=user_id, info={"oidc_userinfo": userinfo}, internal_auth_data=internal_auth_data)
 

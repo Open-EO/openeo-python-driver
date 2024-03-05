@@ -20,6 +20,11 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.93.0
+
+- For client credentials: use OIDC "sub" identifier as user_id instead of config based mapping to be compatible
+  with ETL API reporting requirements ([Open-EO/openeo-geopyspark-driver#708](https://github.com/Open-EO/openeo-geopyspark-driver/issues/708))
+
 ## 0.92.0
 
 - Reinstate the `werkzeug<3` constraint. Apparently too many deployments are stuck with a very low Flask version,

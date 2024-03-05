@@ -53,11 +53,9 @@ class OpenEoBackendConfig:
 
     oidc_token_introspection: bool = False
 
-    # Mapping of `(oidc_provider id, token_sub)`
-    # to user info, as a dictionary with at least a "user_id" field.
-    # `token_sub` is the  OIDC token "sub" field, which usually identifies a user,
-    # but could also identify a OIDC client authenticated through the client credentials grant.
-    # TODO: allow it to be a callable instead of a dictionary?
+    # Mapping of `(oidc_provider id, token_sub) to extra user info dictionary, with:
+    # - `token_sub`: OIDC token "sub" field, identifying a user (or client in case of client credentials grant).
+    # FYI: this config lost its usefulness, and is currently just used in debug logging.
     oidc_user_map: Dict[Tuple[str, str], dict] = attrs.Factory(dict)
 
     # General Flask related settings

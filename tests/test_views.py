@@ -749,21 +749,21 @@ class TestUser:
         ["oidc_token_introspection", "oidc_client_user_map", "access_token", "expected"],
         [
             (False, {}, "cust0m.cl13nt.j0", "s3rv1c36cc-0fj0hn"),
-            (False, {("eoidc", "s3rv1c36cc-0fj0hn"): {"user_id": "john"}}, "cust0m.cl13nt.j0", "john"),
+            (False, {("eoidc", "s3rv1c36cc-0fj0hn"): {"user_id": "john"}}, "cust0m.cl13nt.j0", "s3rv1c36cc-0fj0hn"),
             (
                 True,
                 {},
                 "cust0m.cl13nt.j0",
                 AccessTokenException("Client credentials access token without user mapping: sub='s3rv1c36cc-0fj0hn'."),
             ),
-            (True, {("eoidc", "s3rv1c36cc-0fj0hn"): {"user_id": "john"}}, "cust0m.cl13nt.j0", "john"),
+            (True, {("eoidc", "s3rv1c36cc-0fj0hn"): {"user_id": "john"}}, "cust0m.cl13nt.j0", "s3rv1c36cc-0fj0hn"),
             (
                 True,
                 {("eoidc", "s3rv1c36cc-0fj0hn"): {"user_id": "john"}},
                 "cust0m.cl13nt.4l",
                 AccessTokenException("Client credentials access token without user mapping: sub='s3rv1c36cc-0f6l1c3'."),
             ),
-            (True, {("eoidc", "s3rv1c36cc-0f6l1c3"): {"user_id": "Alice"}}, "cust0m.cl13nt.4l", "Alice"),
+            (True, {("eoidc", "s3rv1c36cc-0f6l1c3"): {"user_id": "Alice"}}, "cust0m.cl13nt.4l", "s3rv1c36cc-0f6l1c3"),
         ],
     )
     def test_oidc_client_to_user_mapping(
