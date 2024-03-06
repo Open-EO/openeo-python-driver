@@ -10,6 +10,7 @@ from unittest import mock
 
 import boto3
 import flask
+import pystac.validation.stac_validator
 import pytest
 import re_assert
 import werkzeug.exceptions
@@ -1896,10 +1897,8 @@ class TestBatchJobs:
             )
             resp = api110.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results", headers=self.AUTH_HEADER)
 
-            import pystac
-            stac_validator = pystac.validation.stac_validator.JsonSchemaSTACValidator()
-            stac_validator.validate(resp.json, pystac.STACObjectType.COLLECTION, stac_version="1.0.0", extensions=[])
-            assert resp.assert_status_code(200).json == {
+            resp_data = resp.assert_status_code(200).json
+            assert resp_data == {
                 "description": "Results for batch job 07024ee9-7847-4b8a-b260-6c879a2b3cdc",
                 "extent": {"spatial": {"bbox": [[-180, -90, 180, 90]]}, "temporal": {"interval": [[None, None]]}},
                 "license": "proprietary",
@@ -1974,6 +1973,13 @@ class TestBatchJobs:
                 "type": "Collection",
                 "openeo:status": "finished",
             }
+
+        pystac.validation.stac_validator.JsonSchemaSTACValidator().validate(
+            stac_dict=resp_data,
+            stac_object_type=pystac.STACObjectType.COLLECTION,
+            stac_version=resp_data.get("stac_version", "1.0.0"),
+            extensions=resp_data.get("stac_extensions", []),
+        )
 
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
     def test_get_job_results_signed_110_unfinished_and_partial_false(self, api110, flask_app, backend_config_overrides):
@@ -2510,11 +2516,9 @@ class TestBatchJobs:
                 "/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.tiff", headers=self.AUTH_HEADER
             )
 
-        import pystac
-        stac_validator = pystac.validation.stac_validator.JsonSchemaSTACValidator()
-        stac_validator.validate(resp.json, pystac.STACObjectType.ITEM,stac_version="0.9.0",extensions=[])
+        resp_data = resp.assert_status_code(200).json
 
-        assert resp.assert_status_code(200).json == {
+        assert resp_data == {
             "type": "Feature",
             "stac_version": "0.9.0",
             "stac_extensions": [
@@ -2553,6 +2557,13 @@ class TestBatchJobs:
             'collection': '53c71345-09b4-46b4-b6b0-03fd6fe1f199'
         }
         assert resp.headers["Content-Type"] == "application/geo+json"
+
+        pystac.validation.stac_validator.JsonSchemaSTACValidator().validate(
+            stac_dict=resp_data,
+            stac_object_type=pystac.STACObjectType.ITEM,
+            stac_version=resp_data.get("stac_version", "0.9.0"),
+            extensions=resp_data.get("stac_extensions", []),
+        )
 
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
     def test_download_ml_model_metadata(self, flask_app, api110, backend_config_overrides):
