@@ -771,7 +771,7 @@ class AggregatePolygonSpatialResult(SaveResult):
         # TODO: this method belongs eventually under DriverVectorCube
         raise NotImplementedError
 
-    def get_data(self) -> gpd.GeoDataFrame:
+    def _get_geodataframe(self) -> gpd.GeoDataFrame:
         if isinstance(self._regions, DriverVectorCube):
             gdf = gpd.GeoDataFrame(geometry=self._regions.get_geometries())
         elif isinstance(self._regions, GeometryCollection):
@@ -788,7 +788,7 @@ class AggregatePolygonSpatialResult(SaveResult):
         return gdf.drop(columns=["feature_index"])
 
     def to_driver_vector_cube(self) -> DriverVectorCube:
-        gdf = self.get_data()
+        gdf = self._get_geodataframe()
         return DriverVectorCube.from_geodataframe(gdf, dimension_name="bands")
 
 
