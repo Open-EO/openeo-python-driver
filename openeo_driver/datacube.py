@@ -261,7 +261,6 @@ class DriverVectorCube:
         :param geometries: GeoDataFrame with geometries and properties.
         :param cube: Optional DataArray with dimensions (geometry (r), time (o), bands/properties (o)),
             r = required, o = optional.
-        Note that cube can only have a single dtype. For e.g. vector_to_raster, we'd like to keep this numeric.
         """
         # TODO #114 EP-3981: lazy loading (like DelayedVector)?
         if cube is not None:
