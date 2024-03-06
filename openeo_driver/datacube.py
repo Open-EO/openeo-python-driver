@@ -474,7 +474,8 @@ class DriverVectorCube:
             # Flatten multiple (non-geometry) dimensions from cube to new properties in geopandas dataframe
             if self._cube.dims[1:]:
                 if self.DIM_TIME in self._cube.dims:
-                    # Ensure dates are in 2017-10-25T11:37:00Z format.
+                    # Attempt to normalize dates to 2017-10-25T11:37:00Z format.
+                    # If it does not work we'll continue with strings.
                     time_coords: list[Any] = list(self._cube.coords[self.DIM_TIME].values)
                     try:
                         # TODO: Support datetime, pandas.Timestamp, numpy.datetime64, etc?
