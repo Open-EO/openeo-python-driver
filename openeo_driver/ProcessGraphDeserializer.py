@@ -1746,7 +1746,7 @@ def raster_to_vector(args: Dict, env: EvalEnv):
 )
 def vector_to_raster(args: dict, env: EvalEnv) -> DriverDataCube:
     input_vector_cube = extract_arg(args, "data")
-    target_data_cube = extract_arg(args, "target_data_cube")
+    target_data_cube = extract_arg(args, "target_data_cube")  # TODO: Rename to 'target'.
     if not isinstance(input_vector_cube, DriverVectorCube):
         raise ProcessParameterInvalidException(
             parameter="data",
