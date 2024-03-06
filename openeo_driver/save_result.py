@@ -773,7 +773,7 @@ class AggregatePolygonSpatialResult(SaveResult):
 
     def get_data(self) -> gpd.GeoDataFrame:
         if isinstance(self._regions, DriverVectorCube):
-            gdf = self._regions._geometries
+            gdf = gpd.GeoDataFrame(geometry=self._regions.get_geometries())
         elif isinstance(self._regions, GeometryCollection):
             gdf = gpd.GeoDataFrame(geometry=list(self._regions.geoms))
         elif isinstance(self._regions, BaseGeometry):
