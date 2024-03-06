@@ -20,6 +20,7 @@ import typing
 from flask import send_from_directory, jsonify, Response
 from shapely.geometry import GeometryCollection, mapping
 from shapely.geometry.base import BaseGeometry
+import geopandas as gpd
 import xarray
 
 from openeo.metadata import CollectionMetadata
@@ -255,8 +256,18 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
 
     # TODO #71 #114 EP-3981 port this to proper vector cube support
 
-    def __init__(self, timeseries: dict, regions: Union[GeometryCollection, DriverVectorCube],
-                 metadata: CollectionMetadata = None):
+    def __init__(
+        self,
+        timeseries: Dict[int, List[List[Any]]],
+        regions: Union[GeometryCollection, DriverVectorCube],
+        metadata: CollectionMetadata = None,
+    ):
+        """
+        :param timeseries: {timestamp: [geometries, bands]}
+            Where geometries are in the same order as the geometries in 'regions'.
+        :param regions: GeometryCollection or DriverVectorCube
+        :param metadata: CollectionMetadata
+        """
         super().__init__(data=timeseries)
         if not isinstance(regions, (GeometryCollection, DriverVectorCube)):
             # TODO: raise exception instead of warning?
@@ -567,6 +578,34 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         gpd.GeoDataFrame(stats.join(gdf, on='feature_index')).to_parquet(filename)
         return filename
 
+    def to_driver_vector_cube(self) -> DriverVectorCube:
+        if isinstance(self._regions, GeometryCollection):
+            shapely_geometries: typing.Sequence[BaseGeometry] = [g for g in self._regions]
+            geometries: gpd.GeoDataFrame = gpd.GeoDataFrame(geometry=shapely_geometries)
+        elif isinstance(self._regions, DriverVectorCube):
+            shapely_geometries: typing.Sequence[BaseGeometry] = self._regions.get_geometries()
+            geometries = gpd.GeoDataFrame(geometry=shapely_geometries)
+        else:
+            raise ValueError(f"Unsupported regions type: {type(self._regions)}")
+        # self._data is {timestamp: [geometries, bands]}
+        # Convert to np.array with dimensions (geometries, timestamps, bands)
+        cube: Optional[xarray.DataArray] = None
+        data = self.get_data()
+        if data:
+            timestamps = sorted(self.data.keys())
+            band_count = len(self.data[timestamps[0]][0])
+            data = np.full((len(shapely_geometries), len(timestamps), band_count), np.nan)
+            for t, ts in enumerate(timestamps):
+                for g, polygon_data in enumerate(self.data[ts]):
+                    data[g, t, :] = polygon_data
+            coords = {
+                DriverVectorCube.DIM_GEOMETRY: list(range(len(shapely_geometries))),
+                DriverVectorCube.DIM_TIME: timestamps,
+            }
+            dims = [DriverVectorCube.DIM_GEOMETRY, DriverVectorCube.DIM_TIME, DriverVectorCube.DIM_BANDS]
+            cube = xarray.DataArray(data=data, coords=coords, dims=dims)
+        return DriverVectorCube(geometries=geometries, cube=cube)
+
 
 class AggregatePolygonResultCSV(AggregatePolygonResult):
     # TODO #71 #114 EP-3981 port this to proper vector cube support
@@ -715,6 +754,7 @@ class AggregatePolygonSpatialResult(SaveResult):
          .join(stats.set_index('feature_index'), on='feature_index')
          .rename(columns=lambda col_name: re.sub(r"\W", "_", col_name))  # adhere to naming restriction [A-Za-z0-9_]
          .to_parquet(filename))
+        # TODO: Is naming restriction required for parquet files?
 
         return filename
 
@@ -765,6 +805,24 @@ class AggregatePolygonSpatialResult(SaveResult):
     ) -> DriverMlModel:
         # TODO: this method belongs eventually under DriverVectorCube
         raise NotImplementedError
+
+    def _get_geodataframe(self) -> gpd.GeoDataFrame:
+        if isinstance(self._regions, DriverVectorCube):
+            gdf = gpd.GeoDataFrame(geometry=self._regions.get_geometries())
+        elif isinstance(self._regions, GeometryCollection):
+            gdf = gpd.GeoDataFrame(geometry=list(self._regions.geoms))
+        elif isinstance(self._regions, BaseGeometry):
+            gdf = gpd.GeoDataFrame(geometry=[self._regions])
+        else:
+            raise NotImplementedError
+        gdf["feature_index"] = gdf.index
+        stats: pd.DataFrame = pd.read_csv(self._csv_path())
+        gdf = gdf.join(stats.set_index("feature_index"), on="feature_index")
+        return gdf.drop(columns=["feature_index"])
+
+    def to_driver_vector_cube(self) -> DriverVectorCube:
+        gdf = self._get_geodataframe()
+        return DriverVectorCube.from_geodataframe(gdf, dimension_name="bands")
 
 
 class MultipleFilesResult(SaveResult):

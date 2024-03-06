@@ -245,6 +245,7 @@ class DriverVectorCube:
     DIM_GEOMETRY = "geometry"
     DIM_BANDS = "bands"
     DIM_PROPERTIES = "properties"
+    DIM_TIME = "t"
     COLUMN_SELECTION_ALL = "all"
     COLUMN_SELECTION_NUMERICAL = "numerical"
 
@@ -257,10 +258,9 @@ class DriverVectorCube:
         cube: Optional[xarray.DataArray] = None,
     ):
         """
-
-        :param geometries:
-        :param cube:
-        :param flatten_prefix: prefix for column/field/property names when flattening the cube
+        :param geometries: GeoDataFrame with geometries and properties.
+        :param cube: Optional DataArray with dimensions (geometry (r), time (o), bands/properties (o)),
+            r = required, o = optional.
         """
         # TODO #114 EP-3981: lazy loading (like DelayedVector)?
         if cube is not None:
@@ -473,6 +473,18 @@ class DriverVectorCube:
             # TODO: better way to combine cube with geometries
             # Flatten multiple (non-geometry) dimensions from cube to new properties in geopandas dataframe
             if self._cube.dims[1:]:
+                if self.DIM_TIME in self._cube.dims:
+                    # Attempt to normalize dates to 2017-10-25T11:37:00Z format.
+                    # If it does not work we'll continue with strings.
+                    time_coords: list[Any] = list(self._cube.coords[self.DIM_TIME].values)
+                    try:
+                        # TODO: Support datetime, pandas.Timestamp, numpy.datetime64, etc?
+                        self._cube.coords[self.DIM_TIME] = [
+                            pandas.to_datetime(coord).tz_convert("UTC").strftime("%Y-%m-%dT%H:%M:%SZ")
+                            for coord in time_coords
+                        ]
+                    except ValueError:
+                        pass
                 stacked = self._cube.stack(prop=self._cube.dims[1:])
                 log.info(f"Flattened cube component of vector cube to {stacked.shape[1]} properties")
                 name_prefix = [flatten_prefix] if flatten_prefix else []
@@ -582,21 +594,18 @@ class DriverVectorCube:
 
         cube = self._cube
         # TODO: more flexible temporal/band dimension detection?
-        if cube.dims == (self.DIM_GEOMETRY, "t"):
+        if cube.dims == (self.DIM_GEOMETRY, self.DIM_TIME):
             # Add single band dimension
-            cube = cube.expand_dims({"bands": ["band"]}, axis=-1)
-        if cube.dims == (self.DIM_GEOMETRY, "t", "bands"):
-            cube = cube.transpose("t", self.DIM_GEOMETRY, "bands")
-            timeseries = {
-                t.item(): t_slice.values.tolist()
-                for t, t_slice in zip(cube.coords["t"], cube)
-            }
+            cube = cube.expand_dims({self.DIM_BANDS: ["band"]}, axis=-1)
+        if cube.dims == (self.DIM_GEOMETRY, self.DIM_TIME, self.DIM_BANDS):
+            cube = cube.transpose(self.DIM_TIME, self.DIM_GEOMETRY, self.DIM_BANDS)
+            timeseries = {t.item(): t_slice.values.tolist() for t, t_slice in zip(cube.coords[self.DIM_TIME], cube)}
             return AggregatePolygonResult(timeseries=timeseries, regions=self)
-        elif cube.dims == (self.DIM_GEOMETRY, "bands"):
+        elif cube.dims == (self.DIM_GEOMETRY, self.DIM_BANDS):
             # This covers the legacy `AggregatePolygonSpatialResult` code path,
             # but as AggregatePolygonSpatialResult's constructor expects a folder of CSV file(s),
             # we keep it simple here with a basic JSONResult result.
-            cube = cube.transpose(self.DIM_GEOMETRY, "bands")
+            cube = cube.transpose(self.DIM_GEOMETRY, self.DIM_BANDS)
             return JSONResult(data=cube.values.tolist())
         raise ValueError(
             f"Unsupported cube configuration {cube.dims} for _write_legacy_aggregate_polygon_result_json"
