@@ -720,6 +720,7 @@ class AggregatePolygonSpatialResult(SaveResult):
          .join(stats.set_index('feature_index'), on='feature_index')
          .rename(columns=lambda col_name: re.sub(r"\W", "_", col_name))  # adhere to naming restriction [A-Za-z0-9_]
          .to_parquet(filename))
+        # TODO: Is naming restriction required for parquet files?
 
         return filename
 
@@ -782,9 +783,7 @@ class AggregatePolygonSpatialResult(SaveResult):
             raise NotImplementedError
         gdf["feature_index"] = gdf.index
         stats: pd.DataFrame = pd.read_csv(self._csv_path())
-        gdf = gdf.join(stats.set_index("feature_index"), on="feature_index").rename(
-            columns=lambda col_name: re.sub(r"\W", "_", col_name)
-        )
+        gdf = gdf.join(stats.set_index("feature_index"), on="feature_index")
         return gdf.drop(columns=["feature_index"])
 
     def to_driver_vector_cube(self) -> DriverVectorCube:
