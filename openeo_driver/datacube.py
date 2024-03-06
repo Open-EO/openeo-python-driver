@@ -584,21 +584,18 @@ class DriverVectorCube:
 
         cube = self._cube
         # TODO: more flexible temporal/band dimension detection?
-        if cube.dims == (self.DIM_GEOMETRY, "t"):
+        if cube.dims == (self.DIM_GEOMETRY, self.DIM_TIME):
             # Add single band dimension
-            cube = cube.expand_dims({"bands": ["band"]}, axis=-1)
-        if cube.dims == (self.DIM_GEOMETRY, "t", "bands"):
-            cube = cube.transpose("t", self.DIM_GEOMETRY, "bands")
-            timeseries = {
-                t.item(): t_slice.values.tolist()
-                for t, t_slice in zip(cube.coords["t"], cube)
-            }
+            cube = cube.expand_dims({self.DIM_BANDS: ["band"]}, axis=-1)
+        if cube.dims == (self.DIM_GEOMETRY, self.DIM_TIME, self.DIM_BANDS):
+            cube = cube.transpose(self.DIM_TIME, self.DIM_GEOMETRY, self.DIM_BANDS)
+            timeseries = {t.item(): t_slice.values.tolist() for t, t_slice in zip(cube.coords[self.DIM_TIME], cube)}
             return AggregatePolygonResult(timeseries=timeseries, regions=self)
-        elif cube.dims == (self.DIM_GEOMETRY, "bands"):
+        elif cube.dims == (self.DIM_GEOMETRY, self.DIM_BANDS):
             # This covers the legacy `AggregatePolygonSpatialResult` code path,
             # but as AggregatePolygonSpatialResult's constructor expects a folder of CSV file(s),
             # we keep it simple here with a basic JSONResult result.
-            cube = cube.transpose(self.DIM_GEOMETRY, "bands")
+            cube = cube.transpose(self.DIM_GEOMETRY, self.DIM_BANDS)
             return JSONResult(data=cube.values.tolist())
         raise ValueError(
             f"Unsupported cube configuration {cube.dims} for _write_legacy_aggregate_polygon_result_json"
