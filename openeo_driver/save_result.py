@@ -818,8 +818,6 @@ class AggregatePolygonSpatialResult(SaveResult):
         gdf["feature_index"] = gdf.index
         stats: pd.DataFrame = pd.read_csv(self._csv_path())
         gdf = gdf.join(stats.set_index("feature_index"), on="feature_index")
-        # Convert e.g. avg(band_0) to avg_band_0_
-        gdf = gdf.rename(columns=lambda col_name: re.sub(r"\W", "_", col_name))
         return gdf.drop(columns=["feature_index"])
 
     def to_driver_vector_cube(self) -> DriverVectorCube:
