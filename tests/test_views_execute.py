@@ -4235,3 +4235,26 @@ def test_to_scl_dilation_mask_defaults(api, arguments, expected):
     assert args == ()
     assert kwargs == expected
 
+
+def test_to_scl_dilation_mask_multiple_bands(api):
+    """
+    input raster cube with multiple bands should raise error
+    """
+    res = api.result(
+        {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {"id": "SENTINEL2_L2A_SENTINELHUB", "bands": ["B02", "B03", "SCL"]},
+            },
+            "to_scl_dilation_mask": {
+                "process_id": "to_scl_dilation_mask",
+                "arguments": {"data": {"from_node": "loadcollection1"}},
+                "result": True,
+            },
+        }
+    )
+    res.assert_error(
+        400,
+        "ProcessParameterInvalid",
+        message="The source data cube should only contain a single (SCL) band, but got ['B02', 'B03', 'SCL']",
+    )

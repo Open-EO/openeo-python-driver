@@ -45,7 +45,7 @@ from openeo_driver.datacube import (
 )
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint
+from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint, DryRunDataCube
 from openeo_driver.errors import (
     ProcessParameterRequiredException,
     ProcessParameterInvalidException,
@@ -2005,6 +2005,14 @@ def mask_scl_dilation(args: Dict, env: EvalEnv):
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/to_scl_dilation_mask.json"))
 def to_scl_dilation_mask(args: ProcessArgs, env: EvalEnv):
     cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    if not isinstance(cube, DryRunDataCube) and len(cube.metadata.band_names) != 1:
+        # TODO: make sure `len(cube.metadata.band_names)` check also works in the DryRunDataTracer phase
+        raise ProcessParameterInvalidException(
+            parameter="data",
+            process="to_scl_dilation_mask",
+            reason=f"The source data cube should only contain a single (SCL) band, but got {cube.metadata.band_names}.",
+        )
+
     # Get default values for other args from spec
     spec = read_spec("openeo-processes/experimental/to_scl_dilation_mask.json")
     defaults = {param["name"]: param["default"] for param in spec["parameters"] if "default" in param}

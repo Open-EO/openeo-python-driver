@@ -1,3 +1,4 @@
+from __future__ import annotations
 import json
 import numbers
 from datetime import datetime
@@ -192,6 +193,10 @@ class DummyDataCube(DriverDataCube):
 
         for name in [n for n, m in DummyDataCube.__dict__.items() if getattr(m, '_mock_side_effect', False)]:
             setattr(self, name, Mock(side_effect=getattr(self, name)))
+
+    @mock_side_effect
+    def filter_bands(self, bands) -> DummyDataCube:
+        return DummyDataCube(self.metadata.filter_bands(bands))
 
     @mock_side_effect
     def reduce_dimension(

@@ -20,6 +20,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+# 0.94.2
+
+- `to_scl_dilation_mask`: raise error when input cube has more than one band ([#270](https://github.com/Open-EO/openeo-python-driver/issues/270))
+
 ## 0.94.1
 
 - Improve resilience by retrying EJR search requests ([Open-EO/openeo-geopyspark-driver#720](https://github.com/Open-EO/openeo-geopyspark-driver/issues/720)).

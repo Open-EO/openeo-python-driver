@@ -508,7 +508,8 @@ class DryRunDataCube(DriverDataCube):
         cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
         return cube._process(operation="filter_spatial", arguments={"geometries": geometries})
 
-    def filter_bands(self, bands) -> 'DryRunDataCube':
+    def filter_bands(self, bands) -> DryRunDataCube:
+        # TODO: Ideally, bands in metadata are filtered here, but this breaks too many tests at the moment
         return self._process("bands", bands)
 
     def filter_properties(self, properties) -> 'DryRunDataCube':
