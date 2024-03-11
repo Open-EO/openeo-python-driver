@@ -222,6 +222,17 @@ class DriverDataCube:
     ):
         self._not_implemented()
 
+    def to_scl_dilation_mask(
+        self,
+        erosion_kernel_size: int,
+        mask1_values: List[int],
+        mask2_values: List[int],
+        kernel1_size: int,
+        kernel2_size: int,
+    ) -> DriverDataCube:
+        # Note: this is a non-standard process
+        self._not_implemented()
+
 
 class VectorCubeError(InternalException):
     code = "VectorCubeError"
