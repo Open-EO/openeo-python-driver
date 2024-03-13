@@ -1752,7 +1752,8 @@ def raster_to_vector(args: Dict, env: EvalEnv):
 def vector_to_raster(args: dict, env: EvalEnv) -> DriverDataCube:
     input_vector_cube = extract_arg(args, "data")
     target_data_cube = extract_arg(args, "target_data_cube")  # TODO: Rename to 'target'.
-    if not isinstance(input_vector_cube, DriverVectorCube):
+    # TODO: to_driver_vector_cube is temporary. Remove it when vector cube is fully supported.
+    if not isinstance(input_vector_cube, DriverVectorCube) and not hasattr(input_vector_cube, "to_driver_vector_cube"):
         raise ProcessParameterInvalidException(
             parameter="data",
             process="vector_to_raster",
