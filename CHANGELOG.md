@@ -22,7 +22,7 @@ and start a new "In Progress" section above it.
 
 ## 0.94.1
 
-- Retry EJR search requests ([Open-EO/openeo-geopyspark-driver#720](https://github.com/Open-EO/openeo-geopyspark-driver/issues/720))
+- Improve resilience by retrying EJR search requests ([Open-EO/openeo-geopyspark-driver#720](https://github.com/Open-EO/openeo-geopyspark-driver/issues/720)).
 
 ## 0.93.0
 
