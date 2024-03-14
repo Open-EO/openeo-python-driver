@@ -140,7 +140,8 @@ def validate_geojson_coordinates(geojson: dict):
 
 def geojson_to_geometry(geojson: dict) -> BaseGeometry:
     """Convert GeoJSON object to shapely geometry object"""
-    # TODO #71 #114 EP-3981 standardize on using (FeatureCollection like) vector cubes  instead of GeometryCollection?
+    # TODO #71 #114 EP-3981 standardize on vector cubes instead of deprecated GeometryCollection?
+    _log.warning("geojson_to_geometry usage is deprecated and should be replaced by proper vector cube usage")
     validate_geojson_coordinates(geojson)
     if geojson["type"] == "FeatureCollection":
         geojson = {

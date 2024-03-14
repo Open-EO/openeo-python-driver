@@ -578,6 +578,9 @@ class DriverVectorCube:
                 return {p.name: {"href": p} for p in components}
 
     def to_multipolygon(self) -> shapely.geometry.MultiPolygon:
+        # TODO: be more strict about point handling: current implementation:
+        #       if all items are points, a MultiPoint will be returned
+        #       if it is a mix of points and polygons, it will return a (Multi)Polygon, ignoring the points.
         return shapely.ops.unary_union(self._geometries.geometry)
 
     def to_legacy_save_result(self) -> Union["AggregatePolygonResult", "JSONResult"]:
