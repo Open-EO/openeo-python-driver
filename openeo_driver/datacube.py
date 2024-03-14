@@ -652,6 +652,13 @@ class DriverVectorCube:
     def get_ids(self) -> Optional[Sequence]:
         return self._geometries.get("id")
 
+    def get_band_values(self,key) -> Optional[Sequence]:
+        """
+        TODO: is this now the DIM_PROPERTIES or DIM_BANDS?
+        Returns values for a specific band, other dimensions (e.g. time, geometry) are flattened.
+        """
+        return self._geometries.get(key)
+
     def get_xarray_cube_basics(self) -> Tuple[tuple, dict]:
         """Get initial dims/coords for xarray DataArray construction"""
         dims = (self.DIM_GEOMETRY,)
