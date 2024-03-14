@@ -20,6 +20,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.94.1
+
+- Retry EJR search requests ([Open-EO/openeo-geopyspark-driver#720](https://github.com/Open-EO/openeo-geopyspark-driver/issues/720))
+
 ## 0.93.0
 
 - For client credentials: use OIDC "sub" identifier as user_id instead of config based mapping to be compatible
