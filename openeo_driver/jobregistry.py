@@ -16,6 +16,7 @@ import requests
 from deprecated.classic import deprecated
 from openeo.rest.connection import url_join
 from openeo.util import TimingLogger, repr_truncate, rfc3339
+from retry.api import retry_call
 
 import openeo_driver._version
 from openeo_driver.errors import InternalException, JobNotFoundException
@@ -531,7 +532,9 @@ class ElasticJobRegistry(JobRegistryInterface):
             "_source": list(fields),
         }
         self.logger.debug(f"Doing search with query {json.dumps(query)}")
-        return self._do_request("POST", "/jobs/search", json=query)
+        return retry_call(self._do_request, fargs=["POST", "/jobs/search", query],
+                          exceptions=requests.exceptions.RequestException, tries=4, delay=2, backoff=2,
+                          logger=self.logger)
 
     def list_user_jobs(
         self, user_id: Optional[str], fields: Optional[List[str]] = None
