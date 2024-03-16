@@ -550,8 +550,10 @@ class DryRunDataCube(DriverDataCube):
             target_dimension: str = "result",
     ) -> Union[AggregatePolygonResult, AggregatePolygonSpatialResult]:
         # TODO #71 #114 EP-3981 normalize to vector cube instead of GeometryCollection
-        geometries, bbox = self._normalize_geometry(geometries)
-        cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
+        geoms_is_empty = isinstance(geometries, DriverVectorCube) and len(geometries.get_geometries()) == 0
+        if not geoms_is_empty:
+            geometries, bbox = self._normalize_geometry(geometries)
+            cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
         cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
         if isinstance(geometries, (Polygon, MultiPolygon)):
             # TODO #71 normalize to feature collection instead of deprecated geometry collection
