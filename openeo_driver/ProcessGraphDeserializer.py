@@ -1136,6 +1136,8 @@ def aggregate_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
             )
     elif isinstance(geoms, DelayedVector):
         geoms = geoms.path
+    elif isinstance(geoms, AggregatePolygonResult):
+        geoms = geoms.to_driver_vector_cube()
     else:
         raise ProcessParameterInvalidException(
             parameter="geometries", process="aggregate_spatial", reason=f"Invalid type: {type(geoms)} ({geoms!r})"

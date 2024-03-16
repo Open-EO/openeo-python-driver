@@ -585,6 +585,8 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         elif isinstance(self._regions, DriverVectorCube):
             shapely_geometries: typing.Sequence[BaseGeometry] = self._regions.get_geometries()
             geometries = gpd.GeoDataFrame(geometry=shapely_geometries)
+        elif self._regions is None:
+            return DriverVectorCube(geometries=gpd.GeoDataFrame(geometry=[]), cube=None)
         else:
             raise ValueError(f"Unsupported regions type: {type(self._regions)}")
         # self._data is {timestamp: [geometries, bands]}
