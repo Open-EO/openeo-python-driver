@@ -826,6 +826,14 @@ class TestDriverVectorCube:
         area = vc.get_area()
         numpy.testing.assert_allclose(area, 10269391.016361, rtol=0.1)
 
+    def test_get_band_values(self):
+        path = str(get_path("geojson/FeatureCollection02.json"))
+        with open(path) as f:
+            vc = DriverVectorCube.from_geojson(json.load(f))
+        ids = vc.get_band_values("id")
+        assert list(ids) == ["first","second"]
+
+
     def test_buffer_points(self):
         geometry = as_geojson_feature_collection(
             Point(2, 3), Polygon.from_bounds(5, 8, 13, 21)
