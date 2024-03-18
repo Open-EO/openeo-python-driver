@@ -10,6 +10,7 @@ import fiona
 import geopandas as gpd
 import pyproj
 import requests
+import shapely
 from shapely.geometry import shape
 from shapely.geometry.base import BaseGeometry
 
@@ -121,6 +122,27 @@ class DelayedVector:
                 for geometry in geometries
             ]
         return geometries
+
+    @property
+    def geojson(self) -> Dict:
+        # TODO: Also reproject geojson files to wgs84 if required.
+        if self.path.startswith("http"):
+            if not DelayedVector._is_shapefile(self.path):
+                geojson = self._load_geojson_url(url=self.path)
+                return geojson
+        else:  # it's a file on disk
+            if not self.path.endswith(".shp"):
+                with open(self.path, "r") as f:
+                    geojson = json.load(f)
+                    return geojson
+        geometries = self.geometries_wgs84
+        return {
+            "type": "FeatureCollection",
+            "features": [
+                {"type": "Feature", "geometry": shapely.geometry.mapping(geometry), "properties": {}}
+                for geometry in geometries
+            ],
+        }
 
     @property
     def area(self):
