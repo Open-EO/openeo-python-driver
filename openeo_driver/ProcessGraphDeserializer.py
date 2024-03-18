@@ -1277,14 +1277,18 @@ def filter_spatial(args: Dict, env: EvalEnv) -> DriverDataCube:
         )
 
     if isinstance(geometries, dict):
-        # TODO #71 #114 #268 EP-3981 avoid GeometryCollection and standardize on vector cubes
-        geometries = geojson_to_geometry(geometries)
-        if isinstance(geometries, GeometryCollection):
-            polygons = [
-                geom.geoms[0] if isinstance(geom, MultiPolygon) else geom
-                for geom in geometries.geoms
-            ]
-            geometries = MultiPolygon(polygons)
+        if "type" in geometries and geometries["type"] == "FeatureCollection":
+            geometries = DriverVectorCube.from_geojson(geometries)
+        else:
+                        # TODO #71 #114 #268 EP-3981 avoid GeometryCollection and standardize on vector cubes
+            geometries = geojson_to_geometry(geometries)
+            if isinstance(geometries, GeometryCollection):
+                polygons = [
+                    geom.geoms[0] if isinstance(geom, MultiPolygon) else geom
+                    for geom in geometries.geoms
+                ]
+                geometries = MultiPolygon(polygons)
+
     elif isinstance(geometries, DelayedVector):
         geometries = DriverVectorCube.from_fiona([geometries.path]).to_multipolygon()
     elif isinstance(geometries, DriverVectorCube):
