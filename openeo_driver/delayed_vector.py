@@ -124,17 +124,17 @@ class DelayedVector:
         return geometries
 
     @property
-    def geojson(self) -> Dict:
+    def geojson(self) -> dict:
         # TODO: Also reproject geojson files to wgs84 if required.
         if self.path.startswith("http"):
             if not DelayedVector._is_shapefile(self.path):
                 geojson = self._load_geojson_url(url=self.path)
-                return geojson
+                return self._geojson_to_wgs84(geojson)
         else:  # it's a file on disk
             if not self.path.endswith(".shp"):
                 with open(self.path, "r") as f:
                     geojson = json.load(f)
-                    return geojson
+                    return self._geojson_to_wgs84(geojson)
         geometries = self.geometries_wgs84
         return {
             "type": "FeatureCollection",
@@ -143,6 +143,24 @@ class DelayedVector:
                 for geometry in geometries
             ],
         }
+
+    def _geojson_to_wgs84(self, geojson: dict) -> dict:
+        wgs84 = pyproj.CRS("EPSG:4326")
+        if self.crs != wgs84:
+            # Reproject the geometries in the geojson but keep the properties.
+            geometries = [
+                reproject_geometry(shape(feature["geometry"]), from_crs=self.crs, to_crs=wgs84)
+                for feature in geojson["features"]
+            ]
+            features = []
+            for geometry, feature in zip(geometries, geojson["features"]):
+                feature["geometry"] = shapely.geometry.mapping(geometry)
+                feature_dict = {"type": "Feature", "geometry": feature["geometry"]}
+                if "properties" in feature:
+                    feature_dict["properties"] = feature["properties"]
+                features.append(feature_dict)
+            return {"type": "FeatureCollection", "features": features}
+        return geojson
 
     @property
     def area(self):
