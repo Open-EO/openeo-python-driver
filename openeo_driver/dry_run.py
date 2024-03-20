@@ -234,7 +234,7 @@ class DryRunDataTracer:
 
     def load_collection(self, collection_id: str, arguments: dict, metadata: dict = None) -> 'DryRunDataCube':
         """Create a DryRunDataCube from a `load_collection` process."""
-        # TODO: avoid VITO/Terrascope specific handling here?
+        # TODO #275 avoid VITO/Terrascope specific handling here?
         properties = {**CollectionMetadata(metadata).get("_vito", "properties", default={}),
                       **arguments.get("properties", {})}
 
@@ -721,6 +721,7 @@ class DryRunDataCube(DriverDataCube):
         elevation_model: Optional[str] = None,
         options: Optional[dict] = None,
     ) -> "DriverDataCube":
+        # TODO #275 does this VITO reference belong here?
         method_link = "https://remotesensing.vito.be/case/icor"
         if method == "SMAC":
             method_link = "https://doi.org/10.1080/01431169408954055"

@@ -802,7 +802,7 @@ def _s3_client():
     # We want to avoid unnecessary dependencies. (And dependencies  of dependencies!)
     import boto3
 
-    # TODO: Get these credentials/secrets from VITO TAP vault instead of os.environ
+    # TODO: Get these credentials/secrets from config instead of os.environ
     aws_access_key_id = os.environ.get("SWIFT_ACCESS_KEY_ID", os.environ.get("AWS_ACCESS_KEY_ID"))
     aws_secret_access_key = os.environ.get("SWIFT_SECRET_ACCESS_KEY", os.environ.get("AWS_SECRET_ACCESS_KEY"))
     swift_url = os.environ.get("SWIFT_URL")

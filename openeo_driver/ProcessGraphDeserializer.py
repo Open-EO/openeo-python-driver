@@ -453,6 +453,7 @@ def _align_extent(extent,collection_id,env):
     except CollectionNotFoundException:
         pass
 
+    # TODO #275 eliminate this VITO specific handling?
     if metadata is None or metadata.get("_vito") is None or not metadata.get("_vito").get("data_source", {}).get("realign", False):
         return extent
 
@@ -574,6 +575,7 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
         return dry_run_tracer.load_collection(collection_id=collection_id, arguments=arguments, metadata=metadata)
     else:
         # Extract basic source constraints.
+        # TODO #275: eliminate this VITO specific handling?
         properties = {**CollectionMetadata(metadata).get("_vito", "properties", default={}),
                       **arguments.get("properties", {})}
 

@@ -689,6 +689,7 @@ class CliApp:
         return cli.parse_args()
 
     def _get_job_registry(self, setup_auth=True, cli_args: Optional[argparse.Namespace] = None) -> ElasticJobRegistry:
+        # TODO #275 avoid hardcoded VITO reference, instead require env var or cli option?
         api_url = self.environ.get("OPENEO_EJR_API", "https://jobregistry.vgt.vito.be")
         if "backend_id" in cli_args and cli_args.backend_id:
             backend_id = cli_args.backend_id
@@ -716,7 +717,7 @@ class CliApp:
                 vault_client = hvac.Client(url=self.environ.get("VAULT_ADDR"))
                 ejr_vault_path = self.environ.get(
                     "OPENEO_EJR_CREDENTIALS_VAULT_PATH",
-                    # TODO: eliminate this hardcoded VITO specific default value
+                    # TODO #275 eliminate this hardcoded VITO specific default value
                     "TAP/big_data_services/openeo/openeo-job-registry-elastic-api",
                 )
                 secret = vault_client.secrets.kv.v2.read_secret_version(
