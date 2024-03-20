@@ -689,7 +689,7 @@ class CliApp:
         return cli.parse_args()
 
     def _get_job_registry(self, setup_auth=True, cli_args: Optional[argparse.Namespace] = None) -> ElasticJobRegistry:
-        api_url = self.environ.get("OPENEO_EJR_API", "https://jobregistry.openeo.vito.be")
+        api_url = self.environ.get("OPENEO_EJR_API", "https://jobregistry.vgt.vito.be")
         if "backend_id" in cli_args and cli_args.backend_id:
             backend_id = cli_args.backend_id
         else:
