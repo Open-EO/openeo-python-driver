@@ -556,10 +556,7 @@ class DryRunDataCube(DriverDataCube):
             geometries, bbox = self._normalize_geometry(geometries)
             cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
         cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
-        if isinstance(geometries, (Polygon, MultiPolygon)):
-            # TODO #71 normalize to feature collection instead of deprecated geometry collection
-            geometries = GeometryCollection([geometries])
-        return AggregatePolygonResult(timeseries={}, regions=geometries)
+        return cube
 
     def _normalize_geometry(self, geometries) -> Tuple[Union[DriverVectorCube, DelayedVector, BaseGeometry], dict]:
         """
