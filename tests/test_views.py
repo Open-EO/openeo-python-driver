@@ -2566,6 +2566,16 @@ class TestBatchJobs:
         )
 
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
+    def test_download_ml_model_metadata_signed(self, flask_app, api110, backend_config_overrides):
+        with self._fresh_job_registry():
+            resp = api110.get(
+                "/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/ml_model_metadata.json",
+                headers=self.AUTH_HEADER,
+            )
+        assert "expires" in resp.assert_status_code(200).json["assets"]["model"]["href"]  # signed result
+
+    @mock.patch("time.time", mock.MagicMock(return_value=1234))
     def test_download_ml_model_metadata(self, flask_app, api110, backend_config_overrides):
         with self._fresh_job_registry():
             resp = api110.get(
@@ -2573,6 +2583,7 @@ class TestBatchJobs:
                 headers=self.AUTH_HEADER,
             )
         random_id = resp.assert_status_code(200).json["id"]
+        assert "expires" not in resp.assert_status_code(200).json["assets"]["model"]["href"]  # not signed result
         assert resp.assert_status_code(200).json == {
             'id': random_id,
             'type': 'Feature',
