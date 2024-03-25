@@ -648,7 +648,7 @@ def register_views_processing(
             else:
                 if sync_processing_issues:
                     # After this proves to run correctly on many sync jobs, we can throw an error instead.
-                    _log.warning(ProcessGraphComplexityException.message
+                    raise OpenEOApiException(ProcessGraphComplexityException.message
                                  + f" Reasons: {' '.join(sync_processing_issues)}"
                                  )
 
