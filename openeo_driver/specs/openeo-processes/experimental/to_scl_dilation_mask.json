@@ -29,6 +29,7 @@
         "name": "mask1_values",
         "description": "",
         "optional": true,
+        "default": [2, 4, 5, 6, 7],
         "schema": {
           "type": "array",
           "items": {
@@ -40,6 +41,7 @@
         "name": "mask2_values",
         "description": "",
         "optional": true,
+        "default": [3, 8, 9, 10, 11],
         "schema": {
           "type": "array",
           "items": {

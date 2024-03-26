@@ -32,6 +32,7 @@ which are used to bootstrap the EvalEnv that is used for the real process graph 
 These source constraints can then be fetched from the EvalEnv at `load_collection` time.
 
 """
+from __future__ import annotations
 import logging
 from enum import Enum
 from typing import List, Union, Tuple, Any, Optional
@@ -741,11 +742,14 @@ class DryRunDataCube(DriverDataCube):
     def mask_scl_dilation(self, **kwargs) -> 'DriverDataCube':
         return self._process("custom_cloud_mask", arguments={**{"method":"mask_scl_dilation"},**kwargs})
 
-    def to_scl_dilation_mask(self, erosion_kernel_size: int,
+    def to_scl_dilation_mask(
+        self,
+        erosion_kernel_size: int,
         mask1_values: List[int],
         mask2_values: List[int],
         kernel1_size: int,
-        kernel2_size: int) -> 'DriverDataCube':
+        kernel2_size: int,
+    ) -> DryRunDataCube:
         cube = self._process("process_type", [ProcessType.FOCAL_SPACE])
         size = kernel2_size
         cube = cube._process("pixel_buffer", arguments={"buffer_size": [size/2.0,size/2.0]})
