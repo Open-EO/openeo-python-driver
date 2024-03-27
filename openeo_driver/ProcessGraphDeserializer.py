@@ -1738,7 +1738,7 @@ def get_geometries(args: Dict, env: EvalEnv) -> Union[DelayedVector, dict]:
 
 @non_standard_process(
     ProcessSpec("raster_to_vector", description="Converts this raster data cube into a vector data cube. The bounding polygon of homogenous areas of pixels is constructed.\n"
-                                                "Only the first band is considered the others are ignored.")
+                                                "Only the first band is considered the others are ignored.", extra={"experimental": True})
         .param('data', description="A raster data cube.", schema={"type": "object", "subtype": "raster-cube"})
         .returns("vector-cube", schema={"type": "object", "subtype": "vector-cube"})
 )
