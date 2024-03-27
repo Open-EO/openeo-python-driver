@@ -545,22 +545,18 @@ class DryRunDataCube(DriverDataCube):
         return cube._process(operation="mask_polygon", arguments={"mask": mask})
 
     def aggregate_spatial(
-            self,
-            geometries: Union[BaseGeometry, str, DriverVectorCube],
-            reducer: dict,
-            target_dimension: str = "result",
-    ) -> Union[AggregatePolygonResult, AggregatePolygonSpatialResult]:
+        self,
+        geometries: Union[BaseGeometry, str, DriverVectorCube],
+        reducer: dict,
+        target_dimension: str = "result",
+    ) -> "DryRunDataCube":
         # TODO #71 #114 EP-3981 normalize to vector cube instead of GeometryCollection
         geoms_is_empty = isinstance(geometries, DriverVectorCube) and len(geometries.get_geometries()) == 0
         cube = self
         if not geoms_is_empty:
             geometries, bbox = self._normalize_geometry(geometries)
             cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
-        cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
-        if isinstance(geometries, (Polygon, MultiPolygon)):
-            # TODO #71 normalize to feature collection instead of deprecated geometry collection
-            geometries = GeometryCollection([geometries])
-        return AggregatePolygonResult(timeseries={}, regions=geometries)
+        return cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
 
     def _normalize_geometry(self, geometries) -> Tuple[Union[DriverVectorCube, DelayedVector, BaseGeometry], dict]:
         """
