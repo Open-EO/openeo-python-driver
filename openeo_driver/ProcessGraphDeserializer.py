@@ -1755,12 +1755,15 @@ def raster_to_vector(args: Dict, env: EvalEnv):
 @non_standard_process(
     ProcessSpec("vector_to_raster", description="Creates a raster cube as output based on a vector cube. The values in the output raster cube are based on the numeric properties in the input vector cube.")
         .param('data', description="A vector data cube.", schema={"type": "object", "subtype": "vector-cube"})
-        .param('target_data_cube', description = "A raster data cube used as reference.", schema = {"type": "object", "subtype": "raster-cube"})
+        .param('target', description = "A raster data cube used as reference.", schema = {"type": "object", "subtype": "raster-cube"})
         .returns("raster-cube", schema={"type": "object", "subtype": "raster-cube"})
 )
 def vector_to_raster(args: dict, env: EvalEnv) -> DriverDataCube:
     input_vector_cube = extract_arg(args, "data")
-    target_data_cube = extract_arg(args, "target_data_cube")  # TODO: Rename to 'target'.
+    if( "target_data_cube" in args):
+        target_data_cube = extract_arg(args, "target_data_cube")  # TODO: remove after full migration to use of 'target'
+    else:
+        target_data_cube = extract_arg(args, "target")
     # TODO: to_driver_vector_cube is temporary. Remove it when vector cube is fully supported.
     if not isinstance(input_vector_cube, DriverVectorCube) and not hasattr(input_vector_cube, "to_driver_vector_cube"):
         raise ProcessParameterInvalidException(
@@ -1770,7 +1773,7 @@ def vector_to_raster(args: dict, env: EvalEnv) -> DriverDataCube:
         )
     if not isinstance(target_data_cube, DriverDataCube):
         raise ProcessParameterInvalidException(
-            parameter="target_data_cube",
+            parameter="target",
             process="vector_to_raster",
             reason=f"Invalid data type {type(target_data_cube)!r} expected raster-cube.",
         )
