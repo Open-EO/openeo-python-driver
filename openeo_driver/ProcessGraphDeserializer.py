@@ -1753,7 +1753,7 @@ def raster_to_vector(args: Dict, env: EvalEnv):
 
 
 @non_standard_process(
-    ProcessSpec("vector_to_raster", description="Creates a raster cube as output based on a vector cube. The values in the output raster cube are based on the numeric properties in the input vector cube.")
+    ProcessSpec("vector_to_raster", description="Creates a raster cube as output based on a vector cube. The values in the output raster cube are based on the numeric properties in the input vector cube.", extra={"experimental": True})
         .param('data', description="A vector data cube.", schema={"type": "object", "subtype": "vector-cube"})
         .param('target', description = "A raster data cube used as reference.", schema = {"type": "object", "subtype": "raster-cube"})
         .returns("raster-cube", schema={"type": "object", "subtype": "raster-cube"})
