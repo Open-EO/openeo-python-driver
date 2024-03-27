@@ -45,7 +45,7 @@ from openeo_driver.datacube import (
 )
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint
+from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint, DryRunDataCube
 from openeo_driver.errors import (
     ProcessParameterRequiredException,
     ProcessParameterInvalidException,
@@ -1399,7 +1399,10 @@ def run_udf(args: dict, env: EvalEnv):
 
     # TODO: this is simple heuristic about skipping `run_udf` in dry-run mode. Does this have to be more advanced?
     # TODO: would it be useful to let user hook into dry-run phase of run_udf (e.g. hint about result type/structure)?
-    if dry_run_tracer and isinstance(data, AggregatePolygonResult):
+    if dry_run_tracer and isinstance(data, DryRunDataCube):
+        # Note: Other data types do execute the UDF during the dry-run.
+        # E.g. A DelayedVector (when the user directly provides geometries as input).
+        # This way a weak_spatial_extent can be calculated from the UDF's output.
         return JSONResult({})
 
     if isinstance(data, SupportsRunUdf) and data.supports_udf(udf=udf, runtime=runtime):
