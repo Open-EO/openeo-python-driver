@@ -357,7 +357,7 @@ def test_bearer_auth_oidc_inspect(app, requests_mock, oidc_provider):
         assert userinfo["sub"] == "oidcuser"
         internal_auth_data = resp.json["internal_auth_data"]
         assert internal_auth_data["authentication_method"] == "OIDC"
-        assert internal_auth_data["provider_id"] == "testoidc"
+        assert internal_auth_data["oidc_provider_id"] == "testoidc"
         assert internal_auth_data["oidc_issuer"] == 'https://oeo.example.com'
         assert internal_auth_data["access_token"] == oidc_access_token
 
