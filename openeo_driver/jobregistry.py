@@ -137,7 +137,7 @@ class JobRegistryInterface:
         raise NotImplementedError
 
     def set_proxy_user(self, job_id: str, proxy_user: str) -> JobDict:
-        # TODO: this is a pretty implementation specific field. Generalize this in some way?
+        # TODO #275 this "proxy_user" is a pretty implementation (YARN/VITO) specific field. Generalize this in some way?
         raise NotImplementedError
 
     def set_application_id(self, job_id: str, application_id: str) -> JobDict:
@@ -517,6 +517,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         )
 
     def set_proxy_user(self, job_id: str, proxy_user: str) -> JobDict:
+        # TODO #275 this "proxy_user" is a pretty implementation (YARN/VITO) specific field. Generalize this in some way?
         return self._update(job_id=job_id, data={"proxy_user": proxy_user})
 
     def set_application_id(self, job_id: str, application_id: str) -> JobDict:

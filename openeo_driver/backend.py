@@ -388,7 +388,7 @@ class BatchJobs(MicroService):
     ASSET_PUBLIC_HREF = "public_href"
 
     def __init__(self):
-        # TODO #275 this "proxy user" feature is YARN/Spark/VITO specific. Move it to oppeno-geopyspark-driver?
+        # TODO #275 this "proxy_user" feature is YARN (VITO) specific. Move it to oppeno-geopyspark-driver?
         self._get_proxy_user: Callable[[User], Optional[str]] = lambda user: None
 
     def create_job(
@@ -503,11 +503,12 @@ class BatchJobs(MicroService):
         """
         raise NotImplementedError
 
-    # TODO #275 this "proxy user" feature is YARN/Spark/VITO specific. Move it to oppeno-geopyspark-driver?
     def get_proxy_user(self, user: User) -> Optional[str]:
+        # TODO #275 this "proxy_user" feature is YARN (VITO) specific. Move it to oppeno-geopyspark-driver?
         return self._get_proxy_user(user)
 
     def set_proxy_user_getter(self, getter: Callable[[User], Optional[str]]):
+        # TODO #275 this "proxy_user" feature is YARN (VITO) specific. Move it to oppeno-geopyspark-driver?
         self._get_proxy_user = getter
 
 
@@ -750,8 +751,8 @@ class OpenEoBackendImplementation:
     def summarize_exception(self, error: Exception) -> Union[ErrorSummary, Exception]:
         return error
 
-    # TODO #275 this "proxy user" feature is YARN/Spark/VITO specific. Move it to oppeno-geopyspark-driver?
     def set_preferred_username_getter(self, getter: Callable[[User], Optional[str]]):
+        # TODO #275 this "proxy_user" feature is YARN/Spark/VITO specific. Move it to oppeno-geopyspark-driver?
         self.batch_jobs.set_proxy_user_getter(getter)
 
     def user_access_validation(self, user: User, request: flask.Request) -> User:
