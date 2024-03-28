@@ -14,7 +14,7 @@ from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER,
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.dry_run import DryRunDataTracer, DataSource, DataTrace, ProcessType
+from openeo_driver.dry_run import DryRunDataTracer, DataSource, DataTrace, ProcessType, DryRunDataCube
 from openeo_driver.testing import DictSubSet, approxify, ephemeral_fileserver
 from openeo_driver.util.geometry import as_geojson_feature_collection
 from openeo_driver.utils import EvalEnv
@@ -1826,3 +1826,38 @@ def test_export_workspace(dry_run_tracer, backend_implementation):
         mock.call(Path("file1"), "some/path"),
         mock.call(Path("file2"), "some/path"),
     ])
+
+
+def test_vector_to_raster(dry_run_env):
+    geometry_path = str(get_path("geojson/GeometryCollection01.json"))
+    pg = {
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "vector": {"process_id": "read_vector", "arguments": {"filename": geometry_path}},
+        "agg": {
+            "process_id": "aggregate_spatial",
+            "arguments": {
+                "data": {"from_node": "lc"},
+                "geometries": {"from_node": "vector"},
+                "reducer": {
+                    "process_graph": {
+                        "mean": {
+                            "process_id": "mean",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        }
+                    }
+                },
+            },
+        },
+        "raster": {
+            "process_id": "vector_to_raster",
+            "arguments": {"data": {"from_node": "agg"}, "target_data_cube": {"from_node": "lc"}},
+        },
+        "rename": {
+            "process_id": "rename_labels",
+            "arguments": {"data": {"from_node": "raster"}, "dimension": "bands", "target": ["score"]},
+            "result": True,
+        },
+    }
+    save_result = evaluate(pg, env=dry_run_env)
+    assert isinstance(save_result, DryRunDataCube)
