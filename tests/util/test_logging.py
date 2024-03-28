@@ -735,4 +735,40 @@ class TestContextBasedExtraInjectingFilter:
             {"levelname": "ERROR", "message": "main failed"},
         ]
 
-    # TODO: test threading behaviour
+    def test_threading_behaviour(self, pytester):
+        script = self._build_script(
+            """
+            import threading
+
+            logger = logging.getLogger("foo")
+
+            def log_in_thread(i: int):
+                with ContextBasedExtraInjectingFilter.with_extra_logging(i=i):
+                    logger.info(f"{i=}")
+
+            threads = [threading.Thread(target=log_in_thread, kwargs={"i": i}) for i in range(10)]
+
+            for thread in threads:
+                thread.start()
+
+            for thread in threads:
+                thread.join()
+        """
+        )
+        pytester.makepyfile(main=script)
+        result = pytester.runpython("main.py")
+
+        records = _decode_json_lines(_strip_jenkins_distutils_hack_warnings(result.errlines))
+
+        assert sorted(records, key=lambda record: record["i"]) == [
+            {"levelname": "INFO", "message": "i=0", "i": 0},
+            {"levelname": "INFO", "message": "i=1", "i": 1},
+            {"levelname": "INFO", "message": "i=2", "i": 2},
+            {"levelname": "INFO", "message": "i=3", "i": 3},
+            {"levelname": "INFO", "message": "i=4", "i": 4},
+            {"levelname": "INFO", "message": "i=5", "i": 5},
+            {"levelname": "INFO", "message": "i=6", "i": 6},
+            {"levelname": "INFO", "message": "i=7", "i": 7},
+            {"levelname": "INFO", "message": "i=8", "i": 8},
+            {"levelname": "INFO", "message": "i=9", "i": 9},
+        ]
