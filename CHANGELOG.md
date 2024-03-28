@@ -20,6 +20,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.94.2
+
+- Fix dry run flow for aggregate_spatial, run_udf, and vector_to_raster ([#276](https://github.com/Open-EO/openeo-python-driver/issues/276)).
+
 ## 0.94.1
 
 - Improve resilience by retrying EJR search requests ([Open-EO/openeo-geopyspark-driver#720](https://github.com/Open-EO/openeo-geopyspark-driver/issues/720)).
