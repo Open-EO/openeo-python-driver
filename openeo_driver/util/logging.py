@@ -346,6 +346,51 @@ class BatchJobLoggingFilter(logging.Filter):
         return True
 
 
+class ContextBasedExtraInjectingFilter(logging.Filter):
+    """
+    Python logging plugin to automatically inject "extra" logging data
+    during a section of code, using a context manager (`with` statement).
+
+    The extra data is stored in a thread-local dict as class attribute:
+    while it should be safe to use in a multi-threaded context,
+    it still acts as global singleton storage within a single thread.
+    Nesting of context managers is supported.
+
+    Usage example:
+
+        - Add filter to relevant logging handler, e.g.:
+
+             handler.addFilter(ContextBasedExtraInjectorFilter())
+
+        - Inject extra data with a context manager, e.g.:
+
+            with ContextBasedExtraInjectorFilter.with_extra_logging(job_id="job-123"):
+                ...
+    """
+
+    # TODO: possible to get rid of singleton-style class attribute?
+    data = threading.local()
+
+    @classmethod
+    @contextlib.contextmanager
+    def with_extra_logging(cls, **kwargs):
+        """Context manager to inject extra logging data during its lifetime."""
+        orig = getattr(cls.data, "extra", {})
+        # Merge with existing extra data (from parent context)
+        cls.data.extra = {**orig, **kwargs}
+        try:
+            yield
+        finally:
+            cls.data.extra = orig
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Filter a log record (logging.Filter API)."""
+        if hasattr(self.data, "extra"):
+            for field, value in self.data.extra.items():
+                setattr(record, field, value)
+        return True
+
+
 @contextlib.contextmanager
 def just_log_exceptions(
     log: Union[logging.Logger, Callable, str, int] = logging.ERROR,
