@@ -1763,6 +1763,16 @@ def raster_to_vector(args: Dict, env: EvalEnv):
 )
 def vector_to_raster(args: dict, env: EvalEnv) -> DriverDataCube:
     input_vector_cube = extract_arg(args, "data")
+    dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
+    if dry_run_tracer:
+        if not isinstance(input_vector_cube, DryRunDataCube):
+            raise ProcessParameterInvalidException(
+                parameter="data",
+                process="vector_to_raster",
+                reason=f"Invalid data type {type(input_vector_cube)!r} expected vector-cube.",
+            )
+        return input_vector_cube
+
     if( "target_data_cube" in args):
         target_data_cube = extract_arg(args, "target_data_cube")  # TODO: remove after full migration to use of 'target'
     else:
@@ -1780,9 +1790,6 @@ def vector_to_raster(args: dict, env: EvalEnv) -> DriverDataCube:
             process="vector_to_raster",
             reason=f"Invalid data type {type(target_data_cube)!r} expected raster-cube.",
         )
-    dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
-    if dry_run_tracer:
-        return input_vector_cube
     return env.backend_implementation.vector_to_raster(input_vector_cube, target_data_cube)
 
 
