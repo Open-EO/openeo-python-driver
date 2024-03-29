@@ -20,6 +20,11 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.95.2
+
+- Automatically add job_id and user_id to all logs during job start handling
+  ([#214](https://github.com/Open-EO/openeo-python-driver/issues/214), eu-cdse/openeo-cdse-infra#56)
+
 ## 0.95.1
 
 - Enable `ExtraLoggingFilter` by default from `get_logging_config`

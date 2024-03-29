@@ -44,7 +44,7 @@ from openeo_driver.jobregistry import JOB_STATUS, PARTIAL_JOB_STATUS
 from openeo_driver.save_result import SaveResult, to_save_result
 from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
 from openeo_driver.users.auth import HttpAuthHandler
-from openeo_driver.util.logging import FlaskRequestCorrelationIdLogging
+from openeo_driver.util.logging import FlaskRequestCorrelationIdLogging, ExtraLoggingFilter
 from openeo_driver.utils import EvalEnv, smart_bool, generate_unique_id, filter_supported_kwargs
 
 _log = logging.getLogger(__name__)
@@ -911,7 +911,8 @@ def register_views_batch_jobs(
         job_info = backend_implementation.batch_jobs.get_job_info(job_id, user.user_id)
         if job_info.status in {JOB_STATUS.CREATED, JOB_STATUS.CANCELED}:
             _log.info(f"`POST /jobs/{job_id}/results`: starting job (from status {job_info.status}")
-            backend_implementation.batch_jobs.start_job(job_id=job_id, user=user)
+            with ExtraLoggingFilter.with_extra_logging(job_id=job_id, user_id=user.user_id):
+                backend_implementation.batch_jobs.start_job(job_id=job_id, user=user)
         else:
             _log.info(f"`POST /jobs/{job_id}/results`: not (re)starting job (status {job_info.status}")
         return make_response("", 202)
