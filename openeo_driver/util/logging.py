@@ -68,15 +68,12 @@ def get_logging_config(
     }
     loggers = {**default_loggers, **(loggers or {})}
 
+    json_filters = ["ExtraLoggingFilter"]
     if context == LOGGING_CONTEXT_FLASK:
-        json_filters = [
-            "FlaskRequestCorrelationIdLogging",
-            "FlaskUserIdLogging",
-        ]
+        json_filters.append("FlaskRequestCorrelationIdLogging")
+        json_filters.append("FlaskUserIdLogging")
     elif context == LOGGING_CONTEXT_BATCH_JOB:
-        json_filters = ["BatchJobLoggingFilter"]
-    else:
-        json_filters = []
+        json_filters.append("BatchJobLoggingFilter")
 
     if not log_file:
         if not log_dir:
@@ -157,6 +154,7 @@ def get_logging_config(
             "FlaskRequestCorrelationIdLogging": {"()": FlaskRequestCorrelationIdLogging},
             "FlaskUserIdLogging": {"()": FlaskUserIdLogging},
             "BatchJobLoggingFilter": {"()": BatchJobLoggingFilter},
+            "ExtraLoggingFilter": {"()": ExtraLoggingFilter},
         },
         "formatters": {
             "basic": {

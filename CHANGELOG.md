@@ -20,6 +20,11 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.95.1
+
+- Enable `ExtraLoggingFilter` by default from `get_logging_config`
+  ([#214](https://github.com/Open-EO/openeo-python-driver/issues/214))
+
 ## 0.95.0
 
 - Add `ExtraLoggingFilter` for context manager based "extra" logging
