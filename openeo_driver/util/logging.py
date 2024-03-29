@@ -346,7 +346,7 @@ class BatchJobLoggingFilter(logging.Filter):
         return True
 
 
-class ContextBasedExtraInjectingFilter(logging.Filter):
+class ExtraLoggingFilter(logging.Filter):
     """
     Python logging plugin to automatically inject "extra" logging data
     during a section of code, using a context manager (`with` statement).
@@ -360,11 +360,11 @@ class ContextBasedExtraInjectingFilter(logging.Filter):
 
         - Add filter to relevant logging handler, e.g.:
 
-             handler.addFilter(ContextBasedExtraInjectorFilter())
+             handler.addFilter(ExtraLoggingFilter())
 
         - Inject extra data with a context manager, e.g.:
 
-            with ContextBasedExtraInjectorFilter.with_extra_logging(job_id="job-123"):
+            with ExtraLoggingFilter.with_extra_logging(job_id="job-123"):
                 ...
     """
 

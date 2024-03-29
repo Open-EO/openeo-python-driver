@@ -16,7 +16,7 @@ from openeo_driver.util.logging import (
     LOGGING_CONTEXT_FLASK,
     BatchJobLoggingFilter,
     FlaskRequestCorrelationIdLogging,
-    ContextBasedExtraInjectingFilter,
+    ExtraLoggingFilter,
     FlaskUserIdLogging,
     just_log_exceptions,
     user_id_trim,
@@ -590,20 +590,20 @@ def test_just_log_exceptions_extra(caplog):
     assert caplog.text == expected
 
 
-class TestContextBasedExtraInjectingFilter:
+class TestExtraLoggingFilter:
     def _build_script(self, src: str, json_fields: Optional[List[str]] = None) -> str:
         """Helper to build script with some common imports and logging setup"""
         json_format = " ".join(f"%({f})s" for f in json_fields or ["levelname", "message"])
         setup = f"""
             import logging
             import pythonjsonlogger.jsonlogger
-            from openeo_driver.util.logging import ContextBasedExtraInjectingFilter
+            from openeo_driver.util.logging import ExtraLoggingFilter
 
             root_loger = logging.getLogger()
             root_loger.setLevel(logging.INFO)
             handler = logging.StreamHandler()
             handler.setFormatter(pythonjsonlogger.jsonlogger.JsonFormatter({json_format!r}))
-            handler.addFilter(ContextBasedExtraInjectingFilter())
+            handler.addFilter(ExtraLoggingFilter())
             root_loger.addHandler(handler)
         """
         return textwrap.dedent(setup) + "\n" + textwrap.dedent(src)
@@ -617,7 +617,7 @@ class TestContextBasedExtraInjectingFilter:
 
             logger = logging.getLogger("foo")
             logger.info("Hello")
-            with ContextBasedExtraInjectingFilter.with_extra_logging(job_id="job-42"):
+            with ExtraLoggingFilter.with_extra_logging(job_id="job-42"):
                 logger.info("Let's do some work")
                 do_work()
             logger.info("kthxbye")
@@ -643,11 +643,11 @@ class TestContextBasedExtraInjectingFilter:
             """
             logger = logging.getLogger("foo")
             logger.info("Hello")
-            with ContextBasedExtraInjectingFilter.with_extra_logging(user="john"):
+            with ExtraLoggingFilter.with_extra_logging(user="john"):
                 jobs = ["job-123", "job-456"]
                 logger.info(f"Found jobs {jobs}")
                 for job_id in jobs:
-                    with ContextBasedExtraInjectingFilter.with_extra_logging(job_id=job_id):
+                    with ExtraLoggingFilter.with_extra_logging(job_id=job_id):
                         logger.info(f"Handling {job_id}")
             logger.info("kthxbye")
             """,
@@ -672,9 +672,9 @@ class TestContextBasedExtraInjectingFilter:
         script = self._build_script(
             """
             logger = logging.getLogger("foo")
-            with ContextBasedExtraInjectingFilter.with_extra_logging(user="alice"):
+            with ExtraLoggingFilter.with_extra_logging(user="alice"):
                 logger.info("Who knows Alice?")
-                with ContextBasedExtraInjectingFilter.with_extra_logging(user="bob"):
+                with ExtraLoggingFilter.with_extra_logging(user="bob"):
                     logger.info("Greetings from Bob")
                 logger.info(f"That was fun")
             logger.info("kthxbye")
@@ -703,7 +703,7 @@ class TestContextBasedExtraInjectingFilter:
             def main():
                 logger.info("Hello")
                 for job_id in ["job-123", "job-0"]:
-                    with ContextBasedExtraInjectingFilter.with_extra_logging(job_id=job_id):
+                    with ExtraLoggingFilter.with_extra_logging(job_id=job_id):
                         logger.info(f"Handling {job_id}")
                         try:
                             rate = 4 / int(job_id.split("-")[1])
@@ -743,7 +743,7 @@ class TestContextBasedExtraInjectingFilter:
             logger = logging.getLogger("foo")
 
             def log_in_thread(i: int):
-                with ContextBasedExtraInjectingFilter.with_extra_logging(i=i):
+                with ExtraLoggingFilter.with_extra_logging(i=i):
                     logger.info(f"{i=}")
 
             threads = [threading.Thread(target=log_in_thread, kwargs={"i": i}) for i in range(5)]
@@ -779,7 +779,7 @@ class TestContextBasedExtraInjectingFilter:
             work_queue = queue.Queue()
 
             def decrease(name: str, condition):
-                with ContextBasedExtraInjectingFilter.with_extra_logging(worker=name):
+                with ExtraLoggingFilter.with_extra_logging(worker=name):
                     while True:
                         value = work_queue.get(timeout=0.1)
                         if condition(value) and value > 0:

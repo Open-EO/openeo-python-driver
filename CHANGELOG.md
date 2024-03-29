@@ -20,6 +20,11 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.95.0
+
+- Add `ExtraLoggingFilter` for context manager based "extra" logging
+  ([#214](https://github.com/Open-EO/openeo-python-driver/issues/214), [#233](https://github.com/Open-EO/openeo-python-driver/pull/233))
+
 ## 0.94.2
 
 - Fix dry run flow for aggregate_spatial, run_udf, and vector_to_raster ([#276](https://github.com/Open-EO/openeo-python-driver/issues/276)).
