@@ -55,7 +55,7 @@ class OpenEoBackendConfig:
 
     # Mapping of `(oidc_provider id, token_sub) to extra user info dictionary, with:
     # - `token_sub`: OIDC token "sub" field, identifying a user (or client in case of client credentials grant).
-    # Example use case: specifying the YARN proxy user to use for batch jobs of service accounts.
+    # Example use case: specifying the YARN proxy user to run batch jobs with for service accounts (client credentials).
     oidc_user_map: Dict[Tuple[str, str], dict] = attrs.Factory(dict)
 
     # General Flask related settings
