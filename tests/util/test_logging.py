@@ -3,7 +3,7 @@ import logging
 import re
 import textwrap
 import traceback
-from typing import List, Union
+from typing import List, Union, Optional
 
 import flask
 import pytest
@@ -16,6 +16,7 @@ from openeo_driver.util.logging import (
     LOGGING_CONTEXT_FLASK,
     BatchJobLoggingFilter,
     FlaskRequestCorrelationIdLogging,
+    ExtraLoggingFilter,
     FlaskUserIdLogging,
     just_log_exceptions,
     user_id_trim,
@@ -587,3 +588,239 @@ def test_just_log_exceptions_extra(caplog):
 
     expected = "[Foo:bar] ERROR In context 'untitled': caught RuntimeError('Nope')\n"
     assert caplog.text == expected
+
+
+class TestExtraLoggingFilter:
+    def _build_script(self, src: str, json_fields: Optional[List[str]] = None) -> str:
+        """Helper to build script with some common imports and logging setup"""
+        json_format = " ".join(f"%({f})s" for f in json_fields or ["levelname", "message"])
+        setup = f"""
+            import logging
+            import pythonjsonlogger.jsonlogger
+            from openeo_driver.util.logging import ExtraLoggingFilter
+
+            root_loger = logging.getLogger()
+            root_loger.setLevel(logging.INFO)
+            handler = logging.StreamHandler()
+            handler.setFormatter(pythonjsonlogger.jsonlogger.JsonFormatter({json_format!r}))
+            handler.addFilter(ExtraLoggingFilter())
+            root_loger.addHandler(handler)
+        """
+        return textwrap.dedent(setup) + "\n" + textwrap.dedent(src)
+
+    def test_basic(self, pytester):
+        script = self._build_script(
+            """
+            def do_work():
+                log = logging.getLogger("bar")
+                log.warning("Working here!")
+
+            logger = logging.getLogger("foo")
+            logger.info("Hello")
+            with ExtraLoggingFilter.with_extra_logging(job_id="job-42"):
+                logger.info("Let's do some work")
+                do_work()
+            logger.info("kthxbye")
+            """,
+            json_fields=["levelname", "name", "message"],
+        )
+        pytester.makepyfile(main=script)
+        result = pytester.runpython("main.py")
+
+        records = _decode_json_lines(_strip_jenkins_distutils_hack_warnings(result.errlines))
+        assert records == [
+            {"levelname": "INFO", "name": "foo", "message": "Hello"},
+            {"levelname": "INFO", "name": "foo", "message": "Let's do some work", "job_id": "job-42"},
+            {"levelname": "WARNING", "name": "bar", "message": "Working here!", "job_id": "job-42"},
+            {"levelname": "INFO", "name": "foo", "message": "kthxbye"},
+        ]
+
+    def test_nesting(self, pytester):
+        """
+        Test that nesting context is supported: extra fields are added/removed properly
+        """
+        script = self._build_script(
+            """
+            logger = logging.getLogger("foo")
+            logger.info("Hello")
+            with ExtraLoggingFilter.with_extra_logging(user="john"):
+                jobs = ["job-123", "job-456"]
+                logger.info(f"Found jobs {jobs}")
+                for job_id in jobs:
+                    with ExtraLoggingFilter.with_extra_logging(job_id=job_id):
+                        logger.info(f"Handling {job_id}")
+            logger.info("kthxbye")
+            """,
+            json_fields=["message"],
+        )
+        pytester.makepyfile(main=script)
+        result = pytester.runpython("main.py")
+
+        records = _decode_json_lines(_strip_jenkins_distutils_hack_warnings(result.errlines))
+        assert records == [
+            {"message": "Hello"},
+            {"message": "Found jobs ['job-123', 'job-456']", "user": "john"},
+            {"message": "Handling job-123", "user": "john", "job_id": "job-123"},
+            {"message": "Handling job-456", "user": "john", "job_id": "job-456"},
+            {"message": "kthxbye"},
+        ]
+
+    def test_nesting_override(self, pytester):
+        """
+        Test that overriding by nesting context is supported
+        """
+        script = self._build_script(
+            """
+            logger = logging.getLogger("foo")
+            with ExtraLoggingFilter.with_extra_logging(user="alice"):
+                logger.info("Who knows Alice?")
+                with ExtraLoggingFilter.with_extra_logging(user="bob"):
+                    logger.info("Greetings from Bob")
+                logger.info(f"That was fun")
+            logger.info("kthxbye")
+            """,
+            json_fields=["message"],
+        )
+        pytester.makepyfile(main=script)
+        result = pytester.runpython("main.py")
+
+        records = _decode_json_lines(_strip_jenkins_distutils_hack_warnings(result.errlines))
+        assert records == [
+            {"message": "Who knows Alice?", "user": "alice"},
+            {"message": "Greetings from Bob", "user": "bob"},
+            {"message": "That was fun", "user": "alice"},
+            {"message": "kthxbye"},
+        ]
+
+    def test_error_handling(self, pytester):
+        """
+        Test that extra logging fields are properly cleaned up when an exception occurs in context body
+        """
+        script = self._build_script(
+            """
+            logger = logging.getLogger("foo")
+
+            def main():
+                logger.info("Hello")
+                for job_id in ["job-123", "job-0"]:
+                    with ExtraLoggingFilter.with_extra_logging(job_id=job_id):
+                        logger.info(f"Handling {job_id}")
+                        try:
+                            rate = 4 / int(job_id.split("-")[1])
+                            logger.info(f"rate: {rate:.2f}")
+                        except Exception:
+                            logger.error(f"Something went wrong with {job_id}")
+                            raise
+                logger.info("kthxbye")
+
+            if __name__ == "__main__":
+                try:
+                    main()
+                except Exception:
+                    logger.error("main failed")
+        """
+        )
+        pytester.makepyfile(main=script)
+        result = pytester.runpython("main.py")
+
+        records = _decode_json_lines(_strip_jenkins_distutils_hack_warnings(result.errlines))
+        assert records == [
+            {"levelname": "INFO", "message": "Hello"},
+            {"levelname": "INFO", "message": "Handling job-123", "job_id": "job-123"},
+            {"levelname": "INFO", "message": "rate: 0.03", "job_id": "job-123"},
+            {"levelname": "INFO", "message": "Handling job-0", "job_id": "job-0"},
+            # This error log contains "job_id" field
+            {"levelname": "ERROR", "message": "Something went wrong with job-0", "job_id": "job-0"},
+            # This error log doesn't (it's cleaned up properly)
+            {"levelname": "ERROR", "message": "main failed"},
+        ]
+
+    def test_threading_simple(self, pytester):
+        script = self._build_script(
+            """
+            import threading
+
+            logger = logging.getLogger("foo")
+
+            def log_in_thread(i: int):
+                with ExtraLoggingFilter.with_extra_logging(i=i):
+                    logger.info(f"{i=}")
+
+            threads = [threading.Thread(target=log_in_thread, kwargs={"i": i}) for i in range(5)]
+
+            for thread in threads:
+                thread.start()
+
+            for thread in threads:
+                thread.join()
+        """
+        )
+        pytester.makepyfile(main=script)
+        result = pytester.runpython("main.py")
+
+        records = _decode_json_lines(_strip_jenkins_distutils_hack_warnings(result.errlines))
+
+        assert sorted(records, key=lambda record: record["i"]) == [
+            {"levelname": "INFO", "message": "i=0", "i": 0},
+            {"levelname": "INFO", "message": "i=1", "i": 1},
+            {"levelname": "INFO", "message": "i=2", "i": 2},
+            {"levelname": "INFO", "message": "i=3", "i": 3},
+            {"levelname": "INFO", "message": "i=4", "i": 4},
+        ]
+
+    def test_threading_concurrent(self, pytester):
+        """Test that the "extra" data does not leak between threads with context switching"""
+        script = self._build_script(
+            """
+            import threading
+            import queue
+
+            logger = logging.getLogger("foo")
+            work_queue = queue.Queue()
+
+            def decrease(name: str, condition):
+                with ExtraLoggingFilter.with_extra_logging(worker=name):
+                    while True:
+                        value = work_queue.get(timeout=0.1)
+                        if condition(value) and value > 0:
+                            logger.info(f"{value} -> {value - 1}")
+                            value -= 1
+                        work_queue.put(value)
+                        if value <= 0:
+                            logger.info(f"Stopping at {value}")
+                            break
+
+            threads = [
+                threading.Thread(target=decrease, kwargs={"name": "evener", "condition": lambda x: x % 2 != 0}),
+                threading.Thread(target=decrease, kwargs={"name": "odder", "condition": lambda x: x % 2 == 0}),
+            ]
+
+            value = 5
+            logger.info(f"Starting with {value}")
+            work_queue.put(value)
+            for thread in threads:
+                thread.start()
+
+            for thread in threads:
+                thread.join()
+
+            value = work_queue.get()
+            logger.info(f"Final value: {value}")
+        """
+        )
+        pytester.makepyfile(main=script)
+        result = pytester.runpython("main.py")
+
+        records = _decode_json_lines(_strip_jenkins_distutils_hack_warnings(result.errlines))
+
+        assert records == [
+            {"levelname": "INFO", "message": "Starting with 5"},
+            {"levelname": "INFO", "message": "5 -> 4", "worker": "evener"},
+            {"levelname": "INFO", "message": "4 -> 3", "worker": "odder"},
+            {"levelname": "INFO", "message": "3 -> 2", "worker": "evener"},
+            {"levelname": "INFO", "message": "2 -> 1", "worker": "odder"},
+            {"levelname": "INFO", "message": "1 -> 0", "worker": "evener"},
+            {"levelname": "INFO", "message": "Stopping at 0", "worker": "evener"},
+            {"levelname": "INFO", "message": "Stopping at 0", "worker": "odder"},
+            {"levelname": "INFO", "message": "Final value: 0"},
+        ]
