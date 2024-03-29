@@ -735,7 +735,7 @@ class TestContextBasedExtraInjectingFilter:
             {"levelname": "ERROR", "message": "main failed"},
         ]
 
-    def test_threading_behaviour(self, pytester):
+    def test_threading_simple(self, pytester):
         script = self._build_script(
             """
             import threading
@@ -746,7 +746,7 @@ class TestContextBasedExtraInjectingFilter:
                 with ContextBasedExtraInjectingFilter.with_extra_logging(i=i):
                     logger.info(f"{i=}")
 
-            threads = [threading.Thread(target=log_in_thread, kwargs={"i": i}) for i in range(10)]
+            threads = [threading.Thread(target=log_in_thread, kwargs={"i": i}) for i in range(5)]
 
             for thread in threads:
                 thread.start()
@@ -766,9 +766,61 @@ class TestContextBasedExtraInjectingFilter:
             {"levelname": "INFO", "message": "i=2", "i": 2},
             {"levelname": "INFO", "message": "i=3", "i": 3},
             {"levelname": "INFO", "message": "i=4", "i": 4},
-            {"levelname": "INFO", "message": "i=5", "i": 5},
-            {"levelname": "INFO", "message": "i=6", "i": 6},
-            {"levelname": "INFO", "message": "i=7", "i": 7},
-            {"levelname": "INFO", "message": "i=8", "i": 8},
-            {"levelname": "INFO", "message": "i=9", "i": 9},
+        ]
+
+    def test_threading_concurrent(self, pytester):
+        """Test that the "extra" data does not leak between threads with context switching"""
+        script = self._build_script(
+            """
+            import threading
+            import queue
+
+            logger = logging.getLogger("foo")
+            work_queue = queue.Queue()
+
+            def decrease(name: str, condition):
+                with ContextBasedExtraInjectingFilter.with_extra_logging(worker=name):
+                    while True:
+                        value = work_queue.get(timeout=0.1)
+                        if condition(value) and value > 0:
+                            logger.info(f"{value} -> {value - 1}")
+                            value -= 1
+                        work_queue.put(value)
+                        if value <= 0:
+                            logger.info(f"Stopping at {value}")
+                            break
+
+            threads = [
+                threading.Thread(target=decrease, kwargs={"name": "evener", "condition": lambda x: x % 2 != 0}),
+                threading.Thread(target=decrease, kwargs={"name": "odder", "condition": lambda x: x % 2 == 0}),
+            ]
+
+            value = 5
+            logger.info(f"Starting with {value}")
+            work_queue.put(value)
+            for thread in threads:
+                thread.start()
+
+            for thread in threads:
+                thread.join()
+
+            value = work_queue.get()
+            logger.info(f"Final value: {value}")
+        """
+        )
+        pytester.makepyfile(main=script)
+        result = pytester.runpython("main.py")
+
+        records = _decode_json_lines(_strip_jenkins_distutils_hack_warnings(result.errlines))
+
+        assert records == [
+            {"levelname": "INFO", "message": "Starting with 5"},
+            {"levelname": "INFO", "message": "5 -> 4", "worker": "evener"},
+            {"levelname": "INFO", "message": "4 -> 3", "worker": "odder"},
+            {"levelname": "INFO", "message": "3 -> 2", "worker": "evener"},
+            {"levelname": "INFO", "message": "2 -> 1", "worker": "odder"},
+            {"levelname": "INFO", "message": "1 -> 0", "worker": "evener"},
+            {"levelname": "INFO", "message": "Stopping at 0", "worker": "evener"},
+            {"levelname": "INFO", "message": "Stopping at 0", "worker": "odder"},
+            {"levelname": "INFO", "message": "Final value: 0"},
         ]
