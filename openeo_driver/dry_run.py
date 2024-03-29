@@ -32,6 +32,7 @@ which are used to bootstrap the EvalEnv that is used for the real process graph 
 These source constraints can then be fetched from the EvalEnv at `load_collection` time.
 
 """
+from __future__ import annotations
 import logging
 from enum import Enum
 from typing import List, Union, Tuple, Any, Optional
@@ -234,7 +235,7 @@ class DryRunDataTracer:
 
     def load_collection(self, collection_id: str, arguments: dict, metadata: dict = None) -> 'DryRunDataCube':
         """Create a DryRunDataCube from a `load_collection` process."""
-        # TODO: avoid VITO/Terrascope specific handling here?
+        # TODO #275 avoid VITO/Terrascope specific handling here?
         properties = {**CollectionMetadata(metadata).get("_vito", "properties", default={}),
                       **arguments.get("properties", {})}
 
@@ -544,19 +545,18 @@ class DryRunDataCube(DriverDataCube):
         return cube._process(operation="mask_polygon", arguments={"mask": mask})
 
     def aggregate_spatial(
-            self,
-            geometries: Union[BaseGeometry, str, DriverVectorCube],
-            reducer: dict,
-            target_dimension: str = "result",
-    ) -> Union[AggregatePolygonResult, AggregatePolygonSpatialResult]:
+        self,
+        geometries: Union[BaseGeometry, str, DriverVectorCube],
+        reducer: dict,
+        target_dimension: str = "result",
+    ) -> "DryRunDataCube":
         # TODO #71 #114 EP-3981 normalize to vector cube instead of GeometryCollection
-        geometries, bbox = self._normalize_geometry(geometries)
-        cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
-        cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
-        if isinstance(geometries, (Polygon, MultiPolygon)):
-            # TODO #71 normalize to feature collection instead of deprecated geometry collection
-            geometries = GeometryCollection([geometries])
-        return AggregatePolygonResult(timeseries={}, regions=geometries)
+        geoms_is_empty = isinstance(geometries, DriverVectorCube) and len(geometries.get_geometries()) == 0
+        cube = self
+        if not geoms_is_empty:
+            geometries, bbox = self._normalize_geometry(geometries)
+            cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
+        return cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
 
     def _normalize_geometry(self, geometries) -> Tuple[Union[DriverVectorCube, DelayedVector, BaseGeometry], dict]:
         """
@@ -718,6 +718,7 @@ class DryRunDataCube(DriverDataCube):
         elevation_model: Optional[str] = None,
         options: Optional[dict] = None,
     ) -> "DriverDataCube":
+        # TODO #275 does this VITO reference belong here?
         method_link = "https://remotesensing.vito.be/case/icor"
         if method == "SMAC":
             method_link = "https://doi.org/10.1080/01431169408954055"
@@ -737,11 +738,14 @@ class DryRunDataCube(DriverDataCube):
     def mask_scl_dilation(self, **kwargs) -> 'DriverDataCube':
         return self._process("custom_cloud_mask", arguments={**{"method":"mask_scl_dilation"},**kwargs})
 
-    def to_scl_dilation_mask(self, erosion_kernel_size: int,
+    def to_scl_dilation_mask(
+        self,
+        erosion_kernel_size: int,
         mask1_values: List[int],
         mask2_values: List[int],
         kernel1_size: int,
-        kernel2_size: int) -> 'DriverDataCube':
+        kernel2_size: int,
+    ) -> DryRunDataCube:
         cube = self._process("process_type", [ProcessType.FOCAL_SPACE])
         size = kernel2_size
         cube = cube._process("pixel_buffer", arguments={"buffer_size": [size/2.0,size/2.0]})

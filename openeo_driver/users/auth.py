@@ -212,9 +212,7 @@ class HttpAuthHandler:
         try:
             internal_auth_data = {
                 "authentication_method": "OIDC",
-                "provider_id": oidc_provider.id,  # TODO: deprecated
                 "oidc_provider_id": oidc_provider.id,
-                "oidc_provider_title": oidc_provider.title,  # TODO necessary to have title here?
                 "oidc_issuer": oidc_provider.issuer,
                 # used for e.g. access to SHub APIs on CDSE
                 "access_token": access_token,

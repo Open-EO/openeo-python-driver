@@ -2,6 +2,8 @@ import re
 
 import pytest
 from pyproj import CRS
+from shapely.geometry.base import BaseGeometry
+import shapely
 
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException
@@ -47,3 +49,11 @@ def test_geojson_invalid_coordinates():
     expected_error = "Failed to parse Geojson. Invalid coordinate: [-361.0, 50.861345984658136]"
     with pytest.raises(OpenEOApiException, match=re.escape(expected_error)):
         _ = dv.bounds
+
+
+def test_geojson_property_from_utm_epsg():
+    dv = DelayedVector(str(get_path("geojson/test_geojson_crs_from_epsg_utm.geojson")))
+    assert dv.crs == CRS.from_user_input("+init=epsg:32631")
+    wgs84_geom: BaseGeometry = dv.geometries_wgs84[0]
+    wgs84_geom_geojson = shapely.geometry.mapping(wgs84_geom)
+    assert dv.geojson["features"][0]["geometry"] == wgs84_geom_geojson

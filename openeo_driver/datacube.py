@@ -222,6 +222,17 @@ class DriverDataCube:
     ):
         self._not_implemented()
 
+    def to_scl_dilation_mask(
+        self,
+        erosion_kernel_size: int,
+        mask1_values: List[int],
+        mask2_values: List[int],
+        kernel1_size: int,
+        kernel2_size: int,
+    ) -> DriverDataCube:
+        # Note: this is a non-standard process
+        self._not_implemented()
+
 
 class VectorCubeError(InternalException):
     code = "VectorCubeError"
@@ -578,6 +589,9 @@ class DriverVectorCube:
                 return {p.name: {"href": p} for p in components}
 
     def to_multipolygon(self) -> shapely.geometry.MultiPolygon:
+        # TODO: be more strict about point handling: current implementation:
+        #       if all items are points, a MultiPoint will be returned
+        #       if it is a mix of points and polygons, it will return a (Multi)Polygon, ignoring the points.
         return shapely.ops.unary_union(self._geometries.geometry)
 
     def to_legacy_save_result(self) -> Union["AggregatePolygonResult", "JSONResult"]:
@@ -651,6 +665,13 @@ class DriverVectorCube:
 
     def get_ids(self) -> Optional[Sequence]:
         return self._geometries.get("id")
+
+    def get_band_values(self,key) -> Optional[Sequence]:
+        """
+        TODO: is this now the DIM_PROPERTIES or DIM_BANDS?
+        Returns values for a specific band, other dimensions (e.g. time, geometry) are flattened.
+        """
+        return self._geometries.get(key)
 
     def get_xarray_cube_basics(self) -> Tuple[tuple, dict]:
         """Get initial dims/coords for xarray DataArray construction"""

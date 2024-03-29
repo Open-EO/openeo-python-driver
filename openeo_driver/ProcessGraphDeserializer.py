@@ -45,7 +45,7 @@ from openeo_driver.datacube import (
 )
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint
+from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint, DryRunDataCube
 from openeo_driver.errors import (
     ProcessParameterRequiredException,
     ProcessParameterInvalidException,
@@ -453,6 +453,7 @@ def _align_extent(extent,collection_id,env):
     except CollectionNotFoundException:
         pass
 
+    # TODO #275 eliminate this VITO specific handling?
     if metadata is None or metadata.get("_vito") is None or not metadata.get("_vito").get("data_source", {}).get("realign", False):
         return extent
 
@@ -574,6 +575,7 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
         return dry_run_tracer.load_collection(collection_id=collection_id, arguments=arguments, metadata=metadata)
     else:
         # Extract basic source constraints.
+        # TODO #275: eliminate this VITO specific handling?
         properties = {**CollectionMetadata(metadata).get("_vito", "properties", default={}),
                       **arguments.get("properties", {})}
 
@@ -1136,6 +1138,8 @@ def aggregate_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
             )
     elif isinstance(geoms, DelayedVector):
         geoms = geoms.path
+    elif isinstance(geoms, AggregatePolygonResult):
+        geoms = geoms.to_driver_vector_cube()
     else:
         raise ProcessParameterInvalidException(
             parameter="geometries", process="aggregate_spatial", reason=f"Invalid type: {type(geoms)} ({geoms!r})"
@@ -1275,13 +1279,18 @@ def filter_spatial(args: Dict, env: EvalEnv) -> DriverDataCube:
         )
 
     if isinstance(geometries, dict):
-        geometries = geojson_to_geometry(geometries)
-        if isinstance(geometries, GeometryCollection):
-            polygons = [
-                geom.geoms[0] if isinstance(geom, MultiPolygon) else geom
-                for geom in geometries.geoms
-            ]
-            geometries = MultiPolygon(polygons)
+        if "type" in geometries and geometries["type"] == "FeatureCollection":
+            geometries = DriverVectorCube.from_geojson(geometries)
+        else:
+                        # TODO #71 #114 #268 EP-3981 avoid GeometryCollection and standardize on vector cubes
+            geometries = geojson_to_geometry(geometries)
+            if isinstance(geometries, GeometryCollection):
+                polygons = [
+                    geom.geoms[0] if isinstance(geom, MultiPolygon) else geom
+                    for geom in geometries.geoms
+                ]
+                geometries = MultiPolygon(polygons)
+
     elif isinstance(geometries, DelayedVector):
         geometries = DriverVectorCube.from_fiona([geometries.path]).to_multipolygon()
     elif isinstance(geometries, DriverVectorCube):
@@ -1390,7 +1399,10 @@ def run_udf(args: dict, env: EvalEnv):
 
     # TODO: this is simple heuristic about skipping `run_udf` in dry-run mode. Does this have to be more advanced?
     # TODO: would it be useful to let user hook into dry-run phase of run_udf (e.g. hint about result type/structure)?
-    if dry_run_tracer and isinstance(data, AggregatePolygonResult):
+    if dry_run_tracer and isinstance(data, DryRunDataCube):
+        # Note: Other data types do execute the UDF during the dry-run.
+        # E.g. A DelayedVector (when the user directly provides geometries as input).
+        # This way a weak_spatial_extent can be calculated from the UDF's output.
         return JSONResult({})
 
     if isinstance(data, SupportsRunUdf) and data.supports_udf(udf=udf, runtime=runtime):
@@ -1729,7 +1741,7 @@ def get_geometries(args: Dict, env: EvalEnv) -> Union[DelayedVector, dict]:
 
 @non_standard_process(
     ProcessSpec("raster_to_vector", description="Converts this raster data cube into a vector data cube. The bounding polygon of homogenous areas of pixels is constructed.\n"
-                                                "Only the first band is considered the others are ignored.")
+                                                "Only the first band is considered the others are ignored.", extra={"experimental": True})
         .param('data', description="A raster data cube.", schema={"type": "object", "subtype": "raster-cube"})
         .returns("vector-cube", schema={"type": "object", "subtype": "vector-cube"})
 )
@@ -1744,15 +1756,29 @@ def raster_to_vector(args: Dict, env: EvalEnv):
 
 
 @non_standard_process(
-    ProcessSpec("vector_to_raster", description="Creates a raster cube as output based on a vector cube. The values in the output raster cube are based on the numeric properties in the input vector cube.")
+    ProcessSpec("vector_to_raster", description="Creates a raster cube as output based on a vector cube. The values in the output raster cube are based on the numeric properties in the input vector cube.", extra={"experimental": True})
         .param('data', description="A vector data cube.", schema={"type": "object", "subtype": "vector-cube"})
-        .param('target_data_cube', description = "A raster data cube used as reference.", schema = {"type": "object", "subtype": "raster-cube"})
+        .param('target', description = "A raster data cube used as reference.", schema = {"type": "object", "subtype": "raster-cube"})
         .returns("raster-cube", schema={"type": "object", "subtype": "raster-cube"})
 )
 def vector_to_raster(args: dict, env: EvalEnv) -> DriverDataCube:
     input_vector_cube = extract_arg(args, "data")
-    target_data_cube = extract_arg(args, "target_data_cube")  # TODO: Rename to 'target'.
-    if not isinstance(input_vector_cube, DriverVectorCube):
+    dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
+    if dry_run_tracer:
+        if not isinstance(input_vector_cube, DryRunDataCube):
+            raise ProcessParameterInvalidException(
+                parameter="data",
+                process="vector_to_raster",
+                reason=f"Invalid data type {type(input_vector_cube)!r} expected vector-cube.",
+            )
+        return input_vector_cube
+
+    if( "target_data_cube" in args):
+        target_data_cube = extract_arg(args, "target_data_cube")  # TODO: remove after full migration to use of 'target'
+    else:
+        target_data_cube = extract_arg(args, "target")
+    # TODO: to_driver_vector_cube is temporary. Remove it when vector cube is fully supported.
+    if not isinstance(input_vector_cube, DriverVectorCube) and not hasattr(input_vector_cube, "to_driver_vector_cube"):
         raise ProcessParameterInvalidException(
             parameter="data",
             process="vector_to_raster",
@@ -1760,13 +1786,10 @@ def vector_to_raster(args: dict, env: EvalEnv) -> DriverDataCube:
         )
     if not isinstance(target_data_cube, DriverDataCube):
         raise ProcessParameterInvalidException(
-            parameter="target_data_cube",
+            parameter="target",
             process="vector_to_raster",
             reason=f"Invalid data type {type(target_data_cube)!r} expected raster-cube.",
         )
-    dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
-    if dry_run_tracer:
-        return None
     return env.backend_implementation.vector_to_raster(input_vector_cube, target_data_cube)
 
 
@@ -1993,23 +2016,22 @@ def mask_scl_dilation(args: Dict, env: EvalEnv):
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/to_scl_dilation_mask.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/to_scl_dilation_mask.json"))
-def to_scl_dilation_mask(args: Dict, env: EvalEnv):
-    cube: DriverDataCube = extract_arg(args, "data")
-    if not isinstance(cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data",
-            process="to_scl_dilation_mask",
-            reason=f"Invalid data type {type(cube)!r} expected raster-cube.",
-        )
-    if hasattr(cube, "to_scl_dilation_mask"):
-        erosion_kernel_size = args.get("erosion_kernel_size", 0)
-        mask1_values = args.get("mask1_values", [2, 4, 5, 6, 7])
-        mask2_values = args.get("mask2_values", [3, 8, 9, 10, 11])
-        kernel1_size = args.get("kernel1_size", 17)
-        kernel2_size = args.get("kernel2_size", 201)
-        return cube.to_scl_dilation_mask(erosion_kernel_size, mask1_values, mask2_values, kernel1_size, kernel2_size)
-    else:
-        return cube
+def to_scl_dilation_mask(args: ProcessArgs, env: EvalEnv):
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    # Get default values for other args from spec
+    spec = read_spec("openeo-processes/experimental/to_scl_dilation_mask.json")
+    defaults = {param["name"]: param["default"] for param in spec["parameters"] if "default" in param}
+    optionals = {
+        arg: args.get_optional(arg, default=defaults[arg])
+        for arg in [
+            "erosion_kernel_size",
+            "mask1_values",
+            "mask2_values",
+            "kernel1_size",
+            "kernel2_size",
+        ]
+    }
+    return cube.to_scl_dilation_mask(**optionals)
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/mask_l1c.json"))

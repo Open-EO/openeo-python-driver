@@ -16,6 +16,7 @@ import requests
 from deprecated.classic import deprecated
 from openeo.rest.connection import url_join
 from openeo.util import TimingLogger, repr_truncate, rfc3339
+from retry.api import retry_call
 
 import openeo_driver._version
 from openeo_driver.errors import InternalException, JobNotFoundException
@@ -136,7 +137,7 @@ class JobRegistryInterface:
         raise NotImplementedError
 
     def set_proxy_user(self, job_id: str, proxy_user: str) -> JobDict:
-        # TODO: this is a pretty implementation specific field. Generalize this in some way?
+        # TODO #275 this "proxy_user" is a pretty implementation (YARN/VITO) specific field. Generalize this in some way?
         raise NotImplementedError
 
     def set_application_id(self, job_id: str, application_id: str) -> JobDict:
@@ -516,6 +517,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         )
 
     def set_proxy_user(self, job_id: str, proxy_user: str) -> JobDict:
+        # TODO #275 this "proxy_user" is a pretty implementation (YARN/VITO) specific field. Generalize this in some way?
         return self._update(job_id=job_id, data={"proxy_user": proxy_user})
 
     def set_application_id(self, job_id: str, application_id: str) -> JobDict:
@@ -531,7 +533,9 @@ class ElasticJobRegistry(JobRegistryInterface):
             "_source": list(fields),
         }
         self.logger.debug(f"Doing search with query {json.dumps(query)}")
-        return self._do_request("POST", "/jobs/search", json=query)
+        return retry_call(self._do_request, fargs=["POST", "/jobs/search", query],
+                          exceptions=requests.exceptions.RequestException, tries=4, delay=2, backoff=2,
+                          logger=self.logger)
 
     def list_user_jobs(
         self, user_id: Optional[str], fields: Optional[List[str]] = None
@@ -686,7 +690,8 @@ class CliApp:
         return cli.parse_args()
 
     def _get_job_registry(self, setup_auth=True, cli_args: Optional[argparse.Namespace] = None) -> ElasticJobRegistry:
-        api_url = self.environ.get("OPENEO_EJR_API", "https://jobregistry.openeo.vito.be")
+        # TODO #275 avoid hardcoded VITO reference, instead require env var or cli option?
+        api_url = self.environ.get("OPENEO_EJR_API", "https://jobregistry.vgt.vito.be")
         if "backend_id" in cli_args and cli_args.backend_id:
             backend_id = cli_args.backend_id
         else:
@@ -713,7 +718,7 @@ class CliApp:
                 vault_client = hvac.Client(url=self.environ.get("VAULT_ADDR"))
                 ejr_vault_path = self.environ.get(
                     "OPENEO_EJR_CREDENTIALS_VAULT_PATH",
-                    # TODO: eliminate this hardcoded VITO specific default value
+                    # TODO #275 eliminate this hardcoded VITO specific default value
                     "TAP/big_data_services/openeo/openeo-job-registry-elastic-api",
                 )
                 secret = vault_client.secrets.kv.v2.read_secret_version(

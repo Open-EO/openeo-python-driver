@@ -585,6 +585,8 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         elif isinstance(self._regions, DriverVectorCube):
             shapely_geometries: typing.Sequence[BaseGeometry] = self._regions.get_geometries()
             geometries = gpd.GeoDataFrame(geometry=shapely_geometries)
+        elif self._regions is None:
+            return DriverVectorCube(geometries=gpd.GeoDataFrame(geometry=[]), cube=None)
         else:
             raise ValueError(f"Unsupported regions type: {type(self._regions)}")
         # self._data is {timestamp: [geometries, bands]}
@@ -902,6 +904,8 @@ def to_save_result(data: Any, format: Optional[str] = None, options: Optional[di
     elif isinstance(data, DriverVectorCube):
         return VectorCubeResult(cube=data, format=format, options=options)
     elif isinstance(data, DelayedVector):
+        if isinstance(format, str) and format.lower == "geojson":
+            return JSONResult(data.geojson, format=format, options=options)
         # TODO #114 EP-3981 add vector cube support: keep features from feature collection
         geojsons = [mapping(geometry) for geometry in data.geometries_wgs84]
         return JSONResult(geojsons, format=format, options=options)

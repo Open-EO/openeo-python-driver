@@ -802,7 +802,7 @@ def _s3_client():
     # We want to avoid unnecessary dependencies. (And dependencies  of dependencies!)
     import boto3
 
-    # TODO: Get these credentials/secrets from VITO TAP vault instead of os.environ
+    # TODO: Get these credentials/secrets from config instead of os.environ
     aws_access_key_id = os.environ.get("SWIFT_ACCESS_KEY_ID", os.environ.get("AWS_ACCESS_KEY_ID"))
     aws_secret_access_key = os.environ.get("SWIFT_SECRET_ACCESS_KEY", os.environ.get("AWS_SECRET_ACCESS_KEY"))
     swift_url = os.environ.get("SWIFT_URL")
@@ -1346,7 +1346,7 @@ def register_views_batch_jobs(
         for asset in assets.values():
             if not asset["href"].startswith("http"):
                 asset_file_name = pathlib.Path(asset["href"]).name
-                asset["href"] = url_for('.download_job_result', job_id=job_id, filename=asset_file_name, _external=True)
+                asset["href"] = _job_result_download_url(job_id, user_id, asset_file_name)
         stac_item = {
             "stac_version": ml_model_metadata.get("stac_version", "0.9.0"),
             "stac_extensions": ml_model_metadata.get("stac_extensions", []),

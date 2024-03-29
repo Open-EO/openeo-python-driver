@@ -4187,3 +4187,51 @@ def test_verify_for_synchronous_processing_failure(api, caplog):
     res = api.result(pg)
     res.assert_status_code(200)
     assert "Unexpected error while verifying synchronous processing: Nope, catch this" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ["arguments", "expected"],
+    [
+        (
+            {},
+            {
+                "erosion_kernel_size": 0,
+                "kernel1_size": 17,
+                "kernel2_size": 201,
+                "mask1_values": [2, 4, 5, 6, 7],
+                "mask2_values": [3, 8, 9, 10, 11],
+            },
+        ),
+        (
+            {"kernel1_size": 1717, "mask1_values": [666, 777]},
+            {
+                "erosion_kernel_size": 0,
+                "kernel1_size": 1717,
+                "kernel2_size": 201,
+                "mask1_values": [666, 777],
+                "mask2_values": [3, 8, 9, 10, 11],
+            },
+        ),
+    ],
+)
+def test_to_scl_dilation_mask_defaults(api, arguments, expected):
+    api.check_result(
+        {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {"id": "SENTINEL2_L2A_SENTINELHUB", "bands": ["SCL"]},
+            },
+            "to_scl_dilation_mask": {
+                "process_id": "to_scl_dilation_mask",
+                "arguments": {**{"data": {"from_node": "loadcollection1"}}, **arguments},
+                "result": True,
+            },
+        }
+    )
+
+    dummy = dummy_backend.get_collection("SENTINEL2_L2A_SENTINELHUB")
+    assert dummy.to_scl_dilation_mask.call_count == 1
+    args, kwargs = dummy.to_scl_dilation_mask.call_args
+    assert args == ()
+    assert kwargs == expected
+
