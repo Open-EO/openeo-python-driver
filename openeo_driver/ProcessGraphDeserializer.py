@@ -507,11 +507,15 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     filtered_constraints = [c for c in source_constraints if c[0] == source_id]
 
     for collection_id, constraint in source_constraints:
+        extent = None
         if "spatial_extent" in constraint:
             extent = constraint["spatial_extent"]
+        if "_weak_spatial_extent" in constraint:
+            extent = constraint["_weak_spatial_extent"]
+        if extent is not None:
             if "resample" not in constraint:
-                extent = _align_extent(extent,collection_id[1][0],env)
-
+                # Ensure that the extent that the user provided is aligned with the collection's native grid.
+                extent = _align_extent(extent, collection_id[1][0], env)
             global_extent = spatial_extent_union(global_extent, extent) if global_extent else extent
     for _, constraint in filtered_constraints:
         if "process_type" in constraint:
