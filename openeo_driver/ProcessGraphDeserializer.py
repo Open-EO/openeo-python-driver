@@ -510,8 +510,8 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
         extent = None
         if "spatial_extent" in constraint:
             extent = constraint["spatial_extent"]
-        if "_weak_spatial_extent" in constraint:
-            extent = constraint["_weak_spatial_extent"]
+        if "weak_spatial_extent" in constraint:
+            extent = constraint["weak_spatial_extent"]
         if extent is not None:
             if "resample" not in constraint:
                 # Ensure that the extent that the user provided is aligned with the collection's native grid.

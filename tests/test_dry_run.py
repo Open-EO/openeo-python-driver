@@ -483,7 +483,8 @@ def test_mask_polygon_only(dry_run_env, dry_run_tracer, inside, replacement, exp
     assert src == ("load_collection", ("S2_FOOBAR", ()))
     if expect_spatial_extent:
         expected = {
-            "spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"}
+            "spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
+            "weak_spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
         }
     else:
         expected = {}
@@ -505,7 +506,8 @@ def test_mask_polygon_and_load_collection_spatial_extent(dry_run_env, dry_run_tr
     src, constraints = source_constraints[0]
     assert src == ("load_collection", ("S2_FOOBAR", ()))
     assert constraints == {
-        "spatial_extent": {"west": -1, "south": -1, "east": 10, "north": 10, "crs": "EPSG:4326"}
+        "spatial_extent": {"west": -1, "south": -1, "east": 10, "north": 10, "crs": "EPSG:4326"},
+        "weak_spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
     }
 
 
@@ -529,7 +531,8 @@ def test_mask_polygon_and_filter_bbox(dry_run_env, dry_run_tracer, bbox_first):
     src, constraints = source_constraints[0]
     assert src == ("load_collection", ("S2_FOOBAR", ()))
     assert constraints == {
-        "spatial_extent": {"west": -1, "south": -1, "east": 9, "north": 9, "crs": "EPSG:4326"}
+        "spatial_extent": {"west": -1, "south": -1, "east": 9, "north": 9, "crs": "EPSG:4326"},
+        "weak_spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
     }
 
 
@@ -562,6 +565,7 @@ def test_aggregate_spatial_only(dry_run_env, dry_run_tracer):
     assert constraints == {
         "spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
         "aggregate_spatial": {"geometries": DriverVectorCube.from_geojson(polygon)},
+        "weak_spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
     }
     (geometries,) = dry_run_tracer.get_geometries()
     assert isinstance(geometries, DriverVectorCube)
@@ -806,7 +810,8 @@ def test_aggregate_spatial_apply_dimension(dry_run_env, dry_run_tracer):
         "bands": ["B04", "B08", "B11", "SCL"],
         "custom_cloud_mask": {"method": "mask_scl_dilation", 'scl_band_name': 'SCL'},
         "aggregate_spatial": {"geometries": DriverVectorCube.from_geojson(polygon)},
-        "temporal_extent": ("2018-11-01", "2020-02-01")
+        "temporal_extent": ("2018-11-01", "2020-02-01"),
+        "weak_spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
     }
     geometries, = dry_run_tracer.get_geometries()
     assert isinstance(geometries, DriverVectorCube)
@@ -840,6 +845,7 @@ def test_aggregate_spatial_and_filter_bbox(dry_run_env, dry_run_tracer):
     assert constraints == {
         "spatial_extent": bbox,
         "aggregate_spatial": {"geometries": DriverVectorCube.from_geojson(polygon)},
+        "weak_spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
     }
     geometries, = dry_run_tracer.get_geometries()
     assert isinstance(geometries, DriverVectorCube)
@@ -875,7 +881,8 @@ def test_multiple_filter_spatial(dry_run_env, dry_run_tracer):
     assert constraints == {
         "spatial_extent": {'crs': 'EPSG:4326','east': 8.0,'north': 5.0,'south': 0.0,'west': 0.0},
         "filter_spatial": {"geometries": shapely.geometry.shape(polygon1)},
-        "resample": {'method': 'near', 'resolution': [0.25, 0.25], 'target_crs': 4326},
+        "resample": {"method": "near", "resolution": [0.25, 0.25], "target_crs": 4326},
+        "weak_spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
     }
 
     assert geometries == shapely.geometry.shape(polygon2)
@@ -971,7 +978,8 @@ def test_resample_filter_spatial(dry_run_env, dry_run_tracer):
     assert constraints == {
         "spatial_extent": {'crs': 'EPSG:4326','east': 8.0,'north': 5.0,'south': 0.0,'west': 0.0},
         "filter_spatial": {"geometries": shapely.geometry.shape(polygon)},
-        "resample": {'method': 'near', 'resolution': [0.25, 0.25], 'target_crs': 4326},
+        "resample": {"method": "near", "resolution": [0.25, 0.25], "target_crs": 4326},
+        "weak_spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
     }
     assert isinstance(geometries, shapely.geometry.Polygon)
     assert shapely.geometry.mapping(geometries) == {
@@ -996,6 +1004,7 @@ def test_auto_align(dry_run_env, dry_run_tracer):
     assert constraints == {
         "spatial_extent": {'crs': 'EPSG:4326','east': 8.0,'north': 5.0,'south': 0.1,'west': 0.1},
         "filter_spatial": {"geometries": shapely.geometry.shape(polygon)},
+        "weak_spatial_extent": {"west": 0.1, "south": 0.1, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
     }
     assert isinstance(geometries, shapely.geometry.Polygon)
     assert shapely.geometry.mapping(geometries) == {
@@ -1007,6 +1016,38 @@ def test_auto_align(dry_run_env, dry_run_tracer):
     load_params = _extract_load_parameters(dry_run_env, source_id= ("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ())))
     assert {'west': 0.09999999927961767, 'east': 8.00008333258134, 'south': 0.09999999971959994, 'north': 5.000083333033345, 'crs': 'EPSG:4326'} == load_params.global_extent
 
+
+def test_global_bounds_from_weak_spatial_extent(dry_run_env, dry_run_tracer):
+    # The global extent is the union from the spatial extent and the weak spatial extent.
+    bbox = {"west": 1, "south": 1, "east": 3, "north": 3, "crs": "EPSG:4326"}
+    polygon = {"type": "Polygon", "coordinates": [[(0.1, 0.1), (3, 5), (8, 2), (0.1, 0.1)]]}
+    cube = DataCube(PGNode("load_collection", id="ESA_WORLDCOVER_10M_2020_V1"), connection=None)
+    cube = cube.filter_bbox(bbox=bbox)
+    cube = cube.filter_spatial(geometries=polygon)
+
+    pg = cube.flat_graph()
+    evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints[0]
+    assert src == ("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()))
+    assert constraints == {
+        "spatial_extent": {"west": 1, "south": 1, "east": 3, "north": 3, "crs": "EPSG:4326"},
+        "weak_spatial_extent": {"crs": "EPSG:4326", "east": 8.0, "north": 5.0, "south": 0.1, "west": 0.1},
+        "filter_spatial": {"geometries": shapely.geometry.shape(polygon)},
+    }
+    dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
+    load_params = _extract_load_parameters(
+        dry_run_env, source_id=("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()))
+    )
+    assert {
+        "west": 0.09999999927961767,
+        "east": 8.00008333258134,
+        "south": 0.09999999971959994,
+        "north": 5.000083333033345,
+        "crs": "EPSG:4326",
+    } == load_params.global_extent
 
 
 def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
@@ -1039,6 +1080,7 @@ def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
     assert constraints == {
         "spatial_extent": {"west": 5.05, "south": 51.21, "east": 5.15, "north": 51.3, "crs": "EPSG:4326"},
         "aggregate_spatial": {"geometries": DelayedVector(geometry_path)},
+        "weak_spatial_extent": {"crs": "EPSG:4326", "east": 5.15, "north": 51.3, "south": 51.21, "west": 5.05},
     }
     geometries, = dry_run_tracer.get_geometries()
     assert isinstance(geometries, DelayedVector)
@@ -1107,6 +1149,7 @@ def test_aggregate_spatial_get_geometries_feature_collection(
             "crs": "EPSG:4326",
         },
         "aggregate_spatial": {"geometries": expected_geometry_collection},
+        "weak_spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
     }
     (geometries,) = dry_run_tracer.get_geometries()
     assert isinstance(geometries, DriverVectorCube)
@@ -1472,28 +1515,54 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
                 'spatial_extent': {
                     'crs': 'EPSG:32631', 'east': 642140.0, 'north': 5677450.0, 'south': 5676170.0, 'west': 640860.0,
                 },
-                'temporal_extent': ('2019-03-01', '2019-04-01')}
+                "temporal_extent": ("2019-03-01", "2019-04-01"),
+                "weak_spatial_extent": {
+                    "west": 5.01704,
+                    "south": 51.219,
+                    "east": 5.03586,
+                    "north": 51.231,
+                    "crs": "EPSG:4326",
+                },
+            },
         ),
-        (('load_collection', ('S2_FOOBAR', ())),
-         {'bands': ['B04', 'B08'],
-          'spatial_extent': {
-              'crs': 'EPSG:32631', 'east': 642140.0, 'north': 5677450.0, 'south': 5676170.0, 'west': 640860.0,
-          },
-          'temporal_extent': ('2019-03-01', '2019-04-01')}
-         ),
+        (
+            ("load_collection", ("S2_FOOBAR", ())),
+            {
+                "bands": ["B04", "B08"],
+                "spatial_extent": {
+                    "crs": "EPSG:32631",
+                    "east": 642140.0,
+                    "north": 5677450.0,
+                    "south": 5676170.0,
+                    "west": 640860.0,
+                },
+                "temporal_extent": ("2019-03-01", "2019-04-01"),
+            },
+        ),
         (
             ('load_collection', ('PROBAV_L3_S10_TOC_NDVI_333M_V2', ())),
             {
-                'bands': ['ndvi'],
-                'process_type': [ProcessType.FOCAL_SPACE],
-                'resample': {'method': 'average','resolution': [10, 10], 'target_crs': 'AUTO:42001'},
-                'spatial_extent': {'crs': 'EPSG:32631',
-                                   'east': 642140.0,
-                                   'north': 5677450.0,
-                                   'south': 5676170.0,
-                                   'west': 640860.0},
-                'temporal_extent': ('2019-03-01', '2019-04-01')}),
-        (('load_collection', ('S2_FOOBAR', ())), {'bands': ['B04', 'B08']})
+                "bands": ["ndvi"],
+                "process_type": [ProcessType.FOCAL_SPACE],
+                "resample": {"method": "average", "resolution": [10, 10], "target_crs": "AUTO:42001"},
+                "spatial_extent": {
+                    "crs": "EPSG:32631",
+                    "east": 642140.0,
+                    "north": 5677450.0,
+                    "south": 5676170.0,
+                    "west": 640860.0,
+                },
+                "temporal_extent": ("2019-03-01", "2019-04-01"),
+                "weak_spatial_extent": {
+                    "crs": "EPSG:4326",
+                    "east": 5.03586,
+                    "north": 51.231,
+                    "south": 51.219,
+                    "west": 5.01704,
+                },
+            },
+        ),
+        (("load_collection", ("S2_FOOBAR", ())), {"bands": ["B04", "B08"]}),
     ]
 
 def test_worldwater(dry_run_env,dry_run_tracer):

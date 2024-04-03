@@ -391,8 +391,17 @@ class DryRunDataTracer:
                         constraints["resample"] = {"target_crs": projection, "resolution": resolution, "method": method}
 
             for op in [
-                "temporal_extent", "spatial_extent", "_weak_spatial_extent", "bands", "aggregate_spatial",
-                "sar_backscatter", "process_type", "custom_cloud_mask", "properties", "filter_spatial", "filter_labels"
+                "temporal_extent",
+                "spatial_extent",
+                "weak_spatial_extent",
+                "bands",
+                "aggregate_spatial",
+                "sar_backscatter",
+                "process_type",
+                "custom_cloud_mask",
+                "properties",
+                "filter_spatial",
+                "filter_labels",
             ]:
                 # 1 some processes can not be skipped when pushing filters down,
                 # so find the subgraph that no longer contains these blockers
@@ -417,10 +426,9 @@ class DryRunDataTracer:
                         else:
                             constraints[op] = args
 
-            if "_weak_spatial_extent" in constraints:
+            if "weak_spatial_extent" in constraints:
                 if "spatial_extent" not in constraints:
-                    constraints["spatial_extent"] = constraints["_weak_spatial_extent"]
-                del constraints["_weak_spatial_extent"]
+                    constraints["spatial_extent"] = constraints["weak_spatial_extent"]
 
             source_id = leaf.get_source().get_source_id()
             source_constraints.append((source_id, constraints))
@@ -505,7 +513,7 @@ class DryRunDataCube(DriverDataCube):
 
     def filter_spatial(self, geometries):
         geometries, bbox = self._normalize_geometry(geometries)
-        cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
+        cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
         return cube._process(operation="filter_spatial", arguments={"geometries": geometries})
 
     def filter_bands(self, bands) -> 'DryRunDataCube':
@@ -541,7 +549,7 @@ class DryRunDataCube(DriverDataCube):
         cube = self
         if not inside and replacement is None:
             mask, bbox = cube._normalize_geometry(mask)
-            cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
+            cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
         return cube._process(operation="mask_polygon", arguments={"mask": mask})
 
     def aggregate_spatial(
@@ -555,7 +563,7 @@ class DryRunDataCube(DriverDataCube):
         cube = self
         if not geoms_is_empty:
             geometries, bbox = self._normalize_geometry(geometries)
-            cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
+            cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
         return cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
 
     def _normalize_geometry(self, geometries) -> Tuple[Union[DriverVectorCube, DelayedVector, BaseGeometry], dict]:
@@ -642,7 +650,7 @@ class DryRunDataCube(DriverDataCube):
         polygons: List[Polygon] = chunks.geoms
         # TODO #71 #114 Deprecate/avoid usage of GeometryCollection
         geometries, bbox = self._normalize_geometry(GeometryCollection(polygons))
-        cube = self.filter_bbox(**bbox, operation="_weak_spatial_extent")
+        cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
         return cube._process("chunk_polygon", arguments={"geometries": geometries})
 
     def add_dimension(self, name: str, label, type: str = "other") -> 'DryRunDataCube':
