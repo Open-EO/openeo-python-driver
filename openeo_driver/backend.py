@@ -774,7 +774,7 @@ class OpenEoBackendImplementation:
         """Postprocess the capabilities document"""
         return capabilities
 
-    def changelog(self) -> Union[str, Path]:
+    def changelog(self) -> Union[str, Path, flask.Response]:
         return "No changelog"
 
     def set_request_id(self, request_id: str):

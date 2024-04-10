@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List, Dict, Union, Tuple, Optional, Iterable, Any, Sequence
 import unittest.mock
 from unittest.mock import Mock
+import importlib.metadata
 
 import flask
 import numpy
@@ -44,6 +45,7 @@ from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, 
 from openeo_driver.jobregistry import JOB_STATUS
 from openeo_driver.save_result import AggregatePolygonResult, AggregatePolygonSpatialResult
 from openeo_driver.users import User
+from openeo_driver.util.changelog import multi_project_changelog
 from openeo_driver.utils import EvalEnv, generate_unique_id, WhiteListEvalEnv
 
 DEFAULT_DATETIME = datetime(2020, 4, 23, 16, 20, 27)
@@ -911,3 +913,16 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
         if user.user_id == "Carol":
             user.add_roles(["admin", "devops"])
         return user
+
+    def changelog(self) -> Union[str, Path, flask.Response]:
+        html = multi_project_changelog(
+            [
+                {
+                    "name": "openeo-python-driver",
+                    "version": importlib.metadata.version(distribution_name="openeo_driver"),
+                    # TODO use package resource tools (e.g. importlib.resources) instead of __file__ based paths
+                    "changelog_path": Path(__file__).parent.parent.parent / "CHANGELOG.md",
+                },
+            ]
+        )
+        return flask.make_response(html, {"Content-Type": "text/html"})

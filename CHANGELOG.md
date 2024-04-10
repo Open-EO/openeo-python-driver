@@ -17,8 +17,13 @@ When bumping the version number in `openeo_driver/_version.py`
 (and describe accompanying changes, if any, under it too)
 and start a new "In Progress" section above it.
 
+<!-- start-of-changelog -->
 
 ## In progress
+
+## 0.96.0
+
+- Add rudimentary multi-project changelog support
 
 ## 0.95.2
 
@@ -173,3 +178,7 @@ and start a new "In Progress" section above it.
 ## 0.69.0
 
 - Support job deletion in EJR ([#163](https://github.com/Open-EO/openeo-python-driver/issues/163))
+
+
+
+<!-- end-of-changelog -->
