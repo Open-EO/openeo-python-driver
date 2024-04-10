@@ -5,3 +5,4 @@ include openeo_driver/specs/openeo-processes/*/*.json
 include openeo_driver/specs/openeo-processes/*/*.md
 include openeo_driver/specs/openeo-processes/*/LICENSE*
 include openeo_driver/specs/openeo-processes/*/proposals/*.json
+include CHANGELOG.md

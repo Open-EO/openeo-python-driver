@@ -42,6 +42,9 @@ setup(
     url="https://github.com/Open-EO/openeo-python-driver",
     packages=find_packages(include=["openeo_driver*"]),
     include_package_data=True,
+    data_files=[
+        ("openeo_driver", ["CHANGELOG.md"]),
+    ],
     python_requires=">=3.8",
     setup_requires=["pytest-runner"],
     tests_require=tests_require,
