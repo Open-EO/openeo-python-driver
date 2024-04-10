@@ -66,6 +66,7 @@ setup(
         "attrs>=23.1.0",
         "fiona>=1.9.0",
         "retry~=0.9.2",
+        "markdown>3.4",
     ],
     extras_require={
         "dev": tests_require,
