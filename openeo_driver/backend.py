@@ -736,6 +736,9 @@ class OpenEoBackendImplementation:
                     env: EvalEnv) -> DriverDataCube:
         raise NotImplementedError
 
+    def load_stac(self, url: str, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
+        raise NotImplementedError
+
     def load_ml_model(self, job_id: str) -> DriverMlModel:
         raise NotImplementedError
 
