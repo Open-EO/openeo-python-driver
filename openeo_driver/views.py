@@ -647,10 +647,9 @@ def register_views_processing(
                 _log.exception(f"Unexpected error while verifying synchronous processing: {e}")
             else:
                 if sync_processing_issues:
-                    # After this proves to run correctly on many sync jobs, we can throw an error instead.
-                    _log.warning(ProcessGraphComplexityException.message
-                                 + f" Reasons: {' '.join(sync_processing_issues)}"
-                                 )
+                    raise ProcessGraphComplexityException(
+                        ProcessGraphComplexityException.message + f" Reasons: {' '.join(sync_processing_issues)}"
+                    )
 
             result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)
             _log.info(f"`POST /result`: {type(result)}")
