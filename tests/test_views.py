@@ -2520,10 +2520,11 @@ class TestBatchJobs:
 
         assert resp_data == {
             "type": "Feature",
-            "stac_version": "0.9.0",
+            "stac_version": "1.0.0",
             "stac_extensions": [
                 "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                 "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+                'https://stac-extensions.github.io/projection/v1.1.0/schema.json',
             ],
             "id": "output.tiff",
             "geometry": {"type": "Polygon",
@@ -2533,6 +2534,7 @@ class TestBatchJobs:
             "properties": {
                 "datetime": "1981-04-24T03:00:00Z",
                 "proj:shape": [300, 600],
+                "proj:epsg":4326
             },
             'links': [{
                 'rel': 'self',

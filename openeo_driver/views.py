@@ -1298,6 +1298,8 @@ def register_views_batch_jobs(
             properties["proj:shape"] = job_info.proj_shape
         if job_info.proj_bbox:
             properties["proj:bbox"] = job_info.proj_bbox
+        if job_info.epsg:
+            properties["proj:epsg"] = job_info.epsg
 
         if job_info.proj_bbox and job_info.epsg:
             if not bbox:
@@ -1338,7 +1340,7 @@ def register_views_batch_jobs(
         stac_item.update(
             **dict_no_none(
                 {
-                    "proj:epsg": job_info.epsg,
+                    "epsg": job_info.epsg,
                 }
             )
         )
