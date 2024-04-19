@@ -16,6 +16,7 @@ import flask_cors
 import numpy as np
 from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, \
     current_app, redirect
+from pyproj import CRS
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -44,6 +45,7 @@ from openeo_driver.jobregistry import JOB_STATUS, PARTIAL_JOB_STATUS
 from openeo_driver.save_result import SaveResult, to_save_result
 from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
 from openeo_driver.users.auth import HttpAuthHandler
+from openeo_driver.util.geometry import BoundingBox, reproject_geometry
 from openeo_driver.util.logging import FlaskRequestCorrelationIdLogging, ExtraLoggingFilter
 from openeo_driver.utils import EvalEnv, smart_bool, generate_unique_id, filter_supported_kwargs
 
@@ -1297,12 +1299,20 @@ def register_views_batch_jobs(
         if job_info.proj_bbox:
             properties["proj:bbox"] = job_info.proj_bbox
 
+        if job_info.proj_bbox and job_info.epsg:
+            if not bbox:
+                bbox = BoundingBox.from_wsen_tuple(job_info.proj_bbox,job_info.epsg).reproject(4326).as_wsen_tuple()
+            if not geometry:
+                geometry = BoundingBox.from_wsen_tuple(job_info.proj_bbox,job_info.epsg).as_polygon()
+                geometry = reproject_geometry(geometry, CRS.from_epsg( job_info.epsg ) , CRS.from_epsg(4326) )
+
         stac_item = {
             "type": "Feature",
-            "stac_version": "0.9.0",
+            "stac_version": "1.0.0",
             "stac_extensions": [
                 STAC_EXTENSION.EO,
                 STAC_EXTENSION.FILEINFO,
+                STAC_EXTENSION.PROJECTION
             ],
             "id": item_id,
             "geometry": geometry,
@@ -1328,7 +1338,7 @@ def register_views_batch_jobs(
         stac_item.update(
             **dict_no_none(
                 {
-                    "epsg": job_info.epsg,  # TODO: unexpected at top level, "proj:epsg" property instead?
+                    "proj:epsg": job_info.epsg,
                 }
             )
         )
