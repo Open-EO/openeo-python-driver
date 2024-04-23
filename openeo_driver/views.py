@@ -17,6 +17,7 @@ import numpy as np
 from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, \
     current_app, redirect
 from pyproj import CRS
+from shapely.geometry import mapping
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -1306,7 +1307,7 @@ def register_views_batch_jobs(
                 bbox = BoundingBox.from_wsen_tuple(job_info.proj_bbox,job_info.epsg).reproject(4326).as_wsen_tuple()
             if not geometry:
                 geometry = BoundingBox.from_wsen_tuple(job_info.proj_bbox,job_info.epsg).as_polygon()
-                geometry = reproject_geometry(geometry, CRS.from_epsg( job_info.epsg ) , CRS.from_epsg(4326) )
+                geometry = mapping(reproject_geometry(geometry, CRS.from_epsg( job_info.epsg ) , CRS.from_epsg(4326) ))
 
         stac_item = {
             "type": "Feature",
