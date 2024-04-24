@@ -440,7 +440,8 @@ class ElasticJobRegistry(JobRegistryInterface):
                 raise e
             self._verify_job_existence(job_id=job_id, user_id=user_id, exists=False)
 
-    def _verify_job_existence(self, job_id: str, user_id: Optional[str] = None, exists: bool = True, backoffs: Sequence[float] = (0, 0.1, 1.0)):
+    def _verify_job_existence(self, job_id: str, user_id: Optional[str] = None, exists: bool = True,
+                              backoffs: Sequence[float] = (0, 0.1, 1.0, 5.0)):
         """
         Verify that EJR committed the job creation/deletion
         :param job_id: job id
@@ -464,7 +465,7 @@ class ElasticJobRegistry(JobRegistryInterface):
                 self.logger.exception(f"Unexpected error while verifying {job_id=} {user_id=} {exists=}: {e=}")
                 return
         # TODO: fail hard instead of just logging?
-        self.logger.error(f"Failed to verify {job_id=} {user_id=} {exists=}")
+        self.logger.error(f"Verification of {job_id=} {user_id=} {exists=} unsure after {len(backoffs)} attempts")
 
     def set_status(
         self,
