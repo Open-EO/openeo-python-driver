@@ -685,6 +685,7 @@ class CliApp:
         cli_get_job.set_defaults(func=self.get_job)
 
         cli_delete = subparsers.add_parser("delete", help="Mark job as deleted")
+        cli_delete.add_argument("--backend-id", help="Backend id to filter on.")
         cli_delete.add_argument("job_id", help="Job id")
         cli_delete.set_defaults(func=self.delete_job)
 

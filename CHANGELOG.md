@@ -21,6 +21,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.96.1
+
+- Fix delete in EJR CLI app
+
 ## 0.96.0
 
 - Add rudimentary multi-project changelog support
