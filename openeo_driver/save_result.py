@@ -737,7 +737,7 @@ class AggregatePolygonSpatialResult(SaveResult):
             )
         else:
             raise FeatureUnsupportedException(f"Unsupported output format {self.format};"
-                                              f" supported are: JSON, CSV and GeoParquet")
+                                              f" supported are: JSON, CSV and Parquet")
 
     def to_geoparquet(self, destination: Optional[str] = None) -> str:
         filename = destination or get_temp_file(suffix=".parquet")
@@ -788,7 +788,7 @@ class AggregatePolygonSpatialResult(SaveResult):
             self.to_geoparquet(destination=filename)
         else:
             raise FeatureUnsupportedException(f"Unsupported output format {self.format};"
-                                              f" supported are: JSON, CSV and GeoParquet")
+                                              f" supported are: JSON, CSV and Parquet")
 
         asset["href"] = filename
 
