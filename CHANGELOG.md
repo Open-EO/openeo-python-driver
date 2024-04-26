@@ -21,6 +21,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.96.2
+
+- Decreased default ttl in `ClientCredentialsAccessTokenHelper` to 5 minutes
+
 ## 0.96.1
 
 - Fix delete in EJR CLI app

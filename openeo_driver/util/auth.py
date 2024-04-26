@@ -84,7 +84,7 @@ class ClientCredentialsAccessTokenHelper:
         *,
         credentials: Optional[ClientCredentials] = None,
         session: Optional[requests.Session] = None,
-        default_ttl: float = 20 * 60,
+        default_ttl: float = 5 * 60,
     ):
         self._session = session
         self._authenticator: Optional[OidcClientCredentialsAuthenticator] = None
