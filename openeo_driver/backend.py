@@ -786,15 +786,7 @@ class OpenEoBackendImplementation:
     def after_request(self, request_id: str):
         pass
 
-    def request_costs(
-        self,
-        *,
-        # TODO: remove deprecated `user_id` parameter and drop `Optional` from `user` parameter
-        user: Optional[User] = None,
-        user_id: Optional[str] = None,
-        request_id: str,
-        success: bool,
-    ) -> Optional[float]:
+    def request_costs(self, *, user: User, request_id: str, success: bool) -> Optional[float]:
         """
         Report resource usage of (current) synchronous processing request and get associated cost.
 

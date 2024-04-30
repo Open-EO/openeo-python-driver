@@ -3816,31 +3816,17 @@ def test_vector_buffer_returns_error_on_empty_result_geometry(api):
 
 
 @pytest.mark.parametrize(
-    ["request_costs", "expected_user_kwargs", "expected_costs_header"],
+    ["request_costs", "expected_costs_header"],
     [
-        (
-            # Legacy mode: user_id
-            lambda user_id, request_id, success: 1234,
-            {"user_id": TEST_USER},
-            "1234",
-        ),
-        (
-            # Default backend_implementation.request_costs
-            None,
-            {"user_id": TEST_USER, "user": User(TEST_USER, internal_auth_data={"authentication_method": "basic"})},
-            None,
-        ),
-        (
-            # New mode: User object,
-            lambda user, request_id, success: 1234,
-            {"user": User(TEST_USER, internal_auth_data={"authentication_method": "basic"})},
-            "1234",
-        ),
+        # Default backend_implementation.request_costs
+        (None, None),
+        # request_costs override
+        (lambda user, request_id, success: 1234 + isinstance(user, User), "1235"),
     ],
 )
 @pytest.mark.parametrize("success", [False, True])
 def test_synchronous_processing_request_costs(
-    api, backend_implementation, request_costs, expected_user_kwargs, success, expected_costs_header
+    api, backend_implementation, request_costs, success, expected_costs_header
 ):
     if request_costs is None:
         request_costs = backend_implementation.request_costs
@@ -3872,8 +3858,11 @@ def test_synchronous_processing_request_costs(
     env = load_collection.call_args[1]["env"]
     assert env["correlation_id"] == "r-abc123"
 
-    expected = {"success": success, "request_id": "r-abc123", **expected_user_kwargs}
-    get_request_costs.assert_called_with(**expected)
+    get_request_costs.assert_called_with(
+        user=User(TEST_USER, internal_auth_data={"authentication_method": "basic"}),
+        success=success,
+        request_id="r-abc123",
+    )
 
 
 
@@ -4234,4 +4223,3 @@ def test_to_scl_dilation_mask_defaults(api, arguments, expected):
     args, kwargs = dummy.to_scl_dilation_mask.call_args
     assert args == ()
     assert kwargs == expected
-

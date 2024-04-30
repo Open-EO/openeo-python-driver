@@ -628,17 +628,6 @@ def register_views_processing(
             'node_caching': False
         })
 
-        request_costs_kwargs = {"request_id": request_id}
-        # TODO clean up this is temporary measure to support old (user_id) and new style (user)
-        #      request_costs signatures simultaneously.
-        request_costs_kwargs.update(
-            filter_supported_kwargs(
-                callable=backend_implementation.request_costs,
-                user_id=user.user_id,
-                user=user,
-            )
-        )
-
         try:
             try:
                 sync_processing_issues = list(
@@ -670,14 +659,14 @@ def register_views_processing(
                     result = to_save_result(data=result)
                 response = result.create_flask_response()
 
-            costs = backend_implementation.request_costs(success=True, **request_costs_kwargs)
+            costs = backend_implementation.request_costs(success=True, user=user, request_id=request_id)
             if costs:
                 # TODO not all costs are accounted for so don't expose in "OpenEO-Costs" yet
                 response.headers["OpenEO-Costs-experimental"] = costs
 
         except Exception:
             # TODO: also send "OpenEO-Costs" header on failure
-            backend_implementation.request_costs(success=False, **request_costs_kwargs)
+            backend_implementation.request_costs(success=False, user=user, request_id=request_id)
             raise
 
         return response

@@ -21,6 +21,11 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.97.0
+
+- Remove deprecated and now unused `user_id` argument from `OpenEoBackendImplementation.request_costs()`
+  (cleanup related to [Open-EO/openeo-geopyspark-driver#531](https://github.com/Open-EO/openeo-geopyspark-driver/issues/531))
+
 ## 0.96.2
 
 - Decreased default ttl in `ClientCredentialsAccessTokenHelper` to 5 minutes
