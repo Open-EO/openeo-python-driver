@@ -777,6 +777,8 @@ def save_ml_model(args: dict, env: EvalEnv) -> MlModelResult:
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/load_ml_model.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/load_ml_model.json"))
 def load_ml_model(args: dict, env: EvalEnv) -> DriverMlModel:
+    if env.get(ENV_DRY_RUN_TRACER):
+        return DriverMlModel()
     job_id = extract_arg(args, "id")
     return env.backend_implementation.load_ml_model(job_id)
 
