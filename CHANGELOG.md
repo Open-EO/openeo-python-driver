@@ -21,6 +21,12 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.98.0
+
+- Add `job_options` argument to `OpenEoBackendImplementation.request_costs()` API.
+  It's optional and unused for now, but allows openeo-geopyspark-driver to adapt already.
+  (related to [Open-EO/openeo-geopyspark-driver#531](https://github.com/Open-EO/openeo-geopyspark-driver/issues/531))
+
 ## 0.97.0
 
 - Remove deprecated and now unused `user_id` argument from `OpenEoBackendImplementation.request_costs()`
