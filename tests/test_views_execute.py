@@ -23,7 +23,8 @@ from openeo_driver.dry_run import ProcessType
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyVisitor
 from openeo_driver.errors import ProcessGraphInvalidException, ProcessGraphMissingException
-from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
+from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph, custom_process
+from openeo_driver.processes import ProcessArgs, ProcessRegistry
 from openeo_driver.testing import (
     TEST_USER,
     TEST_USER_BEARER_TOKEN,
@@ -3817,17 +3818,27 @@ def test_vector_buffer_returns_error_on_empty_result_geometry(api):
 
 
 @pytest.mark.parametrize(
-    ["request_costs", "expected_costs_header"],
+    ["request_costs", "job_options", "expected_costs_header"],
     [
         # Default backend_implementation.request_costs
-        (None, None),
+        (None, None, None),
         # request_costs override
-        (lambda user, request_id, success: 1234 + isinstance(user, User), "1235"),
+        (
+            lambda user, request_id, success, job_options: 1234 + isinstance(user, User),
+            None,
+            "1235",
+        ),
+        # Extra job options handling
+        (
+            lambda user, request_id, success, job_options: 1234 * job_options.get("extra", 0),
+            {"extra": 2},
+            "2468",
+        ),
     ],
 )
 @pytest.mark.parametrize("success", [False, True])
 def test_synchronous_processing_request_costs(
-    api, backend_implementation, request_costs, success, expected_costs_header
+    api, backend_implementation, request_costs, job_options, success, expected_costs_header
 ):
     if request_costs is None:
         request_costs = backend_implementation.request_costs
@@ -3844,9 +3855,13 @@ def test_synchronous_processing_request_costs(
     ), mock.patch.object(
         backend_implementation, "request_costs", side_effect=request_costs, autospec=request_costs
     ) as get_request_costs:
-        resp = api.result(
-            {"lc": {"process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}, "result": True}}
-        )
+        api.ensure_auth_header()
+        pg = {"lc": {"process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}, "result": True}}
+        post_data = {
+            "process": {"process_graph": pg},
+            "job_options": job_options,
+        }
+        resp = api.post(path="/result", json=post_data)
         if success:
             resp.assert_status_code(200)
             if expected_costs_header:
@@ -3861,6 +3876,7 @@ def test_synchronous_processing_request_costs(
 
     get_request_costs.assert_called_with(
         user=User(TEST_USER, internal_auth_data={"authentication_method": "basic"}),
+        job_options=job_options,
         success=success,
         request_id="r-abc123",
     )
@@ -4231,3 +4247,37 @@ def test_synchronous_processing_response_header_openeo_identifier(api):
         res = api.result({"add1": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}})
     assert res.assert_status_code(200).json == 8
     assert res.headers["OpenEO-Identifier"] == "r-abc123"
+
+
+@pytest.fixture
+def custom_process_registry(backend_implementation) -> ProcessRegistry:
+    process_registry = ProcessRegistry()
+    with mock.patch.object(backend_implementation.processing, "get_process_registry", return_value=process_registry):
+        yield process_registry
+
+
+@pytest.mark.parametrize(
+    ["post_data_base", "expected_job_options"],
+    [
+        ({}, None),
+        ({"job_options": {"speed": "slow"}}, {"speed": "slow"}),
+        ({"_x_speed": "slow"}, {"_x_speed": "slow"}),
+    ],
+)
+def test_synchronous_processing_job_options(api, custom_process_registry, post_data_base, expected_job_options):
+    """Test job options handling in synchronous processing in EvalEnv"""
+
+    def i_spy_with_my_little_eye(args: ProcessArgs, env: EvalEnv):
+        assert env.get("job_options") == expected_job_options
+        return args.get("x")
+
+    custom_process_registry.add_function(i_spy_with_my_little_eye, spec={"id": "i_spy_with_my_little_eye"})
+
+    pg = {"ispy": {"process_id": "i_spy_with_my_little_eye", "arguments": {"x": 123}, "result": True}}
+    post_data = {
+        **post_data_base,
+        **{"process": {"process_graph": pg}},
+    }
+    api.ensure_auth_header()
+    res = api.post(path="/result", json=post_data)
+    assert res.assert_status_code(200).json == 123

@@ -9,7 +9,8 @@ import pathlib
 import re
 import textwrap
 from collections import namedtuple, defaultdict
-from typing import Callable, Tuple, List, Optional
+import typing
+from typing import Callable, Tuple, List, Optional, Union
 
 import flask
 import flask_cors
@@ -588,6 +589,18 @@ def _extract_process_graph(post_data: dict) -> dict:
     return pg
 
 
+def _extract_job_options(post_data: dict, to_ignore: typing.Container[str]) -> Union[dict, None]:
+    """
+    Extract "job options" from request data:
+    look for an explicit "job_options" property or collect non-predefined top-level properties
+    """
+    if "job_options" in post_data:
+        # Return explicit "job_options" property as is
+        return post_data["job_options"]
+    # Collect all non-deny-listed top-level properties
+    return {k: v for k, v in post_data.items() if k not in to_ignore} or None
+
+
 def register_views_processing(
         blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
         auth_handler: HttpAuthHandler
@@ -615,18 +628,28 @@ def register_views_processing(
     def result(user: User):
         post_data = request.get_json()
         process_graph = _extract_process_graph(post_data)
+        budget = post_data.get("budget")
+        plan = post_data.get("plan")
+        log_level = post_data.get("log_level")
+        job_options = _extract_job_options(
+            post_data, to_ignore=["process", "process_graph", "budget", "plan", "log_level"]
+        )
 
         request_id = FlaskRequestCorrelationIdLogging.get_request_id()
 
-        env = EvalEnv({
-            "backend_implementation": backend_implementation,
-            'version': g.api_version,
-            'pyramid_levels': 'highest',
-            'user': user,
-            'require_bounds': True,
-            'correlation_id': request_id,
-            'node_caching': False
-        })
+        env = EvalEnv(
+            {
+                "backend_implementation": backend_implementation,
+                "version": g.api_version,
+                "pyramid_levels": "highest",
+                "user": user,
+                "require_bounds": True,
+                "correlation_id": request_id,
+                "node_caching": False,
+                # TODO: more explicit way of passing the job_options instead of putting it in the evaluation env?
+                "job_options": job_options,
+            }
+        )
 
         try:
             try:
@@ -659,14 +682,18 @@ def register_views_processing(
                     result = to_save_result(data=result)
                 response = result.create_flask_response()
 
-            costs = backend_implementation.request_costs(success=True, user=user, request_id=request_id)
+            costs = backend_implementation.request_costs(
+                success=True, user=user, request_id=request_id, job_options=job_options
+            )
             if costs:
                 # TODO not all costs are accounted for so don't expose in "OpenEO-Costs" yet
                 response.headers["OpenEO-Costs-experimental"] = costs
 
         except Exception:
             # TODO: also send "OpenEO-Costs" header on failure
-            backend_implementation.request_costs(success=False, user=user, request_id=request_id)
+            backend_implementation.request_costs(
+                success=False, user=user, request_id=request_id, job_options=job_options
+            )
             raise
 
         # Add request id as "OpenEO-Identifier" like we do for batch jobs.
@@ -823,12 +850,10 @@ def register_views_batch_jobs(
         # TODO: preserve original non-process_graph process fields too?
         process = {"process_graph": _extract_process_graph(post_data)}
         # TODO: this "job_options" is not part of official API. See https://github.com/Open-EO/openeo-api/issues/276
-        job_options = post_data.get("job_options")
+        job_options = _extract_job_options(
+            post_data, to_ignore=["process", "process_graph", "title", "description", "plan", "budget", "log_level"]
+        )
         metadata_keywords = ["title", "description", "plan", "budget"]
-        if("job_options" not in post_data):
-            job_options = {k:v for (k,v) in post_data.items() if k not in metadata_keywords + ["process","process_graph"]}
-            if len(job_options)==0:
-                job_options = None
         job_info = backend_implementation.batch_jobs.create_job(
             **filter_supported_kwargs(
                 callable=backend_implementation.batch_jobs.create_job,
