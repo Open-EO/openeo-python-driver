@@ -1,4 +1,5 @@
 import dataclasses
+import dirty_equals
 import json
 import math
 import re
@@ -4223,3 +4224,10 @@ def test_to_scl_dilation_mask_defaults(api, arguments, expected):
     args, kwargs = dummy.to_scl_dilation_mask.call_args
     assert args == ()
     assert kwargs == expected
+
+
+def test_synchronous_processing_response_header_openeo_identifier(api):
+    with mock.patch.object(FlaskRequestCorrelationIdLogging, "_build_request_id", return_value="r-abc123"):
+        res = api.result({"add1": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}})
+    assert res.assert_status_code(200).json == 8
+    assert res.headers["OpenEO-Identifier"] == "r-abc123"

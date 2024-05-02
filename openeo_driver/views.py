@@ -669,6 +669,10 @@ def register_views_processing(
             backend_implementation.request_costs(success=False, user=user, request_id=request_id)
             raise
 
+        # Add request id as "OpenEO-Identifier" like we do for batch jobs.
+        # TODO: follow-up standardization at https://github.com/Open-EO/openeo-api/pull/533
+        response.headers["OpenEO-Identifier"] = request_id
+
         return response
 
     @blueprint.route('/execute', methods=['POST'])
