@@ -29,7 +29,8 @@ tests_require = [
     "re-assert",
     "pyarrow>=10.0.0",
     "pystac",
-    "jsonschema"
+    "jsonschema",
+    "dirty-equals>=0.6",
 ]
 
 setup(
