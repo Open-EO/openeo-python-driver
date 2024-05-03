@@ -55,6 +55,7 @@ def get_logging_config(
     log_dir: Optional[Union[str, Path]] = None,
     rotating_file_max_bytes: int = 10 * 1024 * 1024,
     rotating_file_backup_count: int = 1,
+    enable_global_extra_logging: bool = False,
 ) -> dict:
     """Construct logging config dict to be loaded with `logging.config.dictConfig`"""
 
@@ -68,12 +69,16 @@ def get_logging_config(
     }
     loggers = {**default_loggers, **(loggers or {})}
 
-    json_filters = ["ExtraLoggingFilter"]
+    json_filters = [
+        # Enabled filters by default.
+        "ExtraLoggingFilter"
+    ]
+
     if context == LOGGING_CONTEXT_FLASK:
         json_filters.append("FlaskRequestCorrelationIdLogging")
         json_filters.append("FlaskUserIdLogging")
-    elif context == LOGGING_CONTEXT_BATCH_JOB:
-        json_filters.append("BatchJobLoggingFilter")
+    if context == LOGGING_CONTEXT_BATCH_JOB or enable_global_extra_logging:
+        json_filters.append("GlobalExtraLoggingFilter")
 
     if not log_file:
         if not log_dir:
@@ -153,6 +158,8 @@ def get_logging_config(
         "filters": {
             "FlaskRequestCorrelationIdLogging": {"()": FlaskRequestCorrelationIdLogging},
             "FlaskUserIdLogging": {"()": FlaskUserIdLogging},
+            "GlobalExtraLoggingFilter": {"()": GlobalExtraLoggingFilter},
+            # BatchJobLoggingFilter is legacy filter name for GlobalExtraLoggingFilter
             "BatchJobLoggingFilter": {"()": BatchJobLoggingFilter},
             "ExtraLoggingFilter": {"()": ExtraLoggingFilter},
         },
@@ -320,28 +327,41 @@ class FlaskUserIdLogging(logging.Filter):
         return True
 
 
-class BatchJobLoggingFilter(logging.Filter):
+class GlobalExtraLoggingFilter(logging.Filter):
     """
-    Python logging plugin to inject data (such as user id and batch job id) in a batch job context.
-    Internally stores/manages data as global class data, assuming the data is specific
-    for the current (batch job) process and does not change once set.
+    Python logging plugin to inject extra logging data in a global way,
+    covering all logging that happens in the current process.
+
+    With great power comes great responsibility:
+    only use this for data that is truly global and immutable in the context of the whole process
+    (e.g. the batch job id in a batch job script context, or a run correlation id for a background script).
+
+    Do not use it for data that hasn't a global character or may change during the process.
+    See `ExtraLoggingFilter` for a more context-oriented approach.
     """
 
-    data = {}
+    # Global (class level) storage for extra data
+    _data = {}
 
     @classmethod
     def set(cls, field: str, value: str):
-        cls.data[field] = value
+        # TODO: guard immutability once a field is set?
+        cls._data[field] = value
 
     @classmethod
     def reset(cls):
-        cls.data = {}
+        # This reset is only here for testing purposes, can we eliminate it?
+        cls._data = {}
 
     def filter(self, record: logging.LogRecord) -> bool:
         """Filter a log record (logging.Filter API)."""
-        for field, value in self.data.items():
+        for field, value in self._data.items():
             setattr(record, field, value)
         return True
+
+
+# Legacy alias
+BatchJobLoggingFilter = GlobalExtraLoggingFilter
 
 
 class ExtraLoggingFilter(logging.Filter):

@@ -21,6 +21,9 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.100.0
+
+- Rename `BatchJobLoggingFilter` to more general applicable `GlobalExtraLoggingFilter`
 
 ## 0.99.0
 

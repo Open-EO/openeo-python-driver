@@ -1,3 +1,4 @@
+import dirty_equals
 import json
 import logging
 import re
@@ -16,6 +17,7 @@ from openeo_driver.util.logging import (
     LOGGING_CONTEXT_FLASK,
     BatchJobLoggingFilter,
     FlaskRequestCorrelationIdLogging,
+    GlobalExtraLoggingFilter,
     ExtraLoggingFilter,
     FlaskUserIdLogging,
     just_log_exceptions,
@@ -105,6 +107,7 @@ def test_filter_flask_user_id_logging():
 
 
 def test_filter_batch_job_logging():
+    """Legacy 'BatchJobLoggingFilter' approach"""
     with enhanced_logging(json=True, context=LOGGING_CONTEXT_BATCH_JOB) as logs:
         BatchJobLoggingFilter.reset()
         log = logging.getLogger(__name__)
@@ -118,6 +121,53 @@ def test_filter_batch_job_logging():
     assert logs == [
         {"message": "Some set up"},
         {"message": "Doing the work", "user_id": "j0hnD03", "job_id": "job-42"},
+    ]
+
+
+def test_filter_global_extra_logging():
+    with enhanced_logging(json=True, enable_global_extra_logging=True) as logs:
+        GlobalExtraLoggingFilter.reset()
+        log = logging.getLogger(__name__)
+
+        log.info("Some set up")
+        GlobalExtraLoggingFilter.set("user_id", "j0hnD03")
+        GlobalExtraLoggingFilter.set("job_id", "job-42")
+        log.info("Doing the work")
+
+    logs = [json.loads(l) for l in logs.getvalue().strip().split("\n")]
+    assert logs == [
+        {"message": "Some set up"},
+        {"message": "Doing the work", "user_id": "j0hnD03", "job_id": "job-42"},
+    ]
+
+
+def test_filter_global_extra_logging_json_with_script(pytester):
+    script = """
+        import logging
+        from openeo_driver.util.logging import get_logging_config, setup_logging, LOG_HANDLER_STDERR_JSON, GlobalExtraLoggingFilter
+
+        _log = logging.getLogger(__name__)
+        GlobalExtraLoggingFilter.set("run_id", "run-123")
+
+        def main():
+            setup_logging(get_logging_config(
+                root_handlers=[LOG_HANDLER_STDERR_JSON],
+                enable_global_extra_logging=True),
+            )
+            _log.warning("Hello warning")
+            _log.info("Hello info")
+
+        if __name__ == "__main__":
+            main()
+    """
+    pytester.makepyfile(main=script)
+    result = pytester.runpython("main.py")
+
+    assert result.outlines == []
+    stderr_records = _decode_json_lines(_strip_jenkins_distutils_hack_warnings(result.errlines))
+    assert stderr_records == [
+        dirty_equals.IsPartialDict(levelname="WARNING", message="Hello warning", run_id="run-123"),
+        dirty_equals.IsPartialDict(levelname="INFO", message="Hello info", run_id="run-123"),
     ]
 
 

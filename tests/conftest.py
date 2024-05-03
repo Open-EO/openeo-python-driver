@@ -19,8 +19,8 @@ from openeo_driver.testing import UrllibMocker, config_overrides
 from openeo_driver.util.logging import (
     LOGGING_CONTEXT_BATCH_JOB,
     LOGGING_CONTEXT_FLASK,
-    BatchJobLoggingFilter,
     FlaskRequestCorrelationIdLogging,
+    GlobalExtraLoggingFilter,
     FlaskUserIdLogging,
 )
 from openeo_driver.views import build_app
@@ -96,9 +96,12 @@ def urllib_mock() -> UrllibMocker:
 
 @contextlib.contextmanager
 def enhanced_logging(
-        level=logging.INFO, json=False, format=None,
-        request_ids=("123-456", "234-567", "345-678", "456-789", "567-890"),
-        context=LOGGING_CONTEXT_FLASK,
+    level=logging.INFO,
+    json=False,
+    format=None,
+    request_ids=("123-456", "234-567", "345-678", "456-789", "567-890"),
+    context: Optional[str] = None,
+    enable_global_extra_logging: bool = False,
 ):
     """Set up logging with additional injection of request id, user id, ...."""
     root_logger = logging.getLogger()
@@ -115,8 +118,8 @@ def enhanced_logging(
     if context == LOGGING_CONTEXT_FLASK:
         handler.addFilter(FlaskRequestCorrelationIdLogging())
         handler.addFilter(FlaskUserIdLogging())
-    elif context == LOGGING_CONTEXT_BATCH_JOB:
-        handler.addFilter(BatchJobLoggingFilter())
+    if context == LOGGING_CONTEXT_BATCH_JOB or enable_global_extra_logging:
+        handler.addFilter(GlobalExtraLoggingFilter())
     root_logger.addHandler(handler)
     root_logger.setLevel(level)
     try:
