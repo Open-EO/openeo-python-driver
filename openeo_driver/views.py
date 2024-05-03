@@ -596,9 +596,13 @@ def _extract_job_options(post_data: dict, to_ignore: typing.Container[str]) -> U
     """
     if "job_options" in post_data:
         # Return explicit "job_options" property as is
-        return post_data["job_options"]
-    # Collect all non-deny-listed top-level properties
-    return {k: v for k, v in post_data.items() if k not in to_ignore} or None
+        job_options = post_data["job_options"]
+        _log.debug(f"_extract_job_options from 'job_options' property: {job_options!r}")
+    else:
+        # Collect all non-deny-listed top-level properties
+        job_options = {k: v for k, v in post_data.items() if k not in to_ignore} or None
+        _log.debug(f"_extract_job_options from top-level: {job_options!r}")
+    return job_options
 
 
 def register_views_processing(
