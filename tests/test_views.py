@@ -1243,6 +1243,31 @@ class TestBatchJobs:
         job_info = dummy_backend.DummyBatchJobs._job_registry[TEST_USER, 'job-256']
         assert job_info.job_options == {"driver-memory": "3g", "executor-memory": "5g"}
 
+    def test_create_job_get_metadata(self, api100):
+        with self._fresh_job_registry(next_job_id="job-245"):
+            resp = api100.post(
+                "/jobs",
+                headers=self.AUTH_HEADER,
+                json={
+                    "process": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
+                    "title": "Foo job",
+                },
+            ).assert_status_code(201)
+            assert resp.headers["OpenEO-Identifier"] == "job-245"
+            job_info = dummy_backend.DummyBatchJobs._job_registry[TEST_USER, "job-245"]
+            assert job_info.id == "job-245"
+            assert job_info.status == "created"
+
+            resp = api100.get("/jobs/job-245", headers=self.AUTH_HEADER)
+            assert resp.assert_status_code(200).json == {
+                "created": "2020-04-23T16:20:27Z",
+                "id": "job-245",
+                "process": {"process_graph": {"foo": {"arguments": {}, "process_id": "foo"}}},
+                "progress": 0,
+                "status": "created",
+                "title": "Foo job",
+            }
+
     def test_start_job(self, api):
         with self._fresh_job_registry(next_job_id="job-267") as registry:
             api.post('/jobs', headers=self.AUTH_HEADER, json=api.get_process_graph_dict(

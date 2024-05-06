@@ -349,6 +349,9 @@ class BatchJobMetadata(NamedTuple):
         result["created"] = rfc3339.datetime(self.created) if self.created else None
         result["updated"] = rfc3339.datetime(self.updated) if self.updated else None
 
+        # Clamp "progress" for certain "status" values according to the spec.
+        result["progress"] = {"created": 0, "queued": 0, "finished": 100}.get(self.status, self.progress)
+
         if full:
             usage = self.usage or {}
             if self.cpu_time:
