@@ -1,6 +1,5 @@
 from __future__ import annotations
 import argparse
-import contextlib
 import json
 import logging
 import os
@@ -22,7 +21,7 @@ from retry.api import retry_call
 import openeo_driver._version
 from openeo_driver.errors import InternalException, JobNotFoundException
 from openeo_driver.util.auth import ClientCredentials, ClientCredentialsAccessTokenHelper
-from openeo_driver.util.logging import just_log_exceptions
+from openeo_driver.util.logging import ExtraLoggingFilter
 from openeo_driver.utils import generate_unique_id
 
 _log = logging.getLogger(__name__)
@@ -283,19 +282,6 @@ class ElasticJobRegistry(JobRegistryInterface):
             user_agent += f"/{self._backend_id}"
         self._session.headers["User-Agent"] = user_agent
 
-    @contextlib.contextmanager
-    def _with_extra_logging(self, **kwargs):
-        """Context manager to temporarily add extra logging fields in a context"""
-        orig = self.logger
-        extra = kwargs
-        if isinstance(orig, logging.LoggerAdapter):
-            extra = {**orig.extra, **extra}
-        self.logger = logging.LoggerAdapter(logger=orig, extra=extra)
-        try:
-            yield
-        finally:
-            self.logger = orig
-
     @property
     def backend_id(self) -> str:
         assert self._backend_id
@@ -404,13 +390,13 @@ class ElasticJobRegistry(JobRegistryInterface):
             "api_version": api_version,
             # TODO: additional technical metadata, see https://github.com/Open-EO/openeo-api/issues/472
         }
-        with self._with_extra_logging(job_id=job_id):
+        with ExtraLoggingFilter.with_extra_logging(job_id=job_id):
             self.logger.info(f"EJR creating {job_id=} {created=}")
             result = self._do_request("POST", "/jobs", json=job_data, expected_status=201)
             return result
 
     def get_job(self, job_id: str, user_id: Optional[str] = None, fields: Optional[List[str]] = None) -> JobDict:
-        with self._with_extra_logging(job_id=job_id, user_id=user_id):
+        with ExtraLoggingFilter.with_extra_logging(job_id=job_id, user_id=user_id):
             self.logger.info(f"EJR get job data {job_id=} {user_id=}")
 
             filters = [
@@ -444,7 +430,7 @@ class ElasticJobRegistry(JobRegistryInterface):
                 raise InternalException(message=f"Found {len(jobs)} jobs for {job_id=} {user_id=}")
 
     def delete_job(self, job_id: str, user_id: Optional[str] = None) -> None:
-        with self._with_extra_logging(job_id=job_id, user_id=user_id):
+        with ExtraLoggingFilter.with_extra_logging(job_id=job_id, user_id=user_id):
             try:
                 self.get_job(job_id=job_id, user_id=user_id, fields=["job_id"])  # assert own job
                 self._do_request(method="DELETE", path=f"/jobs/{job_id}", log_response_errors=False)
@@ -503,7 +489,7 @@ class ElasticJobRegistry(JobRegistryInterface):
 
     def _update(self, job_id: str, data: dict) -> JobDict:
         """Generic update method"""
-        with self._with_extra_logging(job_id=job_id):
+        with ExtraLoggingFilter.with_extra_logging(job_id=job_id):
             self.logger.info(f"EJR update {job_id=} {data=}")
             return self._do_request("PATCH", f"/jobs/{job_id}", json=data)
 

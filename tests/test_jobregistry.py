@@ -20,6 +20,7 @@ from openeo_driver.jobregistry import (
 )
 from openeo_driver.testing import DictSubSet, IgnoreOrder, ListSubSet, RegexMatcher, caplog_with_custom_formatter
 from openeo_driver.util.auth import ClientCredentials
+from openeo_driver.util.logging import ExtraLoggingFilter
 
 DUMMY_PROCESS = {
     "summary": "calculate 3+5, please",
@@ -778,10 +779,10 @@ class TestElasticJobRegistry:
                                  )
         assert patch_mock.call_count == 1
 
-
     def test_job_id_logging(self, requests_mock, oidc_mock, ejr, caplog):
         """Check that job_id logging is passed through as logging extra in appropriate places"""
         caplog.set_level(logging.DEBUG)
+        caplog.handler.addFilter(ExtraLoggingFilter())
 
         job_id = "j-123"
 
@@ -843,6 +844,7 @@ class TestElasticJobRegistry:
     def test_with_extra_logging(self, requests_mock, oidc_mock, ejr, caplog):
         """Test that "extra logging fields" (like job_id) do not leak outside of context"""
         caplog.set_level(logging.INFO)
+        caplog.handler.addFilter(ExtraLoggingFilter())
 
         class Formatter:
             def format(self, record: logging.LogRecord):
