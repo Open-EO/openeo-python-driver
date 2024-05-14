@@ -778,16 +778,6 @@ class TestElasticJobRegistry:
                                  )
         assert patch_mock.call_count == 1
 
-    def test_just_log_errors(self, caplog):
-        with ElasticJobRegistry.just_log_errors("some math"):
-            x = (2 + 3) / 0
-        assert caplog.record_tuples == [
-            (
-                "openeo_driver.jobregistry.elastic",
-                logging.WARN,
-                "In context 'some math': caught ZeroDivisionError('division by zero')",
-            )
-        ]
 
     def test_job_id_logging(self, requests_mock, oidc_mock, ejr, caplog):
         """Check that job_id logging is passed through as logging extra in appropriate places"""

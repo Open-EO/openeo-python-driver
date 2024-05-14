@@ -607,14 +607,6 @@ class ElasticJobRegistry(JobRegistryInterface):
             "results_metadata": results_metadata,
         })
 
-    @staticmethod
-    def just_log_errors(name: str = "EJR"):
-        """
-        Shortcut to easily and compactly guard all experimental, new ElasticJobRegistry logic
-        with a "just_log_errors" context.
-        """
-        return just_log_exceptions(log=ElasticJobRegistry.logger.warning, name=name)
-
 
 class CliApp:
     """
