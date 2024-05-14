@@ -1,3 +1,4 @@
+from __future__ import annotations
 import argparse
 import contextlib
 import json
@@ -189,13 +190,20 @@ class EjrError(Exception):
     pass
 
 
-class EjrHttpError(EjrError):
+class EjrApiError(EjrError):
+    """Generic error when trying/doing an EJR API request."""
+
+    pass
+
+
+class EjrApiResponseError(EjrApiError):
+    """Error deducted from EJR API response"""
     def __init__(self, msg: str, status_code: Optional[int]):
         super().__init__(msg)
         self.status_code = status_code
 
     @classmethod
-    def from_response(cls, response: requests.Response) -> "EjrHttpError":
+    def from_response(cls, response: requests.Response) -> EjrApiResponseError:
         request = response.request
         return cls(
             msg=f"EJR API error: {response.status_code} {response.reason!r} on `{request.method} {request.url!r}`: {response.text}",
@@ -304,6 +312,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         json: Union[dict, list, None] = None,
         use_auth: bool = True,
         expected_status: int = 200,
+        log_response_errors: bool = True,
     ) -> Union[dict, list, None]:
         """Do an HTTP request to Elastic Job Tracker service."""
         with TimingLogger(logger=self.logger.debug, title=f"EJR Request `{method} {path}`"):
@@ -317,17 +326,23 @@ class ElasticJobRegistry(JobRegistryInterface):
             if self._debug_show_curl:
                 curl_command = self._as_curl(method=method, url=url, data=json, headers=headers)
                 self.logger.debug(f"Equivalent curl command: {curl_command}")
-
-            response = self._session.request(
-                method=method,
-                url=url,
-                json=json,
-                headers=headers,
-                timeout=self._REQUEST_TIMEOUT,
-            )
+            try:
+                response = self._session.request(
+                    method=method,
+                    url=url,
+                    json=json,
+                    headers=headers,
+                    timeout=self._REQUEST_TIMEOUT,
+                )
+            except Exception as e:
+                self.logger.exception(f"Failed to do EJR API request `{method} {path}`: {e!r}")
+                raise EjrApiError(f"Failed to do EJR API request `{method} {path}`") from e
             self.logger.debug(f"EJR response on `{method} {path}`: {response.status_code!r}")
             if expected_status and response.status_code != expected_status:
-                raise EjrHttpError.from_response(response=response)
+                exc = EjrApiResponseError.from_response(response=response)
+                if log_response_errors:
+                    self.logger.error(str(exc))
+                raise exc
             else:
                 response.raise_for_status()
 
@@ -432,9 +447,9 @@ class ElasticJobRegistry(JobRegistryInterface):
         with self._with_extra_logging(job_id=job_id, user_id=user_id):
             try:
                 self.get_job(job_id=job_id, user_id=user_id, fields=["job_id"])  # assert own job
-                self._do_request(method="DELETE", path=f"/jobs/{job_id}")
+                self._do_request(method="DELETE", path=f"/jobs/{job_id}", log_response_errors=False)
                 self.logger.info(f"EJR deleted {job_id=}")
-            except EjrHttpError as e:
+            except EjrApiResponseError as e:
                 if e.status_code == 404:
                     raise JobNotFoundException(job_id=job_id) from e
                 raise e

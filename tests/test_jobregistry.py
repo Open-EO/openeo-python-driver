@@ -13,9 +13,10 @@ from openeo_driver.jobregistry import (
     JOB_STATUS,
     PARTIAL_JOB_STATUS,
     EjrError,
-    EjrHttpError,
+    EjrApiResponseError,
     ElasticJobRegistry,
     get_ejr_credentials_from_env,
+    EjrApiError,
 )
 from openeo_driver.testing import DictSubSet, IgnoreOrder, ListSubSet, RegexMatcher, caplog_with_custom_formatter
 from openeo_driver.util.auth import ClientCredentials
@@ -861,7 +862,7 @@ class TestElasticJobRegistry:
         with caplog_with_custom_formatter(caplog=caplog, format=Formatter()):
             # Trigger failure during _with_extra_logging
             requests_mock.post(f"{self.EJR_API_URL}/jobs/search", status_code=500)
-            with pytest.raises(EjrHttpError):
+            with pytest.raises(EjrApiResponseError):
                 _ = ejr.get_job(job_id="job-123", user_id="john")
 
             # Health check should not be logged with job id in logs
@@ -871,3 +872,15 @@ class TestElasticJobRegistry:
         logs = caplog.text.strip().split("\n")
         assert "openeo_driver.jobregistry.elastic [job-123] EJR get job data job_id='job-123' user_id='john'" in logs
         assert "openeo_driver.jobregistry.elastic [None] EJR health check {'ok': 'yep'}" in logs
+
+    def test_connection_error_logging(self, requests_mock, oidc_mock, ejr, caplog):
+        """Test connection/timeout errors, which happen before any response is received."""
+        requests_mock.post(
+            f"{self.EJR_API_URL}/jobs/search",
+            exc=requests.ConnectionError("Connection aborted"),
+        )
+
+        with pytest.raises(EjrApiError, match="Failed to do EJR API request"):
+            _ = ejr.get_job(job_id="job-123", user_id="john")
+
+        assert "Failed to do EJR API request `POST /jobs/search`: ConnectionError('Connection aborted')" in caplog.text
