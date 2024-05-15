@@ -433,7 +433,10 @@ class DriverVectorCube:
         columns_for_cube: Union[List[str], str] = COLUMN_SELECTION_NUMERICAL,
     ) -> "DriverVectorCube":
         """Construct vector cube from GeoJson dict structure"""
-        validate_geojson_coordinates(geojson)
+        crs = geojson.get("crs", None)
+        if crs.get("type", None) != "name":
+            raise FeatureUnsupportedException("Only 'name' type CRS is supported")
+        crs = pyproj.CRS(crs["properties"]["name"])
         # TODO support more geojson types?
         if geojson["type"] in {"Polygon", "MultiPolygon", "Point", "MultiPoint"}:
             features = [{"type": "Feature", "geometry": geojson, "properties": {}}]
@@ -451,7 +454,7 @@ class DriverVectorCube:
             raise FeatureUnsupportedException(
                 f"Can not construct DriverVectorCube from {geojson.get('type', type(geojson))!r}"
             )
-        gdf = gpd.GeoDataFrame.from_features(features)
+        gdf = gpd.GeoDataFrame.from_features(features, crs=crs)
         return cls.from_geodataframe(gdf, columns_for_cube=columns_for_cube)
 
     @classmethod
