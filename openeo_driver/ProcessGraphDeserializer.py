@@ -1779,10 +1779,10 @@ def vector_to_raster(args: dict, env: EvalEnv) -> DriverDataCube:
             )
         return input_vector_cube
 
-    if( "target_data_cube" in args):
-        target_data_cube = extract_arg(args, "target_data_cube")  # TODO: remove after full migration to use of 'target'
+    if "target_data_cube" in args:
+        target = extract_arg(args, "target_data_cube")  # TODO: remove after full migration to use of 'target'
     else:
-        target_data_cube = extract_arg(args, "target")
+        target = extract_arg(args, "target")
     # TODO: to_driver_vector_cube is temporary. Remove it when vector cube is fully supported.
     if not isinstance(input_vector_cube, DriverVectorCube) and not hasattr(input_vector_cube, "to_driver_vector_cube"):
         raise ProcessParameterInvalidException(
@@ -1790,13 +1790,13 @@ def vector_to_raster(args: dict, env: EvalEnv) -> DriverDataCube:
             process="vector_to_raster",
             reason=f"Invalid data type {type(input_vector_cube)!r} expected vector-cube.",
         )
-    if not isinstance(target_data_cube, DriverDataCube):
+    if not isinstance(target, DriverDataCube):
         raise ProcessParameterInvalidException(
             parameter="target",
             process="vector_to_raster",
-            reason=f"Invalid data type {type(target_data_cube)!r} expected raster-cube.",
+            reason=f"Invalid data type {type(target)!r} expected raster-cube.",
         )
-    return env.backend_implementation.vector_to_raster(input_vector_cube, target_data_cube)
+    return env.backend_implementation.vector_to_raster(input_vector_cube, target)
 
 
 def _get_udf(args, env: EvalEnv) -> Tuple[str, str]:
