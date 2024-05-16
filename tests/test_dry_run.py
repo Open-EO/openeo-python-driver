@@ -1099,7 +1099,7 @@ def test_aggregate_spatial_get_geometries_feature_collection(
                     "name": "fields",
                     "crs": {
                         "type": "name",
-                        "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"},
+                        "properties": {"name": "EPSG:4326"},
                     },
                     "features": [
                         {

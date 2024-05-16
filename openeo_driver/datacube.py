@@ -437,6 +437,8 @@ class DriverVectorCube:
         if crs.get("type", None) != "name":
             raise FeatureUnsupportedException("Only 'name' type CRS is supported")
         crs = pyproj.CRS(crs["properties"]["name"])
+        if crs == pyproj.CRS.from_epsg(4326):
+            validate_geojson_coordinates(geojson)
         # TODO support more geojson types?
         if geojson["type"] in {"Polygon", "MultiPolygon", "Point", "MultiPoint"}:
             features = [{"type": "Feature", "geometry": geojson, "properties": {}}]
