@@ -50,3 +50,20 @@ def test_extract_literal_match_failures(node):
     pg = {"process_graph": {"p": node}}
     with pytest.raises(PropertyConditionException):
         extract_literal_match(pg)
+
+
+def test_array_contains():
+    pg = {
+        "process_graph": {
+            "arraycontains1": {
+                "process_id": "array_contains",
+                "arguments": {
+                    "data": ["31UES", "31UFS"],
+                    "value": {"from_parameter": "value"}
+                },
+                "result": True
+            }
+        }
+    }
+
+    assert extract_literal_match(pg) == {"eq": ["31UES", "31UFS"]}

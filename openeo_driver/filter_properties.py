@@ -18,7 +18,7 @@ def extract_literal_match(condition: dict, parameter_name="value") -> Dict[str, 
 
     class LiteralMatchExtractingGraphVisitor(ProcessGraphVisitor):
 
-        SUPPORTED_PROCESSES = ['eq', 'lte', 'gte']
+        SUPPORTED_PROCESSES = ['eq', 'lte', 'gte', 'array_contains']
 
         def __init__(self):
             super().__init__()
@@ -30,7 +30,7 @@ def extract_literal_match(condition: dict, parameter_name="value") -> Dict[str, 
                     f"Property filtering only supports {self.SUPPORTED_PROCESSES}, not {process_id!r}."
                 )
 
-            self.result["operator"] = process_id
+            self.result["operator"] = "eq" if process_id == "array_contains" else process_id
 
         def enterArgument(self, argument_id: str, value):
             self.result["parameter"] = value.get("from_parameter")
@@ -43,6 +43,12 @@ def extract_literal_match(condition: dict, parameter_name="value") -> Dict[str, 
                     self.result["operator"] = "gte"
                 elif self.result["operator"] == "gte":
                     self.result["operator"] = "lte"
+
+        def constantArrayElement(self, value):
+            if "constant" not in self.result:
+                self.result["constant"] = []
+
+            self.result["constant"].append(value)
 
     visitor = LiteralMatchExtractingGraphVisitor()
     visitor.accept_process_graph(condition['process_graph'])
