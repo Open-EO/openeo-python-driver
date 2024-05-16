@@ -3875,7 +3875,7 @@ def test_synchronous_processing_request_costs(
     assert env["correlation_id"] == "r-abc123"
 
     get_request_costs.assert_called_with(
-        user=User(TEST_USER, internal_auth_data={"authentication_method": "basic"}),
+        user=User(TEST_USER, internal_auth_data={"authentication_method": "Basic"}),
         job_options=job_options,
         success=success,
         request_id="r-abc123",
