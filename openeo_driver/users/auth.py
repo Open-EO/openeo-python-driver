@@ -31,6 +31,13 @@ class OidcProviderUnavailableException(OpenEOApiException):
     message = "OIDC Provider is unavailable"
 
 
+class AUTHENTICATION_METHOD:
+    """Simple enum for `User.internal_auth_data.get("authentication_method")` values."""
+
+    BASIC = "Basic"
+    OIDC = "OIDC"
+
+
 class HttpAuthHandler:
     """Handler for processing HTTP authentication in a Flask app context"""
 
@@ -176,7 +183,7 @@ class HttpAuthHandler:
         return User(
             user_id=user_id,
             internal_auth_data={
-                "authentication_method": "basic",
+                "authentication_method": AUTHENTICATION_METHOD.BASIC,
             },
         )
 
@@ -211,7 +218,7 @@ class HttpAuthHandler:
     def resolve_oidc_access_token(self, oidc_provider: OidcProvider, access_token: str) -> User:
         try:
             internal_auth_data = {
-                "authentication_method": "OIDC",
+                "authentication_method": AUTHENTICATION_METHOD.OIDC,
                 "oidc_provider_id": oidc_provider.id,
                 "oidc_issuer": oidc_provider.issuer,
                 # used for e.g. access to SHub APIs on CDSE

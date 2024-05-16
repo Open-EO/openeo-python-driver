@@ -21,6 +21,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.101.0
+
+- Add simple enum `AUTHENTICATION_METHOD` for `User.internal_auth_data.get("authentication_method")` values
+
 ## 0.100.0
 
 - Rename `BatchJobLoggingFilter` to more general applicable `GlobalExtraLoggingFilter`
