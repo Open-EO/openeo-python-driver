@@ -433,7 +433,7 @@ class DriverVectorCube:
         columns_for_cube: Union[List[str], str] = COLUMN_SELECTION_NUMERICAL,
     ) -> "DriverVectorCube":
         """Construct vector cube from GeoJson dict structure"""
-        crs = geojson.get("crs", None)
+        crs = geojson.get("crs", {"type": "name", "properties": {"name": "EPSG:4326"}})
         if crs.get("type", None) != "name":
             raise FeatureUnsupportedException("Only 'name' type CRS is supported")
         crs = pyproj.CRS(crs["properties"]["name"])
