@@ -430,13 +430,17 @@ class DriverVectorCube:
     def from_geojson(
         cls,
         geojson: dict,
+        ignore_crs: bool = True,
         columns_for_cube: Union[List[str], str] = COLUMN_SELECTION_NUMERICAL,
     ) -> "DriverVectorCube":
         """Construct vector cube from GeoJson dict structure"""
-        crs = geojson.get("crs", {"type": "name", "properties": {"name": "EPSG:4326"}})
-        if crs.get("type", None) != "name":
-            raise FeatureUnsupportedException("Only 'name' type CRS is supported")
-        crs = pyproj.CRS(crs["properties"]["name"])
+        if ignore_crs:
+            crs = pyproj.CRS.from_epsg(4326)
+        else:
+            crs = geojson.get("crs", {"type": "name", "properties": {"name": "EPSG:4326"}})
+            if crs.get("type", None) != "name":
+                raise FeatureUnsupportedException("Only 'name' type CRS is supported")
+            crs = pyproj.CRS(crs["properties"]["name"])
         if crs == pyproj.CRS.from_epsg(4326):
             validate_geojson_coordinates(geojson)
         # TODO support more geojson types?
