@@ -904,7 +904,7 @@ def to_save_result(data: Any, format: Optional[str] = None, options: Optional[di
     elif isinstance(data, DriverVectorCube):
         return VectorCubeResult(cube=data, format=format, options=options)
     elif isinstance(data, DelayedVector):
-        if format is None or format == "json":
+        if format is None or format.lower() == "json":
             # TODO #114 EP-3981 add vector cube support: keep features from feature collection
             geojsons = [mapping(geometry) for geometry in data.geometries_wgs84]
             return JSONResult(geojsons, format=format, options=options)
