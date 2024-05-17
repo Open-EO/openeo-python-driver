@@ -69,7 +69,7 @@ setup(
         "importlib_resources; python_version<'3.10'",
         "attrs>=23.1.0",
         "fiona>=1.9.0",
-        "retry~=0.9.2",
+        "reretry~=0.11.8",
         "markdown>3.4",
     ],
     extras_require={

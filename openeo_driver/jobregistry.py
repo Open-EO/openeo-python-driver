@@ -16,7 +16,7 @@ import requests
 from deprecated.classic import deprecated
 from openeo.rest.connection import url_join
 from openeo.util import TimingLogger, repr_truncate, rfc3339
-from retry.api import retry_call
+from reretry.api import retry_call
 
 import openeo_driver._version
 from openeo_driver.errors import InternalException, JobNotFoundException
