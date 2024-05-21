@@ -72,3 +72,5 @@ class OpenEoBackendConfig:
     processes_exclusion_list: Dict[str, List[str]] = {}  # e.g. {"1.1.0":["my_process_id"]}
 
     workspaces: Dict[str, Workspace] = attrs.Factory(dict)
+
+    ejr_retry_settings: dict = attrs.Factory(lambda: dict(tries=4, delay=2, backoff=2))

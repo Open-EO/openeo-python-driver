@@ -1,5 +1,6 @@
 import logging
 from typing import Callable, List, Optional, Sequence, Union
+from unittest import mock
 
 import pytest
 import requests
@@ -18,7 +19,14 @@ from openeo_driver.jobregistry import (
     get_ejr_credentials_from_env,
     EjrApiError,
 )
-from openeo_driver.testing import DictSubSet, IgnoreOrder, ListSubSet, RegexMatcher, caplog_with_custom_formatter
+from openeo_driver.testing import (
+    DictSubSet,
+    IgnoreOrder,
+    ListSubSet,
+    RegexMatcher,
+    caplog_with_custom_formatter,
+    config_overrides,
+)
 from openeo_driver.util.auth import ClientCredentials
 from openeo_driver.util.logging import ExtraLoggingFilter
 
@@ -876,3 +884,34 @@ class TestElasticJobRegistry:
             _ = ejr.get_job(job_id="job-123", user_id="john")
 
         assert "Failed to do EJR API request `POST /jobs/search`: ConnectionError('Connection aborted')" in caplog.text
+
+    @pytest.mark.parametrize(
+        ["tries", "failures", "success"],
+        [
+            (2, 1, True),
+            (2, 2, False),
+            (3, 2, True),
+        ],
+    )
+    def test_retry(self, requests_mock, oidc_mock, ejr, tries, failures, success):
+        """Test retry logic (on search)"""
+
+        def post_jobs_search(request, context):
+            """Handler of `POST /jobs/search"""
+            # TODO: what to return? What does API return?  https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
+            return [DUMMY_PROCESS]
+
+        requests_mock.post(
+            f"{self.EJR_API_URL}/jobs/search",
+            [{"exc": requests.exceptions.ConnectTimeout}] * failures + [{"json": post_jobs_search}],
+        )
+
+        with config_overrides(ejr_retry_settings={"tries": tries}), mock.patch("time.sleep") as sleep:
+            if success:
+                result = ejr.list_user_jobs(user_id="john")
+                assert result == [DUMMY_PROCESS]
+            else:
+                with pytest.raises(EjrApiError, match="Failed to do EJR API request `POST /jobs/search`"):
+                    _ = ejr.list_user_jobs(user_id="john")
+
+        assert sleep.call_count > 0

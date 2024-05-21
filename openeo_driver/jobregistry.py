@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import argparse
 import json
 import logging
@@ -6,19 +7,19 @@ import os
 import pprint
 import shlex
 import textwrap
-
 import time
 import typing
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 import requests
+import reretry
 from deprecated.classic import deprecated
 from openeo.rest.connection import url_join
 from openeo.util import TimingLogger, repr_truncate, rfc3339
-from reretry.api import retry_call
 
 import openeo_driver._version
+from openeo_driver.config import get_backend_config
 from openeo_driver.errors import InternalException, JobNotFoundException
 from openeo_driver.util.auth import ClientCredentials, ClientCredentialsAccessTokenHelper
 from openeo_driver.util.logging import ExtraLoggingFilter
@@ -160,6 +161,9 @@ class JobRegistryInterface:
 
         :param user_id: user id of user to list jobs for
         :param fields: job metadata fields that should be included in result
+
+        :return: list of job metadata dictionaries
+            The "process" field should not be included
         """
         raise NotImplementedError
 
@@ -299,6 +303,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         use_auth: bool = True,
         expected_status: int = 200,
         log_response_errors: bool = True,
+        retry: bool = False,
     ) -> Union[dict, list, None]:
         """Do an HTTP request to Elastic Job Tracker service."""
         with TimingLogger(logger=self.logger.debug, title=f"EJR Request `{method} {path}`"):
@@ -313,13 +318,22 @@ class ElasticJobRegistry(JobRegistryInterface):
                 curl_command = self._as_curl(method=method, url=url, data=json, headers=headers)
                 self.logger.debug(f"Equivalent curl command: {curl_command}")
             try:
-                response = self._session.request(
+                do_request = lambda: self._session.request(
                     method=method,
                     url=url,
                     json=json,
                     headers=headers,
                     timeout=self._REQUEST_TIMEOUT,
                 )
+                if retry:
+                    response = reretry.retry_call(
+                        do_request,
+                        exceptions=requests.exceptions.RequestException,
+                        logger=self.logger,
+                        **get_backend_config().ejr_retry_settings,
+                    )
+                else:
+                    response = do_request()
             except Exception as e:
                 self.logger.exception(f"Failed to do EJR API request `{method} {path}`: {e!r}")
                 raise EjrApiError(f"Failed to do EJR API request `{method} {path}`") from e
@@ -535,9 +549,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             "_source": list(fields),
         }
         self.logger.debug(f"Doing search with query {json.dumps(query)}")
-        return retry_call(self._do_request, fargs=["POST", "/jobs/search", query],
-                          exceptions=requests.exceptions.RequestException, tries=4, delay=2, backoff=2,
-                          logger=self.logger)
+        return self._do_request("POST", "/jobs/search", query, retry=True)
 
     def list_user_jobs(
         self, user_id: Optional[str], fields: Optional[List[str]] = None
