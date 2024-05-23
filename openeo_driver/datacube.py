@@ -644,6 +644,8 @@ class DriverVectorCube:
         # TODO: cache bounding box?
         # TODO #114 #141 Open-EO/openeo-geopyspark-driver#239: option to buffer point geometries (if any)
         #       before calculating bounding box?  Or add minimum width/height constraint for bbox?
+        if self._geometries.empty:
+            raise ValueError("DriverVectorCube has no geometries")
         return tuple(self._geometries.total_bounds)
 
     def get_bounding_box_geometry(self) -> shapely.geometry.Polygon:
