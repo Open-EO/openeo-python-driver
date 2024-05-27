@@ -319,11 +319,3 @@ class DelayedVector:
         # so actually geojson has no crs, it's always lat lon, need to check what gdal does...
         crs = geojson.get("crs", {}).get("properties", {}).get("name")
         return pyproj.CRS("epsg:4326") if crs is None else pyproj.CRS(crs)
-
-        # TODO: what's the deal with this deprecated "init"?
-        if crs == None:
-            return pyproj.CRS({'init': 'epsg:4326'})
-        elif crs.startswith("urn:ogc:"):
-            return pyproj.CRS(crs)
-        else:
-            return pyproj.CRS({'init': crs})
