@@ -14,6 +14,7 @@ import shapely
 from shapely.geometry import shape
 from shapely.geometry.base import BaseGeometry
 
+from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.util.geometry import (
     reproject_bounding_box,
@@ -319,3 +320,7 @@ class DelayedVector:
         # so actually geojson has no crs, it's always lat lon, need to check what gdal does...
         crs = geojson.get("crs", {}).get("properties", {}).get("name")
         return pyproj.CRS("epsg:4326") if crs is None else pyproj.CRS(crs)
+
+    def to_driver_vector_cube(self):
+        gdf = self.as_geodataframe()
+        return DriverVectorCube.from_geodataframe(gdf, dimension_name="bands")

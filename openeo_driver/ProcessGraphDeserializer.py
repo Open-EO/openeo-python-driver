@@ -1142,9 +1142,7 @@ def aggregate_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
                 process="aggregate_spatial",
                 reason="Failed to parse inline GeoJSON",
             )
-    elif isinstance(geoms, DelayedVector):
-        geoms = geoms.path
-    elif isinstance(geoms, AggregatePolygonResult):
+    elif isinstance(geoms, (AggregatePolygonResult, DelayedVector)):
         geoms = geoms.to_driver_vector_cube()
     else:
         raise ProcessParameterInvalidException(
