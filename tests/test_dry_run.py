@@ -1076,14 +1076,14 @@ def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
+    (geometries,) = dry_run_tracer.get_geometries()
     assert src == ("load_collection", ("S2_FOOBAR", ()))
     assert constraints == {
         "spatial_extent": {"west": 5.05, "south": 51.21, "east": 5.15, "north": 51.3, "crs": "EPSG:4326"},
-        "aggregate_spatial": {"geometries": DelayedVector(geometry_path)},
+        "aggregate_spatial": {"geometries": geometries},
         "weak_spatial_extent": {"crs": "EPSG:4326", "east": 5.15, "north": 51.3, "south": 51.21, "west": 5.05},
     }
-    geometries, = dry_run_tracer.get_geometries()
-    assert isinstance(geometries, DelayedVector)
+    assert isinstance(geometries, DriverVectorCube)
 
 
 def test_aggregate_spatial_get_geometries_feature_collection(
@@ -1605,7 +1605,7 @@ def test_CropSAR_aggregate_spatial_constraint(dry_run_env, dry_run_tracer):
         assert len(constraints_with_geometry) == 3
 
         for _, constraints in constraints_with_geometry:
-            assert constraints['aggregate_spatial']['geometries'].path == geometry_path
+            assert isinstance(constraints["aggregate_spatial"]["geometries"], DriverVectorCube)
     finally:
         del process_registry_100._processes['test', 'CropSAR']
 
