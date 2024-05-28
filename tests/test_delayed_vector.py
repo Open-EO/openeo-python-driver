@@ -23,12 +23,12 @@ def test_geometry_collection_bounds():
 
 def test_geojson_crs_unspecified():
     dv = DelayedVector(str(get_path("geojson/test_geojson_crs_unspecified.geojson")))
-    assert dv.crs == CRS.from_user_input("+init=epsg:4326")
+    assert dv.crs == CRS.from_user_input("epsg:4326")
 
 
 def test_geojson_crs_from_epsg():
     dv = DelayedVector(str(get_path("geojson/test_geojson_crs_from_epsg.geojson")))
-    assert dv.crs == CRS.from_user_input("+init=epsg:4326")
+    assert dv.crs == CRS.from_user_input("epsg:4326")
 
 
 def test_geojson_crs_from_ogc_urn():
