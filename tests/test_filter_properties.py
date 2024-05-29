@@ -66,4 +66,4 @@ def test_array_contains():
         }
     }
 
-    assert extract_literal_match(pg) == {"eq": ["31UES", "31UFS"]}
+    assert extract_literal_match(pg) == {"in": ["31UES", "31UFS"]}

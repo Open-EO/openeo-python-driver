@@ -30,7 +30,7 @@ def extract_literal_match(condition: dict, parameter_name="value") -> Dict[str, 
                     f"Property filtering only supports {self.SUPPORTED_PROCESSES}, not {process_id!r}."
                 )
 
-            self.result["operator"] = "eq" if process_id == "array_contains" else process_id
+            self.result["operator"] = "in" if process_id == "array_contains" else process_id
 
         def enterArgument(self, argument_id: str, value):
             self.result["parameter"] = value.get("from_parameter")

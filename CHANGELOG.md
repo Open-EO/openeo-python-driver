@@ -21,6 +21,11 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.102.0
+
+- Emit "in" operator ([Open-EO/openeo-opensearch-client#32](https://github.com/Open-EO/openeo-opensearch-client/issues/32),
+  [Open-EO/openeo-geopyspark-driver/#776](https://github.com/Open-EO/openeo-geopyspark-driver/issues/776))
+
 ## 0.101.0
 
 - Add simple enum `AUTHENTICATION_METHOD` for `User.internal_auth_data.get("authentication_method")` values
