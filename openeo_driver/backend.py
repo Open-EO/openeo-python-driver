@@ -321,16 +321,16 @@ class BatchJobMetadata(NamedTuple):
 
         usage = d.get("usage")
         if usage:
+            # TODO #191 All these fields are deprecated in favor of general "usage" field
             if usage.get("cpu"):
-                # TODO: support other units too
-                assert usage["cpu"]["unit"] == "cpu-seconds"
-                kwargs["cpu_time"] = timedelta(seconds=usage["cpu"]["value"])
+                if usage["cpu"]["unit"] == "cpu-seconds":
+                    kwargs["cpu_time"] = timedelta(seconds=usage["cpu"]["value"])
             if usage.get("memory"):
-                assert usage["memory"]["unit"] == "mb-seconds"
-                kwargs["memory_time_megabyte"] = timedelta(seconds=usage["memory"]["value"])
+                if usage["memory"]["unit"] == "mb-seconds":
+                    kwargs["memory_time_megabyte"] = timedelta(seconds=usage["memory"]["value"])
             if usage.get("duration"):
-                assert usage["duration"]["unit"] == "seconds"
-                kwargs["duration_"] = timedelta(seconds=usage["duration"]["value"])
+                if usage["duration"]["unit"] == "seconds":
+                    kwargs["duration_"] = timedelta(seconds=usage["duration"]["value"])
 
         return cls(**kwargs)
 
