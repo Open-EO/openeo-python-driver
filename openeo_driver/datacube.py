@@ -282,6 +282,7 @@ class DriverVectorCube:
             if not geometries.index.equals(cube.indexes[cube.dims[0]]):
                 log.error(f"Invalid VectorCube components {geometries.index=} != {cube.indexes[cube.dims[0]]=}")
                 raise VectorCubeError("Incompatible vector cube components")
+        geometries = DriverVectorCube._convert_crs84(geometries)
         self._geometries: gpd.GeoDataFrame = geometries
         self._cube = cube
 
@@ -414,7 +415,6 @@ class DriverVectorCube:
             location = io.BytesIO(resp.raw.read())
         df = gpd.read_parquet(location)
         log.info(f"Read geoparquet from {location} crs {df.crs} length {len(df)}")
-        df = DriverVectorCube._convert_crs84(df)
         return cls.from_geodataframe(df, columns_for_cube=columns_for_cube)
 
     @staticmethod
@@ -466,7 +466,6 @@ class DriverVectorCube:
                 f"Can not construct DriverVectorCube from {geojson.get('type', type(geojson))!r}"
             )
         gdf = gpd.GeoDataFrame.from_features(features, crs=crs)
-        gdf = DriverVectorCube._convert_crs84(gdf)
         return cls.from_geodataframe(gdf, columns_for_cube=columns_for_cube)
 
     @classmethod
