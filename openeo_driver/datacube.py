@@ -17,6 +17,7 @@ import shapely.geometry
 import shapely.geometry.base
 import shapely.ops
 import xarray
+from geopandas import GeoDataFrame
 from openeo.metadata import CollectionMetadata
 from openeo.util import ensure_dir, str_truncate
 from pyproj import CRS
@@ -413,11 +414,15 @@ class DriverVectorCube:
             location = io.BytesIO(resp.raw.read())
         df = gpd.read_parquet(location)
         log.info(f"Read geoparquet from {location} crs {df.crs} length {len(df)}")
+        df = DriverVectorCube._convert_crs84(df)
+        return cls.from_geodataframe(df, columns_for_cube=columns_for_cube)
 
+    @staticmethod
+    def _convert_crs84(df: GeoDataFrame):
         if "OGC:CRS84" in str(df.crs) or "WGS 84 (CRS84)" in str(df.crs):
             # workaround for not being able to decode ogc:crs84
             df.crs = CRS.from_epsg(4326)
-        return cls.from_geodataframe(df, columns_for_cube=columns_for_cube)
+        return df
 
     def write_to_parquet(
         self, path: str, flatten_prefix: Optional[str] = None, include_properties=True, only_numeric=True
@@ -461,6 +466,7 @@ class DriverVectorCube:
                 f"Can not construct DriverVectorCube from {geojson.get('type', type(geojson))!r}"
             )
         gdf = gpd.GeoDataFrame.from_features(features, crs=crs)
+        gdf = DriverVectorCube._convert_crs84(gdf)
         return cls.from_geodataframe(gdf, columns_for_cube=columns_for_cube)
 
     @classmethod
