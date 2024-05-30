@@ -777,6 +777,16 @@ class DriverVectorCube:
             message=f"DriverVectorCube.apply_dimension with {dimension=} and {bool(single_run_udf)=}"
         )
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}(\ngeometries:\n{self._geometries!r}\ncube:\n{self._cube!r}\ncrs: {self.get_crs_str()}\nbbox: {self.get_bounding_box()!r})"
+
+    def __str__(self):
+        cube_dims = (
+            {dim: len(self._cube.coords[dim]) for dim in self._cube.dims} if self._cube is not None else "No cube"
+        )
+        properties = self._geometries.columns.to_list()
+        return f"{self.__class__.__name__}(dimensions: {cube_dims}, properties: {properties}, crs: {self.get_crs_str()}, bbox: {self.get_bounding_box()})"
+
 
 class DriverMlModel:
     """Base class for driver-side 'ml-model' data structures"""
