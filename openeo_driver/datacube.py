@@ -419,7 +419,7 @@ class DriverVectorCube:
 
     @staticmethod
     def _convert_crs84(df: GeoDataFrame):
-        if "OGC:CRS84" in str(df.crs) or "WGS 84 (CRS84)" in str(df.crs):
+        if "OGC:CRS84" in str(df.crs) or "WGS 84 (CRS84)" in str(df.crs) or df.crs.to_epsg() is None:
             # workaround for not being able to decode ogc:crs84
             df.crs = CRS.from_epsg(4326)
         return df
