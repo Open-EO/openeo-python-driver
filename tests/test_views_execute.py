@@ -1,5 +1,4 @@
 import dataclasses
-import dirty_equals
 import json
 import math
 import re
@@ -22,9 +21,15 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import ProcessType
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyVisitor
-from openeo_driver.errors import ProcessGraphInvalidException, ProcessGraphMissingException
-from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph, custom_process
+from openeo_driver.errors import (
+    ProcessGraphInvalidException,
+    ProcessGraphMissingException,
+)
 from openeo_driver.processes import ProcessArgs, ProcessRegistry
+from openeo_driver.ProcessGraphDeserializer import (
+    custom_process,
+    custom_process_from_process_graph,
+)
 from openeo_driver.testing import (
     TEST_USER,
     TEST_USER_BEARER_TOKEN,
@@ -38,7 +43,10 @@ from openeo_driver.testing import (
     preprocess_regex_check_and_replace,
 )
 from openeo_driver.users import User
-from openeo_driver.util.geometry import as_geojson_feature, as_geojson_feature_collection
+from openeo_driver.util.geometry import (
+    as_geojson_feature,
+    as_geojson_feature_collection,
+)
 from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.util.logging import FlaskRequestCorrelationIdLogging
 from openeo_driver.utils import EvalEnv

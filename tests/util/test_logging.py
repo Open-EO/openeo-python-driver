@@ -1,11 +1,11 @@
-import dirty_equals
 import json
 import logging
 import re
 import textwrap
 import traceback
-from typing import List, Union, Optional
+from typing import List, Optional, Union
 
+import dirty_equals
 import flask
 import pytest
 import re_assert
@@ -16,16 +16,15 @@ from openeo_driver.util.logging import (
     LOGGING_CONTEXT_BATCH_JOB,
     LOGGING_CONTEXT_FLASK,
     BatchJobLoggingFilter,
-    FlaskRequestCorrelationIdLogging,
-    GlobalExtraLoggingFilter,
     ExtraLoggingFilter,
+    FlaskRequestCorrelationIdLogging,
     FlaskUserIdLogging,
+    GlobalExtraLoggingFilter,
     just_log_exceptions,
     user_id_trim,
 )
 
 from ..conftest import enhanced_logging
-
 
 _log = logging.getLogger(__name__)
 
