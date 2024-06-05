@@ -1451,8 +1451,7 @@ def run_udf(args: dict, env: EvalEnv):
     result_collections = result_data.get_feature_collection_list()
     if result_collections != None and len(result_collections) > 0:
         with tempfile.NamedTemporaryFile(suffix=".json.tmp", delete=False) as temp_file:
-            result_collections[0].data.to_file(temp_file.name, driver='GeoJSON')
-            return DelayedVector(temp_file.name)
+            return DriverVectorCube.from_geodataframe(data=result_collections[0].data)
     structured_result = result_data.get_structured_data_list()
     if structured_result != None and len(structured_result)>0:
         return JSONResult(structured_result[0].data)
