@@ -1450,8 +1450,11 @@ def run_udf(args: dict, env: EvalEnv):
 
     result_collections = result_data.get_feature_collection_list()
     if result_collections != None and len(result_collections) > 0:
-        with tempfile.NamedTemporaryFile(suffix=".json.tmp", delete=False) as temp_file:
-            return DriverVectorCube.from_geodataframe(data=result_collections[0].data)
+        geo_data = result_collections[0].data
+        dataframe = geo_data
+        if isinstance(geo_data, gpd.GeoSeries):
+            dataframe = gpd.GeoDataFrame(geometry=geo_data)
+        return DriverVectorCube.from_geodataframe(data=dataframe)
     structured_result = result_data.get_structured_data_list()
     if structured_result != None and len(structured_result)>0:
         return JSONResult(structured_result[0].data)
