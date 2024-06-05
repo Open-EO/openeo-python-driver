@@ -1332,14 +1332,22 @@ def test_run_udf_on_vector_read_vector(api, udf_code):
         },
     }
     resp = api.check_result(process_graph)
-    assert resp.json == [
+    assert resp.json["features"] == [
         {
-            "type": "Polygon",
-            "coordinates": [[[4.47, 51.1], [4.52, 51.1], [4.52, 51.15], [4.47, 51.15], [4.47, 51.1]]],
+            "geometry": {
+                "coordinates": [[[4.47, 51.1], [4.52, 51.1], [4.52, 51.15], [4.47, 51.15], [4.47, 51.1]]],
+                "type": "Polygon",
+            },
+            "properties": {},
+            "type": "Feature",
         },
         {
-            "type": "Polygon",
-            "coordinates": [[[4.45, 51.17], [4.5, 51.17], [4.5, 51.2], [4.45, 51.2], [4.45, 51.17]]],
+            "geometry": {
+                "coordinates": [[[4.45, 51.17], [4.5, 51.17], [4.5, 51.2], [4.45, 51.2], [4.45, 51.17]]],
+                "type": "Polygon",
+            },
+            "properties": {},
+            "type": "Feature",
         },
     ]
 
@@ -1377,14 +1385,22 @@ def test_run_udf_on_vector_get_geometries(api, udf_code):
         },
     }
     resp = api.check_result(process_graph)
-    assert resp.json == [
+    assert resp.json["features"] == [
         {
-            "type": "Polygon",
-            "coordinates": [[[4.47, 51.1], [4.52, 51.1], [4.52, 51.15], [4.47, 51.15], [4.47, 51.1]]],
+            "geometry": {
+                "coordinates": [[[4.47, 51.1], [4.52, 51.1], [4.52, 51.15], [4.47, 51.15], [4.47, 51.1]]],
+                "type": "Polygon",
+            },
+            "properties": {},
+            "type": "Feature",
         },
         {
-            "type": "Polygon",
-            "coordinates": [[[4.45, 51.17], [4.5, 51.17], [4.5, 51.2], [4.45, 51.2], [4.45, 51.17]]],
+            "geometry": {
+                "coordinates": [[[4.45, 51.17], [4.5, 51.17], [4.5, 51.2], [4.45, 51.2], [4.45, 51.17]]],
+                "type": "Polygon",
+            },
+            "properties": {},
+            "type": "Feature",
         },
     ]
 
@@ -1462,7 +1478,8 @@ def test_run_udf_on_vector_inline_geojson(api, udf_code):
         },
     }
     resp = api.check_result(process_graph)
-    assert resp.json == [
+    geometries = [f["geometry"] for f in resp.json["features"]]
+    assert geometries == [
         ApproxGeoJSONByBounds(0, 0, 4, 4, types=["Polygon"], abs=0.01),
         ApproxGeoJSONByBounds(2, 1, 6, 5, types=["Polygon"], abs=0.01),
     ]
