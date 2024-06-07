@@ -30,7 +30,6 @@
           }
         ]
       },
-      "mask_value": -5,
       "process": {
         "process_graph": {
           "runudf1": {

@@ -21,6 +21,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.102.2
+
+- Support `DriverVectorCube` in `apply_polygon` ([#287](https://github.com/Open-EO/openeo-python-driver/issues/287))
+
 ## 0.102.0
 
 - Emit "in" operator ([Open-EO/openeo-opensearch-client#32](https://github.com/Open-EO/openeo-opensearch-client/issues/32),

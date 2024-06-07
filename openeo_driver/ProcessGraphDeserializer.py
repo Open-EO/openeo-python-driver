@@ -866,19 +866,19 @@ def apply_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
                 reason = "{m!s} is not a polygon.".format(m=p)
                 raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
         polygon = MultiPolygon(polygons)
+    elif isinstance(polygons, DriverVectorCube):
+        # TODO #288: I know it's wrong to coerce to MultiPolygon here, but we stick to this ill-defined API for now.
+        polygon = polygons.to_multipolygon()
     elif isinstance(polygons, shapely.geometry.base.BaseGeometry):
         polygon = MultiPolygon(polygons)
     elif isinstance(polygons, dict):
         polygon = geojson_to_multipolygon(polygons)
         if isinstance(polygon, shapely.geometry.Polygon):
             polygon = MultiPolygon([polygon])
-    elif isinstance(polygons, str):
-        # Delayed vector is not supported yet.
-        reason = "Polygon of type string is not yet supported."
-        raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
     else:
-        reason = "Polygon type is not supported."
+        reason = f"unsupported type: {type(polygons).__name__}"
         raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
+
     if polygon.area == 0:
         reason = "Polygon {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
         raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
