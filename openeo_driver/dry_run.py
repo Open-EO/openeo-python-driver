@@ -706,6 +706,10 @@ class DryRunDataCube(DriverDataCube):
         else:
             return self
 
+    def apply(self, process: dict, *, context: Optional[dict] = None, env: EvalEnv) -> "DriverDataCube":
+        cube = self._process("apply", {})
+        return cube
+
     def apply_neighborhood(
         self, process, *, size: List[dict], overlap: List[dict], context: Optional[dict] = None, env: EvalEnv
     ) -> "DriverDataCube":
@@ -771,7 +775,7 @@ class DryRunDataCube(DriverDataCube):
 
     # TODO: some methods need metadata manipulation?
 
-    apply = _nop
+
     apply_tiles = _nop
 
     reduce = _nop
