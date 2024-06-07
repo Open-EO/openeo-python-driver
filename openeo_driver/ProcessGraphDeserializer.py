@@ -856,7 +856,7 @@ def apply_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     context = args.get_optional("context", default=None)
 
     # TODO #114 EP-3981 normalize first to vector cube and simplify logic
-    # TODO: this logic (copied from original chunk_polygon implementation) coerces the input polygons
+    # TODO #288: this logic (copied from original chunk_polygon implementation) coerces the input polygons
     #       to a single MultiPolygon of pure (non-multi) polygons, which is conceptually wrong.
     #       Instead it should normalize to a feature collection or vector cube.
     if isinstance(polygons, DelayedVector):

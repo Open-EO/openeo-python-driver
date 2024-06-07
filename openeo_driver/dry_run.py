@@ -644,9 +644,10 @@ class DryRunDataCube(DriverDataCube):
             return self
 
     def chunk_polygon(
+        # TODO #288: `chunks`: MultiPolygon should not be abused as collection of separate geometries.
         self, reducer, chunks: MultiPolygon, mask_value: float, env: EvalEnv, context: Optional[dict] = None
     ) -> "DryRunDataCube":
-        # TODO: rename/update `chunk_polygon` to `apply_polygon` (https://github.com/Open-EO/openeo-processes/pull/298)
+        # TODO #229: rename/update `chunk_polygon` to `apply_polygon` (https://github.com/Open-EO/openeo-processes/pull/298)
         polygons: List[Polygon] = chunks.geoms
         # TODO #71 #114 Deprecate/avoid usage of GeometryCollection
         geometries, bbox = self._normalize_geometry(GeometryCollection(polygons))

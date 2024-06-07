@@ -169,6 +169,7 @@ def geojson_to_multipolygon(
     """
     # TODO: option to also force conversion of Polygon to MultiPolygon?
     # TODO: #71 #114 migrate/centralize all this kind of logic to vector cubes
+    # TODO #288 this function supports/promotes wrong usage of MultiPolygons (when FeatureCollections or VectorCubes should be used instead)
     validate_geojson_coordinates(geojson)
     if geojson["type"] == "Feature":
         geojson = geojson["geometry"]
