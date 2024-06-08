@@ -1,3 +1,4 @@
+import sys
 import re
 from pathlib import Path
 from typing import List, Union
@@ -70,3 +71,18 @@ def multi_project_changelog(projects: List[dict], title: str = "Changelog") -> s
         projects=projects,
     )
     return html
+
+
+def get_changelog_path(data_files_dir: str = "openeo-python-driver-data", filename: str = "CHANGELOG.md") -> Path:
+    """Get the path to the changelog file in the data files directory"""
+    # Path of changelog when installed from wheel package
+    installed_path = Path(sys.prefix) / data_files_dir / filename
+    if installed_path.exists():
+        return installed_path
+
+    # Path of changelog when running from source
+    src_path = Path(__file__).parent.parent.parent / filename
+    if src_path.exists():
+        return src_path
+
+    raise FileNotFoundError(f"No changelog found")

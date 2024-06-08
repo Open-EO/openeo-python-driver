@@ -45,7 +45,7 @@ from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, 
 from openeo_driver.jobregistry import JOB_STATUS
 from openeo_driver.save_result import AggregatePolygonResult, AggregatePolygonSpatialResult
 from openeo_driver.users import User
-from openeo_driver.util.changelog import multi_project_changelog
+import openeo_driver.util.changelog
 from openeo_driver.utils import EvalEnv, generate_unique_id, WhiteListEvalEnv
 
 DEFAULT_DATETIME = datetime(2020, 4, 23, 16, 20, 27)
@@ -915,13 +915,14 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
         return user
 
     def changelog(self) -> Union[str, Path, flask.Response]:
-        html = multi_project_changelog(
+        html = openeo_driver.util.changelog.multi_project_changelog(
             [
                 {
                     "name": "openeo-python-driver",
                     "version": importlib.metadata.version(distribution_name="openeo_driver"),
-                    # TODO use package resource tools (e.g. importlib.resources) instead of __file__ based paths
-                    "changelog_path": Path(__file__).parent.parent.parent / "CHANGELOG.md",
+                    "changelog_path": openeo_driver.util.changelog.get_changelog_path(
+                        data_files_dir="openeo-python-driver-data", filename="CHANGELOG.md"
+                    ),
                 },
             ]
         )

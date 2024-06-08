@@ -1,9 +1,8 @@
+from pathlib import Path
+
 import textwrap
 
-from openeo_driver.util.changelog import (
-    markdown_changelog_to_html,
-    multi_project_changelog,
-)
+from openeo_driver.util.changelog import markdown_changelog_to_html, multi_project_changelog, get_changelog_path
 
 
 def test_markdown_changelog_to_html_basic():
@@ -71,3 +70,7 @@ def test_multi_project_changelog(tmp_path):
     assert "<h2>1.0.2</h2>" in html
     assert "<li>Fix ipsum</li>" in html
     assert '<h2 id="ipsumlib">IpsumLib 24.3</h2>' in html
+
+
+def test_get_changelog_path():
+    assert isinstance(get_changelog_path(), Path)

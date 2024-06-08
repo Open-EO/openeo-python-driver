@@ -21,6 +21,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.103.0
+
+- Add helper for finding changelog path
+
 ## 0.102.2
 
 - Support `DriverVectorCube` in `apply_polygon` ([#287](https://github.com/Open-EO/openeo-python-driver/issues/287))
