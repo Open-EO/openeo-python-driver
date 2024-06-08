@@ -2,6 +2,7 @@ from pathlib import Path
 
 import textwrap
 
+import openeo_driver
 from openeo_driver.util.changelog import markdown_changelog_to_html, multi_project_changelog, get_changelog_path
 
 
@@ -73,4 +74,10 @@ def test_multi_project_changelog(tmp_path):
 
 
 def test_get_changelog_path():
-    assert isinstance(get_changelog_path(), Path)
+    assert isinstance(
+        get_changelog_path(
+            data_files_dir="openeo-python-driver-data",
+            src_root=Path(openeo_driver.__file__).parent.parent,
+        ),
+        Path,
+    )

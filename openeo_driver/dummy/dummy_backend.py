@@ -921,7 +921,9 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
                     "name": "openeo-python-driver",
                     "version": importlib.metadata.version(distribution_name="openeo_driver"),
                     "changelog_path": openeo_driver.util.changelog.get_changelog_path(
-                        data_files_dir="openeo-python-driver-data", filename="CHANGELOG.md"
+                        data_files_dir="openeo-python-driver-data",
+                        src_root=Path(openeo_driver.__file__).parent.parent,
+                        filename="CHANGELOG.md",
                     ),
                 },
             ]

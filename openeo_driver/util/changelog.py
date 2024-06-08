@@ -1,7 +1,7 @@
 import sys
 import re
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Optional
 
 import jinja2
 import markdown
@@ -59,6 +59,10 @@ def multi_project_changelog(projects: List[dict], title: str = "Changelog") -> s
     """
     Generate a multi-project changelog in HTML format
 
+    Return this HTMl string as flask response with something like:
+
+        return flask.make_response(html, {"Content-Type": "text/html"})
+
     :param projects: list of project dicts, with fields like "name", "version", "changelog_path"
     """
     projects = [p.copy() for p in projects]
@@ -73,16 +77,23 @@ def multi_project_changelog(projects: List[dict], title: str = "Changelog") -> s
     return html
 
 
-def get_changelog_path(data_files_dir: str = "openeo-python-driver-data", filename: str = "CHANGELOG.md") -> Path:
-    """Get the path to the changelog file in the data files directory"""
+def get_changelog_path(
+    data_files_dir: Optional[str], src_root: Optional[Path] = None, filename: str = "CHANGELOG.md"
+) -> Union[Path, None]:
+    """Get the path to the changelog file in the data files directory
+
+    :param data_files_dir: `data_files` dir (as specified in setup.py/pyproject.toml) where CHANGELOG should be installed to
+    :param src_root: source project root (in case of running from source)
+    :param filename: Name of the changelog file
+    """
     # Path of changelog when installed from wheel package
-    installed_path = Path(sys.prefix) / data_files_dir / filename
-    if installed_path.exists():
-        return installed_path
+    if data_files_dir:
+        installed_path = Path(sys.prefix) / data_files_dir / filename
+        if installed_path.exists():
+            return installed_path
 
     # Path of changelog when running from source
-    src_path = Path(__file__).parent.parent.parent / filename
-    if src_path.exists():
-        return src_path
-
-    raise FileNotFoundError(f"No changelog found")
+    if src_root:
+        src_path = src_root / filename
+        if src_path.exists():
+            return src_path

@@ -21,7 +21,7 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
-## 0.103.0
+## 0.103.0, 0.103.1
 
 - Add helper for finding changelog path
 
