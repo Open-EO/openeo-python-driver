@@ -72,6 +72,7 @@ setup(
         "fiona>=1.9.0",
         "reretry~=0.11.8",
         "markdown>3.4",
+        "traceback-with-variables==2.0.4",
     ],
     extras_require={
         "dev": tests_require,
