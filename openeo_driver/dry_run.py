@@ -224,6 +224,9 @@ class DryRunDataTracer:
     def __init__(self):
         self._traces: List[DataTraceBase] = []
 
+    def __repr__(self):
+        return "<{c} (traces: {n!r})>".format(c=self.__class__.__name__, n=self._traces)
+
     def add_trace(self, trace: DataTraceBase) -> DataTraceBase:
         """Keep track of given trace"""
         self._traces.append(trace)
