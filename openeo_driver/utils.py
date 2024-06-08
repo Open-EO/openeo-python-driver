@@ -90,6 +90,9 @@ class EvalEnv:
     def __str__(self):
         return str(self.as_dict())
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self.as_dict()}>"
+
     def __hash__(self) -> int:
         return 0  # poorly hashable but load_collection's lru_cache is small anyway
 
