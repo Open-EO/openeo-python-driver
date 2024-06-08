@@ -105,6 +105,9 @@ class DataTraceBase:
     def add_child(self, child: 'DataTrace'):
         self.children.append(child)
 
+    def __repr__(self):
+        return "<{c}#{i}({d})>".format(c=self.__class__.__name__, i=id(self), d=self.describe())
+
 
 class DataSource(DataTraceBase):
     """Data source: a data (cube) generating process like `load_collection`, `load_disk_data`, ..."""
