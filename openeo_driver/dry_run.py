@@ -648,7 +648,12 @@ class DryRunDataCube(DriverDataCube):
         self, reducer, chunks: MultiPolygon, mask_value: float, env: EvalEnv, context: Optional[dict] = None
     ) -> "DryRunDataCube":
         # TODO #229: rename/update `chunk_polygon` to `apply_polygon` (https://github.com/Open-EO/openeo-processes/pull/298)
-        polygons: List[Polygon] = chunks.geoms
+        if isinstance(chunks, Polygon):
+            polygons = [chunks]
+        elif isinstance(chunks, MultiPolygon):
+            polygons: List[Polygon] = chunks.geoms
+        else:
+            raise ValueError(f"Invalid type for `chunks`: {type(chunks)}")
         # TODO #71 #114 Deprecate/avoid usage of GeometryCollection
         geometries, bbox = self._normalize_geometry(GeometryCollection(polygons))
         cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
