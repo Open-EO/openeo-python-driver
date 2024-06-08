@@ -67,8 +67,8 @@ def multi_project_changelog(projects: List[dict], title: str = "Changelog") -> s
     """
     projects = [p.copy() for p in projects]
     for project in projects:
-        if "changelog_path" in project:
-            project["changelog_html"] = markdown_changelog_to_html(project["changelog_path"])
+        if project.get("changelog_path"):
+            project["changelog_html"] = markdown_changelog_to_html(project.get("changelog_path"))
 
     html = jinja2.Template(MULTI_PROJECT_CHANGELOG_TEMPLATE).render(
         title=title,
