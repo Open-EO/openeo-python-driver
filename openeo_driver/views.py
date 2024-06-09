@@ -281,13 +281,13 @@ def register_error_handlers(app: flask.Flask, backend_implementation: OpenEoBack
     @app.errorhandler(OpenEOApiException)
     def handle_openeoapi_exception(error: OpenEOApiException, log_message: Optional[str] = None):
         """Error handler for OpenEOApiException"""
-        most_recent_exception = sys.exc_info()[1]
-        fmt = Format(max_value_str_len=1000)
         _log.error(log_message or repr(error), exc_info=True)
-        _log.error(
-            "Sync request error stack trace with locals",
-            extra={"exc_info_with_locals": format_exc(most_recent_exception, fmt=fmt)},
-        )
+        # most_recent_exception = sys.exc_info()[1]
+        # fmt = Format(max_value_str_len=1000)
+        # _log.error(
+        #     "Sync request error stack trace with locals",
+        #     extra={"exc_info_with_locals": format_exc(most_recent_exception, fmt=fmt)},
+        # )
         error_dict = error.to_dict()
         return jsonify(error_dict), error.status_code
 
