@@ -3730,8 +3730,8 @@ def test_apply_polygon_with_vector_cube(api, tmp_path):
         assert dummy.apply_polygon.call_count == 1
         polygons = dummy.apply_polygon.call_args.kwargs["polygons"]
         # TODO #288 instead of MultPolygon, this should actually be a vector cube, feature collection or something equivalent
-        assert isinstance(polygons, shapely.geometry.MultiPolygon)
-        assert polygons.bounds == (4.45, 51.1, 4.52, 51.2)
+        assert isinstance(polygons, DriverVectorCube)
+        assert polygons.get_bounding_box() == (4.45, 51.1, 4.52, 51.2)
 
 
 def test_fit_class_random_forest(api):
