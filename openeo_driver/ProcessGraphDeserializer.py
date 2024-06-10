@@ -1853,6 +1853,7 @@ def evaluate_udp(process_id: str, udp: UserDefinedProcessMetadata, args: dict, e
 def evaluate_process_from_url(process_id: str, namespace: str, args: dict, env: EvalEnv):
     if namespace.endswith("/"):
         # Assume namespace is a folder possibly containing multiple processes
+        # TODO: these "candidates" are probably not going to be in the spec, so start warning about these? https://github.com/Open-EO/openeo-api/issues/515
         candidates = [
             f"{namespace}{process_id}",
             f"{namespace}{process_id}.json",
@@ -1871,12 +1872,23 @@ def evaluate_process_from_url(process_id: str, namespace: str, args: dict, env: 
 
     try:
         spec = res.json()
-        assert spec["id"].lower() == process_id.lower()
+        if spec["id"].lower() != process_id.lower():
+            raise OpenEOApiException(
+                status_code=400,
+                code="ProcessIdMismatch",
+                message=f"Mismatch between expected process {process_id!r} and process {spec['id']!r} defined at {candidate!r}.",
+            )
         process_graph = spec["process_graph"]
         parameters = spec.get("parameters", [])
+    except OpenEOApiException:
+        raise
     except Exception as e:
-        _log.error(f"Failed to load process {process_id!r} from {candidate!r}", exc_info=True)
-        raise ProcessGraphInvalidException() from e
+        _log.error(f"Failed to load process {process_id=} from {candidate=}: {e=}", exc_info=True)
+        raise OpenEOApiException(
+            status_code=400,
+            code="ProcessResourceInvalid",
+            message=f"Failed to load process {process_id!r} from {candidate!r}: {e!r}",
+        ) from e
 
     return _evaluate_process_graph_process(
         process_id=process_id, process_graph=process_graph, parameters=parameters, args=args, env=env
