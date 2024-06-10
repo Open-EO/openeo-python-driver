@@ -112,6 +112,9 @@ class ProcessRegistry:
         # Expected argument names that process function signature should start with
         self._argument_names = argument_names
 
+    def __repr__(self):
+        return "<{c} {n} processes>".format(c=self.__class__.__name__, n=len(self._processes))
+
     def _key(self, name: str, namespace: str = DEFAULT_NAMESPACE) -> Tuple[str, str]:
         """Lookup key for in `_processes` dict"""
         return namespace, name

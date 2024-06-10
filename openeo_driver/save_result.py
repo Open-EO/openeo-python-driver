@@ -902,10 +902,6 @@ def to_save_result(data: Any, format: Optional[str] = None, options: Optional[di
     options = options or {}
     if isinstance(data, SaveResult):
         return data
-    elif isinstance(data, DriverDataCube):
-        return ImageCollectionResult(data, format=format, options=options)
-    elif isinstance(data, DriverVectorCube):
-        return VectorCubeResult(cube=data, format=format, options=options)
     elif isinstance(data, DelayedVector):
         if format is None or format.lower() == "json":
             # TODO #114 EP-3981 add vector cube support: keep features from feature collection
@@ -913,7 +909,12 @@ def to_save_result(data: Any, format: Optional[str] = None, options: Optional[di
             return JSONResult(geojsons, format=format, options=options)
         if format.lower() == "geojson":
             return JSONResult(data.geojson, format="geojson", options=options)
-        raise ValueError(f"Unsupported format {format} for DelayedVector")
+        else:
+            data = data.to_driver_vector_cube()
+    elif isinstance(data, DriverDataCube):
+        return ImageCollectionResult(data, format=format, options=options)
+    elif isinstance(data, DriverVectorCube):
+        return VectorCubeResult(cube=data, format=format, options=options)
     elif isinstance(data, DriverMlModel):
         return MlModelResult(ml_model = data)
     elif isinstance(data, np.ndarray):

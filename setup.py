@@ -31,7 +31,7 @@ tests_require = [
     "pystac",
     "jsonschema",
     "dirty-equals>=0.6",
-    "typing-extensions<4.12.1",  # Workaround for https://github.com/eu-cdse/openeo-cdse-infra/issues/161
+    "typing-extensions<4.12.1; python_version<'3.9'",  # Workaround for weird dirty_equals-xarray conflict on Python 3.8 https://github.com/samuelcolvin/dirty-equals/issues/99
 ]
 
 setup(
@@ -72,6 +72,7 @@ setup(
         "fiona>=1.9.0",
         "reretry~=0.11.8",
         "markdown>3.4",
+        "traceback-with-variables==2.0.4",
     ],
     extras_require={
         "dev": tests_require,

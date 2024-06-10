@@ -988,6 +988,25 @@ def test_resample_filter_spatial(dry_run_env, dry_run_tracer):
     }
 
 
+
+def test_resample_cube_spatial(dry_run_env, dry_run_tracer):
+    polygon = {"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]}
+    cube = DataCube(PGNode("load_collection", id="S2_FOOBAR"), connection=None)
+    cube = cube.apply(lambda x: x + 1)
+    cube = cube.resample_cube_spatial(target=DataCube(PGNode("load_collection", id="S2_FOOBAR"), connection=None),method="max")
+
+    pg = cube.flat_graph()
+    res = evaluate(pg, env=dry_run_env,do_dry_run=False)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 2
+    src, constraints = source_constraints[0]
+    assert src == ("load_collection", ("S2_FOOBAR", ()))
+
+    assert constraints == { 'process_type': [ ProcessType.FOCAL_SPACE]}
+
+
+
 def test_auto_align(dry_run_env, dry_run_tracer):
     polygon = {"type": "Polygon", "coordinates": [[(0.1, 0.1), (3, 5), (8, 2), (0.1, 0.1)]]}
     cube = DataCube(PGNode("load_collection", id="ESA_WORLDCOVER_10M_2020_V1"), connection=None)

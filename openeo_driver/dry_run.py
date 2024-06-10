@@ -105,6 +105,9 @@ class DataTraceBase:
     def add_child(self, child: 'DataTrace'):
         self.children.append(child)
 
+    def __repr__(self):
+        return "<{c}#{i}({d})>".format(c=self.__class__.__name__, i=id(self), d=self.describe())
+
 
 class DataSource(DataTraceBase):
     """Data source: a data (cube) generating process like `load_collection`, `load_disk_data`, ..."""
@@ -220,6 +223,9 @@ class DryRunDataTracer:
 
     def __init__(self):
         self._traces: List[DataTraceBase] = []
+
+    def __repr__(self):
+        return "<{c} (traces: {n!r})>".format(c=self.__class__.__name__, n=self._traces)
 
     def add_trace(self, trace: DataTraceBase) -> DataTraceBase:
         """Keep track of given trace"""
@@ -644,10 +650,16 @@ class DryRunDataCube(DriverDataCube):
             return self
 
     def chunk_polygon(
+        # TODO #288: `chunks`: MultiPolygon should not be abused as collection of separate geometries.
         self, reducer, chunks: MultiPolygon, mask_value: float, env: EvalEnv, context: Optional[dict] = None
     ) -> "DryRunDataCube":
-        # TODO: rename/update `chunk_polygon` to `apply_polygon` (https://github.com/Open-EO/openeo-processes/pull/298)
-        polygons: List[Polygon] = chunks.geoms
+        # TODO #229: rename/update `chunk_polygon` to `apply_polygon` (https://github.com/Open-EO/openeo-processes/pull/298)
+        if isinstance(chunks, Polygon):
+            polygons = [chunks]
+        elif isinstance(chunks, MultiPolygon):
+            polygons: List[Polygon] = chunks.geoms
+        else:
+            raise ValueError(f"Invalid type for `chunks`: {type(chunks)}")
         # TODO #71 #114 Deprecate/avoid usage of GeometryCollection
         geometries, bbox = self._normalize_geometry(GeometryCollection(polygons))
         cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
@@ -705,6 +717,10 @@ class DryRunDataCube(DriverDataCube):
             return self._process("process_type", [ProcessType.GLOBAL_TIME])
         else:
             return self
+
+    def apply(self, process: dict, *, context: Optional[dict] = None, env: EvalEnv) -> "DriverDataCube":
+        cube = self._process("apply", {})
+        return cube
 
     def apply_neighborhood(
         self, process, *, size: List[dict], overlap: List[dict], context: Optional[dict] = None, env: EvalEnv
@@ -771,7 +787,7 @@ class DryRunDataCube(DriverDataCube):
 
     # TODO: some methods need metadata manipulation?
 
-    apply = _nop
+
     apply_tiles = _nop
 
     reduce = _nop

@@ -1,3 +1,5 @@
+import shutil
+
 import dataclasses
 import json
 import math
@@ -1332,14 +1334,22 @@ def test_run_udf_on_vector_read_vector(api, udf_code):
         },
     }
     resp = api.check_result(process_graph)
-    assert resp.json == [
+    assert resp.json["features"] == [
         {
-            "type": "Polygon",
-            "coordinates": [[[4.47, 51.1], [4.52, 51.1], [4.52, 51.15], [4.47, 51.15], [4.47, 51.1]]],
+            "geometry": {
+                "coordinates": [[[4.47, 51.1], [4.52, 51.1], [4.52, 51.15], [4.47, 51.15], [4.47, 51.1]]],
+                "type": "Polygon",
+            },
+            "properties": {},
+            "type": "Feature",
         },
         {
-            "type": "Polygon",
-            "coordinates": [[[4.45, 51.17], [4.5, 51.17], [4.5, 51.2], [4.45, 51.2], [4.45, 51.17]]],
+            "geometry": {
+                "coordinates": [[[4.45, 51.17], [4.5, 51.17], [4.5, 51.2], [4.45, 51.2], [4.45, 51.17]]],
+                "type": "Polygon",
+            },
+            "properties": {},
+            "type": "Feature",
         },
     ]
 
@@ -1377,14 +1387,22 @@ def test_run_udf_on_vector_get_geometries(api, udf_code):
         },
     }
     resp = api.check_result(process_graph)
-    assert resp.json == [
+    assert resp.json["features"] == [
         {
-            "type": "Polygon",
-            "coordinates": [[[4.47, 51.1], [4.52, 51.1], [4.52, 51.15], [4.47, 51.15], [4.47, 51.1]]],
+            "geometry": {
+                "coordinates": [[[4.47, 51.1], [4.52, 51.1], [4.52, 51.15], [4.47, 51.15], [4.47, 51.1]]],
+                "type": "Polygon",
+            },
+            "properties": {},
+            "type": "Feature",
         },
         {
-            "type": "Polygon",
-            "coordinates": [[[4.45, 51.17], [4.5, 51.17], [4.5, 51.2], [4.45, 51.2], [4.45, 51.17]]],
+            "geometry": {
+                "coordinates": [[[4.45, 51.17], [4.5, 51.17], [4.5, 51.2], [4.45, 51.2], [4.45, 51.17]]],
+                "type": "Polygon",
+            },
+            "properties": {},
+            "type": "Feature",
         },
     ]
 
@@ -1462,7 +1480,8 @@ def test_run_udf_on_vector_inline_geojson(api, udf_code):
         },
     }
     resp = api.check_result(process_graph)
-    assert resp.json == [
+    geometries = [f["geometry"] for f in resp.json["features"]]
+    assert geometries == [
         ApproxGeoJSONByBounds(0, 0, 4, 4, types=["Polygon"], abs=0.01),
         ApproxGeoJSONByBounds(2, 1, 6, 5, types=["Polygon"], abs=0.01),
     ]
@@ -3672,6 +3691,47 @@ def test_apply_polygon(api):
     api.check_result("apply_polygon.json")
     params = dummy_backend.last_load_collection_call("S2_FOOBAR")
     assert params["spatial_extent"] == {"west": 1.0, "south": 5.0, "east": 12.0, "north": 16.0, "crs": "EPSG:4326"}
+
+
+def test_apply_polygon_with_vector_cube(api, tmp_path):
+    shutil.copy(get_path("geojson/FeatureCollection01.json"), tmp_path / "geometry.json")
+    with ephemeral_fileserver(tmp_path) as fileserver_root:
+        url = f"{fileserver_root}/geometry.json"
+
+        pg = {
+            "load_raster": {
+                "process_id": "load_collection",
+                "arguments": {"id": "S2_FOOBAR"},
+            },
+            "load_vector": {
+                "process_id": "load_url",
+                "arguments": {"url": str(url), "format": "GeoJSON"},
+            },
+            "apply_polygon": {
+                "process_id": "apply_polygon",
+                "arguments": {
+                    "data": {"from_node": "load_raster"},
+                    "polygons": {"from_node": "load_vector"},
+                    "process": {
+                        "process_graph": {
+                            "constant": {
+                                "process_id": "constant",
+                                "arguments": {"x": {"from_parameter": "x"}},
+                                "result": True,
+                            }
+                        }
+                    },
+                },
+                "result": True,
+            },
+        }
+        _ = api.check_result(pg)
+        dummy = dummy_backend.get_collection("S2_FOOBAR")
+        assert dummy.apply_polygon.call_count == 1
+        polygons = dummy.apply_polygon.call_args.kwargs["polygons"]
+        # TODO #288 instead of MultPolygon, this should actually be a vector cube, feature collection or something equivalent
+        assert isinstance(polygons, shapely.geometry.MultiPolygon)
+        assert polygons.bounds == (4.45, 51.1, 4.52, 51.2)
 
 
 def test_fit_class_random_forest(api):

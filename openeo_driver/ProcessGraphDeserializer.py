@@ -856,7 +856,7 @@ def apply_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     context = args.get_optional("context", default=None)
 
     # TODO #114 EP-3981 normalize first to vector cube and simplify logic
-    # TODO: this logic (copied from original chunk_polygon implementation) coerces the input polygons
+    # TODO #288: this logic (copied from original chunk_polygon implementation) coerces the input polygons
     #       to a single MultiPolygon of pure (non-multi) polygons, which is conceptually wrong.
     #       Instead it should normalize to a feature collection or vector cube.
     if isinstance(polygons, DelayedVector):
@@ -866,19 +866,19 @@ def apply_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
                 reason = "{m!s} is not a polygon.".format(m=p)
                 raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
         polygon = MultiPolygon(polygons)
+    elif isinstance(polygons, DriverVectorCube):
+        # TODO #288: I know it's wrong to coerce to MultiPolygon here, but we stick to this ill-defined API for now.
+        polygon = polygons.to_multipolygon()
     elif isinstance(polygons, shapely.geometry.base.BaseGeometry):
         polygon = MultiPolygon(polygons)
     elif isinstance(polygons, dict):
         polygon = geojson_to_multipolygon(polygons)
         if isinstance(polygon, shapely.geometry.Polygon):
             polygon = MultiPolygon([polygon])
-    elif isinstance(polygons, str):
-        # Delayed vector is not supported yet.
-        reason = "Polygon of type string is not yet supported."
-        raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
     else:
-        reason = "Polygon type is not supported."
+        reason = f"unsupported type: {type(polygons).__name__}"
         raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
+
     if polygon.area == 0:
         reason = "Polygon {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
         raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
@@ -1450,8 +1450,11 @@ def run_udf(args: dict, env: EvalEnv):
 
     result_collections = result_data.get_feature_collection_list()
     if result_collections != None and len(result_collections) > 0:
-        with tempfile.NamedTemporaryFile(suffix=".json.tmp", delete=False) as temp_file:
-            return DriverVectorCube.from_geodataframe(data=result_collections[0].data)
+        geo_data = result_collections[0].data
+        dataframe = geo_data
+        if isinstance(geo_data, gpd.GeoSeries):
+            dataframe = gpd.GeoDataFrame(geometry=geo_data)
+        return DriverVectorCube.from_geodataframe(data=dataframe)
     structured_result = result_data.get_structured_data_list()
     if structured_result != None and len(structured_result)>0:
         return JSONResult(structured_result[0].data)
