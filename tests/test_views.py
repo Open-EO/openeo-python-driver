@@ -1802,7 +1802,12 @@ class TestBatchJobs:
                         'href': 'http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/timeseries.csv',
                         'roles': ['data'],
                         'title': 'timeseries.csv',
-                        'type': 'text/csv'
+                        'type': 'text/csv',
+                        'eo:bands': [
+                            {"name": "S2-L2A-EVI_t0"},
+                            {"name": "S2-L2A-EVI_t1"},
+                            {"name": "S2-L2A-EVI_t2"}
+                        ],
                     },
                 },
                 "links": [

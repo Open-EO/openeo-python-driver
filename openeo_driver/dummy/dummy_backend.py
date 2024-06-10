@@ -700,7 +700,7 @@ class DummyBatchJobs(BatchJobs):
                     "roles": ["data"],
                     "type": "text/csv",
                     "href": "s3://OpenEO-data/batch_jobs/j-2406047c20fc4966ab637d387502728f/timeseries.csv",
-                    # TODO: add bands?
+                    "bands": [Band(name="S2-L2A-EVI_t0"), Band(name="S2-L2A-EVI_t1"), Band(name="S2-L2A-EVI_t2")],
                 },
             }
 
