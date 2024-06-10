@@ -1871,7 +1871,7 @@ def evaluate_process_from_url(process_id: str, namespace: str, args: dict, env: 
 
     try:
         spec = res.json()
-        msg = f"Mismatch between expected process {process_id!r} and process {spec['id']!r} defined at {candidate!r}.'"
+        msg = f"Mismatch between expected process {process_id!r} and process {spec['id']!r} defined at {candidate!r}."
         assert spec["id"].lower() == process_id.lower(), msg
         process_graph = spec["process_graph"]
         parameters = spec.get("parameters", [])
