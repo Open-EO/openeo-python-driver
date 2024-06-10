@@ -1,3 +1,4 @@
+import logging
 import sys
 import re
 from pathlib import Path
@@ -5,6 +6,8 @@ from typing import List, Union, Optional
 
 import jinja2
 import markdown
+
+_log = logging.getLogger(__name__)
 
 MULTI_PROJECT_CHANGELOG_TEMPLATE = """\
 <!DOCTYPE html>
@@ -26,7 +29,9 @@ MULTI_PROJECT_CHANGELOG_TEMPLATE = """\
     <h1>{{ title }}</h1>
     {% for project in projects %}
         <h2 id="{{ project.name | lower }}">{{ project.name }} {{ project.version }}</h2>
-        <div class="project-changelog">{{ project.changelog_html }}</div>
+        {% if project.changelog_html %}
+            <div class="project-changelog">{{ project.changelog_html }}</div>
+        {% endif %}
     {% endfor %}
 </div>
 </body>
@@ -91,6 +96,8 @@ def get_changelog_path(
         installed_path = Path(sys.prefix) / data_files_dir / filename
         if installed_path.exists():
             return installed_path
+        else:
+            _log.warning(f"Failed to find changelog at {installed_path}")
 
     # Path of changelog when running from source
     if src_root:
