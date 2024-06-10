@@ -1180,7 +1180,12 @@ class TestBatchJobs:
                     costs=1.23,
                     budget=4.56,
                     proj_shape=[300, 600],
-                )
+                ),
+                (TEST_USER, 'j-2406047c20fc4966ab637d387502728f'): BatchJobMetadata(
+                    id='j-2406047c20fc4966ab637d387502728f',
+                    status='finished',
+                    created=datetime(2024, 6, 4, 14, 20, 23),
+                ),
             }
             dummy_backend.DummyBatchJobs._job_result_registry = {}
 
@@ -1359,7 +1364,13 @@ class TestBatchJobs:
                     'plan': 'some_plan',
                     'costs': 1.23,
                     'budget': 4.56
-                }
+                },
+                {
+                    'id': 'j-2406047c20fc4966ab637d387502728f',
+                    'status': 'finished',
+                    'progress': 100,
+                    'created': "2024-06-04T14:20:23Z",
+                },
             ],
             "links": []
         }
@@ -1601,7 +1612,7 @@ class TestBatchJobs:
             }
 
     def test_get_job_results_110(self, api110):
-        with self._fresh_job_registry(next_job_id="job-362"):
+        with (self._fresh_job_registry(next_job_id="job-362")):
             dummy_backend.DummyBatchJobs._update_status(
                 job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="finished"
             )
@@ -1769,6 +1780,44 @@ class TestBatchJobs:
                 "type": "Collection",
                 "openeo:status": "finished",
             }
+
+            # TODO: another test method altogether?
+            resp = api110.get("/jobs/j-2406047c20fc4966ab637d387502728f/results", headers=self.AUTH_HEADER)
+
+            assert resp.assert_status_code(200).json == DictSubSet({
+                "stac_version": "1.0.0",
+                "type": "Collection",
+                "assets": {
+                    'timeseries.csv': {
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/timeseries.csv',
+                        'roles': ['data'],
+                        'title': 'timeseries.csv',
+                        'type': 'text/csv'
+                    },
+                },
+                "links": [
+                    {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results",
+                        "rel": "self",
+                        "type": "application/json"
+                    },
+                    {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results",
+                        "rel": "canonical",
+                        "type": "application/json"
+                    },
+                    {
+                        "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
+                        "rel": "card4l-document",
+                        "type": "application/pdf"
+                    },
+                    {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/items/timeseries.csv",
+                        "rel": "item",
+                        "type": "application/geo+json",
+                    },
+                ]
+            })
 
     def test_get_job_results_public_href_asset_100(self, api, backend_implementation):
         import numpy as np

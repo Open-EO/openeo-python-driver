@@ -693,6 +693,17 @@ class DummyBatchJobs(BatchJobs):
             != JOB_STATUS.FINISHED
         ):
             raise JobNotFinishedException
+
+        if job_id == 'j-2406047c20fc4966ab637d387502728f':
+            return {
+                "timeseries.csv": {
+                    "roles": ["data"],
+                    "type": "text/csv",
+                    "href": "s3://OpenEO-data/batch_jobs/j-2406047c20fc4966ab637d387502728f/timeseries.csv",
+                    # TODO: add bands?
+                },
+            }
+
         return {
             "output.tiff": {
                 "output_dir": f"{self._output_root()}/{job_id}",

@@ -1412,7 +1412,6 @@ def register_views_batch_jobs(
             # Machine learning models.
             return result_dict
         bands = asset_metadata.get("bands")
-        nodata = asset_metadata.get("nodata")
 
         result_dict.update(
             dict_no_none(
