@@ -1185,6 +1185,9 @@ class TestBatchJobs:
                     id='j-2406047c20fc4966ab637d387502728f',
                     status='finished',
                     created=datetime(2024, 6, 4, 14, 20, 23),
+                    bbox=[2.70964374625748, 51.00377983772219, 2.777548414187305, 51.10589339112414],
+                    start_datetime=datetime(2020, 1, 1, 0, 0, 0),
+                    end_datetime=datetime(2020, 3, 15, 0, 0, 0),
                 ),
             }
             dummy_backend.DummyBatchJobs._job_result_registry = {}
@@ -1787,6 +1790,13 @@ class TestBatchJobs:
             assert resp.assert_status_code(200).json == DictSubSet({
                 "stac_version": "1.0.0",
                 "type": "Collection",
+                "id": "j-2406047c20fc4966ab637d387502728f",
+                "description": "Results for batch job j-2406047c20fc4966ab637d387502728f",
+                "license": "proprietary",
+                "extent": {
+                    "spatial": {"bbox": [[2.70964374625748, 51.00377983772219, 2.777548414187305, 51.10589339112414]]},
+                    "temporal": {"interval": [["2020-01-01T00:00:00Z", "2020-03-15T00:00:00Z"]]}
+                },
                 "assets": {
                     'timeseries.csv': {
                         'href': 'http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/timeseries.csv',
