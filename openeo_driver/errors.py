@@ -371,12 +371,6 @@ class ProcessGraphInvalidException(OpenEOApiException):
     _description = "The process doesn't contain a valid process graph, which means it doesn't comply to the general structure / schema."
     _tags = ['Batch Jobs', 'Data Processing', 'Secondary Services', 'User-Defined Processes']
 
-    def __init__(self, message: str = ""):
-        if message == "":
-            super().__init__(message=self.message)
-        else:
-            super().__init__(message=self.message + " " + message)
-
 
 class NoDataForUpdateException(OpenEOApiException):
     status_code = 400
