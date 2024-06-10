@@ -1851,9 +1851,10 @@ def evaluate_udp(process_id: str, udp: UserDefinedProcessMetadata, args: dict, e
 
 
 def evaluate_process_from_url(process_id: str, namespace: str, args: dict, env: EvalEnv):
+    # TODO: only support the simple case "namespace=direct URL" (without process_id appending attempts) https://github.com/Open-EO/openeo-api/issues/515 infra#167
     if namespace.endswith("/"):
         # Assume namespace is a folder possibly containing multiple processes
-        # TODO: these "candidates" are probably not going to be in the spec, so start warning about these? https://github.com/Open-EO/openeo-api/issues/515
+        _log.warning(f"Deprecated evaluate_process_from_url usage with {namespace=} {process_id=}")
         candidates = [
             f"{namespace}{process_id}",
             f"{namespace}{process_id}.json",
