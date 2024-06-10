@@ -2605,56 +2605,116 @@ class TestBatchJobs:
                 "/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.tiff", headers=self.AUTH_HEADER
             )
 
-        resp_data = resp.assert_status_code(200).json
+            resp_data = resp.assert_status_code(200).json
 
-        assert resp_data == {
-            "type": "Feature",
-            "stac_version": "1.0.0",
-            "stac_extensions": [
-                "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
-                "https://stac-extensions.github.io/file/v2.1.0/schema.json",
-                'https://stac-extensions.github.io/projection/v1.1.0/schema.json',
-            ],
-            "id": "output.tiff",
-            "geometry": {"type": "Polygon",
-                         "coordinates": [[[0.0, 50.0], [0.0, 55.0], [5.0, 55.0], [5.0, 50.0], [0.0, 50.0]]]},
-            "bbox": [0.0, 50.0, 5.0, 55.0],
-            "epsg": 4326,
-            "properties": {
-                "datetime": "1981-04-24T03:00:00Z",
-                "proj:shape": [300, 600],
-                "proj:epsg":4326
-            },
-            'links': [{
-                'rel': 'self',
-                'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.tiff',
-                'type': 'application/geo+json'
-            }, {
-                'rel': 'collection',
-                'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results',
-                'type': 'application/json'
-            }],
-            'assets': {
-                'output.tiff': {
-                    'title': 'output.tiff',
-                    'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
-                    'type': 'image/tiff; application=geotiff',
-                    'proj:epsg': 4326,
-                    'proj:shape': [300, 600],
-                    'eo:bands': [{'center_wavelength': 1.23, 'name': 'NDVI'}],
-                    'roles': ['data']
+            assert resp_data == {
+                "type": "Feature",
+                "stac_version": "1.0.0",
+                "stac_extensions": [
+                    "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+                    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+                    'https://stac-extensions.github.io/projection/v1.1.0/schema.json',
+                ],
+                "id": "output.tiff",
+                "geometry": {"type": "Polygon",
+                             "coordinates": [[[0.0, 50.0], [0.0, 55.0], [5.0, 55.0], [5.0, 50.0], [0.0, 50.0]]]},
+                "bbox": [0.0, 50.0, 5.0, 55.0],
+                "epsg": 4326,
+                "properties": {
+                    "datetime": "1981-04-24T03:00:00Z",
+                    "proj:shape": [300, 600],
+                    "proj:epsg":4326
+                },
+                'links': [{
+                    'rel': 'self',
+                    'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/output.tiff',
+                    'type': 'application/geo+json'
+                }, {
+                    'rel': 'collection',
+                    'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results',
+                    'type': 'application/json'
+                }],
+                'assets': {
+                    'output.tiff': {
+                        'title': 'output.tiff',
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234',
+                        'type': 'image/tiff; application=geotiff',
+                        'proj:epsg': 4326,
+                        'proj:shape': [300, 600],
+                        'eo:bands': [{'center_wavelength': 1.23, 'name': 'NDVI'}],
+                        'roles': ['data']
+                    }
+                },
+                'collection': '53c71345-09b4-46b4-b6b0-03fd6fe1f199'
+            }
+            assert resp.headers["Content-Type"] == "application/geo+json"
+
+            pystac.validation.stac_validator.JsonSchemaSTACValidator().validate(
+                stac_dict=resp_data,
+                stac_object_type=pystac.STACObjectType.ITEM,
+                stac_version=resp_data.get("stac_version", "0.9.0"),
+                extensions=resp_data.get("stac_extensions", []),
+            )
+
+            # TODO: another test method altogether?
+            resp = api110.get(
+                "/jobs/j-2406047c20fc4966ab637d387502728f/results/items/timeseries.csv", headers=self.AUTH_HEADER
+            )
+
+            resp_data = resp.assert_status_code(200).json
+
+            assert resp_data == DictSubSet({
+                'type': 'Feature',
+                'stac_version': "1.0.0",
+                'id': 'timeseries.csv',
+                'geometry': {"type": "Polygon",
+                             "coordinates": [[[2.70964374625748, 51.00377983772219],
+                                              [2.70964374625748, 51.10589339112414],
+                                              [2.777548414187305, 51.10589339112414],
+                                              [2.777548414187305, 51.00377983772219],
+                                              [2.70964374625748, 51.00377983772219]]]},
+                'bbox': [2.70964374625748, 51.00377983772219, 2.777548414187305, 51.10589339112414],
+                'properties': {
+                    'datetime': None,
+                    'start_datetime': "2020-01-01T00:00:00Z",
+                    'end_datetime': "2020-03-15T00:00:00Z",
+                },
+                'collection': 'j-2406047c20fc4966ab637d387502728f',
+                'links': [
+                    {
+                        'href': "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/items/timeseries.csv",
+                        'rel': 'self',
+                        'type': 'application/geo+json',
+                    },
+                    {
+                        'href': "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results",
+                        'rel': 'collection',
+                        'type': 'application/json',
+                    }
+                ],
+                'assets': {
+                    'timeseries.csv': {
+                        'href': "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/TXIuVGVzdA==/942de26b3135191d65c40a40ae398b1e/timeseries.csv?expires=2234",
+                        'type': "text/csv",
+                        'roles': ["data"],
+                        'title': "timeseries.csv",
+                        'eo:bands': [
+                            {"name": "S2-L2A-EVI_t0"},
+                            {"name": "S2-L2A-EVI_t1"},
+                            {"name": "S2-L2A-EVI_t2"}
+                        ],
+                    }
                 }
-            },
-            'collection': '53c71345-09b4-46b4-b6b0-03fd6fe1f199'
-        }
-        assert resp.headers["Content-Type"] == "application/geo+json"
+            })
 
-        pystac.validation.stac_validator.JsonSchemaSTACValidator().validate(
-            stac_dict=resp_data,
-            stac_object_type=pystac.STACObjectType.ITEM,
-            stac_version=resp_data.get("stac_version", "0.9.0"),
-            extensions=resp_data.get("stac_extensions", []),
-        )
+            assert resp.headers["Content-Type"] == "application/geo+json"
+
+            pystac.validation.stac_validator.JsonSchemaSTACValidator().validate(
+                stac_dict=resp_data,
+                stac_object_type=pystac.STACObjectType.ITEM,
+                stac_version=resp_data.get("stac_version", "0.9.0"),
+                extensions=resp_data.get("stac_extensions", []),
+            )
 
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])

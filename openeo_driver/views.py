@@ -1307,11 +1307,12 @@ def register_views_batch_jobs(
 
         asset_filename, metadata = next(iter(assets_for_item_id.items()))
 
-        geometry = metadata.get("geometry")
-        bbox = metadata.get("bbox")
+        job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
+
+        geometry = metadata.get("geometry", job_info.geometry)
+        bbox = metadata.get("bbox", job_info.bbox)
 
         properties = {"datetime": metadata.get("datetime")}
-        job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
         if properties["datetime"] is None:
             to_datetime = Rfc3339(propagate_none=True).datetime
 
