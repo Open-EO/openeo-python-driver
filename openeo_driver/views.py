@@ -1121,7 +1121,7 @@ def register_views_batch_jobs(
             for filename, metadata in result_assets.items():
                 if ("data" in metadata.get("roles", []) and
                         any(media_type in metadata.get("type", "") for media_type in
-                            ["geotiff", "netcdf", "text/csv"])):
+                            ["geotiff", "netcdf", "text/csv", "application/parquet"])):
                     links.append(
                         {"rel": "item", "href": job_result_item_url(item_id=filename), "type": stac_item_media_type}
                     )

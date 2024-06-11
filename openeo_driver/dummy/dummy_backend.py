@@ -708,6 +708,18 @@ class DummyBatchJobs(BatchJobs):
                                                   [2.777548414187305, 51.00377983772219],
                                                   [2.70964374625748, 51.00377983772219]]]}
                 },
+                "timeseries.parquet": {
+                    "roles": ["data"],
+                    "type": "application/parquet; profile=geo",
+                    "href": "s3://OpenEO-data/batch_jobs/j-2406047c20fc4966ab637d387502728f/timeseries.parquet",
+                    "bands": [Band(name="S2-L2A-EVI_t0"), Band(name="S2-L2A-EVI_t1"), Band(name="S2-L2A-EVI_t2")],
+                    "geometry": {"type": "Polygon",
+                                 "coordinates": [[[2.70964374625748, 51.00377983772219],
+                                                  [2.70964374625748, 51.10589339112414],
+                                                  [2.777548414187305, 51.10589339112414],
+                                                  [2.777548414187305, 51.00377983772219],
+                                                  [2.70964374625748, 51.00377983772219]]]}
+                },
             }
 
         return {
