@@ -1180,7 +1180,15 @@ class TestBatchJobs:
                     costs=1.23,
                     budget=4.56,
                     proj_shape=[300, 600],
-                )
+                ),
+                (TEST_USER, 'j-2406047c20fc4966ab637d387502728f'): BatchJobMetadata(
+                    id='j-2406047c20fc4966ab637d387502728f',
+                    status='finished',
+                    created=datetime(2024, 6, 4, 14, 20, 23),
+                    bbox=[2.70964374625748, 51.00377983772219, 2.777548414187305, 51.10589339112414],
+                    start_datetime=datetime(2020, 1, 1, 0, 0, 0),
+                    end_datetime=datetime(2020, 3, 15, 0, 0, 0),
+                ),
             }
             dummy_backend.DummyBatchJobs._job_result_registry = {}
 
@@ -1359,7 +1367,13 @@ class TestBatchJobs:
                     'plan': 'some_plan',
                     'costs': 1.23,
                     'budget': 4.56
-                }
+                },
+                {
+                    'id': 'j-2406047c20fc4966ab637d387502728f',
+                    'status': 'finished',
+                    'progress': 100,
+                    'created': "2024-06-04T14:20:23Z",
+                },
             ],
             "links": []
         }
@@ -1769,6 +1783,71 @@ class TestBatchJobs:
                 "type": "Collection",
                 "openeo:status": "finished",
             }
+
+            resp = api110.get("/jobs/j-2406047c20fc4966ab637d387502728f/results", headers=self.AUTH_HEADER)
+
+            assert resp.assert_status_code(200).json == DictSubSet({
+                "stac_version": "1.0.0",
+                "type": "Collection",
+                "id": "j-2406047c20fc4966ab637d387502728f",
+                "description": "Results for batch job j-2406047c20fc4966ab637d387502728f",
+                "license": "proprietary",
+                "extent": {
+                    "spatial": {"bbox": [[2.70964374625748, 51.00377983772219, 2.777548414187305, 51.10589339112414]]},
+                    "temporal": {"interval": [["2020-01-01T00:00:00Z", "2020-03-15T00:00:00Z"]]}
+                },
+                "assets": {
+                    'timeseries.csv': {
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/timeseries.csv',
+                        'roles': ['data'],
+                        'title': 'timeseries.csv',
+                        'type': 'text/csv',
+                        'eo:bands': [
+                            {"name": "S2-L2A-EVI_t0"},
+                            {"name": "S2-L2A-EVI_t1"},
+                            {"name": "S2-L2A-EVI_t2"}
+                        ],
+                    },
+                    'timeseries.parquet': {
+                        'href': 'http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/timeseries.parquet',
+                        'roles': ['data'],
+                        'title': 'timeseries.parquet',
+                        'type': 'application/parquet; profile=geo',
+                        'eo:bands': [
+                            {"name": "S2-L2A-EVI_t0"},
+                            {"name": "S2-L2A-EVI_t1"},
+                            {"name": "S2-L2A-EVI_t2"}
+                        ],
+                    },
+                },
+                "links": [
+                    {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results",
+                        "rel": "self",
+                        "type": "application/json"
+                    },
+                    {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results",
+                        "rel": "canonical",
+                        "type": "application/json"
+                    },
+                    {
+                        "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
+                        "rel": "card4l-document",
+                        "type": "application/pdf"
+                    },
+                    {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/items/timeseries.csv",
+                        "rel": "item",
+                        "type": "application/geo+json",
+                    },
+                    {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/items/timeseries.parquet",
+                        "rel": "item",
+                        "type": "application/geo+json",
+                    },
+                ]
+            })
 
     def test_get_job_results_public_href_asset_100(self, api, backend_implementation):
         import numpy as np
@@ -2583,6 +2662,73 @@ class TestBatchJobs:
             },
             'collection': '53c71345-09b4-46b4-b6b0-03fd6fe1f199'
         }
+        assert resp.headers["Content-Type"] == "application/geo+json"
+
+        pystac.validation.stac_validator.JsonSchemaSTACValidator().validate(
+            stac_dict=resp_data,
+            stac_object_type=pystac.STACObjectType.ITEM,
+            stac_version=resp_data.get("stac_version", "0.9.0"),
+            extensions=resp_data.get("stac_extensions", []),
+        )
+
+    @pytest.mark.parametrize(["vector_item_id", "vector_asset_media_type"], [
+        ("timeseries.csv", "text/csv"),
+        ("timeseries.parquet", "application/parquet; profile=geo"),
+    ])
+    def test_get_vector_cube_job_result_item(self, flask_app, api110, backend_config_overrides, vector_item_id,
+                                             vector_asset_media_type):
+        vector_asset_filename = vector_item_id
+
+        with self._fresh_job_registry():
+            resp = api110.get(f"/jobs/j-2406047c20fc4966ab637d387502728f/results/items/{vector_item_id}",
+                              headers=self.AUTH_HEADER)
+
+        resp_data = resp.assert_status_code(200).json
+
+        assert resp_data == DictSubSet({
+            'type': 'Feature',
+            'stac_version': "1.0.0",
+            'id': vector_item_id,
+            'geometry': {"type": "Polygon",
+                         "coordinates": [[[2.70964374625748, 51.00377983772219],
+                                          [2.70964374625748, 51.10589339112414],
+                                          [2.777548414187305, 51.10589339112414],
+                                          [2.777548414187305, 51.00377983772219],
+                                          [2.70964374625748, 51.00377983772219]]]},
+            'bbox': [2.70964374625748, 51.00377983772219, 2.777548414187305, 51.10589339112414],
+            'properties': {
+                'datetime': None,
+                'start_datetime': "2020-01-01T00:00:00Z",
+                'end_datetime': "2020-03-15T00:00:00Z",
+            },
+            'collection': 'j-2406047c20fc4966ab637d387502728f',
+            'links': [
+                {
+                    'href': f"http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/items/{vector_item_id}",
+                    'rel': 'self',
+                    'type': 'application/geo+json',
+                },
+                {
+                    'href': "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results",
+                    'rel': 'collection',
+                    'type': 'application/json',
+                }
+            ],
+            'assets': {
+                vector_asset_filename: {
+                    'href': f"http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/{vector_asset_filename}",
+                    'type': vector_asset_media_type,
+                    'roles': ["data"],
+                    'title': vector_asset_filename,
+                    'eo:bands': [
+                        {"name": "S2-L2A-EVI_t0"},
+                        {"name": "S2-L2A-EVI_t1"},
+                        {"name": "S2-L2A-EVI_t2"}
+                    ],
+                }
+            }
+        })
+
         assert resp.headers["Content-Type"] == "application/geo+json"
 
         pystac.validation.stac_validator.JsonSchemaSTACValidator().validate(

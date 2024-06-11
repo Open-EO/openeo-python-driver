@@ -693,6 +693,35 @@ class DummyBatchJobs(BatchJobs):
             != JOB_STATUS.FINISHED
         ):
             raise JobNotFinishedException
+
+        if job_id == 'j-2406047c20fc4966ab637d387502728f':
+            return {
+                "timeseries.csv": {
+                    "roles": ["data"],
+                    "type": "text/csv",
+                    "href": "s3://OpenEO-data/batch_jobs/j-2406047c20fc4966ab637d387502728f/timeseries.csv",
+                    "bands": [Band(name="S2-L2A-EVI_t0"), Band(name="S2-L2A-EVI_t1"), Band(name="S2-L2A-EVI_t2")],
+                    "geometry": {"type": "Polygon",
+                                 "coordinates": [[[2.70964374625748, 51.00377983772219],
+                                                  [2.70964374625748, 51.10589339112414],
+                                                  [2.777548414187305, 51.10589339112414],
+                                                  [2.777548414187305, 51.00377983772219],
+                                                  [2.70964374625748, 51.00377983772219]]]}
+                },
+                "timeseries.parquet": {
+                    "roles": ["data"],
+                    "type": "application/parquet; profile=geo",
+                    "href": "s3://OpenEO-data/batch_jobs/j-2406047c20fc4966ab637d387502728f/timeseries.parquet",
+                    "bands": [Band(name="S2-L2A-EVI_t0"), Band(name="S2-L2A-EVI_t1"), Band(name="S2-L2A-EVI_t2")],
+                    "geometry": {"type": "Polygon",
+                                 "coordinates": [[[2.70964374625748, 51.00377983772219],
+                                                  [2.70964374625748, 51.10589339112414],
+                                                  [2.777548414187305, 51.10589339112414],
+                                                  [2.777548414187305, 51.00377983772219],
+                                                  [2.70964374625748, 51.00377983772219]]]}
+                },
+            }
+
         return {
             "output.tiff": {
                 "output_dir": f"{self._output_root()}/{job_id}",

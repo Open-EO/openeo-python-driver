@@ -21,6 +21,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.104.0
+
+- Expose CSV/GeoParquet output assets as STAC items ([Open-EO/openeo-geopyspark-driver#787](https://github.com/Open-EO/openeo-geopyspark-driver/issues/787))
+
 ## 0.103.2
 
 - Start warning about deprecated `evaluate_process_from_url` usage (eu-cdse/openeo-cdse-infra#167)

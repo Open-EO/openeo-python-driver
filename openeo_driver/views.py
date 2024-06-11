@@ -1120,7 +1120,8 @@ def register_views_batch_jobs(
 
             for filename, metadata in result_assets.items():
                 if ("data" in metadata.get("roles", []) and
-                        any(media_type in metadata.get("type", "") for media_type in ["geotiff", "netcdf"])):
+                        any(media_type in metadata.get("type", "") for media_type in
+                            ["geotiff", "netcdf", "text/csv", "application/parquet"])):
                     links.append(
                         {"rel": "item", "href": job_result_item_url(item_id=filename), "type": stac_item_media_type}
                     )
@@ -1306,11 +1307,12 @@ def register_views_batch_jobs(
 
         asset_filename, metadata = next(iter(assets_for_item_id.items()))
 
-        geometry = metadata.get("geometry")
-        bbox = metadata.get("bbox")
+        job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
+
+        geometry = metadata.get("geometry", job_info.geometry)
+        bbox = metadata.get("bbox", job_info.bbox)
 
         properties = {"datetime": metadata.get("datetime")}
-        job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
         if properties["datetime"] is None:
             to_datetime = Rfc3339(propagate_none=True).datetime
 
@@ -1419,7 +1421,6 @@ def register_views_batch_jobs(
             # Machine learning models.
             return result_dict
         bands = asset_metadata.get("bands")
-        nodata = asset_metadata.get("nodata")
 
         result_dict.update(
             dict_no_none(
