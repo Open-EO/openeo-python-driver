@@ -2739,12 +2739,20 @@ def test_discard_result(api):
     (
             "https://oeo.test/u/42/udp/bbox_mol",
             {"https://oeo.test/u/42/udp/bbox_mol": {"foo": "bar"}},
-            (400, "ProcessGraphInvalid", "Invalid process graph specified."),
-    ),
-    (
+            (
+                400,
+                "ProcessResourceInvalid",
+                "Failed to load process 'bbox_mol' from 'https://oeo.test/u/42/udp/bbox_mol': KeyError('id')",
+            ),
+        ),
+        (
             "https://oeo.test/u/42/udp/bbox_mol",
             {"https://oeo.test/u/42/udp/bbox_mol": '{"foo": invalid json'},
-            (400, "ProcessGraphInvalid", "Invalid process graph specified."),
+            (
+                400,
+                "ProcessResourceInvalid",
+                "Failed to load process 'bbox_mol' from 'https://oeo.test/u/42/udp/bbox_mol': JSONDecodeError",
+            ),
         ),
         (
             "https://share.example/u42/bbox_mol.json",
@@ -2762,7 +2770,11 @@ def test_discard_result(api):
                     "pg/1.0/udp/bbox_mol.json", preprocess=lambda t: t.replace("bbox_mol", "BoundingBox-Mol")
                 )
             },
-            (400, "ProcessGraphInvalid", "Invalid process graph specified."),
+            (
+                400,
+                "ProcessIdMismatch",
+                "Mismatch between expected process 'bbox_mol' and process 'BoundingBox-Mol' defined at 'https://share.example/u42/bbox_mol.json'.",
+            ),
         ),
     ],
 )
