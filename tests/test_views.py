@@ -1615,7 +1615,7 @@ class TestBatchJobs:
             }
 
     def test_get_job_results_110(self, api110):
-        with (self._fresh_job_registry(next_job_id="job-362")):
+        with self._fresh_job_registry(next_job_id="job-362"):
             dummy_backend.DummyBatchJobs._update_status(
                 job_id="07024ee9-7847-4b8a-b260-6c879a2b3cdc", user_id=TEST_USER, status="finished"
             )
