@@ -1456,8 +1456,12 @@ def run_udf(args: dict, env: EvalEnv):
             dataframe = gpd.GeoDataFrame(geometry=geo_data)
         invalid_indexes = dataframe.index[~dataframe.is_valid].tolist()
         if len(invalid_indexes) > 0:
-            raise ValueError("UDF returned invalid polygons. This could "
-                             + f"be due to the input or the code. Invalid index(es): {invalid_indexes}")
+            raise OpenEOApiException(
+                status_code=400,
+                code="InvalidGeometry",
+                message="UDF returned invalid polygons. This could "
+                        + f"be due to the input or the code. Invalid index(es): {invalid_indexes}"
+            )
         return DriverVectorCube.from_geodataframe(data=dataframe)
     structured_result = result_data.get_structured_data_list()
     if structured_result != None and len(structured_result)>0:
