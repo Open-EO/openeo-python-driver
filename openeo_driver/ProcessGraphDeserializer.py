@@ -1454,6 +1454,10 @@ def run_udf(args: dict, env: EvalEnv):
         dataframe = geo_data
         if isinstance(geo_data, gpd.GeoSeries):
             dataframe = gpd.GeoDataFrame(geometry=geo_data)
+        invalid_indexes = dataframe.index[~dataframe.is_valid].tolist()
+        if len(invalid_indexes) > 0:
+            raise ValueError("UDF returned invalid polygons. This could "
+                             + f"be due to the input or the code. Invalid index(es): {invalid_indexes}")
         return DriverVectorCube.from_geodataframe(data=dataframe)
     structured_result = result_data.get_structured_data_list()
     if structured_result != None and len(structured_result)>0:
