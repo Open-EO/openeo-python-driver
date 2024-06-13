@@ -286,6 +286,9 @@ class DriverVectorCube:
                 log.error(f"Invalid VectorCube components {geometries.index=} != {cube.indexes[cube.dims[0]]=}")
                 raise VectorCubeError("Incompatible vector cube components")
         geometries = DriverVectorCube._convert_crs84(geometries)
+        invalid_indexes = geometries.index[~geometries.is_valid].tolist()
+        if len(invalid_indexes) > 0:
+            log.warning(f"Tried to create DriverVectorCube with invalid polygon(s). Index(es): {invalid_indexes}")
         self._geometries: gpd.GeoDataFrame = geometries
         self._cube = cube
 
