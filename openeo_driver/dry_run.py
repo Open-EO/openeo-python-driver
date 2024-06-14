@@ -729,6 +729,12 @@ class DryRunDataCube(DriverDataCube):
         temporal_size = temporal_overlap = None
         size_dict = {e['dimension']: e for e in size}
         overlap_dict = {e['dimension']: e for e in overlap}
+        if 'x' in overlap_dict or 'y' in overlap_dict:
+            x_size = overlap_dict.get("x",{}).get("value",0)
+            y_size = overlap_dict.get("y", {}).get("value", 0)
+            if overlap_dict.get("x",{}).get("unit","px") != "px" or overlap_dict.get("y",{}).get("unit","px") != "px":
+                raise OpenEOApiException(f"apply_neighborhood: only pixel units are supported for overlap, but got: {overlap_dict.get('x',{}).get('unit','px')}")
+            cube = cube._process("pixel_buffer", arguments={"buffer_size": [x_size, y_size]})
         if self.metadata.has_temporal_dimension():
             temporal_size = size_dict.get(self.metadata.temporal_dimension.name, None)
             temporal_overlap = overlap_dict.get(self.metadata.temporal_dimension.name, None)
