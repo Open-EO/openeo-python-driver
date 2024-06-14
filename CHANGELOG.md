@@ -21,6 +21,11 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+
+# 0.105.0
+
+- Require at least `werkzeug>=3.0.3` ([#281](https://github.com/Open-EO/openeo-python-driver/issues/281))
+
 ## 0.104.0
 
 - Expose CSV/GeoParquet output assets as STAC items ([Open-EO/openeo-geopyspark-driver#787](https://github.com/Open-EO/openeo-geopyspark-driver/issues/787))
