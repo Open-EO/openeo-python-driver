@@ -311,7 +311,16 @@ class ConcreteProcessing(Processing):
             return [{"code": "ProcessGraphInvalid", "message": str(e)}]
 
         try:
-            result = convert_node(result_node, env=env)
+            # Same dry run logic as in evaluate()
+            _log.info("Doing dry run")
+            result = convert_node(result_node, env=env.push({
+                ENV_SAVE_RESULT: [],  # otherwise dry run and real run append to the same mutable result list
+                "node_caching": False
+            }))
+            # TODO: work with a dedicated DryRunEvalEnv?
+            source_constraints = dry_run_tracer.get_source_constraints()
+            _log.info("Dry run extracted these source constraints: {s}".format(s=source_constraints))
+            env = env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
         except OpenEOApiException as e:
             return [{"code": e.code, "message": str(e)}]
         except Exception as e:
@@ -522,7 +531,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
             process_types |= set(constraint["process_type"])
 
     _, constraints = filtered_constraints.pop(0)
-    source_constraints.remove((source_id,constraints))
+    source_constraints.remove((source_id,constraints))  # Side effect!
 
     params = LoadParameters()
     params.temporal_extent = constraints.get("temporal_extent", ["1970-01-01", "2070-01-01"])
