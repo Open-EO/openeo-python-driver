@@ -1859,24 +1859,8 @@ def evaluate_udp(process_id: str, udp: UserDefinedProcessMetadata, args: dict, e
 
 
 def evaluate_process_from_url(process_id: str, namespace: str, args: dict, env: EvalEnv):
-    # TODO: only support the simple case "namespace=direct URL" (without process_id appending attempts) https://github.com/Open-EO/openeo-api/issues/515 infra#167
-    if namespace.endswith("/"):
-        # Assume namespace is a folder possibly containing multiple processes
-        _log.warning(f"Deprecated evaluate_process_from_url usage with {namespace=} {process_id=}")
-        candidates = [
-            f"{namespace}{process_id}",
-            f"{namespace}{process_id}.json",
-        ]
-    else:
-        # Assume namespace is direct URL to process/UDP metadata
-        candidates = [namespace]
-
-    for candidate in candidates:
-        # TODO: add request timeout, retry logic?
-        res = requests.get(candidate)
-        if res.status_code == 200:
-            break
-    else:
+    res = requests.get(namespace)
+    if res.status_code != 200:
         raise ProcessUnsupportedException(process=process_id, namespace=namespace)
 
     try:
@@ -1885,18 +1869,18 @@ def evaluate_process_from_url(process_id: str, namespace: str, args: dict, env: 
             raise OpenEOApiException(
                 status_code=400,
                 code="ProcessIdMismatch",
-                message=f"Mismatch between expected process {process_id!r} and process {spec['id']!r} defined at {candidate!r}.",
+                message=f"Mismatch between expected process {process_id!r} and process {spec['id']!r} defined at {namespace!r}.",
             )
         process_graph = spec["process_graph"]
         parameters = spec.get("parameters", [])
     except OpenEOApiException:
         raise
     except Exception as e:
-        _log.error(f"Failed to load process {process_id=} from {candidate=}: {e=}", exc_info=True)
+        _log.error(f"Failed to load process {process_id=} from {namespace=}: {e=}", exc_info=True)
         raise OpenEOApiException(
             status_code=400,
             code="ProcessResourceInvalid",
-            message=f"Failed to load process {process_id!r} from {candidate!r}: {e!r}",
+            message=f"Failed to load process {process_id!r} from {namespace!r}: {e!r}",
         ) from e
 
     return _evaluate_process_graph_process(

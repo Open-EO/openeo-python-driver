@@ -2692,19 +2692,6 @@ def test_discard_result(api):
             None,
     ),
     (
-            "https://oeo.test/u/42/udp/",
-            {"https://oeo.test/u/42/udp/bbox_mol": "udp/bbox_mol.json"},
-            None,
-    ),
-    (
-            "https://oeo.test/u/42/udp/",
-            {
-                "https://oeo.test/u/42/udp/bbox_mol": 404,
-                "https://oeo.test/u/42/udp/bbox_mol.json": "udp/bbox_mol.json",
-            },
-            None,
-    ),
-    (
             "https://share.example/u42/bbox_mol.json",
             {"https://share.example/u42/bbox_mol.json": "udp/bbox_mol.json"},
             None,
@@ -2723,17 +2710,6 @@ def test_discard_result(api):
             (
                     400, "ProcessUnsupported",
                     "'bbox_mol' is not available in namespace 'https://oeo.test/u/42/udp/bbox_mol'."
-            ),
-    ),
-    (
-            "https://oeo.test/u/42/udp/",
-            {
-                "https://oeo.test/u/42/udp/bbox_mol": 404,
-                "https://oeo.test/u/42/udp/bbox_mol.json": 404,
-            },
-            (
-                    400, "ProcessUnsupported",
-                    "'bbox_mol' is not available in namespace 'https://oeo.test/u/42/udp/'."
             ),
     ),
     (

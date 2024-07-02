@@ -21,6 +21,7 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+- `evaluate_process_from_url`: drop support for URL guessing from folder-like URL ([#297)](https://github.com/Open-EO/openeo-python-driver/issues/297))
 
 ## 0.106.0
 
