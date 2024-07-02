@@ -22,7 +22,11 @@ and start a new "In Progress" section above it.
 ## In progress
 
 
-# 0.105.0
+## 0.106.0
+
+- Add API to define conformance classes to `OpenEoBackendImplementation`
+
+## 0.105.0
 
 - Require at least `werkzeug>=3.0.3` ([#281](https://github.com/Open-EO/openeo-python-driver/issues/281))
 

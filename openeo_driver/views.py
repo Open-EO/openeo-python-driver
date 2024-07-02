@@ -395,6 +395,7 @@ def register_views_general(
             "api_version": api_version,  # API version field since 0.4.0
             "backend_version": backend_version,
             "stac_version": "0.9.0",
+            "conformsTo": backend_implementation.conformance_classes(),
             "id": service_id,
             "title": title,
             "description": textwrap.dedent(backend_config.capabilities_description).strip(),
@@ -445,10 +446,11 @@ def register_views_general(
 
         see https://api.openeo.org/#operation/conformance
         """
-        return jsonify({"conformsTo": [
-            # TODO: expand/manage conformance classes?
-            "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core"
-        ]})
+        return jsonify(
+            {
+                "conformsTo": backend_implementation.conformance_classes(),
+            }
+        )
 
     @blueprint.route('/health')
     def health():
