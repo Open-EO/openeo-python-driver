@@ -519,6 +519,10 @@ class UserDefinedProcessMetadata(NamedTuple):
     """
     Container for user-defined process metadata.
     """
+
+    # TODO: generalize this to generic openEO process definitions
+    #       (not only "user-defined", but also remote/public process definitions)
+
     id: str
     # Note: "process_graph" is optional for multiple UDP listings (`GET /process_graphs`),
     # but required for full, single UDP metadata requests (`GET /process_graphs/{process_graph_id}`)
@@ -695,6 +699,8 @@ class OpenEoBackendImplementation:
     DEFAULT_CONFORMANCE_CLASSES = [
         # general openEO conformance class
         "https://api.openeo.org/1.2.0",
+        # Remote process definition extension
+        "https://api.openeo.org/extensions/remote-udp/0.1.0",
     ]
 
     def __init__(
