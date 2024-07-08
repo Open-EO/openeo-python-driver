@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Iterable, Optional
 from unittest import mock, skip
 from zipfile import ZipFile
+import http.client
 
 import geopandas as gpd
 import numpy as np
@@ -2685,72 +2686,125 @@ def test_discard_result(api):
     assert res.json is None
 
 
-@pytest.mark.parametrize(["namespace", "url_mocks", "expected_error"], [
-    (
-            "https://oeo.test/u/42/udp/bbox_mol",
-            {"https://oeo.test/u/42/udp/bbox_mol": "udp/bbox_mol.json"},
+@pytest.mark.parametrize(
+    ["namespace", "url_mocks", "expected_error"],
+    [
+        pytest.param(
+            "https://share.test/u42/bbox_mol.json",
+            {"https://share.test/u42/bbox_mol.json": "udp/bbox_mol.json"},
             None,
-    ),
-    (
-            "https://share.example/u42/bbox_mol.json",
-            {"https://share.example/u42/bbox_mol.json": "udp/bbox_mol.json"},
+            id="basic",
+        ),
+        pytest.param(
+            "https://share.test/u42/bbox_mol",
+            {"https://share.test/u42/bbox_mol": "udp/bbox_mol.json"},
             None,
-    ),
-    (
+            id="simple-no-extension",
+        ),
+        pytest.param(
             "https://share.test/u42/bbox_mol.json",
             {
                 "https://share.test/u42/bbox_mol.json": (302, "https://shr976.test/45435"),
                 "https://shr976.test/45435": "udp/bbox_mol.json",
             },
             None,
-    ),
-    (
-            "https://oeo.test/u/42/udp/bbox_mol",
-            {"https://oeo.test/u/42/udp/bbox_mol": 404},
-            (
-                    400, "ProcessUnsupported",
-                    "'bbox_mol' is not available in namespace 'https://oeo.test/u/42/udp/bbox_mol'."
-            ),
-    ),
-    (
-            "https://oeo.test/u/42/udp/bbox_mol",
-            {"https://oeo.test/u/42/udp/bbox_mol": {"foo": "bar"}},
-            (
-                400,
-                "ProcessResourceInvalid",
-                "Failed to load process 'bbox_mol' from 'https://oeo.test/u/42/udp/bbox_mol': KeyError('id')",
-            ),
+            id="redirect",
         ),
-        (
-            "https://oeo.test/u/42/udp/bbox_mol",
-            {"https://oeo.test/u/42/udp/bbox_mol": '{"foo": invalid json'},
-            (
-                400,
-                "ProcessResourceInvalid",
-                "Failed to load process 'bbox_mol' from 'https://oeo.test/u/42/udp/bbox_mol': JSONDecodeError",
-            ),
-        ),
-        (
-            "https://share.example/u42/bbox_mol.json",
+        pytest.param(
+            "https://share.test/u42/",
             {
-                "https://share.example/u42/bbox_mol.json": load_json(
+                "https://share.test/u42/": {
+                    "processes": [
+                        {"id": "foo", "process_graph": {}},
+                        load_json("pg/1.0/udp/bbox_mol.json"),
+                    ],
+                    "links": [],
+                }
+            },
+            None,
+            id="process-listing",
+        ),
+        pytest.param(
+            "https://share.test/u42/bbox_mol.json",
+            {"https://share.test/u42/bbox_mol.json": 404},
+            (
+                400,
+                "ProcessNamespaceInvalid",
+                "Process 'bbox_mol' specified with invalid namespace 'https://share.test/u42/bbox_mol.json': HTTPError('404 Client Error: Not Found for url: https://share.test/u42/bbox_mol.json')",
+            ),
+            id="error-404",
+        ),
+        pytest.param(
+            "https://share.test/u42/bbox_mol.json",
+            {"https://share.test/u42/bbox_mol.json": "[1,2,3]"},
+            (
+                400,
+                "ProcessNamespaceInvalid",
+                "Process 'bbox_mol' specified with invalid namespace 'https://share.test/u42/bbox_mol.json': ValueError(\"Process definition should be a JSON object, but got <class 'list'>.\")",
+            ),
+            id="error-no-dict",
+        ),
+        pytest.param(
+            "https://share.test/u42/bbox_mol.json",
+            {"https://share.test/u42/bbox_mol.json": {"foo": "bar"}},
+            (
+                400,
+                "ProcessNotFound",
+                "No valid process definition for 'bbox_mol' found at 'https://share.test/u42/bbox_mol.json'.",
+            ),
+            id="error-no-id",
+        ),
+        pytest.param(
+            "https://share.test/u42/bbox_mol.json",
+            {"https://share.test/u42/bbox_mol.json": '{"foo": invalid json'},
+            (
+                400,
+                "ProcessNamespaceInvalid",
+                "Process 'bbox_mol' specified with invalid namespace 'https://share.test/u42/bbox_mol.json': JSONDecodeError('Expecting value: line 1 column 9 (char 8)')",
+            ),
+            id="error-invalid-json",
+        ),
+        pytest.param(
+            "https://share.test/u42/bbox_mol.json",
+            {
+                "https://share.test/u42/bbox_mol.json": load_json(
                     "pg/1.0/udp/bbox_mol.json", preprocess=lambda t: t.replace("bbox_mol", "BBox_Mol")
                 )
             },
-            None,
+            (
+                400,
+                "ProcessIdMismatch",
+                "Mismatch between expected process 'bbox_mol' and process 'BBox_Mol' defined at 'https://share.test/u42/bbox_mol.json'.",
+            ),
+            id="error-id-mismatch-capitalization",
         ),
-        (
-            "https://share.example/u42/bbox_mol.json",
+        pytest.param(
+            "https://share.test/u42/bbox_mol.json",
             {
-                "https://share.example/u42/bbox_mol.json": load_json(
+                "https://share.test/u42/bbox_mol.json": load_json(
                     "pg/1.0/udp/bbox_mol.json", preprocess=lambda t: t.replace("bbox_mol", "BoundingBox-Mol")
                 )
             },
             (
                 400,
                 "ProcessIdMismatch",
-                "Mismatch between expected process 'bbox_mol' and process 'BoundingBox-Mol' defined at 'https://share.example/u42/bbox_mol.json'.",
+                "Mismatch between expected process 'bbox_mol' and process 'BoundingBox-Mol' defined at 'https://share.test/u42/bbox_mol.json'.",
             ),
+            id="error-id-mismatch-different-id",
+        ),
+        pytest.param(
+            "https://share.test/u42/",
+            {
+                "https://share.test/u42/": {
+                    "processes": [
+                        {"id": "foo", "process_graph": {}},
+                        {"id": "bar", "process_graph": {}},
+                    ],
+                    "links": [],
+                }
+            },
+            (400, "ProcessNotFound", "Process 'bbox_mol' not found in process listing at 'https://share.test/u42/'."),
+            id="process-listing-missing",
         ),
     ],
 )
@@ -2765,7 +2819,7 @@ def test_evaluate_process_from_url(api, requests_mock, namespace, url_mocks, exp
         elif isinstance(value, dict):
             requests_mock.get(url, json=value)
         elif value in [404, 500]:
-            requests_mock.get(url, status_code=value)
+            requests_mock.get(url, status_code=value, reason=http.client.responses.get(value))
         elif isinstance(value, tuple) and value[0] in [302]:
             status_code, target = value
             requests_mock.get(url, status_code=status_code, headers={"Location": target})
@@ -2773,10 +2827,18 @@ def test_evaluate_process_from_url(api, requests_mock, namespace, url_mocks, exp
             raise ValueError(value)
 
     # Evaluate process graph (with URL namespace)
-    pg = api.load_json("udp_bbox_mol_basic.json")
-    assert pg["bboxmol1"]["process_id"] == "bbox_mol"
-    pg["bboxmol1"]["namespace"] = namespace
-
+    pg = {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FOOBAR"},
+        },
+        "bboxmol1": {
+            "process_id": "bbox_mol",
+            "namespace": namespace,
+            "arguments": {"data": {"from_node": "loadcollection1"}},
+            "result": True,
+        },
+    }
     res = api.result(pg)
     if expected_error:
         status_code, error_code, message = expected_error

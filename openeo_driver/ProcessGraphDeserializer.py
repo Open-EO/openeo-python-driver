@@ -1,4 +1,5 @@
 # TODO: rename this module to something in snake case? It doesn't even implement a ProcessGraphDeserializer class.
+# TODO: and related: separate generic process graph handling from more concrete openEO process implementations
 
 # pylint: disable=unused-argument
 
@@ -20,7 +21,6 @@ import openeo.udf
 import openeo_processes
 import pandas as pd
 import pyproj
-import requests
 import shapely.geometry
 import shapely.ops
 from dateutil.relativedelta import relativedelta
@@ -51,11 +51,10 @@ from openeo_driver.errors import (
     ProcessParameterInvalidException,
     FeatureUnsupportedException,
     OpenEOApiException,
-    ProcessGraphInvalidException,
-    ProcessUnsupportedException,
     CollectionNotFoundException,
 )
 from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE, ProcessArgs
+from openeo_driver.processgraph import get_process_definition_from_url
 from openeo_driver.save_result import (
     JSONResult,
     SaveResult,
@@ -1590,8 +1589,9 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
 
     # when all arguments and dependencies are resolved, we can run the process
     if namespace and any(namespace.startswith(p) for p in ["http://", "https://"]):
-        # TODO: HTTPS only by default and config to also allow HTTP (e.g. for localhost dev and testing)
-        # TODO: security aspects: only allow for certain users, only allow whitelisted domains, ...?
+        if namespace.startswith("http://"):
+            _log.warning(f"HTTP protocol for namespace based remote process definitions is discouraged: {namespace!r}")
+        # TODO: security aspects: only allow for certain users, only allow whitelisted domains, support content hash verification ...?
 
         return evaluate_process_from_url(
             process_id=process_id, namespace=namespace, args=args, env=env
@@ -1859,32 +1859,28 @@ def evaluate_udp(process_id: str, udp: UserDefinedProcessMetadata, args: dict, e
 
 
 def evaluate_process_from_url(process_id: str, namespace: str, args: dict, env: EvalEnv):
-    res = requests.get(namespace)
-    if res.status_code != 200:
-        raise ProcessUnsupportedException(process=process_id, namespace=namespace)
-
+    """
+    Load remote process definition from URL (provided through `namespace` property
+    :param process_id: process id of process that should be available at given URL (namespace)
+    :param namespace: URL of process definition
+    """
     try:
-        spec = res.json()
-        if spec["id"].lower() != process_id.lower():
-            raise OpenEOApiException(
-                status_code=400,
-                code="ProcessIdMismatch",
-                message=f"Mismatch between expected process {process_id!r} and process {spec['id']!r} defined at {namespace!r}.",
-            )
-        process_graph = spec["process_graph"]
-        parameters = spec.get("parameters", [])
+        process_definition = get_process_definition_from_url(process_id=process_id, url=namespace)
     except OpenEOApiException:
         raise
     except Exception as e:
-        _log.error(f"Failed to load process {process_id=} from {namespace=}: {e=}", exc_info=True)
         raise OpenEOApiException(
             status_code=400,
-            code="ProcessResourceInvalid",
-            message=f"Failed to load process {process_id!r} from {namespace!r}: {e!r}",
+            code="ProcessNamespaceInvalid",
+            message=f"Process '{process_id}' specified with invalid namespace '{namespace}': {e!r}",
         ) from e
 
     return _evaluate_process_graph_process(
-        process_id=process_id, process_graph=process_graph, parameters=parameters, args=args, env=env
+        process_id=process_id,
+        process_graph=process_definition.process_graph,
+        parameters=process_definition.parameters,
+        args=args,
+        env=env,
     )
 
 
