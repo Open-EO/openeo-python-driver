@@ -699,8 +699,8 @@ class OpenEoBackendImplementation:
     DEFAULT_CONFORMANCE_CLASSES = [
         # general openEO conformance class
         "https://api.openeo.org/1.2.0",
-        # Remote process definition extension
-        "https://api.openeo.org/extensions/remote-udp/0.1.0",
+        # Support the "remote process definition" extension (originally known as the "remote-udp" extension)
+        "https://api.openeo.org/extensions/remote-process-definition/0.1.0",
     ]
 
     def __init__(

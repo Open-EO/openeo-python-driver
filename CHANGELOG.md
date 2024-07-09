@@ -21,6 +21,11 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.107.1
+
+- Update to "remote-process-definition" extension (originally called "remote-udp")
+  ([#297](https://github.com/Open-EO/openeo-python-driver/issues/297), [Open-EO/openeo-api#540](https://github.com/Open-EO/openeo-api/issues/540))
+
 ## 0.107.0
 
 - `evaluate_process_from_url`: drop support for URL guessing from folder-like URL ([#297)](https://github.com/Open-EO/openeo-python-driver/issues/297))

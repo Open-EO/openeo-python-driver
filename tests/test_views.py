@@ -287,7 +287,10 @@ class TestGeneral:
     def test_conformance(self, api100):
         res = api100.get("/conformance").assert_status_code(200).json
         assert res == {
-            "conformsTo": dirty_equals.Contains("https://api.openeo.org/1.2.0"),
+            "conformsTo": dirty_equals.Contains(
+                "https://api.openeo.org/1.2.0",
+                "https://api.openeo.org/extensions/remote-process-definition/0.1.0",
+            ),
         }
 
 

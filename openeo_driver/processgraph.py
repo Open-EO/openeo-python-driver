@@ -24,7 +24,7 @@ class ProcessDefinition(NamedTuple):
 
 def get_process_definition_from_url(process_id: str, url: str) -> ProcessDefinition:
     """
-    Get process definition (process graph, parameters, title, ...) from URL,
+    Get a remote process definition (process graph, parameters, title, ...) from URL,
     which should provide:
     -   a JSON document with the process definition, compatible with
         the `GET /process_graphs/{process_graph_id}` openEO API endpoint.
