@@ -124,7 +124,7 @@ class DriverDataCube:
         reducer: dict,
         # TODO #288:` chunks` should be an explicit collection of geometries (e.g a FeatureCollection, vector cube base class or an iterable of geometries)
         #       Note that subclass implementations even wrongly retype this to `MultiPolygon`.
-        chunks: Union[shapely.geometry.base.BaseGeometry],
+        chunks: DriverVectorCube,
         mask_value: Union[float, None],
         env: EvalEnv,
         context: Optional[dict] = None,
@@ -137,7 +137,7 @@ class DriverDataCube:
         *,
         # TODO #229/#288 better type for `polygons` arg: should be vector cube or something alike
         # TODO #288: use `geometries` argument instead of confusing `polygons` argument (https://github.com/Open-EO/openeo-processes/issues/511)
-        polygons: shapely.geometry.base.BaseGeometry,
+        polygons: DriverVectorCube,
         process: dict,
         mask_value: Optional[float] = None,
         context: Optional[dict] = None,

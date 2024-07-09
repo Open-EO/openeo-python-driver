@@ -650,18 +650,12 @@ class DryRunDataCube(DriverDataCube):
             return self
 
     def chunk_polygon(
-        # TODO #288: `chunks`: MultiPolygon should not be abused as collection of separate geometries.
-        self, reducer, chunks: MultiPolygon, mask_value: float, env: EvalEnv, context: Optional[dict] = None
+        self, reducer, chunks: DriverVectorCube, mask_value: float, env: EvalEnv, context: Optional[dict] = None
     ) -> "DryRunDataCube":
         # TODO #229: rename/update `chunk_polygon` to `apply_polygon` (https://github.com/Open-EO/openeo-processes/pull/298)
-        if isinstance(chunks, Polygon):
-            polygons = [chunks]
-        elif isinstance(chunks, MultiPolygon):
-            polygons: List[Polygon] = chunks.geoms
-        else:
+        if not isinstance(chunks, DriverVectorCube):
             raise ValueError(f"Invalid type for `chunks`: {type(chunks)}")
-        # TODO #71 #114 Deprecate/avoid usage of GeometryCollection
-        geometries, bbox = self._normalize_geometry(GeometryCollection(polygons))
+        geometries, bbox = self._normalize_geometry(chunks)
         cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
         return cube._process("chunk_polygon", arguments={"geometries": geometries})
 

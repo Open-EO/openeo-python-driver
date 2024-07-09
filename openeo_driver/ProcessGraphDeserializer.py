@@ -804,6 +804,34 @@ def reduce_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     return data_cube.reduce_dimension(reducer=reduce_pg, dimension=dimension, context=context, env=env)
 
 
+def _apply_polygon(
+    data_cube: DriverDataCube, process: dict, polygons, mask_value: Union[int, float], context, env: EvalEnv
+):
+    polygon: DriverVectorCube = None
+    if isinstance(polygons, DelayedVector):
+        polygons = list(polygons.geometries)
+        for p in polygons:
+            if not isinstance(p, shapely.geometry.Polygon):
+                reason = "{m!s} is not a polygon.".format(m=p)
+                raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
+        polygon = DriverVectorCube.from_geometry(polygons)
+    elif isinstance(polygons, DriverVectorCube):
+        polygon = polygons
+    elif isinstance(polygons, shapely.geometry.base.BaseGeometry):
+        polygon = DriverVectorCube.from_geometry(polygons)
+    elif isinstance(polygons, dict):
+        polygon = DriverVectorCube.from_geojson(polygons)
+    else:
+        reason = f"unsupported type: {type(polygons).__name__}"
+        raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
+
+    if polygon.get_area() == 0:
+        reason = "Polygon {m!s} has an area of {a!r}".format(m=polygon, a=polygon.get_area())
+        raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
+
+    return data_cube.apply_polygon(polygons=polygon, process=process, mask_value=mask_value, context=context, env=env)
+
+
 @process_registry_100.add_function(
     spec=read_spec("openeo-processes/experimental/chunk_polygon.json"), name="chunk_polygon"
 )
@@ -815,34 +843,7 @@ def chunk_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     chunks = args.get_required("chunks")
     mask_value = args.get_optional("mask_value", expected_type=(int, float), default=None)
     context = args.get_optional("context", default=None)
-
-    # Chunks parameter check.
-    # TODO #114 EP-3981 normalize first to vector cube and simplify logic
-    if isinstance(chunks, DelayedVector):
-        polygons = list(chunks.geometries)
-        for p in polygons:
-            if not isinstance(p, shapely.geometry.Polygon):
-                reason = "{m!s} is not a polygon.".format(m=p)
-                raise ProcessParameterInvalidException(parameter='chunks', process='chunk_polygon', reason=reason)
-        polygon = MultiPolygon(polygons)
-    elif isinstance(chunks, shapely.geometry.base.BaseGeometry):
-        polygon = MultiPolygon(chunks)
-    elif isinstance(chunks, dict):
-        polygon = geojson_to_multipolygon(chunks)
-        if isinstance(polygon, shapely.geometry.Polygon):
-            polygon = MultiPolygon([polygon])
-    elif isinstance(chunks, str):
-        # Delayed vector is not supported yet.
-        reason = "Polygon of type string is not yet supported."
-        raise ProcessParameterInvalidException(parameter='chunks', process='chunk_polygon', reason=reason)
-    else:
-        reason = "Polygon type is not supported."
-        raise ProcessParameterInvalidException(parameter='chunks', process='chunk_polygon', reason=reason)
-    if polygon.area == 0:
-        reason = "Polygon {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
-        raise ProcessParameterInvalidException(parameter='chunks', process='chunk_polygon', reason=reason)
-
-    return data_cube.chunk_polygon(reducer=reduce_pg, chunks=polygon, mask_value=mask_value, context=context, env=env)
+    return _apply_polygon(data_cube, reduce_pg, chunks, mask_value, context, env)
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/2.x/proposals/apply_polygon.json"))
@@ -853,36 +854,7 @@ def apply_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     polygons = args.get_required("polygons")
     mask_value = args.get_optional("mask_value", expected_type=(int, float), default=None)
     context = args.get_optional("context", default=None)
-
-    # TODO #114 EP-3981 normalize first to vector cube and simplify logic
-    # TODO #288: this logic (copied from original chunk_polygon implementation) coerces the input polygons
-    #       to a single MultiPolygon of pure (non-multi) polygons, which is conceptually wrong.
-    #       Instead it should normalize to a feature collection or vector cube.
-    if isinstance(polygons, DelayedVector):
-        polygons = list(polygons.geometries)
-        for p in polygons:
-            if not isinstance(p, shapely.geometry.Polygon):
-                reason = "{m!s} is not a polygon.".format(m=p)
-                raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
-        polygon = MultiPolygon(polygons)
-    elif isinstance(polygons, DriverVectorCube):
-        # TODO #288: I know it's wrong to coerce to MultiPolygon here, but we stick to this ill-defined API for now.
-        polygon = polygons.to_multipolygon()
-    elif isinstance(polygons, shapely.geometry.base.BaseGeometry):
-        polygon = MultiPolygon(polygons)
-    elif isinstance(polygons, dict):
-        polygon = geojson_to_multipolygon(polygons)
-        if isinstance(polygon, shapely.geometry.Polygon):
-            polygon = MultiPolygon([polygon])
-    else:
-        reason = f"unsupported type: {type(polygons).__name__}"
-        raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
-
-    if polygon.area == 0:
-        reason = "Polygon {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
-        raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
-
-    return data_cube.apply_polygon(polygons=polygon, process=process, mask_value=mask_value, context=context, env=env)
+    return _apply_polygon(data_cube, process, polygons, mask_value, context, env)
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/fit_class_random_forest.json"))
