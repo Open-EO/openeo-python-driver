@@ -21,6 +21,8 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+- Fix default level of `inspect` process (defaults to `info`) ([#424](https://github.com/Open-EO/openeo-geopyspark-driver/issues/424))
+
 ## 0.107.1
 
 - Update to "remote-process-definition" extension (originally called "remote-udp")

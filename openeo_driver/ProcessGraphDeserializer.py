@@ -2144,9 +2144,9 @@ def load_result(args: dict, env: EvalEnv) -> DriverDataCube:
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/inspect.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/2.x/proposals/inspect.json"))
 def inspect(args: dict, env: EvalEnv):
-    data = extract_arg(args,"data")
-    message = args.get("message","")
-    level = args.get("level","")
+    data = extract_arg(args, "data")
+    message = args.get("message", "")
+    level = args.get("level", "info")
     if message:
         _log.log(level=logging.getLevelName(level.upper()), msg=message)
     data_message = str(data)
@@ -2154,6 +2154,7 @@ def inspect(args: dict, env: EvalEnv):
         data_message = str(data.metadata)
     _log.log(level=logging.getLevelName(level.upper()), msg=data_message)
     return data
+
 
 @simple_function
 def text_begins(data: str, pattern: str, case_sensitive: bool = True) -> Union[bool, None]:
