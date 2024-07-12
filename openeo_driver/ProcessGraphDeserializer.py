@@ -341,11 +341,10 @@ class ConcreteProcessing(Processing):
         return []
 
 
-def collect_end_nodes(process_graph: dict) -> str:
+def _collect_end_nodes(process_graph: dict) -> str:
     """Note: modifies process_graph in-place"""
 
-    # FIXME: ad-hoc implementation that only works for a particular process graph
-    end_node_ids = ["inspect1", "saveresult2"]
+    end_node_ids = _end_node_ids(process_graph)
     top_level_node_id = "collect1"
 
     process_graph[top_level_node_id] = {
@@ -357,6 +356,29 @@ def collect_end_nodes(process_graph: dict) -> str:
 
     ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
     return top_level_node_id  # the node where evaluation starts (not necessarily the result node)
+
+
+def _end_node_ids(process_graph: dict) -> set:
+    all_node_ids = set(process_graph.keys())
+
+    def get_from_node_ids(value) -> set:
+        if isinstance(value, dict):
+            if "from_node" in value:
+                return {value["from_node"]}
+            else:
+                return {node_id for v in value.values() for node_id in get_from_node_ids(v)}
+
+        if isinstance(value, list):
+            return {node_id for v in value for node_id in get_from_node_ids(v)}
+
+        return set()
+
+    from_node_ids = {node_id
+                     for node in process_graph.values()
+                     for argument_value in node["arguments"].values()
+                     for node_id in get_from_node_ids(argument_value)}
+
+    return all_node_ids - from_node_ids
 
 
 def evaluate(
@@ -374,7 +396,7 @@ def evaluate(
         _log.warning("No version in `evaluate()` env. Blindly assuming 1.0.0.")
         env = env.push({"version": "1.0.0"})
 
-    top_level_node_id = collect_end_nodes(process_graph)
+    top_level_node_id = _collect_end_nodes(process_graph)
     top_level_node = process_graph[top_level_node_id]
     if ENV_SAVE_RESULT not in env:
         env = env.push({ENV_SAVE_RESULT: []})
