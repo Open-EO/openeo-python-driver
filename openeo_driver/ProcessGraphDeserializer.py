@@ -242,7 +242,8 @@ def _register_fallback_implementations_by_process_graph(process_registry: Proces
 # Some (env) string constants to simplify code navigation
 ENV_SOURCE_CONSTRAINTS = "source_constraints"
 ENV_DRY_RUN_TRACER = "dry_run_tracer"
-ENV_SAVE_RESULT= "save_result"
+ENV_FINAL_RESULT = "final_result"
+ENV_SAVE_RESULT = "save_result"
 
 
 class SimpleProcessing(Processing):
@@ -340,6 +341,24 @@ class ConcreteProcessing(Processing):
         return []
 
 
+def collect_end_nodes(process_graph: dict) -> str:
+    """Note: modifies process_graph in-place"""
+
+    # FIXME: ad-hoc implementation that only works for a particular process graph
+    end_node_ids = ["inspect1", "saveresult2"]
+    top_level_node_id = "collect1"
+
+    process_graph[top_level_node_id] = {
+        "process_id": "collect",
+        "arguments": {
+            "end_nodes": [{"from_node": end_node_id} for end_node_id in end_node_ids]
+        }
+    }
+
+    ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
+    return top_level_node_id  # the node where evaluation starts (not necessarily the result node)
+
+
 def evaluate(
         process_graph: dict,
         env: EvalEnv,
@@ -355,15 +374,17 @@ def evaluate(
         _log.warning("No version in `evaluate()` env. Blindly assuming 1.0.0.")
         env = env.push({"version": "1.0.0"})
 
-    top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
-    result_node = process_graph[top_level_node]
+    top_level_node_id = collect_end_nodes(process_graph)
+    top_level_node = process_graph[top_level_node_id]
     if ENV_SAVE_RESULT not in env:
         env = env.push({ENV_SAVE_RESULT: []})
+
+    env = env.push({ENV_FINAL_RESULT: [None]})  # mutable, holds final result of process graph
 
     if do_dry_run:
         dry_run_tracer = do_dry_run if isinstance(do_dry_run, DryRunDataTracer) else DryRunDataTracer()
         _log.info("Doing dry run")
-        convert_node(result_node, env=env.push({
+        convert_node(top_level_node, env=env.push({
             ENV_DRY_RUN_TRACER: dry_run_tracer,
             ENV_SAVE_RESULT: [],  # otherwise dry run and real run append to the same mutable result list
             "node_caching": False
@@ -373,7 +394,7 @@ def evaluate(
         _log.info("Dry run extracted these source constraints: {s}".format(s=source_constraints))
         env = env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
 
-    result = convert_node(result_node, env=env)
+    result = convert_node(top_level_node, env=env)
     if len(env[ENV_SAVE_RESULT]) > 0:
         if len(env[ENV_SAVE_RESULT]) == 1:
             return env[ENV_SAVE_RESULT][0]
@@ -410,6 +431,10 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
                 # TODO: this manipulates the process graph, while we often assume it's immutable.
                 #       Adding complex data structures could also interfere with attempts to (re)encode the process graph as JSON again.
                 processGraph["result_cache"] = process_result
+
+            if processGraph.get('result', False):
+                env[ENV_FINAL_RESULT][0] = process_result
+
             return process_result
         elif 'node' in processGraph:
             return convert_node(processGraph['node'], env=env)
@@ -424,7 +449,7 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
                 raise ProcessParameterRequiredException(process="n/a", parameter=processGraph['from_parameter'])
         else:
             # TODO: Don't apply `convert_node` for some special cases (e.g. geojson objects)?
-            return {k:convert_node(v, env=env) for k,v in processGraph.items()}
+            return {k: convert_node(v, env=env) for k, v in processGraph.items()}
     elif isinstance(processGraph, list):
         return [convert_node(x, env=env) for x in processGraph]
     return processGraph
@@ -1618,6 +1643,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
 
     process_registry = env.backend_implementation.processing.get_process_registry(api_version=env["version"])
     process_function = process_registry.get_function(process_id, namespace=namespace)
+    _log.debug(f"Applying process {process_id} to arguments {args}")
     return process_function(args=ProcessArgs(args, process_id=process_id), env=env)
 
 
@@ -2259,6 +2285,11 @@ def export_workspace(args: ProcessArgs, env: EvalEnv) -> SaveResult:
 
     result.add_workspace_export(workspace_id, merge=merge)
     return result
+
+
+@custom_process
+def collect(args: ProcessArgs, env: EvalEnv):
+    return env[ENV_FINAL_RESULT]
 
 
 # Finally: register some fallback implementation if possible
