@@ -3875,7 +3875,7 @@ def test_if_merge_cubes(api):
                 "bands": ["B04"],
             }},
         "eq1": {"process_id": "eq", "arguments": {"x": 4, "y": 3}},
-        "errornode":{"process_id":"doesntExist"},
+        "errornode": {"process_id": "doesntExist", "arguments": {}},
         "if1": {
             "process_id": "if",
             "arguments": {

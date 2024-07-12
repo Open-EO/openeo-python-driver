@@ -2311,7 +2311,7 @@ def export_workspace(args: ProcessArgs, env: EvalEnv) -> SaveResult:
 
 @custom_process
 def collect(args: ProcessArgs, env: EvalEnv):
-    return env[ENV_FINAL_RESULT]
+    return env[ENV_FINAL_RESULT][0]
 
 
 # Finally: register some fallback implementation if possible
