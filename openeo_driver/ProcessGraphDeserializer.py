@@ -311,8 +311,8 @@ class ConcreteProcessing(Processing):
             return [{"code": "ProcessGraphInvalid", "message": str(e)}]
 
         try:
-            top_level_node_id = _collect_end_nodes(process_graph)
-            top_level_node = process_graph[top_level_node_id]
+            collected_process_graph, top_level_node_id = _collect_end_nodes(process_graph)
+            top_level_node = collected_process_graph[top_level_node_id]
             result = convert_node(top_level_node, env=env)
         except OpenEOApiException as e:
             return [{"code": e.code, "message": str(e)}]
@@ -343,21 +343,19 @@ class ConcreteProcessing(Processing):
         return []
 
 
-def _collect_end_nodes(process_graph: dict) -> str:
-    """Note: modifies process_graph in-place"""
-
+def _collect_end_nodes(process_graph: dict) -> (dict, str):
     end_node_ids = _end_node_ids(process_graph)
-    top_level_node_id = "collect1"
+    top_level_node_id = "collect1"  # the node where evaluation starts (not necessarily the result node)
 
-    process_graph[top_level_node_id] = {
+    collected_process_graph = dict(process_graph, **{top_level_node_id: {
         "process_id": "collect",
         "arguments": {
             "end_nodes": [{"from_node": end_node_id} for end_node_id in end_node_ids]
         }
-    }
+    }})
 
-    ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
-    return top_level_node_id  # the node where evaluation starts (not necessarily the result node)
+    ProcessGraphVisitor.dereference_from_node_arguments(collected_process_graph)
+    return collected_process_graph, top_level_node_id
 
 
 def _end_node_ids(process_graph: dict) -> set:
@@ -398,8 +396,8 @@ def evaluate(
         _log.warning("No version in `evaluate()` env. Blindly assuming 1.0.0.")
         env = env.push({"version": "1.0.0"})
 
-    top_level_node_id = _collect_end_nodes(process_graph)
-    top_level_node = process_graph[top_level_node_id]
+    collected_process_graph, top_level_node_id = _collect_end_nodes(process_graph)
+    top_level_node = collected_process_graph[top_level_node_id]
     if ENV_SAVE_RESULT not in env:
         env = env.push({ENV_SAVE_RESULT: []})
 
