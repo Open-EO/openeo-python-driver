@@ -267,6 +267,7 @@ class SimpleProcessing(Processing):
         if spec not in self._registry_cache:
             registry = ProcessRegistry(spec_root=SPECS_ROOT / spec, argument_names=["args", "env"])
             _add_standard_processes(registry, _OPENEO_PROCESSES_PYTHON_WHITELIST)
+            registry.add_hidden(collect)
             self._registry_cache[spec] = registry
         return self._registry_cache[spec]
 
@@ -302,16 +303,17 @@ class ConcreteProcessing(Processing):
 
     def validate(self, process_graph: dict, env: EvalEnv = None) -> List[dict]:
         dry_run_tracer = DryRunDataTracer()
-        env = env.push({ENV_DRY_RUN_TRACER: dry_run_tracer})
+        env = env.push({ENV_DRY_RUN_TRACER: dry_run_tracer, ENV_FINAL_RESULT: [None]})
 
         try:
-            top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
-            result_node = process_graph[top_level_node]
+            ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
         except ProcessGraphVisitException as e:
             return [{"code": "ProcessGraphInvalid", "message": str(e)}]
 
         try:
-            result = convert_node(result_node, env=env)
+            top_level_node_id = _collect_end_nodes(process_graph)
+            top_level_node = process_graph[top_level_node_id]
+            result = convert_node(top_level_node, env=env)
         except OpenEOApiException as e:
             return [{"code": e.code, "message": str(e)}]
         except Exception as e:

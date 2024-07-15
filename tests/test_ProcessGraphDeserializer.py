@@ -203,12 +203,20 @@ class TestSimpleProcessing:
         processing = SimpleProcessing()
         assert processing.evaluate(pg) == expected
 
-    def test_parameter(self):
+    @pytest.mark.parametrize(["foo", "result"], [
+        (3, 8),
+        (30, 35),
+    ])
+    def test_parameter(self, foo, result):
         processing = SimpleProcessing()
         env = processing.get_basic_env()
         pg = {"add": {"process_id": "add", "arguments": {"x": {"from_parameter": "foo"}, "y": 5}, "result": True}}
-        assert processing.evaluate(pg, env=env.push_parameters({"foo": 3})) == 8
-        assert processing.evaluate(pg, env=env.push_parameters({"foo": 30})) == 35
+        assert processing.evaluate(pg, env=env.push_parameters({"foo": foo})) == result
+
+    def test_missing_parameter(self):
+        processing = SimpleProcessing()
+        env = processing.get_basic_env()
+        pg = {"add": {"process_id": "add", "arguments": {"x": {"from_parameter": "foo"}, "y": 5}, "result": True}}
 
         with pytest.raises(ProcessParameterRequiredException):
             processing.evaluate(pg, env=env)
