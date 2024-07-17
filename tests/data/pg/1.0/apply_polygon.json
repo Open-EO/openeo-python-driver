@@ -7,7 +7,7 @@
     "process_id": "apply_polygon",
     "arguments": {
       "data": {"from_node": "collection"},
-      "polygons": {
+      "geometries": {
         "type": "FeatureCollection",
         "features": [
           {
