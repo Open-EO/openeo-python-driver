@@ -21,7 +21,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.107.2
+
 - Fix default level of `inspect` process (defaults to `info`) ([#424](https://github.com/Open-EO/openeo-geopyspark-driver/issues/424))
+- Support `save_result` processes in arbitrary subtrees in the process graph i.e. those not necessarily contributing to the final result ([#424](https://github.com/Open-EO/openeo-geopyspark-driver/issues/424))
 
 ## 0.107.1
 
