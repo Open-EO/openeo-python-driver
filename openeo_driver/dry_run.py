@@ -595,6 +595,7 @@ class DryRunDataCube(DriverDataCube):
         elif isinstance(geometries, shapely.geometry.base.BaseGeometry):
             _log.warning(
                 "_normalize_geometry: TODO are we still reaching this code?",
+                # TODO yes we are, apparently due to #288
                 stack_info=True,
             )
             # TODO: buffer distance of 10m assumes certain resolution (e.g. sentinel2 pixels)

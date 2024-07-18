@@ -1,5 +1,5 @@
+import logging
 import shutil
-
 import dataclasses
 import json
 import math
@@ -3738,13 +3738,31 @@ def test_chunk_polygon(api):
     assert params["spatial_extent"] == {"west": 1.0, "south": 5.0, "east": 12.0, "north": 16.0, "crs": "EPSG:4326"}
 
 
-def test_apply_polygon(api):
+def test_apply_polygon_legacy(api, caplog):
+    caplog.set_level(logging.WARNING)
+    api.check_result("apply_polygon.json", preprocess=lambda s: s.replace("geometries", "polygons"))
+    params = dummy_backend.last_load_collection_call("S2_FOOBAR")
+    assert params["spatial_extent"] == {"west": 1.0, "south": 5.0, "east": 12.0, "north": 16.0, "crs": "EPSG:4326"}
+    assert "In process 'apply_polygon': parameter 'polygons' is deprecated, use 'geometries' instead." in caplog.text
+
+
+def test_apply_polygon(api, caplog):
+    caplog.set_level(logging.WARNING)
     api.check_result("apply_polygon.json")
     params = dummy_backend.last_load_collection_call("S2_FOOBAR")
     assert params["spatial_extent"] == {"west": 1.0, "south": 5.0, "east": 12.0, "north": 16.0, "crs": "EPSG:4326"}
+    # TODO due to #288 we can not simply assert absence of any warnings/errors
+    # assert caplog.text == ""
+    assert "deprecated" not in caplog.text
 
 
-def test_apply_polygon_with_vector_cube(api, tmp_path):
+def test_apply_polygon_no_geometries(api):
+    res = api.result("apply_polygon.json", preprocess=lambda s: s.replace("geometries", "heometriez"))
+    res.assert_error(400, "ProcessParameterRequired", "Process 'apply_polygon' parameter 'geometries' is required")
+
+
+@pytest.mark.parametrize("geometries_argument", ["polygons", "geometries"])
+def test_apply_polygon_with_vector_cube(api, tmp_path, geometries_argument):
     shutil.copy(get_path("geojson/FeatureCollection01.json"), tmp_path / "geometry.json")
     with ephemeral_fileserver(tmp_path) as fileserver_root:
         url = f"{fileserver_root}/geometry.json"
@@ -3762,7 +3780,7 @@ def test_apply_polygon_with_vector_cube(api, tmp_path):
                 "process_id": "apply_polygon",
                 "arguments": {
                     "data": {"from_node": "load_raster"},
-                    "polygons": {"from_node": "load_vector"},
+                    geometries_argument: {"from_node": "load_vector"},
                     "process": {
                         "process_graph": {
                             "constant": {

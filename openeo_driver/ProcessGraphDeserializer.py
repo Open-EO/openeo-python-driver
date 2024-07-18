@@ -897,7 +897,12 @@ def chunk_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def apply_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube = args.get_required("data", expected_type=DriverDataCube)
     process = args.get_deep("process", "process_graph", expected_type=dict)
-    polygons = args.get_required("polygons")
+    if "polygons" in args and "geometries" not in args:
+        # TODO remove this deprecated  "polygons" parameter handling when not used anymore
+        _log.warning("In process 'apply_polygon': parameter 'polygons' is deprecated, use 'geometries' instead.")
+        geometries = args.get_required("polygons")
+    else:
+        geometries = args.get_required("geometries")
     mask_value = args.get_optional("mask_value", expected_type=(int, float), default=None)
     context = args.get_optional("context", default=None)
 
@@ -905,24 +910,24 @@ def apply_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     # TODO #288: this logic (copied from original chunk_polygon implementation) coerces the input polygons
     #       to a single MultiPolygon of pure (non-multi) polygons, which is conceptually wrong.
     #       Instead it should normalize to a feature collection or vector cube.
-    if isinstance(polygons, DelayedVector):
-        polygons = list(polygons.geometries)
-        for p in polygons:
+    if isinstance(geometries, DelayedVector):
+        geometries = list(geometries.geometries)
+        for p in geometries:
             if not isinstance(p, shapely.geometry.Polygon):
                 reason = "{m!s} is not a polygon.".format(m=p)
                 raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
-        polygon = MultiPolygon(polygons)
-    elif isinstance(polygons, DriverVectorCube):
+        polygon = MultiPolygon(geometries)
+    elif isinstance(geometries, DriverVectorCube):
         # TODO #288: I know it's wrong to coerce to MultiPolygon here, but we stick to this ill-defined API for now.
-        polygon = polygons.to_multipolygon()
-    elif isinstance(polygons, shapely.geometry.base.BaseGeometry):
-        polygon = MultiPolygon(polygons)
-    elif isinstance(polygons, dict):
-        polygon = geojson_to_multipolygon(polygons)
+        polygon = geometries.to_multipolygon()
+    elif isinstance(geometries, shapely.geometry.base.BaseGeometry):
+        polygon = MultiPolygon(geometries)
+    elif isinstance(geometries, dict):
+        polygon = geojson_to_multipolygon(geometries)
         if isinstance(polygon, shapely.geometry.Polygon):
             polygon = MultiPolygon([polygon])
     else:
-        reason = f"unsupported type: {type(polygons).__name__}"
+        reason = f"unsupported type: {type(geometries).__name__}"
         raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
 
     if polygon.area == 0:
