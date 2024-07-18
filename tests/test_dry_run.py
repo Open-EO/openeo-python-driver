@@ -1667,6 +1667,7 @@ def test_load_result_constraints(dry_run_env, dry_run_tracer):
         )
     ]
 
+
 def test_multiple_save_result(dry_run_env):
     pg = {
       "collection1": {
@@ -1736,6 +1737,60 @@ def test_multiple_save_result(dry_run_env):
     save_result = dry_run_env.get(ENV_SAVE_RESULT)
     assert  len(save_result) == 2
     assert len(the_result) == 2
+
+
+def test_non_result_subtrees_are_evaluated(dry_run_env, caplog):
+    pg = {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "S2_FAPAR_CLOUDCOVER",
+                "spatial_extent": {"west": 5, "south": 50, "east": 5.1, "north": 50.1},
+                "temporal_extent": ["2024-07-11", "2024-07-21"],
+                "bands": ["Flat:1"]
+            }
+        },
+        "loadcollection2": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "S2_FOOBAR",
+                "spatial_extent": {"west": 5, "south": 50, "east": 5.1, "north": 50.1},
+                "temporal_extent": ["2024-07-11", "2024-07-21"],
+                "bands": ["Flat:2"]
+            }
+        },
+        "inspect1": {
+            "process_id": "inspect",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "message": "intermediate result",
+                "level": "warning"
+            }
+        },
+        "mergecubes1": {
+            "process_id": "merge_cubes",
+            "arguments": {
+                "cube1": {"from_node": "loadcollection1"},
+                "cube2": {"from_node": "loadcollection2"},
+            },
+            "result": True
+        },
+        "saveresult2": {
+            "process_id": "save_result",
+            "arguments": {
+                "data": {"from_node": "mergecubes1"},
+                "format": "netCDF"
+            }
+        },
+    }
+
+    result = evaluate(pg, env=dry_run_env)
+
+    # side-effect 1: output asset
+    assert result.format == "netCDF"
+
+    # side-effect 2: inspect log
+    assert "intermediate result" in caplog.messages
 
 
 def test_invalid_latlon_in_geojson(dry_run_env):

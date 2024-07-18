@@ -32,6 +32,7 @@ from openeo_driver.processes import ProcessArgs, ProcessRegistry
 from openeo_driver.ProcessGraphDeserializer import (
     custom_process,
     custom_process_from_process_graph,
+    collect,
 )
 from openeo_driver.testing import (
     TEST_USER,
@@ -3893,7 +3894,7 @@ def test_if_merge_cubes(api):
                 "bands": ["B04"],
             }},
         "eq1": {"process_id": "eq", "arguments": {"x": 4, "y": 3}},
-        "errornode":{"process_id":"doesntExist"},
+        "errornode": {"process_id": "doesntExist", "arguments": {}},
         "if1": {
             "process_id": "if",
             "arguments": {
@@ -4385,6 +4386,7 @@ def test_synchronous_processing_response_header_openeo_identifier(api):
 @pytest.fixture
 def custom_process_registry(backend_implementation) -> ProcessRegistry:
     process_registry = ProcessRegistry()
+    process_registry.add_hidden(collect)
     with mock.patch.object(backend_implementation.processing, "get_process_registry", return_value=process_registry):
         yield process_registry
 

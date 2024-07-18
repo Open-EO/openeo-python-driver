@@ -21,10 +21,13 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.107.3
+
+- Support `save_result` processes in arbitrary subtrees in the process graph i.e. those not necessarily contributing to the final result ([Open-EO/openeo-geopyspark-driver#424](https://github.com/Open-EO/openeo-geopyspark-driver/issues/424))
 
 ## 0.107.2
 
-- Fix default level of `inspect` process (defaults to `info`) ([#424](https://github.com/Open-EO/openeo-geopyspark-driver/issues/424))
+- Fix default level of `inspect` process (defaults to `info`) ([Open-EO/openeo-geopyspark-driver#424](https://github.com/Open-EO/openeo-geopyspark-driver/issues/424))
 - `apply_polygon`: add support for `geometries` argument (in addition to legacy, but still supported `polygons`) ([Open-EO/openeo-processes#511](https://github.com/Open-EO/openeo-processes/issues/511))
 
 ## 0.107.1
