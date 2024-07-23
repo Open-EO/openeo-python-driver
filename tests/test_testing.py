@@ -174,8 +174,27 @@ class TestUrllibMocker:
         assert r.read() == b"hello world"
 
     def test_get_not_found(self, urllib_mock: UrllibMocker):
-        with pytest.raises(urllib.error.HTTPError, match="404: Not Found"):
+        with pytest.raises(urllib.error.HTTPError, match="404: Not found not in mock: http://a.test/bar"):
             urllib.request.urlopen("http://a.test/bar")
+
+    def test_requests(self, urllib_mock: UrllibMocker):
+        href = "http://a.test/foo"
+        urllib_mock.get(href, data="hello world")
+        import requests
+
+        with requests.get(href) as resp:
+            resp.raise_for_status()
+            assert resp.text == "hello world"
+
+    def test_stac_client(self, urllib_mock: UrllibMocker):
+        href = "http://a.test/foo"
+        urllib_mock.get(href, data="hello world")
+        headers = {}
+        params = {}
+        request = requests.models.Request(method="GET", url=href, headers=headers, params=params)
+        request = request.prepare()
+        resp = requests.session().send(request)
+        assert resp.content == b"hello world"
 
     def test_context_manager_get(self, urllib_mock: UrllibMocker):
         urllib_mock.get("http://a.test/foo", data="hello world")
