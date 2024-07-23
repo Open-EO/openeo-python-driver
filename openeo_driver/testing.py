@@ -19,6 +19,7 @@ import attrs
 import openeo
 import openeo.processes
 import pytest
+import requests
 import shapely.geometry.base
 import shapely.wkt
 from flask import Response
@@ -494,7 +495,6 @@ class UrllibMocker:
     def mocked_requests_get(self, req, **kwargs):
         urllib_resp = self._http_open(urllib.request.Request(req.url))
 
-        import requests
         resp = requests.Response()
         resp.status_code = urllib_resp.code
         resp.raw = io.BytesIO(urllib_resp.data)

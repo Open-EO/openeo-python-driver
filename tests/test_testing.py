@@ -180,7 +180,6 @@ class TestUrllibMocker:
     def test_requests(self, urllib_mock: UrllibMocker):
         href = "http://a.test/foo"
         urllib_mock.get(href, data="hello world")
-        import requests
 
         with requests.get(href) as resp:
             resp.raise_for_status()
@@ -189,9 +188,7 @@ class TestUrllibMocker:
     def test_stac_client(self, urllib_mock: UrllibMocker):
         href = "http://a.test/foo"
         urllib_mock.get(href, data="hello world")
-        headers = {}
-        params = {}
-        request = requests.models.Request(method="GET", url=href, headers=headers, params=params)
+        request = requests.models.Request(method="GET", url=href, headers={}, params={})
         request = request.prepare()
         resp = requests.session().send(request)
         assert resp.content == b"hello world"
