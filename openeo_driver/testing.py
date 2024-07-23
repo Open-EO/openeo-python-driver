@@ -4,6 +4,7 @@ Reusable helpers and fixtures for testing
 import base64
 import contextlib
 import http.server
+import io
 import json
 import logging
 import math
@@ -484,16 +485,27 @@ class UrllibMocker:
             if key in self.response_callbacks:
                 return self.response_callbacks[key](req)
 
-        return self.Response(code=404, msg="Not Found")
+        return self.Response(code=404, msg="Not found not in mock: " + req.full_url)
 
     @staticmethod
     def _drop_query_string(url: str):
         return url.split("?")[0]
 
+    def mocked_requests_get(self, req, **kwargs):
+        urllib_resp = self._http_open(urllib.request.Request(req.url))
+
+        import requests
+        resp = requests.Response()
+        resp.status_code = urllib_resp.code
+        resp.raw = io.BytesIO(urllib_resp.data)
+        resp.request = req
+        return resp
+
     @contextlib.contextmanager
     def patch(self):
         with mock.patch("urllib.request.HTTPHandler.http_open", new=self._http_open), \
-                mock.patch("urllib.request.HTTPSHandler.https_open", new=self._http_open):
+                mock.patch("urllib.request.HTTPSHandler.https_open", new=self._http_open), \
+                mock.patch("requests.sessions.Session.send", new=self.mocked_requests_get):
             yield self
 
 
