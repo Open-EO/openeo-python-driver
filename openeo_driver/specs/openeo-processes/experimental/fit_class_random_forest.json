@@ -17,7 +17,7 @@
         },
         {
             "name": "target",
-            "description": "The training sites for the classification model as a vector data cube. This is associated with the target variable for the Random Forest model. The geometry has to associated with a value to predict (e.g. fractional forest canopy cover).",
+            "description": "The training sites for the classification model as a vector data cube. This is associated with the target variable for the Random Forest model. The geometry has to be associated with a value to predict (e.g. fractional forest canopy cover).",
             "schema": {
                 "type": "object",
                 "subtype": "vector-cube"
