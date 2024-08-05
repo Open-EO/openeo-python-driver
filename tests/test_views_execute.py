@@ -1,5 +1,5 @@
+import logging
 import shutil
-
 import dataclasses
 import json
 import math
@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Iterable, Optional
 from unittest import mock, skip
 from zipfile import ZipFile
+import http.client
 
 import geopandas as gpd
 import numpy as np
@@ -31,6 +32,7 @@ from openeo_driver.processes import ProcessArgs, ProcessRegistry
 from openeo_driver.ProcessGraphDeserializer import (
     custom_process,
     custom_process_from_process_graph,
+    collect,
 )
 from openeo_driver.testing import (
     TEST_USER,
@@ -2685,96 +2687,125 @@ def test_discard_result(api):
     assert res.json is None
 
 
-@pytest.mark.parametrize(["namespace", "url_mocks", "expected_error"], [
-    (
-            "https://oeo.test/u/42/udp/bbox_mol",
-            {"https://oeo.test/u/42/udp/bbox_mol": "udp/bbox_mol.json"},
+@pytest.mark.parametrize(
+    ["namespace", "url_mocks", "expected_error"],
+    [
+        pytest.param(
+            "https://share.test/u42/bbox_mol.json",
+            {"https://share.test/u42/bbox_mol.json": "udp/bbox_mol.json"},
             None,
-    ),
-    (
-            "https://oeo.test/u/42/udp/",
-            {"https://oeo.test/u/42/udp/bbox_mol": "udp/bbox_mol.json"},
+            id="basic",
+        ),
+        pytest.param(
+            "https://share.test/u42/bbox_mol",
+            {"https://share.test/u42/bbox_mol": "udp/bbox_mol.json"},
             None,
-    ),
-    (
-            "https://oeo.test/u/42/udp/",
-            {
-                "https://oeo.test/u/42/udp/bbox_mol": 404,
-                "https://oeo.test/u/42/udp/bbox_mol.json": "udp/bbox_mol.json",
-            },
-            None,
-    ),
-    (
-            "https://share.example/u42/bbox_mol.json",
-            {"https://share.example/u42/bbox_mol.json": "udp/bbox_mol.json"},
-            None,
-    ),
-    (
+            id="simple-no-extension",
+        ),
+        pytest.param(
             "https://share.test/u42/bbox_mol.json",
             {
                 "https://share.test/u42/bbox_mol.json": (302, "https://shr976.test/45435"),
                 "https://shr976.test/45435": "udp/bbox_mol.json",
             },
             None,
-    ),
-    (
-            "https://oeo.test/u/42/udp/bbox_mol",
-            {"https://oeo.test/u/42/udp/bbox_mol": 404},
-            (
-                    400, "ProcessUnsupported",
-                    "'bbox_mol' is not available in namespace 'https://oeo.test/u/42/udp/bbox_mol'."
-            ),
-    ),
-    (
-            "https://oeo.test/u/42/udp/",
+            id="redirect",
+        ),
+        pytest.param(
+            "https://share.test/u42/",
             {
-                "https://oeo.test/u/42/udp/bbox_mol": 404,
-                "https://oeo.test/u/42/udp/bbox_mol.json": 404,
+                "https://share.test/u42/": {
+                    "processes": [
+                        {"id": "foo", "process_graph": {}},
+                        load_json("pg/1.0/udp/bbox_mol.json"),
+                    ],
+                    "links": [],
+                }
             },
-            (
-                    400, "ProcessUnsupported",
-                    "'bbox_mol' is not available in namespace 'https://oeo.test/u/42/udp/'."
-            ),
-    ),
-    (
-            "https://oeo.test/u/42/udp/bbox_mol",
-            {"https://oeo.test/u/42/udp/bbox_mol": {"foo": "bar"}},
+            None,
+            id="process-listing",
+        ),
+        pytest.param(
+            "https://share.test/u42/bbox_mol.json",
+            {"https://share.test/u42/bbox_mol.json": 404},
             (
                 400,
-                "ProcessResourceInvalid",
-                "Failed to load process 'bbox_mol' from 'https://oeo.test/u/42/udp/bbox_mol': KeyError('id')",
+                "ProcessNamespaceInvalid",
+                "Process 'bbox_mol' specified with invalid namespace 'https://share.test/u42/bbox_mol.json': HTTPError('404 Client Error: Not Found for url: https://share.test/u42/bbox_mol.json')",
             ),
+            id="error-404",
         ),
-        (
-            "https://oeo.test/u/42/udp/bbox_mol",
-            {"https://oeo.test/u/42/udp/bbox_mol": '{"foo": invalid json'},
+        pytest.param(
+            "https://share.test/u42/bbox_mol.json",
+            {"https://share.test/u42/bbox_mol.json": "[1,2,3]"},
             (
                 400,
-                "ProcessResourceInvalid",
-                "Failed to load process 'bbox_mol' from 'https://oeo.test/u/42/udp/bbox_mol': JSONDecodeError",
+                "ProcessNamespaceInvalid",
+                "Process 'bbox_mol' specified with invalid namespace 'https://share.test/u42/bbox_mol.json': ValueError(\"Process definition should be a JSON object, but got <class 'list'>.\")",
             ),
+            id="error-no-dict",
         ),
-        (
-            "https://share.example/u42/bbox_mol.json",
+        pytest.param(
+            "https://share.test/u42/bbox_mol.json",
+            {"https://share.test/u42/bbox_mol.json": {"foo": "bar"}},
+            (
+                400,
+                "ProcessNotFound",
+                "No valid process definition for 'bbox_mol' found at 'https://share.test/u42/bbox_mol.json'.",
+            ),
+            id="error-no-id",
+        ),
+        pytest.param(
+            "https://share.test/u42/bbox_mol.json",
+            {"https://share.test/u42/bbox_mol.json": '{"foo": invalid json'},
+            (
+                400,
+                "ProcessNamespaceInvalid",
+                "Process 'bbox_mol' specified with invalid namespace 'https://share.test/u42/bbox_mol.json': JSONDecodeError('Expecting value: line 1 column 9 (char 8)')",
+            ),
+            id="error-invalid-json",
+        ),
+        pytest.param(
+            "https://share.test/u42/bbox_mol.json",
             {
-                "https://share.example/u42/bbox_mol.json": load_json(
+                "https://share.test/u42/bbox_mol.json": load_json(
                     "pg/1.0/udp/bbox_mol.json", preprocess=lambda t: t.replace("bbox_mol", "BBox_Mol")
                 )
             },
-            None,
+            (
+                400,
+                "ProcessIdMismatch",
+                "Mismatch between expected process 'bbox_mol' and process 'BBox_Mol' defined at 'https://share.test/u42/bbox_mol.json'.",
+            ),
+            id="error-id-mismatch-capitalization",
         ),
-        (
-            "https://share.example/u42/bbox_mol.json",
+        pytest.param(
+            "https://share.test/u42/bbox_mol.json",
             {
-                "https://share.example/u42/bbox_mol.json": load_json(
+                "https://share.test/u42/bbox_mol.json": load_json(
                     "pg/1.0/udp/bbox_mol.json", preprocess=lambda t: t.replace("bbox_mol", "BoundingBox-Mol")
                 )
             },
             (
                 400,
                 "ProcessIdMismatch",
-                "Mismatch between expected process 'bbox_mol' and process 'BoundingBox-Mol' defined at 'https://share.example/u42/bbox_mol.json'.",
+                "Mismatch between expected process 'bbox_mol' and process 'BoundingBox-Mol' defined at 'https://share.test/u42/bbox_mol.json'.",
             ),
+            id="error-id-mismatch-different-id",
+        ),
+        pytest.param(
+            "https://share.test/u42/",
+            {
+                "https://share.test/u42/": {
+                    "processes": [
+                        {"id": "foo", "process_graph": {}},
+                        {"id": "bar", "process_graph": {}},
+                    ],
+                    "links": [],
+                }
+            },
+            (400, "ProcessNotFound", "Process 'bbox_mol' not found in process listing at 'https://share.test/u42/'."),
+            id="process-listing-missing",
         ),
     ],
 )
@@ -2789,7 +2820,7 @@ def test_evaluate_process_from_url(api, requests_mock, namespace, url_mocks, exp
         elif isinstance(value, dict):
             requests_mock.get(url, json=value)
         elif value in [404, 500]:
-            requests_mock.get(url, status_code=value)
+            requests_mock.get(url, status_code=value, reason=http.client.responses.get(value))
         elif isinstance(value, tuple) and value[0] in [302]:
             status_code, target = value
             requests_mock.get(url, status_code=status_code, headers={"Location": target})
@@ -2797,10 +2828,18 @@ def test_evaluate_process_from_url(api, requests_mock, namespace, url_mocks, exp
             raise ValueError(value)
 
     # Evaluate process graph (with URL namespace)
-    pg = api.load_json("udp_bbox_mol_basic.json")
-    assert pg["bboxmol1"]["process_id"] == "bbox_mol"
-    pg["bboxmol1"]["namespace"] = namespace
-
+    pg = {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FOOBAR"},
+        },
+        "bboxmol1": {
+            "process_id": "bbox_mol",
+            "namespace": namespace,
+            "arguments": {"data": {"from_node": "loadcollection1"}},
+            "result": True,
+        },
+    }
     res = api.result(pg)
     if expected_error:
         status_code, error_code, message = expected_error
@@ -3699,13 +3738,31 @@ def test_chunk_polygon(api):
     assert params["spatial_extent"] == {"west": 1.0, "south": 5.0, "east": 12.0, "north": 16.0, "crs": "EPSG:4326"}
 
 
-def test_apply_polygon(api):
+def test_apply_polygon_legacy(api, caplog):
+    caplog.set_level(logging.WARNING)
+    api.check_result("apply_polygon.json", preprocess=lambda s: s.replace("geometries", "polygons"))
+    params = dummy_backend.last_load_collection_call("S2_FOOBAR")
+    assert params["spatial_extent"] == {"west": 1.0, "south": 5.0, "east": 12.0, "north": 16.0, "crs": "EPSG:4326"}
+    assert "In process 'apply_polygon': parameter 'polygons' is deprecated, use 'geometries' instead." in caplog.text
+
+
+def test_apply_polygon(api, caplog):
+    caplog.set_level(logging.WARNING)
     api.check_result("apply_polygon.json")
     params = dummy_backend.last_load_collection_call("S2_FOOBAR")
     assert params["spatial_extent"] == {"west": 1.0, "south": 5.0, "east": 12.0, "north": 16.0, "crs": "EPSG:4326"}
+    # TODO due to #288 we can not simply assert absence of any warnings/errors
+    # assert caplog.text == ""
+    assert "deprecated" not in caplog.text
 
 
-def test_apply_polygon_with_vector_cube(api, tmp_path):
+def test_apply_polygon_no_geometries(api):
+    res = api.result("apply_polygon.json", preprocess=lambda s: s.replace("geometries", "heometriez"))
+    res.assert_error(400, "ProcessParameterRequired", "Process 'apply_polygon' parameter 'geometries' is required")
+
+
+@pytest.mark.parametrize("geometries_argument", ["polygons", "geometries"])
+def test_apply_polygon_with_vector_cube(api, tmp_path, geometries_argument):
     shutil.copy(get_path("geojson/FeatureCollection01.json"), tmp_path / "geometry.json")
     with ephemeral_fileserver(tmp_path) as fileserver_root:
         url = f"{fileserver_root}/geometry.json"
@@ -3723,7 +3780,7 @@ def test_apply_polygon_with_vector_cube(api, tmp_path):
                 "process_id": "apply_polygon",
                 "arguments": {
                     "data": {"from_node": "load_raster"},
-                    "polygons": {"from_node": "load_vector"},
+                    geometries_argument: {"from_node": "load_vector"},
                     "process": {
                         "process_graph": {
                             "constant": {
@@ -3837,7 +3894,7 @@ def test_if_merge_cubes(api):
                 "bands": ["B04"],
             }},
         "eq1": {"process_id": "eq", "arguments": {"x": 4, "y": 3}},
-        "errornode":{"process_id":"doesntExist"},
+        "errornode": {"process_id": "doesntExist", "arguments": {}},
         "if1": {
             "process_id": "if",
             "arguments": {
@@ -4309,6 +4366,7 @@ def test_synchronous_processing_response_header_openeo_identifier(api):
 @pytest.fixture
 def custom_process_registry(backend_implementation) -> ProcessRegistry:
     process_registry = ProcessRegistry()
+    process_registry.add_hidden(collect)
     with mock.patch.object(backend_implementation.processing, "get_process_registry", return_value=process_registry):
         yield process_registry
 

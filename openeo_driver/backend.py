@@ -519,6 +519,10 @@ class UserDefinedProcessMetadata(NamedTuple):
     """
     Container for user-defined process metadata.
     """
+
+    # TODO: generalize this to generic openEO process definitions
+    #       (not only "user-defined", but also remote/public process definitions)
+
     id: str
     # Note: "process_graph" is optional for multiple UDP listings (`GET /process_graphs`),
     # but required for full, single UDP metadata requests (`GET /process_graphs/{process_graph_id}`)
@@ -684,6 +688,13 @@ class OpenEoBackendImplementation:
     # Overridable vector cube implementation
     vector_cube_cls = DriverVectorCube
 
+    DEFAULT_CONFORMANCE_CLASSES = [
+        # general openEO conformance class
+        "https://api.openeo.org/1.2.0",
+        # Support the "remote process definition" extension (originally known as the "remote-udp" extension)
+        "https://api.openeo.org/extensions/remote-process-definition/0.1.0",
+    ]
+
     def __init__(
         self,
         *,
@@ -693,6 +704,7 @@ class OpenEoBackendImplementation:
         user_defined_processes: Optional[UserDefinedProcesses] = None,
         processing: Optional[Processing] = None,
         config: Optional[OpenEoBackendConfig] = None,
+        conformance_classes: Optional[List[str]] = None,
     ):
         self.config: OpenEoBackendConfig = config or get_backend_config()
         self.secondary_services = secondary_services
@@ -702,6 +714,7 @@ class OpenEoBackendImplementation:
         self.user_files = None  # TODO: implement user file storage microservice
         self.processing = processing
         self.udf_runtimes = UdfRuntimes()
+        self._conformance_classes = conformance_classes or self.DEFAULT_CONFORMANCE_CLASSES
 
         # Overridable cache control header injecting decorator for static, public view functions
         self.cache_control = openeo_driver.util.view_helpers.cache_control(
@@ -713,6 +726,9 @@ class OpenEoBackendImplementation:
 
     def oidc_providers(self) -> List[OidcProvider]:
         return self.config.oidc_providers
+
+    def conformance_classes(self) -> List[str]:
+        return self._conformance_classes
 
     def file_formats(self) -> dict:
         """

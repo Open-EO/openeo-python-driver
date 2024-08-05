@@ -21,8 +21,30 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.107.3
 
-# 0.105.0
+- Support `save_result` processes in arbitrary subtrees in the process graph i.e. those not necessarily contributing to the final result ([Open-EO/openeo-geopyspark-driver#424](https://github.com/Open-EO/openeo-geopyspark-driver/issues/424))
+
+## 0.107.2
+
+- Fix default level of `inspect` process (defaults to `info`) ([Open-EO/openeo-geopyspark-driver#424](https://github.com/Open-EO/openeo-geopyspark-driver/issues/424))
+- `apply_polygon`: add support for `geometries` argument (in addition to legacy, but still supported `polygons`) ([Open-EO/openeo-processes#511](https://github.com/Open-EO/openeo-processes/issues/511))
+
+## 0.107.1
+
+- Update to "remote-process-definition" extension (originally called "remote-udp")
+  ([#297](https://github.com/Open-EO/openeo-python-driver/issues/297), [Open-EO/openeo-api#540](https://github.com/Open-EO/openeo-api/issues/540))
+
+## 0.107.0
+
+- `evaluate_process_from_url`: drop support for URL guessing from folder-like URL ([#297)](https://github.com/Open-EO/openeo-python-driver/issues/297))
+- `evaluate_process_from_url`: align with new (and experimental) "remote-udp" extension ([#297)](https://github.com/Open-EO/openeo-python-driver/issues/297))
+
+## 0.106.0
+
+- Add API to define conformance classes to `OpenEoBackendImplementation`
+
+## 0.105.0
 
 - Require at least `werkzeug>=3.0.3` ([#281](https://github.com/Open-EO/openeo-python-driver/issues/281))
 

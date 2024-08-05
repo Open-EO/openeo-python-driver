@@ -1,3 +1,4 @@
+import dirty_equals
 import json
 import logging
 import re
@@ -185,6 +186,8 @@ class TestGeneral:
         assert capabilities["id"] == "dummyopeneobackend-1.2.3-foo"
         assert capabilities["production"] is True
 
+        assert capabilities["conformsTo"] == dirty_equals.Contains("https://api.openeo.org/1.2.0")
+
         def get_link(rel):
             links = [link for link in capabilities["links"] if link["rel"] == rel]
             assert len(links) == 1
@@ -282,8 +285,14 @@ class TestGeneral:
         assert any("stac-extensions.github.io/processing" in e for e in capabilities.get("stac_extensions", []))
 
     def test_conformance(self, api100):
-        res = api100.get('/conformance').assert_status_code(200).json
-        assert "conformsTo" in res
+        res = api100.get("/conformance").assert_status_code(200).json
+        assert res == {
+            "conformsTo": dirty_equals.Contains(
+                "https://api.openeo.org/1.2.0",
+                "https://api.openeo.org/extensions/remote-process-definition/0.1.0",
+            ),
+        }
+
 
     @pytest.mark.parametrize("path", ["/", "/collections", "/processes", "/jobs", ])
     def test_cors_headers_options(self, api, path):

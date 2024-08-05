@@ -1,4 +1,5 @@
 # TODO: rename this module to something in snake case? It doesn't even implement a ProcessGraphDeserializer class.
+# TODO: and related: separate generic process graph handling from more concrete openEO process implementations
 
 # pylint: disable=unused-argument
 
@@ -20,7 +21,6 @@ import openeo.udf
 import openeo_processes
 import pandas as pd
 import pyproj
-import requests
 import shapely.geometry
 import shapely.ops
 from dateutil.relativedelta import relativedelta
@@ -51,11 +51,10 @@ from openeo_driver.errors import (
     ProcessParameterInvalidException,
     FeatureUnsupportedException,
     OpenEOApiException,
-    ProcessGraphInvalidException,
-    ProcessUnsupportedException,
     CollectionNotFoundException,
 )
 from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE, ProcessArgs
+from openeo_driver.processgraph import get_process_definition_from_url
 from openeo_driver.save_result import (
     JSONResult,
     SaveResult,
@@ -243,7 +242,8 @@ def _register_fallback_implementations_by_process_graph(process_registry: Proces
 # Some (env) string constants to simplify code navigation
 ENV_SOURCE_CONSTRAINTS = "source_constraints"
 ENV_DRY_RUN_TRACER = "dry_run_tracer"
-ENV_SAVE_RESULT= "save_result"
+ENV_FINAL_RESULT = "final_result"
+ENV_SAVE_RESULT = "save_result"
 
 
 class SimpleProcessing(Processing):
@@ -267,6 +267,7 @@ class SimpleProcessing(Processing):
         if spec not in self._registry_cache:
             registry = ProcessRegistry(spec_root=SPECS_ROOT / spec, argument_names=["args", "env"])
             _add_standard_processes(registry, _OPENEO_PROCESSES_PYTHON_WHITELIST)
+            registry.add_hidden(collect)
             self._registry_cache[spec] = registry
         return self._registry_cache[spec]
 
@@ -302,18 +303,19 @@ class ConcreteProcessing(Processing):
 
     def validate(self, process_graph: dict, env: EvalEnv = None) -> List[dict]:
         dry_run_tracer = DryRunDataTracer()
-        env = env.push({ENV_DRY_RUN_TRACER: dry_run_tracer})
+        env = env.push({ENV_DRY_RUN_TRACER: dry_run_tracer, ENV_FINAL_RESULT: [None]})
 
         try:
-            top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
-            result_node = process_graph[top_level_node]
+            ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
         except ProcessGraphVisitException as e:
             return [{"code": "ProcessGraphInvalid", "message": str(e)}]
 
         try:
             # Same dry run logic as in evaluate()
             _log.info("Doing dry run")
-            result = convert_node(result_node, env=env.push({
+            collected_process_graph, top_level_node_id = _collect_end_nodes(process_graph)
+            top_level_node = collected_process_graph[top_level_node_id]
+            result = convert_node(top_level_node, env=env.push({
                 ENV_SAVE_RESULT: [],  # otherwise dry run and real run append to the same mutable result list
                 "node_caching": False
             }))
@@ -350,6 +352,44 @@ class ConcreteProcessing(Processing):
         return []
 
 
+def _collect_end_nodes(process_graph: dict) -> (dict, str):
+    end_node_ids = _end_node_ids(process_graph)
+    top_level_node_id = "collect1"  # the node where evaluation starts (not necessarily the result node)
+
+    collected_process_graph = dict(process_graph, **{top_level_node_id: {
+        "process_id": "collect",
+        "arguments": {
+            "end_nodes": [{"from_node": end_node_id} for end_node_id in end_node_ids]
+        }
+    }})
+
+    ProcessGraphVisitor.dereference_from_node_arguments(collected_process_graph)
+    return collected_process_graph, top_level_node_id
+
+
+def _end_node_ids(process_graph: dict) -> set:
+    all_node_ids = set(process_graph.keys())
+
+    def get_from_node_ids(value) -> set:
+        if isinstance(value, dict):
+            if "from_node" in value:
+                return {value["from_node"]}
+            else:
+                return {node_id for v in value.values() for node_id in get_from_node_ids(v)}
+
+        if isinstance(value, list):
+            return {node_id for v in value for node_id in get_from_node_ids(v)}
+
+        return set()
+
+    from_node_ids = {node_id
+                     for node in process_graph.values()
+                     for argument_value in node["arguments"].values()
+                     for node_id in get_from_node_ids(argument_value)}
+
+    return all_node_ids - from_node_ids
+
+
 def evaluate(
         process_graph: dict,
         env: EvalEnv,
@@ -365,15 +405,17 @@ def evaluate(
         _log.warning("No version in `evaluate()` env. Blindly assuming 1.0.0.")
         env = env.push({"version": "1.0.0"})
 
-    top_level_node = ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
-    result_node = process_graph[top_level_node]
+    collected_process_graph, top_level_node_id = _collect_end_nodes(process_graph)
+    top_level_node = collected_process_graph[top_level_node_id]
     if ENV_SAVE_RESULT not in env:
         env = env.push({ENV_SAVE_RESULT: []})
+
+    env = env.push({ENV_FINAL_RESULT: [None]})  # mutable, holds final result of process graph
 
     if do_dry_run:
         dry_run_tracer = do_dry_run if isinstance(do_dry_run, DryRunDataTracer) else DryRunDataTracer()
         _log.info("Doing dry run")
-        convert_node(result_node, env=env.push({
+        convert_node(top_level_node, env=env.push({
             ENV_DRY_RUN_TRACER: dry_run_tracer,
             ENV_SAVE_RESULT: [],  # otherwise dry run and real run append to the same mutable result list
             "node_caching": False
@@ -383,7 +425,7 @@ def evaluate(
         _log.info("Dry run extracted these source constraints: {s}".format(s=source_constraints))
         env = env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
 
-    result = convert_node(result_node, env=env)
+    result = convert_node(top_level_node, env=env)
     if len(env[ENV_SAVE_RESULT]) > 0:
         if len(env[ENV_SAVE_RESULT]) == 1:
             return env[ENV_SAVE_RESULT][0]
@@ -420,6 +462,10 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
                 # TODO: this manipulates the process graph, while we often assume it's immutable.
                 #       Adding complex data structures could also interfere with attempts to (re)encode the process graph as JSON again.
                 processGraph["result_cache"] = process_result
+
+            if processGraph.get('result', False):
+                env[ENV_FINAL_RESULT][0] = process_result
+
             return process_result
         elif 'node' in processGraph:
             return convert_node(processGraph['node'], env=env)
@@ -434,7 +480,7 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
                 raise ProcessParameterRequiredException(process="n/a", parameter=processGraph['from_parameter'])
         else:
             # TODO: Don't apply `convert_node` for some special cases (e.g. geojson objects)?
-            return {k:convert_node(v, env=env) for k,v in processGraph.items()}
+            return {k: convert_node(v, env=env) for k, v in processGraph.items()}
     elif isinstance(processGraph, list):
         return [convert_node(x, env=env) for x in processGraph]
     return processGraph
@@ -860,7 +906,12 @@ def chunk_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def apply_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube = args.get_required("data", expected_type=DriverDataCube)
     process = args.get_deep("process", "process_graph", expected_type=dict)
-    polygons = args.get_required("polygons")
+    if "polygons" in args and "geometries" not in args:
+        # TODO remove this deprecated  "polygons" parameter handling when not used anymore
+        _log.warning("In process 'apply_polygon': parameter 'polygons' is deprecated, use 'geometries' instead.")
+        geometries = args.get_required("polygons")
+    else:
+        geometries = args.get_required("geometries")
     mask_value = args.get_optional("mask_value", expected_type=(int, float), default=None)
     context = args.get_optional("context", default=None)
 
@@ -868,24 +919,24 @@ def apply_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     # TODO #288: this logic (copied from original chunk_polygon implementation) coerces the input polygons
     #       to a single MultiPolygon of pure (non-multi) polygons, which is conceptually wrong.
     #       Instead it should normalize to a feature collection or vector cube.
-    if isinstance(polygons, DelayedVector):
-        polygons = list(polygons.geometries)
-        for p in polygons:
+    if isinstance(geometries, DelayedVector):
+        geometries = list(geometries.geometries)
+        for p in geometries:
             if not isinstance(p, shapely.geometry.Polygon):
                 reason = "{m!s} is not a polygon.".format(m=p)
                 raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
-        polygon = MultiPolygon(polygons)
-    elif isinstance(polygons, DriverVectorCube):
+        polygon = MultiPolygon(geometries)
+    elif isinstance(geometries, DriverVectorCube):
         # TODO #288: I know it's wrong to coerce to MultiPolygon here, but we stick to this ill-defined API for now.
-        polygon = polygons.to_multipolygon()
-    elif isinstance(polygons, shapely.geometry.base.BaseGeometry):
-        polygon = MultiPolygon(polygons)
-    elif isinstance(polygons, dict):
-        polygon = geojson_to_multipolygon(polygons)
+        polygon = geometries.to_multipolygon()
+    elif isinstance(geometries, shapely.geometry.base.BaseGeometry):
+        polygon = MultiPolygon(geometries)
+    elif isinstance(geometries, dict):
+        polygon = geojson_to_multipolygon(geometries)
         if isinstance(polygon, shapely.geometry.Polygon):
             polygon = MultiPolygon([polygon])
     else:
-        reason = f"unsupported type: {type(polygons).__name__}"
+        reason = f"unsupported type: {type(geometries).__name__}"
         raise ProcessParameterInvalidException(parameter="polygons", process="apply_polygon", reason=reason)
 
     if polygon.area == 0:
@@ -1599,8 +1650,9 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
 
     # when all arguments and dependencies are resolved, we can run the process
     if namespace and any(namespace.startswith(p) for p in ["http://", "https://"]):
-        # TODO: HTTPS only by default and config to also allow HTTP (e.g. for localhost dev and testing)
-        # TODO: security aspects: only allow for certain users, only allow whitelisted domains, ...?
+        if namespace.startswith("http://"):
+            _log.warning(f"HTTP protocol for namespace based remote process definitions is discouraged: {namespace!r}")
+        # TODO: security aspects: only allow for certain users, only allow whitelisted domains, support content hash verification ...?
 
         return evaluate_process_from_url(
             process_id=process_id, namespace=namespace, args=args, env=env
@@ -1627,6 +1679,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
 
     process_registry = env.backend_implementation.processing.get_process_registry(api_version=env["version"])
     process_function = process_registry.get_function(process_id, namespace=namespace)
+    _log.debug(f"Applying process {process_id} to arguments {args}")
     return process_function(args=ProcessArgs(args, process_id=process_id), env=env)
 
 
@@ -1868,48 +1921,28 @@ def evaluate_udp(process_id: str, udp: UserDefinedProcessMetadata, args: dict, e
 
 
 def evaluate_process_from_url(process_id: str, namespace: str, args: dict, env: EvalEnv):
-    # TODO: only support the simple case "namespace=direct URL" (without process_id appending attempts) https://github.com/Open-EO/openeo-api/issues/515 infra#167
-    if namespace.endswith("/"):
-        # Assume namespace is a folder possibly containing multiple processes
-        _log.warning(f"Deprecated evaluate_process_from_url usage with {namespace=} {process_id=}")
-        candidates = [
-            f"{namespace}{process_id}",
-            f"{namespace}{process_id}.json",
-        ]
-    else:
-        # Assume namespace is direct URL to process/UDP metadata
-        candidates = [namespace]
-
-    for candidate in candidates:
-        # TODO: add request timeout, retry logic?
-        res = requests.get(candidate)
-        if res.status_code == 200:
-            break
-    else:
-        raise ProcessUnsupportedException(process=process_id, namespace=namespace)
-
+    """
+    Load remote process definition from URL (provided through `namespace` property
+    :param process_id: process id of process that should be available at given URL (namespace)
+    :param namespace: URL of process definition
+    """
     try:
-        spec = res.json()
-        if spec["id"].lower() != process_id.lower():
-            raise OpenEOApiException(
-                status_code=400,
-                code="ProcessIdMismatch",
-                message=f"Mismatch between expected process {process_id!r} and process {spec['id']!r} defined at {candidate!r}.",
-            )
-        process_graph = spec["process_graph"]
-        parameters = spec.get("parameters", [])
+        process_definition = get_process_definition_from_url(process_id=process_id, url=namespace)
     except OpenEOApiException:
         raise
     except Exception as e:
-        _log.error(f"Failed to load process {process_id=} from {candidate=}: {e=}", exc_info=True)
         raise OpenEOApiException(
             status_code=400,
-            code="ProcessResourceInvalid",
-            message=f"Failed to load process {process_id!r} from {candidate!r}: {e!r}",
+            code="ProcessNamespaceInvalid",
+            message=f"Process '{process_id}' specified with invalid namespace '{namespace}': {e!r}",
         ) from e
 
     return _evaluate_process_graph_process(
-        process_id=process_id, process_graph=process_graph, parameters=parameters, args=args, env=env
+        process_id=process_id,
+        process_graph=process_definition.process_graph,
+        parameters=process_definition.parameters,
+        args=args,
+        env=env,
     )
 
 
@@ -2173,9 +2206,9 @@ def load_result(args: dict, env: EvalEnv) -> DriverDataCube:
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/inspect.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/2.x/proposals/inspect.json"))
 def inspect(args: dict, env: EvalEnv):
-    data = extract_arg(args,"data")
-    message = args.get("message","")
-    level = args.get("level","")
+    data = extract_arg(args, "data")
+    message = args.get("message", "")
+    level = args.get("level", "info")
     if message:
         _log.log(level=logging.getLevelName(level.upper()), msg=message)
     data_message = str(data)
@@ -2183,6 +2216,7 @@ def inspect(args: dict, env: EvalEnv):
         data_message = str(data.metadata)
     _log.log(level=logging.getLevelName(level.upper()), msg=data_message)
     return data
+
 
 @simple_function
 def text_begins(data: str, pattern: str, case_sensitive: bool = True) -> Union[bool, None]:
@@ -2249,9 +2283,9 @@ def load_stac(args: Dict, env: EvalEnv) -> DriverDataCube:
     if args.get("bands"):
         arguments["bands"] = extract_arg(args, "bands", process_id="load_stac")
     if args.get("properties"):
-        arguments["properties"] = extract_arg(args, 'properties', process_id="load_collection")
+        arguments["properties"] = extract_arg(args, "properties", process_id="load_stac")
     if args.get("featureflags"):
-        arguments["featureflags"] = extract_arg(args, 'featureflags', process_id="load_collection")
+        arguments["featureflags"] = extract_arg(args, "featureflags", process_id="load_stac")
 
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
@@ -2287,6 +2321,11 @@ def export_workspace(args: ProcessArgs, env: EvalEnv) -> SaveResult:
 
     result.add_workspace_export(workspace_id, merge=merge)
     return result
+
+
+@custom_process
+def collect(args: ProcessArgs, env: EvalEnv):
+    return env[ENV_FINAL_RESULT][0]
 
 
 # Finally: register some fallback implementation if possible

@@ -6,19 +6,16 @@ from unittest import mock
 import openeo.processes
 from openeo.internal.graph_building import PGNode
 from openeo.rest.datacube import DataCube
-from openeo.util import BBoxDict
 
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER, _extract_load_parameters, \
     ENV_SOURCE_CONSTRAINTS, custom_process_from_process_graph, process_registry_100, ENV_SAVE_RESULT
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs
-from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataTracer, DataSource, DataTrace, ProcessType, DryRunDataCube
 from openeo_driver.testing import DictSubSet, approxify, ephemeral_fileserver
 from openeo_driver.util.geometry import as_geojson_feature_collection
 from openeo_driver.utils import EvalEnv
-from openeo_driver.workspace import Workspace
 from openeo_driver.workspacerepository import WorkspaceRepository
 from tests.data import get_path, load_json, TEST_DATA_ROOT
 
@@ -321,26 +318,20 @@ def test_evaluate_load_collection_and_filter_extents(dry_run_env, dry_run_tracer
     }
 
 
-def test_inspect(dry_run_env, dry_run_tracer):
-    """temporal/bbox/band extents in load_collection *and* filter_ processes"""
+@pytest.mark.parametrize("additional_arguments", [
+    {"level": "error"},
+    {},
+])
+def test_inspect(dry_run_env, dry_run_tracer, additional_arguments):
     pg = {
-        "load": {
-            "process_id": "load_collection",
-            "arguments": {
-                "id": "S2_FOOBAR",
-                "spatial_extent": {"west": 0, "south": 50, "east": 5, "north": 55},
-                "temporal_extent": ["2020-01-01", "2020-10-10"],
-                "bands": ["red", "green", "blue"]
-            },
-        },
         "inspect": {
             "process_id": "inspect",
-            "arguments": {"data": {"from_node": "load"}, "level": "error", "message":"logging a message"},
-            "result":True
+            "arguments": {**{"data": 123, "message": "logging a message"}, **additional_arguments},
+            "result": True
         },
     }
-    cube = evaluate(pg, env=dry_run_env)
 
+    assert evaluate(pg, env=dry_run_env) == 123
 
 
 def test_evaluate_merge_collections(dry_run_env, dry_run_tracer):
@@ -1676,6 +1667,7 @@ def test_load_result_constraints(dry_run_env, dry_run_tracer):
         )
     ]
 
+
 def test_multiple_save_result(dry_run_env):
     pg = {
       "collection1": {
@@ -1745,6 +1737,60 @@ def test_multiple_save_result(dry_run_env):
     save_result = dry_run_env.get(ENV_SAVE_RESULT)
     assert  len(save_result) == 2
     assert len(the_result) == 2
+
+
+def test_non_result_subtrees_are_evaluated(dry_run_env, caplog):
+    pg = {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "S2_FAPAR_CLOUDCOVER",
+                "spatial_extent": {"west": 5, "south": 50, "east": 5.1, "north": 50.1},
+                "temporal_extent": ["2024-07-11", "2024-07-21"],
+                "bands": ["Flat:1"]
+            }
+        },
+        "loadcollection2": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "S2_FOOBAR",
+                "spatial_extent": {"west": 5, "south": 50, "east": 5.1, "north": 50.1},
+                "temporal_extent": ["2024-07-11", "2024-07-21"],
+                "bands": ["Flat:2"]
+            }
+        },
+        "inspect1": {
+            "process_id": "inspect",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "message": "intermediate result",
+                "level": "warning"
+            }
+        },
+        "mergecubes1": {
+            "process_id": "merge_cubes",
+            "arguments": {
+                "cube1": {"from_node": "loadcollection1"},
+                "cube2": {"from_node": "loadcollection2"},
+            },
+            "result": True
+        },
+        "saveresult2": {
+            "process_id": "save_result",
+            "arguments": {
+                "data": {"from_node": "mergecubes1"},
+                "format": "netCDF"
+            }
+        },
+    }
+
+    result = evaluate(pg, env=dry_run_env)
+
+    # side-effect 1: output asset
+    assert result.format == "netCDF"
+
+    # side-effect 2: inspect log
+    assert "intermediate result" in caplog.messages
 
 
 def test_invalid_latlon_in_geojson(dry_run_env):

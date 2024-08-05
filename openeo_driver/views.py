@@ -395,6 +395,7 @@ def register_views_general(
             "api_version": api_version,  # API version field since 0.4.0
             "backend_version": backend_version,
             "stac_version": "0.9.0",
+            "conformsTo": backend_implementation.conformance_classes(),
             "id": service_id,
             "title": title,
             "description": textwrap.dedent(backend_config.capabilities_description).strip(),
@@ -445,10 +446,11 @@ def register_views_general(
 
         see https://api.openeo.org/#operation/conformance
         """
-        return jsonify({"conformsTo": [
-            # TODO: expand/manage conformance classes?
-            "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core"
-        ]})
+        return jsonify(
+            {
+                "conformsTo": backend_implementation.conformance_classes(),
+            }
+        )
 
     @blueprint.route('/health')
     def health():
@@ -642,7 +644,7 @@ def register_views_processing(
         process_graph = _extract_process_graph(post_data)
         budget = post_data.get("budget")
         plan = post_data.get("plan")
-        log_level = post_data.get("log_level")
+        log_level = post_data.get("log_level", "info")
         job_options = _extract_job_options(
             post_data, to_ignore=["process", "process_graph", "budget", "plan", "log_level"]
         )
@@ -661,6 +663,7 @@ def register_views_processing(
                 # TODO: more explicit way of passing the job_options instead of putting it in the evaluation env?
                 "job_options": job_options,
                 "sync_job": True,
+                "log_level": log_level,
             }
         )
 
@@ -852,8 +855,10 @@ def register_views_batch_jobs(
         job_options = _extract_job_options(
             post_data, to_ignore=["process", "process_graph", "title", "description", "plan", "budget", "log_level"]
         )
-        metadata_keywords = ["title", "description", "plan", "budget"]
+        metadata = {k: post_data[k] for k in ["title", "description", "plan", "budget"] if k in post_data}
+        metadata["log_level"] = post_data.get("log_level", "info")
         job_info = backend_implementation.batch_jobs.create_job(
+            # TODO: remove `filter_supported_kwargs` (when all implementations have migrated to `user` iso `user_id`)
             **filter_supported_kwargs(
                 callable=backend_implementation.batch_jobs.create_job,
                 user_id=user.user_id,
@@ -861,7 +866,7 @@ def register_views_batch_jobs(
             ),
             process=process,
             api_version=g.api_version,
-            metadata={k: post_data[k] for k in metadata_keywords if k in post_data},
+            metadata=metadata,
             job_options=job_options,
         )
         job_id = job_info.id
@@ -1462,7 +1467,7 @@ def register_views_batch_jobs(
     @auth_handler.requires_bearer_auth
     def get_job_logs(job_id, user: User):
         offset = request.args.get("offset")
-        level = request.args.get("level")
+        level = request.args.get("level", "debug")
         request_id = FlaskRequestCorrelationIdLogging.get_request_id()
         # TODO: implement paging support: `limit`, next/prev/first/last `links`, ...
         logs = backend_implementation.batch_jobs.get_log_entries(
@@ -1613,6 +1618,7 @@ def register_views_secondary_services(
     @blueprint.route('/services/<service_id>/logs', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def service_logs(service_id, user: User):
+        level = request.args.get("level", "debug")
         offset = request.args.get('offset', 0)
         logs = backend_implementation.secondary_services.get_log_entries(
             service_id=service_id, user_id=user.user_id, offset=offset
