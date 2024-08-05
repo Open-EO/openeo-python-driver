@@ -1,0 +1,215 @@
+{
+  "loadcollection1": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "S2_FOOBAR",
+      "spatial_extent": null,
+      "temporal_extent": null
+    }
+  },
+  "reducedimension1": {
+    "process_id": "reduce_dimension",
+    "arguments": {
+      "data": {
+        "from_node": "loadcollection1"
+      },
+      "dimension": "t",
+      "reducer": {
+        "process_graph": {
+          "mean1": {
+            "process_id": "mean",
+            "aguments": {
+              "data": {
+                "from_parameter": "data"
+              },
+              "result": true
+            }
+          }
+        }
+      }
+    }
+  },
+  "aggregatespatial1": {
+    "process_id": "aggregate_spatial",
+    "arguments": {
+      "data": {
+        "from_node": "reducedimension1"
+      },
+      "geometries": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "properties": {
+              "target": 0
+            },
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    3,
+                    5
+                  ],
+                  [
+                    4,
+                    5
+                  ],
+                  [
+                    4,
+                    6
+                  ],
+                  [
+                    3,
+                    6
+                  ],
+                  [
+                    3,
+                    5
+                  ]
+                ]
+              ]
+            }
+          },
+          {
+            "type": "Feature",
+            "properties": {
+              "target": 1
+            },
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    8,
+                    1
+                  ],
+                  [
+                    9,
+                    1
+                  ],
+                  [
+                    9,
+                    2
+                  ],
+                  [
+                    8,
+                    2
+                  ],
+                  [
+                    8,
+                    1
+                  ]
+                ]
+              ]
+            }
+          }
+        ]
+      },
+      "reducer": {
+        "process_graph": {
+          "mean1": {
+            "process_id": "mean",
+            "arguments": {
+              "data": {
+                "from_parameter": "data"
+              }
+            },
+            "result": true
+          }
+        }
+      }
+    }
+  },
+  "fitclassrandomforest1": {
+    "process_id": "fit_class_catboost",
+    "arguments": {
+      "predictors": {
+        "from_node": "aggregatespatial1"
+      },
+      "target": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "properties": {
+              "target": 0
+            },
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    3,
+                    5
+                  ],
+                  [
+                    4,
+                    5
+                  ],
+                  [
+                    4,
+                    6
+                  ],
+                  [
+                    3,
+                    6
+                  ],
+                  [
+                    3,
+                    5
+                  ]
+                ]
+              ]
+            }
+          },
+          {
+            "type": "Feature",
+            "properties": {
+              "target": 1
+            },
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    8,
+                    1
+                  ],
+                  [
+                    9,
+                    1
+                  ],
+                  [
+                    9,
+                    2
+                  ],
+                  [
+                    8,
+                    2
+                  ],
+                  [
+                    8,
+                    1
+                  ]
+                ]
+              ]
+            }
+          }
+        ]
+      },
+      "iterations": 10,
+      "depth": 16,
+      "seed": 8
+    }
+  },
+  "savemlmodel1": {
+    "process_id": "save_ml_model",
+    "arguments": {
+      "data": {
+        "from_node": "fitclassrandomforest1"
+      }
+    },
+    "result": true
+  }
+}

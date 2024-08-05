@@ -491,7 +491,6 @@ def extract_arg(args: ProcessArgs, name: str, process_id="n/a"):
     return _as_process_args(args, process_id=process_id).get_required(name=name)
 
 
-
 def _align_extent(extent,collection_id,env):
     metadata = None
     try:
@@ -939,7 +938,7 @@ def apply_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/fit_class_random_forest.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/fit_class_random_forest.json"))
-def fit_class_random_forest(args: dict, env: EvalEnv) -> DriverMlModel:
+def fit_class_random_forest(args: ProcessArgs, env: EvalEnv) -> DriverMlModel:
     # Keep it simple for dry run
     if env.get(ENV_DRY_RUN_TRACER):
         return DriverMlModel()
@@ -953,14 +952,11 @@ def fit_class_random_forest(args: dict, env: EvalEnv) -> DriverMlModel:
             reason=f"should be non-temporal vector-cube, but got {type(predictors)}.",
         )
 
-    target = extract_arg(args, "target")
+    target: Union[dict, DriverVectorCube] = extract_arg(args, "target")
     if isinstance(target, DriverVectorCube):
-        pass
-    elif isinstance(target, dict) and target.get("type") == "FeatureCollection":
-        # TODO: convert to vector cube, e.g.:
-        # target = env.backend_implementation.vector_cube_cls.from_geojson(target)
-        pass
-    else:
+        # Convert target to geojson feature collection.
+        target: dict = shapely.geometry.mapping(target.get_geometries())
+    if not (isinstance(target, dict) and target.get("type") == "FeatureCollection"):
         raise ProcessParameterInvalidException(
             parameter="target",
             process="fit_class_random_forest",
@@ -985,6 +981,52 @@ def fit_class_random_forest(args: dict, env: EvalEnv) -> DriverMlModel:
     return predictors.fit_class_random_forest(
         target=target, num_trees=num_trees, max_variables=max_variables, seed=seed,
     )
+
+
+@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/fit_class_catboost.json"))
+@process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/fit_class_catboost.json"))
+def fit_class_catboost(args: ProcessArgs, env: EvalEnv) -> DriverMlModel:
+    process = "fit_class_catboost"
+    if env.get(ENV_DRY_RUN_TRACER):
+        return DriverMlModel()
+
+    predictors = extract_arg(args, "predictors")
+    if not isinstance(predictors, (AggregatePolygonSpatialResult, DriverVectorCube)):
+        raise ProcessParameterInvalidException(
+            parameter="predictors",
+            process=process,
+            reason=f"should be non-temporal vector-cube, but got {type(predictors)}.",
+        )
+
+    target: Union[dict, DriverVectorCube] = extract_arg(args, "target")
+    if isinstance(target, DriverVectorCube):
+        # Convert target to geojson feature collection.
+        target: dict = shapely.geometry.mapping(target.get_geometries())
+    if not (isinstance(target, dict) and target.get("type") == "FeatureCollection"):
+        raise ProcessParameterInvalidException(
+            parameter="target",
+            process=process,
+            reason=f"expected feature collection or vector-cube value, but got {type(target)}.",
+        )
+
+    # TODO: get defaults from process spec?
+    # TODO: do parameter checks automatically based on process spec?
+    def get_validated_parameter(args, param_name, default_value, expected_type, min_value=1, max_value=1000):
+        return args.get_optional(
+            param_name,
+            default=default_value,
+            expected_type=expected_type,
+            validator=ProcessArgs.validator_generic(
+                lambda v: v >= min_value and v <= max_value,
+                error_message=f"The `{param_name}` parameter should be an integer between {min_value} and {max_value}.",
+            ),
+        )
+
+    iterations = get_validated_parameter(args, "iterations", 5, int, 1, 500)
+    depth = get_validated_parameter(args, "depth", 5, int, 1, 16)
+    seed = get_validated_parameter(args, "seed", 0, int, 0, 2**31 - 1)
+
+    return predictors.fit_class_catboost(target=target, iterations=iterations, depth=depth, seed=seed)
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/predict_random_forest.json"))

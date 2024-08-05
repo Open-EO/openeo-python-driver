@@ -1,0 +1,69 @@
+{
+    "id": "fit_class_catboost",
+    "summary": "Train a catboost classification model",
+    "description": "Executes the fit of a catboost classification based on training data. The process does not include a separate split of the data in test, validation and training data.",
+    "categories": [
+        "machine learning"
+    ],
+    "experimental": true,
+    "parameters": [
+        {
+            "name": "predictors",
+            "description": "The predictors for the classification model as a vector data cube. Aggregated to the features (vectors) of the target input variable.",
+            "schema": {
+                "type": "object",
+                "subtype": "vector-cube"
+            }
+        },
+        {
+            "name": "target",
+            "description": "The training sites for the classification model as a vector data cube. This is associated with the target variable for the Catboost model. The geometry has to be associated with a value to predict (e.g. fractional forest canopy cover).",
+            "schema": {
+                "type": "object",
+                "subtype": "vector-cube"
+            }
+        },
+        {
+            "name": "iterations",
+            "description": "The maximum number of trees that can be built during the training process.",
+            "optional": true,
+            "default": 5,
+            "schema": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 500
+            }
+        },
+        {
+            "name": "depth",
+            "description": "Depth of the trees.",
+            "optional": true,
+            "default": 5,
+            "schema": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 16
+            }
+        },
+        {
+            "name": "seed",
+            "description": "The random seed used for training, for reproducibility.",
+            "optional": true,
+            "default": 0,
+            "schema": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483647
+            }
+        }
+    ],
+    "returns": {
+        "description": "A model object that can be saved with ``save_ml_model()`` and restored with ``load_ml_model()``.",
+        "schema": {
+            "type": "object",
+            "subtype": "ml-model"
+        }
+    },
+    "links": [
+    ]
+}
