@@ -17,7 +17,7 @@ import shapely.geometry
 import shapely.geometry.base
 import shapely.ops
 import xarray
-from geopandas import GeoDataFrame
+from geopandas import GeoDataFrame, GeoSeries
 from openeo.metadata import CollectionMetadata
 from openeo.util import ensure_dir, str_truncate
 from pyproj import CRS
@@ -679,7 +679,7 @@ class DriverVectorCube:
         """Size of the geometry dimension"""
         return len(self._geometries.index)
 
-    def get_geometries(self) -> Sequence[shapely.geometry.base.BaseGeometry]:
+    def get_geometries(self) -> GeoSeries[shapely.geometry.base.BaseGeometry]:
         return self._geometries.geometry
 
     def get_cube(self) -> Optional[xarray.DataArray]:

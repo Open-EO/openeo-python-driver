@@ -802,11 +802,22 @@ class AggregatePolygonSpatialResult(SaveResult):
         return {str(Path(filename).name): asset}
 
     def fit_class_random_forest(
-            self,
-            target: dict,
-            num_trees: int = 100,
-            max_variables: Optional[Union[int, str]] = None,
-            seed: Optional[int] = None
+        self,
+        target: dict,
+        num_trees: int = 100,
+        max_variables: Optional[Union[int, str]] = None,
+        seed: Optional[int] = None,
+    ) -> DriverMlModel:
+        # TODO: this method belongs eventually under DriverVectorCube
+        raise NotImplementedError
+
+    def fit_class_catboost(
+        self,
+        target: dict,
+        iterations: int = 5,
+        depth=5,
+        border_count=254,
+        seed=0,
     ) -> DriverMlModel:
         # TODO: this method belongs eventually under DriverVectorCube
         raise NotImplementedError
