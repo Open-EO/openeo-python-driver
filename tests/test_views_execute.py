@@ -3883,6 +3883,87 @@ def test_fit_class_random_forest(api):
     )
 
 
+def test_fit_class_catboost(api):
+    res = api.check_result("fit_class_catboost.json")
+
+    geom1 = {
+        "type": "Polygon",
+        "coordinates": [[[3.0, 5.0], [4.0, 5.0], [4.0, 6.0], [3.0, 6.0], [3.0, 5.0]]],
+    }
+    geom2 = {
+        "type": "Polygon",
+        "coordinates": [[[8.0, 1.0], [9.0, 1.0], [9.0, 2.0], [8.0, 2.0], [8.0, 1.0]]],
+    }
+    assert res.json == DictSubSet(
+        {
+            "type": "DummyMlModel",
+            "creation_data": {
+                "process_id": "fit_class_catboost",
+                "data": DictSubSet(
+                    {
+                        "type": "FeatureCollection",
+                        "features": [
+                            DictSubSet(
+                                {
+                                    "type": "Feature",
+                                    "id": "0",
+                                    "geometry": geom1,
+                                    "properties": {
+                                        "B02": 2.345,
+                                        "B03": None,
+                                        "B04": 2.0,
+                                        "B08": 3.0,
+                                        "target": 0,
+                                    },
+                                }
+                            ),
+                            DictSubSet(
+                                {
+                                    "type": "Feature",
+                                    "id": "1",
+                                    "geometry": geom2,
+                                    "properties": {
+                                        "B02": 4.0,
+                                        "B03": 5.0,
+                                        "B04": 6.0,
+                                        "B08": 7.0,
+                                        "target": 1,
+                                    },
+                                }
+                            ),
+                        ],
+                    }
+                ),
+                "target": DictSubSet(
+                    {
+                        "type": "FeatureCollection",
+                        "features": [
+                            DictSubSet(
+                                {
+                                    "type": "Feature",
+                                    "geometry": geom1,
+                                    "properties": {"target": 0},
+                                }
+                            ),
+                            DictSubSet(
+                                {
+                                    "type": "Feature",
+                                    "geometry": geom2,
+                                    "properties": {"target": 1},
+                                }
+                            ),
+                        ],
+                    }
+                ),
+                "iterations": 10,
+                "depth": 16,
+                "seed": 8,
+                "border_count": 254,
+            },
+        }
+    )
+
+
 def test_if_merge_cubes(api):
     api.check_result({
         "loadcollection1": {

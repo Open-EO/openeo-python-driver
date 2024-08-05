@@ -335,6 +335,25 @@ class DummyVectorCube(DriverVectorCube):
             seed=seed,
         )
 
+    def fit_class_catboost(
+        self,
+        target: DriverVectorCube,
+        iterations: int = 5,
+        depth=5,
+        border_count=254,
+        seed=0,
+    ) -> "DriverMlModel":
+        return DummyMlModel(
+            process_id="fit_class_catboost",
+            # TODO: handle `to_geojson` in `DummyMlModel.write_assets` instead of here?
+            data=self.to_geojson(),
+            target=target,
+            iterations=iterations,
+            depth=depth,
+            border_count=border_count,
+            seed=seed,
+        )
+
 
 class DummyMlModel(DriverMlModel):
 

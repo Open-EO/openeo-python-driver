@@ -944,7 +944,7 @@ def fit_class_random_forest(args: ProcessArgs, env: EvalEnv) -> DriverMlModel:
         return DriverMlModel()
 
     predictors = extract_arg(args, 'predictors')
-    if not isinstance(predictors, AggregatePolygonSpatialResult):
+    if not isinstance(predictors, (AggregatePolygonSpatialResult, DriverVectorCube)):
         # TODO #114 EP-3981 drop AggregatePolygonSpatialResult support.
         raise ProcessParameterInvalidException(
             parameter="predictors",
@@ -991,7 +991,7 @@ def fit_class_catboost(args: ProcessArgs, env: EvalEnv) -> DriverMlModel:
         return DriverMlModel()
 
     predictors = extract_arg(args, "predictors")
-    if not isinstance(predictors, AggregatePolygonSpatialResult):
+    if not isinstance(predictors, (AggregatePolygonSpatialResult, DriverVectorCube)):
         raise ProcessParameterInvalidException(
             parameter="predictors",
             process=process,
