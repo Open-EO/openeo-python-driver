@@ -618,9 +618,8 @@ class DryRunDataCube(DriverDataCube):
         bbox = dict(west=bbox[0], south=bbox[1], east=bbox[2], north=bbox[3], crs=crs)
         return geometries, bbox
 
-    # TODO: #114 this is a workaround until vectorcube is fully upgraded
     def raster_to_vector(self):
-        return AggregatePolygonResult(timeseries={}, regions=None)
+        return self._process(operation="raster_to_vector", arguments={})
 
 
     def resample_cube_spatial(self, target: 'DryRunDataCube', method: str = 'near') -> 'DryRunDataCube':
