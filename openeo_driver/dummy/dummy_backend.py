@@ -621,15 +621,6 @@ class DummyProcessing(ConcreteProcessing):
     def run_udf(self, udf: str, data: openeo.udf.UdfData) -> openeo.udf.UdfData:
         return openeo.udf.run_udf_code(code=udf, data=data)
 
-    def verify_for_synchronous_processing(self, process_graph: dict, env: EvalEnv = None) -> Iterable[str]:
-        collections = [p["arguments"]["id"] for p in process_graph.values() if p["process_id"] == "load_collection"]
-        for cid in collections:
-            if "NO_SYNC_PROCESSING" in cid:
-                yield f"Collection {cid!r} is not available for synchronous processing."
-            if "FAIL_VERIFY_FOR_SYNC_PROCESSING" in cid:
-                # For testing that things keep working when verifying goes wrong
-                raise RuntimeError("Nope, catch this")
-
 
 class DummyBatchJobs(BatchJobs):
     _job_registry: Dict[Tuple[str, str], BatchJobMetadata] = {}

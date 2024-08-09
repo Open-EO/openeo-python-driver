@@ -662,25 +662,12 @@ def register_views_processing(
                 "node_caching": False,
                 # TODO: more explicit way of passing the job_options instead of putting it in the evaluation env?
                 "job_options": job_options,
+                "sync_job": True,
                 "log_level": log_level,
             }
         )
 
         try:
-            try:
-                sync_processing_issues = list(
-                    backend_implementation.processing.verify_for_synchronous_processing(
-                        process_graph=process_graph, env=env
-                    )
-                )
-            except Exception as e:
-                _log.exception(f"Unexpected error while verifying synchronous processing: {e}")
-            else:
-                if sync_processing_issues:
-                    raise ProcessGraphComplexityException(
-                        ProcessGraphComplexityException.message + f" Reasons: {' '.join(sync_processing_issues)}"
-                    )
-
             result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)
             _log.info(f"`POST /result`: {type(result)}")
 
