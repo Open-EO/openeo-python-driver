@@ -619,7 +619,13 @@ class DryRunDataCube(DriverDataCube):
         return geometries, bbox
 
     def raster_to_vector(self):
-        return self._process(operation="raster_to_vector", arguments={})
+        dimensions = [SpatialDimension(name=DriverVectorCube.DIM_GEOMETRY,extent=self.metadata.extent)]
+        if(self.metadata.has_temporal_dimension()):
+            dimensions.append(self.metadata.temporal_dimension)
+        if(self.metadata.has_band_dimension()):
+            dimensions.append(self.metadata.band_dimension)
+
+        return self._process(operation="raster_to_vector", arguments={},metadata=CollectionMetadata(metadata={}, dimensions=dimensions))
 
 
     def resample_cube_spatial(self, target: 'DryRunDataCube', method: str = 'near') -> 'DryRunDataCube':
