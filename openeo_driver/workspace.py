@@ -37,5 +37,5 @@ class ObjectStorageWorkspace(Workspace):
 
         from openeogeotrellis.utils import s3_client
         s3_instance = s3_client()
-        s3_instance.upload_file(file, self.bucket, subdirectory + "/" + file.name)
+        s3_instance.upload_file(str(file), self.bucket, subdirectory + "/" + file.name)
 
