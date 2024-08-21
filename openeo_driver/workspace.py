@@ -24,3 +24,18 @@ class DiskWorkspace(Workspace):
 
         target_directory.mkdir(parents=True, exist_ok=True)
         shutil.copy(file, target_directory)
+
+class ObjectStorageWorkspace(Workspace):
+    def __init__(self, bucket: str):
+        self.bucket = bucket
+
+    def import_file(self,
+                    file: Path,
+                    merge: str):
+        merge = os.path.normpath(merge)
+        subdirectory = merge[1:] if merge.startswith("/") else merge
+
+        from openeogeotrellis.utils import s3_client
+        s3_instance = s3_client()
+        s3_instance.upload_file(file, self.bucket, subdirectory + "/" + file.name
+
