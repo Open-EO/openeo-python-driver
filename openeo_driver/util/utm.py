@@ -85,8 +85,8 @@ def area_in_square_meters(geometry: BaseGeometry, crs: Union[str, pyproj.CRS]):
     :return: The area in square meters.
     """
     if isinstance(crs, str):
-        _log.warning(f"Deprecated '+init' conversion of {crs=}")
-        crs = "+init=" + crs  # TODO: this is deprecated
+        crs = pyproj.crs.CRS.from_user_input(crs)
+
     geometry_lat_lon = geometry_to_crs(geometry, crs, pyproj.crs.CRS.from_epsg(4326))
     geod = Geod(ellps="WGS84")
     area = abs(geod.geometry_area_perimeter(geometry_lat_lon)[0])
