@@ -533,8 +533,25 @@ class DriverVectorCube:
 
     def to_geojson(self, flatten_prefix: Optional[str] = None, include_properties: bool = True) -> dict:
         """Export as GeoJSON FeatureCollection."""
+        to_drop = [0, 8, 26, 53]
+        to_drop = []
         return shapely.geometry.mapping(
+            self._reproject(4326)
+            ._as_geopandas_df(flatten_prefix=flatten_prefix, include_properties=include_properties)
+            .drop(to_drop)
+        )
+
+    def _reproject(self, epsg) -> DriverVectorCube:
+        return DriverVectorCube(self._geometries.to_crs(epsg), self._cube)
+
+    def write_to_shp(self, output_file, flatten_prefix: Optional[str] = None, include_properties: bool = True):
+        """Export as GeoJSON FeatureCollection."""
+        to_drop = [0, 8, 26, 53]
+        to_drop = []
+        (
             self._as_geopandas_df(flatten_prefix=flatten_prefix, include_properties=include_properties)
+            .drop(to_drop)
+            .to_file(output_file)
         )
 
     def to_wkt(self) -> List[str]:
