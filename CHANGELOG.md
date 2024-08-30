@@ -21,6 +21,11 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+
+## 0.107.4
+
+- Don't require a `final_result` entry in the `EvalEnv` in `convert_node` ([openeo-aggregator#151](https://github.com/Open-EO/openeo-aggregator/issues/151))
+
 ## 0.107.3
 
 - Support `save_result` processes in arbitrary subtrees in the process graph i.e. those not necessarily contributing to the final result ([Open-EO/openeo-geopyspark-driver#424](https://github.com/Open-EO/openeo-geopyspark-driver/issues/424))

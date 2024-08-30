@@ -454,7 +454,7 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
                 #       Adding complex data structures could also interfere with attempts to (re)encode the process graph as JSON again.
                 processGraph["result_cache"] = process_result
 
-            if processGraph.get('result', False):
+            if processGraph.get("result", False) and ENV_FINAL_RESULT in env:
                 env[ENV_FINAL_RESULT][0] = process_result
 
             return process_result
