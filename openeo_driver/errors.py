@@ -308,8 +308,8 @@ class RequestTimeoutException(OpenEOApiException):
 class ProcessGraphComplexityException(OpenEOApiException):
     status_code = 400
     code = 'ProcessGraphComplexity'
-    message = 'The process is too complex for for synchronous processing. Please use a batch job instead.'
-    _description = 'The process graph is too complex for synchronous processing and will likely time out. Please use a batch job instead.'
+    message = 'Process graph contains nodes with a too large spatiotemporal extent and will likely time out. Please use a batch job instead.'
+    _description = None
     _tags = ['Data Processing']
 
 
