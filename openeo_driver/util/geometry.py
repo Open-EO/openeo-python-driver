@@ -207,8 +207,6 @@ def reproject_bounding_box(bbox: dict, from_crs: Optional[str], to_crs: str) -> 
         from_crs = bbox["crs"]
     elif "crs" in bbox:
         assert from_crs == bbox["crs"]
-    if from_crs == to_crs:
-        return bbox.copy()
     tranformer = pyproj.Transformer.from_crs( crs_from=from_crs, crs_to=to_crs, always_xy=True )
     reprojected = shapely.ops.transform(tranformer.transform, box)
     return dict(zip(["west", "south", "east", "north"], reprojected.bounds), crs=to_crs)
