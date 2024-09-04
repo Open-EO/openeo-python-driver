@@ -22,6 +22,9 @@ and start a new "In Progress" section above it.
 ## In progress
 
 
+## 0.107.5
+- Return compliant GeoJSON from `DriverVectorCube#get_bounding_box_geojson` ([Open-EO/openeo-geopyspark-driver#854](https://github.com/Open-EO/openeo-geopyspark-driver/issues/854))
+
 ## 0.107.4
 
 - Don't require a `final_result` entry in the `EvalEnv` in `convert_node` ([openeo-aggregator#151](https://github.com/Open-EO/openeo-aggregator/issues/151))
