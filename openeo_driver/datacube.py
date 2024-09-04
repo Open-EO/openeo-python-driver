@@ -11,7 +11,6 @@ import geopandas as gpd
 import numpy
 import openeo.udf
 import pandas
-import pyproj
 import requests
 import shapely.geometry
 import shapely.geometry.base
@@ -24,7 +23,7 @@ from pyproj import CRS
 
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs, StacAsset
 from openeo_driver.errors import FeatureUnsupportedException, InternalException, ProcessGraphInvalidException
-from openeo_driver.util.geometry import GeometryBufferer, validate_geojson_coordinates
+from openeo_driver.util.geometry import GeometryBufferer, reproject_geometry, validate_geojson_coordinates
 from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.util.pgparsing import SingleRunUDFProcessGraph
 from openeo_driver.util.utm import area_in_square_meters
@@ -267,6 +266,8 @@ class DriverVectorCube:
     # Xarray cube attribute to indicate that it is a dummy cube
     CUBE_ATTR_VECTOR_CUBE_DUMMY = "vector_cube_dummy"
 
+    CRS_LAT_LNG = CRS.from_epsg(4326)
+
     def __init__(
         self,
         geometries: gpd.GeoDataFrame,
@@ -285,7 +286,7 @@ class DriverVectorCube:
             if not geometries.index.equals(cube.indexes[cube.dims[0]]):
                 log.error(f"Invalid VectorCube components {geometries.index=} != {cube.indexes[cube.dims[0]]=}")
                 raise VectorCubeError("Incompatible vector cube components")
-        geometries = DriverVectorCube._convert_crs84(geometries)
+        geometries = self._convert_crs84(geometries)
         invalid_indexes = geometries.index[~geometries.is_valid].tolist()
         if len(invalid_indexes) > 0:
             log.warning(f"Tried to create DriverVectorCube with invalid polygon(s). Index(es): {invalid_indexes}")
@@ -423,11 +424,11 @@ class DriverVectorCube:
         log.info(f"Read geoparquet from {location} crs {df.crs} length {len(df)}")
         return cls.from_geodataframe(df, columns_for_cube=columns_for_cube)
 
-    @staticmethod
-    def _convert_crs84(df: GeoDataFrame):
+    @classmethod
+    def _convert_crs84(cls, df: GeoDataFrame):
         if df.crs is None or df.crs.to_epsg() is None or "OGC:CRS84" in str(df.crs) or "WGS 84 (CRS84)" in str(df.crs):
             # workaround for not being able to decode ogc:crs84
-            df.crs = CRS.from_epsg(4326)
+            df.crs = cls.CRS_LAT_LNG
         return df
 
     def write_to_parquet(
@@ -446,13 +447,13 @@ class DriverVectorCube:
     ) -> "DriverVectorCube":
         """Construct vector cube from GeoJson dict structure"""
         if ignore_crs:
-            crs = pyproj.CRS.from_epsg(4326)
+            crs = cls.CRS_LAT_LNG
         else:
             crs = geojson.get("crs", {"type": "name", "properties": {"name": "EPSG:4326"}})
             if crs.get("type", None) != "name":
                 raise FeatureUnsupportedException("Only 'name' type CRS is supported")
-            crs = pyproj.CRS(crs["properties"]["name"])
-        if crs == pyproj.CRS.from_epsg(4326):
+            crs = CRS(crs["properties"]["name"])
+        if crs == cls.CRS_LAT_LNG:
             validate_geojson_coordinates(geojson)
         # TODO support more geojson types?
         if geojson["type"] in {"Polygon", "MultiPolygon", "Point", "MultiPoint"}:
@@ -551,8 +552,8 @@ class DriverVectorCube:
             "cube": self._cube.to_dict(data="array") if self._cube is not None else None,
         }
 
-    def get_crs(self) -> pyproj.CRS:
-        return self._geometries.crs or pyproj.CRS.from_epsg(4326)
+    def get_crs(self) -> CRS:
+        return self._geometries.crs or self.CRS_LAT_LNG
 
     def get_crs_str(self) -> str:
         """Best effort "CRS as string" representation."""
@@ -663,7 +664,9 @@ class DriverVectorCube:
         return shapely.geometry.Polygon.from_bounds(*self.get_bounding_box())
 
     def get_bounding_box_geojson(self) -> dict:
-        return shapely.geometry.mapping(self.get_bounding_box_geometry())
+        return shapely.geometry.mapping(
+            reproject_geometry(self.get_bounding_box_geometry(), from_crs=self.get_crs(), to_crs=self.CRS_LAT_LNG)
+        )
 
     def get_bounding_box_area(self) -> float:
         """Bounding box area in square meters"""
