@@ -537,6 +537,9 @@ class DriverVectorCube:
             self._as_geopandas_df(flatten_prefix=flatten_prefix, include_properties=include_properties)
         )
 
+    def _reproject(self, epsg) -> DriverVectorCube:
+        return DriverVectorCube(self._geometries.to_crs(epsg), self._cube)
+
     def to_wkt(self) -> List[str]:
         wkts = [str(g) for g in self._geometries.geometry]
         return wkts
@@ -663,7 +666,7 @@ class DriverVectorCube:
         return shapely.geometry.Polygon.from_bounds(*self.get_bounding_box())
 
     def get_bounding_box_geojson(self) -> dict:
-        return shapely.geometry.mapping(self.get_bounding_box_geometry())
+        return shapely.geometry.mapping(self._reproject("EPSG:4326").get_bounding_box_geometry())
 
     def get_bounding_box_area(self) -> float:
         """Bounding box area in square meters"""
