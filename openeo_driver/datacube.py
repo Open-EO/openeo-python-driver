@@ -800,14 +800,22 @@ class DriverVectorCube:
         )
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(\ngeometries:\n{self._geometries!r}\ncube:\n{self._cube!r}\ncrs: {self.get_crs_str()!r}\nbbox: {self.get_bounding_box()!r})"
+        bbox = repr(self.get_bounding_box()) if self.geometry_count() > 0 else "(none)"
+        return (
+            f"{self.__class__.__name__}(\ngeometries:\n{self._geometries!r}\ncube:\n{self._cube!r}\n"
+            f"crs: {self.get_crs_str()!r}\nbbox: {bbox})"
+        )
 
     def __str__(self):
         cube_dims = (
             {dim: len(self._cube.coords[dim]) for dim in self._cube.dims} if self._cube is not None else "No cube"
         )
         properties = self._geometries.columns.to_list()
-        return f"{self.__class__.__name__}(dimensions: {cube_dims}, properties: {properties}, crs: {self.get_crs_str()!r}, bbox: {self.get_bounding_box()})"
+        bbox = repr(self.get_bounding_box()) if self.geometry_count() > 0 else "(none)"
+        return (
+            f"{self.__class__.__name__}(dimensions: {cube_dims}, properties: {properties}, "
+            f"crs: {self.get_crs_str()!r}, bbox: {bbox})"
+        )
 
 
 class DriverMlModel:
