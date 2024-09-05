@@ -69,6 +69,7 @@ setup(
         "importlib_resources; python_version<'3.10'",
         "attrs>=23.1.0",
         "fiona>=1.9.0",
+        "fiona<1.10.0; python_version<'3.9'",  # Avoid fiona>=1.10.0 on Python 3.8 and lower (conflict with geopandas<0.14.0). Also see https://github.com/Open-EO/openeo-python-driver/issues/308
         "reretry~=0.11.8",
         "markdown>3.4",
         "traceback-with-variables==2.0.4",

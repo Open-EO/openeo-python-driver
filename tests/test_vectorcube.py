@@ -1,13 +1,12 @@
 import json
 import textwrap
 
-import geopandas
 import geopandas as gpd
 import numpy.testing
 import pyproj
 import pytest
 import xarray
-from shapely.geometry import MultiPolygon, Point, Polygon
+from shapely.geometry import MultiPolygon, Point, Polygon, shape
 
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.errors import OpenEOApiException
@@ -801,6 +800,27 @@ class TestDriverVectorCube:
                 ((1.0, 1.0), (1.0, 4.0), (5.0, 4.0), (5.0, 1.0), (1.0, 1.0)),
             ),
         }
+
+    def test_get_bounding_box_geojson_not_wgs84(self):
+        path = str(get_path("geojson/FeatureCollection08.json"))
+        vc = DriverVectorCube(gpd.read_file(path))
+
+        actual_geojson = vc.get_bounding_box_geojson()
+
+        expected_geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [3.6743769513148843, 51.03780665419468],
+                    [3.6746720752301463, 51.05812508227298],
+                    [3.7076773727677477, 51.057929913085154],
+                    [3.7073678141084168, 51.03761162561203],
+                    [3.6743769513148843, 51.03780665419468],
+                ]
+            ],
+        }
+
+        assert shape(actual_geojson).almost_equals(shape(expected_geojson))
 
     def test_get_bounding_box_area(self):
         path = str(get_path("geojson/FeatureCollection06.json"))
