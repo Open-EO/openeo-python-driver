@@ -535,8 +535,13 @@ class DriverVectorCube:
     def to_geojson(self, flatten_prefix: Optional[str] = None, include_properties: bool = True) -> dict:
         """Export as GeoJSON FeatureCollection."""
         return shapely.geometry.mapping(
-            self._as_geopandas_df(flatten_prefix=flatten_prefix, include_properties=include_properties)
+            self.reproject(self.CRS_LAT_LNG)._as_geopandas_df(
+                flatten_prefix=flatten_prefix, include_properties=include_properties
+            )
         )
+
+    def reproject(self, crs: CRS) -> DriverVectorCube:
+        return DriverVectorCube(self._geometries.to_crs(crs), self._cube)
 
     def to_wkt(self) -> List[str]:
         wkts = [str(g) for g in self._geometries.geometry]
@@ -567,6 +572,9 @@ class DriverVectorCube:
     def write_assets(
             self, directory: Union[str, Path], format: str, options: Optional[dict] = None
     ) -> Dict[str, StacAsset]:
+        if options is None:
+            options = {}
+
         directory = ensure_dir(directory)
         format_info = IOFORMATS.get(format)
         # TODO: check if format can be used for vector data?
@@ -792,14 +800,22 @@ class DriverVectorCube:
         )
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(\ngeometries:\n{self._geometries!r}\ncube:\n{self._cube!r}\ncrs: {self.get_crs_str()!r}\nbbox: {self.get_bounding_box()!r})"
+        bbox = repr(self.get_bounding_box()) if self.geometry_count() > 0 else "(none)"
+        return (
+            f"{self.__class__.__name__}(\ngeometries:\n{self._geometries!r}\ncube:\n{self._cube!r}\n"
+            f"crs: {self.get_crs_str()!r}\nbbox: {bbox})"
+        )
 
     def __str__(self):
         cube_dims = (
             {dim: len(self._cube.coords[dim]) for dim in self._cube.dims} if self._cube is not None else "No cube"
         )
         properties = self._geometries.columns.to_list()
-        return f"{self.__class__.__name__}(dimensions: {cube_dims}, properties: {properties}, crs: {self.get_crs_str()!r}, bbox: {self.get_bounding_box()})"
+        bbox = repr(self.get_bounding_box()) if self.geometry_count() > 0 else "(none)"
+        return (
+            f"{self.__class__.__name__}(dimensions: {cube_dims}, properties: {properties}, "
+            f"crs: {self.get_crs_str()!r}, bbox: {bbox})"
+        )
 
 
 class DriverMlModel:

@@ -1218,9 +1218,13 @@ def aggregate_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     target_dimension = args.get_optional("target_dimension", default=None)
 
     geoms = args.get_required("geometries")
+
     # TODO #114: convert all cases to DriverVectorCube first and just work with that
     if isinstance(geoms, DriverVectorCube):
-        geoms = geoms
+        pass
+    elif isinstance(geoms, DryRunDataCube):
+        # TODO: properly support DriverVectorCube in dry run
+        geoms = DriverVectorCube(geometries=gpd.GeoDataFrame(geometry=[]), cube=None)
     elif isinstance(geoms, dict):
         try:
             # Automatically convert inline GeoJSON to a vector cube #114/#141
