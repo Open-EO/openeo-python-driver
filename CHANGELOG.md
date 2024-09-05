@@ -21,8 +21,13 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.107.6
+
+- support passing the output of `raster_to_vector` to `aggregate_spatial` during dry run ([EU-GRASSLAND-WATCH/EUGW#7](https://github.com/EU-GRASSLAND-WATCH/EUGW/issues/7))
+- support `vector_to_raster` of geometries not in EPSG:4326 ([EU-GRASSLAND-WATCH/EUGW#7](https://github.com/EU-GRASSLAND-WATCH/EUGW/issues/7))
 
 ## 0.107.5
+
 - Return compliant GeoJSON from `DriverVectorCube#get_bounding_box_geojson` ([Open-EO/openeo-geopyspark-driver#854](https://github.com/Open-EO/openeo-geopyspark-driver/issues/854))
 
 ## 0.107.4
