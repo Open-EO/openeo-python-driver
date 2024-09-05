@@ -534,26 +534,14 @@ class DriverVectorCube:
 
     def to_geojson(self, flatten_prefix: Optional[str] = None, include_properties: bool = True) -> dict:
         """Export as GeoJSON FeatureCollection."""
-        to_drop = [0, 8, 26, 53]
-        to_drop = []
         return shapely.geometry.mapping(
-            self._reproject(4326)
-            ._as_geopandas_df(flatten_prefix=flatten_prefix, include_properties=include_properties)
-            .drop(to_drop)
+            self.reproject(self.CRS_LAT_LNG)._as_geopandas_df(
+                flatten_prefix=flatten_prefix, include_properties=include_properties
+            )
         )
 
-    def _reproject(self, epsg) -> DriverVectorCube:
-        return DriverVectorCube(self._geometries.to_crs(epsg), self._cube)
-
-    def write_to_shp(self, output_file, flatten_prefix: Optional[str] = None, include_properties: bool = True):
-        """Export as GeoJSON FeatureCollection."""
-        to_drop = [0, 8, 26, 53]
-        to_drop = []
-        (
-            self._as_geopandas_df(flatten_prefix=flatten_prefix, include_properties=include_properties)
-            .drop(to_drop)
-            .to_file(output_file)
-        )
+    def reproject(self, crs: CRS) -> DriverVectorCube:
+        return DriverVectorCube(self._geometries.to_crs(crs), self._cube)
 
     def to_wkt(self) -> List[str]:
         wkts = [str(g) for g in self._geometries.geometry]
@@ -584,6 +572,9 @@ class DriverVectorCube:
     def write_assets(
             self, directory: Union[str, Path], format: str, options: Optional[dict] = None
     ) -> Dict[str, StacAsset]:
+        if options is None:
+            options = {}
+
         directory = ensure_dir(directory)
         format_info = IOFORMATS.get(format)
         # TODO: check if format can be used for vector data?

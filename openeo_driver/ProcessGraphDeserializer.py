@@ -1219,6 +1219,7 @@ def aggregate_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
     geoms = args.get_required("geometries")
 
+    # TODO: properly support DriverVectorCube in dry run
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer and isinstance(cube, DryRunDataCube):
         return cube
