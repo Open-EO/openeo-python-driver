@@ -1324,7 +1324,10 @@ def register_views_batch_jobs(
             start_datetime = to_datetime(job_info.start_datetime)
             end_datetime = to_datetime(job_info.end_datetime)
 
-            if start_datetime == end_datetime:
+            if start_datetime is None and end_datetime is None:
+                properties["start_datetime"] = "1970-01-01T00:00:00Z"
+                properties["end_datetime"] = "2070-01-01T00:00:00Z"
+            elif start_datetime == end_datetime:
                 properties["datetime"] = start_datetime
             else:
                 if start_datetime:

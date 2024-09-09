@@ -1198,6 +1198,13 @@ class TestBatchJobs:
                     start_datetime=datetime(2020, 1, 1, 0, 0, 0),
                     end_datetime=datetime(2020, 3, 15, 0, 0, 0),
                 ),
+                (TEST_USER, "j-24083059866540a38cab32b028be0ab5"): BatchJobMetadata(
+                    id="j-24083059866540a38cab32b028be0ab5",
+                    status="finished",
+                    created=datetime(2024, 9, 9, 14, 18, 23),
+                    bbox=[2.70964374625748, 51.00377983772219, 2.777548414187305, 51.10589339112414],
+                    # no start_datetime or end_datetime
+                ),
             }
             dummy_backend.DummyBatchJobs._job_result_registry = {}
 
@@ -1382,6 +1389,12 @@ class TestBatchJobs:
                     'status': 'finished',
                     'progress': 100,
                     'created': "2024-06-04T14:20:23Z",
+                },
+                {
+                    "id": "j-24083059866540a38cab32b028be0ab5",
+                    "status": "finished",
+                    "progress": 100,
+                    "created": "2024-09-09T14:18:23Z",
                 },
             ],
             "links": []
@@ -2737,6 +2750,73 @@ class TestBatchJobs:
                 }
             }
         })
+
+        assert resp.headers["Content-Type"] == "application/geo+json"
+
+        pystac.validation.stac_validator.JsonSchemaSTACValidator().validate(
+            stac_dict=resp_data,
+            stac_object_type=pystac.STACObjectType.ITEM,
+            stac_version=resp_data.get("stac_version", "0.9.0"),
+            extensions=resp_data.get("stac_extensions", []),
+        )
+
+    def test_get_job_result_item_without_start_end_datetime(self, flask_app, api110):
+        """Should return a valid STAC Item even if temporal bounds are not available."""
+
+        with self._fresh_job_registry():
+            resp = api110.get(
+                f"/jobs/j-24083059866540a38cab32b028be0ab5/results/items/timeseries.parquet", headers=self.AUTH_HEADER
+            )
+
+        resp_data = resp.assert_status_code(200).json
+
+        assert resp_data == DictSubSet(
+            {
+                "type": "Feature",
+                "stac_version": "1.0.0",
+                "id": "timeseries.parquet",
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [2.70964374625748, 51.00377983772219],
+                            [2.70964374625748, 51.10589339112414],
+                            [2.777548414187305, 51.10589339112414],
+                            [2.777548414187305, 51.00377983772219],
+                            [2.70964374625748, 51.00377983772219],
+                        ]
+                    ],
+                },
+                "bbox": [2.70964374625748, 51.00377983772219, 2.777548414187305, 51.10589339112414],
+                "properties": {
+                    "datetime": None,
+                    "start_datetime": "1970-01-01T00:00:00Z",
+                    "end_datetime": "2070-01-01T00:00:00Z",
+                },
+                "collection": "j-24083059866540a38cab32b028be0ab5",
+                "links": [
+                    {
+                        "href": f"http://oeo.net/openeo/1.1.0/jobs/j-24083059866540a38cab32b028be0ab5/results/items/timeseries.parquet",
+                        "rel": "self",
+                        "type": "application/geo+json",
+                    },
+                    {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/j-24083059866540a38cab32b028be0ab5/results",
+                        "rel": "collection",
+                        "type": "application/json",
+                    },
+                ],
+                "assets": {
+                    "timeseries.parquet": {
+                        "href": f"http://oeo.net/openeo/1.1.0/jobs/j-24083059866540a38cab32b028be0ab5/results/assets/timeseries.parquet",
+                        "type": "application/parquet; profile=geo",
+                        "roles": ["data"],
+                        "title": "timeseries.parquet",
+                        "eo:bands": [{"name": "S2-L2A-EVI_t0"}, {"name": "S2-L2A-EVI_t1"}, {"name": "S2-L2A-EVI_t2"}],
+                    }
+                },
+            }
+        )
 
         assert resp.headers["Content-Type"] == "application/geo+json"
 
