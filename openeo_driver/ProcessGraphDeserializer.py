@@ -1222,9 +1222,6 @@ def aggregate_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     # TODO #114: convert all cases to DriverVectorCube first and just work with that
     if isinstance(geoms, DriverVectorCube):
         pass
-    elif isinstance(geoms, DryRunDataCube):
-        # TODO: properly support DriverVectorCube in dry run
-        geoms = DriverVectorCube(geometries=gpd.GeoDataFrame(geometry=[]), cube=None)
     elif isinstance(geoms, dict):
         try:
             # Automatically convert inline GeoJSON to a vector cube #114/#141
@@ -1397,7 +1394,6 @@ def filter_spatial(args: Dict, env: EvalEnv) -> DriverDataCube:
     elif isinstance(geometries, DriverVectorCube):
         pass
     else:
-        # TODO #114: support DriverVectorCube
         raise NotImplementedError(
             "filter_spatial does not support {g!r}".format(g=geometries)
         )
@@ -1510,7 +1506,6 @@ def run_udf(args: dict, env: EvalEnv):
         _log.info(f"run_udf: data of type {type(data)} has direct run_udf support")
         return data.run_udf(udf=udf, runtime=runtime, context=context, env=env)
 
-    # TODO #114 add support for DriverVectorCube
     if isinstance(data, AggregatePolygonResult):
         pass
     if isinstance(data, DriverVectorCube):
@@ -1860,11 +1855,13 @@ def get_geometries(args: Dict, env: EvalEnv) -> Union[DelayedVector, dict]:
 )
 def raster_to_vector(args: Dict, env: EvalEnv):
     image_collection = extract_arg(args, 'data')
+
     if not isinstance(image_collection, DriverDataCube):
         raise ProcessParameterInvalidException(
             parameter="data", process="raster_to_vector",
             reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
         )
+
     return image_collection.raster_to_vector()
 
 
@@ -1876,34 +1873,28 @@ def raster_to_vector(args: Dict, env: EvalEnv):
 )
 def vector_to_raster(args: dict, env: EvalEnv) -> DriverDataCube:
     input_vector_cube = extract_arg(args, "data")
-    dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
-    if dry_run_tracer:
-        if not isinstance(input_vector_cube, DryRunDataCube):
-            raise ProcessParameterInvalidException(
-                parameter="data",
-                process="vector_to_raster",
-                reason=f"Invalid data type {type(input_vector_cube)!r} expected vector-cube.",
-            )
-        return input_vector_cube
 
     if "target_data_cube" in args:
         target = extract_arg(args, "target_data_cube")  # TODO: remove after full migration to use of 'target'
     else:
         target = extract_arg(args, "target")
     # TODO: to_driver_vector_cube is temporary. Remove it when vector cube is fully supported.
-    if not isinstance(input_vector_cube, DriverVectorCube) and not hasattr(input_vector_cube, "to_driver_vector_cube"):
-        raise ProcessParameterInvalidException(
-            parameter="data",
-            process="vector_to_raster",
-            reason=f"Invalid data type {type(input_vector_cube)!r} expected vector-cube.",
-        )
+    if not isinstance(input_vector_cube, DriverVectorCube):
+        if not hasattr(input_vector_cube, "to_driver_vector_cube"):
+            raise ProcessParameterInvalidException(
+                parameter="data",
+                process="vector_to_raster",
+                reason=f"Invalid data type {type(input_vector_cube)!r} expected vector-cube.",
+            )
+        input_vector_cube = input_vector_cube.to_driver_vector_cube()
     if not isinstance(target, DriverDataCube):
         raise ProcessParameterInvalidException(
             parameter="target",
             process="vector_to_raster",
             reason=f"Invalid data type {type(target)!r} expected raster-cube.",
         )
-    return env.backend_implementation.vector_to_raster(input_vector_cube, target)
+
+    return input_vector_cube.to_raster(target, env)
 
 
 def _get_udf(args, env: EvalEnv) -> Tuple[str, str]:
