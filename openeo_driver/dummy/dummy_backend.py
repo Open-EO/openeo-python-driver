@@ -741,6 +741,30 @@ class DummyBatchJobs(BatchJobs):
                 },
             }
 
+        if job_id == "j-24083059866540a38cab32b028be0ab5":
+            return {
+                "timeseries.parquet": {
+                    "roles": ["data"],
+                    "type": "application/parquet; profile=geo",
+                    "href": "/data/projects/OpenEO/j-24083059866540a38cab32b028be0ab5/timeseries.parquet",
+                    "bands": [Band(name="S1-SIGMA0-VV"), Band(name="S1-SIGMA0-VH"), Band(name="S2-L2A-B01")],
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [34.456156, -0.910085],
+                                [34.456156, -0.345477],
+                                [34.796396, -0.345477],
+                                [34.796396, -0.910085],
+                                [34.456156, -0.910085],
+                            ]
+                        ],
+                    },
+                    "start_datetime": "2016-10-30T00:00:00+00:00",
+                    "end_datetime": "2018-05-03T00:00:00+00:00",
+                },
+            }
+
         return {
             "output.tiff": {
                 "output_dir": f"{self._output_root()}/{job_id}",

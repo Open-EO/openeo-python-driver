@@ -1321,8 +1321,8 @@ def register_views_batch_jobs(
         if properties["datetime"] is None:
             to_datetime = Rfc3339(propagate_none=True).datetime
 
-            start_datetime = to_datetime(job_info.start_datetime)
-            end_datetime = to_datetime(job_info.end_datetime)
+            start_datetime = asset_metadata.get("start_datetime") or to_datetime(job_info.start_datetime)
+            end_datetime = asset_metadata.get("end_datetime") or to_datetime(job_info.end_datetime)
 
             if start_datetime == end_datetime:
                 properties["datetime"] = start_datetime

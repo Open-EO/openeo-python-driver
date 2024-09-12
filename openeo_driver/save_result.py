@@ -314,9 +314,15 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
             with open(filename, 'w') as f:
                 json.dump(self.prepare_for_json(), f)
         asset["href"] = filename
-        if self._metadata is not None and self._metadata.has_band_dimension():
-            bands = [b._asdict() for b in self._metadata.bands]
-            asset["bands"] = bands
+
+        if self._metadata is not None:
+            if self._metadata.has_band_dimension():
+                bands = [b._asdict() for b in self._metadata.bands]
+                asset["bands"] = bands
+            if self._metadata.has_temporal_dimension():
+                start_datetime, end_datetime = self._metadata.temporal_dimension.extent
+                asset["start_datetime"] = start_datetime
+                asset["end_datetime"] = end_datetime
 
         the_file = Path(filename)
         if the_file.exists():

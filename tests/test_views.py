@@ -1198,6 +1198,14 @@ class TestBatchJobs:
                     start_datetime=datetime(2020, 1, 1, 0, 0, 0),
                     end_datetime=datetime(2020, 3, 15, 0, 0, 0),
                 ),
+                (TEST_USER, "j-24083059866540a38cab32b028be0ab5"): BatchJobMetadata(
+                    id="j-24083059866540a38cab32b028be0ab5",
+                    status='finished',
+                    created=datetime(2024, 8, 30, 12, 16, 34),
+                    bbox=[34.456156, -0.910085, 34.796396, -0.345477],
+                    start_datetime=None,
+                    end_datetime=None,
+                ),
             }
             dummy_backend.DummyBatchJobs._job_result_registry = {}
 
@@ -1383,6 +1391,12 @@ class TestBatchJobs:
                     'progress': 100,
                     'created': "2024-06-04T14:20:23Z",
                 },
+                {
+                    "id": "j-24083059866540a38cab32b028be0ab5",
+                    "status": "finished",
+                    "progress": 100,
+                    "created": "2024-08-30T12:16:34Z",
+                }
             ],
             "links": []
         }
@@ -2684,8 +2698,7 @@ class TestBatchJobs:
         ("timeseries.csv", "text/csv"),
         ("timeseries.parquet", "application/parquet; profile=geo"),
     ])
-    def test_get_vector_cube_job_result_item(self, flask_app, api110, backend_config_overrides, vector_item_id,
-                                             vector_asset_media_type):
+    def test_get_vector_cube_job_result_item(self, flask_app, api110, vector_item_id, vector_asset_media_type):
         vector_asset_filename = vector_item_id
 
         with self._fresh_job_registry():
@@ -2733,6 +2746,66 @@ class TestBatchJobs:
                         {"name": "S2-L2A-EVI_t0"},
                         {"name": "S2-L2A-EVI_t1"},
                         {"name": "S2-L2A-EVI_t2"}
+                    ],
+                }
+            }
+        })
+
+        assert resp.headers["Content-Type"] == "application/geo+json"
+
+        pystac.validation.stac_validator.JsonSchemaSTACValidator().validate(
+            stac_dict=resp_data,
+            stac_object_type=pystac.STACObjectType.ITEM,
+            stac_version=resp_data.get("stac_version", "0.9.0"),
+            extensions=resp_data.get("stac_extensions", []),
+        )
+
+    def test_get_job_result_item_with_temporal_extent_on_asset(self, flask_app, api110):
+        with self._fresh_job_registry():
+            resp = api110.get(f"/jobs/j-24083059866540a38cab32b028be0ab5/results/items/timeseries.parquet",
+                              headers=self.AUTH_HEADER)
+
+        resp_data = resp.assert_status_code(200).json
+
+        assert resp_data == DictSubSet({
+            "type": "Feature",
+            "stac_version": "1.0.0",
+            "id": "timeseries.parquet",
+            "geometry": {"type": "Polygon",
+                                 "coordinates": [[[34.456156, -0.910085],
+                                                  [34.456156, -0.345477],
+                                                  [34.796396, -0.345477],
+                                                  [34.796396, -0.910085],
+                                                  [34.456156, -0.910085]]]},
+            "bbox": [34.456156, -0.910085, 34.796396, -0.345477],
+            "properties": {
+                "datetime": None,
+                "start_datetime": "2016-10-30T00:00:00+00:00",
+                "end_datetime": "2018-05-03T00:00:00+00:00",
+            },
+            "collection": "j-24083059866540a38cab32b028be0ab5",
+            "links": [
+                {
+                    "href": f"http://oeo.net/openeo/1.1.0/jobs/j-24083059866540a38cab32b028be0ab5/results/items/timeseries.parquet",
+                    "rel": "self",
+                    "type": "application/geo+json",
+                },
+                {
+                    "href": "http://oeo.net/openeo/1.1.0/jobs/j-24083059866540a38cab32b028be0ab5/results",
+                    "rel": "collection",
+                    "type": "application/json",
+                }
+            ],
+            "assets": {
+                "timeseries.parquet": {
+                    "href": f"http://oeo.net/openeo/1.1.0/jobs/j-24083059866540a38cab32b028be0ab5/results/assets/timeseries.parquet",
+                    "type": "application/parquet; profile=geo",
+                    "roles": ["data"],
+                    "title": "timeseries.parquet",
+                    "eo:bands": [
+                        {"name": "S1-SIGMA0-VV"},
+                        {"name": "S1-SIGMA0-VH"},
+                        {"name": "S2-L2A-B01"}
                     ],
                 }
             }
