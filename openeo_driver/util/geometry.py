@@ -205,6 +205,8 @@ def reproject_bounding_box(bbox: dict, from_crs: Optional[str], to_crs: str) -> 
     box = shapely.geometry.box(bbox["west"], bbox["south"], bbox["east"], bbox["north"])
     if from_crs is None:
         from_crs = bbox["crs"]
+    elif "crs" in bbox:
+        assert from_crs == bbox["crs"]
     tranformer = pyproj.Transformer.from_crs( crs_from=from_crs, crs_to=to_crs, always_xy=True )
     reprojected = shapely.ops.transform(tranformer.transform, box)
     return dict(zip(["west", "south", "east", "north"], reprojected.bounds), crs=to_crs)
