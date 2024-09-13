@@ -1297,19 +1297,19 @@ def register_views_batch_jobs(
         if len(assets_for_item_id) != 1:
             raise AssertionError(f"expected exactly 1 asset with file name {item_id}")
 
-        asset_filename, metadata = next(iter(assets_for_item_id.items()))
+        asset_filename, asset_metadata = next(iter(assets_for_item_id.items()))
 
         job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
 
-        geometry = metadata.get("geometry", job_info.geometry)
-        bbox = metadata.get("bbox", job_info.bbox)
+        geometry = asset_metadata.get("geometry", job_info.geometry)
+        bbox = asset_metadata.get("bbox", job_info.bbox)
 
-        properties = {"datetime": metadata.get("datetime")}
+        properties = {"datetime": asset_metadata.get("datetime")}
         if properties["datetime"] is None:
             to_datetime = Rfc3339(propagate_none=True).datetime
 
-            start_datetime = to_datetime(job_info.start_datetime)
-            end_datetime = to_datetime(job_info.end_datetime)
+            start_datetime = asset_metadata.get("start_datetime") or to_datetime(job_info.start_datetime)
+            end_datetime = asset_metadata.get("end_datetime") or to_datetime(job_info.end_datetime)
 
             if start_datetime == end_datetime:
                 properties["datetime"] = start_datetime
@@ -1358,7 +1358,7 @@ def register_views_batch_jobs(
                     "type": "application/json",
                 },
             ],
-            "assets": {asset_filename: _asset_object(job_id, user_id, asset_filename, metadata,job_info)},
+            "assets": {asset_filename: _asset_object(job_id, user_id, asset_filename, asset_metadata, job_info)},
             "collection": job_id,
         }
         # Add optional items, if they are present.

@@ -21,6 +21,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.107.7
+
+- return STAC Items with valid date/time for time series job results ([Open-EO/openeo-geopyspark-driver#852](https://github.com/Open-EO/openeo-geopyspark-driver/issues/852))
+
 ## 0.107.6
 
 - support passing the output of `raster_to_vector` to `aggregate_spatial` during dry run ([EU-GRASSLAND-WATCH/EUGW#7](https://github.com/EU-GRASSLAND-WATCH/EUGW/issues/7))
