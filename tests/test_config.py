@@ -1,7 +1,7 @@
 import json
 import random
+import re
 import textwrap
-import unittest.mock
 from pathlib import Path
 from typing import List, Optional
 
@@ -16,6 +16,7 @@ from openeo_driver.config import (
     from_env,
     from_env_as_list,
 )
+from openeo_driver.config.config import check_config_definition
 from openeo_driver.config.env import default_from_env_as_list
 from openeo_driver.config.load import load_from_py_file
 import openeo_driver.config.env
@@ -329,3 +330,39 @@ class TestFromEnv:
         assert Config().colors == []
 
         assert Config(colors=[]).colors == []
+
+
+def test_check_config_definition_backend_config():
+    check_config_definition(OpenEoBackendConfig)
+
+
+def test_check_config_definition_subclass_ok():
+    @attrs.frozen(kw_only=True)
+    class MyConfig(OpenEoBackendConfig):
+        color: str = "red"
+
+    check_config_definition(MyConfig)
+
+
+def test_check_config_definition_subclass_no_annotation():
+    @attrs.frozen(kw_only=True)
+    class MyConfig(OpenEoBackendConfig):
+        color = "red"
+
+    with pytest.raises(
+        ConfigException,
+        match=re.escape("MyConfig: fields without type annotation: {'color'}."),
+    ):
+        check_config_definition(MyConfig)
+
+
+def test_check_config_definition_subclass_field_without_annotation():
+    @attrs.frozen(kw_only=True)
+    class MyConfig(OpenEoBackendConfig):
+        color = attrs.field(default="red", type=str)
+
+    with pytest.raises(
+        ConfigException,
+        match=re.escape("MyConfig: fields without type annotation: {'color'}."),
+    ):
+        check_config_definition(MyConfig)
