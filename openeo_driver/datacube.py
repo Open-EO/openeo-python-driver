@@ -792,7 +792,8 @@ class DriverVectorCube:
                 log.warning(
                     f"Using experimental feature: DriverVectorCube.apply_dimension along dim {dimension} and empty cube"
                 )
-                if len(re.findall(r"^def apply_vectorcube\(", single_run_udf.udf, re.MULTILINE)) != 0:
+                regex = re.compile(r"^def apply_vectorcube\(", re.MULTILINE)
+                if regex.search(single_run_udf.udf):
                     datacube = openeo.udf.XarrayDataCube(array=self._cube)
                     feature_collection = openeo.udf.FeatureCollection(id="_", data=self._geometries)
                     udf_data = openeo.udf.UdfData(
