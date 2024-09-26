@@ -930,7 +930,7 @@ def register_views_batch_jobs(
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results', methods=['POST'])
     @auth_handler.requires_bearer_auth
-    def queue_job(job_id, user: User):
+    def start_job(job_id, user: User):
         """Start processing a batch job (add to the processing queue)."""
         job_info = backend_implementation.batch_jobs.get_job_info(job_id, user.user_id)
         if job_info.status in {JOB_STATUS.CREATED, JOB_STATUS.CANCELED}:

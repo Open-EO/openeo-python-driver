@@ -1,5 +1,6 @@
+import inspect
 import os
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Type
 
 import attrs
 
@@ -74,3 +75,15 @@ class OpenEoBackendConfig:
     workspaces: Dict[str, Workspace] = attrs.Factory(dict)
 
     ejr_retry_settings: dict = attrs.Factory(lambda: dict(tries=4, delay=2, backoff=2))
+
+
+def check_config_definition(config_class: Type[OpenEoBackendConfig]):
+    """
+    Verify that the config class definition is correct (e.g. all fields have type annotations).
+    """
+    annotated = set(k for cls in config_class.__mro__ for k in cls.__dict__.get("__annotations__", {}).keys())
+    members = set(k for k, v in inspect.getmembers(config_class) if not k.startswith("_"))
+
+    if annotated != members:
+        missing_annotations = members.difference(annotated)
+        raise ConfigException(f"{config_class.__name__}: fields without type annotation: {missing_annotations}.")
