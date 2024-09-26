@@ -21,6 +21,9 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+# 0.108.0
+- Added support for `apply_vectorcube` UDF signature in `run_udf_code` ([Open-EO/openeo-geopyspark-driver#881]https://github.com/Open-EO/openeo-geopyspark-driver/issues/881)
+
 ## 0.107.7
 
 - return STAC Items with valid date/time for time series job results ([Open-EO/openeo-geopyspark-driver#852](https://github.com/Open-EO/openeo-geopyspark-driver/issues/852))
