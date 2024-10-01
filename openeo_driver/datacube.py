@@ -153,8 +153,8 @@ class DriverDataCube:
     def drop_dimension(self, name: str) -> 'DriverDataCube':
         self._not_implemented()
 
-    def dimension_labels(self, dimension: str) -> 'DriverDataCube':
-        self._not_implemented()
+    def dimension_labels(self, dimension: str) -> list:
+        return self._not_implemented()
 
     def rename_dimension(self, source: str, target: str) -> 'DriverDataCube':
         self._not_implemented()

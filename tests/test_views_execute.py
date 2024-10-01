@@ -3123,18 +3123,20 @@ def test_reduce_drop_dimension(api):
     assert names == ["x", "y", "t"]
 
 
-def test_reduce_dimension_labels(api):
-    res = api.check_result({
-        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
-        "drop": {
-            "process_id": "dimension_labels",
-            "arguments": {"data": {"from_node": "lc"}, "dimension": "bands"},
-            "result": True,
-        },
-    })
+def test_dimension_labels(api):
+    res = api.check_result(
+        {
+            "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+            "dl": {
+                "process_id": "dimension_labels",
+                "arguments": {"data": {"from_node": "lc"}, "dimension": "bands"},
+                "result": True,
+            },
+        }
+    )
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.dimension_labels.call_count == 1
-    assert res.json == ["x", "y", "t", "bands"]
+    assert res.json == ["B02", "B03", "B04", "B08"]
 
 
 @pytest.mark.parametrize(["arguments", "expected"], [

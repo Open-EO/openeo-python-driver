@@ -211,7 +211,10 @@ class DummyDataCube(DriverDataCube):
 
     @mock_side_effect
     def dimension_labels(self, dimension: str) -> 'DriverDataCube':
-        return self.metadata.dimension_names()
+        if dimension == "bands":
+            return self.metadata.band_names
+
+        raise ValueError(dimension)
 
     def _metadata_to_dict(self):
         dimensions = {d.name: {"type": d.type} for d in self.metadata._dimensions}
