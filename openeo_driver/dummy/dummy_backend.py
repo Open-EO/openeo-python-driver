@@ -777,6 +777,11 @@ class DummyBatchJobs(BatchJobs):
                 "type": "application/x-netcdf",
                 "nodata": -1,
             },
+            "vectorcube.geojson": {
+                "output_dir": f"{self._output_root()}/{job_id}",
+                "roles": ["data"],
+                "type": "application/geo+json",
+            },
             "randomforest.model": {
                 "href": str(Path(job_id) / "randomforest.model"),
             },

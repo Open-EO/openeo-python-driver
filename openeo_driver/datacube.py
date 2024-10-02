@@ -575,8 +575,10 @@ class DriverVectorCube:
     ) -> Dict[str, StacAsset]:
         if options is None:
             options = {}
+        # TODO: We should treat the directory parameter as an actual directory. (Open-EO/openeo-geopyspark-driver#888)
+        filename = str(directory)
+        directory = Path(filename).parent
 
-        directory = ensure_dir(directory)
         format_info = IOFORMATS.get(format)
         # TODO: check if format can be used for vector data?
         path = directory / f"vectorcube.{format_info.extension}"
