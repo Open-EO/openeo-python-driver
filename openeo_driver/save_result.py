@@ -174,7 +174,18 @@ class VectorCubeResult(SaveResult):
         return self.cube.write_assets(directory=directory, format=self.format, options=self.options)
 
     def create_flask_response(self) -> Response:
-        return self.flask_response_from_write_assets()
+        with tempfile.TemporaryDirectory(prefix="openeo-pydrvr-") as tmp_dir:
+            # TODO: We should treat the directory parameter as an actual directory. (Open-EO/openeo-geopyspark-driver#888)
+            assets = self.write_assets(directory=tmp_dir + "/out")
+            if len(assets) == 0:
+                raise InternalException("No assets written")
+            if len(assets) > 1:
+                # TODO support zipping multiple assets
+                raise FeatureUnsupportedException("Multi-file responses not yet supported")
+            asset = assets.popitem()[1]
+            path = Path(asset["href"])
+            mimetype = asset.get("type")
+            return send_from_directory(path.parent, path.name, mimetype=mimetype)
 
 
 class MlModelResult(SaveResult):
