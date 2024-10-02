@@ -16,6 +16,7 @@ import pytest
 import re_assert
 import werkzeug.exceptions
 import moto
+import geopandas as gpd
 
 from openeo.capabilities import ComparableVersion
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
@@ -29,9 +30,11 @@ from openeo_driver.backend import (
     BatchJobResultMetadata,
 )
 from openeo_driver.config import OpenEoBackendConfig
+from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.dummy import dummy_backend, dummy_config
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
 from openeo_driver.errors import OpenEOApiException
+from openeo_driver.save_result import VectorCubeResult
 from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, \
     generate_unique_test_process_id, build_basic_http_auth_header, ListSubSet, DictSubSet, RegexMatcher
 from openeo_driver.urlsigning import UrlSigner
@@ -41,7 +44,7 @@ from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.util.logging import LOGGING_CONTEXT_FLASK, FlaskRequestCorrelationIdLogging
 from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata, build_app, STREAM_CHUNK_SIZE_DEFAULT
 from .conftest import TEST_APP_CONFIG, enhanced_logging
-from .data import TEST_DATA_ROOT
+from .data import TEST_DATA_ROOT, get_path
 
 
 EXPECTED_PROCESSING_EXPRESSION = {"expression": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}}, "format": "openeo"}
@@ -2479,6 +2482,22 @@ class TestBatchJobs:
             resp = api.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff", headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).data == b"tiffdata"
         assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
+
+    def test_download_result_vectorcube(self, api, tmp_path):
+        output_root = Path(tmp_path)
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
+        jobs = {job_id: {"status": "finished"}}
+        with self._fresh_job_registry(output_root=output_root, jobs=jobs):
+            output = output_root / job_id / "vectorcube.geojson"
+            output.parent.mkdir(parents=True)
+            path = str(get_path("geojson/FeatureCollection02.json"))
+            vectorcube = DriverVectorCube(geometries=gpd.read_file(path))
+            VectorCubeResult(cube=vectorcube, format="GeoJSON", options=None).write_assets(directory=output)
+            url = f"/jobs/{job_id}/results/assets/vectorcube.geojson"
+            resp = api.get(url, headers=self.AUTH_HEADER)
+        assert resp.assert_status_code(200)
+        assert "features" in resp.json.keys()
+        assert resp.headers["Content-Type"] == "application/geo+json"
 
     def test_download_result_with_s3_object_storage(self, api, mock_s3_resource):
         job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
