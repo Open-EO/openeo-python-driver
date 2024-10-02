@@ -688,12 +688,34 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
 
     def to_csv(self, destination=None):
         csv_paths = glob.glob(self._csv_dir + "/*.csv")
-        # TODO: assumption there is only one CSV?
-        if(destination == None):
-            return csv_paths[0]
+
+        if(len(csv_paths) == 1):
+            if(destination == None):
+                return csv_paths[0]
+            else:
+                shutil.copy(csv_paths[0], destination)
+                return destination
         else:
-            shutil.copy(csv_paths[0], destination)
-            return destination
+            if destination == None:
+                f,destination = tempfile.mkstemp(suffix=".csv")
+            else:
+                f = open(destination,'w')
+
+            #copy header from first csv
+            first_file = True
+            # Iterate for all the CSVs you want to merge together
+            for filename in csv_paths:
+                with open(filename) as open_csv:
+                    first_row = True
+                    for line in open_csv:
+                        # Include header only for first file
+                        if first_row and not first_file:
+                            first_row = False
+                        else:
+                            f.write(line)
+                first_file = False
+
+            f.close()
 
 
 class AggregatePolygonSpatialResult(SaveResult):
