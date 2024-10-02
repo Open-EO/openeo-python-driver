@@ -356,12 +356,15 @@ def _collect_end_nodes(process_graph: dict) -> (dict, str):
     end_node_ids = _end_node_ids(process_graph)
     top_level_node_id = "collect1"  # the node where evaluation starts (not necessarily the result node)
 
-    collected_process_graph = dict(process_graph, **{top_level_node_id: {
-        "process_id": "collect",
-        "arguments": {
-            "end_nodes": [{"from_node": end_node_id} for end_node_id in end_node_ids]
-        }
-    }})
+    collected_process_graph = dict(
+        process_graph,
+        **{
+            top_level_node_id: {
+                "process_id": "collect",
+                "arguments": {"end_nodes": [{"from_node": end_node_id} for end_node_id in sorted(end_node_ids)]},
+            }
+        },
+    )
 
     ProcessGraphVisitor.dereference_from_node_arguments(collected_process_graph)
     return collected_process_graph, top_level_node_id
@@ -2362,7 +2365,9 @@ def export_workspace(args: ProcessArgs, env: EvalEnv) -> SaveResult:
         # TODO: work around save_result returning a data cube instead of a SaveResult (#295)
         results = env[ENV_SAVE_RESULT]
         if len(results) != 1:
-            raise FeatureUnsupportedException("only process graphs with a single save_result node are supported")
+            raise FeatureUnsupportedException(
+                f"only process graphs with a single save_result node are supported (got: {len(results)})"
+            )
         result = results[0]
 
     result.add_workspace_export(workspace_id, merge=merge)
