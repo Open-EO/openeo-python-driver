@@ -1517,6 +1517,12 @@ class TestBatchJobs:
                         'title': 'randomforest.model',
                         'type': 'application/octet-stream'
                     },
+                    "vectorcube.geojson": {
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/vectorcube.geojson",
+                        "roles": ["data"],
+                        "title": "vectorcube.geojson",
+                        "type": "application/geo+json",
+                    },
                 },
                 'geometry': None,
                 'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
@@ -1587,6 +1593,14 @@ class TestBatchJobs:
                         'roles': ['data'],
                         'title': 'randomforest.model',
                         'type': 'application/octet-stream'
+                    },
+                    "vectorcube.geojson": {
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/vectorcube.geojson",
+                        "roles": ["data"],
+                        "title": "vectorcube.geojson",
+                        "type": "application/geo+json",
+                        "proj:epsg": 4326,
+                        "proj:shape": [300, 600],
                     },
                 },
                 'geometry': {
@@ -1676,6 +1690,12 @@ class TestBatchJobs:
                         "title": "randomforest.model",
                         "type": "application/octet-stream",
                     },
+                    "vectorcube.geojson": {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/vectorcube.geojson",
+                        "roles": ["data"],
+                        "title": "vectorcube.geojson",
+                        "type": "application/geo+json",
+                    },
                 },
                 "id": "07024ee9-7847-4b8a-b260-6c879a2b3cdc",
                 "links": [
@@ -1755,6 +1775,14 @@ class TestBatchJobs:
                         "roles": ["data"],
                         "title": "randomforest.model",
                         "type": "application/octet-stream",
+                    },
+                    "vectorcube.geojson": {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/vectorcube.geojson",
+                        "proj:epsg": 4326,
+                        "proj:shape": [300, 600],
+                        "roles": ["data"],
+                        "title": "vectorcube.geojson",
+                        "type": "application/geo+json",
                     },
                 },
                 "id": "53c71345-09b4-46b4-b6b0-03fd6fe1f199",
@@ -1928,6 +1956,12 @@ class TestBatchJobs:
                         'title': 'randomforest.model',
                         'type': 'application/octet-stream'
                     },
+                    "vectorcube.geojson": {
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/03aa954288d152431cae6949810c330f/vectorcube.geojson",
+                        "roles": ["data"],
+                        "title": "vectorcube.geojson",
+                        "type": "application/geo+json",
+                    },
                 },
                 'geometry': None,
                 'id': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
@@ -2056,6 +2090,12 @@ class TestBatchJobs:
                         "roles": ["data"],
                         "title": "randomforest.model",
                         "type": "application/octet-stream",
+                    },
+                    "vectorcube.geojson": {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/03aa954288d152431cae6949810c330f/vectorcube.geojson",
+                        "roles": ["data"],
+                        "title": "vectorcube.geojson",
+                        "type": "application/geo+json",
                     },
                 },
                 "id": "07024ee9-7847-4b8a-b260-6c879a2b3cdc",
@@ -2195,6 +2235,12 @@ class TestBatchJobs:
                         'roles': ['data'],
                         'title': 'randomforest.model',
                         'type': 'application/octet-stream'
+                    },
+                    "vectorcube.geojson": {
+                        "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/d6daa44b4320cd9cd3fc3c0fd37832f5/vectorcube.geojson?expires=2234",
+                        "roles": ["data"],
+                        "title": "vectorcube.geojson",
+                        "type": "application/geo+json",
                     },
                 },
                 'geometry': None,
@@ -2377,7 +2423,15 @@ class TestBatchJobs:
                         'roles': ['data'],
                         'title': 'randomforest.model',
                         'type': 'application/octet-stream'
-                    }
+                    },
+                    "vectorcube.geojson": {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/1672093c942dbbb9c8d5f1041dcc6c06/vectorcube.geojson?expires=2234",
+                        "roles": ["data"],
+                        "title": "vectorcube.geojson",
+                        "type": "application/geo+json",
+                        "proj:epsg": 4326,
+                        "proj:shape": [300, 600],
+                    },
                 },
                 "openeo:status": "finished",
             }
