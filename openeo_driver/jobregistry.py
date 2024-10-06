@@ -267,7 +267,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         if not api_url:
             raise ValueError(api_url)
 
-        self.logger.info(f"Creating ElasticJobRegistry with {backend_id=} and {api_url=}")
+        self.logger.debug(f"Creating ElasticJobRegistry with {backend_id=} and {api_url=}")
         self._backend_id: Optional[str] = backend_id
         self._api_url = api_url
         self._access_token_helper = ClientCredentialsAccessTokenHelper(session=session)
@@ -361,7 +361,7 @@ class ElasticJobRegistry(JobRegistryInterface):
     def health_check(self, use_auth: bool = True, log: bool = True) -> dict:
         response = self._do_request("GET", "/health", use_auth=use_auth)
         if log:
-            self.logger.info(f"EJR health check {response}")
+            self.logger.debug(f"EJR health check {response}")
         return response
 
     def create_job(
