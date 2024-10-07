@@ -411,7 +411,7 @@ class ElasticJobRegistry(JobRegistryInterface):
 
     def get_job(self, job_id: str, user_id: Optional[str] = None, fields: Optional[List[str]] = None) -> JobDict:
         with ExtraLoggingFilter.with_extra_logging(job_id=job_id, user_id=user_id):
-            self.logger.info(f"EJR get job data {job_id=} {user_id=}")
+            self.logger.debug(f"EJR get job data {job_id=} {user_id=}")
 
             filters = [
                 {"term": {"backend_id": self.backend_id}},
