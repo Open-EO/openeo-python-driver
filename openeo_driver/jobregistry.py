@@ -361,7 +361,7 @@ class ElasticJobRegistry(JobRegistryInterface):
     def health_check(self, use_auth: bool = True, log: bool = True) -> dict:
         response = self._do_request("GET", "/health", use_auth=use_auth)
         if log:
-            self.logger.debug(f"EJR health check {response}")
+            self.logger.info(f"EJR health check {response}")
         return response
 
     def create_job(
