@@ -1979,7 +1979,15 @@ def test_export_workspace_with_multiple_save_result(dry_run_tracer, backend_impl
             "process_id": "save_result",
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
-                "format": "NetCDF",
+                "format": "netCDF",
+            },
+        },
+        "exportworkspace1": {
+            "process_id": "export_workspace",
+            "arguments": {
+                "data": {"from_node": "saveresult1"},
+                "workspace": "some-workspace",
+                "merge": "some/path"
             },
         },
         "saveresult2": {
@@ -1989,7 +1997,7 @@ def test_export_workspace_with_multiple_save_result(dry_run_tracer, backend_impl
                 "format": "GTiff",
             },
         },
-        "exportworkspace1": {
+        "exportworkspace2": {
             "process_id": "export_workspace",
             "arguments": {
                 "data": {"from_node": "saveresult2"},
@@ -2002,18 +2010,18 @@ def test_export_workspace_with_multiple_save_result(dry_run_tracer, backend_impl
     save_results = evaluate(pg, env=dry_run_env)
     assert len(save_results) == 2
 
-    # collect evaluates end node "exportworkspace1" before "saveresult1"
-    assert save_results[0].is_format("GTiff")
-    assert save_results[1].is_format("NetCDF")
+    # collect evaluates end node "exportworkspace1" before "exportworkspace2"
+    assert save_results[0].is_format("netCDF")
+    assert save_results[1].is_format("GTiff")
 
     for save_result in save_results:
         save_result.export_workspace(
             mock_workspace_repository, files=[Path(f"out.{save_result.format}")], default_merge="/some/unique/path"
         )
 
-    # GTiff result is exported but netCDF is not
     mock_workspace.import_file.assert_has_calls(
         [
+            mock.call(Path("out.netCDF"), "some/path"),
             mock.call(Path("out.GTiff"), "/some/unique/path"),
         ]
     )
