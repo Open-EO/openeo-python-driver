@@ -1962,6 +1962,71 @@ def test_export_workspace(dry_run_tracer, backend_implementation):
     ])
 
 
+def test_export_workspace_with_multiple_save_result(dry_run_tracer, backend_implementation):
+    mock_workspace_repository = mock.Mock(WorkspaceRepository)
+    mock_workspace = mock_workspace_repository.get_by_id.return_value
+
+    dry_run_env = EvalEnv(
+        {ENV_DRY_RUN_TRACER: dry_run_tracer, "backend_implementation": backend_implementation, "version": "2.0.0"}
+    )
+
+    pg = {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FOOBAR"},
+        },
+        "saveresult1": {
+            "process_id": "save_result",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "format": "netCDF",
+            },
+        },
+        "exportworkspace1": {
+            "process_id": "export_workspace",
+            "arguments": {
+                "data": {"from_node": "saveresult1"},
+                "workspace": "some-workspace",
+                "merge": "some/path"
+            },
+        },
+        "saveresult2": {
+            "process_id": "save_result",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "format": "GTiff",
+            },
+        },
+        "exportworkspace2": {
+            "process_id": "export_workspace",
+            "arguments": {
+                "data": {"from_node": "saveresult2"},
+                "workspace": "some-workspace",
+            },
+            "result": True,
+        },
+    }
+
+    save_results = evaluate(pg, env=dry_run_env)
+    assert len(save_results) == 2
+
+    # collect evaluates end node "exportworkspace1" before "exportworkspace2"
+    assert save_results[0].is_format("netCDF")
+    assert save_results[1].is_format("GTiff")
+
+    for save_result in save_results:
+        save_result.export_workspace(
+            mock_workspace_repository, files=[Path(f"out.{save_result.format}")], default_merge="/some/unique/path"
+        )
+
+    mock_workspace.import_file.assert_has_calls(
+        [
+            mock.call(Path("out.netCDF"), "some/path"),
+            mock.call(Path("out.GTiff"), "/some/unique/path"),
+        ]
+    )
+
+
 def test_vector_to_raster(dry_run_env):
     geometry_path = str(get_path("geojson/GeometryCollection01.json"))
     pg = {
