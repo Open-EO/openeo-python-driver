@@ -235,7 +235,7 @@ def _register_fallback_implementations_by_process_graph(process_registry: Proces
     for name in process_registry.list_predefined_specs():
         spec = process_registry.load_predefined_spec(name)
         if "process_graph" in spec and not process_registry.contains(name):
-            _log.info(f"Registering fallback implementation of {name!r} by process graph ({process_registry})")
+            _log.debug(f"Registering fallback implementation of {name!r} by process graph ({process_registry})")
             custom_process_from_process_graph(process_spec=spec, process_registries=[process_registry])
 
 
@@ -1717,13 +1717,13 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
             udp = env.backend_implementation.user_defined_processes.get(user_id=user.user_id, process_id=process_id)
             if udp:
                 if namespace is None:
-                    _log.info("Using process {p!r} from namespace 'user'.".format(p=process_id))
+                    _log.debug("Using process {p!r} from namespace 'user'.".format(p=process_id))
                 return evaluate_udp(process_id=process_id, udp=udp, args=args, env=env)
 
     # And finally: check registry of predefined (namespaced) processes
     if namespace is None:
         namespace = "backend"
-        _log.info("Using process {p!r} from namespace 'backend'.".format(p=process_id))
+        _log.debug("Using process {p!r} from namespace 'backend'.".format(p=process_id))
 
 
     process_registry = env.backend_implementation.processing.get_process_registry(api_version=env["version"])

@@ -267,7 +267,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         if not api_url:
             raise ValueError(api_url)
 
-        self.logger.info(f"Creating ElasticJobRegistry with {backend_id=} and {api_url=}")
+        self.logger.debug(f"Creating ElasticJobRegistry with {backend_id=} and {api_url=}")
         self._backend_id: Optional[str] = backend_id
         self._api_url = api_url
         self._access_token_helper = ClientCredentialsAccessTokenHelper(session=session)
@@ -411,7 +411,7 @@ class ElasticJobRegistry(JobRegistryInterface):
 
     def get_job(self, job_id: str, user_id: Optional[str] = None, fields: Optional[List[str]] = None) -> JobDict:
         with ExtraLoggingFilter.with_extra_logging(job_id=job_id, user_id=user_id):
-            self.logger.info(f"EJR get job data {job_id=} {user_id=}")
+            self.logger.debug(f"EJR get job data {job_id=} {user_id=}")
 
             filters = [
                 {"term": {"backend_id": self.backend_id}},

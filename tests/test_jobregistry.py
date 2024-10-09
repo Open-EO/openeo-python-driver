@@ -851,7 +851,7 @@ class TestElasticJobRegistry:
 
     def test_with_extra_logging(self, requests_mock, oidc_mock, ejr, caplog):
         """Test that "extra logging fields" (like job_id) do not leak outside of context"""
-        caplog.set_level(logging.INFO)
+        caplog.set_level(logging.DEBUG)
         caplog.handler.addFilter(ExtraLoggingFilter())
 
         class Formatter:
