@@ -178,12 +178,18 @@ class JobRegistryInterface:
         :param fields: job metadata fields that should be included in result
         """
         # TODO: option for job metadata fields that should be included in result
+        # TODO Open-EO/openeo-geopyspark-driver#902 unify with list_trackable_jobs?
         raise NotImplementedError
 
-    def list_trackable_jobs(self, fields: Optional[List[str]] = None) -> List[JobDict]:
+    def list_trackable_jobs(self, fields: Optional[List[str]] = None, max_age: Optional[int] = None) -> List[JobDict]:
         """
         List jobs that should be considered in a job tracker run: created/queued/running with an application_id
+
+        :param fields: job metadata fields that should be included in result
+        :param max_age: optional filter to only return recently created jobs:
+            creation date is at most max_age days ago.
         """
+        # TODO Open-EO/openeo-geopyspark-driver#902 unify with list_active_jobs?
         raise NotImplementedError
 
 
@@ -580,12 +586,14 @@ class ElasticJobRegistry(JobRegistryInterface):
         }
         return self._search(query=query, fields=fields)
 
-    def list_trackable_jobs(self, fields: Optional[List[str]] = None) -> List[JobDict]:
+    def list_trackable_jobs(self, fields: Optional[List[str]] = None, max_age: Optional[int] = None) -> List[JobDict]:
+        additional_filters = [{"range": {"created": {"gte": f"now-{max_age}d"}}}] if max_age is not None else []
         query = {
             "bool": {
                 "filter": [
                     {"term": {"backend_id": self.backend_id}},
                     {"terms": {"status": [JOB_STATUS.CREATED, JOB_STATUS.QUEUED, JOB_STATUS.RUNNING]}},
+                    *additional_filters,
                 ],
                 "must": {
                     "exists": {  # excludes null values as well as property missing altogether
@@ -678,10 +686,16 @@ class CliApp:
 
         cli_list_active = subparsers.add_parser("list-active", help="List active jobs.")
         cli_list_active.add_argument("--backend-id", help="Backend id to filter on.")
+        cli_list_active.add_argument(
+            "--max-age", default=7, help="Maximum age (in days) of job. (default: %(default)s)"
+        )
         cli_list_active.set_defaults(func=self.list_active_jobs)
 
         cli_list_active = subparsers.add_parser("list-trackable", help="List trackable jobs.")
         cli_list_active.add_argument("--backend-id", help="Backend id to filter on.")
+        cli_list_active.add_argument(
+            "--max-age", default=7, help="Maximum age (in days) of job. (default: %(default)s)"
+        )
         cli_list_active.set_defaults(func=self.list_trackable_jobs)
 
         cli_get_job = subparsers.add_parser("get", help="Get job metadata of a single job")
@@ -758,14 +772,14 @@ class CliApp:
     def list_active_jobs(self, args: argparse.Namespace):
         ejr = self._get_job_registry(cli_args=args)
         # TODO: option to return more fields?
-        jobs = ejr.list_active_jobs(max_age=7)
+        jobs = ejr.list_active_jobs(max_age=args.max_age)
         print(f"Found {len(jobs)} active jobs (backend {ejr.backend_id!r}):")
         pprint.pp(jobs)
 
     def list_trackable_jobs(self, args: argparse.Namespace):
         ejr = self._get_job_registry(cli_args=args)
         # TODO: option to return more fields?
-        jobs = ejr.list_trackable_jobs()
+        jobs = ejr.list_trackable_jobs(max_age=args.max_age)
         print(f"Found {len(jobs)} trackable jobs (backend {ejr.backend_id!r}):")
         pprint.pp(jobs)
 

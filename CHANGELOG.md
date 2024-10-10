@@ -21,15 +21,22 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+# 0.110.0
+
+- Add `max_age` support to `ElasticJobRegistry.list_trackable_jobs` ([Open-EO/openeo-geopyspark-driver#902](https://github.com/Open-EO/openeo-geopyspark-driver/issues/902))
+
 # 0.109.0
+
 - Support multiple `export_workspace` processes ([eu-cdse/openeo-cdse-infra#264](https://github.com/eu-cdse/openeo-cdse-infra/issues/264))
 - Fix `export_workspace` process not executed in process graph with multiple `save_result` processes ([eu-cdse/openeo-cdse-infra#264](https://github.com/eu-cdse/openeo-cdse-infra/issues/264))
 - Restore deterministic evaluation of process graph with multiple end nodes
 
 # 0.108.0
+
 - Added support for `apply_vectorcube` UDF signature in `run_udf_code` ([Open-EO/openeo-geopyspark-driver#881]https://github.com/Open-EO/openeo-geopyspark-driver/issues/881)
 
 ## 0.107.8
+
 - add `check_config_definition` helper to check definition of `OpenEoBackendConfig` based configs
 
 ## 0.107.7
