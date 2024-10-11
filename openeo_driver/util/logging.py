@@ -64,7 +64,6 @@ def get_logging_config(
         "gunicorn": {"level": "INFO"},
         "werkzeug": {"level": "INFO"},
         "kazoo": {"level": "WARN"},
-        "py4j": {"level": "INFO"},
         "openeo.udf.debug": {"level": "DEBUG"}
     }
     loggers = {**default_loggers, **(loggers or {})}
