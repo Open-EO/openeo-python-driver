@@ -587,6 +587,8 @@ class ElasticJobRegistry(JobRegistryInterface):
         return self._search(query=query, fields=fields)
 
     def list_trackable_jobs(self, fields: Optional[List[str]] = None, max_age: Optional[int] = None) -> List[JobDict]:
+        # TODO: filtering on "created" means that a job that is started much later than it is created, will never be
+        #  tracked; filter on (bumpable) "updated" instead?
         additional_filters = [{"range": {"created": {"gte": f"now-{max_age}d"}}}] if max_age is not None else []
         query = {
             "bool": {
