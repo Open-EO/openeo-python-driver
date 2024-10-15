@@ -1958,8 +1958,8 @@ def test_export_workspace(dry_run_tracer, backend_implementation):
     )
     mock_workspace.import_file.assert_has_calls(
         [
-            mock.call("file1", "some/path"),
-            mock.call("file2", "some/path"),
+            mock.call(Path("file1"), "some/path"),
+            mock.call(Path("file2"), "some/path"),
         ]
     )
 
@@ -2023,8 +2023,8 @@ def test_export_workspace_with_multiple_save_result(dry_run_tracer, backend_impl
 
     mock_workspace.import_file.assert_has_calls(
         [
-            mock.call("file:out.netCDF", "some/path"),
-            mock.call("file:out.GTiff", "/some/unique/path"),
+            mock.call(Path("out.netCDF"), "some/path"),
+            mock.call(Path("out.GTiff"), "/some/unique/path"),
         ]
     )
 
