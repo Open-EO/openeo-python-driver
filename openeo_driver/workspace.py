@@ -37,4 +37,4 @@ class DiskWorkspace(Workspace):
         _log.debug(f"copied {file.absolute()} to {target_directory}")
 
     def import_object(self, s3_uri: str, merge: str):
-        super().import_object(s3_uri, merge)
+        raise NotImplementedError(f"importing objects is not supported yet")
