@@ -11,9 +11,9 @@ from pathlib import Path
 import shutil
 from tempfile import mkstemp
 from typing import Union, Dict, List, Optional, Any
+from urllib.parse import urlparse
 from zipfile import ZipFile
 
-import geopandas as gpd
 import numpy as np
 import pandas as pd
 import typing
@@ -98,19 +98,26 @@ class SaveResult:
         #  results stored in env[ENV_SAVE_RESULT] instead of what ultimately comes out of the process graph.
         self._workspace_exports.append(self._WorkspaceExport(workspace_id, merge))
 
-    def export_workspace(self, workspace_repository: WorkspaceRepository, files: List[Path], default_merge: str):
+    def export_workspace(self, workspace_repository: WorkspaceRepository, hrefs: List[str], default_merge: str):
         for export in self._workspace_exports:
             workspace = workspace_repository.get_by_id(export.workspace_id)
 
-            for file in files:
-                merge = export.merge
+            merge = export.merge
 
-                if merge is None:
-                    merge = default_merge
-                elif merge == "":
-                    merge = "."
+            if merge is None:
+                merge = default_merge
+            elif merge == "":
+                merge = "."
 
-                workspace.import_file(file, merge)
+            for href in hrefs:
+                uri_parts = urlparse(href)
+
+                if not uri_parts.scheme or uri_parts.scheme.lower() == "file":
+                    workspace.import_file(Path(uri_parts.path), merge)
+                elif uri_parts.scheme == "s3":
+                    workspace.import_object(href, merge)
+                else:
+                    raise ValueError(f"unsupported scheme {uri_parts.scheme} for {href}; supported are: file, s3")
 
     @dataclass
     class _WorkspaceExport:

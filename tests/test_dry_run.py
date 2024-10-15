@@ -1953,13 +1953,15 @@ def test_export_workspace(dry_run_tracer, backend_implementation):
 
     assert save_result.is_format("GTiff")
 
-    save_result.export_workspace(mock_workspace_repository,
-                                 files=[Path("file1"), Path("file2")],
-                                 default_merge="/some/unique/path")
-    mock_workspace.import_file.assert_has_calls([
-        mock.call(Path("file1"), "some/path"),
-        mock.call(Path("file2"), "some/path"),
-    ])
+    save_result.export_workspace(
+        mock_workspace_repository, hrefs=["file:file1", "file:file2"], default_merge="/some/unique/path"
+    )
+    mock_workspace.import_file.assert_has_calls(
+        [
+            mock.call("file1", "some/path"),
+            mock.call("file2", "some/path"),
+        ]
+    )
 
 
 def test_export_workspace_with_multiple_save_result(dry_run_tracer, backend_implementation):
@@ -2016,13 +2018,13 @@ def test_export_workspace_with_multiple_save_result(dry_run_tracer, backend_impl
 
     for save_result in save_results:
         save_result.export_workspace(
-            mock_workspace_repository, files=[Path(f"out.{save_result.format}")], default_merge="/some/unique/path"
+            mock_workspace_repository, hrefs=[f"file:out.{save_result.format}"], default_merge="/some/unique/path"
         )
 
     mock_workspace.import_file.assert_has_calls(
         [
-            mock.call(Path("out.netCDF"), "some/path"),
-            mock.call(Path("out.GTiff"), "/some/unique/path"),
+            mock.call("file:out.netCDF", "some/path"),
+            mock.call("file:out.GTiff", "/some/unique/path"),
         ]
     )
 
