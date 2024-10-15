@@ -48,10 +48,29 @@ def test_export_workspace(merge, expected_workspace_path):
 
     r = SaveResult()
     r.add_workspace_export(workspace_id="some-workspace", merge=merge)
-    r.export_workspace(workspace_repository=mock_workspace_repository, files=[Path("/some/file")],
-                       default_merge="/some/unique/path")
+    r.export_workspace(
+        workspace_repository=mock_workspace_repository, hrefs=["/some/file"], default_merge="/some/unique/path"
+    )
 
     mock_workspace.import_file.assert_called_with(Path("/some/file"), expected_workspace_path)
+
+
+@pytest.mark.parametrize(
+    ["merge", "expected_workspace_path"], [("some/path", "some/path"), ("", "."), (None, "/some/unique/path")]
+)
+def test_export_workspace_s3(merge, expected_workspace_path):
+    mock_workspace_repository = mock.Mock(spec=WorkspaceRepository)
+    mock_workspace = mock_workspace_repository.get_by_id.return_value
+
+    r = SaveResult()
+    r.add_workspace_export(workspace_id="some-workspace", merge=merge)
+    r.export_workspace(
+        workspace_repository=mock_workspace_repository,
+        hrefs=["s3://some_bucket/some/key"],
+        default_merge="/some/unique/path",
+    )
+
+    mock_workspace.import_object.assert_called_with("s3://some_bucket/some/key", expected_workspace_path)
 
 
 def test_aggregate_polygon_result_basic():

@@ -13,8 +13,13 @@ class Workspace(abc.ABC):
     def import_file(self, file: Path, merge: str):
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def import_object(self, s3_uri: str, merge: str):
+        raise NotImplementedError
+
 
 class DiskWorkspace(Workspace):
+
     def __init__(self, root_directory: Path):
         self.root_directory = root_directory
 
@@ -31,21 +36,5 @@ class DiskWorkspace(Workspace):
 
         _log.debug(f"copied {file.absolute()} to {target_directory}")
 
-
-class ObjectStorageWorkspace(Workspace):
-    def __init__(self, bucket: str):
-        self.bucket = bucket
-
-    def import_file(self,
-                    file: Path,
-                    merge: str):
-        merge = os.path.normpath(merge)
-        subdirectory = merge[1:] if merge.startswith("/") else merge
-
-        # TODO: openeo_driver should not reference openeo_geopyspark
-        from openeogeotrellis.utils import s3_client
-        s3_instance = s3_client()
-        key = subdirectory + "/" + file.name
-        s3_instance.upload_file(str(file), self.bucket, key)
-
-        _log.debug(f"uploaded {file.absolute()} to {self.bucket}/{key}")
+    def import_object(self, s3_uri: str, merge: str):
+        raise NotImplementedError(f"importing objects is not supported yet")
