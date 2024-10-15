@@ -21,6 +21,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+# 0.111.0
+
+- Add `has_application_id` argument to `JobRegistryInterface.list_active_jobs` in preparation to eliminate `list_trackable_jobs` ([Open-EO/openeo-geopyspark-driver#902](https://github.com/Open-EO/openeo-geopyspark-driver/issues/902))
+
 # 0.110.0
 
 - Add `max_age` support to `ElasticJobRegistry.list_trackable_jobs` ([Open-EO/openeo-geopyspark-driver#902](https://github.com/Open-EO/openeo-geopyspark-driver/issues/902))

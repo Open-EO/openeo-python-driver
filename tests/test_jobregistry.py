@@ -2,6 +2,7 @@ import logging
 from typing import Callable, List, Optional, Sequence, Union
 from unittest import mock
 
+import dirty_equals
 import pytest
 import requests
 import requests_mock
@@ -529,44 +530,106 @@ class TestElasticJobRegistry:
         assert result == [DUMMY_PROCESS]
 
     @pytest.mark.parametrize(
-        ["fields", "expected_fields"],
+        ["kwargs", "expected_query"],
         [
-            (None, ["job_id", "user_id", "created", "status", "updated"]),
-            (["created", "started"], ["job_id", "user_id", "created", "status", "updated", "started"]),
+            (
+                {},
+                {
+                    "query": {
+                        "bool": {
+                            "filter": [
+                                {"term": {"backend_id": "unittests"}},
+                                {"terms": {"status": ["created", "queued", "running"]}},
+                            ]
+                        }
+                    },
+                    "_source": dirty_equals.IsList(
+                        "job_id", "user_id", "created", "status", "updated", check_order=False
+                    ),
+                },
+            ),
+            (
+                {"max_age": 7},
+                {
+                    "query": {
+                        "bool": {
+                            "filter": [
+                                {"term": {"backend_id": "unittests"}},
+                                {"terms": {"status": ["created", "queued", "running"]}},
+                                {"range": {"created": {"gte": "now-7d"}}},
+                            ]
+                        }
+                    },
+                    "_source": dirty_equals.IsList(
+                        "job_id", "user_id", "created", "status", "updated", check_order=False
+                    ),
+                },
+            ),
+            (
+                {"fields": ["created", "started"]},
+                {
+                    "query": {
+                        "bool": {
+                            "filter": [
+                                {"term": {"backend_id": "unittests"}},
+                                {"terms": {"status": ["created", "queued", "running"]}},
+                            ]
+                        }
+                    },
+                    "_source": dirty_equals.IsList(
+                        "job_id", "user_id", "created", "status", "updated", "started", check_order=False
+                    ),
+                },
+            ),
+            (
+                {"has_application_id": True},
+                {
+                    "query": {
+                        "bool": {
+                            "filter": [
+                                {"term": {"backend_id": "unittests"}},
+                                {"terms": {"status": ["created", "queued", "running"]}},
+                            ],
+                            "must": {"exists": {"field": "application_id"}},
+                        }
+                    },
+                    "_source": dirty_equals.IsList(
+                        "job_id", "user_id", "created", "status", "updated", check_order=False
+                    ),
+                },
+            ),
+            (
+                {"max_age": 14, "fields": ["created", "started"], "has_application_id": True},
+                {
+                    "query": {
+                        "bool": {
+                            "filter": [
+                                {"term": {"backend_id": "unittests"}},
+                                {"terms": {"status": ["created", "queued", "running"]}},
+                                {"range": {"created": {"gte": "now-14d"}}},
+                            ],
+                            "must": {"exists": {"field": "application_id"}},
+                        }
+                    },
+                    "_source": dirty_equals.IsList(
+                        "job_id", "user_id", "created", "status", "updated", "started", check_order=False
+                    ),
+                },
+            ),
         ],
     )
-    @pytest.mark.parametrize(
-        ["max_age", "additional_filters"],
-        [
-            (None, []),
-            (7, [{"range": {"created": {"gte": "now-7d"}}}]),
-        ],
-    )
-    def test_list_active_jobs(
-        self, requests_mock, oidc_mock, ejr, fields, expected_fields, max_age, additional_filters
-    ):
+    def test_list_active_jobs(self, requests_mock, oidc_mock, ejr, kwargs, expected_query):
         def post_jobs_search(request, context):
             """Handler of `POST /jobs/search"""
             assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
-            assert request.json() == {
-                "query": {
-                    "bool": {
-                        "filter": [
-                            {"term": {"backend_id": "unittests"}},
-                            {"terms": {"status": ["created", "queued", "running"]}},
-                            *additional_filters,
-                        ]
-                    }
-                },
-                "_source": IgnoreOrder(expected_fields),
-            }
+            assert request.json() == expected_query
             return [
                 {"job_id": "job-123", "user_id": "alice"},
                 {"job_id": "job-456", "user_id": "bob"},
             ]
 
         requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=post_jobs_search)
-        result = ejr.list_active_jobs(max_age=max_age, fields=fields)
+        result = ejr.list_active_jobs(**kwargs)
         assert result == [
             {"job_id": "job-123", "user_id": "alice"},
             {"job_id": "job-456", "user_id": "bob"},
