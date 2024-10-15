@@ -21,6 +21,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+# 0.113.0
+
+- Add `max_updated_ago` to `JobRegistryInterface.list_active_jobs` API  ([Open-EO/openeo-geopyspark-driver#902](https://github.com/Open-EO/openeo-geopyspark-driver/issues/902))
+
 # 0.112.0
 - Support exporting objects to object storage workspace ([eu-cdse/openeo-cdse-infra#278](https://github.com/eu-cdse/openeo-cdse-infra/issues/278))
 - Move ObjectStorageWorkspace implementation to openeo-geopyspark-driver ([eu-cdse/openeo-cdse-infra#278](https://github.com/eu-cdse/openeo-cdse-infra/issues/278))

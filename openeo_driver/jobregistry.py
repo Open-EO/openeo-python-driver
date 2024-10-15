@@ -170,17 +170,20 @@ class JobRegistryInterface:
     def list_active_jobs(
         self,
         *,
-        max_age: Optional[int] = None,
         fields: Optional[List[str]] = None,
+        max_age: Optional[int] = None,
+        max_updated_ago: Optional[int] = None,
+        # TODO: has_application_id is deprecated in favor of require_application_id. Remove it.
         has_application_id: bool = False,
+        require_application_id: bool = False,
     ) -> List[JobDict]:
         """
         List active jobs (created, queued, running)
 
-        :param max_age: optional filter to only return recently created jobs:
-            creation date is at most max_age days ago.
         :param fields: job metadata fields that should be included in result
-        :param has_application_id: optional filter to only return jobs with an application_id
+        :param max_age: (optional) only return jobs created at most `max_age` days ago
+        :param max_updated_ago: (optional) only return jobs `updated` at most `max_updated_ago` days ago
+        :param require_application_id: whether to only return jobs with an application_id
         """
         # TODO: option for job metadata fields that should be included in result
         raise NotImplementedError
@@ -566,9 +569,12 @@ class ElasticJobRegistry(JobRegistryInterface):
     def list_active_jobs(
         self,
         *,
-        max_age: Optional[int] = None,
         fields: Optional[List[str]] = None,
+        max_age: Optional[int] = None,
+        max_updated_ago: Optional[int] = None,
+        # TODO: has_application_id is deprecated in favor of require_application_id. Remove it.
         has_application_id: bool = False,
+        require_application_id: bool = False,
     ) -> List[JobDict]:
         active = [JOB_STATUS.CREATED, JOB_STATUS.QUEUED, JOB_STATUS.RUNNING]
         query = {
@@ -580,10 +586,10 @@ class ElasticJobRegistry(JobRegistryInterface):
             },
         }
         if max_age:
-            # TODO: filtering on "created" means that a job that is started much later than it is created, will never be
-            #  tracked; filter on (bumpable) "updated" instead?
             query["bool"]["filter"].append({"range": {"created": {"gte": f"now-{max_age}d"}}})
-        if has_application_id:
+        if max_updated_ago:
+            query["bool"]["filter"].append({"range": {"updated": {"gte": f"now-{max_updated_ago}d"}}})
+        if has_application_id or require_application_id:
             query["bool"]["must"] = {
                 # excludes null values as well as property missing altogether
                 "exists": {"field": "application_id"}
@@ -673,10 +679,15 @@ class CliApp:
         cli_list_active = subparsers.add_parser("list-active", help="List active jobs.")
         cli_list_active.add_argument("--backend-id", help="Backend id to filter on.")
         cli_list_active.add_argument(
-            "--max-age", default=7, help="Maximum age (in days) of job. (default: %(default)s)"
+            "--max-age", default=30, help="Maximum age (in days) of job. (default: %(default)s)"
         )
         cli_list_active.add_argument(
-            "--has-application-id", action="store_true", help="Toggle only listing jobs with an application_id"
+            "--max-updated-ago",
+            default=7,
+            help="Only return jobs 'updated' at most this number of days ago. (default: %(default)s)",
+        )
+        cli_list_active.add_argument(
+            "--require-application-id", action="store_true", help="Toggle to only list jobs with an application_id"
         )
         cli_list_active.set_defaults(func=self.list_active_jobs)
 
@@ -754,7 +765,11 @@ class CliApp:
     def list_active_jobs(self, args: argparse.Namespace):
         ejr = self._get_job_registry(cli_args=args)
         # TODO: option to return more fields?
-        jobs = ejr.list_active_jobs(max_age=args.max_age, has_application_id=args.has_application_id)
+        jobs = ejr.list_active_jobs(
+            max_age=args.max_age,
+            max_updated_ago=args.max_updated_ago,
+            require_application_id=args.require_application_id,
+        )
         print(f"Found {len(jobs)} active jobs (backend {ejr.backend_id!r}):")
         pprint.pp(jobs)
 

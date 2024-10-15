@@ -582,6 +582,7 @@ class TestElasticJobRegistry:
                 },
             ),
             (
+                # TODO: this is deprecated pattern to get rid of
                 {"has_application_id": True},
                 {
                     "query": {
@@ -599,7 +600,41 @@ class TestElasticJobRegistry:
                 },
             ),
             (
-                {"max_age": 14, "fields": ["created", "started"], "has_application_id": True},
+                {"require_application_id": True},
+                {
+                    "query": {
+                        "bool": {
+                            "filter": [
+                                {"term": {"backend_id": "unittests"}},
+                                {"terms": {"status": ["created", "queued", "running"]}},
+                            ],
+                            "must": {"exists": {"field": "application_id"}},
+                        }
+                    },
+                    "_source": dirty_equals.IsList(
+                        "job_id", "user_id", "created", "status", "updated", check_order=False
+                    ),
+                },
+            ),
+            (
+                {"max_updated_ago": 6},
+                {
+                    "query": {
+                        "bool": {
+                            "filter": [
+                                {"term": {"backend_id": "unittests"}},
+                                {"terms": {"status": ["created", "queued", "running"]}},
+                                {"range": {"updated": {"gte": "now-6d"}}},
+                            ],
+                        }
+                    },
+                    "_source": dirty_equals.IsList(
+                        "job_id", "user_id", "created", "status", "updated", check_order=False
+                    ),
+                },
+            ),
+            (
+                {"max_age": 14, "fields": ["created", "started"], "require_application_id": True},
                 {
                     "query": {
                         "bool": {
@@ -607,6 +642,30 @@ class TestElasticJobRegistry:
                                 {"term": {"backend_id": "unittests"}},
                                 {"terms": {"status": ["created", "queued", "running"]}},
                                 {"range": {"created": {"gte": "now-14d"}}},
+                            ],
+                            "must": {"exists": {"field": "application_id"}},
+                        }
+                    },
+                    "_source": dirty_equals.IsList(
+                        "job_id", "user_id", "created", "status", "updated", "started", check_order=False
+                    ),
+                },
+            ),
+            (
+                {
+                    "max_age": 60,
+                    "max_updated_ago": 10,
+                    "fields": ["created", "started"],
+                    "require_application_id": True,
+                },
+                {
+                    "query": {
+                        "bool": {
+                            "filter": [
+                                {"term": {"backend_id": "unittests"}},
+                                {"terms": {"status": ["created", "queued", "running"]}},
+                                {"range": {"created": {"gte": "now-60d"}}},
+                                {"range": {"updated": {"gte": "now-10d"}}},
                             ],
                             "must": {"exists": {"field": "application_id"}},
                         }
