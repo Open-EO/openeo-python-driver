@@ -582,24 +582,6 @@ class TestElasticJobRegistry:
                 },
             ),
             (
-                # TODO: this is deprecated pattern to get rid of
-                {"has_application_id": True},
-                {
-                    "query": {
-                        "bool": {
-                            "filter": [
-                                {"term": {"backend_id": "unittests"}},
-                                {"terms": {"status": ["created", "queued", "running"]}},
-                            ],
-                            "must": {"exists": {"field": "application_id"}},
-                        }
-                    },
-                    "_source": dirty_equals.IsList(
-                        "job_id", "user_id", "created", "status", "updated", check_order=False
-                    ),
-                },
-            ),
-            (
                 {"require_application_id": True},
                 {
                     "query": {

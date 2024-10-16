@@ -173,8 +173,6 @@ class JobRegistryInterface:
         fields: Optional[List[str]] = None,
         max_age: Optional[int] = None,
         max_updated_ago: Optional[int] = None,
-        # TODO: has_application_id is deprecated in favor of require_application_id. Remove it.
-        has_application_id: bool = False,
         require_application_id: bool = False,
     ) -> List[JobDict]:
         """
@@ -572,8 +570,6 @@ class ElasticJobRegistry(JobRegistryInterface):
         fields: Optional[List[str]] = None,
         max_age: Optional[int] = None,
         max_updated_ago: Optional[int] = None,
-        # TODO: has_application_id is deprecated in favor of require_application_id. Remove it.
-        has_application_id: bool = False,
         require_application_id: bool = False,
     ) -> List[JobDict]:
         active = [JOB_STATUS.CREATED, JOB_STATUS.QUEUED, JOB_STATUS.RUNNING]
@@ -589,7 +585,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             query["bool"]["filter"].append({"range": {"created": {"gte": f"now-{max_age}d"}}})
         if max_updated_ago:
             query["bool"]["filter"].append({"range": {"updated": {"gte": f"now-{max_updated_ago}d"}}})
-        if has_application_id or require_application_id:
+        if require_application_id:
             query["bool"]["must"] = {
                 # excludes null values as well as property missing altogether
                 "exists": {"field": "application_id"}
