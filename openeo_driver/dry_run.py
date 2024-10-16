@@ -37,6 +37,7 @@ import logging
 from enum import Enum
 from typing import List, Union, Tuple, Any, Optional
 
+import geopandas as gpd
 import numpy
 import shapely.geometry.base
 from shapely.geometry import Point, Polygon, MultiPolygon, GeometryCollection
@@ -563,14 +564,18 @@ class DryRunDataCube(DriverDataCube):
         geometries: Union[BaseGeometry, str, DriverVectorCube],
         reducer: dict,
         target_dimension: str = "result",
-    ) -> "DryRunDataCube":
+    ) -> DryRunVectorCube:
         # TODO #71 #114 EP-3981 normalize to vector cube instead of GeometryCollection
         geoms_is_empty = isinstance(geometries, DriverVectorCube) and len(geometries.get_geometries()) == 0
         cube = self
         if not geoms_is_empty:
             geometries, bbox = self._normalize_geometry(geometries)
             cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
-        return cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
+
+        traces = cube._data_tracer.process_traces(
+            traces=cube._traces, operation="aggregate_spatial", arguments={"geometries": geometries}
+        )
+        return DryRunVectorCube(traces=traces, data_tracer=cube._data_tracer, metadata=cube.metadata)
 
     def _normalize_geometry(self, geometries) -> Tuple[Union[DriverVectorCube, DelayedVector, BaseGeometry], dict]:
         """
@@ -618,15 +623,19 @@ class DryRunDataCube(DriverDataCube):
         bbox = dict(west=bbox[0], south=bbox[1], east=bbox[2], north=bbox[3], crs=crs)
         return geometries, bbox
 
-    def raster_to_vector(self):
-        dimensions = [SpatialDimension(name=DriverVectorCube.DIM_GEOMETRY,extent=self.metadata.extent)]
-        if(self.metadata.has_temporal_dimension()):
+    def raster_to_vector(self) -> DriverVectorCube:
+        dimensions = [SpatialDimension(name=DriverVectorCube.DIM_GEOMETRY, extent=self.metadata.extent)]
+        if self.metadata.has_temporal_dimension():
             dimensions.append(self.metadata.temporal_dimension)
-        if(self.metadata.has_band_dimension()):
+        if self.metadata.has_band_dimension():
             dimensions.append(self.metadata.band_dimension)
 
-        return self._process(operation="raster_to_vector", arguments={},metadata=CollectionMetadata(metadata={}, dimensions=dimensions))
-
+        traces = self._data_tracer.process_traces(traces=self._traces, operation="raster_to_vector", arguments={})
+        return DryRunVectorCube(
+            traces=traces,
+            data_tracer=self._data_tracer,
+            metadata=CollectionMetadata(metadata={}, dimensions=dimensions),
+        )
 
     def resample_cube_spatial(self, target: 'DryRunDataCube', method: str = 'near') -> 'DryRunDataCube':
         cube = self._process("process_type", [ProcessType.FOCAL_SPACE])
@@ -809,3 +818,33 @@ class DryRunDataCube(DriverDataCube):
     water_vapor = _nop
     linear_scale_range = _nop
     dimension_labels = _nop
+
+
+class DryRunVectorCube(DriverVectorCube):
+    def __init__(
+        self,
+        traces: List[DataTraceBase],
+        data_tracer: DryRunDataTracer,
+        metadata: CollectionMetadata,
+    ):
+        super().__init__(geometries=gpd.GeoDataFrame(geometry=[]), cube=None)
+        self._traces = traces or []
+        self._data_tracer = data_tracer
+        self.metadata = metadata
+
+    def to_raster(self, target: DriverDataCube, env: EvalEnv):
+        dimensions = [SpatialDimension(name="x", extent=[]), SpatialDimension(name="y", extent=[])]
+
+        if self.metadata.has_temporal_dimension():
+            dimensions.append(self.metadata.temporal_dimension)
+        if self.metadata.has_band_dimension():
+            dimensions.append(self.metadata.band_dimension)
+
+        traces = self._data_tracer.process_traces(traces=self._traces, operation="raster_to_vector", arguments={})
+        return DryRunDataCube(
+            traces=traces,
+            data_tracer=self._data_tracer,
+            metadata=CollectionMetadata(metadata={}, dimensions=dimensions),
+        )
+
+    # TODO: support apply_dimension, filter_bands
