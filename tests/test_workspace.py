@@ -23,7 +23,7 @@ def test_disk_workspace(tmp_path, merge):
     workspace.import_file(file=source_file, merge=merge)
 
     assert (target_directory / source_file.name).exists()
-    assert (source_directory / source_file.name).exists()
+    assert source_file.exists()
 
 
 @pytest.mark.parametrize("remove_original", [False, True])
@@ -40,4 +40,4 @@ def test_disk_workspace_remove_original(tmp_path, remove_original):
     workspace.import_file(source_file, merge=merge, remove_original=remove_original)
 
     assert (target_directory / source_file.name).exists()
-    assert (source_directory / source_file.name).exists() != remove_original
+    assert source_file.exists() != remove_original
