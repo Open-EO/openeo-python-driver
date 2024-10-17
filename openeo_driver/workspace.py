@@ -32,7 +32,7 @@ class DiskWorkspace(Workspace):
         target_directory.mkdir(parents=True, exist_ok=True)
 
         operation = shutil.move if remove_original else shutil.copy
-        operation(file, target_directory)
+        operation(str(file), str(target_directory))
 
         _log.debug(f"{'moved' if remove_original else 'copied'} {file.absolute()} to {target_directory}")
 
