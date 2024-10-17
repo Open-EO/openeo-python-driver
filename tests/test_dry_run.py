@@ -1916,7 +1916,8 @@ def test_invalid_latlon_in_geojson(dry_run_env):
     evaluate(cube.flat_graph(), env=dry_run_env)
 
 
-def test_export_workspace(dry_run_tracer, backend_implementation):
+@pytest.mark.parametrize("remove_original", [False, True])
+def test_export_workspace(dry_run_tracer, backend_implementation, remove_original):
     mock_workspace_repository = mock.Mock(WorkspaceRepository)
     mock_workspace = mock_workspace_repository.get_by_id.return_value
 
@@ -1954,17 +1955,21 @@ def test_export_workspace(dry_run_tracer, backend_implementation):
     assert save_result.is_format("GTiff")
 
     save_result.export_workspace(
-        mock_workspace_repository, hrefs=["file:file1", "file:file2"], default_merge="/some/unique/path"
+        mock_workspace_repository,
+        hrefs=["file:file1", "file:file2"],
+        default_merge="/some/unique/path",
+        remove_original=remove_original,
     )
     mock_workspace.import_file.assert_has_calls(
         [
-            mock.call(Path("file1"), "some/path"),
-            mock.call(Path("file2"), "some/path"),
+            mock.call(Path("file1"), "some/path", remove_original),
+            mock.call(Path("file2"), "some/path", remove_original),
         ]
     )
 
 
-def test_export_workspace_with_multiple_save_result(dry_run_tracer, backend_implementation):
+@pytest.mark.parametrize("remove_original", [False, True])
+def test_export_workspace_with_multiple_save_result(dry_run_tracer, backend_implementation, remove_original):
     mock_workspace_repository = mock.Mock(WorkspaceRepository)
     mock_workspace = mock_workspace_repository.get_by_id.return_value
 
@@ -2018,13 +2023,16 @@ def test_export_workspace_with_multiple_save_result(dry_run_tracer, backend_impl
 
     for save_result in save_results:
         save_result.export_workspace(
-            mock_workspace_repository, hrefs=[f"file:out.{save_result.format}"], default_merge="/some/unique/path"
+            mock_workspace_repository,
+            hrefs=[f"file:out.{save_result.format}"],
+            default_merge="/some/unique/path",
+            remove_original=remove_original,
         )
 
     mock_workspace.import_file.assert_has_calls(
         [
-            mock.call(Path("out.netCDF"), "some/path"),
-            mock.call(Path("out.GTiff"), "/some/unique/path"),
+            mock.call(Path("out.netCDF"), "some/path", remove_original),
+            mock.call(Path("out.GTiff"), "/some/unique/path", remove_original),
         ]
     )
 

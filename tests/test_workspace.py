@@ -14,12 +14,33 @@ from openeo_driver.workspace import DiskWorkspace
     ".",
 ])
 def test_disk_workspace(tmp_path, merge):
-    workspace = DiskWorkspace(root_directory=tmp_path)
+    source_directory = tmp_path / "src"
+    source_directory.mkdir()
+    source_file = source_directory / "file"
+    source_file.touch()
 
     subdirectory = merge[1:] if merge.startswith("/") else merge
     target_directory = tmp_path / subdirectory
 
-    input_file = Path(__file__)
-    workspace.import_file(file=input_file, merge=merge)
+    workspace = DiskWorkspace(root_directory=tmp_path)
+    workspace.import_file(file=source_file, merge=merge)
 
-    assert "test_workspace.py" in os.listdir(target_directory)
+    assert source_file.name in os.listdir(target_directory)
+    assert source_file.name in os.listdir(source_directory)
+
+
+@pytest.mark.parametrize("remove_original", [False, True])
+def test_disk_workspace_remove_original(tmp_path, remove_original):
+    source_directory = tmp_path / "src"
+    source_directory.mkdir()
+    source_file = source_directory / "file"
+    source_file.touch()
+
+    merge = "."
+    target_directory = tmp_path / merge
+
+    workspace = DiskWorkspace(root_directory=tmp_path)
+    workspace.import_file(source_file, merge=merge, remove_original=remove_original)
+
+    assert source_file.name in os.listdir(target_directory)
+    assert remove_original == (source_file.name not in os.listdir(source_directory))
