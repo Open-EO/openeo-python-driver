@@ -98,7 +98,13 @@ class SaveResult:
         #  results stored in env[ENV_SAVE_RESULT] instead of what ultimately comes out of the process graph.
         self._workspace_exports.append(self._WorkspaceExport(workspace_id, merge))
 
-    def export_workspace(self, workspace_repository: WorkspaceRepository, hrefs: List[str], default_merge: str):
+    def export_workspace(
+        self,
+        workspace_repository: WorkspaceRepository,
+        hrefs: List[str],
+        default_merge: str,
+        remove_original: bool = False,
+    ):
         for export in self._workspace_exports:
             workspace = workspace_repository.get_by_id(export.workspace_id)
 
@@ -113,9 +119,9 @@ class SaveResult:
                 uri_parts = urlparse(href)
 
                 if not uri_parts.scheme or uri_parts.scheme.lower() == "file":
-                    workspace.import_file(Path(uri_parts.path), merge)
+                    workspace.import_file(Path(uri_parts.path), merge, remove_original)
                 elif uri_parts.scheme == "s3":
-                    workspace.import_object(href, merge)
+                    workspace.import_object(href, merge, remove_original)
                 else:
                     raise ValueError(f"unsupported scheme {uri_parts.scheme} for {href}; supported are: file, s3")
 
