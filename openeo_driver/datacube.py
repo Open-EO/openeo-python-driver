@@ -591,7 +591,10 @@ class DriverVectorCube:
             return self.to_legacy_save_result().write_assets(directory)
 
         gdf = self._as_geopandas_df(flatten_prefix=options.get("flatten_prefix"))
-        gdf.to_file(path, driver=format_info.fiona_driver, crs=self.get_crs())
+        if format_info.format == "Parquet":
+            gdf.to_parquet(path)
+        else:
+            gdf.to_file(str(path), driver=format_info.fiona_driver, crs=self.get_crs())
 
         if not format_info.multi_file:
             # single file format

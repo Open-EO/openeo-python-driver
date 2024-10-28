@@ -25,3 +25,10 @@ def test_save_aggregate_polygon_spatial_result(tmp_path):
         'avg_band_1_': [4865.926572218383, 4865.467252259935],
         'avg_band_2_': [5178.517363510712, 5177.803342998465],
     }
+
+
+def test_write_driver_vector_cube_to_parquet(tmp_path):
+    vector_cube = DriverVectorCube(gpd.read_file(str(get_path("geojson/FeatureCollection02.json"))))
+    vector_cube.write_assets(tmp_path / "dummy", format="Parquet")
+
+    assert gpd.read_parquet(tmp_path / "vectorcube.parquet").shape == (2, 3)
