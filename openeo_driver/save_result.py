@@ -10,7 +10,7 @@ from datetime import datetime, date
 from pathlib import Path
 import shutil
 from tempfile import mkstemp
-from typing import Union, Dict, List, Optional, Any
+from typing import Union, Dict, List, Optional, Any, Callable
 from urllib.parse import urlparse
 from zipfile import ZipFile
 
@@ -104,6 +104,7 @@ class SaveResult:
         hrefs: List[str],
         default_merge: str,
         remove_original: bool = False,
+        on_exported: Callable[[str, str], None] = lambda original_href, workspace_href: None,
     ):
         for export in self._workspace_exports:
             workspace = workspace_repository.get_by_id(export.workspace_id)
@@ -119,9 +120,9 @@ class SaveResult:
                 uri_parts = urlparse(href)
 
                 if not uri_parts.scheme or uri_parts.scheme.lower() == "file":
-                    workspace.import_file(Path(uri_parts.path), merge, remove_original)
+                    on_exported(href, workspace.import_file(Path(uri_parts.path), merge, remove_original))
                 elif uri_parts.scheme == "s3":
-                    workspace.import_object(href, merge, remove_original)
+                    on_exported(href, workspace.import_object(href, merge, remove_original))
                 else:
                     raise ValueError(f"unsupported scheme {uri_parts.scheme} for {href}; supported are: file, s3")
 
