@@ -1919,6 +1919,9 @@ def test_invalid_latlon_in_geojson(dry_run_env):
 
 @pytest.mark.parametrize("remove_original", [False, True])
 def test_export_workspace(dry_run_tracer, backend_implementation, remove_original):
+    mock_workspace_repository = mock.Mock(WorkspaceRepository)
+    mock_workspace = mock_workspace_repository.get_by_id.return_value
+
     dry_run_env = EvalEnv({
         ENV_DRY_RUN_TRACER: dry_run_tracer,
         "backend_implementation": backend_implementation,
@@ -1951,13 +1954,31 @@ def test_export_workspace(dry_run_tracer, backend_implementation, remove_origina
     save_result = evaluate(pg, env=dry_run_env)
 
     assert save_result.is_format("GTiff")
+
+    save_result.export_workspace(
+        mock_workspace_repository,
+        hrefs=["file:file1", "file:file2"],
+        default_merge="/some/unique/path",
+        remove_original=remove_original,
+    )
+
     assert list(save_result.workspace_exports) == [
         SaveResult.WorkspaceExport(workspace_id="some-workspace", merge="some/path")
     ]
 
+    mock_workspace.import_file.assert_has_calls(
+        [
+            mock.call(Path("file1"), "some/path", remove_original),
+            mock.call(Path("file2"), "some/path", remove_original),
+        ]
+    )
+
 
 @pytest.mark.parametrize("remove_original", [False, True])
 def test_export_workspace_with_multiple_save_result(dry_run_tracer, backend_implementation, remove_original):
+    mock_workspace_repository = mock.Mock(WorkspaceRepository)
+    mock_workspace = mock_workspace_repository.get_by_id.return_value
+
     dry_run_env = EvalEnv(
         {ENV_DRY_RUN_TRACER: dry_run_tracer, "backend_implementation": backend_implementation, "version": "2.0.0"}
     )
@@ -2012,6 +2033,21 @@ def test_export_workspace_with_multiple_save_result(dry_run_tracer, backend_impl
     assert list(save_results[1].workspace_exports) == [
         SaveResult.WorkspaceExport(workspace_id="some-workspace", merge=None),
     ]
+
+    for save_result in save_results:
+        save_result.export_workspace(
+            mock_workspace_repository,
+            hrefs=[f"file:out.{save_result.format}"],
+            default_merge="/some/unique/path",
+            remove_original=remove_original,
+        )
+
+    mock_workspace.import_file.assert_has_calls(
+        [
+            mock.call(Path("out.netCDF"), "some/path", remove_original),
+            mock.call(Path("out.GTiff"), "/some/unique/path", remove_original),
+        ]
+    )
 
 
 def test_vector_to_raster(dry_run_env):
