@@ -17,6 +17,8 @@ from zipfile import ZipFile
 import numpy as np
 import pandas as pd
 import typing
+
+from deprecated import deprecated
 from flask import send_from_directory, jsonify, Response
 from shapely.geometry import GeometryCollection, mapping
 from shapely.geometry.base import BaseGeometry
@@ -102,7 +104,7 @@ class SaveResult:
     def workspace_exports(self) -> Iterable["SaveResult.WorkspaceExport"]:
         return self._workspace_exports
 
-    # TODO: remove in favor of workspace_exports
+    @deprecated(reason="use workspace_exports instead", version="0.115.0")
     def export_workspace(
         self,
         workspace_repository: WorkspaceRepository,
