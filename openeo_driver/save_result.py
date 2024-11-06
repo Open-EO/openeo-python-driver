@@ -102,35 +102,6 @@ class SaveResult:
     def workspace_exports(self) -> Iterable["SaveResult.WorkspaceExport"]:
         return self._workspace_exports
 
-    # TODO: remove in favor of workspace_exports
-    def export_workspace(
-        self,
-        workspace_repository: WorkspaceRepository,
-        hrefs: List[str],
-        default_merge: str,
-        remove_original: bool = False,
-        on_exported: Callable[[str, str], None] = lambda original_href, workspace_href: None,
-    ):
-        for export in self._workspace_exports:
-            workspace = workspace_repository.get_by_id(export.workspace_id)
-
-            merge = export.merge
-
-            if merge is None:
-                merge = default_merge
-            elif merge == "":
-                merge = "."
-
-            for href in hrefs:
-                uri_parts = urlparse(href)
-
-                if not uri_parts.scheme or uri_parts.scheme.lower() == "file":
-                    on_exported(href, workspace.import_file(Path(uri_parts.path), merge, remove_original))
-                elif uri_parts.scheme == "s3":
-                    on_exported(href, workspace.import_object(href, merge, remove_original))
-                else:
-                    raise ValueError(f"unsupported scheme {uri_parts.scheme} for {href}; supported are: file, s3")
-
     @dataclass
     class WorkspaceExport:
         workspace_id: str
