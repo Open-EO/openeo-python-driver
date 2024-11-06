@@ -13,6 +13,7 @@ from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER,
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.dry_run import DryRunDataTracer, DataSource, DataTrace, ProcessType, DryRunDataCube
+from openeo_driver.save_result import SaveResult
 from openeo_driver.testing import DictSubSet, approxify, ephemeral_fileserver
 from openeo_driver.util.geometry import as_geojson_feature_collection
 from openeo_driver.utils import EvalEnv
@@ -1960,6 +1961,11 @@ def test_export_workspace(dry_run_tracer, backend_implementation, remove_origina
         default_merge="/some/unique/path",
         remove_original=remove_original,
     )
+
+    assert list(save_result.workspace_exports) == [
+        SaveResult.WorkspaceExport(workspace_id="some-workspace", merge="some/path")
+    ]
+
     mock_workspace.import_file.assert_has_calls(
         [
             mock.call(Path("file1"), "some/path", remove_original),
@@ -2019,7 +2025,14 @@ def test_export_workspace_with_multiple_save_result(dry_run_tracer, backend_impl
 
     # collect evaluates end node "exportworkspace1" before "exportworkspace2"
     assert save_results[0].is_format("netCDF")
+    assert list(save_results[0].workspace_exports) == [
+        SaveResult.WorkspaceExport(workspace_id="some-workspace", merge="some/path"),
+    ]
+
     assert save_results[1].is_format("GTiff")
+    assert list(save_results[1].workspace_exports) == [
+        SaveResult.WorkspaceExport(workspace_id="some-workspace", merge=None),
+    ]
 
     for save_result in save_results:
         save_result.export_workspace(

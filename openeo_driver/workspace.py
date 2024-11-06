@@ -10,7 +10,7 @@ _log = logging.getLogger(__name__)
 
 class Workspace(abc.ABC):
     @abc.abstractmethod
-    def import_file(self, file: Path, merge: str, remove_original: bool = False):
+    def import_file(self, file: Path, merge: str, remove_original: bool = False) -> str:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -23,7 +23,7 @@ class DiskWorkspace(Workspace):
     def __init__(self, root_directory: Path):
         self.root_directory = root_directory
 
-    def import_file(self, file: Path, merge: str, remove_original: bool = False):
+    def import_file(self, file: Path, merge: str, remove_original: bool = False) -> str:
         merge = os.path.normpath(merge)
         subdirectory = merge[1:] if merge.startswith("/") else merge
         target_directory = self.root_directory / subdirectory
@@ -35,6 +35,7 @@ class DiskWorkspace(Workspace):
         operation(str(file), str(target_directory))
 
         _log.debug(f"{'moved' if remove_original else 'copied'} {file.absolute()} to {target_directory}")
+        return f"file:{target_directory / file.name}"
 
     def import_object(self, s3_uri: str, merge: str, remove_original: bool = False):
         raise NotImplementedError(f"importing objects is not supported yet")

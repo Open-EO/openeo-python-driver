@@ -56,6 +56,8 @@ def test_export_workspace(merge, expected_workspace_path, remove_original):
         remove_original=remove_original,
     )
 
+    assert list(r.workspace_exports) == [SaveResult.WorkspaceExport(workspace_id="some-workspace", merge=merge)]
+
     mock_workspace.import_file.assert_called_with(Path("/some/file"), expected_workspace_path, remove_original)
 
 
@@ -75,6 +77,8 @@ def test_export_workspace_s3(merge, expected_workspace_path, remove_original):
         default_merge="/some/unique/path",
         remove_original=remove_original,
     )
+
+    assert list(r.workspace_exports) == [SaveResult.WorkspaceExport(workspace_id="some-workspace", merge=merge)]
 
     mock_workspace.import_object.assert_called_with(
         "s3://some_bucket/some/key", expected_workspace_path, remove_original

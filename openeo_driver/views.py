@@ -1435,7 +1435,6 @@ def register_views_batch_jobs(
             )
         )
 
-
         if "file:size" not in result_dict and "output_dir" in asset_metadata:
             the_file = pathlib.Path(asset_metadata["output_dir"]) / filename
             if the_file.exists():
