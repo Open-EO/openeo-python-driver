@@ -10,7 +10,7 @@ from datetime import datetime, date
 from pathlib import Path
 import shutil
 from tempfile import mkstemp
-from typing import Union, Dict, List, Optional, Any, Callable
+from typing import Union, Dict, List, Optional, Any, Callable, Iterable
 from urllib.parse import urlparse
 from zipfile import ZipFile
 
@@ -49,7 +49,7 @@ class SaveResult:
     def __init__(self, format: Optional[str] = None, options: Optional[dict] = None):
         self.format = format or self.DEFAULT_FORMAT
         self.options = options or {}
-        self._workspace_exports: List['SaveResult._WorkspaceExport'] = []
+        self._workspace_exports: List["SaveResult.WorkspaceExport"] = []
 
     def is_format(self, *args):
         return self.format.lower() in {f.lower() for f in args}
@@ -96,8 +96,13 @@ class SaveResult:
     def add_workspace_export(self, workspace_id: str, merge: Optional[str]):
         # TODO: should probably return a copy (like with_format) but does not work well with evaluate() returning
         #  results stored in env[ENV_SAVE_RESULT] instead of what ultimately comes out of the process graph.
-        self._workspace_exports.append(self._WorkspaceExport(workspace_id, merge))
+        self._workspace_exports.append(self.WorkspaceExport(workspace_id, merge))
 
+    @property
+    def workspace_exports(self) -> Iterable["SaveResult.WorkspaceExport"]:
+        return self._workspace_exports
+
+    # TODO: remove in favor of workspace_exports
     def export_workspace(
         self,
         workspace_repository: WorkspaceRepository,
@@ -127,9 +132,9 @@ class SaveResult:
                     raise ValueError(f"unsupported scheme {uri_parts.scheme} for {href}; supported are: file, s3")
 
     @dataclass
-    class _WorkspaceExport:
+    class WorkspaceExport:
         workspace_id: str
-        merge: str
+        merge: Optional[str]
 
 
 def get_temp_file(suffix="", prefix="openeo-pydrvr-"):
