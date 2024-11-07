@@ -1516,7 +1516,7 @@ def run_udf(args: dict, env: EvalEnv):
         # Note: Other data types do execute the UDF during the dry-run.
         # E.g. A DelayedVector (when the user directly provides geometries as input).
         # This way a weak_spatial_extent can be calculated from the UDF's output.
-        return JSONResult({})
+        return data.run_udf()
 
     if isinstance(data, SupportsRunUdf) and data.supports_udf(udf=udf, runtime=runtime):
         _log.info(f"run_udf: data of type {type(data)} has direct run_udf support")

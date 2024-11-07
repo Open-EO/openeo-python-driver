@@ -21,7 +21,7 @@ import shapely.geometry
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.dry_run import ProcessType
+from openeo_driver.dry_run import ProcessType, DryRunDataCube, DryRunDataTracer
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyVisitor
 from openeo_driver.errors import (
@@ -1562,6 +1562,52 @@ def test_run_udf_on_list(api, udf_code):
     }
     resp = api.check_result(process_graph)
     assert resp.json == [1, 4, 9, 25, 64]
+
+
+@pytest.mark.parametrize(
+    "udf_code",
+    [
+        """
+        from openeo.udf import UdfData, StructuredData
+        def transform(data: UdfData) -> UdfData:
+            return data
+    """,
+    ],
+)
+def test_run_udf_on_aggregate_spatial(api, udf_code):
+    udf_code = textwrap.dedent(udf_code)
+    path = get_path("geojson/FeatureCollection02.json")
+    process_graph = {
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "bands": ["B02", "B03", "B04"]}},
+        "lf": {
+            "process_id": "load_uploaded_files",
+            "arguments": {"paths": [str(path)], "format": "GeoJSON", "options": {"columns_for_cube": []}},
+        },
+        "ag": {
+            "process_id": "aggregate_spatial",
+            "arguments": {
+                "data": {"from_node": "lc"},
+                "geometries": {"from_node": "lf"},
+                "reducer": {
+                    "process_graph": {
+                        "mean": {
+                            "process_id": "mean",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        }
+                    }
+                },
+            },
+        },
+        "udf": {
+            "process_id": "run_udf",
+            "arguments": {"data": {"from_node": "ag"}, "udf": udf_code, "runtime": "Python"},
+            "result": True,
+        },
+    }
+    resp = api.check_result(process_graph)
+    assert "2015-07-06T00:00:00Z" in resp.json.keys()
+    assert "2015-08-22T00:00:00Z" in resp.json.keys()
 
 
 @pytest.mark.parametrize(["runtime", "version", "failure"], [

@@ -627,6 +627,8 @@ class DryRunDataCube(DriverDataCube):
 
         return self._process(operation="raster_to_vector", arguments={},metadata=CollectionMetadata(metadata={}, dimensions=dimensions))
 
+    def run_udf(self):
+        return self._process(operation="run_udf", arguments={})
 
     def resample_cube_spatial(self, target: 'DryRunDataCube', method: str = 'near') -> 'DryRunDataCube':
         cube = self._process("process_type", [ProcessType.FOCAL_SPACE])
