@@ -237,6 +237,9 @@ class DriverDataCube:
         # Note: this is a non-standard process
         self._not_implemented()
 
+    def raster_to_vector(self) -> DriverVectorCube:
+        return self._not_implemented()
+
 
 class VectorCubeError(InternalException):
     code = "VectorCubeError"
@@ -832,6 +835,9 @@ class DriverVectorCube:
         raise FeatureUnsupportedException(
             message=f"DriverVectorCube.apply_dimension with {dimension=} and {bool(single_run_udf)=}"
         )
+
+    def to_raster(self, target: DriverDataCube, env: EvalEnv):
+        return env.backend_implementation.vector_to_raster(self, target)
 
     def __repr__(self):
         bbox = repr(self.get_bounding_box()) if self.geometry_count() > 0 else "(none)"
