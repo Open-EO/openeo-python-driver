@@ -1401,14 +1401,18 @@ def register_views_batch_jobs(
         return resp
 
     def _asset_object(job_id, user_id, filename: str, asset_metadata: dict, job_info: BatchJobMetadata) -> dict:
-        result_dict = dict_no_none({
-            "title": asset_metadata.get("title", filename),
-            "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF) or _job_result_download_url(job_id, user_id, filename),
-            "type": asset_metadata.get("type", asset_metadata.get("media_type","application/octet-stream")),
-            "roles": asset_metadata.get("roles", ["data"]),
-            "raster:bands": asset_metadata.get("raster:bands", None),
-            "file:size": asset_metadata.get("file:size", None)
-        })
+        result_dict = dict_no_none(
+            {
+                "title": asset_metadata.get("title", filename),
+                "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF)
+                or _job_result_download_url(job_id, user_id, filename),
+                "type": asset_metadata.get("type", asset_metadata.get("media_type", "application/octet-stream")),
+                "roles": asset_metadata.get("roles", ["data"]),
+                "raster:bands": asset_metadata.get("raster:bands"),
+                "file:size": asset_metadata.get("file:size"),
+                "alternate": asset_metadata.get("alternate"),
+            }
+        )
         if filename.endswith(".model"):
             # Machine learning models.
             return result_dict

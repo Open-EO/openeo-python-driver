@@ -21,7 +21,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
-# 0.115
+# 0.116.0
+- Propagate alternate `href`s of job result assets ([Open-EO/openeo-geopyspark-driver#883](https://github.com/Open-EO/openeo-geopyspark-driver/issues/883))
+
+# 0.115.0
 - Support pointing `href` of job result asset to workspace URI ([Open-EO/openeo-geopyspark-driver#883](https://github.com/Open-EO/openeo-geopyspark-driver/issues/883))
 - Fix saving DriverVectorCube to GeoParquet ([#300](https://github.com/Open-EO/openeo-python-driver/issues/300))
 
