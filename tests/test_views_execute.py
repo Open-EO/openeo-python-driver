@@ -1569,25 +1569,23 @@ def test_run_udf_on_list(api, udf_code):
     [
         """
         from openeo.udf import UdfData, StructuredData
+        from geopandas import GeoDataFrame
+        from shapely.geometry import Point
         def transform(data: UdfData) -> UdfData:
+            data.set_feature_collection_list([FeatureCollection("t", GeoDataFrame([{"geometry": Point(5.5, 51.5)}]))])
             return data
     """,
     ],
 )
 def test_run_udf_on_aggregate_spatial(api, udf_code):
     udf_code = textwrap.dedent(udf_code)
-    path = get_path("geojson/FeatureCollection02.json")
     process_graph = {
         "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "bands": ["B02", "B03", "B04"]}},
-        "lf": {
-            "process_id": "load_uploaded_files",
-            "arguments": {"paths": [str(path)], "format": "GeoJSON", "options": {"columns_for_cube": []}},
-        },
         "ag": {
             "process_id": "aggregate_spatial",
             "arguments": {
                 "data": {"from_node": "lc"},
-                "geometries": {"from_node": "lf"},
+                "geometries": {"type": "Point", "coordinates": [5.5, 51.5]},
                 "reducer": {
                     "process_graph": {
                         "mean": {
@@ -1602,12 +1600,17 @@ def test_run_udf_on_aggregate_spatial(api, udf_code):
         "udf": {
             "process_id": "run_udf",
             "arguments": {"data": {"from_node": "ag"}, "udf": udf_code, "runtime": "Python"},
+        },
+        "sr": {
+            "process_id": "save_result",
+            "arguments": {"data": {"from_node": "udf"}, "format": "GeoJSON"},
             "result": True,
         },
     }
     resp = api.check_result(process_graph)
-    assert "2015-07-06T00:00:00Z" in resp.json.keys()
-    assert "2015-08-22T00:00:00Z" in resp.json.keys()
+    assert resp.json["type"] == "FeatureCollection"
+    assert len(resp.json["features"]) == 1
+    assert resp.json["features"][0]["geometry"]["coordinates"] == [5.5, 51.5]
 
 
 @pytest.mark.parametrize(["runtime", "version", "failure"], [
