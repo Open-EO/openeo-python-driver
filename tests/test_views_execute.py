@@ -1572,7 +1572,7 @@ def test_run_udf_on_list(api, udf_code):
         from geopandas import GeoDataFrame
         from shapely.geometry import Point
         def transform(data: UdfData) -> UdfData:
-            data.set_feature_collection_list([FeatureCollection("t", GeoDataFrame([{"geometry": Point(5.5, 51.5)}]))])
+            data.set_feature_collection_list([FeatureCollection("t", GeoDataFrame([{"geometry": Point(0.0, 0.1)}]))])
             return data
     """,
     ],
@@ -1610,7 +1610,7 @@ def test_run_udf_on_aggregate_spatial(api, udf_code):
     resp = api.check_result(process_graph)
     assert resp.json["type"] == "FeatureCollection"
     assert len(resp.json["features"]) == 1
-    assert resp.json["features"][0]["geometry"]["coordinates"] == [5.5, 51.5]
+    assert resp.json["features"][0]["geometry"]["coordinates"] == [0.0, 0.1]
 
 
 @pytest.mark.parametrize(["runtime", "version", "failure"], [
