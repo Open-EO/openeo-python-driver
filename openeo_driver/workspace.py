@@ -25,7 +25,9 @@ class DiskWorkspace(Workspace):
 
     def import_file(self, file: Path, merge: str, remove_original: bool = False) -> str:
         merge = os.path.normpath(merge)
-        subdirectory = merge[1:] if merge.startswith("/") else merge
+
+        # merge points to a file with the STAC Collection; all STAC documents and assets end up in its parent directory
+        subdirectory = Path(merge[1:] if merge.startswith("/") else merge).parent
         target_directory = self.root_directory / subdirectory
         target_directory.relative_to(self.root_directory)  # assert target_directory is in root_directory
 
