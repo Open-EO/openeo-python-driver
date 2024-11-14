@@ -20,7 +20,7 @@ def test_disk_workspace(tmp_path, merge):
     target_directory = tmp_path / subdirectory
 
     workspace = DiskWorkspace(root_directory=tmp_path)
-    workspace.import_file(file=source_file, merge=merge)
+    workspace.import_file(common_path=source_directory, file=source_file, merge=merge)
 
     assert (target_directory / source_file.name).exists()
     assert source_file.exists()
@@ -37,7 +37,7 @@ def test_disk_workspace_remove_original(tmp_path, remove_original):
     target_directory = tmp_path / merge
 
     workspace = DiskWorkspace(root_directory=tmp_path)
-    workspace.import_file(source_file, merge=merge, remove_original=remove_original)
+    workspace.import_file(common_path=source_directory, file=source_file, merge=merge, remove_original=remove_original)
 
     assert (target_directory / source_file.name).exists()
     assert source_file.exists() != remove_original
