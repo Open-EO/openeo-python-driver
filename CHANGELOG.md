@@ -21,6 +21,10 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+# 0.118.0
+
+- Add `openeo_driver.config.load.exec_py_file` (related to [Open-EO/openeo-geopyspark-driver#936)](https://github.com/Open-EO/openeo-geopyspark-driver/issues/936))
+
 # 0.116.0
 - Propagate alternate `href`s of job result assets ([Open-EO/openeo-geopyspark-driver#883](https://github.com/Open-EO/openeo-geopyspark-driver/issues/883))
 - Ensure that a top level UDF can return a DriverVectorCube. Previously it only returned a JSONResult ([#323](https://github.com/Open-EO/openeo-python-driver/issues/323))
