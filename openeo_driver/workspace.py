@@ -8,7 +8,7 @@ from typing import Optional
 import pystac
 from pystac import Collection, STACObject, SpatialExtent, TemporalExtent
 from pystac.catalog import CatalogType
-from pystac.layout import TemplateLayoutStrategy
+from pystac.layout import TemplateLayoutStrategy, HrefLayoutStrategy, CustomLayoutStrategy
 
 _log = logging.getLogger(__name__)
 
@@ -23,8 +23,7 @@ class Workspace(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def merge_files(self, stac_resource: Collection, target: PurePath, remove_original: bool = False):
-        # TODO: use an abstraction like a dict instead?
+    def merge_files(self, stac_resource: STACObject, target: PurePath, remove_original: bool = False) -> STACObject:
         # TODO: is a PurePath object fine as an abstraction?
         raise NotImplementedError
 
@@ -53,14 +52,16 @@ class DiskWorkspace(Workspace):
     def import_object(self, s3_uri: str, merge: str, remove_original: bool = False):
         raise NotImplementedError(f"importing objects is not supported yet")
 
-    def merge_files(self, stac_resource: STACObject, target: PurePath, remove_original: bool = False):
-        # FIXME: support remove_original and return equivalent workspace URIs (pass alternate_key and put workspace URIs in "alternate"?)
+    def merge_files(self, stac_resource: STACObject, target: PurePath, remove_original: bool = False) -> STACObject:
+        stac_resource = stac_resource.clone()
+
         target = os.path.normpath(target)
         target = Path(target[1:] if target.startswith("/") else target)
         target = self.root_directory / target
         target.relative_to(self.root_directory)  # assert target_directory is in root_directory
 
         target.parent.mkdir(parents=True, exist_ok=True)
+        file_operation = shutil.move if remove_original else shutil.copy
 
         if isinstance(stac_resource, Collection):
             new_collection = stac_resource
@@ -71,20 +72,37 @@ class DiskWorkspace(Workspace):
             except FileNotFoundError:
                 pass  # nothing to merge into
 
-            # collection ends up in file $target
-            # items and assets and up in directory $target.parent
-            for item in new_collection.get_items(recursive=True):
-                for asset in item.assets.values():
-                    shutil.copy(asset.href, target.parent)
-                    asset.href = Path(asset.href).name
+            merged_collection = self._merge_collections(existing_collection, new_collection)
 
-            (self
-             ._merge_collections(existing_collection, new_collection)
-             .normalize_and_save(
-                root_href=str(target.parent),
-                catalog_type=CatalogType.SELF_CONTAINED,
-                strategy=TemplateLayoutStrategy(collection_template=target.name, item_template="${id}.json")
-             ))
+            def layout_strategy() -> HrefLayoutStrategy:
+                def collection_file_at_merge(col: Collection, parent_dir: str, is_root: bool) -> str:
+                    if not is_root:
+                        raise ValueError("nested collections are not supported")
+                    return str(target)
+
+                return CustomLayoutStrategy(collection_func=collection_file_at_merge)
+
+            # TODO: write to a tempdir, then copy/move everything to $merge?
+            merged_collection.normalize_hrefs(root_href=str(target), strategy=layout_strategy())
+
+            def with_href_relative_to_item(asset: pystac.Asset):
+                # TODO: is crummy way to export assets after STAC Collection has been written to disk with new asset hrefs
+                asset.extra_fields["_original_absolute_href"] = asset.get_absolute_href()
+                filename = Path(asset.href).name
+                asset.href = filename
+                return asset
+
+            # save STAC with proper asset hrefs
+            merged_collection = merged_collection.map_assets(lambda _, asset: with_href_relative_to_item(asset))
+            merged_collection.save(catalog_type=CatalogType.SELF_CONTAINED)
+
+            # copy assets to workspace on disk
+            for item in merged_collection.get_items(recursive=True):
+                for asset in item.assets.values():
+                    file_operation(asset.extra_fields["_original_absolute_href"], Path(item.get_self_href()).parent)
+                    workspace_uri = f"file:{Path(item.get_self_href()).parent / Path(asset.href).name}"
+                    asset.extra_fields["alternate"] = {"file": workspace_uri}
+            return merged_collection
         else:
             raise NotImplementedError(stac_resource)
 
