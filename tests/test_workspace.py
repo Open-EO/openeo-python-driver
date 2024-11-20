@@ -2,7 +2,7 @@ import datetime as dt
 from pathlib import Path
 from typing import List
 
-from pystac import Asset, Collection, Extent, Item, SpatialExtent, TemporalExtent
+from pystac import Asset, Collection, Extent, Item, SpatialExtent, TemporalExtent, CatalogType
 import pytest
 
 from openeo_driver.workspace import DiskWorkspace
@@ -127,6 +127,7 @@ def _collection(collection_id: str,
         id=collection_id,
         description=collection_id,
         extent=Extent(spatial=spatial_extent, temporal=temporal_extent),
+        catalog_type=CatalogType.ABSOLUTE_PUBLISHED,
     )
 
     for asset_file in asset_files:
@@ -136,6 +137,9 @@ def _collection(collection_id: str,
         item.add_asset(key=asset_key, asset=Asset(href=str(asset_file)))
 
         collection.add_item(item)
+
+    collection.normalize_hrefs(".")
+    assert collection.validate_all() == 1
 
     return collection
 
