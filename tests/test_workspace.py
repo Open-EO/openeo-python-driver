@@ -157,24 +157,41 @@ def _download_assets(collection: Collection, target_dir: Path) -> int:
 def test_create_and_export_collection(tmp_path):
     # tmp_path = Path("/tmp/test_create_and_export_collection")
 
-    def create_collection(root_href: Path, collection_id: str, item_id: str) -> Collection:
+    tmp_dir = tmp_path / "tmp"
+    tmp_dir.mkdir()
+
+    def create_collection(root_path: Path, collection_id: str, asset_filename: str) -> Collection:
         collection = Collection(
             id=collection_id,
             description=collection_id,
             extent=Extent(SpatialExtent([[-180, -90, 180, 90]]), TemporalExtent([[None, None]])),
         )
 
-        collection.add_item(Item(id=item_id, geometry=None, bbox=None, datetime=dt.datetime.utcnow(), properties={}))
+        item = Item(id=asset_filename, geometry=None, bbox=None, datetime=dt.datetime.utcnow(), properties={})
+        asset = Asset(href=str(root_path / item.id / asset_filename))
 
-        collection.normalize_hrefs(root_href=str(root_href))
-        # collection.save(CatalogType.SELF_CONTAINED)
+        item.add_asset(key=asset_filename, asset=asset)
+        collection.add_item(item)
+
+        collection.normalize_hrefs(root_href=str(root_path))
+        collection.save(CatalogType.SELF_CONTAINED)
+
+        with open(asset.href, "w") as f:
+            f.write(f"{asset_filename}\n")
+
         assert collection.validate_all() == 1
+
+        assets = {asset_key: asset for item in collection.get_items() for asset_key, asset in item.get_assets().items()}
+        assert assets
+
+        for asset_key, asset in assets.items():
+            asset.clone().copy(str(tmp_dir / asset_key))
 
         return collection
 
     # write collection1
     collection1 = create_collection(
-        root_href=tmp_path / "src" / "collection1", collection_id="collection1", item_id="item1"
+        root_path=tmp_path / "src" / "collection1", collection_id="collection1", asset_filename="asset1.tif"
     )
 
     # export collection1
@@ -192,7 +209,7 @@ def test_create_and_export_collection(tmp_path):
 
     # write collection2
     collection2 = create_collection(
-        root_href=tmp_path / "src" / "collection2", collection_id="collection2", item_id="item2"
+        root_path=tmp_path / "src" / "collection2", collection_id="collection2", asset_filename="asset2.tif"
     )
 
     # merge collection2
