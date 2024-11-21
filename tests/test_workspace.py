@@ -1,4 +1,5 @@
 import datetime as dt
+import shutil
 from pathlib import Path
 from typing import List
 
@@ -168,7 +169,9 @@ def test_create_and_export_collection(tmp_path):
         )
 
         item = Item(id=asset_filename, geometry=None, bbox=None, datetime=dt.datetime.utcnow(), properties={})
-        asset = Asset(href=str(root_path / item.id / asset_filename))
+
+        asset_path = root_path / item.id / asset_filename
+        asset = Asset(href=asset_path.name)  # relative to item
 
         item.add_asset(key=asset_filename, asset=asset)
         collection.add_item(item)
@@ -176,7 +179,7 @@ def test_create_and_export_collection(tmp_path):
         collection.normalize_hrefs(root_href=str(root_path))
         collection.save(CatalogType.SELF_CONTAINED)
 
-        with open(asset.href, "w") as f:
+        with open(asset_path, "w") as f:
             f.write(f"{asset_filename}\n")
 
         assert collection.validate_all() == 1
@@ -185,7 +188,8 @@ def test_create_and_export_collection(tmp_path):
         assert assets
 
         for asset_key, asset in assets.items():
-            asset.clone().copy(str(tmp_dir / asset_key))
+            # "download" the asset without altering its href
+            shutil.copy(asset.get_absolute_href(), tmp_dir / asset_filename)
 
         return collection
 
