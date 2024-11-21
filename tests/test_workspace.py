@@ -1,5 +1,6 @@
 import datetime as dt
 import shutil
+import uuid
 from pathlib import Path
 from typing import List
 
@@ -73,7 +74,7 @@ def test_merge_from_disk_new(tmp_path):
     assert merged_stac_collection.validate_all() == 1
     # TODO: check Collection
 
-    assert _download_assets(merged_stac_collection, target_dir=tmp_path) == 1
+    assert _downloadable_assets(merged_stac_collection, target_dir=tmp_path) == 1
 
 
 def test_merge_from_disk_into_existing(tmp_path):
@@ -112,7 +113,7 @@ def test_merge_from_disk_into_existing(tmp_path):
     merged_stac_collection = Collection.from_file(str(workspace_dir / "collection.json"))
     assert merged_stac_collection.validate_all() == 2
 
-    assert _download_assets(merged_stac_collection, target_dir=tmp_path) == 2
+    assert _downloadable_assets(merged_stac_collection, target_dir=tmp_path) == 2
 
     assert merged_stac_collection.extent.spatial.bboxes == [[0, 50, 3, 53]]
     assert merged_stac_collection.extent.temporal.intervals == [
@@ -146,11 +147,13 @@ def _collection(collection_id: str,
     return collection
 
 
-def _download_assets(collection: Collection, target_dir: Path) -> int:
+def _downloadable_assets(collection: Collection, target_dir: Path) -> int:
     assets = [asset for item in collection.get_items(recursive=True) for asset in item.get_assets().values()]
 
     for asset in assets:
-        asset.copy(str(target_dir / Path(asset.href).name))  # downloads the asset file
+        target_path = target_dir / str(uuid.uuid4())
+        shutil.copy(asset.get_absolute_href(), target_path)  # "download" the asset without altering its href
+        target_path.unlink()
 
     return len(assets)
 
@@ -183,13 +186,7 @@ def test_create_and_export_collection(tmp_path):
             f.write(f"{asset_filename}\n")
 
         assert collection.validate_all() == 1
-
-        assets = {asset_key: asset for item in collection.get_items() for asset_key, asset in item.get_assets().items()}
-        assert assets
-
-        for asset_key, asset in assets.items():
-            # "download" the asset without altering its href
-            shutil.copy(asset.get_absolute_href(), tmp_dir / asset_filename)
+        assert _downloadable_assets(collection, tmp_dir) == 1
 
         return collection
 
@@ -208,41 +205,59 @@ def test_create_and_export_collection(tmp_path):
 
     layout_strategy = CustomLayoutStrategy(collection_func=collection_func)
     exported_collection.normalize_hrefs(root_href=str(merge.parent), strategy=layout_strategy)
+
+    def replace_asset_href(asset_key: str, asset: Asset) -> Asset:
+        asset.extra_fields["_original_absolute_href"] = asset.get_absolute_href()
+        asset.href = asset_key  # asset key matches the asset filename, becomes the relative path
+        return asset
+
+    exported_collection = exported_collection.map_assets(replace_asset_href)
+
     exported_collection.save(CatalogType.SELF_CONTAINED)
     assert exported_collection.validate_all() == 1
 
-    # TODO: adapt hrefs (should point to file in item directory)
     for item in exported_collection.get_items():
         for asset in item.get_assets().values():
-            shutil.copy(asset.get_absolute_href(), Path(item.get_self_href()).parent)  # next to the item
+            shutil.copy(asset.extra_fields["_original_absolute_href"], Path(item.get_self_href()).parent)
 
     # write collection2
     collection2 = create_collection(
         root_path=tmp_path / "src" / "collection2", collection_id="collection2", asset_filename="asset2.tif"
     )
 
-    # merge collection2
+    # merge collection2 into existing
     existing_collection = Collection.from_file(str(merge))
     assert existing_collection.validate_all() == 1
 
     new_collection = collection2.full_copy()
-    existing_collection.extent = new_collection.extent.clone()  # "merge" existing with new extent
+
+    # "merge" some properties
+    existing_collection.extent = new_collection.extent.clone()
     existing_collection.description = f"{existing_collection.description} + {new_collection.description}"
-    for new_item in new_collection.get_items():  # add new items to existing
+
+    # new_collection.make_all_asset_hrefs_absolute()
+    new_collection = new_collection.map_assets(replace_asset_href)
+
+    # add new items to existing
+    for new_item in new_collection.get_items():
+        new_item.clear_links()  # sever ties with previous collection
         existing_collection.add_item(new_item)
 
     existing_collection.normalize_hrefs(root_href=str(merge.parent), strategy=layout_strategy)
     existing_collection.save(CatalogType.SELF_CONTAINED)
     assert existing_collection.validate_all() == 2
 
-    # TODO: adapt hrefs (should point to file in item directory)
     for item in new_collection.get_items():
         for asset in item.get_assets().values():
-            shutil.copy(asset.get_absolute_href(), Path(item.get_self_href()).parent)  # next to the item
+            shutil.copy(asset.extra_fields["_original_absolute_href"], Path(item.get_self_href()).parent)
 
     merged_collection = Collection.from_file(str(merge))
     assert merged_collection.validate_all() == 2
     assert merged_collection.id == "collection1"
     assert merged_collection.description == "collection1 + collection2"
 
-    # TODO: check asset hrefs are relative to items and download them
+    for item in merged_collection.get_items():
+        for asset in item.get_assets().values():
+            assert Path(item.get_self_href()).parent == Path(asset.get_absolute_href()).parent
+
+    assert _downloadable_assets(merged_collection, tmp_dir) == 2
