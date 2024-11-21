@@ -155,7 +155,9 @@ def _download_assets(collection: Collection, target_dir: Path) -> int:
 
 
 def test_create_and_export_collection(tmp_path):
-    def create_collection(root_href: str, collection_id: str, item_id: str) -> Collection:
+    # tmp_path = Path("/tmp/test_create_and_export_collection")
+
+    def create_collection(root_href: Path, collection_id: str, item_id: str) -> Collection:
         collection = Collection(
             id=collection_id,
             description=collection_id,
@@ -164,7 +166,7 @@ def test_create_and_export_collection(tmp_path):
 
         collection.add_item(Item(id=item_id, geometry=None, bbox=None, datetime=dt.datetime.utcnow(), properties={}))
 
-        collection.normalize_hrefs(root_href=root_href)
+        collection.normalize_hrefs(root_href=str(root_href))
         # collection.save(CatalogType.SELF_CONTAINED)
         assert collection.validate_all() == 1
 
@@ -172,12 +174,12 @@ def test_create_and_export_collection(tmp_path):
 
     # write collection1
     collection1 = create_collection(
-        root_href="/tmp/test_create_and_export_collection/src/collection1", collection_id="collection1", item_id="item1"
+        root_href=tmp_path / "src" / "collection1", collection_id="collection1", item_id="item1"
     )
 
     # export collection1
     exported_collection = collection1.full_copy()
-    merge = Path("/tmp/test_create_and_export_collection/dst/merged-collection.json")
+    merge = tmp_path / "dst" / "merged-collection.json"
 
     def collection_func(col: Collection, parent_dir: str, is_root: bool) -> str:
         assert is_root
@@ -190,7 +192,7 @@ def test_create_and_export_collection(tmp_path):
 
     # write collection2
     collection2 = create_collection(
-        root_href="/tmp/test_create_and_export_collection/src/collection2", collection_id="collection2", item_id="item2"
+        root_href=tmp_path / "src" / "collection2", collection_id="collection2", item_id="item2"
     )
 
     # merge collection2
