@@ -211,6 +211,11 @@ def test_create_and_export_collection(tmp_path):
     exported_collection.save(CatalogType.SELF_CONTAINED)
     assert exported_collection.validate_all() == 1
 
+    # TODO: adapt hrefs (should point to file in item directory)
+    for item in exported_collection.get_items():
+        for asset in item.get_assets().values():
+            shutil.copy(asset.get_absolute_href(), Path(item.get_self_href()).parent)  # next to the item
+
     # write collection2
     collection2 = create_collection(
         root_path=tmp_path / "src" / "collection2", collection_id="collection2", asset_filename="asset2.tif"
@@ -230,7 +235,14 @@ def test_create_and_export_collection(tmp_path):
     existing_collection.save(CatalogType.SELF_CONTAINED)
     assert existing_collection.validate_all() == 2
 
+    # TODO: adapt hrefs (should point to file in item directory)
+    for item in new_collection.get_items():
+        for asset in item.get_assets().values():
+            shutil.copy(asset.get_absolute_href(), Path(item.get_self_href()).parent)  # next to the item
+
     merged_collection = Collection.from_file(str(merge))
     assert merged_collection.validate_all() == 2
     assert merged_collection.id == "collection1"
     assert merged_collection.description == "collection1 + collection2"
+
+    # TODO: check asset hrefs are relative to items and download them
