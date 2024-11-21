@@ -4,6 +4,7 @@ from typing import List
 
 from pystac import Asset, Collection, Extent, Item, SpatialExtent, TemporalExtent, CatalogType
 import pytest
+from pystac.layout import CustomLayoutStrategy
 
 from openeo_driver.workspace import DiskWorkspace
 
@@ -151,3 +152,62 @@ def _download_assets(collection: Collection, target_dir: Path) -> int:
         asset.copy(str(target_dir / Path(asset.href).name))  # downloads the asset file
 
     return len(assets)
+
+
+def test_create_and_export_collection(tmp_path):
+    def create_collection(root_href: str, collection_id: str, item_id: str) -> Collection:
+        collection = Collection(
+            id=collection_id,
+            description=collection_id,
+            extent=Extent(SpatialExtent([[-180, -90, 180, 90]]), TemporalExtent([[None, None]])),
+        )
+
+        collection.add_item(Item(id=item_id, geometry=None, bbox=None, datetime=dt.datetime.utcnow(), properties={}))
+
+        collection.normalize_hrefs(root_href=root_href)
+        # collection.save(CatalogType.SELF_CONTAINED)
+        assert collection.validate_all() == 1
+
+        return collection
+
+    # write collection1
+    collection1 = create_collection(
+        root_href="/tmp/test_create_and_export_collection/src/collection1", collection_id="collection1", item_id="item1"
+    )
+
+    # export collection1
+    exported_collection = collection1.full_copy()
+    merge = Path("/tmp/test_create_and_export_collection/dst/merged-collection.json")
+
+    def collection_func(col: Collection, parent_dir: str, is_root: bool) -> str:
+        assert is_root
+        return str(Path(parent_dir) / merge.name)
+
+    layout_strategy = CustomLayoutStrategy(collection_func=collection_func)
+    exported_collection.normalize_hrefs(root_href=str(merge.parent), strategy=layout_strategy)
+    exported_collection.save(CatalogType.SELF_CONTAINED)
+    assert exported_collection.validate_all() == 1
+
+    # write collection2
+    collection2 = create_collection(
+        root_href="/tmp/test_create_and_export_collection/src/collection2", collection_id="collection2", item_id="item2"
+    )
+
+    # merge collection2
+    existing_collection = Collection.from_file(str(merge))
+    assert existing_collection.validate_all() == 1
+
+    new_collection = collection2.full_copy()
+    existing_collection.extent = new_collection.extent.clone()  # "merge" existing with new extent
+    existing_collection.description = f"{existing_collection.description} + {new_collection.description}"
+    for new_item in new_collection.get_items():  # add new items to existing
+        existing_collection.add_item(new_item)
+
+    existing_collection.normalize_hrefs(root_href=str(merge.parent), strategy=layout_strategy)
+    existing_collection.save(CatalogType.SELF_CONTAINED)
+    assert existing_collection.validate_all() == 2
+
+    merged_collection = Collection.from_file(str(merge))
+    assert merged_collection.validate_all() == 2
+    assert merged_collection.id == "collection1"
+    assert merged_collection.description == "collection1 + collection2"
