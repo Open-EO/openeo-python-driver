@@ -53,14 +53,13 @@ class DiskWorkspace(Workspace):
         raise NotImplementedError(f"importing objects is not supported yet")
 
     def merge_files(self, stac_resource: STACObject, target: PurePath, remove_original: bool = False) -> STACObject:
-        stac_resource = stac_resource.clone()
+        stac_resource = stac_resource.full_copy()
 
         target = os.path.normpath(target)
         target = Path(target[1:] if target.startswith("/") else target)
         target = self.root_directory / target
         target.relative_to(self.root_directory)  # assert target_directory is in root_directory
 
-        target.parent.mkdir(parents=True, exist_ok=True)
         file_operation = shutil.move if remove_original else shutil.copy
 
         if isinstance(stac_resource, Collection):
@@ -72,60 +71,72 @@ class DiskWorkspace(Workspace):
             except FileNotFoundError:
                 pass  # nothing to merge into
 
-            merged_collection = self._merge_collections(existing_collection, new_collection)
-
-            def layout_strategy() -> HrefLayoutStrategy:
-                def collection_file_at_merge(col: Collection, parent_dir: str, is_root: bool) -> str:
+            def href_layout_strategy() -> HrefLayoutStrategy:
+                def collection_func(_: Collection, parent_dir: str, is_root: bool) -> str:
                     if not is_root:
-                        raise ValueError("nested collections are not supported")
-                    return str(target)
+                        raise NotImplementedError("nested collections")
+                    # make the collection file end up at $target, not at $target/collection.json
+                    return str(Path(parent_dir) / target.name)
 
-                return CustomLayoutStrategy(collection_func=collection_file_at_merge)
+                return CustomLayoutStrategy(collection_func=collection_func)
 
-            # TODO: write to a tempdir, then copy/move everything to $merge?
-            merged_collection.normalize_hrefs(root_href=str(target), strategy=layout_strategy())
-
-            def with_href_relative_to_item(asset: pystac.Asset):
-                # TODO: is crummy way to export assets after STAC Collection has been written to disk with new asset hrefs
+            def replace_asset_href(asset_key: str, asset: pystac.Asset) -> pystac.Asset:
+                # TODO: crummy way to export assets after STAC Collection has been written to disk with new asset hrefs;
+                #  it ends up in the asset metadata on disk
                 asset.extra_fields["_original_absolute_href"] = asset.get_absolute_href()
-                filename = Path(asset.href).name
-                asset.href = filename
+                asset.href = asset_key  # asset key matches the asset filename, becomes the relative path
                 return asset
 
-            # save STAC with proper asset hrefs
-            merged_collection = merged_collection.map_assets(lambda _, asset: with_href_relative_to_item(asset))
-            merged_collection.save(catalog_type=CatalogType.SELF_CONTAINED)
+            if not existing_collection:
+                # TODO: write to a tempdir, then copy/move everything to $merge?
+                new_collection.normalize_hrefs(root_href=str(target.parent), strategy=href_layout_strategy())
+                new_collection = new_collection.map_assets(replace_asset_href)
+                new_collection.save(CatalogType.SELF_CONTAINED)
 
-            # copy assets to workspace on disk
-            for item in merged_collection.get_items(recursive=True):
-                for asset in item.assets.values():
-                    file_operation(asset.extra_fields["_original_absolute_href"], Path(item.get_self_href()).parent)
-                    workspace_uri = f"file:{Path(item.get_self_href()).parent / Path(asset.href).name}"
-                    asset.extra_fields["alternate"] = {"file": workspace_uri}
-            return merged_collection
+                for item in new_collection.get_items():
+                    for asset in item.get_assets().values():
+                        file_operation(
+                            asset.extra_fields["_original_absolute_href"], str(Path(item.get_self_href()).parent)
+                        )
+
+                return new_collection
+            else:
+                merged_collection = self._merge_collection_metadata(existing_collection, new_collection)
+                new_collection = new_collection.map_assets(replace_asset_href)
+
+                for new_item in new_collection.get_items():
+                    if existing_collection.get_item(new_item.id):
+                        # TODO: how to treat duplicate items?
+                        raise ValueError(f"item {new_item.id} is already in collection {existing_collection.id}")
+
+                    new_item.clear_links()  # sever ties with previous collection
+                    merged_collection.add_item(new_item)
+
+                merged_collection.normalize_hrefs(root_href=str(target.parent), strategy=href_layout_strategy())
+                merged_collection.save(CatalogType.SELF_CONTAINED)
+
+                for new_item in new_collection.get_items():
+                    for asset in new_item.get_assets().values():
+                        file_operation(
+                            asset.extra_fields["_original_absolute_href"], Path(new_item.get_self_href()).parent
+                        )
+
+                return merged_collection
         else:
             raise NotImplementedError(stac_resource)
 
-    def _merge_collections(self, existing_collection: Optional[Collection], new_collection: Collection) -> Collection:
-        if existing_collection:
-            existing_collection.extent.spatial = self._merge_spatial_extents(
-                existing_collection.extent.spatial,
-                new_collection.extent.spatial
-            )
+    def _merge_collection_metadata(self, existing_collection: Collection, new_collection: Collection) -> Collection:
+        existing_collection.extent.spatial = self._merge_spatial_extents(
+            existing_collection.extent.spatial, new_collection.extent.spatial
+        )
 
-            existing_collection.extent.temporal = self._merge_temporal_extents(
-                existing_collection.extent.temporal,
-                new_collection.extent.temporal
-            )
+        existing_collection.extent.temporal = self._merge_temporal_extents(
+            existing_collection.extent.temporal, new_collection.extent.temporal
+        )
 
-            for new_item in new_collection.get_items(recursive=True):
-                if existing_collection.get_item(new_item.id, recursive=True):
-                    raise ValueError(f"item {new_item.id} is already in collection {existing_collection.id}")
+        # TODO: merge additional metadata?
 
-                existing_collection.add_item(new_item, strategy=TemplateLayoutStrategy(item_template="${id}.json"))
-                return existing_collection
-
-        return new_collection
+        return existing_collection
 
     def _merge_spatial_extents(self, a: SpatialExtent, b: SpatialExtent) -> SpatialExtent:
         overall_bbox_a, *sub_bboxes_a = a.bboxes

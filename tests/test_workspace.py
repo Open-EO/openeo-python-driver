@@ -1,8 +1,7 @@
 import datetime as dt
 import shutil
-import uuid
+import tempfile
 from pathlib import Path
-from typing import List
 
 from pystac import Asset, Collection, Extent, Item, SpatialExtent, TemporalExtent, CatalogType
 import pytest
@@ -55,13 +54,9 @@ def test_disk_workspace_remove_original(tmp_path, remove_original):
 
 
 def test_merge_from_disk_new(tmp_path):
-    source_directory = tmp_path / "src"
-    source_directory.mkdir()
-
-    asset_file = source_directory / "asset.tif"
-    asset_file.touch()
-
-    new_stac_collection = _collection("collection", [asset_file])
+    new_stac_collection = _collection(
+        root_path=tmp_path / "src" / "collection", collection_id="collection", asset_filename="asset.tif"
+    )
 
     target = Path("path") / "to" / "collection.json"
 
@@ -72,31 +67,28 @@ def test_merge_from_disk_new(tmp_path):
 
     merged_stac_collection = Collection.from_file(str(workspace_dir / "collection.json"))
     assert merged_stac_collection.validate_all() == 1
+    assert _downloadable_assets(merged_stac_collection) == 1
+
     # TODO: check Collection
 
-    assert _downloadable_assets(merged_stac_collection, target_dir=tmp_path) == 1
+    for item in merged_stac_collection.get_items():
+        for asset in item.get_assets().values():
+            assert Path(item.get_self_href()).parent == Path(asset.get_absolute_href()).parent
 
 
 def test_merge_from_disk_into_existing(tmp_path):
-    source_directory = tmp_path / "src"
-    source_directory.mkdir()
-
-    asset_file1 = source_directory / "asset1.tif"
-    asset_file1.touch()
-
-    asset_file2 = source_directory / "asset2.tif"
-    asset_file2.touch()
-
     existing_stac_collection = _collection(
-        "existing_collection",
-        [asset_file1],
+        root_path=tmp_path / "src" / "existing_collection",
+        collection_id="existing_collection",
+        asset_filename="asset1.tif",
         spatial_extent=SpatialExtent([[0, 50, 2, 52]]),
         temporal_extent=TemporalExtent([[dt.datetime.fromisoformat("2024-11-01T00:00:00+00:00"),
                                          dt.datetime.fromisoformat("2024-11-03T00:00:00+00:00")]])
     )
     new_stac_collection = _collection(
-        "new_collection",
-        [asset_file2],
+        root_path=tmp_path / "src" / "new_collection",
+        collection_id="new_collection",
+        asset_filename="asset2.tif",
         spatial_extent=SpatialExtent([[1, 51, 3, 53]]),
         temporal_extent=TemporalExtent([[dt.datetime.fromisoformat("2024-11-02T00:00:00+00:00"),
                                          dt.datetime.fromisoformat("2024-11-04T00:00:00+00:00")]])
@@ -112,8 +104,7 @@ def test_merge_from_disk_into_existing(tmp_path):
 
     merged_stac_collection = Collection.from_file(str(workspace_dir / "collection.json"))
     assert merged_stac_collection.validate_all() == 2
-
-    assert _downloadable_assets(merged_stac_collection, target_dir=tmp_path) == 2
+    assert _downloadable_assets(merged_stac_collection) == 2
 
     assert merged_stac_collection.extent.spatial.bboxes == [[0, 50, 3, 53]]
     assert merged_stac_collection.extent.temporal.intervals == [
@@ -121,39 +112,50 @@ def test_merge_from_disk_into_existing(tmp_path):
          dt.datetime.fromisoformat("2024-11-04T00:00:00+00:00")]
     ]
 
+    for item in merged_stac_collection.get_items():
+        for asset in item.get_assets().values():
+            assert Path(item.get_self_href()).parent == Path(asset.get_absolute_href()).parent
 
-def _collection(collection_id: str,
-                asset_files: List[Path],
-                spatial_extent: SpatialExtent = SpatialExtent([[-180, -90, 180, 90]]),
-                temporal_extent: TemporalExtent = TemporalExtent([[None, None]])) -> Collection:
+
+def _collection(
+    root_path: Path,
+    collection_id: str,
+    asset_filename: str,
+    spatial_extent: SpatialExtent = SpatialExtent([[-180, -90, 180, 90]]),
+    temporal_extent: TemporalExtent = TemporalExtent([[None, None]]),
+) -> Collection:
     collection = Collection(
         id=collection_id,
         description=collection_id,
-        extent=Extent(spatial=spatial_extent, temporal=temporal_extent),
-        catalog_type=CatalogType.ABSOLUTE_PUBLISHED,
+        extent=Extent(spatial_extent, temporal_extent),
     )
 
-    for asset_file in asset_files:
-        item_id = asset_key = asset_file.name
+    item = Item(id=asset_filename, geometry=None, bbox=None, datetime=dt.datetime.utcnow(), properties={})
 
-        item = Item(id=item_id, geometry=None, bbox=None, datetime=dt.datetime.utcnow(), properties={})
-        item.add_asset(key=asset_key, asset=Asset(href=str(asset_file)))
+    asset_path = root_path / item.id / asset_filename
+    asset = Asset(href=asset_path.name)  # relative to item
 
-        collection.add_item(item)
+    item.add_asset(key=asset_filename, asset=asset)
+    collection.add_item(item)
 
-    collection.normalize_hrefs(".")
+    collection.normalize_hrefs(root_href=str(root_path))
+    collection.save(CatalogType.SELF_CONTAINED)
+
+    with open(asset_path, "w") as f:
+        f.write(f"{asset_filename}\n")
+
     assert collection.validate_all() == 1
+    assert _downloadable_assets(collection) == 1
 
     return collection
 
 
-def _downloadable_assets(collection: Collection, target_dir: Path) -> int:
+def _downloadable_assets(collection: Collection) -> int:
     assets = [asset for item in collection.get_items(recursive=True) for asset in item.get_assets().values()]
 
     for asset in assets:
-        target_path = target_dir / str(uuid.uuid4())
-        shutil.copy(asset.get_absolute_href(), target_path)  # "download" the asset without altering its href
-        target_path.unlink()
+        with tempfile.NamedTemporaryFile(mode="wb") as temp_file:
+            shutil.copy(asset.get_absolute_href(), temp_file.name)  # "download" the asset without altering its href
 
     return len(assets)
 
@@ -161,37 +163,8 @@ def _downloadable_assets(collection: Collection, target_dir: Path) -> int:
 def test_create_and_export_collection(tmp_path):
     # tmp_path = Path("/tmp/test_create_and_export_collection")
 
-    tmp_dir = tmp_path / "tmp"
-    tmp_dir.mkdir()
-
-    def create_collection(root_path: Path, collection_id: str, asset_filename: str) -> Collection:
-        collection = Collection(
-            id=collection_id,
-            description=collection_id,
-            extent=Extent(SpatialExtent([[-180, -90, 180, 90]]), TemporalExtent([[None, None]])),
-        )
-
-        item = Item(id=asset_filename, geometry=None, bbox=None, datetime=dt.datetime.utcnow(), properties={})
-
-        asset_path = root_path / item.id / asset_filename
-        asset = Asset(href=asset_path.name)  # relative to item
-
-        item.add_asset(key=asset_filename, asset=asset)
-        collection.add_item(item)
-
-        collection.normalize_hrefs(root_href=str(root_path))
-        collection.save(CatalogType.SELF_CONTAINED)
-
-        with open(asset_path, "w") as f:
-            f.write(f"{asset_filename}\n")
-
-        assert collection.validate_all() == 1
-        assert _downloadable_assets(collection, tmp_dir) == 1
-
-        return collection
-
     # write collection1
-    collection1 = create_collection(
+    collection1 = _collection(
         root_path=tmp_path / "src" / "collection1", collection_id="collection1", asset_filename="asset1.tif"
     )
 
@@ -199,7 +172,7 @@ def test_create_and_export_collection(tmp_path):
     exported_collection = collection1.full_copy()
     merge = tmp_path / "dst" / "merged-collection.json"
 
-    def collection_func(col: Collection, parent_dir: str, is_root: bool) -> str:
+    def collection_func(_: Collection, parent_dir: str, is_root: bool) -> str:
         assert is_root
         return str(Path(parent_dir) / merge.name)
 
@@ -221,7 +194,7 @@ def test_create_and_export_collection(tmp_path):
             shutil.copy(asset.extra_fields["_original_absolute_href"], Path(item.get_self_href()).parent)
 
     # write collection2
-    collection2 = create_collection(
+    collection2 = _collection(
         root_path=tmp_path / "src" / "collection2", collection_id="collection2", asset_filename="asset2.tif"
     )
 
@@ -260,4 +233,4 @@ def test_create_and_export_collection(tmp_path):
         for asset in item.get_assets().values():
             assert Path(item.get_self_href()).parent == Path(asset.get_absolute_href()).parent
 
-    assert _downloadable_assets(merged_collection, tmp_dir) == 2
+    assert _downloadable_assets(merged_collection) == 2
