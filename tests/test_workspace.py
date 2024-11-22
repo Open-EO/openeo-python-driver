@@ -54,30 +54,40 @@ def test_disk_workspace_remove_original(tmp_path, remove_original):
 
 
 def test_merge_from_disk_new(tmp_path):
-    new_stac_collection = _collection(
+    new_collection = _collection(
         root_path=tmp_path / "src" / "collection", collection_id="collection", asset_filename="asset.tif"
     )
 
     target = Path("path") / "to" / "collection.json"
 
     workspace = DiskWorkspace(root_directory=tmp_path)
-    workspace.merge_files(stac_resource=new_stac_collection, target=target)
+    merged_collection = workspace.merge_files(stac_resource=new_collection, target=target)
 
+    assert isinstance(merged_collection, Collection)
+    asset_workspace_uris = {
+        asset_key: asset.extra_fields["alternate"]["file"]
+        for item in merged_collection.get_items()
+        for asset_key, asset in item.get_assets().items()
+    }
+    assert asset_workspace_uris == {
+        "asset.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'asset.tif' / 'asset.tif'}"
+    }
+
+    # load it again
     workspace_dir = (workspace.root_directory / target).parent
-
-    merged_stac_collection = Collection.from_file(str(workspace_dir / "collection.json"))
-    assert merged_stac_collection.validate_all() == 1
-    assert _downloadable_assets(merged_stac_collection) == 1
+    exported_collection = Collection.from_file(str(workspace_dir / "collection.json"))
+    assert exported_collection.validate_all() == 1
+    assert _downloadable_assets(exported_collection) == 1
 
     # TODO: check Collection
 
-    for item in merged_stac_collection.get_items():
+    for item in exported_collection.get_items():
         for asset in item.get_assets().values():
             assert Path(item.get_self_href()).parent == Path(asset.get_absolute_href()).parent
 
 
 def test_merge_from_disk_into_existing(tmp_path):
-    existing_stac_collection = _collection(
+    existing_collection = _collection(
         root_path=tmp_path / "src" / "existing_collection",
         collection_id="existing_collection",
         asset_filename="asset1.tif",
@@ -85,7 +95,7 @@ def test_merge_from_disk_into_existing(tmp_path):
         temporal_extent=TemporalExtent([[dt.datetime.fromisoformat("2024-11-01T00:00:00+00:00"),
                                          dt.datetime.fromisoformat("2024-11-03T00:00:00+00:00")]])
     )
-    new_stac_collection = _collection(
+    new_collection = _collection(
         root_path=tmp_path / "src" / "new_collection",
         collection_id="new_collection",
         asset_filename="asset2.tif",
@@ -97,22 +107,33 @@ def test_merge_from_disk_into_existing(tmp_path):
     target = Path("path") / "to" / "collection.json"
 
     workspace = DiskWorkspace(root_directory=tmp_path)
-    workspace.merge_files(stac_resource=existing_stac_collection, target=target)
-    workspace.merge_files(stac_resource=new_stac_collection, target=target)
+    workspace.merge_files(stac_resource=existing_collection, target=target)
+    merged_collection = workspace.merge_files(stac_resource=new_collection, target=target)
 
+    assert isinstance(merged_collection, Collection)
+    asset_workspace_uris = {
+        asset_key: asset.extra_fields["alternate"]["file"]
+        for item in merged_collection.get_items()
+        for asset_key, asset in item.get_assets().items()
+    }
+    assert asset_workspace_uris == {
+        "asset1.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'asset1.tif' / 'asset1.tif'}",
+        "asset2.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'asset2.tif' / 'asset2.tif'}",
+    }
+
+    # load it again
     workspace_dir = (workspace.root_directory / target).parent
+    exported_collection = Collection.from_file(str(workspace_dir / "collection.json"))
+    assert exported_collection.validate_all() == 2
+    assert _downloadable_assets(exported_collection) == 2
 
-    merged_stac_collection = Collection.from_file(str(workspace_dir / "collection.json"))
-    assert merged_stac_collection.validate_all() == 2
-    assert _downloadable_assets(merged_stac_collection) == 2
-
-    assert merged_stac_collection.extent.spatial.bboxes == [[0, 50, 3, 53]]
-    assert merged_stac_collection.extent.temporal.intervals == [
+    assert exported_collection.extent.spatial.bboxes == [[0, 50, 3, 53]]
+    assert exported_collection.extent.temporal.intervals == [
         [dt.datetime.fromisoformat("2024-11-01T00:00:00+00:00"),
          dt.datetime.fromisoformat("2024-11-04T00:00:00+00:00")]
     ]
 
-    for item in merged_stac_collection.get_items():
+    for item in exported_collection.get_items():
         for asset in item.get_assets().values():
             assert Path(item.get_self_href()).parent == Path(asset.get_absolute_href()).parent
 

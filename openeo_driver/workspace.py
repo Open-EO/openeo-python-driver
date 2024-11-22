@@ -99,7 +99,7 @@ class DiskWorkspace(Workspace):
                             asset.extra_fields["_original_absolute_href"], str(Path(item.get_self_href()).parent)
                         )
 
-                return new_collection
+                merged_collection = new_collection
             else:
                 merged_collection = self._merge_collection_metadata(existing_collection, new_collection)
                 new_collection = new_collection.map_assets(replace_asset_href)
@@ -121,7 +121,12 @@ class DiskWorkspace(Workspace):
                             asset.extra_fields["_original_absolute_href"], Path(new_item.get_self_href()).parent
                         )
 
-                return merged_collection
+            for item in merged_collection.get_items():
+                for asset in item.assets.values():
+                    workspace_uri = f"file:{Path(item.get_self_href()).parent / Path(asset.href).name}"
+                    asset.extra_fields["alternate"] = {"file": workspace_uri}
+
+            return merged_collection
         else:
             raise NotImplementedError(stac_resource)
 
