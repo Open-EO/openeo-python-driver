@@ -61,7 +61,7 @@ def test_merge_from_disk_new(tmp_path):
     target = Path("path") / "to" / "collection.json"
 
     workspace = DiskWorkspace(root_directory=tmp_path)
-    merged_collection = workspace.merge_files(stac_resource=new_collection, target=target)
+    merged_collection = workspace.merge(stac_resource=new_collection, target=target)
 
     assert isinstance(merged_collection, Collection)
     asset_workspace_uris = {
@@ -107,8 +107,8 @@ def test_merge_from_disk_into_existing(tmp_path):
     target = Path("path") / "to" / "collection.json"
 
     workspace = DiskWorkspace(root_directory=tmp_path)
-    workspace.merge_files(stac_resource=existing_collection, target=target)
-    merged_collection = workspace.merge_files(stac_resource=new_collection, target=target)
+    workspace.merge(stac_resource=existing_collection, target=target)
+    merged_collection = workspace.merge(stac_resource=new_collection, target=target)
 
     assert isinstance(merged_collection, Collection)
     asset_workspace_uris = {

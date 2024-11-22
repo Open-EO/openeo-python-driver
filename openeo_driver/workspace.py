@@ -4,11 +4,12 @@ import os.path
 import shutil
 from pathlib import Path, PurePath
 from typing import Optional
+from urllib.parse import urlparse
 
 import pystac
 from pystac import Collection, STACObject, SpatialExtent, TemporalExtent
 from pystac.catalog import CatalogType
-from pystac.layout import TemplateLayoutStrategy, HrefLayoutStrategy, CustomLayoutStrategy
+from pystac.layout import HrefLayoutStrategy, CustomLayoutStrategy
 
 _log = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ class Workspace(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def merge_files(self, stac_resource: STACObject, target: PurePath, remove_original: bool = False) -> STACObject:
+    def merge(self, stac_resource: STACObject, target: PurePath, remove_original: bool = False) -> STACObject:
         # TODO: is a PurePath object fine as an abstraction?
         raise NotImplementedError
 
@@ -52,7 +53,7 @@ class DiskWorkspace(Workspace):
     def import_object(self, s3_uri: str, merge: str, remove_original: bool = False):
         raise NotImplementedError(f"importing objects is not supported yet")
 
-    def merge_files(self, stac_resource: STACObject, target: PurePath, remove_original: bool = False) -> STACObject:
+    def merge(self, stac_resource: STACObject, target: PurePath, remove_original: bool = False) -> STACObject:
         stac_resource = stac_resource.full_copy()
 
         target = os.path.normpath(target)
@@ -81,6 +82,9 @@ class DiskWorkspace(Workspace):
                 return CustomLayoutStrategy(collection_func=collection_func)
 
             def replace_asset_href(asset_key: str, asset: pystac.Asset) -> pystac.Asset:
+                if urlparse(asset.href).scheme not in ["", "file"]:  # TODO: convenient place; move elsewhere?
+                    raise NotImplementedError(f"importing objects is not supported yet")
+
                 # TODO: crummy way to export assets after STAC Collection has been written to disk with new asset hrefs;
                 #  it ends up in the asset metadata on disk
                 asset.extra_fields["_original_absolute_href"] = asset.get_absolute_href()
