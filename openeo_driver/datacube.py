@@ -456,8 +456,7 @@ class DriverVectorCube:
             crs = CRS(crs["properties"]["name"])
         if crs == cls.CRS_LAT_LNG:
             validate_geojson_coordinates(geojson)
-        # TODO support more geojson types?
-        if geojson["type"] in {"Polygon", "MultiPolygon", "Point", "MultiPoint"}:
+        if geojson["type"] in {"Polygon", "MultiPolygon", "Point", "MultiPoint", "MultiLineString", "LineString"}:
             features = [{"type": "Feature", "geometry": geojson, "properties": {}}]
         elif geojson["type"] in {"Feature"}:
             features = [geojson]
