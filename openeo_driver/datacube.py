@@ -184,10 +184,10 @@ class DriverDataCube:
         self._not_implemented()
 
     def aggregate_spatial(
-            self,
-            geometries: Union[shapely.geometry.base.BaseGeometry, str, "DriverVectorCube"],
-            reducer: dict,
-            target_dimension: str = "result",
+        self,
+        geometries: Union[shapely.geometry.base.BaseGeometry, str, "DriverVectorCube"],
+        reducer: dict,
+        target_dimension: Optional[str] = None,
     ) -> Union["AggregatePolygonResult", "AggregatePolygonSpatialResult", "DriverVectorCube"]:
         # TODO: drop `target_dimension`? see https://github.com/Open-EO/openeo-processes/issues/366
         self._not_implemented()

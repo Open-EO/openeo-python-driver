@@ -562,7 +562,7 @@ class DryRunDataCube(DriverDataCube):
         self,
         geometries: Union[BaseGeometry, str, DriverVectorCube],
         reducer: dict,
-        target_dimension: str = "result",
+        target_dimension: Optional[str] = None,
     ) -> "DryRunDataCube":
         # TODO #71 #114 EP-3981 normalize to vector cube instead of GeometryCollection
         geoms_is_empty = isinstance(geometries, DriverVectorCube) and len(geometries.get_geometries()) == 0

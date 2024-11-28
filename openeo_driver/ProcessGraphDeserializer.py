@@ -1226,7 +1226,6 @@ def _period_to_intervals(start, end, period) -> List[Tuple[pd.Timestamp, pd.Time
 def aggregate_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     cube = args.get_required("data", expected_type=DriverDataCube)
     reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
-    # TODO: drop `target_dimension`? see https://github.com/Open-EO/openeo-processes/issues/366
     target_dimension = args.get_optional("target_dimension", default=None)
 
     geoms = args.get_required("geometries")
