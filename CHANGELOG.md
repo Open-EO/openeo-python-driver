@@ -21,7 +21,11 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
-- NDVI process: correctly handle band dimension as part of dry run 
+- NDVI process: correctly handle band dimension as part of dry run
+
+## 0.119.0
+
+- `load_stac`: allow omitting `datetime` parameter from STAC API item search request if no `temporal_extent` specified ([Open-EO/openeo-geopyspark-driver#950](https://github.com/Open-EO/openeo-geopyspark-driver/issues/950))
 
 ## 0.118.0
 
