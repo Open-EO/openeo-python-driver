@@ -1448,13 +1448,13 @@ def register_views_batch_jobs(
         return result_dict
 
     @api_endpoint
-    @blueprint.route('/jobs/<job_id>/results/assets/<filename>', methods=['GET'])
+    @blueprint.route("/jobs/<job_id>/results/assets/<path:filename>", methods=["GET"])
     @auth_handler.requires_bearer_auth
     def download_job_result(job_id, filename, user: User):
         return _download_job_result(job_id=job_id, filename=filename, user_id=user.user_id)
 
     @api_endpoint
-    @blueprint.route('/jobs/<job_id>/results/assets/<user_base64>/<secure_key>/<filename>', methods=['GET'])
+    @blueprint.route("/jobs/<job_id>/results/assets/<user_base64>/<secure_key>/<path:filename>", methods=["GET"])
     def download_job_result_signed(job_id, user_base64, secure_key, filename):
         expires = request.args.get('expires')
         signer = get_backend_config().url_signer

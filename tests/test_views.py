@@ -1209,6 +1209,14 @@ class TestBatchJobs:
                     start_datetime=None,
                     end_datetime=None,
                 ),
+                (TEST_USER, "j-24111211111111111111111111111111"): BatchJobMetadata(
+                    id="j-24111211111111111111111111111111",
+                    status="finished",
+                    created=datetime(2024, 11, 12, 12, 16, 34),
+                    bbox=[34.456156, -0.910085, 34.796396, -0.345477],
+                    start_datetime=None,
+                    end_datetime=None,
+                ),
             }
             dummy_backend.DummyBatchJobs._job_result_registry = {}
 
@@ -1399,6 +1407,12 @@ class TestBatchJobs:
                     "status": "finished",
                     "progress": 100,
                     "created": "2024-08-30T12:16:34Z",
+                },
+                {
+                    "id": "j-24111211111111111111111111111111",
+                    "status": "finished",
+                    "progress": 100,
+                    "created": "2024-11-12T12:16:34Z",
                 }
             ],
             "links": []
@@ -2534,6 +2548,21 @@ class TestBatchJobs:
             with output.open("wb") as f:
                 f.write(b"tiffdata")
             resp = api.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff", headers=self.AUTH_HEADER)
+        assert resp.assert_status_code(200).data == b"tiffdata"
+        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
+
+    def test_download_result_nested_path(self, api110, tmp_path):
+        output_root = Path(tmp_path)
+        jobs = {"j-24111211111111111111111111111111": {"status": "finished"}}
+        with self._fresh_job_registry(output_root=output_root, jobs=jobs):
+            output = output_root / "j-24111211111111111111111111111111/subfolder/output.tiff"
+            output.parent.mkdir(parents=True)
+            with output.open("wb") as f:
+                f.write(b"tiffdata")
+            resp = api110.get(
+                "/jobs/j-24111211111111111111111111111111/results/assets/subfolder/output.tiff",
+                headers=self.AUTH_HEADER,
+            )
         assert resp.assert_status_code(200).data == b"tiffdata"
         assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
 

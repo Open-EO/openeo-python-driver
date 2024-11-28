@@ -153,6 +153,11 @@ def read_json(filename: Union[str, Path]) -> Union[dict, list]:
         return json.load(f)
 
 
+def remove_slash_prefix(path: Union[str, Path]):
+    path = str(path)
+    return path[1:] if path.startswith("/") else path
+
+
 def smart_bool(value: Any) -> bool:
     """
     Convert given value to a boolean value, like `bool()` builtin,

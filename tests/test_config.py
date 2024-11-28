@@ -3,10 +3,11 @@ import random
 import re
 import textwrap
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Callable
 
 import attrs.exceptions
 import pytest
+import dirty_equals
 
 import openeo_driver.config.load
 from openeo_driver.config import (
@@ -18,7 +19,7 @@ from openeo_driver.config import (
 )
 from openeo_driver.config.config import check_config_definition
 from openeo_driver.config.env import default_from_env_as_list
-from openeo_driver.config.load import load_from_py_file
+from openeo_driver.config.load import load_from_py_file, exec_py_file
 import openeo_driver.config.env
 from .conftest import enhanced_logging
 
@@ -29,6 +30,28 @@ def test_config_immutable():
     with pytest.raises(attrs.exceptions.FrozenInstanceError):
         conf.id = "let's try?"
     assert conf.id == "dontchangeme!"
+
+
+@pytest.mark.parametrize("path_type", [str, Path])
+def test_exec_py_file(tmp_path, path_type):
+    path = tmp_path / "custom.py"
+
+    content = f"""
+        def pi():
+            return 3.14159265359
+
+        x = pi()
+    """
+    path.write_text(textwrap.dedent(content))
+
+    globals = exec_py_file(path_type(path))
+    assert globals == dirty_equals.IsPartialDict(
+        {
+            "__file__": str(path),
+            "pi": dirty_equals.IsInstance(Callable),
+            "x": 3.14159265359,
+        }
+    )
 
 
 @pytest.mark.parametrize("path_type", [str, Path])

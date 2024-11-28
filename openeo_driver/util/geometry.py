@@ -68,6 +68,8 @@ def validate_geojson_basic(
         elif geojson_type in {"FeatureCollection"}:
             assert "features" in value, f"No 'features' field (type {geojson_type!r})"
             if recurse:
+                assert isinstance(value["features"], list), f"Invalid 'features' field, it should be a list, but got {value['features']!r}"
+
                 for f in value["features"]:
                     validate_geojson_basic(f, recurse=True, allowed_types=["Feature"], raise_exception=True)
         else:

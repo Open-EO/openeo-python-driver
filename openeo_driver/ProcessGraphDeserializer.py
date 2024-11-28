@@ -70,6 +70,8 @@ from openeo_driver.util.geometry import geojson_to_geometry, geojson_to_multipol
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
 from openeo_driver.utils import EvalEnv, smart_bool
 
+DEFAULT_TEMPORAL_EXTENT = ["1970-01-01", "2070-01-01"]  # also a sentinel value for load_stac
+
 _log = logging.getLogger(__name__)
 
 # Set up process registries (version dependent)
@@ -582,7 +584,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     source_constraints.remove((source_id,constraints))  # Side effect!
 
     params = LoadParameters()
-    params.temporal_extent = constraints.get("temporal_extent", ["1970-01-01", "2070-01-01"])
+    params.temporal_extent = constraints.get("temporal_extent", DEFAULT_TEMPORAL_EXTENT)
     labels_args = constraints.get("filter_labels", {})
     if("dimension" in labels_args and labels_args["dimension"] == "t"):
         params.filter_temporal_labels = labels_args.get("condition")
@@ -1226,7 +1228,6 @@ def _period_to_intervals(start, end, period) -> List[Tuple[pd.Timestamp, pd.Time
 def aggregate_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     cube = args.get_required("data", expected_type=DriverDataCube)
     reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
-    # TODO: drop `target_dimension`? see https://github.com/Open-EO/openeo-processes/issues/366
     target_dimension = args.get_optional("target_dimension", default=None)
 
     geoms = args.get_required("geometries")
@@ -1392,10 +1393,10 @@ def filter_spatial(args: Dict, env: EvalEnv) -> DriverDataCube:
         )
 
     if isinstance(geometries, dict):
-        if "type" in geometries and geometries["type"] == "FeatureCollection":
-            geometries = DriverVectorCube.from_geojson(geometries)
+        if "type" in geometries and geometries["type"] != "GeometryCollection":
+            geometries = env.backend_implementation.vector_cube_cls.from_geojson(geometries)
         else:
-                        # TODO #71 #114 #268 EP-3981 avoid GeometryCollection and standardize on vector cubes
+            # TODO #71 #114 #268 EP-3981 phase out special handling of GeometryCollection
             geometries = geojson_to_geometry(geometries)
             if isinstance(geometries, GeometryCollection):
                 polygons = [
@@ -1403,6 +1404,7 @@ def filter_spatial(args: Dict, env: EvalEnv) -> DriverDataCube:
                     for geom in geometries.geoms
                 ]
                 geometries = MultiPolygon(polygons)
+
 
     elif isinstance(geometries, DelayedVector):
         geometries = DriverVectorCube.from_fiona([geometries.path]).to_multipolygon()

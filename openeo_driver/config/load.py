@@ -20,6 +20,20 @@ from openeo_driver.config import ConfigException, OpenEoBackendConfig
 _log = logging.getLogger(__name__)
 
 
+def exec_py_file(path: Union[str, Path]) -> dict:
+    """Compile and execute given python file, and get the globals from doing that."""
+    # Based on flask's Config.from_pyfile
+    path = Path(path)
+    with path.open(mode="r", encoding="utf-8") as f:
+        src = f.read()
+
+    ast = compile(src, path, "exec")
+    globals = {"__file__": str(path)}
+    exec(ast, globals)
+
+    return globals
+
+
 def load_from_py_file(
     path: Union[str, Path],
     variable: str = "config",
@@ -29,11 +43,7 @@ def load_from_py_file(
     path = Path(path)
     _log.debug(f"Loading configuration from Python file {path!r} (variable {variable!r})")
 
-    # Based on flask's Config.from_pyfile
-    with path.open(mode="rb") as f:
-        code = compile(f.read(), path, "exec")
-    globals = {"__file__": str(path)}
-    exec(code, globals)
+    globals = exec_py_file(path)
 
     try:
         config = globals[variable]

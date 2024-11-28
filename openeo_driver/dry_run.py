@@ -562,7 +562,7 @@ class DryRunDataCube(DriverDataCube):
         self,
         geometries: Union[BaseGeometry, str, DriverVectorCube],
         reducer: dict,
-        target_dimension: str = "result",
+        target_dimension: Optional[str] = None,
     ) -> "DryRunDataCube":
         # TODO #71 #114 EP-3981 normalize to vector cube instead of GeometryCollection
         geoms_is_empty = isinstance(geometries, DriverVectorCube) and len(geometries.get_geometries()) == 0
@@ -593,11 +593,6 @@ class DryRunDataCube(DriverDataCube):
         elif isinstance(geometries, DelayedVector):
             bbox = geometries.bounds
         elif isinstance(geometries, shapely.geometry.base.BaseGeometry):
-            _log.warning(
-                "_normalize_geometry: TODO are we still reaching this code?",
-                # TODO yes we are, apparently due to #288
-                stack_info=True,
-            )
             # TODO: buffer distance of 10m assumes certain resolution (e.g. sentinel2 pixels)
             # TODO: use proper distance for collection resolution instead of using a default distance?
             # TODO: or eliminate need for buffering in the first place? https://github.com/Open-EO/openeo-python-driver/issues/148
@@ -807,7 +802,6 @@ class DryRunDataCube(DriverDataCube):
     aggregate_temporal_period = _nop
     rename_labels = _nop
     rename_dimension = _nop
-    ndvi = _nop
     water_vapor = _nop
     linear_scale_range = _nop
     dimension_labels = _nop

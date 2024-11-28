@@ -6,6 +6,7 @@ from unittest import mock
 import openeo.processes
 from openeo.internal.graph_building import PGNode
 from openeo.rest.datacube import DataCube
+from openeo_driver.dummy.dummy_backend import DummyVectorCube
 
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER, _extract_load_parameters, \
@@ -872,12 +873,12 @@ def test_multiple_filter_spatial(dry_run_env, dry_run_tracer):
     geometries = dry_run_tracer.get_last_geometry(operation="filter_spatial")
     assert constraints == {
         "spatial_extent": {'crs': 'EPSG:4326','east': 8.0,'north': 5.0,'south': 0.0,'west': 0.0},
-        "filter_spatial": {"geometries": shapely.geometry.shape(polygon1)},
+        "filter_spatial": {"geometries": DummyVectorCube.from_geometry(shapely.geometry.shape(polygon1))},
         "resample": {"method": "near", "resolution": [0.25, 0.25], "target_crs": 4326},
         "weak_spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
     }
 
-    assert geometries == shapely.geometry.shape(polygon2)
+    assert geometries == DummyVectorCube.from_geometry(shapely.geometry.shape(polygon2))
 
 
 @pytest.mark.parametrize(
@@ -969,12 +970,12 @@ def test_resample_filter_spatial(dry_run_env, dry_run_tracer):
     geometries, = dry_run_tracer.get_geometries(operation="filter_spatial")
     assert constraints == {
         "spatial_extent": {'crs': 'EPSG:4326','east': 8.0,'north': 5.0,'south': 0.0,'west': 0.0},
-        "filter_spatial": {"geometries": shapely.geometry.shape(polygon)},
+        "filter_spatial": {"geometries": DummyVectorCube.from_geometry(shapely.geometry.shape(polygon))},
         "resample": {"method": "near", "resolution": [0.25, 0.25], "target_crs": 4326},
         "weak_spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
     }
-    assert isinstance(geometries, shapely.geometry.Polygon)
-    assert shapely.geometry.mapping(geometries) == {
+    assert isinstance(geometries,DummyVectorCube)
+    assert shapely.geometry.mapping(geometries.to_multipolygon()) == {
         "type": "Polygon",
         "coordinates": (((0.0, 0.0), (3.0, 5.0), (8.0, 2.0), (0.0, 0.0)),)
     }
@@ -1014,11 +1015,11 @@ def test_auto_align(dry_run_env, dry_run_tracer):
     geometries, = dry_run_tracer.get_geometries(operation="filter_spatial")
     assert constraints == {
         "spatial_extent": {'crs': 'EPSG:4326','east': 8.0,'north': 5.0,'south': 0.1,'west': 0.1},
-        "filter_spatial": {"geometries": shapely.geometry.shape(polygon)},
+        "filter_spatial": {"geometries": DummyVectorCube.from_geometry(shapely.geometry.shape(polygon))},
         "weak_spatial_extent": {"west": 0.1, "south": 0.1, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
     }
-    assert isinstance(geometries, shapely.geometry.Polygon)
-    assert shapely.geometry.mapping(geometries) == {
+    assert isinstance(geometries, DummyVectorCube)
+    assert shapely.geometry.mapping(geometries.to_multipolygon()) == {
         "type": "Polygon",
         "coordinates": (((0.1, 0.1), (3.0, 5.0), (8.0, 2.0), (0.1, 0.1)),)
     }
@@ -1046,7 +1047,7 @@ def test_global_bounds_from_weak_spatial_extent(dry_run_env, dry_run_tracer):
     assert constraints == {
         "spatial_extent": {"west": 1, "south": 1, "east": 3, "north": 3, "crs": "EPSG:4326"},
         "weak_spatial_extent": {"crs": "EPSG:4326", "east": 8.0, "north": 5.0, "south": 0.1, "west": 0.1},
-        "filter_spatial": {"geometries": shapely.geometry.shape(polygon)},
+        "filter_spatial": {"geometries": DummyVectorCube.from_geometry(shapely.geometry.shape(polygon))},
     }
     dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
     load_params = _extract_load_parameters(
@@ -2083,3 +2084,22 @@ def test_vector_to_raster(dry_run_env):
     }
     save_result = evaluate(pg, env=dry_run_env)
     assert isinstance(save_result, DryRunDataCube)
+
+
+def test_ndvi_reduce(dry_run_env):
+
+    pg = {
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+
+        "ndvi": {
+            "process_id": "ndvi",
+            "arguments": {
+                "data": {"from_node": "lc"}
+            },
+            "result": True,
+        }
+    }
+    save_result = evaluate(pg, env=dry_run_env)
+    assert isinstance(save_result, DryRunDataCube)
+
+    assert not save_result.metadata.has_band_dimension()

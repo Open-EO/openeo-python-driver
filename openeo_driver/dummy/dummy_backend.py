@@ -40,8 +40,13 @@ from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCu
 from openeo_driver.datastructs import StacAsset
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import SourceConstraint
-from openeo_driver.errors import JobNotFoundException, JobNotFinishedException, ProcessGraphNotFoundException, \
-    PermissionsInsufficientException
+from openeo_driver.errors import (
+    JobNotFoundException,
+    JobNotFinishedException,
+    ProcessGraphNotFoundException,
+    PermissionsInsufficientException,
+    FeatureUnsupportedException,
+)
 from openeo_driver.jobregistry import JOB_STATUS
 from openeo_driver.save_result import AggregatePolygonResult, AggregatePolygonSpatialResult
 from openeo_driver.users import User
@@ -232,11 +237,13 @@ class DummyDataCube(DriverDataCube):
         return filename
 
     def aggregate_spatial(
-            self,
-            geometries: Union[BaseGeometry, str, DriverVectorCube],
-            reducer: dict,
-            target_dimension: str = "result",
+        self,
+        geometries: Union[BaseGeometry, str, DriverVectorCube],
+        reducer: dict,
+        target_dimension: Optional[str] = None,
     ) -> Union[AggregatePolygonResult, AggregatePolygonSpatialResult, DriverVectorCube]:
+        if target_dimension:
+            raise FeatureUnsupportedException("Argument `target_dimension` not supported in aggregate_spatial")
 
         # TODO: support more advanced reducers too
         assert isinstance(reducer, dict) and len(reducer) == 1
@@ -759,6 +766,24 @@ class DummyBatchJobs(BatchJobs):
                 },
             }
 
+        elif job_id == "j-24111211111111111111111111111111":
+            return {
+                "subfolder/output.tiff": {
+                    "output_dir": f"{self._output_root()}/{job_id}",
+                    "href": f"{self._output_root()}/{job_id}/subfolder/output.tiff",
+                    "type": "image/tiff; application=geotiff",
+                    "roles": ["data"],
+                    "bands": [Band(name="NDVI", common_name="NDVI", wavelength_um=1.23)],
+                    "nodata": 123,
+                    "instruments": "MSI",
+                    "bbox": [0.0, 50.0, 5.0, 55.0],
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[[0.0, 50.0], [0.0, 55.0], [5.0, 55.0], [5.0, 50.0], [0.0, 50.0]]],
+                    },
+                },
+            }
+        # default return:
         return {
             "output.tiff": {
                 "output_dir": f"{self._output_root()}/{job_id}",
