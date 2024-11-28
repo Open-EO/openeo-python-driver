@@ -21,49 +21,49 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
-# 0.118.0
+## 0.118.0
 
 - Add `openeo_driver.config.load.exec_py_file` (related to [Open-EO/openeo-geopyspark-driver#936)](https://github.com/Open-EO/openeo-geopyspark-driver/issues/936))
 
-# 0.116.0
+## 0.116.0
 - Propagate alternate `href`s of job result assets ([Open-EO/openeo-geopyspark-driver#883](https://github.com/Open-EO/openeo-geopyspark-driver/issues/883))
 - Ensure that a top level UDF can return a DriverVectorCube. Previously it only returned a JSONResult ([#323](https://github.com/Open-EO/openeo-python-driver/issues/323))
 
-# 0.115.0
+## 0.115.0
 - Support pointing `href` of job result asset to workspace URI ([Open-EO/openeo-geopyspark-driver#883](https://github.com/Open-EO/openeo-geopyspark-driver/issues/883))
 - Fix saving DriverVectorCube to GeoParquet ([#300](https://github.com/Open-EO/openeo-python-driver/issues/300))
 
-# 0.114.0
+## 0.114.0
 
 - Support removing original assets exported to workspace: ([Open-EO/openeo-geopyspark-driver#883](https://github.com/Open-EO/openeo-geopyspark-driver/issues/883))
 
-# 0.113.0
+## 0.113.0
 
 - Add `max_updated_ago` to `JobRegistryInterface.list_active_jobs` API  ([Open-EO/openeo-geopyspark-driver#902](https://github.com/Open-EO/openeo-geopyspark-driver/issues/902))
 
-# 0.112.0
+## 0.112.0
 - Support exporting objects to object storage workspace ([eu-cdse/openeo-cdse-infra#278](https://github.com/eu-cdse/openeo-cdse-infra/issues/278))
 - Move ObjectStorageWorkspace implementation to openeo-geopyspark-driver ([eu-cdse/openeo-cdse-infra#278](https://github.com/eu-cdse/openeo-cdse-infra/issues/278))
 
-# 0.111.1
+## 0.111.1
 
 - Remove `JobRegistryInterface.list_trackable_jobs` API ([Open-EO/openeo-geopyspark-driver#902](https://github.com/Open-EO/openeo-geopyspark-driver/issues/902))
 
-# 0.111.0
+## 0.111.0
 
 - Add `has_application_id` argument to `JobRegistryInterface.list_active_jobs` in preparation to eliminate `list_trackable_jobs` ([Open-EO/openeo-geopyspark-driver#902](https://github.com/Open-EO/openeo-geopyspark-driver/issues/902))
 
-# 0.110.0
+## 0.110.0
 
 - Add `max_age` support to `ElasticJobRegistry.list_trackable_jobs` ([Open-EO/openeo-geopyspark-driver#902](https://github.com/Open-EO/openeo-geopyspark-driver/issues/902))
 
-# 0.109.0
+## 0.109.0
 
 - Support multiple `export_workspace` processes ([eu-cdse/openeo-cdse-infra#264](https://github.com/eu-cdse/openeo-cdse-infra/issues/264))
 - Fix `export_workspace` process not executed in process graph with multiple `save_result` processes ([eu-cdse/openeo-cdse-infra#264](https://github.com/eu-cdse/openeo-cdse-infra/issues/264))
 - Restore deterministic evaluation of process graph with multiple end nodes
 
-# 0.108.0
+## 0.108.0
 
 - Added support for `apply_vectorcube` UDF signature in `run_udf_code` ([Open-EO/openeo-geopyspark-driver#881]https://github.com/Open-EO/openeo-geopyspark-driver/issues/881)
 
