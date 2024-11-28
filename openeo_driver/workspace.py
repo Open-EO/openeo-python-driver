@@ -105,7 +105,7 @@ class DiskWorkspace(Workspace):
 
                 merged_collection = new_collection
             else:
-                merged_collection = self._merge_collection_metadata(existing_collection, new_collection)
+                merged_collection = _merge_collection_metadata(existing_collection, new_collection)
                 new_collection = new_collection.map_assets(replace_asset_href)
 
                 for new_item in new_collection.get_items():
@@ -130,63 +130,66 @@ class DiskWorkspace(Workspace):
         else:
             raise NotImplementedError(stac_resource)
 
-    def _merge_collection_metadata(self, existing_collection: Collection, new_collection: Collection) -> Collection:
-        existing_collection.extent.spatial = self._merge_spatial_extents(
-            existing_collection.extent.spatial, new_collection.extent.spatial
-        )
 
-        existing_collection.extent.temporal = self._merge_temporal_extents(
-            existing_collection.extent.temporal, new_collection.extent.temporal
-        )
+def _merge_collection_metadata(existing_collection: Collection, new_collection: Collection) -> Collection:
+    existing_collection.extent.spatial = _merge_spatial_extents(
+        existing_collection.extent.spatial, new_collection.extent.spatial
+    )
 
-        # TODO: merge additional metadata?
+    existing_collection.extent.temporal = _merge_temporal_extents(
+        existing_collection.extent.temporal, new_collection.extent.temporal
+    )
 
-        return existing_collection
+    # TODO: merge additional metadata?
 
-    def _merge_spatial_extents(self, a: SpatialExtent, b: SpatialExtent) -> SpatialExtent:
-        overall_bbox_a, *sub_bboxes_a = a.bboxes
-        overall_bbox_b, *sub_bboxes_b = b.bboxes
+    return existing_collection
 
-        merged_overall_bbox = [
-            min(overall_bbox_a[0], overall_bbox_b[0]),
-            min(overall_bbox_a[1], overall_bbox_b[1]),
-            max(overall_bbox_a[2], overall_bbox_b[2]),
-            max(overall_bbox_a[3], overall_bbox_b[3])
-        ]
 
-        merged_sub_bboxes = sub_bboxes_a + sub_bboxes_b
+def _merge_spatial_extents(a: SpatialExtent, b: SpatialExtent) -> SpatialExtent:
+    overall_bbox_a, *sub_bboxes_a = a.bboxes
+    overall_bbox_b, *sub_bboxes_b = b.bboxes
 
-        merged_spatial_extent = SpatialExtent([merged_overall_bbox])
-        if merged_sub_bboxes:
-            merged_spatial_extent.bboxes.append(merged_sub_bboxes)
+    merged_overall_bbox = [
+        min(overall_bbox_a[0], overall_bbox_b[0]),
+        min(overall_bbox_a[1], overall_bbox_b[1]),
+        max(overall_bbox_a[2], overall_bbox_b[2]),
+        max(overall_bbox_a[3], overall_bbox_b[3])
+    ]
 
-        return merged_spatial_extent
+    merged_sub_bboxes = sub_bboxes_a + sub_bboxes_b
 
-    def _merge_temporal_extents(self, a: TemporalExtent, b: TemporalExtent) -> TemporalExtent:
-        overall_interval_a, *sub_intervals_a = a.intervals
-        overall_interval_b, *sub_intervals_b = b.intervals
+    merged_spatial_extent = SpatialExtent([merged_overall_bbox])
+    if merged_sub_bboxes:
+        merged_spatial_extent.bboxes.append(merged_sub_bboxes)
 
-        def min_time(t1: Optional[str], t2: Optional[str]) -> Optional[str]:
-            if t1 is None or t2 is None:
-                return None
+    return merged_spatial_extent
 
-            return min(t1, t2)
 
-        def max_time(t1: Optional[str], t2: Optional[str]) -> Optional[str]:
-            if t1 is None or t2 is None:
-                return None
+def _merge_temporal_extents(a: TemporalExtent, b: TemporalExtent) -> TemporalExtent:
+    overall_interval_a, *sub_intervals_a = a.intervals
+    overall_interval_b, *sub_intervals_b = b.intervals
 
-            return max(t1, t2)
+    def min_time(t1: Optional[str], t2: Optional[str]) -> Optional[str]:
+        if t1 is None or t2 is None:
+            return None
 
-        merged_overall_interval = [
-            min_time(overall_interval_a[0], overall_interval_b[0]),
-            max_time(overall_interval_a[1], overall_interval_b[1])
-        ]
+        return min(t1, t2)
 
-        merged_sub_intervals = sub_intervals_a + sub_intervals_b
+    def max_time(t1: Optional[str], t2: Optional[str]) -> Optional[str]:
+        if t1 is None or t2 is None:
+            return None
 
-        merged_temporal_extent = TemporalExtent([merged_overall_interval])
-        if merged_sub_intervals:
-            merged_temporal_extent.intervals.append(merged_sub_intervals)
+        return max(t1, t2)
 
-        return merged_temporal_extent
+    merged_overall_interval = [
+        min_time(overall_interval_a[0], overall_interval_b[0]),
+        max_time(overall_interval_a[1], overall_interval_b[1])
+    ]
+
+    merged_sub_intervals = sub_intervals_a + sub_intervals_b
+
+    merged_temporal_extent = TemporalExtent([merged_overall_interval])
+    if merged_sub_intervals:
+        merged_temporal_extent.intervals.append(merged_sub_intervals)
+
+    return merged_temporal_extent
