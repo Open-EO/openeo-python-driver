@@ -26,6 +26,7 @@ class Workspace(abc.ABC):
 
     @abc.abstractmethod
     def merge(self, stac_resource: STACObject, target: PurePath, remove_original: bool = False) -> STACObject:
+        # FIXME: replicate subdirectory behavior (#877)
         # TODO: is a PurePath object fine as an abstraction?
         raise NotImplementedError
 
