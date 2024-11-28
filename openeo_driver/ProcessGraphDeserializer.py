@@ -70,6 +70,8 @@ from openeo_driver.util.geometry import geojson_to_geometry, geojson_to_multipol
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
 from openeo_driver.utils import EvalEnv, smart_bool
 
+DEFAULT_TEMPORAL_EXTENT = ["1970-01-01", "2070-01-01"]  # also a sentinel value for load_stac
+
 _log = logging.getLogger(__name__)
 
 # Set up process registries (version dependent)
@@ -582,7 +584,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     source_constraints.remove((source_id,constraints))  # Side effect!
 
     params = LoadParameters()
-    params.temporal_extent = constraints.get("temporal_extent", ["1970-01-01", "2070-01-01"])
+    params.temporal_extent = constraints.get("temporal_extent", DEFAULT_TEMPORAL_EXTENT)
     labels_args = constraints.get("filter_labels", {})
     if("dimension" in labels_args and labels_args["dimension"] == "t"):
         params.filter_temporal_labels = labels_args.get("condition")
