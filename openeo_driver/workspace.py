@@ -97,10 +97,10 @@ class DiskWorkspace(Workspace):
                 new_collection = new_collection.map_assets(replace_asset_href)
                 new_collection.save(CatalogType.SELF_CONTAINED)
 
-                for item in new_collection.get_items():
-                    for asset in item.get_assets().values():
+                for new_item in new_collection.get_items():
+                    for asset in new_item.get_assets().values():
                         file_operation(
-                            asset.extra_fields["_original_absolute_href"], str(Path(item.get_self_href()).parent)
+                            asset.extra_fields["_original_absolute_href"], str(Path(new_item.get_self_href()).parent)
                         )
 
                 merged_collection = new_collection

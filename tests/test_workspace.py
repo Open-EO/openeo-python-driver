@@ -159,8 +159,7 @@ def _collection(
     item.add_asset(key=asset_filename, asset=asset)
     collection.add_item(item)
 
-    collection.normalize_hrefs(root_href=str(root_path))
-    collection.save(CatalogType.SELF_CONTAINED)
+    collection.normalize_and_save(root_href=str(root_path), catalog_type=CatalogType.SELF_CONTAINED)
 
     with open(asset_path, "w") as f:
         f.write(f"{asset_filename}\n")
