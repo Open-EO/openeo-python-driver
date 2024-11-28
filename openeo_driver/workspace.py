@@ -109,10 +109,6 @@ class DiskWorkspace(Workspace):
                 new_collection = new_collection.map_assets(replace_asset_href)
 
                 for new_item in new_collection.get_items():
-                    if existing_collection.get_item(new_item.id):
-                        # TODO: how to treat duplicate items?
-                        raise ValueError(f"item {new_item.id} is already in collection {existing_collection.id}")
-
                     new_item.clear_links()  # sever ties with previous collection
                     merged_collection.add_item(new_item)
 
