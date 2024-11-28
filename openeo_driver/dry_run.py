@@ -802,7 +802,6 @@ class DryRunDataCube(DriverDataCube):
     aggregate_temporal_period = _nop
     rename_labels = _nop
     rename_dimension = _nop
-    ndvi = _nop
     water_vapor = _nop
     linear_scale_range = _nop
     dimension_labels = _nop

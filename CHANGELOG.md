@@ -21,6 +21,8 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+- NDVI process: correctly handle band dimension as part of dry run 
+
 ## 0.118.0
 
 - Add `openeo_driver.config.load.exec_py_file` (related to [Open-EO/openeo-geopyspark-driver#936)](https://github.com/Open-EO/openeo-geopyspark-driver/issues/936))

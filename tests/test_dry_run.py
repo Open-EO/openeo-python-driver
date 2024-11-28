@@ -2084,3 +2084,22 @@ def test_vector_to_raster(dry_run_env):
     }
     save_result = evaluate(pg, env=dry_run_env)
     assert isinstance(save_result, DryRunDataCube)
+
+
+def test_ndvi_reduce(dry_run_env):
+
+    pg = {
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+
+        "ndvi": {
+            "process_id": "ndvi",
+            "arguments": {
+                "data": {"from_node": "lc"}
+            },
+            "result": True,
+        }
+    }
+    save_result = evaluate(pg, env=dry_run_env)
+    assert isinstance(save_result, DryRunDataCube)
+
+    assert not save_result.metadata.has_band_dimension()
