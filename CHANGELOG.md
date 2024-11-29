@@ -21,6 +21,7 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+- mask: also apply at load time when resample_spatial is used
 - NDVI process: correctly handle band dimension as part of dry run
 
 ## 0.119.0
