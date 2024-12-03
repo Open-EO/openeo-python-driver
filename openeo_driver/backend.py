@@ -13,13 +13,14 @@ import abc
 import json
 import logging
 import dataclasses
-
+import inspect
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Union, NamedTuple, Dict, Optional, Callable, Iterable
 
 import flask
+import werkzeug.datastructures
 
 import openeo_driver.util.view_helpers
 from openeo.capabilities import ComparableVersion
@@ -382,6 +383,31 @@ class BatchJobResultMetadata:
     # TODO: more fields
 
 
+class JobListing:
+    """
+    Basic container/interface for user job listings,
+    (e.g. including pagination)
+    """
+
+    # TODO: just implement as frozen dataclass, or does that conflict with later need to subclass?
+    __slots__ = ["_jobs", "_next_parameters"]
+
+    def __init__(self, jobs: List[BatchJobMetadata], next_parameters: Optional[dict] = None):
+        self._jobs = jobs
+        self._next_parameters = next_parameters
+
+    def to_response_dict(self, url_for: Callable[[dict], str], api_version: ComparableVersion) -> dict:
+        """Produce `GET /jobs` response data, to be JSONified."""
+        links = []
+        if self._next_parameters:
+            links.append({"rel": "next", "href": url_for(self._next_parameters)})
+
+        return {
+            "jobs": [m.to_api_dict(full=False, api_version=api_version) for m in self._jobs],
+            "links": links,
+        }
+
+
 class BatchJobs(MicroService):
     """
     Base contract/implementation for Batch Jobs "microservice"
@@ -415,10 +441,21 @@ class BatchJobs(MicroService):
         """
         raise NotImplementedError
 
-    def get_user_jobs(self, user_id: str) -> Union[List[BatchJobMetadata], dict]:
+    def get_user_jobs(
+        self,
+        user_id: str,
+        limit: Optional[int] = None,
+        request_parameters: Optional[werkzeug.datastructures.MultiDict] = None,
+        # TODO #332 settle on returning just `JobListing` and eliminate other options/code paths.
+    ) -> Union[List[BatchJobMetadata], dict, JobListing]:
         """
         Get details about all batch jobs of a user
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-jobs
+
+        :param limit: limit parameter in request (as defined by openEO API spec)
+        :param request_parameters: all request parameters.
+            Note that backend implementation has freedom here
+            how to leverage these to implement pagination
         """
         raise NotImplementedError
 
@@ -810,3 +847,9 @@ class OpenEoBackendImplementation:
         :param job_options: job options (if any provided in the sync processing request)
         """
         return None
+
+
+def function_has_argument(function: Callable, argument: str) -> bool:
+    """Does function support given argument?"""
+    signature = inspect.signature(function)
+    return argument in signature.parameters

@@ -27,8 +27,17 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from openeo.capabilities import ComparableVersion
 from openeo.util import dict_no_none, deep_get, Rfc3339, TimingLogger
 from openeo_driver.urlsigning import UrlSigner
-from openeo_driver.backend import ServiceMetadata, BatchJobMetadata, UserDefinedProcessMetadata, \
-    ErrorSummary, OpenEoBackendImplementation, BatchJobs, is_not_implemented
+from openeo_driver.backend import (
+    ServiceMetadata,
+    BatchJobMetadata,
+    UserDefinedProcessMetadata,
+    ErrorSummary,
+    OpenEoBackendImplementation,
+    BatchJobs,
+    is_not_implemented,
+    function_has_argument,
+    JobListing,
+)
 from openeo_driver.config import get_backend_config, OpenEoBackendConfig
 from openeo_driver.constants import STAC_EXTENSION
 from openeo_driver.datacube import DriverMlModel
@@ -880,9 +889,23 @@ def register_views_batch_jobs(
     @blueprint.route('/jobs', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def list_jobs(user: User):
-        # TODO: support for `limit` param and paging links?
+        # TODO: openEO API currently prescribes no pagination by default (unset limit)
+        #     This is however not very scalable, so we might want to set a default limit here.
+        #     Also see https://github.com/Open-EO/openeo-api/issues/550
+        limit = flask.request.args.get("limit", type=int)
+        request_parameters = flask.request.args
 
-        listing = backend_implementation.batch_jobs.get_user_jobs(user.user_id)
+        # TODO #332 settle on receiving just `JobListing` here and eliminate other options/code paths.
+        get_user_jobs = backend_implementation.batch_jobs.get_user_jobs
+        if function_has_argument(get_user_jobs, argument="request_parameters"):
+            # TODO #332 make this the one and only code path when all `get_user_jobs` implementations are migrated
+            listing = get_user_jobs(user_id=user.user_id, limit=limit, request_parameters=request_parameters)
+        else:
+            # TODO #332 remove support for this old API
+            listing = get_user_jobs(user_id=user.user_id)
+
+        # TODO #332 while eliminating old `get_user_jobs` API above, also just settle on JobListing based return,
+        #       and drop all this legacy cruft
         if isinstance(listing, list):
             jobs = listing
             links = []
@@ -893,6 +916,12 @@ def register_views_batch_jobs(
             # TODO: this "extra" whitelist is from experimental
             #       "federation extension API" https://github.com/Open-EO/openeo-api/pull/419
             extra = {k: listing[k] for k in ["federation:missing"] if k in listing}
+        elif isinstance(listing, JobListing):
+            data = listing.to_response_dict(
+                url_for=lambda params: flask.url_for(".list_jobs", **params, _external=True),
+                api_version=requested_api_version(),
+            )
+            return flask.jsonify(data)
         else:
             raise InternalException(f"Invalid user jobs listing {type(listing)}")
 
