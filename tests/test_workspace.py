@@ -135,6 +135,49 @@ def test_merge_from_disk_into_existing(tmp_path):
             assert Path(item.get_self_href()).parent == Path(asset.get_absolute_href()).parent
 
 
+@pytest.mark.skip("FIXME: DiskWorkspace's current HrefLayoutStrategy considered harmful")
+def test_adjacent_collections_do_not_have_interfering_items_and_assets(tmp_path):
+    workspace = DiskWorkspace(root_directory=tmp_path)
+
+    collection1 = _collection(
+        root_path=tmp_path / "src" / "collection1",
+        collection_id="collection1",
+        asset_filename="asset1.tif",
+    )
+
+    collection2 = _collection(
+        root_path=tmp_path / "src" / "collection2",
+        collection_id="collection2",
+        asset_filename="asset1.tif",  # 2 distinct collections can have the same item IDs and assets
+    )
+
+    def asset_contents(collection_filename: str):
+        assets = [
+            asset
+            for item in Collection.from_file(str(workspace.root_directory / collection_filename)).get_items()
+            for asset in item.get_assets().values()
+        ]
+
+        assert len(assets) == 1
+
+        with open(assets[0].get_absolute_href()) as f:
+            return f.read()
+
+    workspace.merge(collection1, target=Path("collection1.json"))
+    assert asset_contents(collection_filename="collection1.json") == "collection1-asset1.tif-asset1.tif\n"
+
+    # put collection2 next to collection1
+    workspace.merge(collection2, target=Path("collection2.json"))
+    assert asset_contents(collection_filename="collection2.json") == "collection2-asset1.tif-asset1.tif\n"
+
+    # separate collection files
+    assert (workspace.root_directory / "collection1.json").exists()
+    assert (workspace.root_directory / "collection2.json").exists()
+
+    # collection2 should not overwrite collection1's items/assets
+    assert asset_contents(collection_filename="collection1.json") == "collection1-asset1.tif-asset1.tif\n"
+
+
 def _collection(
     root_path: Path,
     collection_id: str,
@@ -159,7 +202,7 @@ def _collection(
     collection.normalize_and_save(root_href=str(root_path), catalog_type=CatalogType.SELF_CONTAINED)
 
     with open(asset_path, "w") as f:
-        f.write(f"{asset_filename}\n")
+        f.write(f"{collection_id}-{item.id}-{asset_filename}\n")
 
     assert collection.validate_all() == 1
     assert _downloadable_assets(collection) == 1
