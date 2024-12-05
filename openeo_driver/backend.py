@@ -13,7 +13,7 @@ import abc
 import json
 import logging
 import dataclasses
-
+import inspect
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -31,7 +31,7 @@ from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCu
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.dry_run import SourceConstraint
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException, FeatureUnsupportedException
-from openeo_driver.jobregistry import JOB_STATUS
+from openeo_driver.constants import JOB_STATUS
 from openeo_driver.processes import ProcessRegistry
 from openeo_driver.users import User
 from openeo_driver.users.oidc import OidcProvider
@@ -382,6 +382,44 @@ class BatchJobResultMetadata:
     # TODO: more fields
 
 
+class JobListing:
+    """
+    Basic container/interface for user job listings,
+    (e.g. including pagination)
+    """
+
+    # TODO #332 just implement as frozen dataclass, or does that conflict with later need to subclass?
+    __slots__ = ["_jobs", "_next_parameters"]
+
+    def __init__(self, jobs: List[BatchJobMetadata], next_parameters: Optional[dict] = None):
+        """
+
+        :param jobs: list of job metadata constructs
+        :param next_parameters: dictionary of URL parameters to add to `GET /jobs` URL to link to next page
+        """
+        self._jobs = jobs
+        self._next_parameters = next_parameters
+
+    def to_response_dict(self, build_url: Callable[[dict], str], api_version: ComparableVersion = None) -> dict:
+        """
+        Produce `GET /jobs` response data, to be JSONified.
+
+        :param build_url: function to generate a paginated" URL from given pagination related parameters,
+            e.g. `lambda params: flask.url_for(".list_jobs", **params, _external=True)`
+        """
+        links = []
+        if self._next_parameters:
+            links.append({"rel": "next", "href": build_url(self._next_parameters)})
+
+        return {
+            "jobs": [m.to_api_dict(full=False, api_version=api_version) for m in self._jobs],
+            "links": links,
+        }
+
+    def __len__(self) -> int:
+        return len(self._jobs)
+
+
 class BatchJobs(MicroService):
     """
     Base contract/implementation for Batch Jobs "microservice"
@@ -415,10 +453,21 @@ class BatchJobs(MicroService):
         """
         raise NotImplementedError
 
-    def get_user_jobs(self, user_id: str) -> Union[List[BatchJobMetadata], dict]:
+    def get_user_jobs(
+        self,
+        user_id: str,
+        limit: Optional[int] = None,
+        request_parameters: Optional[dict] = None,
+        # TODO #332 settle on returning just `JobListing` and eliminate other options/code paths.
+    ) -> Union[List[BatchJobMetadata], dict, JobListing]:
         """
         Get details about all batch jobs of a user
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-jobs
+
+        :param limit: limit parameter in request (as defined by openEO API spec)
+        :param request_parameters: all request parameters.
+            Note that backend implementation has freedom here
+            how to leverage these to implement pagination
         """
         raise NotImplementedError
 
@@ -810,3 +859,9 @@ class OpenEoBackendImplementation:
         :param job_options: job options (if any provided in the sync processing request)
         """
         return None
+
+
+def function_has_argument(function: Callable, argument: str) -> bool:
+    """Does function support given argument?"""
+    signature = inspect.signature(function)
+    return argument in signature.parameters

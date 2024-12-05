@@ -1,4 +1,5 @@
 import logging
+import urllib.parse
 from typing import Callable, List, Optional, Sequence, Union
 from unittest import mock
 
@@ -9,16 +10,17 @@ import requests_mock
 import time_machine
 from openeo.rest.auth.testing import OidcMock
 
+from openeo_driver.backend import JobListing
+from openeo_driver.constants import JOB_STATUS
 from openeo_driver.errors import InternalException, JobNotFoundException
 from openeo_driver.jobregistry import (
     DEPENDENCY_STATUS,
-    JOB_STATUS,
     PARTIAL_JOB_STATUS,
-    EjrError,
+    EjrApiError,
     EjrApiResponseError,
+    EjrError,
     ElasticJobRegistry,
     get_ejr_credentials_from_env,
-    EjrApiError,
 )
 from openeo_driver.testing import (
     DictSubSet,
@@ -524,10 +526,115 @@ class TestElasticJobRegistry:
             # TODO: what to return? What does API return?  https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
             return [DUMMY_PROCESS]
 
-        requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=post_jobs_search)
 
-        result = ejr.list_user_jobs(user_id="john")
-        assert result == [DUMMY_PROCESS]
+    def _build_url(self, params: dict):
+        return "https://oeo.test/jobs?" + urllib.parse.urlencode(query=params)
+
+    @pytest.mark.parametrize(
+        [
+            "limit",
+            "request_parameters",
+            "expected_query_string",
+            "legacy_pagination",
+            "expected_next_url",
+            "expected_jobs",
+        ],
+        [
+            (
+                3,
+                None,
+                {"size": ["3"]},
+                True,
+                "https://oeo.test/jobs?limit=3&page=1",
+                ["j-1", "j-2", "j-3"],
+            ),
+            (
+                3,
+                None,
+                {"size": ["3"]},
+                False,
+                "https://oeo.test/jobs?limit=3&page=1",
+                ["j-1", "j-2", "j-3"],
+            ),
+            (
+                3,
+                {ElasticJobRegistry.PAGINATION_URL_PARAM: "1"},
+                {"size": ["3"], "page": ["1"]},
+                True,
+                "https://oeo.test/jobs?limit=3&page=2",
+                ["j-4", "j-5", "j-6"],
+            ),
+            (
+                3,
+                {ElasticJobRegistry.PAGINATION_URL_PARAM: "1"},
+                {"size": ["3"], "page": ["1"]},
+                False,
+                "https://oeo.test/jobs?limit=3&page=2",
+                ["j-4", "j-5", "j-6"],
+            ),
+            (
+                5,
+                {ElasticJobRegistry.PAGINATION_URL_PARAM: "111"},
+                {"size": ["5"], "page": ["111"]},
+                False,
+                "https://oeo.test/jobs?limit=5&page=112",
+                ["j-556", "j-557", "j-558", "j-559", "j-560"],
+            ),
+        ],
+    )
+    def test_list_user_jobs_paginated(
+        self,
+        requests_mock,
+        oidc_mock,
+        ejr,
+        limit,
+        request_parameters,
+        expected_query_string,
+        legacy_pagination,
+        expected_next_url,
+        expected_jobs,
+    ):
+        def post_jobs_search_paginated(request, context):
+            """Handler of `POST /jobs/search/paginated"""
+            assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
+            assert request.qs == expected_query_string
+            this_page = int(request.qs.get("page", ["0"])[0])
+            next_page = this_page + 1
+            assert request.json() == {
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {"term": {"backend_id": "unittests"}},
+                            {"term": {"user_id": "john"}},
+                        ]
+                    }
+                },
+                "_source": ListSubSet(["job_id", "user_id", "status"]),
+            }
+            if legacy_pagination:
+                pagination = {"next": f"size={limit}&page={next_page}"}
+            else:
+                pagination = {"next": {"size": limit, "page": next_page}}
+            return {
+                "jobs": [
+                    {"job_id": f"j-{j}", "status": "created", "created": f"2024-12-06T12:00:00Z"}
+                    for j in range(1 + this_page * limit, 1 + next_page * limit)
+                ],
+                "pagination": pagination,
+            }
+
+        requests_mock.post(f"{self.EJR_API_URL}/jobs/search/paginated", json=post_jobs_search_paginated)
+
+        listing = ejr.list_user_jobs(user_id="john", limit=limit, request_parameters=request_parameters)
+        assert isinstance(listing, JobListing)
+        assert listing.to_response_dict(build_url=self._build_url) == {
+            "jobs": [
+                {"id": j, "status": "created", "created": "2024-12-06T12:00:00Z", "progress": 0} for j in expected_jobs
+            ],
+            "links": [
+                {"href": expected_next_url, "rel": "next"},
+            ],
+        }
 
     @pytest.mark.parametrize(
         ["kwargs", "expected_query"],
@@ -895,7 +1002,7 @@ class TestElasticJobRegistry:
             # Create
             "openeo_driver.jobregistry.elastic:j-123:EJR creating job_id='j-123' created='2020-01-02T03:04:05Z'",
             "openeo_driver.jobregistry.elastic:j-123:EJR Request `POST /jobs`: start 2020-01-02 03:04:05",
-            "openeo_driver.jobregistry.elastic:j-123:Doing EJR request `POST https://ejr.test/jobs` headers.keys()=dict_keys(['Authorization'])",
+            "openeo_driver.jobregistry.elastic:j-123:Doing EJR request `POST https://ejr.test/jobs` params=None headers.keys()=dict_keys(['Authorization'])",
             "openeo_driver.jobregistry.elastic:j-123:EJR response on `POST /jobs`: 201",
             "openeo_driver.jobregistry.elastic:j-123:EJR Request `POST /jobs`: end 2020-01-02 03:04:05, elapsed 0:00:00",
             # set_application_id

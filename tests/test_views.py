@@ -1,4 +1,3 @@
-import dirty_equals
 import json
 import logging
 import re
@@ -10,42 +9,60 @@ from typing import Optional
 from unittest import mock
 
 import boto3
+import dirty_equals
 import flask
+import geopandas as gpd
+import moto
 import pystac.validation.stac_validator
 import pytest
 import re_assert
 import werkzeug.exceptions
-import moto
-import geopandas as gpd
-
 from openeo.capabilities import ComparableVersion
-from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
+
 from openeo_driver.backend import (
     BatchJobMetadata,
-    UserDefinedProcessMetadata,
+    BatchJobResultMetadata,
     BatchJobs,
     OpenEoBackendImplementation,
     Processing,
+    UserDefinedProcessMetadata,
     not_implemented,
-    BatchJobResultMetadata,
 )
 from openeo_driver.config import OpenEoBackendConfig
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.dummy import dummy_backend, dummy_config
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
 from openeo_driver.errors import OpenEOApiException
+from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
 from openeo_driver.save_result import VectorCubeResult
-from openeo_driver.testing import ApiTester, TEST_USER, ApiResponse, TEST_USER_AUTH_HEADER, \
-    generate_unique_test_process_id, build_basic_http_auth_header, ListSubSet, DictSubSet, RegexMatcher
+from openeo_driver.testing import (
+    TEST_USER,
+    TEST_USER_AUTH_HEADER,
+    ApiResponse,
+    ApiTester,
+    DictSubSet,
+    ListSubSet,
+    RegexMatcher,
+    build_basic_http_auth_header,
+    generate_unique_test_process_id,
+)
 from openeo_driver.urlsigning import UrlSigner
 from openeo_driver.users import User
-from openeo_driver.users.auth import HttpAuthHandler, AccessTokenException
+from openeo_driver.users.auth import AccessTokenException, HttpAuthHandler
 from openeo_driver.users.oidc import OidcProvider
-from openeo_driver.util.logging import LOGGING_CONTEXT_FLASK, FlaskRequestCorrelationIdLogging
-from openeo_driver.views import EndpointRegistry, _normalize_collection_metadata, build_app, STREAM_CHUNK_SIZE_DEFAULT
+from openeo_driver.util.logging import (
+    LOGGING_CONTEXT_FLASK,
+    FlaskRequestCorrelationIdLogging,
+)
+from openeo_driver.views import (
+    STREAM_CHUNK_SIZE_DEFAULT,
+    EndpointRegistry,
+    _normalize_collection_metadata,
+    build_app,
+)
+
 from .conftest import TEST_APP_CONFIG, enhanced_logging
 from .data import TEST_DATA_ROOT, get_path
-
 
 EXPECTED_PROCESSING_EXPRESSION = {"expression": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}}, "format": "openeo"}
 
@@ -1438,6 +1455,61 @@ class TestBatchJobs:
             "jobs": [{'id': 'id-123', 'status': 'running', 'created': "2017-01-01T09:32:12Z", }, ],
             "links": [{"rel": "info", "href": "https://info.test"}],
             "federation:missing": ["b4"],
+        }
+
+    def test_list_user_jobs_paging(self, api100):
+        # Setup some jobs in registry
+        dummy_backend.DummyBatchJobs._job_registry = {
+            (TEST_USER, f"j-{x}{x}"): BatchJobMetadata(
+                id=f"j-{x}{x}",
+                status="created",
+                created=datetime(2024, 12, x),
+            )
+            for x in [1, 2, 3, 4, 5, 6, 7, 8]
+        }
+
+        # Initial job listing with explicit limit (first page)
+        resp = api100.get("/jobs?limit=3", headers=self.AUTH_HEADER)
+        data = resp.assert_status_code(200).json
+        expected_next_href = dirty_equals.IsStr(
+            regex=re.escape("http://oeo.net/openeo/1.0.0/jobs?limit=3&search_after=") + "[a-zA-Z0-9_/-]+(%3D)*"
+        )
+        assert data == {
+            "jobs": [
+                dirty_equals.IsPartialDict(id="j-88", created="2024-12-08T00:00:00Z"),
+                dirty_equals.IsPartialDict(id="j-77", created="2024-12-07T00:00:00Z"),
+                dirty_equals.IsPartialDict(id="j-66", created="2024-12-06T00:00:00Z"),
+            ],
+            "links": [
+                {"rel": "next", "href": expected_next_href},
+            ],
+        }
+
+        # Follow link to second page (which links to third page)
+        next_url = data["links"][0]["href"]
+        resp = api100.get(path=api100.extract_path(next_url), headers=self.AUTH_HEADER)
+        data = resp.assert_status_code(200).json
+        assert data == {
+            "jobs": [
+                dirty_equals.IsPartialDict(id="j-55", created="2024-12-05T00:00:00Z"),
+                dirty_equals.IsPartialDict(id="j-44", created="2024-12-04T00:00:00Z"),
+                dirty_equals.IsPartialDict(id="j-33", created="2024-12-03T00:00:00Z"),
+            ],
+            "links": [
+                {"rel": "next", "href": expected_next_href},
+            ],
+        }
+
+        # Follow link to third page (which has no next link)
+        next_url = data["links"][0]["href"]
+        resp = api100.get(path=api100.extract_path(next_url), headers=self.AUTH_HEADER)
+        data = resp.assert_status_code(200).json
+        assert data == {
+            "jobs": [
+                dirty_equals.IsPartialDict(id="j-22", created="2024-12-02T00:00:00Z"),
+                dirty_equals.IsPartialDict(id="j-11", created="2024-12-01T00:00:00Z"),
+            ],
+            "links": [],
         }
 
     def test_get_job_results_unfinished(self, api):
