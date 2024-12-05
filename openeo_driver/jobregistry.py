@@ -20,6 +20,7 @@ from openeo.util import TimingLogger, repr_truncate, rfc3339
 
 import openeo_driver._version
 from openeo_driver.config import get_backend_config
+from openeo_driver.constants import JOB_STATUS
 from openeo_driver.errors import InternalException, JobNotFoundException
 from openeo_driver.util.auth import ClientCredentials, ClientCredentialsAccessTokenHelper
 from openeo_driver.util.logging import ExtraLoggingFilter
@@ -27,22 +28,6 @@ from openeo_driver.utils import generate_unique_id
 
 _log = logging.getLogger(__name__)
 
-
-class JOB_STATUS:
-    """
-    Container of batch job status constants.
-
-    Allows to easily find places where batch job status is checked/set/updated.
-    """
-
-    # TODO: move this to a module for API-related constants?
-
-    CREATED = "created"
-    QUEUED = "queued"
-    RUNNING = "running"
-    CANCELED = "canceled"
-    FINISHED = "finished"
-    ERROR = "error"
 
 
 class PARTIAL_JOB_STATUS:

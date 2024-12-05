@@ -7,3 +7,18 @@ class STAC_EXTENSION:
     MLMODEL = "https://stac-extensions.github.io/ml-model/v1.0.0/schema.json"
     CARD4LOPTICAL = "https://stac-extensions.github.io/card4l/v0.1.0/optical/schema.json"
     CARD4LSAR = "https://stac-extensions.github.io/card4l/v0.1.0/sar/schema.json"
+
+
+class JOB_STATUS:
+    """
+    Container of batch job status constants.
+
+    Allows to easily find places where batch job status is checked/set/updated.
+    """
+
+    CREATED = "created"
+    QUEUED = "queued"
+    RUNNING = "running"
+    CANCELED = "canceled"
+    FINISHED = "finished"
+    ERROR = "error"

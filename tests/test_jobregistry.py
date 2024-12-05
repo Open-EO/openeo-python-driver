@@ -10,9 +10,9 @@ import time_machine
 from openeo.rest.auth.testing import OidcMock
 
 from openeo_driver.errors import InternalException, JobNotFoundException
+from openeo_driver.constants import JOB_STATUS
 from openeo_driver.jobregistry import (
     DEPENDENCY_STATUS,
-    JOB_STATUS,
     PARTIAL_JOB_STATUS,
     EjrError,
     EjrApiResponseError,

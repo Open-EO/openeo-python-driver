@@ -54,7 +54,8 @@ from openeo_driver.errors import (
     InternalException,
     ProcessGraphComplexityException,
 )
-from openeo_driver.jobregistry import JOB_STATUS, PARTIAL_JOB_STATUS
+from openeo_driver.constants import JOB_STATUS
+from openeo_driver.jobregistry import PARTIAL_JOB_STATUS
 from openeo_driver.save_result import SaveResult, to_save_result
 from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
 from openeo_driver.users.auth import HttpAuthHandler

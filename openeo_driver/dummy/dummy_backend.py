@@ -56,7 +56,7 @@ from openeo_driver.errors import (
     PermissionsInsufficientException,
     ProcessGraphNotFoundException,
 )
-from openeo_driver.jobregistry import JOB_STATUS
+from openeo_driver.constants import JOB_STATUS
 from openeo_driver.ProcessGraphDeserializer import ConcreteProcessing
 from openeo_driver.save_result import (
     AggregatePolygonResult,
