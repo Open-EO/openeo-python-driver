@@ -27,7 +27,6 @@ from openeo_driver.config import get_backend_config
 from openeo_driver.constants import JOB_STATUS
 from openeo_driver.errors import InternalException, JobNotFoundException
 from openeo_driver.util.auth import ClientCredentials, ClientCredentialsAccessTokenHelper
-from openeo_driver.util.http import UrlSafeStructCodec
 from openeo_driver.util.logging import ExtraLoggingFilter
 from openeo_driver.utils import generate_unique_id
 
@@ -600,7 +599,7 @@ class ElasticJobRegistry(JobRegistryInterface):
     @dataclasses.dataclass(frozen=True)
     class PaginatedSearchResult:
         jobs: List[JobDict]
-        pagination: dict
+        next_page: Union[int, None]
 
     def _search_paginated(
         self,
@@ -617,7 +616,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         params = {}
         if page_size:
             params["size"] = page_size
-        if page_number:
+        if page_number is not None and page_number >= 0:
             params["page"] = page_number
         body = {
             "query": query,
@@ -630,10 +629,28 @@ class ElasticJobRegistry(JobRegistryInterface):
         #       "jobs": [list of job docs],
         #       "pagination': {"previous": "size=5&page=1", "next": "size=5&page=3"}
         #    }
+        next_page_number = self._parse_response_pagination(
+            pagination=response.get("pagination", {}).get("next"),
+            expected_size=page_size,
+        )
+        self.logger.debug(f"Parsed {next_page_number=} from {response.get('pagination')=}")
         return self.PaginatedSearchResult(
             jobs=response.get("jobs", []),
-            pagination=response.get("pagination", {}),
+            next_page=next_page_number,
         )
+
+    @staticmethod
+    def _parse_response_pagination(pagination: dict, expected_size: int) -> Union[int, None]:
+        """Extract page number from pagination construct"""
+        if isinstance(pagination, str):
+            # TODO #332 get rid of this legacy format translation code path
+            params = urllib.parse.parse_qs(pagination)
+            if "size" in params and "page" in params:
+                pagination = {"size": int(params["size"][0]), "page": int(params["page"][0])}
+        if "size" in pagination and "page" in pagination:
+            if int(pagination["size"]) != expected_size:
+                raise ValueError(f"Page size mismatch {expected_size=} vs {pagination=}")
+            return int(pagination["page"])
 
     def list_user_jobs(
         self,
@@ -656,29 +673,15 @@ class ElasticJobRegistry(JobRegistryInterface):
         if limit:
             # Do paginated search
             # TODO: make this the one and only code path
-            url_safe_codec = UrlSafeStructCodec(signature_field="_usc")
-            page_number = None
-            page_params = (request_parameters or {}).get(self.PAGINATION_URL_PARAM)
-            if page_params:
-                # Extract page number
-                page_params = url_safe_codec.decode(page_params)
-                if isinstance(page_params, str):
-                    # TODO: this is old code path where page params where encoded as URL query string
-                    # parse as URL params
-                    page_params = urllib.parse.parse_qs(page_params)
-                    assert limit == int(page_params["size"][0])
-                    page_number = int(page_params["page"][0])
-                elif isinstance(page_params, dict):
-                    # TODO: this dict handling should be (is?) the only code path?
-                    assert limit == page_params["size"]
-                    page_number = page_params["page"]
-                else:
-                    raise ValueError(page_params)
-
+            page_number = (request_parameters or {}).get(self.PAGINATION_URL_PARAM)
+            if page_number:
+                page_number = int(page_number)
+            else:
+                page_number = None
             data = self._search_paginated(query=query, fields=fields, page_size=limit, page_number=page_number)
             return JobListing(
                 jobs=[ejr_job_info_to_metadata(j, full=False) for j in data.jobs],
-                next_parameters={self.PAGINATION_URL_PARAM: url_safe_codec.encode(data.pagination.get("next"))},
+                next_parameters={"limit": limit, self.PAGINATION_URL_PARAM: data.next_page},
             )
         else:
             # Deprecated non-paginated search
@@ -781,11 +784,7 @@ class CliApp:
         cli_list_user.add_argument("--backend-id", help="Backend id to filter on.")
         cli_list_user.add_argument("user_id", help="User id to filter on.")
         cli_list_user.add_argument("--limit", type=int, default=None, help="Page size of job listing")
-        cli_list_user.add_argument(
-            "--pagination",
-            default=None,
-            help=f"Pagination URL fragment from 'next' link. E.g. '/jobs?{ElasticJobRegistry.PAGINATION_URL_PARAM}=InNpemU9N...'",
-        )
+        cli_list_user.add_argument("--page", default=0)
         cli_list_user.set_defaults(func=self.list_user_jobs)
 
         cli_create = subparsers.add_parser("create", help="Create a new job.")
@@ -881,8 +880,8 @@ class CliApp:
         user_id = args.user_id
         ejr = self._get_job_registry(cli_args=args)
         request_parameters = {}
-        if args.pagination:
-            request_parameters[ElasticJobRegistry.PAGINATION_URL_PARAM] = args.pagination.split("?")[-1]
+        if args.page:
+            request_parameters[ElasticJobRegistry.PAGINATION_URL_PARAM] = str(args.page)
         jobs = ejr.list_user_jobs(
             user_id=user_id,
             # TODO: option to return more fields?
