@@ -358,7 +358,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             url = url_join(self._api_url, path)
             self.logger.debug(f"Doing EJR request `{method} {url}` {params=} {headers.keys()=}")
             if self._debug_show_curl:
-                # TODO: add params to curl command
+                # TODO #332 add params to curl command
                 curl_command = self._as_curl(method=method, url=url, data=json, headers=headers)
                 self.logger.debug(f"Equivalent curl command: {curl_command}")
             try:
@@ -611,7 +611,7 @@ class ElasticJobRegistry(JobRegistryInterface):
     ) -> PaginatedSearchResult:
         fields = set(fields or [])
         # Make sure to include some basic fields by default
-        # TODO: avoid duplication of this default field set
+        # TODO #332 avoid duplication of this default field set
         fields.update(["job_id", "user_id", "created", "status", "updated"])
         params = {}
         if page_size:
@@ -672,7 +672,7 @@ class ElasticJobRegistry(JobRegistryInterface):
 
         if limit:
             # Do paginated search
-            # TODO: make this the one and only code path
+            # TODO #332 make this the one and only code path
             page_number = (request_parameters or {}).get(self.PAGINATION_URL_PARAM)
             if page_number:
                 page_number = int(page_number)
@@ -685,7 +685,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             )
         else:
             # Deprecated non-paginated search
-            # TODO: eliminate this code path
+            # TODO #332 eliminate this code path
             return self._search(query=query, fields=fields)
 
     def list_active_jobs(
