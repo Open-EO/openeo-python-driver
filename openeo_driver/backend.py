@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import List, Union, NamedTuple, Dict, Optional, Callable, Iterable
 
 import flask
-import werkzeug.datastructures
 
 import openeo_driver.util.view_helpers
 from openeo.capabilities import ComparableVersion
@@ -393,19 +392,32 @@ class JobListing:
     __slots__ = ["_jobs", "_next_parameters"]
 
     def __init__(self, jobs: List[BatchJobMetadata], next_parameters: Optional[dict] = None):
+        """
+
+        :param jobs: list of job metadata constructs
+        :param next_parameters: dictionary of URL parameters to add to `GET /jobs` URL to link to next page
+        """
         self._jobs = jobs
         self._next_parameters = next_parameters
 
-    def to_response_dict(self, url_for: Callable[[dict], str], api_version: ComparableVersion) -> dict:
-        """Produce `GET /jobs` response data, to be JSONified."""
+    def to_response_dict(self, build_url: Callable[[dict], str], api_version: ComparableVersion = None) -> dict:
+        """
+        Produce `GET /jobs` response data, to be JSONified.
+
+        :param build_url: function to generate a paginated" URL from given pagination related parameters,
+            e.g. `lambda params: flask.url_for(".list_jobs", **params, _external=True)`
+        """
         links = []
         if self._next_parameters:
-            links.append({"rel": "next", "href": url_for(self._next_parameters)})
+            links.append({"rel": "next", "href": build_url(self._next_parameters)})
 
         return {
             "jobs": [m.to_api_dict(full=False, api_version=api_version) for m in self._jobs],
             "links": links,
         }
+
+    def __len__(self) -> int:
+        return len(self._jobs)
 
 
 class BatchJobs(MicroService):
@@ -445,7 +457,7 @@ class BatchJobs(MicroService):
         self,
         user_id: str,
         limit: Optional[int] = None,
-        request_parameters: Optional[werkzeug.datastructures.MultiDict] = None,
+        request_parameters: Optional[dict] = None,
         # TODO #332 settle on returning just `JobListing` and eliminate other options/code paths.
     ) -> Union[List[BatchJobMetadata], dict, JobListing]:
         """

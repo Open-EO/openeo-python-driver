@@ -919,7 +919,7 @@ def register_views_batch_jobs(
             extra = {k: listing[k] for k in ["federation:missing"] if k in listing}
         elif isinstance(listing, JobListing):
             data = listing.to_response_dict(
-                url_for=lambda params: flask.url_for(".list_jobs", **params, _external=True),
+                build_url=lambda params: flask.url_for(".list_jobs", **params, _external=True),
                 api_version=requested_api_version(),
             )
             return flask.jsonify(data)

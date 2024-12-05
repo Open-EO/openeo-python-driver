@@ -11,7 +11,6 @@ from unittest.mock import Mock
 import flask
 import numpy
 import openeo.udf
-import werkzeug.datastructures
 import xarray
 from openeo.api.logs import normalize_log_level
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
@@ -44,7 +43,7 @@ from openeo_driver.backend import (
     UserDefinedProcessMetadata,
 )
 from openeo_driver.config import OpenEoBackendConfig
-from openeo_driver.constants import STAC_EXTENSION
+from openeo_driver.constants import JOB_STATUS, STAC_EXTENSION
 from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCube
 from openeo_driver.datastructs import StacAsset
 from openeo_driver.delayed_vector import DelayedVector
@@ -56,7 +55,6 @@ from openeo_driver.errors import (
     PermissionsInsufficientException,
     ProcessGraphNotFoundException,
 )
-from openeo_driver.constants import JOB_STATUS
 from openeo_driver.ProcessGraphDeserializer import ConcreteProcessing
 from openeo_driver.save_result import (
     AggregatePolygonResult,
@@ -688,7 +686,7 @@ class DummyBatchJobs(BatchJobs):
         self,
         user_id: str,
         limit: Optional[int] = None,
-        request_parameters: Optional[werkzeug.datastructures.MultiDict] = None,
+        request_parameters: Optional[dict] = None,
     ) -> JobListing:
         jobs: List[BatchJobMetadata] = [v for (k, v) in self._job_registry.items() if k[0] == user_id]
         next_parameters = None
