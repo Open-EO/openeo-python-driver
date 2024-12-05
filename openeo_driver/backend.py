@@ -388,7 +388,7 @@ class JobListing:
     (e.g. including pagination)
     """
 
-    # TODO: just implement as frozen dataclass, or does that conflict with later need to subclass?
+    # TODO #332 just implement as frozen dataclass, or does that conflict with later need to subclass?
     __slots__ = ["_jobs", "_next_parameters"]
 
     def __init__(self, jobs: List[BatchJobMetadata], next_parameters: Optional[dict] = None):
