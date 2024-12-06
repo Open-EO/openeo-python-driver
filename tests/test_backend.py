@@ -1,11 +1,21 @@
 import datetime
+import urllib.parse
 from unittest import mock
 
 import pytest
-
 from openeo.capabilities import ComparableVersion
-from openeo_driver.backend import CollectionCatalog, LoadParameters, UserDefinedProcessMetadata, ServiceMetadata, \
-    BatchJobMetadata, not_implemented, is_not_implemented, OpenEoBackendImplementation
+
+from openeo_driver.backend import (
+    BatchJobMetadata,
+    CollectionCatalog,
+    JobListing,
+    LoadParameters,
+    OpenEoBackendImplementation,
+    ServiceMetadata,
+    UserDefinedProcessMetadata,
+    is_not_implemented,
+    not_implemented,
+)
 from openeo_driver.errors import CollectionNotFoundException
 from openeo_driver.users import User
 
@@ -233,3 +243,41 @@ def test_not_implemented():
 def test_request_costs_user():
     backend = OpenEoBackendImplementation()
     assert backend.request_costs(user=User(user_id="someuser"), request_id="r-abc123", success=True) is None
+
+
+class TestJobListing:
+    def _build_url(self, params: dict):
+        return "https://oeo.test/jobs?" + urllib.parse.urlencode(query=params)
+
+    def test_basic(self):
+        listing = JobListing(
+            jobs=[
+                BatchJobMetadata(id="j-123", status="created", created=datetime.datetime(2024, 11, 22)),
+                BatchJobMetadata(id="j-456", status="running", created=datetime.datetime(2024, 12, 6)),
+            ]
+        )
+        assert len(listing) == 2
+        assert listing.to_response_dict(build_url=self._build_url) == {
+            "jobs": [
+                {"id": "j-123", "progress": 0, "status": "created", "created": "2024-11-22T00:00:00Z"},
+                {"id": "j-456", "status": "running", "created": "2024-12-06T00:00:00Z"},
+            ],
+            "links": [],
+        }
+
+    def test_next_parameters(self):
+        listing = JobListing(
+            jobs=[
+                BatchJobMetadata(id="j-123", status="created", created=datetime.datetime(2024, 11, 22)),
+                BatchJobMetadata(id="j-456", status="running", created=datetime.datetime(2024, 12, 6)),
+            ],
+            next_parameters={"offset": 1234, "state": "foo"},
+        )
+        assert len(listing) == 2
+        assert listing.to_response_dict(build_url=self._build_url) == {
+            "jobs": [
+                {"id": "j-123", "progress": 0, "status": "created", "created": "2024-11-22T00:00:00Z"},
+                {"id": "j-456", "status": "running", "created": "2024-12-06T00:00:00Z"},
+            ],
+            "links": [{"href": "https://oeo.test/jobs?offset=1234&state=foo", "rel": "next"}],
+        }

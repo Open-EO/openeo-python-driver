@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
+import datetime
 import json
 import logging
 import os
@@ -9,6 +11,7 @@ import shlex
 import textwrap
 import time
 import typing
+import urllib.parse
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Sequence, Union
 
@@ -19,7 +22,9 @@ from openeo.rest.connection import url_join
 from openeo.util import TimingLogger, repr_truncate, rfc3339
 
 import openeo_driver._version
+from openeo_driver.backend import BatchJobMetadata, JobListing
 from openeo_driver.config import get_backend_config
+from openeo_driver.constants import JOB_STATUS
 from openeo_driver.errors import InternalException, JobNotFoundException
 from openeo_driver.util.auth import ClientCredentials, ClientCredentialsAccessTokenHelper
 from openeo_driver.util.logging import ExtraLoggingFilter
@@ -27,22 +32,6 @@ from openeo_driver.utils import generate_unique_id
 
 _log = logging.getLogger(__name__)
 
-
-class JOB_STATUS:
-    """
-    Container of batch job status constants.
-
-    Allows to easily find places where batch job status is checked/set/updated.
-    """
-
-    # TODO: move this to a module for API-related constants?
-
-    CREATED = "created"
-    QUEUED = "queued"
-    RUNNING = "running"
-    CANCELED = "canceled"
-    FINISHED = "finished"
-    ERROR = "error"
 
 
 class PARTIAL_JOB_STATUS:
@@ -154,8 +143,14 @@ class JobRegistryInterface:
         raise NotImplementedError
 
     def list_user_jobs(
-        self, user_id: str, fields: Optional[List[str]] = None
-    ) -> List[JobDict]:
+        self,
+        user_id: str,
+        *,
+        fields: Optional[List[str]] = None,
+        limit: Optional[int] = None,
+        request_parameters: Optional[dict] = None,
+        # TODO #332 settle on returning just `JobListing` and eliminate other options/code paths.
+    ) -> Union[JobListing, List[JobDict]]:
         """
         List all jobs of a user
 
@@ -185,6 +180,50 @@ class JobRegistryInterface:
         """
         # TODO: option for job metadata fields that should be included in result
         raise NotImplementedError
+
+
+def ejr_job_info_to_metadata(job_info: JobDict, full: bool = True) -> BatchJobMetadata:
+    """Convert job info dict (from JobRegistryInterface) to BatchJobMetadata"""
+    # TODO: make this a classmethod in a more appropriate place, e.g. JobRegistryInterface?
+
+    def map_safe(prop: str, f):
+        value = job_info.get(prop)
+        return f(value) if value else None
+
+    def get_results_metadata(result_metadata_prop: str):
+        return job_info.get("results_metadata", {}).get(result_metadata_prop)
+
+    def map_results_metadata_safe(result_metadata_prop: str, f):
+        value = get_results_metadata(result_metadata_prop)
+        return f(value) if value is not None else None
+
+    return BatchJobMetadata(
+        id=job_info["job_id"],
+        status=job_info["status"],
+        created=map_safe("created", rfc3339.parse_datetime),
+        process=job_info.get("process") if full else None,
+        job_options=job_info.get("job_options") if full else None,
+        title=job_info.get("title"),
+        description=job_info.get("description"),
+        updated=map_safe("updated", rfc3339.parse_datetime),
+        started=map_safe("started", rfc3339.parse_datetime),
+        finished=map_safe("finished", rfc3339.parse_datetime),
+        memory_time_megabyte=map_safe(
+            "memory_time_megabyte_seconds", lambda seconds: datetime.timedelta(seconds=seconds)
+        ),
+        cpu_time=map_safe("cpu_time_seconds", lambda seconds: datetime.timedelta(seconds=seconds)),
+        geometry=get_results_metadata("geometry"),
+        bbox=get_results_metadata("bbox"),
+        start_datetime=map_results_metadata_safe("start_datetime", rfc3339.parse_datetime),
+        end_datetime=map_results_metadata_safe("end_datetime", rfc3339.parse_datetime),
+        instruments=get_results_metadata("instruments"),
+        epsg=get_results_metadata("epsg"),
+        links=get_results_metadata("links"),
+        usage=job_info.get("usage"),
+        costs=job_info.get("costs"),
+        proj_shape=get_results_metadata("proj:shape"),
+        proj_bbox=get_results_metadata("proj:bbox"),
+    )
 
 
 class EjrError(Exception):
@@ -254,6 +293,8 @@ class ElasticJobRegistry(JobRegistryInterface):
 
     _REQUEST_TIMEOUT = 20
 
+    PAGINATION_URL_PARAM = "page"
+
     logger = logging.getLogger(f"{__name__}.elastic")
 
     def __init__(
@@ -299,7 +340,9 @@ class ElasticJobRegistry(JobRegistryInterface):
         self,
         method: str,
         path: str,
+        *,
         json: Union[dict, list, None] = None,
+        params: Optional[dict] = None,
         use_auth: bool = True,
         expected_status: int = 200,
         log_response_errors: bool = True,
@@ -313,14 +356,15 @@ class ElasticJobRegistry(JobRegistryInterface):
                 headers["Authorization"] = f"Bearer {access_token}"
 
             url = url_join(self._api_url, path)
-            self.logger.debug(f"Doing EJR request `{method} {url}` {headers.keys()=}")
+            self.logger.debug(f"Doing EJR request `{method} {url}` {params=} {headers.keys()=}")
             if self._debug_show_curl:
-                curl_command = self._as_curl(method=method, url=url, data=json, headers=headers)
+                curl_command = self._as_curl(method=method, url=url, params=params, data=json, headers=headers)
                 self.logger.debug(f"Equivalent curl command: {curl_command}")
             try:
                 do_request = lambda: self._session.request(
                     method=method,
                     url=url,
+                    params=params,
                     json=json,
                     headers=headers,
                     timeout=self._REQUEST_TIMEOUT,
@@ -349,12 +393,14 @@ class ElasticJobRegistry(JobRegistryInterface):
             if response.content:
                 return response.json()
 
-    def _as_curl(self, method: str, url: str, data: dict, headers: dict):
+    def _as_curl(self, method: str, url: str, *, params: Optional[dict] = None, data: dict, headers: dict):
         cmd = ["curl", "-i", "-X", method.upper()]
         cmd += ["-H", "Content-Type: application/json"]
         for k, v in headers.items():
             cmd += ["-H", f"{k}: {v}"]
         cmd += ["--data", json.dumps(data, separators=(",", ":"))]
+        if params:
+            url += "?" + urllib.parse.urlencode(params)
         cmd += [url]
         return " ".join(shlex.quote(c) for c in cmd)
 
@@ -544,16 +590,79 @@ class ElasticJobRegistry(JobRegistryInterface):
         fields = set(fields or [])
         # Make sure to include some basic fields by default
         fields.update(["job_id", "user_id", "created", "status", "updated"])
-        query = {
+        body = {
             "query": query,
             "_source": list(fields),
         }
-        self.logger.debug(f"Doing search with query {json.dumps(query)}")
-        return self._do_request("POST", "/jobs/search", query, retry=True)
+        self.logger.debug(f"Doing search with query {json.dumps(body)}")
+        return self._do_request("POST", "/jobs/search", json=body, retry=True)
+
+    @dataclasses.dataclass(frozen=True)
+    class PaginatedSearchResult:
+        jobs: List[JobDict]
+        next_page: Union[int, None]
+
+    def _search_paginated(
+        self,
+        query: dict,
+        *,
+        fields: Optional[List[str]] = None,
+        page_size: Optional[int] = None,
+        page_number: Optional[int] = None,
+    ) -> PaginatedSearchResult:
+        fields = set(fields or [])
+        # Make sure to include some basic fields by default
+        # TODO #332 avoid duplication of this default field set
+        fields.update(["job_id", "user_id", "created", "status", "updated"])
+        params = {}
+        if page_size:
+            params["size"] = page_size
+        if page_number is not None and page_number >= 0:
+            params["page"] = page_number
+        body = {
+            "query": query,
+            "_source": list(fields),
+        }
+        self.logger.debug(f"Doing search with query {json.dumps(body)} and {params=}")
+        response = self._do_request("POST", "/jobs/search/paginated", params=params, json=body, retry=True)
+        # Response structure:
+        #   {
+        #       "jobs": [list of job docs],
+        #       "pagination": {"previous": {"size": 5, "page": 6}, "next": {"size": 5, "page": 8}}}
+        #    }
+        next_page_number = self._parse_response_pagination(
+            pagination=response.get("pagination"),
+            expected_size=page_size,
+        )
+        return self.PaginatedSearchResult(
+            jobs=response.get("jobs", []),
+            next_page=next_page_number,
+        )
+
+    def _parse_response_pagination(self, pagination: Union[dict, None], expected_size: int) -> Union[int, None]:
+        """Extract page number from pagination construct"""
+        next_page_params = (pagination or {}).get("next")
+        if (
+            isinstance(next_page_params, dict)
+            and "size" in next_page_params
+            and next_page_params["size"] == expected_size
+            and "page" in next_page_params
+        ):
+            next_page_number = next_page_params["page"]
+        else:
+            next_page_number = None
+        self.logger.debug(f"_search_paginated: parsed {next_page_number=} from {pagination=}")
+        return next_page_number
 
     def list_user_jobs(
-        self, user_id: Optional[str], fields: Optional[List[str]] = None
-    ) -> List[JobDict]:
+        self,
+        user_id: Optional[str],
+        *,
+        fields: Optional[List[str]] = None,
+        limit: Optional[int] = None,
+        request_parameters: Optional[dict] = None,
+        # TODO #332 settle on returning just `JobListing` and eliminate other options/code paths.
+    ) -> Union[JobListing, List[JobDict]]:
         query = {
             "bool": {
                 "filter": [
@@ -562,7 +671,26 @@ class ElasticJobRegistry(JobRegistryInterface):
                 ]
             }
         }
-        return self._search(query=query, fields=fields)
+
+        if limit:
+            # Do paginated search
+            # TODO #332 make this the one and only code path
+            page_number = (request_parameters or {}).get(self.PAGINATION_URL_PARAM)
+            if page_number is not None:
+                page_number = int(page_number)
+
+            data = self._search_paginated(query=query, fields=fields, page_size=limit, page_number=page_number)
+
+            jobs = [ejr_job_info_to_metadata(j, full=False) for j in data.jobs]
+            if data.next_page:
+                next_parameters = {"limit": limit, self.PAGINATION_URL_PARAM: data.next_page}
+            else:
+                next_parameters = None
+            return JobListing(jobs=jobs, next_parameters=next_parameters)
+        else:
+            # Deprecated non-paginated search
+            # TODO #332 eliminate this code path
+            return self._search(query=query, fields=fields)
 
     def list_active_jobs(
         self,
@@ -619,11 +747,17 @@ class CliApp:
         # Get job metadata
         python openeo_driver/jobregistry.py get j-231208662fa3450da54e1987394f7ed0
 
-        # Real usage, e.g. with backend id 'mep-dev', specidied through `--backend-id` option
+        # Real usage, e.g. with backend id 'mep-dev', specified through `--backend-id` option
         # List jobs from a user
         python openeo_driver/jobregistry.py list-user --backend-id mep-dev abc123@egi.eu
         # Get all metadata from a job
         python openeo_driver/jobregistry.py get --backend-id mep-dev j-231206cbc43a4ae6a3fe58173c0f45f6
+
+        # Debug tools:
+        # deeper log level, e.g. DEBUG level:
+        python openeo_driver/jobregistry.py -vv ...
+        # Show equivalent curl commands to query EJR API:
+        python openeo_driver/jobregistry.py --show-curl ...
     """
 
     _DEFAULT_BACKEND_ID = "test_cli"
@@ -633,9 +767,9 @@ class CliApp:
 
     def main(self):
         cli_args = self._parse_cli()
-        log_level = {0: logging.WARNING, 1: logging.INFO}.get(
-            cli_args.verbose, logging.DEBUG
-        )
+        log_level = {0: logging.WARNING, 1: logging.INFO}.get(cli_args.verbose, logging.DEBUG)
+        if cli_args.show_curl:
+            log_level = logging.DEBUG
         logging.basicConfig(level=log_level)
         cli_args.func(cli_args)
 
@@ -659,6 +793,8 @@ class CliApp:
         cli_list_user = subparsers.add_parser("list-user", help="List jobs for given user.")
         cli_list_user.add_argument("--backend-id", help="Backend id to filter on.")
         cli_list_user.add_argument("user_id", help="User id to filter on.")
+        cli_list_user.add_argument("--limit", type=int, default=None, help="Page size of job listing")
+        cli_list_user.add_argument("--page", default=0)
         cli_list_user.set_defaults(func=self.list_user_jobs)
 
         cli_create = subparsers.add_parser("create", help="Create a new job.")
@@ -753,10 +889,23 @@ class CliApp:
     def list_user_jobs(self, args: argparse.Namespace):
         user_id = args.user_id
         ejr = self._get_job_registry(cli_args=args)
-        # TODO: option to return more fields?
-        jobs = ejr.list_user_jobs(user_id=user_id, fields=["started", "finished", "title"])
+        request_parameters = {}
+        if args.page:
+            request_parameters[ElasticJobRegistry.PAGINATION_URL_PARAM] = str(args.page)
+        jobs = ejr.list_user_jobs(
+            user_id=user_id,
+            # TODO: option to return more fields?
+            fields=["started", "finished", "title"],
+            limit=args.limit,
+            request_parameters=request_parameters,
+        )
         print(f"Found {len(jobs)} jobs for user {user_id!r}:")
-        pprint.pp(jobs)
+        if isinstance(jobs, JobListing):
+            pprint.pp(jobs.to_response_dict(build_url=lambda d: "/jobs?" + urllib.parse.urlencode(d)))
+        elif isinstance(jobs, list):
+            pprint.pp(jobs)
+        else:
+            raise ValueError(jobs)
 
     def list_active_jobs(self, args: argparse.Namespace):
         ejr = self._get_job_registry(cli_args=args)

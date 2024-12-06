@@ -22,7 +22,13 @@ and start a new "In Progress" section above it.
 ## In progress
 - `export_workspace`: support STAC merge ([Open-EO/openeo-geopyspark-driver#677](https://github.com/Open-EO/openeo-geopyspark-driver/issues/677))
 
+
+## 0.120.0
+
+- mask: also apply at load time when resample_spatial is used
 - NDVI process: correctly handle band dimension as part of dry run
+- Introduce support for user job pagination ([#332](https://github.com/Open-EO/openeo-python-driver/issues/332))
+
 
 ## 0.119.0
 

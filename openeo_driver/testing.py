@@ -189,6 +189,11 @@ class ApiTester:
         """Build URL based on (possibly versioned) root URL."""
         return re.sub("/+", "/", f"/{self.url_root}/{path}")
 
+    def extract_path(self, url: str) -> str:
+        """Strip host and root_url from url to get openEO-style path"""
+        m = re.fullmatch(r"(https?://[\w.]+)?/" + re.escape(self.url_root.strip("/")) + r"(?P<path>/.*)", url)
+        return m.group("path")
+
     def _request_headers(self, headers: dict = None) -> dict:
         return {**self.default_request_headers, **(headers or {})}
 

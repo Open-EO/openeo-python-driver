@@ -1,57 +1,68 @@
+import importlib.metadata
 import json
 import numbers
+import unittest.mock
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Dict, Union, Tuple, Optional, Iterable, Any, Sequence
-import unittest.mock
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 from unittest.mock import Mock
-import importlib.metadata
 
 import flask
 import numpy
+import openeo.udf
 import xarray
-from shapely.geometry import Polygon, MultiPolygon
+from openeo.api.logs import normalize_log_level
+from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+from openeo.metadata import (
+    Band,
+    BandDimension,
+    CollectionMetadata,
+    SpatialDimension,
+    TemporalDimension,
+)
+from openeo.util import rfc3339
+from shapely.geometry import MultiPolygon, Polygon
 from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 from shapely.geometry.collection import GeometryCollection
 
-from openeo.api.logs import normalize_log_level
-from openeo.internal.process_graph_visitor import ProcessGraphVisitor
-from openeo.metadata import CollectionMetadata, Band, SpatialDimension, TemporalDimension, BandDimension
-import openeo.udf
-from openeo_driver.ProcessGraphDeserializer import ConcreteProcessing
+import openeo_driver.util.changelog
 from openeo_driver.backend import (
-    SecondaryServices,
-    OpenEoBackendImplementation,
-    CollectionCatalog,
-    ServiceMetadata,
-    BatchJobs,
     BatchJobMetadata,
+    BatchJobResultMetadata,
+    BatchJobs,
+    CollectionCatalog,
+    JobListing,
+    LoadParameters,
     OidcProvider,
+    OpenEoBackendImplementation,
+    Processing,
+    SecondaryServices,
+    ServiceMetadata,
     UserDefinedProcesses,
     UserDefinedProcessMetadata,
-    LoadParameters,
-    Processing,
-    BatchJobResultMetadata,
 )
 from openeo_driver.config import OpenEoBackendConfig
-from openeo_driver.constants import STAC_EXTENSION
+from openeo_driver.constants import JOB_STATUS, STAC_EXTENSION
 from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCube
 from openeo_driver.datastructs import StacAsset
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import SourceConstraint
 from openeo_driver.errors import (
-    JobNotFoundException,
-    JobNotFinishedException,
-    ProcessGraphNotFoundException,
-    PermissionsInsufficientException,
     FeatureUnsupportedException,
+    JobNotFinishedException,
+    JobNotFoundException,
+    PermissionsInsufficientException,
+    ProcessGraphNotFoundException,
 )
-from openeo_driver.jobregistry import JOB_STATUS
-from openeo_driver.save_result import AggregatePolygonResult, AggregatePolygonSpatialResult
+from openeo_driver.ProcessGraphDeserializer import ConcreteProcessing
+from openeo_driver.save_result import (
+    AggregatePolygonResult,
+    AggregatePolygonSpatialResult,
+)
 from openeo_driver.users import User
-import openeo_driver.util.changelog
-from openeo_driver.utils import EvalEnv, generate_unique_id, WhiteListEvalEnv
+from openeo_driver.util.http import UrlSafeStructCodec
+from openeo_driver.utils import EvalEnv, WhiteListEvalEnv, generate_unique_id
 
 DEFAULT_DATETIME = datetime(2020, 4, 23, 16, 20, 27)
 
@@ -671,8 +682,39 @@ class DummyBatchJobs(BatchJobs):
         except KeyError:
             raise JobNotFoundException(job_id)
 
-    def get_user_jobs(self, user_id: str) -> List[BatchJobMetadata]:
-        return [v for (k, v) in self._job_registry.items() if k[0] == user_id]
+    def get_user_jobs(
+        self,
+        user_id: str,
+        limit: Optional[int] = None,
+        request_parameters: Optional[dict] = None,
+    ) -> JobListing:
+        jobs: List[BatchJobMetadata] = [v for (k, v) in self._job_registry.items() if k[0] == user_id]
+        next_parameters = None
+        if limit:
+            # Pagination: order by `created` and job id (as tiebreaker)
+            # Note that we order from more recent to older.
+            # As a result, "search_after" (blatantly based on ElasticSearch)
+            # practically means "search older"
+
+            def order_key(m: BatchJobMetadata) -> Tuple[str, str]:
+                return rfc3339.datetime(m.created), m.id
+
+            url_safe_codec = UrlSafeStructCodec(signature_field="_usc")
+
+            threshold = (request_parameters or {}).get("search_after")
+            if threshold:
+                threshold = url_safe_codec.decode(threshold)
+                jobs = [m for m in jobs if order_key(m) < threshold]
+            jobs = sorted(jobs, key=order_key, reverse=True)
+            add_next = len(jobs) > limit
+            jobs = jobs[:limit]
+            if add_next:
+                next_parameters = {
+                    "limit": limit,
+                    "search_after": url_safe_codec.encode(order_key(jobs[-1])),
+                }
+
+        return JobListing(jobs=jobs, next_parameters=next_parameters)
 
     @classmethod
     def _update_status(cls, job_id: str, user_id: str, status: str):

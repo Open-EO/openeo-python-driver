@@ -26,7 +26,7 @@ tests_require = [
     "moto[s3]>=5.0.0",
     "time-machine>=2.8.0",
     "netCDF4>=1.5.4",
-    "re-assert",
+    "re-assert",  # TODO: drop this dependency in favor of dirty-equals
     "pyarrow>=10.0.0",
     "pystac",
     "jsonschema",
