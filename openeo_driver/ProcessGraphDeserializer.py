@@ -505,7 +505,7 @@ def extract_arg(args: ProcessArgs, name: str, process_id="n/a"):
     return _as_process_args(args, process_id=process_id).get_required(name=name)
 
 
-def _align_extent(extent,collection_id,env):
+def _align_extent(extent,collection_id,env,target_resolution=None):
     metadata = None
     try:
         metadata = env.backend_implementation.catalog.get_collection_metadata(collection_id)
@@ -513,34 +513,51 @@ def _align_extent(extent,collection_id,env):
         pass
 
     # TODO #275 eliminate this VITO specific handling?
-    if metadata is None or metadata.get("_vito") is None or not metadata.get("_vito").get("data_source", {}).get("realign", False):
+    if metadata is None or not metadata.get("_vito",{}).get("data_source", {}).get("realign", True):
         return extent
+
+    crs = metadata.get('cube:dimensions', {}).get('x', {}).get('reference_system', None)
+    isUTM = crs == "AUTO:42001" or "Auto42001" in str(crs)
 
     x = metadata.get('cube:dimensions', {}).get('x', {})
     y = metadata.get('cube:dimensions', {}).get('y', {})
-    if ("step" in x
-            and "step" in y
-            and x.get('reference_system', '') == 4326
+    if (target_resolution == None and "step" in x and "step" in y ):
+        target_resolution = [x['step'], y['step']]
+    elif target_resolution == None:
+        return extent
+
+    if (    crs == 4326
             and extent.get('crs','') == "EPSG:4326"
             and "extent" in x and "extent" in y
     ):
 
-        def align(v, dimension, rounding):
+        def align(v, dimension, rounding, resolution):
             range = dimension.get('extent', [])
             if v < range[0]:
                 v = range[0]
             elif v > range[1]:
                 v = range[1]
             else:
-                index = rounding((v - range[0]) / dimension['step'])
-                v = range[0] + index * dimension['step']
+                index = rounding((v - range[0]) / resolution)
+                v = range[0] + index * resolution
             return v
 
         new_extent = {
-            'west': align(extent['west'], x, math.floor),
-            'east': align(extent['east'], x, math.ceil),
-            'south': align(extent['south'], y, math.floor),
-            'north': align(extent['north'], y, math.ceil),
+            'west': align(extent['west'], x, math.floor,target_resolution[0]),
+            'east': align(extent['east'], x, math.ceil,target_resolution[0]),
+            'south': align(extent['south'], y, math.floor,target_resolution[1]),
+            'north': align(extent['north'], y, math.ceil,target_resolution[1]),
+            'crs': extent['crs']
+        }
+        _log.info(f"Realigned input extent {extent} into {new_extent}")
+
+        return new_extent
+    elif(isUTM):
+        new_extent = {
+            'west': target_resolution[0] * math.floor(extent['west']/ target_resolution[0] ),
+            'east': target_resolution[0] * math.ceil(extent['east']/ target_resolution[0] ),
+            'south': target_resolution[1] * math.floor(extent['south']/ target_resolution[1] ),
+            'north': target_resolution[1] * math.ceil(extent['north']/ target_resolution[1] ),
             'crs': extent['crs']
         }
         _log.info(f"Realigned input extent {extent} into {new_extent}")
@@ -572,9 +589,22 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
         if "weak_spatial_extent" in constraint:
             extent = constraint["weak_spatial_extent"]
         if extent is not None:
-            if "resample" not in constraint:
+            if "pixel_buffer" in constraint:
+                buffer = constraint["pixel_buffer"]["buffer_size"]
+                extent = {
+                    "west": extent["west"] - buffer[0],
+                    "east": extent["east"] + buffer[0],
+                    "south": extent["south"] - buffer[1],
+                    "north": extent["north"] + buffer[1],
+                    "crs": extent["crs"]
+                }
+
+
+            if "resample" not in constraint or not constraint["resample"].get("target_crs",None):
                 # Ensure that the extent that the user provided is aligned with the collection's native grid.
-                extent = _align_extent(extent, collection_id[1][0], env)
+                target_resolution = constraint.get("resample",{}).get("resolution",None)
+                extent = _align_extent(extent, collection_id[1][0], env,target_resolution)
+
             global_extent = spatial_extent_union(global_extent, extent) if global_extent else extent
     for _, constraint in filtered_constraints:
         if "process_type" in constraint:

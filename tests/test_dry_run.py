@@ -2103,3 +2103,16 @@ def test_ndvi_reduce(dry_run_env):
     assert isinstance(save_result, DryRunDataCube)
 
     assert not save_result.metadata.has_band_dimension()
+
+
+def test_complex_diamond_and_buffering(dry_run_env,dry_run_tracer):
+    pg = load_json("pg/1.0/sample_extract_diamond_buffering.json")
+    save_result = evaluate(pg, env=dry_run_env)
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    print(source_constraints)
+
+    dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
+    loadparams = _extract_load_parameters(dry_run_env, ("load_collection", ('S2_FOOBAR', (('eo:cloud_cover', (('lte', 95),)), ('tileId', (('eq', '31UFP'),))))))
+
+    print(loadparams)
+    assert(loadparams.global_extent == {'west': 605400, 'south': 5294220, 'east': 705860, 'north': 5357280, 'crs': 'EPSG:32631'})
