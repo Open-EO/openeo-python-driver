@@ -17,6 +17,8 @@ from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, Sequence
 
 import geopandas as gpd
 import numpy as np
+from shapely import box
+
 import openeo.udf
 import openeo_processes
 import pandas as pd
@@ -66,7 +68,7 @@ from openeo_driver.save_result import (
 )
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.util.date_math import month_shift
-from openeo_driver.util.geometry import geojson_to_geometry, geojson_to_multipolygon, spatial_extent_union
+from openeo_driver.util.geometry import geojson_to_geometry, geojson_to_multipolygon, spatial_extent_union, BoundingBox
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
 from openeo_driver.utils import EvalEnv, smart_bool
 
@@ -553,15 +555,12 @@ def _align_extent(extent,collection_id,env,target_resolution=None):
 
         return new_extent
     elif(isUTM):
-        new_extent = {
-            'west': target_resolution[0] * math.floor(extent['west']/ target_resolution[0] ),
-            'east': target_resolution[0] * math.ceil(extent['east']/ target_resolution[0] ),
-            'south': target_resolution[1] * math.floor(extent['south']/ target_resolution[1] ),
-            'north': target_resolution[1] * math.ceil(extent['north']/ target_resolution[1] ),
-            'crs': extent['crs']
-        }
-        _log.info(f"Realigned input extent {extent} into {new_extent}")
+        bbox = BoundingBox.from_dict(extent,default_crs=4326)
+        bbox_utm = bbox.reproject_to_best_utm()
 
+        new_extent = bbox_utm.round_to_resolution(target_resolution[0],target_resolution[1])
+
+        _log.info(f"Realigned input extent {extent} into {new_extent}")
         return new_extent
     else:
         return extent
