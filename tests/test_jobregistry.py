@@ -527,6 +527,9 @@ class TestElasticJobRegistry:
             # TODO: what to return? What does API return?  https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
             return [DUMMY_PROCESS]
 
+        requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=post_jobs_search)
+        result = ejr.list_user_jobs(user_id="john")
+        assert result == [DUMMY_PROCESS]
 
     def _build_url(self, params: dict):
         return "https://oeo.test/jobs?" + urllib.parse.urlencode(query=dict_no_none(params))
