@@ -358,8 +358,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             url = url_join(self._api_url, path)
             self.logger.debug(f"Doing EJR request `{method} {url}` {params=} {headers.keys()=}")
             if self._debug_show_curl:
-                # TODO #332 add params to curl command
-                curl_command = self._as_curl(method=method, url=url, data=json, headers=headers)
+                curl_command = self._as_curl(method=method, url=url, params=params, data=json, headers=headers)
                 self.logger.debug(f"Equivalent curl command: {curl_command}")
             try:
                 do_request = lambda: self._session.request(
@@ -394,12 +393,14 @@ class ElasticJobRegistry(JobRegistryInterface):
             if response.content:
                 return response.json()
 
-    def _as_curl(self, method: str, url: str, data: dict, headers: dict):
+    def _as_curl(self, method: str, url: str, *, params: Optional[dict] = None, data: dict, headers: dict):
         cmd = ["curl", "-i", "-X", method.upper()]
         cmd += ["-H", "Content-Type: application/json"]
         for k, v in headers.items():
             cmd += ["-H", f"{k}: {v}"]
         cmd += ["--data", json.dumps(data, separators=(",", ":"))]
+        if params:
+            url += "?" + urllib.parse.urlencode(params)
         cmd += [url]
         return " ".join(shlex.quote(c) for c in cmd)
 
@@ -743,11 +744,17 @@ class CliApp:
         # Get job metadata
         python openeo_driver/jobregistry.py get j-231208662fa3450da54e1987394f7ed0
 
-        # Real usage, e.g. with backend id 'mep-dev', specidied through `--backend-id` option
+        # Real usage, e.g. with backend id 'mep-dev', specified through `--backend-id` option
         # List jobs from a user
         python openeo_driver/jobregistry.py list-user --backend-id mep-dev abc123@egi.eu
         # Get all metadata from a job
         python openeo_driver/jobregistry.py get --backend-id mep-dev j-231206cbc43a4ae6a3fe58173c0f45f6
+
+        # Debug tools:
+        # deeper log level, e.g. DEBUG level:
+        python openeo_driver/jobregistry.py -vv ...
+        # Show equivalent curl commands to query EJR API:
+        python openeo_driver/jobregistry.py --show-curl ...
     """
 
     _DEFAULT_BACKEND_ID = "test_cli"
@@ -757,9 +764,9 @@ class CliApp:
 
     def main(self):
         cli_args = self._parse_cli()
-        log_level = {0: logging.WARNING, 1: logging.INFO}.get(
-            cli_args.verbose, logging.DEBUG
-        )
+        log_level = {0: logging.WARNING, 1: logging.INFO}.get(cli_args.verbose, logging.DEBUG)
+        if cli_args.show_curl:
+            log_level = logging.DEBUG
         logging.basicConfig(level=log_level)
         cli_args.func(cli_args)
 
