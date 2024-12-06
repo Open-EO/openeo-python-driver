@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 
 from openeo_driver.utils import remove_slash_prefix
 import pystac
-from pystac import Collection, STACObject, SpatialExtent, TemporalExtent
+from pystac import Collection, STACObject, SpatialExtent, TemporalExtent, Item
 from pystac.catalog import CatalogType
 from pystac.layout import HrefLayoutStrategy, CustomLayoutStrategy
 
@@ -17,17 +17,24 @@ _log = logging.getLogger(__name__)
 
 class Workspace(abc.ABC):
     @abc.abstractmethod
-    def import_file(self, common_path: str, file: Path, merge: str, remove_original: bool = False) -> str:
+    def import_file(self, common_path: Union[str, Path], file: Path, merge: str, remove_original: bool = False) -> str:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def import_object(self, common_path: str, s3_uri: str, merge: str, remove_original: bool = False) -> str:
+    def import_object(
+        self, common_path: Union[str, Path], s3_uri: str, merge: str, remove_original: bool = False
+    ) -> str:
         raise NotImplementedError
 
     @abc.abstractmethod
     def merge(self, stac_resource: STACObject, target: PurePath, remove_original: bool = False) -> STACObject:
-        # FIXME: replicate subdirectory behavior (#877)
-        # TODO: is a PurePath object fine as an abstraction?
+        """
+        Merges a STAC resource, its children and their assets into this workspace at the given path,
+        possibly removing the original assets.
+        :param stac_resource: a STAC resource, typically a Collection
+        :param target: a path identifier to a STAC resource to merge the given STAC resource into
+        :param remove_original: remove the original assets?
+        """
         raise NotImplementedError
 
 
@@ -80,7 +87,10 @@ class DiskWorkspace(Workspace):
                     # make the collection file end up at $target, not at $target/collection.json
                     return str(Path(parent_dir) / target.name)
 
-                return CustomLayoutStrategy(collection_func=collection_func)
+                def item_func(item: Item, parent_dir: str) -> str:
+                    return f"{parent_dir}/{target.name}_items/{item.id}.json"
+
+                return CustomLayoutStrategy(collection_func=collection_func, item_func=item_func)
 
             def replace_asset_href(asset_key: str, asset: pystac.Asset) -> pystac.Asset:
                 if urlparse(asset.href).scheme not in ["", "file"]:  # TODO: convenient place; move elsewhere?
@@ -89,7 +99,7 @@ class DiskWorkspace(Workspace):
                 # TODO: crummy way to export assets after STAC Collection has been written to disk with new asset hrefs;
                 #  it ends up in the asset metadata on disk
                 asset.extra_fields["_original_absolute_href"] = asset.get_absolute_href()
-                asset.href = asset_key  # asset key matches the asset filename, becomes the relative path
+                asset.href = Path(asset_key).name  # asset key matches the asset filename, becomes the relative path
                 return asset
 
             if not existing_collection:
@@ -111,7 +121,7 @@ class DiskWorkspace(Workspace):
 
                 for new_item in new_collection.get_items():
                     new_item.clear_links()  # sever ties with previous collection
-                    merged_collection.add_item(new_item)
+                    merged_collection.add_item(new_item, strategy=href_layout_strategy())
 
                 merged_collection.normalize_hrefs(root_href=str(target.parent), strategy=href_layout_strategy())
                 merged_collection.save(CatalogType.SELF_CONTAINED)

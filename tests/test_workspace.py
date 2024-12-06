@@ -67,7 +67,7 @@ def test_merge_from_disk_new(tmp_path):
         for asset_key, asset in item.get_assets().items()
     }
     assert asset_workspace_uris == {
-        "asset.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'asset.tif' / 'asset.tif'}"
+        "asset.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'collection.json_items' / 'asset.tif'}"
     }
 
     # load it again
@@ -114,8 +114,8 @@ def test_merge_from_disk_into_existing(tmp_path):
         for asset_key, asset in item.get_assets().items()
     }
     assert asset_workspace_uris == {
-        "asset1.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'asset1.tif' / 'asset1.tif'}",
-        "asset2.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'asset2.tif' / 'asset2.tif'}",
+        "asset1.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'collection.json_items' / 'asset1.tif'}",
+        "asset2.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'collection.json_items' / 'asset2.tif'}",
     }
 
     # load it again
@@ -135,7 +135,6 @@ def test_merge_from_disk_into_existing(tmp_path):
             assert Path(item.get_self_href()).parent == Path(asset.get_absolute_href()).parent
 
 
-@pytest.mark.skip("FIXME: DiskWorkspace's current HrefLayoutStrategy considered harmful")
 def test_adjacent_collections_do_not_have_interfering_items_and_assets(tmp_path):
     workspace = DiskWorkspace(root_directory=tmp_path)
 
