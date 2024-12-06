@@ -628,30 +628,31 @@ class ElasticJobRegistry(JobRegistryInterface):
         # Response structure:
         #   {
         #       "jobs": [list of job docs],
-        #       "pagination': {"previous": "size=5&page=1", "next": "size=5&page=3"}
+        #       "pagination": {"previous": {"size": 5, "page": 6}, "next": {"size": 5, "page": 8}}}
         #    }
         next_page_number = self._parse_response_pagination(
-            pagination=response.get("pagination", {}).get("next"),
+            pagination=response.get("pagination"),
             expected_size=page_size,
         )
-        self.logger.debug(f"Parsed {next_page_number=} from {response.get('pagination')=}")
         return self.PaginatedSearchResult(
             jobs=response.get("jobs", []),
             next_page=next_page_number,
         )
 
-    @staticmethod
-    def _parse_response_pagination(pagination: dict, expected_size: int) -> Union[int, None]:
+    def _parse_response_pagination(self, pagination: Union[dict, None], expected_size: int) -> Union[int, None]:
         """Extract page number from pagination construct"""
-        if isinstance(pagination, str):
-            # TODO #332 get rid of this legacy format translation code path
-            params = urllib.parse.parse_qs(pagination)
-            if "size" in params and "page" in params:
-                pagination = {"size": int(params["size"][0]), "page": int(params["page"][0])}
-        if "size" in pagination and "page" in pagination:
-            if int(pagination["size"]) != expected_size:
-                raise ValueError(f"Page size mismatch {expected_size=} vs {pagination=}")
-            return int(pagination["page"])
+        next_page_params = (pagination or {}).get("next")
+        if (
+            isinstance(next_page_params, dict)
+            and "size" in next_page_params
+            and next_page_params["size"] == expected_size
+            and "page" in next_page_params
+        ):
+            next_page_number = next_page_params["page"]
+        else:
+            next_page_number = None
+        self.logger.debug(f"_search_paginated: parsed {next_page_number=} from {pagination=}")
+        return next_page_number
 
     def list_user_jobs(
         self,
@@ -675,15 +676,17 @@ class ElasticJobRegistry(JobRegistryInterface):
             # Do paginated search
             # TODO #332 make this the one and only code path
             page_number = (request_parameters or {}).get(self.PAGINATION_URL_PARAM)
-            if page_number:
+            if page_number is not None:
                 page_number = int(page_number)
-            else:
-                page_number = None
+
             data = self._search_paginated(query=query, fields=fields, page_size=limit, page_number=page_number)
-            return JobListing(
-                jobs=[ejr_job_info_to_metadata(j, full=False) for j in data.jobs],
-                next_parameters={"limit": limit, self.PAGINATION_URL_PARAM: data.next_page},
-            )
+
+            jobs = [ejr_job_info_to_metadata(j, full=False) for j in data.jobs]
+            if data.next_page:
+                next_parameters = {"limit": limit, self.PAGINATION_URL_PARAM: data.next_page}
+            else:
+                next_parameters = None
+            return JobListing(jobs=jobs, next_parameters=next_parameters)
         else:
             # Deprecated non-paginated search
             # TODO #332 eliminate this code path
