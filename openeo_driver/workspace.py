@@ -7,8 +7,7 @@ from typing import Optional, Union
 from urllib.parse import urlparse
 
 from openeo_driver.utils import remove_slash_prefix
-import pystac
-from pystac import Collection, STACObject, SpatialExtent, TemporalExtent, Item
+from pystac import Asset, Collection, STACObject, SpatialExtent, TemporalExtent, Item
 from pystac.catalog import CatalogType
 from pystac.layout import HrefLayoutStrategy, CustomLayoutStrategy
 
@@ -44,8 +43,7 @@ class DiskWorkspace(Workspace):
         self.root_directory = root_directory
 
     def import_file(self, common_path: Union[str, Path], file: Path, merge: str, remove_original: bool = False) -> str:
-        merge = os.path.normpath(merge)
-        subdirectory = remove_slash_prefix(merge)
+        subdirectory = remove_slash_prefix(os.path.normpath(merge))
         file_relative = file.relative_to(common_path)
         target_directory = self.root_directory / subdirectory / file_relative.parent
         target_directory.relative_to(self.root_directory)  # assert target_directory is in root_directory
@@ -64,9 +62,7 @@ class DiskWorkspace(Workspace):
     def merge(self, stac_resource: STACObject, target: PurePath, remove_original: bool = False) -> STACObject:
         stac_resource = stac_resource.full_copy()
 
-        target = os.path.normpath(target)
-        target = Path(target[1:] if target.startswith("/") else target)
-        target = self.root_directory / target
+        target = self.root_directory / os.path.normpath(target).lstrip("/")
         target.relative_to(self.root_directory)  # assert target_directory is in root_directory
 
         file_operation = shutil.move if remove_original else shutil.copy
@@ -76,7 +72,7 @@ class DiskWorkspace(Workspace):
 
             existing_collection = None
             try:
-                existing_collection = pystac.Collection.from_file(str(target))
+                existing_collection = Collection.from_file(str(target))
             except FileNotFoundError:
                 pass  # nothing to merge into
 
@@ -88,13 +84,15 @@ class DiskWorkspace(Workspace):
                     return str(Path(parent_dir) / target.name)
 
                 def item_func(item: Item, parent_dir: str) -> str:
+                    # prevent items/assets of 2 adjacent Collection documents from interfering with each other:
+                    # unlike an object storage object, a Collection file cannot act as a parent "directory" as well
                     return f"{parent_dir}/{target.name}_items/{item.id}.json"
 
                 return CustomLayoutStrategy(collection_func=collection_func, item_func=item_func)
 
-            def replace_asset_href(asset_key: str, asset: pystac.Asset) -> pystac.Asset:
+            def replace_asset_href(asset_key: str, asset: Asset) -> Asset:
                 if urlparse(asset.href).scheme not in ["", "file"]:  # TODO: convenient place; move elsewhere?
-                    raise NotImplementedError(f"importing objects is not supported yet")
+                    raise NotImplementedError(f"only importing files on disk is supported, found: {asset.href}")
 
                 # TODO: crummy way to export assets after STAC Collection has been written to disk with new asset hrefs;
                 #  it ends up in the asset metadata on disk
@@ -103,7 +101,6 @@ class DiskWorkspace(Workspace):
                 return asset
 
             if not existing_collection:
-                # TODO: write to a tempdir, then copy/move everything to $merge?
                 new_collection.normalize_hrefs(root_href=str(target.parent), strategy=href_layout_strategy())
                 new_collection = new_collection.map_assets(replace_asset_href)
                 new_collection.save(CatalogType.SELF_CONTAINED)

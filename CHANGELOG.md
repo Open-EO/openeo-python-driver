@@ -20,8 +20,10 @@ and start a new "In Progress" section above it.
 <!-- start-of-changelog -->
 
 ## In progress
-- `export_workspace`: support STAC merge ([Open-EO/openeo-geopyspark-driver#677](https://github.com/Open-EO/openeo-geopyspark-driver/issues/677))
 
+## 0.121.0
+
+- `export_workspace`: experimental support for merging STAC Collections ([Open-EO/openeo-geopyspark-driver#677)](https://github.com/Open-EO/openeo-geopyspark-driver/issues/677))
 
 ## 0.120.0
 
