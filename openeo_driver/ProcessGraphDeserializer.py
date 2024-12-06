@@ -17,7 +17,6 @@ from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, Sequence
 
 import geopandas as gpd
 import numpy as np
-from shapely import box
 
 import openeo.udf
 import openeo_processes
