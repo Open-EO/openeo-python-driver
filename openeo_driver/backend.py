@@ -174,6 +174,17 @@ class LoadParameters(dict):
     target_crs = dict_item(default=None)
     target_resolution = dict_item(default=None)
     resample_method = dict_item(default="near")
+
+    """
+    A buffer provided in the units of the target CRS. If target CRS is not provided, then it is assumed to be the native CRS
+    of the collection.
+    
+    This buffer is applied to AOI when constructing the datacube, allowing operations that require neighbouring pixels 
+    to be implemented correctly. Examples are apply_kernel and apply_neighborhood, but also certain resampling operations
+    could be affected by this.
+    
+    The buffer has to be considered in the global extent! 
+    """
     pixel_buffer = dict_item(default=None)
 
     def copy(self) -> "LoadParameters":

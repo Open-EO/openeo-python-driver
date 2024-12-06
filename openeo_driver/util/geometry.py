@@ -1,6 +1,7 @@
 import dataclasses
 import json
 import logging
+import math
 import re
 from pathlib import Path
 from typing import Any, Collection, List, Mapping, Optional, Sequence, Tuple, Union
@@ -9,6 +10,7 @@ import fiona.model
 import pyproj
 import shapely.geometry
 import shapely.ops
+from pyproj import CRS
 from shapely.geometry import MultiPolygon, Polygon
 from shapely.geometry.base import BaseGeometry
 
@@ -456,14 +458,13 @@ class BoundingBox:
 
     @staticmethod
     def normalize_crs(crs: Union[str, int]) -> str:
-        if isinstance(crs, int):
-            return f"EPSG:{crs}"
-        elif isinstance(crs, str):
-            # TODO: support other CRS'es too?
-            if not re.match("^epsg:\d+$", crs, flags=re.IGNORECASE):
-                raise BoundingBoxException(f"Invalid CRS {crs!r}")
-            return crs.upper()
-        raise BoundingBoxException(f"Invalid CRS {crs!r}")
+        proj_crs = CRS.from_user_input(crs)
+        maybeEPSG = proj_crs.to_epsg()
+        if maybeEPSG:
+            return f"EPSG:{maybeEPSG}"
+        else:
+            raise BoundingBoxException(f"Invalid CRS {crs!r}")
+
 
     @classmethod
     def from_dict(
@@ -563,3 +564,12 @@ class BoundingBox:
 
     def reproject_to_best_utm(self):
         return self.reproject(crs=self.best_utm())
+
+    def round_to_resolution(self,resX,resY):
+        return BoundingBox(
+        west = resX * math.floor(self.west / resX),
+        east = resX * math.ceil(self.east / resX),
+        south = resY * math.floor(self.south / resY),
+        north = resY * math.ceil(self.north / resY),
+        crs = self.crs
+        )

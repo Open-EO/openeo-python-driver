@@ -3070,7 +3070,7 @@ def test_execute_EP3509_process_order(api):
             "bands": {"from_node": "bands"}
         }},
         "applykernel": {"process_id": "apply_kernel", "arguments": {
-            "data": {"from_node": "filterbands1"}, "kernel": [1]
+            "data": {"from_node": "filterbands1"}, "kernel": [[1,1],[1,1]]
         }, "result": True}
     }
     api.check_result(pg)
