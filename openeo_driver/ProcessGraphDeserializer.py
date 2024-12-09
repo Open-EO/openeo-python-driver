@@ -560,7 +560,7 @@ def _align_extent(extent,collection_id,env,target_resolution=None):
         new_extent = bbox_utm.round_to_resolution(target_resolution[0],target_resolution[1])
 
         _log.info(f"Realigned input extent {extent} into {new_extent}")
-        return new_extent
+        return new_extent.as_dict()
     else:
         return extent
 
