@@ -16,7 +16,7 @@ from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.dry_run import DryRunDataTracer, DataSource, DataTrace, ProcessType, DryRunDataCube
 from openeo_driver.save_result import SaveResult
 from openeo_driver.testing import DictSubSet, approxify, ephemeral_fileserver
-from openeo_driver.util.geometry import as_geojson_feature_collection
+from openeo_driver.util.geometry import as_geojson_feature_collection, BoundingBox
 from openeo_driver.utils import EvalEnv
 from openeo_driver.workspacerepository import WorkspaceRepository
 from tests.data import get_path, load_json, TEST_DATA_ROOT
@@ -391,7 +391,9 @@ def test_evaluate_merge_collections(dry_run_env, dry_run_tracer):
 
     dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
     loadparams = _extract_load_parameters(dry_run_env, ("load_collection", ("S2_FOOBAR", ())))
-    assert {"west": -1, "south": 50, "east": 5, "north": 55, "crs": "EPSG:4326"} == loadparams.global_extent
+
+
+    assert {'west': 213370, 'south': 5540540, 'east': 643330, 'north': 6102120, 'crs': 'EPSG:32631'} == loadparams.global_extent
 
 
 def test_evaluate_load_collection_and_filter_extents_dynamic(dry_run_env, dry_run_tracer):
@@ -916,7 +918,7 @@ def test_filter_spatial_delayed_vector(dry_run_env, dry_run_tracer, path, expect
         ),
         (
             "parquet/mol-utm.pq",
-            tuple(pytest.approx(x, abs=1) for x in (645146, 5672137, 648591, 5676210)),
+            tuple(pytest.approx(x, abs=1) for x in (645146, 5672137, 648591, 5676210.32)),
             32631,
         ),
     ],
@@ -946,9 +948,7 @@ def test_filter_spatial_crs_handling(dry_run_env, dry_run_tracer, url_path, expe
         env=dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints}),
         source_id=("load_collection", ("S2_FOOBAR", ())),
     )
-    assert load_params.global_extent == dict(
-        list(zip(["west", "south", "east", "north"], expected_bounds)) + [("crs", f"EPSG:{expected_crs}")],
-    )
+    assert load_params.global_extent == BoundingBox.from_wsen_tuple([x.expected for x in expected_bounds],crs=expected_crs).reproject_to_best_utm().round_to_resolution(10.0,10.0).as_dict()
     assert load_params.spatial_extent == dict(
         list(zip(["west", "south", "east", "north"], expected_bounds)) + [("crs", f"EPSG:{expected_crs}")],
     )
@@ -2103,3 +2103,16 @@ def test_ndvi_reduce(dry_run_env):
     assert isinstance(save_result, DryRunDataCube)
 
     assert not save_result.metadata.has_band_dimension()
+
+
+def test_complex_diamond_and_buffering(dry_run_env,dry_run_tracer):
+    pg = load_json("pg/1.0/sample_extract_diamond_buffering.json")
+    save_result = evaluate(pg, env=dry_run_env)
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    print(source_constraints)
+
+    dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
+    loadparams = _extract_load_parameters(dry_run_env, ("load_collection", ('S2_FOOBAR', (('eo:cloud_cover', (('lte', 95),)), ('tileId', (('eq', '31UFP'),))))))
+
+    print(loadparams)
+    assert(loadparams.global_extent == {'west': 605400, 'south': 5294220, 'east': 705860, 'north': 5357280, 'crs': 'EPSG:32631'})

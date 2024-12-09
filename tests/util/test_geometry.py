@@ -6,6 +6,7 @@ import pyproj
 import pytest
 import shapely.geometry
 from numpy.testing import assert_allclose
+from pyproj.exceptions import CRSError
 from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseGeometry
 from shapely.geos import WKTWriter
@@ -656,7 +657,7 @@ class TestBoundingBox:
             _ = BoundingBox(1, None, 3, 4)
 
     def test_missing_invalid_crs(self):
-        with pytest.raises(BoundingBoxException):
+        with pytest.raises(CRSError):
             _ = BoundingBox(1, 2, 3, 4, crs="foobar:42")
 
     @pytest.mark.parametrize(
