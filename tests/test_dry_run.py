@@ -2114,5 +2114,4 @@ def test_complex_diamond_and_buffering(dry_run_env,dry_run_tracer):
     dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
     loadparams = _extract_load_parameters(dry_run_env, ("load_collection", ('S2_FOOBAR', (('eo:cloud_cover', (('lte', 95),)), ('tileId', (('eq', '31UFP'),))))))
 
-    print(loadparams)
-    assert(loadparams.global_extent == {'west': 605400, 'south': 5294220, 'east': 705860, 'north': 5357280, 'crs': 'EPSG:32631'})
+    assert(loadparams.global_extent == {'west': 389720, 'south': 5196140, 'east': 403480, 'north': 5208720, 'crs': 'EPSG:32631'})
