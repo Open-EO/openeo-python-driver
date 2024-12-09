@@ -66,7 +66,6 @@ from openeo_driver.save_result import (
     MlModelResult,
 )
 from openeo_driver.specs import SPECS_ROOT, read_spec
-from openeo_driver.testing import health_check_extent
 from openeo_driver.util.date_math import month_shift
 from openeo_driver.util.geometry import geojson_to_geometry, geojson_to_multipolygon, spatial_extent_union, BoundingBox
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
@@ -557,10 +556,6 @@ def _align_extent(extent,collection_id,env,target_resolution=None):
     elif(isUTM):
         bbox = BoundingBox.from_dict(extent,default_crs=4326)
         bbox_utm = bbox.reproject_to_best_utm()
-
-        if not health_check_extent(bbox_utm):
-            _log.warning(f"Unsupported spatial extent: {bbox_utm}")
-            return extent
 
         new_extent = bbox_utm.round_to_resolution(target_resolution[0],target_resolution[1])
 

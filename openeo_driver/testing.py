@@ -27,7 +27,7 @@ from werkzeug.datastructures import Headers
 
 from openeo_driver.config.load import ConfigGetter, _backend_config_getter
 from openeo_driver.users.auth import HttpAuthHandler
-from openeo_driver.util.geometry import as_geojson_feature, as_geojson_feature_collection, BoundingBox
+from openeo_driver.util.geometry import as_geojson_feature, as_geojson_feature_collection
 from openeo_driver.utils import generate_unique_id
 
 _log = logging.getLogger(__name__)
@@ -527,50 +527,6 @@ def approxify(x: Any, rel: Optional = None, abs: Optional[float] = None) -> Any:
 class IsNan:
     def __eq__(self, other):
         return isinstance(other, float) and math.isnan(other)
-
-
-def health_check_extent(extent):
-    if isinstance(extent, BoundingBox):
-        extent = extent.as_dict()
-    crs = extent.get("crs", "EPSG:4326")
-    is_utm = crs == "Auto42001" or crs.startswith("EPSG:326")
-
-    if extent["west"] > extent["east"] or extent["south"] > extent["north"]:
-        _log.warning(f"health_check_extent extent with surface<0: {extent}")
-        return False
-
-    if is_utm:
-        # This is an extent that has the highest sensible values for northern and/or southern hemisphere UTM zones
-        utm_bounds = {
-            "west": 166021.44,
-            "south": -10000000,
-            "east": 833978.56,
-            "north": 10000000,
-        }
-        width = utm_bounds["east"] - utm_bounds["west"]
-        horizontal_tolerance = 5  # UTM zone has quite some horizontal tolerance
-        utm_bounds["west"] = utm_bounds["west"] - width * horizontal_tolerance
-        utm_bounds["east"] = utm_bounds["east"] + width * horizontal_tolerance
-        if (
-            extent["west"] < utm_bounds["west"]
-            or extent["east"] > utm_bounds["east"]
-            or extent["south"] < utm_bounds["south"]
-            or extent["north"] > utm_bounds["north"]
-        ):
-            _log.warning(f"health_check_extent dangerous extent: {extent}")
-            return False
-    elif crs == "EPSG:4326":
-        horizontal_tolerance = 1.1
-        if (
-            extent["west"] < -180 * horizontal_tolerance
-            or extent["east"] > 180 * horizontal_tolerance
-            or extent["south"] < -90
-            or extent["north"] > 90
-        ):
-            _log.warning(f"health_check_extent dangerous extent: {extent}")
-            return False
-
-    return True
 
 
 class ApproxGeometry:
