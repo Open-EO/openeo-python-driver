@@ -10,7 +10,7 @@ from openeo_driver.dummy.dummy_backend import DummyVectorCube
 
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.ProcessGraphDeserializer import evaluate, ENV_DRY_RUN_TRACER, _extract_load_parameters, \
-    ENV_SOURCE_CONSTRAINTS, custom_process_from_process_graph, process_registry_100, ENV_SAVE_RESULT
+    ENV_SOURCE_CONSTRAINTS, custom_process_from_process_graph, process_registry_100, ENV_SAVE_RESULT, ENV_MAX_BUFFER
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.dry_run import DryRunDataTracer, DataSource, DataTrace, ProcessType, DryRunDataCube
@@ -32,7 +32,8 @@ def dry_run_env(dry_run_tracer, backend_implementation) -> EvalEnv:
     return EvalEnv({
         ENV_DRY_RUN_TRACER: dry_run_tracer,
         "backend_implementation": backend_implementation,
-        "version": "1.0.0"
+        "version": "1.0.0",
+        ENV_MAX_BUFFER: {}
     })
 
 
@@ -2112,7 +2113,22 @@ def test_complex_diamond_and_buffering(dry_run_env,dry_run_tracer):
     print(source_constraints)
 
     dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
-    loadparams = _extract_load_parameters(dry_run_env, ("load_collection", ('S2_FOOBAR', (('eo:cloud_cover', (('lte', 95),)), ('tileId', (('eq', '31UFP'),))))))
+    source_id_bands = ('load_collection', ('S2_FOOBAR', (('eo:cloud_cover', (('lte', 95),)), ('tileId', (('eq', '31UFP'),))), ('B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12', 'SCL')))
+    source_id_scl = ('load_collection', ('S2_FOOBAR', (('eo:cloud_cover', (('lte', 95),)), ('tileId', (('eq', '31UFP'),))), ('SCL',)))
+    loadparams = _extract_load_parameters(dry_run_env, source_id_bands)
 
     print(loadparams)
-    assert(loadparams.global_extent == {'west': 605400, 'south': 5294220, 'east': 705860, 'north': 5357280, 'crs': 'EPSG:32631'})
+    expected_extent = {'west': 320940, 'south': 5076860, 'east': 334700, 'north': 5092580, 'crs': 'EPSG:32631'}
+    assert(loadparams.global_extent == expected_extent)
+    assert loadparams.bands == ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12', 'SCL']
+    assert loadparams.pixel_buffer == None
+
+    #extract next set of params
+    loadparams = _extract_load_parameters(dry_run_env, source_id_scl)
+    assert loadparams.bands == ["SCL"]
+    assert (loadparams.global_extent == expected_extent)
+    assert loadparams.pixel_buffer == [38.5, 38.5]
+
+    loadparams = _extract_load_parameters(dry_run_env, source_id_scl)
+    assert (loadparams.global_extent == expected_extent)
+    assert loadparams.pixel_buffer == [38.5, 38.5]
