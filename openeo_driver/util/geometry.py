@@ -565,7 +565,16 @@ class BoundingBox:
     def reproject_to_best_utm(self):
         return self.reproject(crs=self.best_utm())
 
+    def _is_valid(self):
+        for v in self.as_wsen_tuple():
+            if not math.isfinite(v):
+                return False
+        return True
+
     def round_to_resolution(self,resX,resY):
+        if(not self._is_valid()):
+            return self
+
         return BoundingBox(
         west = resX * math.floor(self.west / resX),
         east = resX * math.ceil(self.east / resX),
