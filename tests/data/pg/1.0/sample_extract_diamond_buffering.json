@@ -1,0 +1,309 @@
+{
+    "loadcollection1": {
+      "process_id": "load_collection",
+      "arguments": {
+        "bands": [
+          "B01",
+          "B02",
+          "B03",
+          "B04",
+          "B05",
+          "B06",
+          "B07",
+          "B08",
+          "B8A",
+          "B09",
+          "B11",
+          "B12",
+          "SCL"
+        ],
+        "id": "S2_FOOBAR",
+        "properties": {
+          "eo:cloud_cover": {
+            "process_graph": {
+              "lte1": {
+                "process_id": "lte",
+                "arguments": {
+                  "x": {
+                    "from_parameter": "value"
+                  },
+                  "y": 95
+                },
+                "result": true
+              }
+            }
+          },
+          "tileId": {
+            "process_graph": {
+              "eq1": {
+                "process_id": "eq",
+                "arguments": {
+                  "x": {
+                    "from_parameter": "value"
+                  },
+                  "y": "31UFP"
+                },
+                "result": true
+              }
+            }
+          }
+        },
+        "spatial_extent": null,
+        "temporal_extent": [
+          "2017-08-30",
+          "2019-03-03"
+        ]
+      }
+    },
+    "loadcollection2": {
+      "process_id": "load_collection",
+      "arguments": {
+        "bands": [
+          "SCL"
+        ],
+        "id": "S2_FOOBAR",
+        "properties": {
+          "eo:cloud_cover": {
+            "process_graph": {
+              "lte2": {
+                "process_id": "lte",
+                "arguments": {
+                  "x": {
+                    "from_parameter": "value"
+                  },
+                  "y": 95
+                },
+                "result": true
+              }
+            }
+          },
+          "tileId": {
+            "process_graph": {
+              "eq2": {
+                "process_id": "eq",
+                "arguments": {
+                  "x": {
+                    "from_parameter": "value"
+                  },
+                  "y": "31UFP"
+                },
+                "result": true
+              }
+            }
+          }
+        },
+        "spatial_extent": null,
+        "temporal_extent": [
+          "2017-08-30",
+          "2019-03-03"
+        ]
+      }
+    },
+    "loadurl1": {
+      "process_id": "load_url",
+      "arguments": {
+        "format": "Parquet",
+        "url": "https://artifactory.vgt.vito.be/artifactory/auxdata-public/gfmap-temp/openeogfmap_dataframe_38.parquet"
+      }
+    },
+    "resamplespatial1": {
+      "process_id": "resample_spatial",
+      "arguments": {
+        "align": "upper-left",
+        "data": {
+          "from_node": "loadcollection2"
+        },
+        "method": "near",
+        "projection": null,
+        "resolution": 10
+      }
+    },
+    "applyneighborhood1": {
+      "process_id": "apply_neighborhood",
+      "arguments": {
+        "data": {
+          "from_node": "resamplespatial1"
+        },
+        "overlap": [
+          {
+            "dimension": "x",
+            "unit": "px",
+            "value": 16
+          },
+          {
+            "dimension": "y",
+            "unit": "px",
+            "value": 16
+          }
+        ],
+        "process": {
+          "process_graph": {
+            "runudf1": {
+              "process_id": "run_udf",
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "runtime": "Python",
+                "udf": "import numpy as np\nimport xarray as xr\nfrom openeo.udf import XarrayDataCube\nfrom scipy.ndimage import distance_transform_cdt\nfrom skimage.morphology import binary_erosion, footprints\n\n\ndef apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:\n    cube_array: xr.DataArray = cube.get_array()\n    cube_array = cube_array.transpose(\"bands\", \"y\", \"x\")\n\n    clouds: xr.DataArray = np.logical_or(\n        np.logical_and(cube_array < 11, cube_array >= 8), cube_array == 3\n    ).isel(\n        bands=0\n    )  # type: ignore\n\n    # Calculate the Distance To Cloud score\n    # Erode\n    er = footprints.disk(3)\n\n    # Define a function to apply binary erosion\n    def erode(image, selem):\n        return ~binary_erosion(image, selem)\n\n    # Use apply_ufunc to apply the erosion operation\n    eroded = xr.apply_ufunc(\n        erode,  # function to apply\n        clouds,  # input DataArray\n        input_core_dims=[[\"y\", \"x\"]],  # dimensions over which to apply function\n        output_core_dims=[[\"y\", \"x\"]],  # dimensions of the output\n        vectorize=True,  # vectorize the function over non-core dimensions\n        dask=\"parallelized\",  # enable dask parallelization\n        output_dtypes=[np.int32],  # data type of the output\n        kwargs={\"selem\": er},  # additional keyword arguments to pass to erode\n    )\n\n    # Distance to cloud in manhattan distance measure\n    distance = xr.apply_ufunc(\n        distance_transform_cdt,\n        eroded,\n        input_core_dims=[[\"y\", \"x\"]],\n        output_core_dims=[[\"y\", \"x\"]],\n        vectorize=True,\n        dask=\"parallelized\",\n        output_dtypes=[np.int32],\n    )\n\n    distance_da = xr.DataArray(\n        distance,\n        coords={\n            \"y\": cube_array.coords[\"y\"],\n            \"x\": cube_array.coords[\"x\"],\n        },\n        dims=[\"y\", \"x\"],\n    )\n\n    distance_da = distance_da.expand_dims(\n        dim={\n            \"bands\": cube_array.coords[\"bands\"],\n        },\n    )\n\n    distance_da = distance_da.transpose(\"bands\", \"y\", \"x\")\n\n    return XarrayDataCube(distance_da)\n"
+              },
+              "result": true
+            }
+          }
+        },
+        "size": [
+          {
+            "dimension": "x",
+            "unit": "px",
+            "value": 256
+          },
+          {
+            "dimension": "y",
+            "unit": "px",
+            "value": 256
+          },
+          {
+            "dimension": "t",
+            "unit": "null",
+            "value": "P1D"
+          }
+        ]
+      }
+    },
+    "toscldilationmask1": {
+      "process_id": "to_scl_dilation_mask",
+      "arguments": {
+        "data": {
+          "from_node": "resamplespatial1"
+        },
+        "erosion_kernel_size": 3,
+        "kernel1_size": 17,
+        "kernel2_size": 77,
+        "mask1_values": [
+          2,
+          4,
+          5,
+          6,
+          7
+        ],
+        "mask2_values": [
+          3,
+          8,
+          9,
+          10,
+          11
+        ],
+        "scl_band_name": "SCL"
+      }
+    },
+    "renamelabels2": {
+      "process_id": "rename_labels",
+      "arguments": {
+        "data": {
+          "from_node": "applyneighborhood1"
+        },
+        "dimension": "bands",
+        "target": [
+          "S2-L2A-DISTANCE-TO-CLOUD"
+        ]
+      }
+    },
+    "renamelabels1": {
+      "process_id": "rename_labels",
+      "arguments": {
+        "data": {
+          "from_node": "toscldilationmask1"
+        },
+        "dimension": "bands",
+        "target": [
+          "S2-L2A-SCL_DILATED_MASK"
+        ]
+      }
+    },
+    "mergecubes1": {
+      "process_id": "merge_cubes",
+      "arguments": {
+        "cube1": {
+          "from_node": "renamelabels1"
+        },
+        "cube2": {
+          "from_node": "renamelabels2"
+        }
+      }
+    },
+    "mergecubes2": {
+      "process_id": "merge_cubes",
+      "arguments": {
+        "cube1": {
+          "from_node": "loadcollection1"
+        },
+        "cube2": {
+          "from_node": "mergecubes1"
+        }
+      }
+    },
+    "filterspatial1": {
+      "process_id": "filter_spatial",
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes2"
+        },
+        "geometries": {
+          "from_node": "loadurl1"
+        }
+      }
+    },
+    "renamelabels3": {
+      "process_id": "rename_labels",
+      "arguments": {
+        "data": {
+          "from_node": "filterspatial1"
+        },
+        "dimension": "bands",
+        "source": [
+          "B01",
+          "B02",
+          "B03",
+          "B04",
+          "B05",
+          "B06",
+          "B07",
+          "B08",
+          "B8A",
+          "B09",
+          "B11",
+          "B12",
+          "SCL"
+        ],
+        "target": [
+          "S2-L2A-B01",
+          "S2-L2A-B02",
+          "S2-L2A-B03",
+          "S2-L2A-B04",
+          "S2-L2A-B05",
+          "S2-L2A-B06",
+          "S2-L2A-B07",
+          "S2-L2A-B08",
+          "S2-L2A-B8A",
+          "S2-L2A-B09",
+          "S2-L2A-B11",
+          "S2-L2A-B12",
+          "S2-L2A-SCL"
+        ]
+      }
+    },
+    "saveresult1": {
+      "process_id": "save_result",
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels3"
+        },
+        "format": "NetCDF",
+        "options": {
+          "sample_by_feature": true,
+          "feature_id_property": "sample_id"
+        }
+      },
+      "result": true
+    }
+  }

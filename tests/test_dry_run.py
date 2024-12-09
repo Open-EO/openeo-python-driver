@@ -948,7 +948,7 @@ def test_filter_spatial_crs_handling(dry_run_env, dry_run_tracer, url_path, expe
         env=dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints}),
         source_id=("load_collection", ("S2_FOOBAR", ())),
     )
-    assert load_params.global_extent == BoundingBox.from_wsen_tuple([x.expected for x in expected_bounds],crs=expected_crs).reproject_to_best_utm().round_to_resolution(10.0,10.0)
+    assert load_params.global_extent == BoundingBox.from_wsen_tuple([x.expected for x in expected_bounds],crs=expected_crs).reproject_to_best_utm().round_to_resolution(10.0,10.0).as_dict()
     assert load_params.spatial_extent == dict(
         list(zip(["west", "south", "east", "north"], expected_bounds)) + [("crs", f"EPSG:{expected_crs}")],
     )
