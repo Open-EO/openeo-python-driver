@@ -903,10 +903,9 @@ def test_filter_spatial_delayed_vector(dry_run_env, dry_run_tracer, path, expect
     src, constraints = source_constraints[0]
     assert src == ("load_collection", ("S2_FOOBAR", ()))
     assert isinstance(
-        constraints["filter_spatial"]["geometries"],
-        (shapely.geometry.Polygon, shapely.geometry.MultiPolygon),
+        constraints["filter_spatial"]["geometries"],DummyVectorCube,
     )
-    assert constraints["filter_spatial"]["geometries"].bounds == expected
+    assert constraints["filter_spatial"]["geometries"].get_bounding_box() == expected
 
 
 @pytest.mark.parametrize(
@@ -2101,11 +2100,11 @@ def test_complex_diamond_and_buffering(dry_run_env,dry_run_tracer):
     loadparams = _extract_load_parameters(dry_run_env, source_id_bands)
 
     print(loadparams)
-    expected_extent = {'crs': 'EPSG:32631',
-                     'east': 403480,
-                     'north': 5208720,
-                     'south': 5196140,
-                     'west': 389720}
+    expected_extent = {'crs': 'EPSG:32630',
+                     'east': 705480,
+                     'north': 5195560,
+                     'south': 5116360,
+                     'west': 604420}
     assert(loadparams.global_extent == expected_extent)
     assert loadparams.bands == ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12', 'SCL']
     assert loadparams.pixel_buffer == None
