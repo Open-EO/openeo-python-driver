@@ -695,7 +695,7 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
                       **arguments.get("properties", {})}
 
         source_id = dry_run.DataSource.load_collection(collection_id=collection_id,
-                                                       properties=properties,bands = arguments["bands"]).get_source_id()
+                                                       properties=properties,bands = arguments.get("bands",[])).get_source_id()
         load_params = _extract_load_parameters(env, source_id=source_id)
         # Override with explicit arguments
         load_params.update(arguments)

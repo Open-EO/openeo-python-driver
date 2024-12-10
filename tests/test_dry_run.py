@@ -313,7 +313,7 @@ def test_evaluate_load_collection_and_filter_extents(dry_run_env, dry_run_tracer
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", (),("red", "green", "blue")))
     assert constraints == {
         "temporal_extent": ("2020-01-01", "2020-10-10"),
         "spatial_extent": {"west": 0, "south": 50, "east": 5, "north": 55, "crs": "EPSG:4326"},
@@ -374,7 +374,7 @@ def test_evaluate_merge_collections(dry_run_env, dry_run_tracer):
 
     source, constraints = source_constraints[0]
 
-    assert source == ("load_collection", ("S2_FOOBAR", ()))
+    assert source == ("load_collection", ("S2_FOOBAR", (),('red', 'green', 'blue')))
     assert constraints == {
         "temporal_extent": ("2020-01-01", "2020-10-10"),
         "spatial_extent": {"west": 0, "south": 50, "east": 5, "north": 55, "crs": "EPSG:4326"},
@@ -452,7 +452,7 @@ def test_evaluate_load_collection_and_filter_extents_dynamic(dry_run_env, dry_ru
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", (),('red', 'green', 'blue')))
     assert constraints == {
         "temporal_extent": ("2020-01-01", "2020-10-10"),
         "spatial_extent": {"west": 1, "south": 50, "east": 5, "north": 55, "crs": "EPSG:4326"},
@@ -799,7 +799,7 @@ def test_aggregate_spatial_apply_dimension(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", (),('red', 'green', 'blue')))
     assert constraints == {
         "spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
         "process_type": [ProcessType.GLOBAL_TIME],
@@ -1366,7 +1366,7 @@ def test_sources_are_subject_to_correct_constraints(dry_run_env, dry_run_tracer)
     assert len(source_constraints) == 2
 
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", (), ('VV', 'VH')))
     assert constraints == {
         "temporal_extent": ('2018-01-01', '2018-01-01'),
         "spatial_extent": {'west': 11.465226, 'east': 11.465435, 'south': 46.343118, 'north': 46.343281,
@@ -1410,7 +1410,7 @@ def test_pixel_buffer(dry_run_env, dry_run_tracer):
     assert len(source_constraints) == 1
 
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", (), ('VV', 'VH')))
     assert constraints == {
         "temporal_extent": ('2018-01-01', '2018-01-01'),
         "spatial_extent": {'west': 11.465226, 'east': 11.465435, 'south': 46.343118, 'north': 46.343281,

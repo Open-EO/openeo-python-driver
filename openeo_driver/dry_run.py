@@ -145,7 +145,8 @@ class DataSource(DataTraceBase):
         exact_property_matches = {property_name: filter_properties.extract_literal_match(condition)
                                   for property_name, condition in properties.items()}
 
-        return cls(process="load_collection", arguments=(collection_id, exact_property_matches, bands))
+        args = (collection_id, exact_property_matches, bands) if len(bands) >0 else (collection_id, exact_property_matches)
+        return cls(process="load_collection", arguments=args)
 
     @classmethod
     def load_disk_data(cls, glob_pattern: str, format: str, options: dict) -> 'DataSource':
@@ -245,7 +246,7 @@ class DryRunDataTracer:
         properties = {**CollectionMetadata(metadata).get("_vito", "properties", default={}),
                       **arguments.get("properties", {})}
 
-        trace = DataSource.load_collection(collection_id=collection_id, properties=properties, bands= arguments["bands"])
+        trace = DataSource.load_collection(collection_id=collection_id, properties=properties, bands= arguments.get("bands",[]))
         self.add_trace(trace)
 
         cube = DryRunDataCube(traces=[trace], data_tracer=self, metadata=metadata)
