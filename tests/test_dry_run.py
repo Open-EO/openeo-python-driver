@@ -383,7 +383,7 @@ def test_evaluate_merge_collections(dry_run_env, dry_run_tracer):
 
     source, constraints = source_constraints[1]
 
-    assert source == ("load_collection", ("S2_FAPAR_CLOUDCOVER", ()))
+    assert source == ("load_collection", ("S2_FAPAR_CLOUDCOVER", (), ('VV',)))
     assert constraints == {
         "temporal_extent": ("2020-01-01", "2020-10-10"),
         "spatial_extent": {"west": -1, "south": 50, "east": 5, "north": 55, "crs": "EPSG:4326"},
@@ -391,7 +391,7 @@ def test_evaluate_merge_collections(dry_run_env, dry_run_tracer):
     }
 
     dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
-    loadparams = _extract_load_parameters(dry_run_env, ("load_collection", ("S2_FOOBAR", ())))
+    loadparams = _extract_load_parameters(dry_run_env, ("load_collection", ("S2_FOOBAR", (), ('red', 'green', 'blue'))))
 
 
     assert {'west': 213370, 'south': 5540540, 'east': 643330, 'north': 6102120, 'crs': 'EPSG:32631'} == loadparams.global_extent
@@ -452,7 +452,7 @@ def test_evaluate_load_collection_and_filter_extents_dynamic(dry_run_env, dry_ru
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", (),('red', 'green', 'blue')))
+    assert src == ("load_collection", ("S2_FOOBAR", (),('blue', 'green', 'red')))
     assert constraints == {
         "temporal_extent": ("2020-01-01", "2020-10-10"),
         "spatial_extent": {"west": 1, "south": 50, "east": 5, "north": 55, "crs": "EPSG:4326"},
@@ -799,7 +799,7 @@ def test_aggregate_spatial_apply_dimension(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", (),('red', 'green', 'blue')))
+    assert src == ("load_collection", ("S2_FOOBAR", (),('B04', 'B08', 'B11', 'SCL')))
     assert constraints == {
         "spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
         "process_type": [ProcessType.GLOBAL_TIME],
@@ -1278,7 +1278,7 @@ def test_load_stac_properties(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
 
     assert source_constraints == [
-        (("load_stac", ("https://example.org/collections/S2", (("platform", (("eq", "S2A"),),),))), {"properties": properties}),
+        (("load_stac", ("https://example.org/collections/S2", (("platform", (("eq", "S2A"),),),), () )), {"properties": properties}),
     ]
 
 
@@ -1378,7 +1378,7 @@ def test_sources_are_subject_to_correct_constraints(dry_run_env, dry_run_tracer)
     }
 
     src, constraints = source_constraints[1]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", (), ('VV', 'VH')))
     assert constraints == {
         "temporal_extent": ('2018-01-01', '2018-01-01'),
         "spatial_extent": {'west': 11.465226, 'east': 11.465435, 'south': 46.343118, 'north': 46.343281,
@@ -1520,63 +1520,46 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
 
     cube = evaluate(pg, env=dry_run_env,do_dry_run=False)
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
-    assert source_constraints == [
-        (
-            ('load_collection', ('S2_FOOBAR', ())),
-            {
-                'bands': ['B04', 'B08'],
-                'spatial_extent': {
-                    'crs': 'EPSG:32631', 'east': 642140.0, 'north': 5677450.0, 'south': 5676170.0, 'west': 640860.0,
-                },
-                "temporal_extent": ("2019-03-01", "2019-04-01"),
-                "weak_spatial_extent": {
-                    "west": 5.01704,
-                    "south": 51.219,
-                    "east": 5.03586,
-                    "north": 51.231,
-                    "crs": "EPSG:4326",
-                },
-            },
-        ),
-        (
-            ("load_collection", ("S2_FOOBAR", ())),
-            {
-                "bands": ["B04", "B08"],
-                "spatial_extent": {
-                    "crs": "EPSG:32631",
-                    "east": 642140.0,
-                    "north": 5677450.0,
-                    "south": 5676170.0,
-                    "west": 640860.0,
-                },
-                "temporal_extent": ("2019-03-01", "2019-04-01"),
-            },
-        ),
-        (
-            ('load_collection', ('PROBAV_L3_S10_TOC_NDVI_333M_V2', ())),
-            {
-                "bands": ["ndvi"],
-                "process_type": [ProcessType.FOCAL_SPACE],
-                "resample": {"method": "average", "resolution": [10, 10], "target_crs": "AUTO:42001"},
-                "spatial_extent": {
-                    "crs": "EPSG:32631",
-                    "east": 642140.0,
-                    "north": 5677450.0,
-                    "south": 5676170.0,
-                    "west": 640860.0,
-                },
-                "temporal_extent": ("2019-03-01", "2019-04-01"),
-                "weak_spatial_extent": {
-                    "crs": "EPSG:4326",
-                    "east": 5.03586,
-                    "north": 51.231,
-                    "south": 51.219,
-                    "west": 5.01704,
-                },
-            },
-        ),
-        (("load_collection", ("S2_FOOBAR", ())), {"bands": ["B04", "B08"]}),
-    ]
+    assert source_constraints == [(('load_collection', ('S2_FOOBAR', (), ('B04', 'B08'))),
+      {'bands': ['B04', 'B08'],
+       'spatial_extent': {'crs': 'EPSG:32631',
+                          'east': 642140.0,
+                          'north': 5677450.0,
+                          'south': 5676170.0,
+                          'west': 640860.0},
+       'temporal_extent': ('2019-03-01', '2019-04-01'),
+       'weak_spatial_extent': {'crs': 'EPSG:4326',
+                               'east': 5.03586,
+                               'north': 51.231,
+                               'south': 51.219,
+                               'west': 5.01704}}),
+     (('load_collection', ('S2_FOOBAR', (), ('B04', 'B08'))),
+      {'bands': ['B04', 'B08'],
+       'spatial_extent': {'crs': 'EPSG:32631',
+                          'east': 642140.0,
+                          'north': 5677450.0,
+                          'south': 5676170.0,
+                          'west': 640860.0},
+       'temporal_extent': ('2019-03-01', '2019-04-01')}),
+     (('load_collection', ('PROBAV_L3_S10_TOC_NDVI_333M_V2', (), ('ndvi',))),
+      {'bands': ['ndvi'],
+       'process_type': [ ProcessType.FOCAL_SPACE ],
+       'resample': {'method': 'average',
+                    'resolution': [10, 10],
+                    'target_crs': 'AUTO:42001'},
+       'spatial_extent': {'crs': 'EPSG:32631',
+                          'east': 642140.0,
+                          'north': 5677450.0,
+                          'south': 5676170.0,
+                          'west': 640860.0},
+       'temporal_extent': ('2019-03-01', '2019-04-01'),
+       'weak_spatial_extent': {'crs': 'EPSG:4326',
+                               'east': 5.03586,
+                               'north': 51.231,
+                               'south': 51.219,
+                               'west': 5.01704}}),
+     (('load_collection', ('S2_FOOBAR', (), ('B04', 'B08'))),
+      {'bands': ['B04', 'B08']})]
 
 def test_worldwater(dry_run_env,dry_run_tracer):
     ww_process = load_json("pg/1.0/worldwater_graph.json")
@@ -2118,7 +2101,11 @@ def test_complex_diamond_and_buffering(dry_run_env,dry_run_tracer):
     loadparams = _extract_load_parameters(dry_run_env, source_id_bands)
 
     print(loadparams)
-    expected_extent = {'west': 320940, 'south': 5076860, 'east': 334700, 'north': 5092580, 'crs': 'EPSG:32631'}
+    expected_extent = {'crs': 'EPSG:32631',
+                     'east': 403480,
+                     'north': 5208720,
+                     'south': 5196140,
+                     'west': 389720}
     assert(loadparams.global_extent == expected_extent)
     assert loadparams.bands == ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12', 'SCL']
     assert loadparams.pixel_buffer == None
