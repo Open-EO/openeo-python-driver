@@ -2132,3 +2132,4 @@ def test_complex_diamond_and_buffering(dry_run_env,dry_run_tracer):
     loadparams = _extract_load_parameters(dry_run_env, source_id_scl)
     assert (loadparams.global_extent == expected_extent)
     assert loadparams.pixel_buffer == [38.5, 38.5]
+
