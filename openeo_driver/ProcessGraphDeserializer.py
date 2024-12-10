@@ -619,8 +619,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
             if "process_type" in constraint:
                 process_types |= set(constraint["process_type"])
         for _, constraint in filtered_constraints:
-            constraint["process_types"] = global_extent
-
+            constraint["process_types"] = process_types
 
 
     max_buffer_cache = env[ENV_MAX_BUFFER]
