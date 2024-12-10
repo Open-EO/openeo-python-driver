@@ -612,6 +612,17 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
         for collection_id, constraint in source_constraints:
             constraint["global_extent"] = global_extent
 
+    process_types = filtered_constraints[0][1].get("process_types", None)
+    if not process_types:
+        process_types = set()
+        for _, constraint in filtered_constraints:
+            if "process_type" in constraint:
+                process_types |= set(constraint["process_type"])
+        for _, constraint in filtered_constraints:
+            constraint["process_types"] = global_extent
+
+
+
     max_buffer_cache = env[ENV_MAX_BUFFER]
 
     max_buffer = None
@@ -619,8 +630,6 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
         #cache is important for correctness, because we need to compute over all source constraints
 
         for _, constraint in filtered_constraints:
-            if "process_type" in constraint:
-                process_types |= set(constraint["process_type"])
 
             buffer = constraint.get("pixel_buffer", {}).get("buffer_size", None)
             if buffer:
