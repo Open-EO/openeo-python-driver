@@ -51,9 +51,9 @@ class EvalEnv:
             raise KeyError(key)
 
     def get(self, key: str, default=None) -> Any:
-        try:
+        if key in self:
             return self[key]
-        except KeyError:
+        else:
             return default
 
     def push(self, values: dict = None, **kwargs) -> 'EvalEnv':
