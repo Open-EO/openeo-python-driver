@@ -21,6 +21,8 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+- Add `simple_job_progress_estimation` config for simple job progress estimation ([Open-EO/openeo-geopyspark-driver#772](https://github.com/Open-EO/openeo-geopyspark-driver/issues/772))
+
 
 ## 0.126.0
 

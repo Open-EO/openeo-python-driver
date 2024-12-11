@@ -35,6 +35,8 @@ from openeo_driver.constants import JOB_STATUS, DEFAULT_LOG_LEVEL_RETRIEVAL
 from openeo_driver.processes import ProcessRegistry
 from openeo_driver.users import User
 from openeo_driver.users.oidc import OidcProvider
+from openeo_driver.util.date_math import simple_job_progress_estimation
+from openeo_driver.util.logging import just_log_exceptions
 from openeo_driver.utils import read_json, dict_item, EvalEnv, extract_namedtuple_fields_from_dict, \
     get_package_versions
 
@@ -300,6 +302,7 @@ class BatchJobMetadata(NamedTuple):
     job_options: Optional[dict] = None
     title: Optional[str] = None
     description: Optional[str] = None
+    # Progress as percent value: 0.0 (just started) - 100.0 (fully completed)
     progress: Optional[float] = None
     updated: Optional[datetime] = None
     plan: Optional[str] = None
@@ -375,8 +378,21 @@ class BatchJobMetadata(NamedTuple):
         result["created"] = rfc3339.datetime(self.created) if self.created else None
         result["updated"] = rfc3339.datetime(self.updated) if self.updated else None
 
+        progress = self.progress
+        if (
+            self.status == JOB_STATUS.RUNNING
+            and self.started
+            and progress is None
+            and get_backend_config().simple_job_progress_estimation
+        ):
+            # TODO: is there a cleaner place to inject this fallback progress estimation?
+            with just_log_exceptions(log=logger, name="simple_job_progress_estimation"):
+                progress = 100 * simple_job_progress_estimation(
+                    started=self.started, average_run_time=get_backend_config().simple_job_progress_estimation
+                )
         # Clamp "progress" for certain "status" values according to the spec.
-        result["progress"] = {"created": 0, "queued": 0, "finished": 100}.get(self.status, self.progress)
+        progress = {"created": 0, "queued": 0, "finished": 100}.get(self.status, progress)
+        result["progress"] = progress
 
         if full:
             usage = self.usage or {}

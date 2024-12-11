@@ -16,6 +16,7 @@ import moto
 import pystac.validation.stac_validator
 import pytest
 import re_assert
+import time_machine
 import werkzeug.exceptions
 from openeo.utils.version import ComparableVersion
 
@@ -1186,6 +1187,7 @@ class TestBatchJobs:
                     status='running',
                     process={'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
                     created=datetime(2017, 1, 1, 9, 32, 12),
+                    started=datetime(2017, 1, 1, 12, 0, 0),
                 ),
                 (TEST_USER, '53c71345-09b4-46b4-b6b0-03fd6fe1f199'): BatchJobMetadata(
                     id='53c71345-09b4-46b4-b6b0-03fd6fe1f199',
@@ -1458,6 +1460,18 @@ class TestBatchJobs:
     def test_get_job_info_invalid(self, api):
         resp = api.get('/jobs/deadbeef-f00', headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
         assert resp.json["message"] == "The batch job 'deadbeef-f00' does not exist."
+
+    @pytest.mark.parametrize("backend_config_overrides", [{"simple_job_progress_estimation": 600}])
+    def test_get_job_info_simple_job_progress_estimation(self, api100, backend_config_overrides):
+        with self._fresh_job_registry(), time_machine.travel(datetime(2017, 1, 1, 12, 5, 0)):
+            resp = api100.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc", headers=self.AUTH_HEADER)
+        assert resp.assert_status_code(200).json == {
+            "id": "07024ee9-7847-4b8a-b260-6c879a2b3cdc",
+            "status": "running",
+            "progress": pytest.approx(33.33, abs=0.1),
+            "created": "2017-01-01T09:32:12Z",
+            "process": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
+        }
 
     def test_list_user_jobs_100(self, api100):
         with self._fresh_job_registry():
