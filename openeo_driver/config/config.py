@@ -76,6 +76,9 @@ class OpenEoBackendConfig:
 
     ejr_retry_settings: dict = attrs.Factory(lambda: dict(tries=4, delay=2, backoff=2))
 
+    "Experimental: simple job progress fallback estimation. Specify average batch job completion time (wall clock) in seconds."
+    simple_job_progress_estimation: Optional[float] = None
+
 
 def check_config_definition(config_class: Type[OpenEoBackendConfig]):
     """
