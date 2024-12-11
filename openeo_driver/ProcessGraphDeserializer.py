@@ -247,6 +247,7 @@ ENV_SOURCE_CONSTRAINTS = "source_constraints"
 ENV_DRY_RUN_TRACER = "dry_run_tracer"
 ENV_FINAL_RESULT = "final_result"
 ENV_SAVE_RESULT = "save_result"
+ENV_MAX_BUFFER = "max_buffer"
 
 
 class SimpleProcessing(Processing):
@@ -416,7 +417,7 @@ def evaluate(
     if ENV_SAVE_RESULT not in env:
         env = env.push({ENV_SAVE_RESULT: []})
 
-    env = env.push({ENV_FINAL_RESULT: [None]})  # mutable, holds final result of process graph
+    env = env.push({ENV_FINAL_RESULT: [None], ENV_MAX_BUFFER:{}})  # mutable, holds final result of process graph
 
     if do_dry_run:
         dry_run_tracer = do_dry_run if isinstance(do_dry_run, DryRunDataTracer) else DryRunDataTracer()
@@ -580,33 +581,64 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
 
     filtered_constraints = [c for c in source_constraints if c[0] == source_id]
 
-    for collection_id, constraint in source_constraints:
-        extent = None
-        if "spatial_extent" in constraint:
-            extent = constraint["spatial_extent"]
-        if "weak_spatial_extent" in constraint:
-            extent = constraint["weak_spatial_extent"]
-        if extent is not None:
-            if "pixel_buffer" in constraint:
-                buffer = constraint["pixel_buffer"]["buffer_size"]
-                extent = {
-                    "west": extent["west"] - buffer[0],
-                    "east": extent["east"] + buffer[0],
-                    "south": extent["south"] - buffer[1],
-                    "north": extent["north"] + buffer[1],
-                    "crs": extent["crs"]
-                }
+    if "global_extent" not in source_constraints[0][1]:
+
+        for collection_id, constraint in source_constraints:
+            extent = None
+            if "spatial_extent" in constraint:
+                extent = constraint["spatial_extent"]
+            if "weak_spatial_extent" in constraint:
+                extent = constraint["weak_spatial_extent"]
+            if extent is not None:
+                if "pixel_buffer" in constraint:
+                    buffer = constraint["pixel_buffer"]["buffer_size"]
+                    extent = {
+                        "west": extent["west"] - buffer[0],
+                        "east": extent["east"] + buffer[0],
+                        "south": extent["south"] - buffer[1],
+                        "north": extent["north"] + buffer[1],
+                        "crs": extent["crs"]
+                    }
 
 
-            if "resample" not in constraint or not constraint["resample"].get("target_crs",None):
-                # Ensure that the extent that the user provided is aligned with the collection's native grid.
-                target_resolution = constraint.get("resample",{}).get("resolution",None)
-                extent = _align_extent(extent, collection_id[1][0], env,target_resolution)
+                if "resample" not in constraint or not constraint["resample"].get("target_crs",None):
+                    # Ensure that the extent that the user provided is aligned with the collection's native grid.
+                    target_resolution = constraint.get("resample",{}).get("resolution",None)
+                    extent = _align_extent(extent, collection_id[1][0], env,target_resolution)
 
-            global_extent = spatial_extent_union(global_extent, extent) if global_extent else extent
-    for _, constraint in filtered_constraints:
-        if "process_type" in constraint:
-            process_types |= set(constraint["process_type"])
+                global_extent = spatial_extent_union(global_extent, extent) if global_extent else extent
+
+        #store global extent in all constraints, too ensure the same extent everywhere
+        for collection_id, constraint in source_constraints:
+            constraint["global_extent"] = global_extent
+
+    process_types = filtered_constraints[0][1].get("process_types", None)
+    if not process_types:
+        process_types = set()
+        for _, constraint in filtered_constraints:
+            if "process_type" in constraint:
+                process_types |= set(constraint["process_type"])
+        for _, constraint in filtered_constraints:
+            constraint["process_types"] = process_types
+
+
+    max_buffer_cache = env[ENV_MAX_BUFFER]
+
+    max_buffer = None
+    if source_id not in max_buffer_cache:
+        #cache is important for correctness, because we need to compute over all source constraints
+
+        for _, constraint in filtered_constraints:
+
+            buffer = constraint.get("pixel_buffer", {}).get("buffer_size", None)
+            if buffer:
+                if max_buffer is None:
+                    max_buffer = buffer
+                else:
+                    max_buffer = [max(max_buffer[0], buffer[0]), max(max_buffer[1], buffer[1])]
+        max_buffer_cache[source_id] = max_buffer
+    else:
+        max_buffer = max_buffer_cache[source_id]
 
     _, constraints = filtered_constraints.pop(0)
     source_constraints.remove((source_id,constraints))  # Side effect!
@@ -617,7 +649,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     if("dimension" in labels_args and labels_args["dimension"] == "t"):
         params.filter_temporal_labels = labels_args.get("condition")
     params.spatial_extent = constraints.get("spatial_extent", {})
-    params.global_extent = global_extent
+    params.global_extent = constraints.get("global_extent", {})
     params.bands = constraints.get("bands", None)
     params.properties = constraints.get("properties", {})
     params.aggregate_spatial_geometries = constraints.get("aggregate_spatial", {}).get("geometries")
@@ -632,7 +664,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     params.target_crs = constraints.get("resample", {}).get("target_crs",None)
     params.target_resolution = constraints.get("resample", {}).get("resolution", None)
     params.resample_method = constraints.get("resample", {}).get("method", "near")
-    params.pixel_buffer = constraints.get("pixel_buffer", {}).get("buffer_size", None)
+    params.pixel_buffer = max_buffer
     return params
 
 
@@ -671,7 +703,7 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
                       **arguments.get("properties", {})}
 
         source_id = dry_run.DataSource.load_collection(collection_id=collection_id,
-                                                       properties=properties).get_source_id()
+                                                       properties=properties,bands = arguments.get("bands",[])).get_source_id()
         load_params = _extract_load_parameters(env, source_id=source_id)
         # Override with explicit arguments
         load_params.update(arguments)
@@ -2371,7 +2403,7 @@ def load_stac(args: Dict, env: EvalEnv) -> DriverDataCube:
     if dry_run_tracer:
         return dry_run_tracer.load_stac(url, arguments)
     else:
-        source_id = dry_run.DataSource.load_stac(url, properties=arguments.get("properties", {})).get_source_id()
+        source_id = dry_run.DataSource.load_stac(url, properties=arguments.get("properties", {}), bands=arguments.get("bands",[])).get_source_id()
         load_params = _extract_load_parameters(env, source_id=source_id)
         load_params.update(arguments)
 

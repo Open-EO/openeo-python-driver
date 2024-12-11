@@ -590,13 +590,12 @@ def test_execute_diy_mask(api):
     # assert dummy_backend.get_collection("TERRASCOPE_S2_FAPAR_V2").mask.call_count == 1  # Optimized away now
 
     load_collections = dummy_backend.all_load_collection_calls("TERRASCOPE_S2_FAPAR_V2")
-    assert len(load_collections) == 4
-    assert load_collections[0].pixel_buffer == [8.5,8.5]
+    assert len(load_collections) == 3
+    assert load_collections[0].pixel_buffer == [100.5,100.5]
     assert load_collections[0].bands == ['SCENECLASSIFICATION_20M']
     assert load_collections[1].pixel_buffer == [100.5, 100.5]
     assert load_collections[1].bands == ['SCENECLASSIFICATION_20M']
-    assert load_collections[2].bands == ['SCENECLASSIFICATION_20M'] #due to use of resample_cube_spatial
-    assert load_collections[3].bands == ['FAPAR_10M']
+    assert load_collections[2].bands == ['FAPAR_10M']
 
 
 

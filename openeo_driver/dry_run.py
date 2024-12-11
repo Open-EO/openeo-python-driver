@@ -140,12 +140,13 @@ class DataSource(DataTraceBase):
         return self._process
 
     @classmethod
-    def load_collection(cls, collection_id, properties={}) -> 'DataSource':
+    def load_collection(cls, collection_id, properties={}, bands = []) -> 'DataSource':
         """Factory for a `load_collection` DataSource."""
         exact_property_matches = {property_name: filter_properties.extract_literal_match(condition)
                                   for property_name, condition in properties.items()}
 
-        return cls(process="load_collection", arguments=(collection_id, exact_property_matches))
+        args = (collection_id, exact_property_matches, bands) if len(bands) >0 else (collection_id, exact_property_matches)
+        return cls(process="load_collection", arguments=args)
 
     @classmethod
     def load_disk_data(cls, glob_pattern: str, format: str, options: dict) -> 'DataSource':
@@ -158,12 +159,12 @@ class DataSource(DataTraceBase):
         return cls(process="load_result", arguments=(job_id,))
 
     @classmethod
-    def load_stac(cls, url: str, properties={}) -> 'DataSource':
+    def load_stac(cls, url: str, properties={}, bands = []) -> 'DataSource':
         """Factory for a `load_stac` DataSource."""
         exact_property_matches = {property_name: filter_properties.extract_literal_match(condition)
                                   for property_name, condition in properties.items()}
 
-        return cls(process="load_stac", arguments=(url, exact_property_matches))
+        return cls(process="load_stac", arguments=(url, exact_property_matches,bands))
 
 
 class DataTrace(DataTraceBase):
@@ -245,7 +246,7 @@ class DryRunDataTracer:
         properties = {**CollectionMetadata(metadata).get("_vito", "properties", default={}),
                       **arguments.get("properties", {})}
 
-        trace = DataSource.load_collection(collection_id=collection_id, properties=properties)
+        trace = DataSource.load_collection(collection_id=collection_id, properties=properties, bands= arguments.get("bands",[]))
         self.add_trace(trace)
 
         cube = DryRunDataCube(traces=[trace], data_tracer=self, metadata=metadata)
