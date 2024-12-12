@@ -21,8 +21,12 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+
+## 0.122.0
+
 - `load_collection`: more consistent cube extent handling when a buffer is applied. ([#334](https://github.com/Open-EO/openeo-python-driver/issues/334))
 - `load_collection`: collapse multiple `load_collection` calls into a single one in cases with buffers. ([#336](https://github.com/Open-EO/openeo-python-driver/issues/336))
+- Add `simple_job_progress_estimation` config for simple job progress estimation ([Open-EO/openeo-geopyspark-driver#772](https://github.com/Open-EO/openeo-geopyspark-driver/issues/772))
 
 ## 0.121.0
 
