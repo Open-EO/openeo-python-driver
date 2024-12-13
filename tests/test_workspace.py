@@ -106,16 +106,15 @@ def test_merge_from_disk_into_existing(tmp_path):
 
     workspace = DiskWorkspace(root_directory=tmp_path)
     workspace.merge(stac_resource=existing_collection, target=target)
-    merged_collection = workspace.merge(stac_resource=new_collection, target=target)
+    imported_collection = workspace.merge(stac_resource=new_collection, target=target)
 
-    assert isinstance(merged_collection, Collection)
+    assert isinstance(imported_collection, Collection)
     asset_workspace_uris = {
         asset_key: asset.extra_fields["alternate"]["file"]
-        for item in merged_collection.get_items()
+        for item in imported_collection.get_items()
         for asset_key, asset in item.get_assets().items()
     }
     assert asset_workspace_uris == {
-        "asset1.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'collection.json_items' / 'asset1.tif'}",
         "asset2.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'collection.json_items' / 'asset2.tif'}",
     }
 
