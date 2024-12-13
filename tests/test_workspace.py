@@ -5,7 +5,6 @@ from pathlib import Path
 
 from pystac import Asset, Collection, Extent, Item, SpatialExtent, TemporalExtent, CatalogType
 import pytest
-from pystac.layout import CustomLayoutStrategy
 
 from openeo_driver.workspace import DiskWorkspace
 
@@ -58,12 +57,12 @@ def test_merge_from_disk_new(tmp_path):
     target = Path("path") / "to" / "collection.json"
 
     workspace = DiskWorkspace(root_directory=tmp_path)
-    merged_collection = workspace.merge(stac_resource=new_collection, target=target)
+    imported_collection = workspace.merge(stac_resource=new_collection, target=target)
 
-    assert isinstance(merged_collection, Collection)
+    assert isinstance(imported_collection, Collection)
     asset_workspace_uris = {
         asset_key: asset.extra_fields["alternate"]["file"]
-        for item in merged_collection.get_items()
+        for item in imported_collection.get_items()
         for asset_key, asset in item.get_assets().items()
     }
     assert asset_workspace_uris == {
