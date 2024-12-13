@@ -295,7 +295,7 @@ class DryRunDataTracer:
     def load_stac(self, url: str, arguments: dict) -> 'DryRunDataCube':
         properties = arguments.get("properties", {})
 
-        trace = DataSource.load_stac(url=url, properties=properties)
+        trace = DataSource.load_stac(url=url, properties=properties, bands=arguments.get("bands",[]))
         self.add_trace(trace)
 
         metadata = CollectionMetadata(
