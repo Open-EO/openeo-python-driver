@@ -581,6 +581,9 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
 
     filtered_constraints = [c for c in source_constraints if c[0] == source_id]
 
+    if len(filtered_constraints) == 0:
+        raise Exception(f"Could not find source constraints for source {source_id}, available constraints are: {set([id for id,_ in source_constraints])}")
+
     if "global_extent" not in source_constraints[0][1]:
 
         for collection_id, constraint in source_constraints:
