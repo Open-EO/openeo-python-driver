@@ -110,8 +110,6 @@ class DiskWorkspace(Workspace):
                         file_operation(
                             asset.extra_fields["_original_absolute_href"], str(Path(new_item.get_self_href()).parent)
                         )
-
-                merged_collection = new_collection
             else:
                 merged_collection = _merge_collection_metadata(existing_collection, new_collection)
                 new_collection = new_collection.map_assets(replace_asset_href)
@@ -129,12 +127,12 @@ class DiskWorkspace(Workspace):
                             asset.extra_fields["_original_absolute_href"], Path(new_item.get_self_href()).parent
                         )
 
-            for item in merged_collection.get_items():
+            for item in new_collection.get_items():
                 for asset in item.assets.values():
                     workspace_uri = f"file:{Path(item.get_self_href()).parent / Path(asset.href).name}"
                     asset.extra_fields["alternate"] = {"file": workspace_uri}
 
-            return merged_collection
+            return new_collection
         else:
             raise NotImplementedError(stac_resource)
 
@@ -148,6 +146,7 @@ def _merge_collection_metadata(existing_collection: Collection, new_collection: 
         existing_collection.extent.temporal, new_collection.extent.temporal
     )
 
+    # TODO: retains existing collection ID and description; is this right?
     # TODO: merge additional metadata?
 
     return existing_collection
