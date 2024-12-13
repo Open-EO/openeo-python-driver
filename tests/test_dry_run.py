@@ -1267,7 +1267,7 @@ def test_load_stac_properties(dry_run_env, dry_run_tracer):
 
     pg = {
         "ls": {
-            "process_id": "load_stac", "arguments": {"url": "https://example.org/collections/S2", "properties": properties},
+            "process_id": "load_stac", "arguments": {"url": "https://example.org/collections/S2", "properties": properties, "bands": ["B04", "B05"]},
             "result": True
         }
     }
@@ -1277,7 +1277,8 @@ def test_load_stac_properties(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
 
     assert source_constraints == [
-        (("load_stac", ("https://example.org/collections/S2", (("platform", (("eq", "S2A"),),),), () )), {"properties": properties}),
+        (("load_stac", ("https://example.org/collections/S2", (("platform", (("eq", "S2A"),),),), ("B04", "B05") )), {
+            "bands": ["B04", "B05"], "properties": properties}),
     ]
 
 
