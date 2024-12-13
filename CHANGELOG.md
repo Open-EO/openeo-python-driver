@@ -23,6 +23,7 @@ and start a new "In Progress" section above it.
 
 - `load_collection`: more consistent cube extent handling when a buffer is applied. ([#334](https://github.com/Open-EO/openeo-python-driver/issues/334))
 - `load_collection`: collapse multiple `load_collection` calls into a single one in cases with buffers. ([#336](https://github.com/Open-EO/openeo-python-driver/issues/336))
+- `export_workspace`: fix `KeyError: 'alternate'` upon merging into existing STAC collection ([Open-EO/openeo-geopyspark-driver#677)](https://github.com/Open-EO/openeo-geopyspark-driver/issues/677))
 
 ## 0.121.0
 
