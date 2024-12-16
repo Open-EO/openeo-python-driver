@@ -587,7 +587,7 @@ class DriverVectorCube:
             log.warning(
                 f"Exporting vector cube {self} to legacy, non-standard JSON format"
             )
-            return self.to_legacy_save_result().write_assets(directory)
+            return self.to_legacy_save_result().write_assets(directory / "suffix_to_remove")
 
         gdf = self._as_geopandas_df(flatten_prefix=options.get("flatten_prefix"))
         if format_info.format == "Parquet":
