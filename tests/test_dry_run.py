@@ -254,6 +254,9 @@ def test_evaluate_graph_diamond(dry_run_env, dry_run_tracer):
         ("load_collection", ("S2_FOOBAR", ())),
         {
             "bands": ["grass"],
+            "resample": {"method": "near",
+                         "resolution": [10, 10],
+                         "target_crs": "AUTO:42001"},
             "spatial_extent": {"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"}
         }), (
         ("load_collection", ("S2_FOOBAR", ())),
@@ -2102,10 +2105,10 @@ def test_complex_diamond_and_buffering(dry_run_env,dry_run_tracer):
 
     print(loadparams)
     expected_extent = {'crs': 'EPSG:32631',
-     'east': 704520,
-     'north': 5194000,
-     'south': 5164900,
-     'west': 692080}
+                       'east': 704480,
+                       'north': 5193960,
+                       'south': 5164940,
+                       'west': 692120}
     assert(loadparams.global_extent == expected_extent)
     assert loadparams.bands == ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12', 'SCL']
     assert loadparams.pixel_buffer == None
