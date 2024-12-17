@@ -458,7 +458,7 @@ class TestProcessArgs:
         with pytest.raises(
             ProcessParameterInvalidException,
             match=re.escape(
-                "The value passed for parameter 'color' in process 'wibble' is invalid: Expected <class 'openeo_driver.datacube.DriverDataCube'> but got <class 'str'>."
+                "The value passed for parameter 'color' in process 'wibble' is invalid: Expected raster cube but got <class 'str'>."
             ),
         ):
             _ = args.get_required("color", expected_type=DriverDataCube)
@@ -521,7 +521,7 @@ class TestProcessArgs:
         with pytest.raises(
             ProcessParameterInvalidException,
             match=re.escape(
-                "The value passed for parameter 'foo' in process 'wibble' is invalid: Expected <class 'openeo_driver.datacube.DriverDataCube'> but got <class 'str'>."
+                "The value passed for parameter 'foo' in process 'wibble' is invalid: Expected raster cube but got <class 'str'>."
             ),
         ):
             _ = args.get_optional("foo", expected_type=DriverDataCube)
@@ -614,6 +614,15 @@ class TestProcessArgs:
             ),
         ):
             _ = args.get_enum("color", options=["R", "G", "B"])
+
+    def test_get_enum_optional(self):
+        args = ProcessArgs({"size": 3, "color": "red"}, process_id="wibble")
+        assert args.get_enum("color", options=["red", "green", "blue"], default="green") == "red"
+        assert args.get_enum("colour", options=["red", "green", "blue"], default="green") == "green"
+
+        assert args.get_enum("size", options=[0, 1, 2, 3], default=0) == 3
+        assert args.get_enum("dim", options=[0, 1, 2, 3], default=0) == 0
+        assert args.get_enum("dim", options=[0, 1, 2, 3], default=2) == 2
 
     def test_validator_generic(self):
         args = ProcessArgs({"size": 11}, process_id="wibble")
