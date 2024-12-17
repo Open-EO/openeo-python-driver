@@ -605,7 +605,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
                 extent = constraint["weak_spatial_extent"]
             if extent is not None:
                 collection_crs = _collection_crs(collection_id[1][0], env)
-                crs = constraint.get("resample", {}).get("target_crs", collection_crs)
+                crs = constraint.get("resample", {}).get("target_crs", collection_crs) or collection_crs
 
                 if "pixel_buffer" in constraint:
 
