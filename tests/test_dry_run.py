@@ -21,6 +21,34 @@ from openeo_driver.utils import EvalEnv
 from openeo_driver.workspacerepository import WorkspaceRepository
 from tests.data import get_path, load_json, TEST_DATA_ROOT
 
+CRS_UTM =  {'$schema': 'https://proj.org/schemas/v0.2/projjson.schema.json',
+                               'area': 'World',
+                               'bbox': {'east_longitude': 180,
+                                        'north_latitude': 90,
+                                        'south_latitude': -90,
+                                        'west_longitude': -180},
+                               'coordinate_system': {'axis': [{'abbreviation': 'Lat',
+                                                               'direction': 'north',
+                                                               'name': 'Geodetic '
+                                                                       'latitude',
+                                                               'unit': 'degree'},
+                                                              {'abbreviation': 'Lon',
+                                                               'direction': 'east',
+                                                               'name': 'Geodetic '
+                                                                       'longitude',
+                                                               'unit': 'degree'}],
+                                                     'subtype': 'ellipsoidal'},
+                               'datum': {'ellipsoid': {'inverse_flattening': 298.257223563,
+                                                       'name': 'WGS 84',
+                                                       'semi_major_axis': 6378137},
+                                         'name': 'World Geodetic System 1984',
+                                         'type': 'GeodeticReferenceFrame'},
+                               'id': {'authority': 'OGC',
+                                      'code': 'Auto42001',
+                                      'version': '1.3'},
+                               'name': 'AUTO 42001 (Universal Transverse '
+                                       'Mercator)',
+                               'type': 'GeodeticCRS'}
 
 @pytest.fixture
 def dry_run_tracer() -> DryRunDataTracer:
@@ -256,7 +284,7 @@ def test_evaluate_graph_diamond(dry_run_env, dry_run_tracer):
             "bands": ["grass"],
             "resample": {"method": "near",
                          "resolution": [10, 10],
-                         "target_crs": "AUTO:42001"},
+                         "target_crs":  CRS_UTM},
             "spatial_extent": {"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"}
         }), (
         ("load_collection", ("S2_FOOBAR", ())),
@@ -1549,7 +1577,7 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
        'process_type': [ ProcessType.FOCAL_SPACE ],
        'resample': {'method': 'average',
                     'resolution': [10, 10],
-                    'target_crs': 'AUTO:42001'},
+                    'target_crs': CRS_UTM},
        'spatial_extent': {'crs': 'EPSG:32631',
                           'east': 642140.0,
                           'north': 5677450.0,

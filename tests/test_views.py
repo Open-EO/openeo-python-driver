@@ -63,6 +63,7 @@ from openeo_driver.views import (
 
 from .conftest import TEST_APP_CONFIG, enhanced_logging
 from .data import TEST_DATA_ROOT, get_path
+from .test_dry_run import CRS_UTM
 
 EXPECTED_PROCESSING_EXPRESSION = {"expression": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}}, "format": "openeo"}
 
@@ -1064,11 +1065,11 @@ class TestCollections:
         assert collection['license'] == 'free'
         cube_dimensions = {
             'x': {'extent': [2.5, 6.2],
-                  'reference_system': 'AUTO:42001',
+                  'reference_system': CRS_UTM,
                   'step': 10,
                   'type': 'spatial'},
             'y': {'extent': [49.5, 51.5],
-                  'reference_system': 'AUTO:42001',
+                  'reference_system': CRS_UTM,
                   'step': 10,
                   'type': 'spatial'},
             "t": {"type": "temporal", "extent": ["2019-01-01", None]},

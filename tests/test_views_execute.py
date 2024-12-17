@@ -56,6 +56,7 @@ from openeo_driver.util.logging import FlaskRequestCorrelationIdLogging
 from openeo_driver.utils import EvalEnv
 
 from .data import TEST_DATA_ROOT, get_path, load_json
+from .test_dry_run import CRS_UTM
 
 
 @pytest.fixture(
@@ -516,7 +517,7 @@ def test_execute_resample_and_merge_cubes(api):
     api.check_result("resample_and_merge_cubes.json")
     dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
     last_load_collection_call = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
-    assert last_load_collection_call.target_crs == "AUTO:42001"
+    assert last_load_collection_call.target_crs == CRS_UTM
     assert last_load_collection_call.target_resolution == [10, 10]
     assert dummy.merge_cubes.call_count == 1
     assert dummy.resample_cube_spatial.call_count == 1
