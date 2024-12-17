@@ -371,7 +371,7 @@ class DryRunDataTracer:
                 # under the condition that no operations occur in between that may be affected
                 for op in [
                     "apply_kernel", "reduce_dimension", "apply", "apply_dimension",
-                    "apply_neighborhood", "reduce_dimension_binary", "mask"
+                    "apply_neighborhood", "reduce_dimension_binary", "mask", "to_scl_dilation_mask"
                 ]:
                     args = resampling_op.get_arguments_by_operation(op)
                     if args:
@@ -784,6 +784,7 @@ class DryRunDataCube(DriverDataCube):
         cube = self._process("process_type", [ProcessType.FOCAL_SPACE])
         size = kernel2_size
         cube = cube._process("pixel_buffer", arguments={"buffer_size": [size/2.0,size/2.0]})
+        cube = cube._process("to_scl_dilation_mask", arguments={})
         return cube
 
     def mask_l1c(self) -> 'DriverDataCube':
