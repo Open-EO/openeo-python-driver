@@ -17,6 +17,7 @@ from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, Sequence
 
 import geopandas as gpd
 import numpy as np
+from pyproj import CRS
 
 import openeo.udf
 import openeo_processes
@@ -623,7 +624,13 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
                     else:
                         _log.warning("Not applying buffer to extent because the target CRS is not known.")
 
-                if "resample" not in constraint or crs == collection_crs:
+                no_resampling = "resample" not in constraint or crs == collection_crs
+                if (not no_resampling) and collection_crs is not None and ("42001" in collection_crs):
+                    #resampling auto utm to utm is still considered no resampling
+                    no_resampling = "UTM zone" in CRS.from_user_input(crs).to_wkt()
+
+
+                if  no_resampling:
                     # Ensure that the extent that the user provided is aligned with the collection's native grid.
                     target_resolution = constraint.get("resample",{}).get("resolution",None)
                     extent = _align_extent(extent, collection_id[1][0], env,target_resolution)
