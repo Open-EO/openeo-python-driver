@@ -3156,7 +3156,7 @@ def test_execute_no_cube_dynamic_args(api):
     assert kwargs["factor"] == 7.75
 
 
-@pytest.mark.parametrize(["border", "expected"], [(0, 0), ("0", 0), ])
+@pytest.mark.parametrize(["border", "expected"], [(0, 0)])
 def test_execute_apply_kernel_border(api, border, expected):
     pg = {
         "lc1": {'process_id': 'load_collection', 'arguments': {'id': 'S2_FOOBAR'}},
