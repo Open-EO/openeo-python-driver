@@ -602,9 +602,11 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
             if "weak_spatial_extent" in constraint:
                 extent = constraint["weak_spatial_extent"]
             if extent is not None:
+                collection_crs = _collection_crs(collection_id[1][0], env)
+                crs = constraint.get("resample", {}).get("target_crs", collection_crs)
+
                 if "pixel_buffer" in constraint:
-                    crs = _collection_crs(collection_id, env)
-                    crs = constraint.get("resample", {}).get("target_crs",crs)
+
                     buffer = constraint["pixel_buffer"]["buffer_size"]
 
                     if crs is not None:
@@ -621,7 +623,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
                     else:
                         _log.warning("Not applying buffer to extent because the target CRS is not known.")
 
-                if "resample" not in constraint or not constraint["resample"].get("target_crs",None):
+                if "resample" not in constraint or crs == collection_crs:
                     # Ensure that the extent that the user provided is aligned with the collection's native grid.
                     target_resolution = constraint.get("resample",{}).get("resolution",None)
                     extent = _align_extent(extent, collection_id[1][0], env,target_resolution)

@@ -2138,10 +2138,10 @@ def test_complex_extract_load_stac(dry_run_env,dry_run_tracer):
 
     print(loadparams)
     expected_extent = {'crs': 'EPSG:32633',
-                        'east': 400070,
-                        'north': 4700124.315401941,
-                        'south': 4679969.897245432,
-                        'west': 380228.1127234822}
+                         'east': 400110,
+                         'north': 4700160,
+                         'south': 4679930,
+                         'west': 380190}
     assert(loadparams.global_extent == expected_extent)
     assert loadparams.bands == [ 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B11', 'B12']
     assert loadparams.pixel_buffer == None

@@ -458,7 +458,7 @@ class BoundingBox:
 
     @staticmethod
     def normalize_crs(crs: Union[str, int]) -> str:
-        if crs == "Auto42001":
+        if crs == "Auto42001" or crs == "AUTO:42001":
             return crs
         proj_crs = CRS.from_user_input(crs)
         maybeEPSG = proj_crs.to_epsg()
