@@ -371,7 +371,7 @@ class DryRunDataTracer:
                 # under the condition that no operations occur in between that may be affected
                 for op in [
                     "apply_kernel", "reduce_dimension", "apply", "apply_dimension",
-                    "apply_neighborhood", "reduce_dimension_binary", "mask"
+                    "apply_neighborhood", "reduce_dimension_binary", "mask", "to_scl_dilation_mask"
                 ]:
                     args = resampling_op.get_arguments_by_operation(op)
                     if args:
@@ -539,9 +539,10 @@ class DryRunDataCube(DriverDataCube):
     def mask(self, mask: 'DryRunDataCube', replacement=None) -> 'DryRunDataCube':
         # TODO: if mask cube has no temporal or bbox extent: copy from self?
         # TODO: or add reference to the self trace to the mask trace and vice versa?
-        cube = self._process("mask", {"mask": mask})
+        mask_resampled = mask._process("resample_cube_spatial", arguments={"target": self, "method": "near"})
+        cube = self._process("mask", {"mask": mask_resampled})
         return DryRunDataCube(
-            traces=cube._traces + mask._traces, data_tracer=cube._data_tracer,
+            traces=cube._traces + mask_resampled._traces, data_tracer=cube._data_tracer,
             metadata=cube.metadata
         )
 
@@ -783,6 +784,7 @@ class DryRunDataCube(DriverDataCube):
         cube = self._process("process_type", [ProcessType.FOCAL_SPACE])
         size = kernel2_size
         cube = cube._process("pixel_buffer", arguments={"buffer_size": [size/2.0,size/2.0]})
+        cube = cube._process("to_scl_dilation_mask", arguments={})
         return cube
 
     def mask_l1c(self) -> 'DriverDataCube':

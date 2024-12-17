@@ -458,7 +458,7 @@ class BoundingBox:
 
     @staticmethod
     def normalize_crs(crs: Union[str, int]) -> str:
-        if crs == "Auto42001":
+        if crs == "Auto42001" or crs == "AUTO:42001":
             return crs
         proj_crs = CRS.from_user_input(crs)
         maybeEPSG = proj_crs.to_epsg()
@@ -547,6 +547,10 @@ class BoundingBox:
         """
         self.assert_crs()
         crs = self.normalize_crs(crs)
+        isUTM = crs == "AUTO:42001" or "Auto42001" in str(crs)
+        if isUTM:
+            return self.reproject_to_best_utm()
+
         if crs == self.crs:
             return self
         transform = pyproj.Transformer.from_crs(

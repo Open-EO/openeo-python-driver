@@ -17,6 +17,8 @@ from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, Sequence
 
 import geopandas as gpd
 import numpy as np
+from pyproj import CRS
+from pyproj.exceptions import CRSError
 
 import openeo.udf
 import openeo_processes
@@ -506,6 +508,15 @@ def extract_arg(args: ProcessArgs, name: str, process_id="n/a"):
     # TODO: eliminate this function, use `ProcessArgs.get_required()` directly
     return _as_process_args(args, process_id=process_id).get_required(name=name)
 
+def _collection_crs(collection_id, env) -> str:
+    metadata = None
+    try:
+        metadata = env.backend_implementation.catalog.get_collection_metadata(collection_id)
+    except CollectionNotFoundException:
+        return None
+    crs = metadata.get('cube:dimensions', {}).get('x', {}).get('reference_system', None)
+    return crs
+
 
 def _align_extent(extent,collection_id,env,target_resolution=None):
     metadata = None
@@ -593,18 +604,37 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
             if "weak_spatial_extent" in constraint:
                 extent = constraint["weak_spatial_extent"]
             if extent is not None:
+                collection_crs = _collection_crs(collection_id[1][0], env)
+                crs = constraint.get("resample", {}).get("target_crs", collection_crs)
+
                 if "pixel_buffer" in constraint:
+
                     buffer = constraint["pixel_buffer"]["buffer_size"]
-                    extent = {
-                        "west": extent["west"] - buffer[0],
-                        "east": extent["east"] + buffer[0],
-                        "south": extent["south"] - buffer[1],
-                        "north": extent["north"] + buffer[1],
-                        "crs": extent["crs"]
-                    }
+
+                    if crs is not None:
+                        bbox = BoundingBox.from_dict(extent, default_crs=4326)
+                        extent = bbox.reproject(crs).as_dict()
+
+                        extent = {
+                            "west": extent["west"] - buffer[0],
+                            "east": extent["east"] + buffer[0],
+                            "south": extent["south"] - buffer[1],
+                            "north": extent["north"] + buffer[1],
+                            "crs": extent["crs"]
+                        }
+                    else:
+                        _log.warning("Not applying buffer to extent because the target CRS is not known.")
+
+                no_resampling = "resample" not in constraint or crs == collection_crs
+                if (not no_resampling) and collection_crs is not None and ("42001" in str(collection_crs)):
+                    #resampling auto utm to utm is still considered no resampling
+                    try:
+                        no_resampling = "UTM zone" in CRS.from_user_input(crs).to_wkt()
+                    except CRSError as e:
+                        pass
 
 
-                if "resample" not in constraint or not constraint["resample"].get("target_crs",None):
+                if  no_resampling:
                     # Ensure that the extent that the user provided is aligned with the collection's native grid.
                     target_resolution = constraint.get("resample",{}).get("resolution",None)
                     extent = _align_extent(extent, collection_id[1][0], env,target_resolution)
