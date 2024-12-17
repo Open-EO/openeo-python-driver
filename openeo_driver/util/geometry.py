@@ -547,6 +547,10 @@ class BoundingBox:
         """
         self.assert_crs()
         crs = self.normalize_crs(crs)
+        isUTM = crs == "AUTO:42001" or "Auto42001" in str(crs)
+        if isUTM:
+            return self.reproject_to_best_utm()
+
         if crs == self.crs:
             return self
         transform = pyproj.Transformer.from_crs(

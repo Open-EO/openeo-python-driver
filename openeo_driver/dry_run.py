@@ -539,9 +539,10 @@ class DryRunDataCube(DriverDataCube):
     def mask(self, mask: 'DryRunDataCube', replacement=None) -> 'DryRunDataCube':
         # TODO: if mask cube has no temporal or bbox extent: copy from self?
         # TODO: or add reference to the self trace to the mask trace and vice versa?
-        cube = self._process("mask", {"mask": mask})
+        mask_resampled = mask._process("resample_cube_spatial", arguments={"target": self, "method": "near"})
+        cube = self._process("mask", {"mask": mask_resampled})
         return DryRunDataCube(
-            traces=cube._traces + mask._traces, data_tracer=cube._data_tracer,
+            traces=cube._traces + mask_resampled._traces, data_tracer=cube._data_tracer,
             metadata=cube.metadata
         )
 

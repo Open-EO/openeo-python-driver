@@ -506,6 +506,15 @@ def extract_arg(args: ProcessArgs, name: str, process_id="n/a"):
     # TODO: eliminate this function, use `ProcessArgs.get_required()` directly
     return _as_process_args(args, process_id=process_id).get_required(name=name)
 
+def _collection_crs(collection_id, env) -> str:
+    metadata = None
+    try:
+        metadata = env.backend_implementation.catalog.get_collection_metadata(collection_id)
+    except CollectionNotFoundException:
+        return None
+    crs = metadata.get('cube:dimensions', {}).get('x', {}).get('reference_system', None)
+    return crs
+
 
 def _align_extent(extent,collection_id,env,target_resolution=None):
     metadata = None
@@ -594,15 +603,23 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
                 extent = constraint["weak_spatial_extent"]
             if extent is not None:
                 if "pixel_buffer" in constraint:
+                    crs = _collection_crs(collection_id, env)
+                    crs = constraint.get("resample", {}).get("target_crs",crs)
                     buffer = constraint["pixel_buffer"]["buffer_size"]
-                    extent = {
-                        "west": extent["west"] - buffer[0],
-                        "east": extent["east"] + buffer[0],
-                        "south": extent["south"] - buffer[1],
-                        "north": extent["north"] + buffer[1],
-                        "crs": extent["crs"]
-                    }
 
+                    if crs is not None:
+                        bbox = BoundingBox.from_dict(extent, default_crs=4326)
+                        extent = bbox.reproject(crs).as_dict()
+
+                        extent = {
+                            "west": extent["west"] - buffer[0],
+                            "east": extent["east"] + buffer[0],
+                            "south": extent["south"] - buffer[1],
+                            "north": extent["north"] + buffer[1],
+                            "crs": extent["crs"]
+                        }
+                    else:
+                        _log.warning("Not applying buffer to extent because the target CRS is not known.")
 
                 if "resample" not in constraint or not constraint["resample"].get("target_crs",None):
                     # Ensure that the extent that the user provided is aligned with the collection's native grid.
