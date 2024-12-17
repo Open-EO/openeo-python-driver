@@ -2123,3 +2123,37 @@ def test_complex_diamond_and_buffering(dry_run_env,dry_run_tracer):
     assert (loadparams.global_extent == expected_extent)
     assert loadparams.pixel_buffer == [38.5, 38.5]
 
+
+def test_complex_extract_load_stac(dry_run_env,dry_run_tracer):
+    pg = load_json("pg/1.0/complex_load_stac.json")
+    save_result = evaluate(pg, env=dry_run_env)
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    print(source_constraints)
+
+    dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
+    source_id_bands = ('load_collection', ('S2_FOOBAR', (('eo:cloud_cover', (('lte', 95),)),), ('B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B11', 'B12')))
+    source_id_scl = ('load_collection', ('S2_FOOBAR', (('eo:cloud_cover', (('lte', 95),)),), ('SCL',)))
+    source_id_stac = ('load_stac', ('https://stac.openeo.vito.be/collections/wenr_features', (), ()))
+    loadparams = _extract_load_parameters(dry_run_env, source_id_bands)
+
+    print(loadparams)
+    expected_extent = {'crs': 'EPSG:32633',
+                        'east': 400070,
+                        'north': 4700124.315401941,
+                        'south': 4679969.897245432,
+                        'west': 380228.1127234822}
+    assert(loadparams.global_extent == expected_extent)
+    assert loadparams.bands == [ 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B11', 'B12']
+    assert loadparams.pixel_buffer == None
+
+    #extract next set of params
+    loadparams = _extract_load_parameters(dry_run_env, source_id_scl)
+    assert loadparams.bands == ["SCL"]
+    assert (loadparams.global_extent == expected_extent)
+    assert loadparams.pixel_buffer == [38.5, 38.5]
+    assert (loadparams.target_resolution == None)
+
+    loadparams = _extract_load_parameters(dry_run_env, source_id_stac)
+    assert (loadparams.global_extent == expected_extent)
+    assert (loadparams.target_resolution == [10,10])
+
