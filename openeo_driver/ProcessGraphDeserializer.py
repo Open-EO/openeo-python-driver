@@ -1524,7 +1524,10 @@ def mask_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     return cube
 
 
-def _extract_temporal_extent(args: dict, field="extent", process_id="filter_temporal") -> Tuple[str, str]:
+def _extract_temporal_extent(
+    args: Union[dict, ProcessArgs], field="extent", process_id="filter_temporal"
+) -> Tuple[str, str]:
+    # TODO #346: make this a ProcessArgs method?
     extent = extract_arg(args, name=field, process_id=process_id)
     if len(extent) != 2:
         raise ProcessParameterInvalidException(
@@ -1571,7 +1574,10 @@ def filter_labels(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     return cube.filter_labels(condition=condition, dimension=dimension, context=context, env=env)
 
 
-def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox", handle_geojson=False) -> dict:
+def _extract_bbox_extent(
+    args: Union[dict, ProcessArgs], field="extent", process_id="filter_bbox", handle_geojson=False
+) -> dict:
+    # TODO #346: make this a ProcessArgs method?
     extent = extract_arg(args, name=field, process_id=process_id)
     # TODO #114: support vector cube
     if handle_geojson and extent.get("type") in [
