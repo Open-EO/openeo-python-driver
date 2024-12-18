@@ -1198,7 +1198,7 @@ def test_aggregate_spatial_vector_cube_dimensions(
 ):
     path = get_path("geojson/FeatureCollection02.json")
     pg = {
-        "lc": {"process_id": "load_collection", "arguments": {"id": "ESA_WORLDCOVER_10M_2020_V1", "bands": ["B02", "B03", "B04"]}},
+        "lc": {"process_id": "load_collection", "arguments": {"id": "ESA_WORLDCOVER_10M_2020_V1", "bands": ["MAP"]}},
         "lf": {
             "process_id": "load_uploaded_files",
             "arguments": {"paths": [str(path)], "format": "GeoJSON", "options": {"columns_for_cube": []}},
