@@ -560,7 +560,7 @@ def test_reduce_bands_invalid_dimension(api):
 
 def test_execute_mask(api):
     api.check_result("mask.json")
-    assert dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER").mask.call_count == 1
+    assert dummy_backend.get_collection("ESA_WORLDCOVER_10M_2020_V1").mask.call_count == 1
 
     expected_spatial_extent = {
         "west": 7.02,
@@ -2236,7 +2236,7 @@ def test_mask_with_vector_file(api):
 
 def test_aggregate_feature_collection(api):
     api.check_result("aggregate_feature_collection.json")
-    params = dummy_backend.last_load_collection_call('S2_FOOBAR')
+    params = dummy_backend.last_load_collection_call('ESA_WORLDCOVER_10M_2020_V1')
     assert params["spatial_extent"] == {"west": 5, "south": 51, "east": 6, "north": 52, "crs": 'EPSG:4326'}
 
 
