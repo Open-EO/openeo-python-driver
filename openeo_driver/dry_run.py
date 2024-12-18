@@ -596,7 +596,7 @@ class DryRunDataCube(DriverDataCube):
             # TODO: use proper distance for collection resolution instead of using a default distance?
             # TODO: or eliminate need for buffering in the first place? https://github.com/Open-EO/openeo-python-driver/issues/148
             if target_crs is not None:
-                is_utm = crs == "AUTO:42001" or "Auto42001" in str(target_crs)
+                is_utm = target_crs == "AUTO:42001" or "Auto42001" in str(target_crs)
                 if is_utm:
                     target_crs = BoundingBox.from_wsen_tuple(geometries.get_bounding_box(),crs=geometries.get_crs()).best_utm()
                 else:
