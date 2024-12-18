@@ -49,7 +49,7 @@ from openeo_driver.testing import (
 from openeo_driver.users import User
 from openeo_driver.util.geometry import (
     as_geojson_feature,
-    as_geojson_feature_collection,
+    as_geojson_feature_collection, BoundingBox,
 )
 from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.util.logging import FlaskRequestCorrelationIdLogging
@@ -1228,8 +1228,8 @@ def test_aggregate_spatial_vector_cube_dimensions(
     pg.update(preprocess_pg)
     res = api.check_result(pg)
 
-    params = dummy_backend.last_load_collection_call("ESA_WORLDCOVER_10M_2020_V1")
-    assert params["spatial_extent"] == {"west": 1, "south": 1, "east": 5, "north": 4, "crs": "EPSG:4326"}
+    params = dummy_backend.last_load_collection_call("S2_FOOBAR")
+    assert params["spatial_extent"] == BoundingBox.from_dict({"west": 1, "south": 1, "east": 5, "north": 4, "crs": "EPSG:4326"}).reproject(32631).as_dict()
     assert isinstance(params["aggregate_spatial_geometries"], DriverVectorCube)
 
     assert res.json == DictSubSet({
