@@ -2185,3 +2185,57 @@ def test_complex_extract_load_stac(dry_run_env,dry_run_tracer):
     assert (loadparams.global_extent == expected_extent)
     assert (loadparams.target_resolution == [10,10])
 
+def test_normalize_geometries(dry_run_env,dry_run_tracer):
+    geometry_path = str(get_path("geojson/points.geojson"))
+    pg = {
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "vector": {"process_id": "read_vector", "arguments": {"filename": geometry_path}},
+        "agg": {
+            "process_id": "aggregate_spatial",
+            "arguments": {
+                "data": {"from_node": "lc"},
+                "geometries": {"from_node": "vector"},
+                "reducer": {
+                    "process_graph": {
+                        "mean": {
+                            "process_id": "mean",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        }
+                    }
+                },
+            },
+        },
+        "raster": {
+            "process_id": "vector_to_raster",
+            "arguments": {"data": {"from_node": "agg"}, "target_data_cube": {"from_node": "lc"}},
+        },
+        "rename": {
+            "process_id": "rename_labels",
+            "arguments": {"data": {"from_node": "raster"}, "dimension": "bands", "target": ["score"]},
+            "result": True,
+        },
+    }
+    save_result = evaluate(pg, env=dry_run_env)
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    print(source_constraints)
+
+    dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
+    params = [_extract_load_parameters(dry_run_env,source_id) for source_id, _ in source_constraints]
+    extents = [BoundingBox.from_dict(param.spatial_extent).as_polygon() for param in params]
+
+    from shapely.geometry import mapping
+    from shapely.ops import transform
+    import json
+    import pyproj
+    t = pyproj.Transformer.from_crs(pyproj.CRS.from_user_input(32632), pyproj.CRS.from_user_input(4326), always_xy=True)
+    extents += [transform(t.transform,BoundingBox.from_dict(param.global_extent).as_polygon().segmentize(1000)) for param in params]
+
+    #print(json.dumps(dict(type="FeatureCollection",features=[dict(type="Feature",geometry=mapping(e),properties={}) for e in extents])))
+
+
+    assert params[0].global_extent == {'crs': 'EPSG:32632',
+                                      'east': 636980,
+                                     'north': 5729350,
+                                     'south': 5654910,
+                                     'west': 89920}

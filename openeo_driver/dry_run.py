@@ -39,6 +39,7 @@ from typing import List, Union, Tuple, Any, Optional
 
 import numpy
 import shapely.geometry.base
+from pyproj import CRS
 from shapely.geometry import Point, Polygon, MultiPolygon, GeometryCollection
 from shapely.geometry.base import BaseGeometry
 
@@ -53,7 +54,7 @@ from openeo_driver.save_result import (
     AggregatePolygonResult,
     AggregatePolygonSpatialResult,
 )
-from openeo_driver.util.geometry import geojson_to_geometry, GeometryBufferer
+from openeo_driver.util.geometry import geojson_to_geometry, GeometryBufferer, BoundingBox
 from openeo_driver.utils import to_hashable, EvalEnv
 
 _log = logging.getLogger(__name__)
@@ -519,7 +520,11 @@ class DryRunDataCube(DriverDataCube):
                                          "crs": (crs or "EPSG:4326")})
 
     def filter_spatial(self, geometries):
-        geometries, bbox = self._normalize_geometry(geometries)
+        crs = None
+        if (len(self.metadata.spatial_dimensions) > 0):
+            spatial_dim = self.metadata.spatial_dimensions[0]
+            crs = spatial_dim.crs
+        geometries, bbox = self._normalize_geometry(geometries,target_crs= crs)
         cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
         return cube._process(operation="filter_spatial", arguments={"geometries": geometries})
 
@@ -570,11 +575,15 @@ class DryRunDataCube(DriverDataCube):
         geoms_is_empty = isinstance(geometries, DriverVectorCube) and len(geometries.get_geometries()) == 0
         cube = self
         if not geoms_is_empty:
-            geometries, bbox = self._normalize_geometry(geometries)
+            crs = None
+            if(len(self.metadata.spatial_dimensions)>0):
+                spatial_dim = self.metadata.spatial_dimensions[0]
+                crs = spatial_dim.crs
+            geometries, bbox = self._normalize_geometry(geometries,target_crs=crs)
             cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
         return cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
 
-    def _normalize_geometry(self, geometries) -> Tuple[Union[DriverVectorCube, DelayedVector, BaseGeometry], dict]:
+    def _normalize_geometry(self, geometries, target_crs=None) -> Tuple[Union[DriverVectorCube, DelayedVector, BaseGeometry], dict]:
         """
         Helper to preprocess geometries (as used in aggregate_spatial and mask_polygon)
         and extract bbox (e.g. for filter_bbox)
@@ -586,8 +595,17 @@ class DryRunDataCube(DriverDataCube):
             # TODO: buffer distance of 10m assumes certain resolution (e.g. sentinel2 pixels)
             # TODO: use proper distance for collection resolution instead of using a default distance?
             # TODO: or eliminate need for buffering in the first place? https://github.com/Open-EO/openeo-python-driver/issues/148
-            bbox = geometries.buffer_points(distance=10).get_bounding_box()
-            crs = geometries.get_crs_str()
+            if target_crs is not None:
+                is_utm = crs == "AUTO:42001" or "Auto42001" in str(target_crs)
+                if is_utm:
+                    target_crs = BoundingBox.from_wsen_tuple(geometries.get_bounding_box(),crs=geometries.get_crs()).best_utm()
+                else:
+                    target_crs = BoundingBox.normalize_crs(target_crs)
+                bbox = geometries.buffer_points(distance=10).reproject(CRS.from_user_input( target_crs )).get_bounding_box()
+                crs = target_crs
+            else:
+                bbox = geometries.buffer_points(distance=10).get_bounding_box()
+                crs = geometries.get_crs_str()
         elif isinstance(geometries, dict):
             return self._normalize_geometry(geojson_to_geometry(geometries))
         elif isinstance(geometries, str):
