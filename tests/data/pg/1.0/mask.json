@@ -2,7 +2,7 @@
   "collection": {
     "process_id": "load_collection",
     "arguments": {
-      "id": "S2_FAPAR_CLOUDCOVER"
+      "id": "ESA_WORLDCOVER_10M_2020_V1"
     }
   },
   "mask_collection": {

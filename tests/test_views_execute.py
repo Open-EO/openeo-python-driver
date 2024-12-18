@@ -582,7 +582,7 @@ def test_execute_mask(api):
     assert params["spatial_extent"] == expected_spatial_extent
     assert params["aggregate_spatial_geometries"] == expected_geometry
 
-    params = dummy_backend.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
+    params = dummy_backend.last_load_collection_call('ESA_WORLDCOVER_10M_2020_V1')
     assert params["spatial_extent"] == expected_spatial_extent
 
 
@@ -622,7 +622,7 @@ def test_execute_mask_optimized_loading(api):
         }
     )
 
-    params = dummy_backend.last_load_collection_call('S2_FAPAR_CLOUDCOVER')
+    params = dummy_backend.last_load_collection_call('ESA_WORLDCOVER_10M_2020_V1')
     assert params["spatial_extent"] == expected_spatial_extent
     assert isinstance(params.data_mask, DriverDataCube)
 
@@ -651,7 +651,7 @@ def test_execute_mask_same_source(api):
                       "y": "DV"
                     },
                     "process_id": "eq",
-                    "result": True
+                    "result": "true"
                   }
                 }
               }
@@ -706,7 +706,7 @@ def test_execute_mask_same_source(api):
                     "y": 2
                   },
                   "process_id": "eq",
-                  "result": True
+                  "result": "true"
                 }
               }
             }
@@ -731,15 +731,10 @@ def test_execute_mask_same_source(api):
         "sarbackscatter1": {
           "arguments": {
             "coefficient": "gamma0-terrain",
-            "contributing_area": False,
             "data": {
               "from_node": "loadcollection1"
             },
-            "elevation_model": "COPERNICUS_30",
-            "ellipsoid_incidence_angle": False,
-            "local_incidence_angle": False,
-            "mask": True,
-            "noise_removal": True
+            "elevation_model": "COPERNICUS_30"
           },
           "process_id": "sar_backscatter"
         },
@@ -752,7 +747,7 @@ def test_execute_mask_same_source(api):
             "options": {}
           },
           "process_id": "save_result",
-          "result": True
+          "result": "true"
         }
       }
     })
@@ -986,7 +981,7 @@ def test_aggregate_spatial(api):
         "2015-07-06T00:00:00Z": [[2.345]],
         "2015-08-22T00:00:00Z": [[None]]
     }
-    params = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
+    params = dummy_backend.last_load_collection_call("ESA_WORLDCOVER_10M_2020_V1")
     assert params["spatial_extent"] == {
         "west": 7.02,
         "south": 51.29,
@@ -1034,7 +1029,7 @@ def test_aggregate_spatial_invalid_geometry(api, geometries, expected):
 def test_aggregate_spatial_vector_cube_basic(api, feature_collection_test_path):
     path = get_path(feature_collection_test_path)
     pg = {
-        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "bands": ["B02", "B03", "B04"]}},
+        "lc": {"process_id": "load_collection", "arguments": {"id": "ESA_WORLDCOVER_10M_2020_V1", "bands": ["B02", "B03", "B04"]}},
         "lf": {
             "process_id": "load_uploaded_files",
             "arguments": {"paths": [str(path)], "format": "GeoJSON", "options": {"columns_for_cube": []}},
@@ -1057,7 +1052,7 @@ def test_aggregate_spatial_vector_cube_basic(api, feature_collection_test_path):
     }
     res = api.check_result(pg)
 
-    params = dummy_backend.last_load_collection_call("S2_FOOBAR")
+    params = dummy_backend.last_load_collection_call("ESA_WORLDCOVER_10M_2020_V1")
     assert params["spatial_extent"] == {"west": 1, "south": 1, "east": 5, "north": 4, "crs": "EPSG:4326"}
     assert isinstance(params["aggregate_spatial_geometries"], DriverVectorCube)
 
@@ -1203,7 +1198,7 @@ def test_aggregate_spatial_vector_cube_dimensions(
 ):
     path = get_path("geojson/FeatureCollection02.json")
     pg = {
-        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "bands": ["B02", "B03", "B04"]}},
+        "lc": {"process_id": "load_collection", "arguments": {"id": "ESA_WORLDCOVER_10M_2020_V1", "bands": ["B02", "B03", "B04"]}},
         "lf": {
             "process_id": "load_uploaded_files",
             "arguments": {"paths": [str(path)], "format": "GeoJSON", "options": {"columns_for_cube": []}},
@@ -1233,7 +1228,7 @@ def test_aggregate_spatial_vector_cube_dimensions(
     pg.update(preprocess_pg)
     res = api.check_result(pg)
 
-    params = dummy_backend.last_load_collection_call("S2_FOOBAR")
+    params = dummy_backend.last_load_collection_call("ESA_WORLDCOVER_10M_2020_V1")
     assert params["spatial_extent"] == {"west": 1, "south": 1, "east": 5, "north": 4, "crs": "EPSG:4326"}
     assert isinstance(params["aggregate_spatial_geometries"], DriverVectorCube)
 
@@ -2248,7 +2243,7 @@ def test_aggregate_feature_collection(api):
 def test_aggregate_feature_collection_no_load_collection_spatial_extent(api):
     preprocess = preprocess_regex_check_and_replace(r'"spatial_extent"\s*:\s*\{.*?\},', replacement='')
     api.check_result("aggregate_feature_collection.json", preprocess=preprocess)
-    params = dummy_backend.last_load_collection_call('S2_FOOBAR')
+    params = dummy_backend.last_load_collection_call('ESA_WORLDCOVER_10M_2020_V1')
     assert params["spatial_extent"] == {
         "west": 5.076, "south": 51.21, "east": 5.166, "north": 51.26, "crs": 'EPSG:4326'
     }

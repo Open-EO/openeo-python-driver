@@ -2,7 +2,7 @@
   "loadco1": {
     "process_id": "load_collection",
     "arguments": {
-      "id": "S2_FOOBAR",
+      "id": "ESA_WORLDCOVER_10M_2020_V1",
       "spatial_extent": {
         "west": 5,
         "east": 6,
