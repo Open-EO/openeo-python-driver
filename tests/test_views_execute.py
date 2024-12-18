@@ -17,6 +17,7 @@ import geopandas as gpd
 import numpy as np
 import pytest
 import shapely.geometry
+from pyproj import CRS
 
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs
@@ -1229,8 +1230,9 @@ def test_aggregate_spatial_vector_cube_dimensions(
     res = api.check_result(pg)
 
     params = dummy_backend.last_load_collection_call("S2_FOOBAR")
-    #assert params["spatial_extent"] == BoundingBox.from_dict({"west": 1, "south": 1, "east": 5, "north": 4, "crs": "EPSG:4326"}).reproject(32631).as_dict()
     assert isinstance(params["aggregate_spatial_geometries"], DriverVectorCube)
+
+    assert BoundingBox.from_dict(params["spatial_extent"]).as_wsen_tuple() == params.aggregate_spatial_geometries.reproject(CRS.from_epsg(32631)).get_bounding_box()
 
     assert res.json == DictSubSet({
         "type": "FeatureCollection",
