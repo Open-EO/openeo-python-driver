@@ -4,7 +4,7 @@ from typing import Tuple, Union
 import math
 import pyproj
 import shapely.ops
-from pyproj import Geod
+from pyproj import Geod, CRS
 from shapely.geometry.base import BaseGeometry
 
 _log = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ def auto_utm_epsg_for_geometry(geometry: BaseGeometry, crs: str = "EPSG:4326") -
 
     # If needed, convert it to lon/lat (WGS84)
     crs_wgs = 'epsg:4326'
-    if crs.lower() != crs_wgs:
+    if CRS.from_user_input(crs).to_epsg() != 4326:
         transformer = pyproj.Transformer.from_crs(crs, crs_wgs, always_xy=True)
         x, y = transformer.transform(x, y)
 
