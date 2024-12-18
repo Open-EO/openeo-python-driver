@@ -85,13 +85,15 @@ class DriverDataCube:
     def filter_bands(self, bands) -> 'DriverDataCube':
         self._not_implemented()
 
-    def filter_labels(self, condition: dict,dimensin: str, context: Optional[dict] = None, env: EvalEnv = None ) -> 'DriverDataCube':
+    def filter_labels(
+        self, condition: dict, dimension: str, context: Optional[dict] = None, env: EvalEnv = None
+    ) -> "DriverDataCube":
         self._not_implemented()
 
     def apply(self, process: dict, *, context: Optional[dict] = None, env: EvalEnv) -> "DriverDataCube":
         self._not_implemented()
 
-    def apply_kernel(self, kernel: list, factor=1, border=0, replace_invalid=0) -> 'DriverDataCube':
+    def apply_kernel(self, kernel: numpy.ndarray, factor=1, border=0, replace_invalid=0) -> "DriverDataCube":
         self._not_implemented()
 
     def apply_neighborhood(

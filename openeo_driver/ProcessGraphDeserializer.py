@@ -140,7 +140,7 @@ _add_standard_processes(process_registry_2xx, _OPENEO_PROCESSES_PYTHON_WHITELIST
 
 # Type hint alias for a "process function":
 # a Python function that implements some openEO process (as used in `apply_process`)
-ProcessFunction = Callable[[dict, EvalEnv], Any]
+ProcessFunction = Callable[[Union[dict, ProcessArgs], EvalEnv], Any]
 
 
 def process(f: ProcessFunction) -> ProcessFunction:
@@ -764,14 +764,15 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
         .param(name='options', description="options specific to the file format", schema={"type": "object"})
         .returns(description="the data as a data cube", schema={})
 )
-def load_disk_data(args: Dict, env: EvalEnv) -> DriverDataCube:
+def load_disk_data(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     """
     Deprecated, use load_uploaded_files or load_stac
     """
+    _log.warning("DEPRECATED: load_disk_data usage")
     kwargs = dict(
-        glob_pattern=extract_arg(args, 'glob_pattern'),
-        format=extract_arg(args, 'format'),
-        options=args.get('options', {}),
+        glob_pattern=args.get_required("glob_pattern", expected_type=str),
+        format=args.get_required("format", expected_type=str),
+        options=args.get_optional("options", default={}, expected_type=dict),
     )
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
@@ -1019,7 +1020,9 @@ def apply_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     process = args.get_deep("process", "process_graph", expected_type=dict)
     if "polygons" in args and "geometries" not in args:
         # TODO remove this deprecated  "polygons" parameter handling when not used anymore
-        _log.warning("In process 'apply_polygon': parameter 'polygons' is deprecated, use 'geometries' instead.")
+        _log.warning(
+            "DEPRECATED: In process 'apply_polygon': parameter 'polygons' is deprecated, use 'geometries' instead."
+        )
         geometries = args.get_required("polygons")
     else:
         geometries = args.get_required("geometries")
@@ -1152,19 +1155,19 @@ def fit_class_catboost(args: ProcessArgs, env: EvalEnv) -> DriverMlModel:
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/predict_random_forest.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/predict_random_forest.json"))
-def predict_random_forest(args: dict, env: EvalEnv):
+def predict_random_forest(args: ProcessArgs, env: EvalEnv):
     raise NotImplementedError
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/predict_catboost.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/predict_catboost.json"))
-def predict_catboost(args: dict, env: EvalEnv):
+def predict_catboost(args: ProcessArgs, env: EvalEnv):
     raise NotImplementedError
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/predict_probabilities.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/predict_probabilities.json"))
-def predict_probabilities(args: dict, env: EvalEnv):
+def predict_probabilities(args: ProcessArgs, env: EvalEnv):
     raise NotImplementedError
 
 
@@ -1708,8 +1711,8 @@ def linear_scale_range(args: dict, env: EvalEnv) -> DriverDataCube:
 
 
 @process
-def constant(args: dict, env: EvalEnv):
-    return args["x"]
+def constant(args: ProcessArgs, env: EvalEnv):
+    return args.get_required("x")
 
 
 def flatten_children_node_types(process_graph: Union[dict, list]):
@@ -1861,10 +1864,11 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
             ])
         .returns("GeoJSON-style feature collection", schema={"type": "object", "subtype": "geojson"})
 )
-def read_vector(args: Dict, env: EvalEnv) -> DelayedVector:
+def read_vector(args: ProcessArgs, env: EvalEnv) -> DelayedVector:
     # TODO #114 EP-3981: deprecated in favor of load_uploaded_files/load_external? https://github.com/Open-EO/openeo-processes/issues/322
     # TODO: better argument name than `filename`?
-    path = extract_arg(args, "filename")
+    _log.warning("DEPRECATED: read_vector usage")
+    path = args.get_required("filename")
     _check_geometry_path_assumption(
         path=path, process="read_vector", parameter="filename"
     )
@@ -1911,10 +1915,10 @@ def load_uploaded_files(args: ProcessArgs, env: EvalEnv) -> Union[DriverVectorCu
     .param('data', description="GeoJson object.", schema={"type": "object", "subtype": "geojson"})
     .returns("vector-cube", schema={"type": "object", "subtype": "vector-cube"})
 )
-def to_vector_cube(args: Dict, env: EvalEnv):
-    _log.warning("Experimental process `to_vector_cube` is deprecated, use `load_geojson` instead")
+def to_vector_cube(args: ProcessArgs, env: EvalEnv):
+    _log.warning("DEPRECATED: process to_vector_cube is deprecated, use load_geojson instead")
     # TODO: remove this experimental/deprecated process
-    data = extract_arg(args, "data", process_id="to_vector_cube")
+    data = args.get_required("data")
     if isinstance(data, dict) and data.get("type") in {"Polygon", "MultiPolygon", "Feature", "FeatureCollection"}:
         return env.backend_implementation.vector_cube_cls.from_geojson(data)
     raise FeatureUnsupportedException(f"Converting {type(data)} to vector cube is not supported")
@@ -2111,9 +2115,9 @@ def evaluate_process_from_url(process_id: str, namespace: str, args: dict, env: 
         .param('seconds', description="Number of seconds to sleep.", schema={"type": "number"}, required=True)
         .returns("Original data", schema={})
 )
-def sleep(args: Dict, env: EvalEnv):
-    data = extract_arg(args, "data")
-    seconds = extract_arg(args, "seconds")
+def sleep(args: ProcessArgs, env: EvalEnv):
+    data = args.get_required("data")
+    seconds = args.get_required("seconds", expected_type=(int, float))
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if not dry_run_tracer:
         _log.info("Sleeping {s} seconds".format(s=seconds))
@@ -2220,7 +2224,7 @@ def resolution_merge(args: ProcessArgs, env: EvalEnv):
         .param('data', description="Data to discard.", schema={}, required=False)
         .returns("Nothing", schema={})
 )
-def discard_result(args: Dict, env: EvalEnv):
+def discard_result(args: ProcessArgs, env: EvalEnv):
     # TODO: keep a reference to the discarded result?
     return NullResult()
 
@@ -2335,8 +2339,9 @@ def array_create(args: ProcessArgs, env: EvalEnv) -> list:
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/load_result.json"))
-def load_result(args: dict, env: EvalEnv) -> DriverDataCube:
-    job_id = extract_arg(args, "id")
+def load_result(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    _log.warning("DEPRECATED: load_result usage")
+    job_id = args.get_required("id", expected_type=str)
     user = env.get("user")
 
     arguments = {}
