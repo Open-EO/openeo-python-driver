@@ -1029,7 +1029,7 @@ def test_aggregate_spatial_invalid_geometry(api, geometries, expected):
 def test_aggregate_spatial_vector_cube_basic(api, feature_collection_test_path):
     path = get_path(feature_collection_test_path)
     pg = {
-        "lc": {"process_id": "load_collection", "arguments": {"id": "ESA_WORLDCOVER_10M_2020_V1", "bands": ["MAP"]}},
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR", "bands": ["MAP"]}},
         "lf": {
             "process_id": "load_uploaded_files",
             "arguments": {"paths": [str(path)], "format": "GeoJSON", "options": {"columns_for_cube": []}},
@@ -1053,7 +1053,7 @@ def test_aggregate_spatial_vector_cube_basic(api, feature_collection_test_path):
     res = api.check_result(pg)
 
     params = dummy_backend.last_load_collection_call("ESA_WORLDCOVER_10M_2020_V1")
-    assert params["spatial_extent"] == {"west": 1, "south": 1, "east": 5, "north": 4, "crs": "EPSG:4326"}
+    assert params["spatial_extent"] == {"west": 277438.26352113695, "south": 110530.15880237566, "east":  722056.3830076031, "north": 442397.8228986237, "crs": 32631}
     assert isinstance(params["aggregate_spatial_geometries"], DriverVectorCube)
 
     assert res.json == DictSubSet(
