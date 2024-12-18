@@ -2133,10 +2133,10 @@ def test_complex_diamond_and_buffering(dry_run_env,dry_run_tracer):
 
     print(loadparams)
     expected_extent = {'crs': 'EPSG:32631',
-                       'east': 704520,
-                       'north': 5194000,
-                       'south': 5164900,
-                       'west': 692080}
+                     'east': 704870,
+                     'north': 5194350,
+                     'south': 5164550,
+                     'west': 691730}
     assert(loadparams.global_extent == expected_extent)
     assert loadparams.bands == ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12', 'SCL']
     assert loadparams.pixel_buffer == None
@@ -2166,10 +2166,10 @@ def test_complex_extract_load_stac(dry_run_env,dry_run_tracer):
 
     print(loadparams)
     expected_extent = {'crs': 'EPSG:32633',
-                         'east': 400110,
-                         'north': 4700160,
-                         'south': 4679930,
-                         'west': 380190}
+                     'east': 400450,
+                     'north': 4700510,
+                     'south': 4679580,
+                     'west': 379840}
     assert(loadparams.global_extent == expected_extent)
     assert loadparams.bands == [ 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B11', 'B12']
     assert loadparams.pixel_buffer == None

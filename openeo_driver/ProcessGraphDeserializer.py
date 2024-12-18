@@ -517,6 +517,18 @@ def _collection_crs(collection_id, env) -> str:
     crs = metadata.get('cube:dimensions', {}).get('x', {}).get('reference_system', None)
     return crs
 
+def _collection_resolution(collection_id, env) -> str:
+    try:
+        metadata = env.backend_implementation.catalog.get_collection_metadata(collection_id)
+    except CollectionNotFoundException:
+        return None
+    x = metadata.get('cube:dimensions', {}).get('x', {})
+    y = metadata.get('cube:dimensions', {}).get('y', {})
+    if ( "step" in x and "step" in y):
+        return [x['step'], y['step']]
+    else:
+        return None
+
 
 def _align_extent(extent,collection_id,env,target_resolution=None):
     metadata = None
@@ -529,13 +541,14 @@ def _align_extent(extent,collection_id,env,target_resolution=None):
     if metadata is None or not metadata.get("_vito",{}).get("data_source", {}).get("realign", True):
         return extent
 
-    crs = metadata.get('cube:dimensions', {}).get('x', {}).get('reference_system', None)
+    crs = _collection_crs(collection_id, env)
+    collection_resolution = _collection_resolution(collection_id, env)
     isUTM = crs == "AUTO:42001" or "Auto42001" in str(crs)
 
     x = metadata.get('cube:dimensions', {}).get('x', {})
     y = metadata.get('cube:dimensions', {}).get('y', {})
-    if (target_resolution == None and "step" in x and "step" in y ):
-        target_resolution = [x['step'], y['step']]
+    if (target_resolution == None and collection_resolution != None ):
+        target_resolution = collection_resolution
     elif target_resolution == None:
         return extent
 
@@ -606,20 +619,21 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
             if extent is not None:
                 collection_crs = _collection_crs(collection_id[1][0], env)
                 crs = constraint.get("resample", {}).get("target_crs", collection_crs) or collection_crs
+                target_resolution = constraint.get("resample", {}).get("resolution", None) or _collection_resolution(collection_id[1][0], env)
 
                 if "pixel_buffer" in constraint:
 
                     buffer = constraint["pixel_buffer"]["buffer_size"]
 
-                    if crs is not None:
+                    if (crs is not None) and target_resolution:
                         bbox = BoundingBox.from_dict(extent, default_crs=4326)
                         extent = bbox.reproject(crs).as_dict()
 
                         extent = {
-                            "west": extent["west"] - buffer[0],
-                            "east": extent["east"] + buffer[0],
-                            "south": extent["south"] - buffer[1],
-                            "north": extent["north"] + buffer[1],
+                            "west": extent["west"] - target_resolution[0] * buffer[0],
+                            "east": extent["east"] + target_resolution[0] * buffer[0],
+                            "south": extent["south"] - target_resolution[1] * buffer[1],
+                            "north": extent["north"] + target_resolution[1] * buffer[1],
                             "crs": extent["crs"]
                         }
                     else:
@@ -636,7 +650,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
 
                 if  no_resampling:
                     # Ensure that the extent that the user provided is aligned with the collection's native grid.
-                    target_resolution = constraint.get("resample",{}).get("resolution",None)
+
                     extent = _align_extent(extent, collection_id[1][0], env,target_resolution)
 
                 global_extent = spatial_extent_union(global_extent, extent) if global_extent else extent
