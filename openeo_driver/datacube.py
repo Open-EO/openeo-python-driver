@@ -744,13 +744,15 @@ class DriverVectorCube:
         bufferer = GeometryBufferer.from_meter_for_crs(
             distance=distance, crs=self.get_crs()
         )
-
-        return DriverVectorCube.from_geometry(
-            [
+        buffered = GeoSeries([
                 bufferer.buffer(g) if isinstance(g, shapely.geometry.Point) else g
                 for g in self.get_geometries()
-            ]
-        )
+            ],crs = self.get_crs())
+
+        updated_df = self._geometries.set_geometry(buffered,inplace=False)
+        return DriverVectorCube.from_geodataframe(updated_df)
+
+
 
     def apply_dimension(
         self,
