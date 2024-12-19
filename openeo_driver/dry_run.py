@@ -598,7 +598,7 @@ class DryRunDataCube(DriverDataCube):
             if target_crs is not None:
                 is_utm = target_crs == "AUTO:42001" or "Auto42001" in str(target_crs)
                 if is_utm:
-                    target_crs = BoundingBox.from_wsen_tuple(geometries.get_bounding_box(),crs=geometries.get_crs()).best_utm()
+                    target_crs = f"EPSG:{BoundingBox.from_wsen_tuple(geometries.get_bounding_box(),crs=geometries.get_crs()).best_utm()}"
                 else:
                     target_crs = BoundingBox.normalize_crs(target_crs)
                 bbox = geometries.buffer_points(distance=10).reproject(CRS.from_user_input( target_crs )).get_bounding_box()

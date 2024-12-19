@@ -1023,14 +1023,14 @@ def test_resample_filter_spatial(dry_run_env, dry_run_tracer):
     assert src == ("load_collection", ("S2_FOOBAR", ()))
     geometries, = dry_run_tracer.get_geometries(operation="filter_spatial")
     assert constraints == {
-        "spatial_extent": {'crs': 32631,
+        "spatial_extent": {'crs': "EPSG:32631",
                     'east': 1056748.2872412915,
                     'north': 552664.2968779367,
                     'south': 0.0,
                     'west': 166021.44308054057},
         "filter_spatial": {"geometries": DummyVectorCube.from_geometry(shapely.geometry.shape(polygon))},
         "resample": {"method": "near", "resolution": [0.25, 0.25], "target_crs": 4326},
-        "weak_spatial_extent": {'crs': 32631,
+        "weak_spatial_extent": {'crs': "EPSG:32631",
                          'east': 1056748.2872412915,
                          'north': 552664.2968779367,
                          'south': 0.0,
