@@ -591,9 +591,9 @@ def test_aggregate_spatial_only(dry_run_env, dry_run_tracer):
     assert src == ("load_collection", ("S2_FOOBAR", ()))
 
     assert constraints == {
-        "spatial_extent": {'crs': 32631, 'east': 1056748.2872412915, 'north': 552664.2968779367, 'south': 0.0, 'west': 166021.44308054057},
+        "spatial_extent": {'crs': "EPSG:32631", 'east': 1056748.2872412915, 'north': 552664.2968779367, 'south': 0.0, 'west': 166021.44308054057},
         "aggregate_spatial": {"geometries": DriverVectorCube.from_geojson(polygon)},
-        "weak_spatial_extent": {'crs': 32631, 'east': 1056748.2872412915, 'north': 552664.2968779367, 'south': 0.0, 'west': 166021.44308054057},
+        "weak_spatial_extent": {'crs': "EPSG:32631", 'east': 1056748.2872412915, 'north': 552664.2968779367, 'south': 0.0, 'west': 166021.44308054057},
     }
     (geometries,) = dry_run_tracer.get_geometries()
     assert isinstance(geometries, DriverVectorCube)
@@ -616,7 +616,7 @@ def test_aggregate_spatial_only(dry_run_env, dry_run_tracer):
         (
             {"type": "Point", "coordinates": (2, 3)},
             approxify(
-                {'crs': 32631,
+                {'crs': "EPSG:32631",
                  'east': 388880.8418,
                  'north': 331653.859,
                  'south': 331634.017,
@@ -629,7 +629,7 @@ def test_aggregate_spatial_only(dry_run_env, dry_run_tracer):
                 shapely.geometry.Point(4, 5),
             ),
             approxify(
-                {'crs': 32631,
+                {'crs': "EPSG:32631",
                  'east': 610869.8770073673,
                  'north': 552758.5425218772,
                  'south': 331634.0169357686,
@@ -638,7 +638,7 @@ def test_aggregate_spatial_only(dry_run_env, dry_run_tracer):
         ),
         (
             {"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]},
-            {'crs': 32631,
+            {'crs': "EPSG:32631",
              'east': 1056748.2872412915,
              'north': 552664.2968779367,
              'south': 0.0,
@@ -649,7 +649,7 @@ def test_aggregate_spatial_only(dry_run_env, dry_run_tracer):
                 shapely.geometry.Polygon.from_bounds(2, 3, 5, 8),
                 shapely.geometry.Polygon.from_bounds(3, 5, 8, 13),
             ),
-            {'crs': 32631,
+            {'crs': "EPSG:32631",
              'east': 1054970.5285543476,
              'north': 1442473.7600420578,
              'south': 331643.9380733739,
@@ -661,7 +661,7 @@ def test_aggregate_spatial_only(dry_run_env, dry_run_tracer):
                 shapely.geometry.Polygon.from_bounds(3, 5, 8, 13),
             ),
             approxify(
-                {'crs': 32631,
+                {'crs': "EPSG:32631",
                  'east': 1054970.528,
                  'north': 1442473.760,
                  'south': 331634.017,
@@ -835,7 +835,7 @@ def test_aggregate_spatial_apply_dimension(dry_run_env, dry_run_tracer):
     src, constraints = source_constraints[0]
     assert src == ("load_collection", ("S2_FOOBAR", (),('B04', 'B08', 'B11', 'SCL')))
     assert constraints == {
-        "spatial_extent":  {'crs': 32631,
+        "spatial_extent":  {'crs': "EPSG:32631",
                     'east': 1056748.2872412915,
                     'north': 552664.2968779367,
                     'south': 0.0,
@@ -845,7 +845,7 @@ def test_aggregate_spatial_apply_dimension(dry_run_env, dry_run_tracer):
         "custom_cloud_mask": {"method": "mask_scl_dilation", 'scl_band_name': 'SCL'},
         "aggregate_spatial": {"geometries": DriverVectorCube.from_geojson(polygon)},
         "temporal_extent": ("2018-11-01", "2020-02-01"),
-        "weak_spatial_extent": {'crs': 32631,
+        "weak_spatial_extent": {'crs': "EPSG:32631",
                          'east': 1056748.2872412915,
                          'north': 552664.2968779367,
                          'south': 0.0,
@@ -883,7 +883,7 @@ def test_aggregate_spatial_and_filter_bbox(dry_run_env, dry_run_tracer):
     assert constraints == {
         "spatial_extent": bbox,
         "aggregate_spatial": {"geometries": DriverVectorCube.from_geojson(polygon)},
-        "weak_spatial_extent": {'crs': 32631,
+        "weak_spatial_extent": {'crs': "EPSG:32631",
                          'east': 1056748.2872412915,
                          'north': 552664.2968779367,
                          'south': 0.0,
@@ -921,14 +921,14 @@ def test_multiple_filter_spatial(dry_run_env, dry_run_tracer):
     assert src == ("load_collection", ("S2_FOOBAR", ()))
     geometries = dry_run_tracer.get_last_geometry(operation="filter_spatial")
     assert constraints == {
-        "spatial_extent": {'crs': 32631,
+        "spatial_extent": {'crs': "EPSG:32631",
                     'east': 1056748.2872412915,
                     'north': 552664.2968779367,
                     'south': 0.0,
                     'west': 166021.44308054057},
         "filter_spatial": {"geometries": DummyVectorCube.from_geometry(shapely.geometry.shape(polygon1))},
         "resample": {"method": "near", "resolution": [0.25, 0.25], "target_crs": 4326},
-        "weak_spatial_extent": {'crs': 32631,
+        "weak_spatial_extent": {'crs': "EPSG:32631",
                          'east': 1056748.2872412915,
                          'north': 552664.2968779367,
                          'south': 0.0,
@@ -968,12 +968,12 @@ def test_filter_spatial_delayed_vector(dry_run_env, dry_run_tracer, path, expect
         (
             "parquet/mol.pq",
             tuple(pytest.approx(x, abs=1) for x in (645146.7, 5672137.6, 648591.9, 5676210.3)),
-            32631,
+            "EPSG:32631",
         ),
         (
             "parquet/mol-utm.pq",
             tuple(pytest.approx(x, abs=1) for x in (645146, 5672137, 648591, 5676210)),
-            32631,
+            "EPSG:32631",
         ),
     ],
 )
