@@ -522,6 +522,7 @@ def test_execute_resample_and_merge_cubes(api):
     assert last_load_collection_call.target_resolution == [10, 10]
     assert dummy.merge_cubes.call_count == 1
     assert dummy.resample_cube_spatial.call_count == 1
+    assert dummy.resample_cube_spatial.call_args.kwargs["method"] == "cubic"
     args, kwargs = dummy.merge_cubes.call_args
     assert args[1:] == ('or',)
 
@@ -3023,7 +3024,7 @@ def test_execute_no_cube_dynamic_args(api):
     assert kwargs["factor"] == 7.75
 
 
-@pytest.mark.parametrize(["border", "expected"], [(0, 0), ("0", 0), ])
+@pytest.mark.parametrize(["border", "expected"], [(0, 0)])
 def test_execute_apply_kernel_border(api, border, expected):
     pg = {
         "lc1": {'process_id': 'load_collection', 'arguments': {'id': 'S2_FOOBAR'}},

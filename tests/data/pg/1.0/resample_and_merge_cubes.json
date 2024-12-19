@@ -20,7 +20,7 @@
       "target": {
         "from_node": "collection2"
       },
-      "method": "cube"
+      "method": "cubic"
     },
     "result": false
   },
