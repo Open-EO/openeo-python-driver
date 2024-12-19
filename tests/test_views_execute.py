@@ -1054,7 +1054,7 @@ def test_aggregate_spatial_vector_cube_basic(api, feature_collection_test_path):
     res = api.check_result(pg)
 
     params = dummy_backend.last_load_collection_call("S2_FOOBAR")
-    assert params["spatial_extent"] == {"west": 277438.26352113695, "south": 110530.15880237566, "east":  722056.3830076031, "north": 442397.8228986237, "crs": 32631}
+    assert params["spatial_extent"] == {"west": 277438.26352113695, "south": 110530.15880237566, "east":  722056.3830076031, "north": 442397.8228986237, "crs": "EPSG:32631"}
     assert isinstance(params["aggregate_spatial_geometries"], DriverVectorCube)
 
     assert res.json == DictSubSet(
