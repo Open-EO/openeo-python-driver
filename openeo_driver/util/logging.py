@@ -44,6 +44,10 @@ LOG_HANDLER_FILE_JSON = "file_json"
 LOG_HANDLER_ROTATING_FILE_JSON = "rotating_file_json"
 
 
+# Sentinel value for unset values
+_UNSET = object()
+
+
 def get_logging_config(
     *,
     root_handlers: Optional[List[str]] = None,
@@ -280,12 +284,12 @@ class FlaskRequestCorrelationIdLogging(logging.Filter):
         setattr(flask.g, cls.FLASK_G_ATTR, cls._build_request_id())
 
     @classmethod
-    def get_request_id(cls) -> str:
+    def get_request_id(cls, *, default: Union[str, None] = _UNSET) -> str:
         """Get request correlation id as stored in Flask request global `g`."""
         if flask.has_request_context():
-            return flask.g.get(cls.FLASK_G_ATTR, "n/a")
+            return flask.g.get(cls.FLASK_G_ATTR, default="n/a" if default is _UNSET else default)
         else:
-            return "no-request"
+            return "no-request" if default is _UNSET else default
 
     def filter(self, record: logging.LogRecord) -> bool:
         """Filter a log record (logging.Filter API)."""

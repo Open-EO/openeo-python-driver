@@ -29,7 +29,7 @@ from ..conftest import enhanced_logging
 _log = logging.getLogger(__name__)
 
 
-def test_filter_flask_request_correlation_id_logging():
+def test_flask_request_correlation_id_logging():
     with enhanced_logging(format="[%(req_id)s] %(message)s", context=LOGGING_CONTEXT_FLASK) as logs:
         app = flask.Flask(__name__)
         log = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ def test_filter_flask_request_correlation_id_logging():
     assert "[123-456] Watch out!" in logs
 
 
-def test_filter_flask_request_correlation_id_logging_overriding():
+def test_flask_request_correlation_id_logging_overriding():
     """Don't overwrite existing request id."""
     with enhanced_logging(format="[%(req_id)s] %(message)s", context=LOGGING_CONTEXT_FLASK) as logs:
         app = flask.Flask(__name__)
@@ -76,6 +76,30 @@ def test_filter_flask_request_correlation_id_logging_overriding():
     logs = [l for l in logs.getvalue().split("\n")]
     assert "[no-request] Setting up app" in logs
     assert "[hello123] Watch out!" in logs
+
+
+def test_flask_request_correlation_id_get_request_id_default_no_flask_context():
+    assert FlaskRequestCorrelationIdLogging.get_request_id() == "no-request"
+    assert FlaskRequestCorrelationIdLogging.get_request_id(default="nope") == "nope"
+    assert FlaskRequestCorrelationIdLogging.get_request_id(default=None) is None
+
+
+def test_flask_request_correlation_id_logging_default_flask_context():
+    results = []
+
+    app = flask.Flask(__name__)
+
+    @app.route("/hello")
+    def hello():
+        results.append(FlaskRequestCorrelationIdLogging.get_request_id())
+        results.append(FlaskRequestCorrelationIdLogging.get_request_id(default="nope"))
+        results.append(FlaskRequestCorrelationIdLogging.get_request_id(default=None))
+        return "Hello world"
+
+    with app.test_client() as client:
+        client.get("/hello")
+
+    assert results == ["n/a", "nope", None]
 
 
 def test_filter_flask_user_id_logging():
