@@ -601,9 +601,14 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
                 n_band_values = len(band_values)
                 flattened.append((timestamp, feature_index, *band_values))
 
-        band_names = [f"band_{i}" for i in range(n_band_values)]
-        if self._metadata is not None and self._metadata.has_band_dimension() and len(band_names) == len(self._metadata.bands):
+        if (
+            self._metadata is not None
+            and self._metadata.has_band_dimension()
+            and (n_band_values is None or n_band_values == len(self._metadata.bands))
+        ):
             band_names = self._metadata.band_names
+        else:
+            band_names = [f"band_{i}" for i in range(n_band_values)]
 
         stats = pd.DataFrame.from_records(flattened,
                                           columns=['date', 'feature_index'] + band_names)
