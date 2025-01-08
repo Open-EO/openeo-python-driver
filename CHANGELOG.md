@@ -21,6 +21,7 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+- Add time resolution to date prefix of `generate_unique_id()`
 
 ## 0.122.0
 

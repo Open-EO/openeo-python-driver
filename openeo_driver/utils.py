@@ -334,14 +334,20 @@ def get_package_versions(packages: List[str], na_value="n/a") -> dict:
     return version_info
 
 
-def generate_unique_id(prefix: Optional[str] = None, date_prefix: bool = True) -> str:
+def generate_unique_id(prefix: Optional[str] = None, *, date_prefix: Union[bool, str] = True) -> str:
     """
     Generate a random, unique identifier, to be used as job id, request id
     correlation id, error id, ...
+
+    :param date_prefix: enable a date/time based prefix
+        (e.g. so that alphabetical ordering implies temporal ordering)
+        Can be boolean, or string template to be used with `strftime`
     """
     id = uuid.uuid4().hex
     if date_prefix:
-        date_repr = datetime.datetime.now(datetime.timezone.utc).strftime("%y%m%d")
+        if not isinstance(date_prefix, str):
+            date_prefix = "%y%m%d%H%M%S"
+        date_repr = datetime.datetime.now(datetime.timezone.utc).strftime(date_prefix)
         id = f"{date_repr}{id[len(date_repr):]}"
     if prefix:
         id = f"{prefix}-{id}"

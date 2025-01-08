@@ -1,5 +1,6 @@
 import re
 import typing
+from unittest import mock
 
 import pytest
 import time_machine
@@ -278,16 +279,33 @@ def test_get_package_versions_na():
     }
 
 
-def test_generate_unique_id():
+@pytest.fixture
+def generate_unique_id_mock() -> str:
+    """Fixture to fix the UUID used in `generate_unique_id`"""
+    # TODO: make this more reusable
+    with mock.patch("openeo_driver.utils.uuid") as uuid:
+        fake_uuid = "0123456789abcdef0123456789abcdef"
+        uuid.uuid4.return_value.hex = fake_uuid
+        yield fake_uuid
+
+
+def test_generate_unique_id_basics():
     assert re.match("^[0-9a-f]{32}$", generate_unique_id())
     assert re.match("^j-[0-9a-f]{32}$", generate_unique_id("j"))
 
 
-def test_generate_unique_id_date_prefix():
-    with time_machine.travel("2022-12-14T12:34:56Z"):
-        job_id = generate_unique_id("j")
-        assert re.match("^j-[0-9a-f]{32}$", generate_unique_id("j"))
-        assert job_id.startswith("j-221214")
+@pytest.mark.parametrize(
+    ["date_prefix", "expected"],
+    [
+        (False, "j-0123456789abcdef0123456789abcdef"),
+        (True, "j-191227070809cdef0123456789abcdef"),
+        ("%Y%m", "j-2019126789abcdef0123456789abcdef"),
+        ("d%y%m%d-T%H%M-", "j-d191227-T0708-ef0123456789abcdef"),
+    ],
+)
+def test_generate_unique_id_date_prefix(generate_unique_id_mock, date_prefix, expected):
+    with time_machine.travel("2019-12-27T07:08:09Z"):
+        assert generate_unique_id("j", date_prefix=date_prefix) == expected
 
 
 def test_filter_supported_kwargs_basic():
