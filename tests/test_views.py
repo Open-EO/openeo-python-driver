@@ -84,8 +84,9 @@ EXPECTED_PROVIDERS = [
 
 @pytest.fixture(
     params=[
-        "1.0.0",
-        "1.1.0",
+        "1.0",
+        "1.1",
+        "1.2",
     ]
 )
 def api_version(request) -> str:
@@ -533,7 +534,7 @@ class TestGeneral:
     def test_processes_exclusion(self, api, backend_config_overrides):
         resp = api.get('/processes').assert_status_code(200).json
         ids = [c["id"] for c in resp["processes"]]
-        if(api.api_version == "1.0.0"):
+        if ComparableVersion(api.api_version) == "1.0.0":
             assert "merge_cubes" not in ids
         else:
             assert "merge_cubes" in ids
@@ -1031,10 +1032,9 @@ class TestCollections:
 
     @pytest.mark.parametrize("backend_config_overrides", [{"collection_exclusion_list": {"1.0.0":["S2_FOOBAR"]}}])
     def test_collections_exclusion(self, api, backend_config_overrides):
-
         resp = api.get('/collections').assert_status_code(200).json
         ids = [c["id"] for c in resp["collections"]]
-        if(api.api_version == "1.0.0"):
+        if ComparableVersion(api.api_version) == "1.0.0":
             assert "S2_FOOBAR" not in ids
         else:
             assert "S2_FOOBAR" in ids
