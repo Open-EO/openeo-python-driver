@@ -84,8 +84,9 @@ EXPECTED_PROVIDERS = [
 
 @pytest.fixture(
     params=[
-        "1.0.0",
-        "1.1.0",
+        "1.0",
+        "1.1",
+        "1.2",
     ]
 )
 def api_version(request) -> str:
@@ -520,7 +521,7 @@ class TestGeneral:
         "/processes",
         "/processes/backend"
     ])
-    def test_processes(self, api, endpoint):
+    def test_processes(self, api_version, api, endpoint):
         resp = api.get(endpoint).assert_status_code(200).json
         processes = resp["processes"]
         process_ids = set(p['id'] for p in processes)
@@ -529,11 +530,14 @@ class TestGeneral:
         for process in processes:
             assert all(k in process for k in expected_keys)
 
+        expected_version = "2.0.0-rc.1" if ComparableVersion(api_version) >= "1.2" else "1.2.0"
+        assert resp["version"] == expected_version
+
     @pytest.mark.parametrize("backend_config_overrides", [{"processes_exclusion_list": {"1.0.0":["merge_cubes"]}}])
     def test_processes_exclusion(self, api, backend_config_overrides):
         resp = api.get('/processes').assert_status_code(200).json
         ids = [c["id"] for c in resp["processes"]]
-        if(api.api_version == "1.0.0"):
+        if ComparableVersion(api.api_version) == "1.0.0":
             assert "merge_cubes" not in ids
         else:
             assert "merge_cubes" in ids
@@ -1031,10 +1035,9 @@ class TestCollections:
 
     @pytest.mark.parametrize("backend_config_overrides", [{"collection_exclusion_list": {"1.0.0":["S2_FOOBAR"]}}])
     def test_collections_exclusion(self, api, backend_config_overrides):
-
         resp = api.get('/collections').assert_status_code(200).json
         ids = [c["id"] for c in resp["collections"]]
-        if(api.api_version == "1.0.0"):
+        if ComparableVersion(api.api_version) == "1.0.0":
             assert "S2_FOOBAR" not in ids
         else:
             assert "S2_FOOBAR" in ids
@@ -3396,6 +3399,7 @@ class TestUserDefinedProcesses:
                 {"id": "evi", "parameters": [{"name": "red"}]}
             ],
             "links": [],
+            "version": None,
         }
 
     def test_public_udp_link(self, api100, udp_store):

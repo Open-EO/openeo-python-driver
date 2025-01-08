@@ -80,10 +80,14 @@ _log = logging.getLogger(__name__)
 # Set up process registries (version dependent)
 
 # Process registry based on 1.x version of openeo-processes, to be used with api_version 1.0 an 1.1
-process_registry_100 = ProcessRegistry(spec_root=SPECS_ROOT / "openeo-processes/1.x", argument_names=["args", "env"])
+process_registry_100 = ProcessRegistry(
+    spec_root=SPECS_ROOT / "openeo-processes/1.x", argument_names=["args", "env"], target_version="1.2.0"
+)
 
 # Process registry based on 2.x version of openeo-processes, to be used starting with api_version 1.2
-process_registry_2xx = ProcessRegistry(spec_root=SPECS_ROOT / "openeo-processes/2.x", argument_names=["args", "env"])
+process_registry_2xx = ProcessRegistry(
+    spec_root=SPECS_ROOT / "openeo-processes/2.x", argument_names=["args", "env"], target_version="2.0.0-rc.1"
+)
 
 
 def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List[str]):

@@ -105,12 +105,19 @@ class ProcessRegistry:
     Basically a dictionary of process specification dictionaries
     """
 
-    def __init__(self, spec_root: Path = SPECS_ROOT / 'openeo-processes/1.x', argument_names: List[str] = None):
+    def __init__(
+        self,
+        spec_root: Path = SPECS_ROOT / "openeo-processes/1.x",
+        argument_names: List[str] = None,
+        target_version: Optional[str] = None,
+    ):
         self._processes_spec_root = spec_root
         # Dictionary (namespace, process_name) -> ProcessData
         self._processes: Dict[Tuple[str, str], ProcessData] = {}
         # Expected argument names that process function signature should start with
         self._argument_names = argument_names
+        # openeo-processes version targeted by this collection of specs (per https://github.com/Open-EO/openeo-api/pull/549)
+        self.target_version = target_version
 
     def __repr__(self):
         return "<{c} {n} processes>".format(c=self.__class__.__name__, n=len(self._processes))

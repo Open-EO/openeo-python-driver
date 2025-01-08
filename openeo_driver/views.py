@@ -730,7 +730,13 @@ def register_views_processing(
         exclusion_list = get_backend_config().processes_exclusion_list
         processes = _filter_by_id(processes, exclusion_list)
 
-        return jsonify({'processes': processes, 'links': []})
+        return jsonify(
+            {
+                "version": process_registry.target_version,
+                "processes": processes,
+                "links": [],
+            }
+        )
 
     @api_endpoint
     @blueprint.route('/processes/<namespace>', methods=['GET'])
@@ -741,6 +747,7 @@ def register_views_processing(
         # TODO: convention for user namespace? use '@' instead of "u:"
         # TODO: unify with `/processes` endpoint?
         full = smart_bool(request.args.get("full", False))
+        target_version = None
         if namespace.startswith("u:") and backend_implementation.user_defined_processes:
             user_id = namespace.partition("u:")[-1]
             user_udps = [p for p in backend_implementation.user_defined_processes.get_for_user(user_id) if p.public]
@@ -749,6 +756,7 @@ def register_views_processing(
             process_registry = backend_implementation.processing.get_process_registry(
                 api_version=requested_api_version()
             )
+            target_version = process_registry.target_version
             processes = process_registry.get_specs(namespace=namespace)
             if not full:
                 # Strip some fields
@@ -759,7 +767,13 @@ def register_views_processing(
         else:
             raise OpenEOApiException("Could not handle namespace {n!r}".format(n=namespace))
         # TODO: pagination links?
-        return jsonify({'processes': processes, 'links': []})
+        return jsonify(
+            {
+                "version": target_version,
+                "processes": processes,
+                "links": [],
+            }
+        )
 
     @api_endpoint
     @blueprint.route('/processes/<namespace>/<process_id>', methods=['GET'])
