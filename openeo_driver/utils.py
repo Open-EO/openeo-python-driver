@@ -334,11 +334,6 @@ def get_package_versions(packages: List[str], na_value="n/a") -> dict:
     return version_info
 
 
-@deprecated(reason="call generate_unique_id instead")
-def generate_uuid(prefix: Optional[str] = None) -> str:
-    return generate_unique_id(prefix)
-
-
 def generate_unique_id(prefix: Optional[str] = None, date_prefix: bool = True) -> str:
     """
     Generate a random, unique identifier, to be used as job id, request id
