@@ -22,6 +22,7 @@ and start a new "In Progress" section above it.
 ## In progress
 
 - Add time resolution to date prefix of `generate_unique_id()`
+- Add target version of openEO processes to `GET /processes` ([#352](https://github.com/Open-EO/openeo-python-driver/issues/352), [Open-EO/openeo-api#549](https://github.com/Open-EO/openeo-api/pull/549))
 
 ## 0.122.0
 
