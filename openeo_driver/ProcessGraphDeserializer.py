@@ -54,7 +54,7 @@ from openeo_driver.errors import (
     ProcessParameterInvalidException,
     FeatureUnsupportedException,
     OpenEOApiException,
-    CollectionNotFoundException,
+    CollectionNotFoundException, ProcessUnsupportedException,
 )
 from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE, ProcessArgs
 from openeo_driver.processgraph import get_process_definition_from_url
@@ -1824,11 +1824,22 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
             process_id=process_id, namespace=namespace, args=args, env=env
         )
 
+    process_registry = env.backend_implementation.processing.get_process_registry(api_version=env["version"])
+
+    try:
+        process_function = process_registry.get_function(process_id, namespace=(namespace or "backend"))
+        _log.debug(f"Applying process {process_id} to arguments {args}")
+        #TODO: for API compliance, we would actually first need to check if a UDP with same name exists.
+        # we would however prefer to avoid overriding predefined functions with UDP's.
+        # if we want to do this, we require caching in UDP registry to avoid expensive UDP lookups. We only need to cache the list of UDP names for a given user.
+        return process_function(args=ProcessArgs(args, process_id=process_id), env=env)
+    except ProcessUnsupportedException as e:
+        pass
+
+
     if namespace in ["user", None]:
         user = env.get("user")
         if user:
-            # TODO: first check process registry with predefined processes because querying of user defined processes
-            #   is more expensive IO-wise?
             # the DB-call can be cached if necessary, but how will a user be able to use a new pre-defined process of the same
             # name without renaming his UDP?
             udp = env.backend_implementation.user_defined_processes.get(user_id=user.user_id, process_id=process_id)
@@ -1837,16 +1848,8 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
                     _log.debug("Using process {p!r} from namespace 'user'.".format(p=process_id))
                 return evaluate_udp(process_id=process_id, udp=udp, args=args, env=env)
 
-    # And finally: check registry of predefined (namespaced) processes
-    if namespace is None:
-        namespace = "backend"
-        _log.debug("Using process {p!r} from namespace 'backend'.".format(p=process_id))
+        raise ProcessUnsupportedException(process=process_id, namespace=namespace)
 
-
-    process_registry = env.backend_implementation.processing.get_process_registry(api_version=env["version"])
-    process_function = process_registry.get_function(process_id, namespace=namespace)
-    _log.debug(f"Applying process {process_id} to arguments {args}")
-    return process_function(args=ProcessArgs(args, process_id=process_id), env=env)
 
 
 @non_standard_process(
