@@ -24,7 +24,7 @@ def test_basic_ok(api100):
     (
             {"add": {"process_id": "fluxbormav", "arguments": {"x": 3, "y": 5}, "result": True}},
             "ProcessUnsupported",
-            "Process with identifier 'fluxbormav' is not available in namespace 'backend'.",
+            "Process with identifier 'fluxbormav' is not available in namespace 'None'.",
     ),
     (
             {"lc": {"process_id": "load_collection", "arguments": {"id": "flehmeh"}, "result": True}},

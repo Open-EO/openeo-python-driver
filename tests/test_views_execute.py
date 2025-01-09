@@ -2647,6 +2647,13 @@ def test_udp_apply_neighborhood(api, udp_registry, set_parameter):
 
 
 def test_user_defined_process_udp_vs_pdp_priority(api, udp_registry):
+    """
+    See https://github.com/Open-EO/openeo-python-driver/issues/353
+    This test was effectively asserting that the backend correctly follows API.
+    Unfortunately, the prescribed behaviour of allowing to override predefined processes is somewhat questionable.
+    On top of that, it lead to a major operational issue.
+    When the above issue is resolved, this test should be adjusted to check the desired behaviour.
+    """
     api.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
     # First without a defined "ndvi" UDP
     api.check_result("udp_ndvi.json")
@@ -2659,12 +2666,12 @@ def test_user_defined_process_udp_vs_pdp_priority(api, udp_registry):
     udp_registry.save(user_id=TEST_USER, process_id="ndvi", spec=api.load_json("udp/myndvi.json"))
     api.check_result("udp_ndvi.json")
     dummy = dummy_backend.get_collection("S2_FOOBAR")
-    assert dummy.ndvi.call_count == 1
-    assert dummy.reduce_dimension.call_count == 1
-    dummy.reduce_dimension.assert_called_with(reducer=mock.ANY, dimension="bands", context=None, env=mock.ANY)
-    args, kwargs = dummy.reduce_dimension.call_args
-    assert "red" in kwargs["reducer"]
-    assert "nir" in kwargs["reducer"]
+    assert dummy.ndvi.call_count == 2
+    assert dummy.reduce_dimension.call_count == 0
+    #dummy.reduce_dimension.assert_called_with(reducer=mock.ANY, dimension="bands", context=None, env=mock.ANY)
+    #args, kwargs = dummy.reduce_dimension.call_args
+    #assert "red" in kwargs["reducer"]
+    #assert "nir" in kwargs["reducer"]
 
 
 def test_execute_03_style_filter_bbox(api):

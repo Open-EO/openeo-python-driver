@@ -1848,7 +1848,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
                     _log.debug("Using process {p!r} from namespace 'user'.".format(p=process_id))
                 return evaluate_udp(process_id=process_id, udp=udp, args=args, env=env)
 
-        raise ProcessUnsupportedException(process=process_id, namespace=namespace)
+    raise ProcessUnsupportedException(process=process_id, namespace=namespace)
 
 
 
