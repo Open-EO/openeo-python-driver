@@ -205,6 +205,7 @@ class VectorCubeResult(SaveResult):
             asset = assets.popitem()[1]
             path = Path(asset["href"])
             mimetype = asset.get("type")
+            assert path.relative_to(tmp_dir)
             return send_from_directory(path.parent, path.name, mimetype=mimetype)
 
 

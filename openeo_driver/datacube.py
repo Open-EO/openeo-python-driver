@@ -578,11 +578,11 @@ class DriverVectorCube:
             options = {}
         # TODO: We should treat the directory parameter as an actual directory. (Open-EO/openeo-geopyspark-driver#888)
         filename = str(directory)
-        directory = Path(filename).parent
+        directory_parent = Path(filename).parent
 
         format_info = IOFORMATS.get(format)
         # TODO: check if format can be used for vector data?
-        path = directory / f"vectorcube.{format_info.extension}"
+        path = directory_parent / f"vectorcube.{format_info.extension}"
 
         if format_info.format == "JSON":
             # TODO: eliminate this legacy format?
@@ -607,7 +607,7 @@ class DriverVectorCube:
             }}
         else:
             # Multi-file format
-            components = list(directory.glob("vectorcube.*"))
+            components = list(directory_parent.glob("vectorcube.*"))
             if options.get("zip_multi_file"):
                 # TODO: automatically zip shapefile components?
                 zip_path = path.with_suffix(f".{format_info.extension}.zip")
