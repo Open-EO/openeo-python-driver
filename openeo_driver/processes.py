@@ -5,6 +5,7 @@ from collections import namedtuple
 from pathlib import Path
 from typing import Any, Callable, Collection, Dict, List, Optional, Tuple, Union
 
+from openeo_driver.datacube import DriverDataCube
 from openeo_driver.errors import (
     OpenEOApiException,
     ProcessParameterInvalidException,
@@ -332,6 +333,8 @@ class ProcessArgs(dict):
     ):
         if expected_type:
             if not isinstance(value, expected_type):
+                if expected_type is DriverDataCube:
+                    expected_type = "raster cube"
                 raise ProcessParameterInvalidException(
                     parameter=name, process=self.process_id, reason=f"Expected {expected_type} but got {type(value)}."
                 )
@@ -430,13 +433,19 @@ class ProcessArgs(dict):
                     kwargs[key] = self[alias]
         return kwargs
 
-    def get_enum(self, name: str, options: Collection[ArgumentValue]) -> ArgumentValue:
+    def get_enum(
+        self, name: str, options: Collection[ArgumentValue], default: Optional[ArgumentValue] = None
+    ) -> ArgumentValue:
         """
         Get argument by name and check if it belongs to given set of (enum) values.
 
         Originally: `extract_arg_enum`
         """
-        value = self.get_required(name=name)
+        # TODO: use an "unset" sentinel value instead of None for default?
+        if default is None:
+            value = self.get_required(name=name)
+        else:
+            value = self.get_optional(name=name, default=default)
         if value not in options:
             raise ProcessParameterInvalidException(
                 parameter=name,
