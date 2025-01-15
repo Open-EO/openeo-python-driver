@@ -556,7 +556,7 @@ class DriverVectorCube:
         """
         return {
             "geometries": shapely.geometry.mapping(self._geometries),
-            "cube": self._cube.to_dict(data="array") if self._cube is not None else None,
+            "cube": self._cube.to_dict(data="list") if self._cube is not None else None,
         }
 
     def get_crs(self) -> CRS:
