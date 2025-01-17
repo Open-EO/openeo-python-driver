@@ -202,7 +202,14 @@ class LoadParameters(dict):
     def __eq__(self, o: object) -> bool:
         if not isinstance(o,LoadParameters):
             return False
-        return self._copy_for_eq().__eq__(o._copy_for_eq())
+        if self.sar_backscatter != o.sar_backscatter:
+            logger.info(f"load_collection: sar_backscatter not equal { self.sar_backscatter } != { o.sar_backscatter }")
+            return False
+        copy1 = self._copy_for_eq()
+        copy2 = o._copy_for_eq()
+        copy1["sar_backscatter"] = None
+        copy2["sar_backscatter"] = None
+        return copy1 == copy2
 
 
 class AbstractCollectionCatalog(MicroService, metaclass=abc.ABCMeta):
