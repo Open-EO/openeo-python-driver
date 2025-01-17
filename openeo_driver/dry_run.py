@@ -49,7 +49,7 @@ from openeo_driver import filter_properties
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.errors import OpenEOApiException
+from openeo_driver.errors import OpenEOApiException, FeatureUnsupportedException
 from openeo_driver.save_result import (
     AggregatePolygonResult,
     AggregatePolygonSpatialResult,
@@ -571,6 +571,8 @@ class DryRunDataCube(DriverDataCube):
         reducer: dict,
         target_dimension: Optional[str] = None,
     ) -> "DryRunDataCube":
+        if target_dimension:
+            raise FeatureUnsupportedException(f"Argument `target_dimension` with value {target_dimension} not supported in `aggregate_spatial`")
         # TODO #71 #114 EP-3981 normalize to vector cube instead of GeometryCollection
         geoms_is_empty = isinstance(geometries, DriverVectorCube) and len(geometries.get_geometries()) == 0
         cube = self
