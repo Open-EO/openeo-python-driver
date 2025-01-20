@@ -1585,7 +1585,7 @@ def resample_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     resolution = args.get_optional("resolution", 0)
     projection = args.get_optional("projection", None)
     method = args.get_optional("method", "near")
-    align = args.get_optional("align", "lower-left")
+    align = args.get_optional("align", "upper-left")
     return cube.resample_spatial(resolution=resolution, projection=projection, method=method, align=align)
 
 
