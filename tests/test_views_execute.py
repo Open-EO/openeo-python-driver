@@ -514,6 +514,131 @@ def test_execute_merge_cubes(api):
     assert args[1:] == ('or',)
 
 
+def test_execute_resample_spatial_defaults(api):
+    api.check_result(
+        {
+            "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+            "resample": {
+                "process_id": "resample_spatial",
+                "arguments": {"data": {"from_node": "lc"}},
+                "result": True,
+            },
+        }
+    )
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
+    assert dummy.resample_spatial.call_count == 1
+    assert dummy.resample_spatial.call_args.kwargs == {
+        "resolution": 0,
+        "projection": None,
+        "method": "near",
+        "align": "upper-left",
+    }
+
+
+def test_execute_resample_spatial_custom(api):
+    api.check_result(
+        {
+            "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+            "resample": {
+                "process_id": "resample_spatial",
+                "arguments": {
+                    "data": {"from_node": "lc"},
+                    "resolution": [11, 123],
+                    "projection": 3857,
+                    "method": "cubic",
+                    "align": "lower-right",
+                },
+                "result": True,
+            },
+        }
+    )
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
+    assert dummy.resample_spatial.call_count == 1
+    assert dummy.resample_spatial.call_args.kwargs == {
+        "resolution": [11, 123],
+        "projection": 3857,
+        "method": "cubic",
+        "align": "lower-right",
+    }
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"resolution": [1, 2, 3, 4, 5]},
+        {"method": "glossy"},
+        {"align": "justified"},
+    ],
+)
+def test_execute_resample_spatial_invalid(api, kwargs):
+    res = api.result(
+        {
+            "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+            "resample": {
+                "process_id": "resample_spatial",
+                "arguments": {"data": {"from_node": "lc"}, **kwargs},
+                "result": True,
+            },
+        }
+    )
+    res.assert_error(status_code=400, error_code="ProcessParameterInvalid")
+
+
+def test_execute_resample_cube_spatial_defaults(api):
+    api.check_result(
+        {
+            "lc1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+            "lc2": {"process_id": "load_collection", "arguments": {"id": "SENTINEL1_GRD"}},
+            "resample": {
+                "process_id": "resample_cube_spatial",
+                "arguments": {"data": {"from_node": "lc1"}, "target": {"from_node": "lc2"}},
+                "result": True,
+            },
+        }
+    )
+    cube1 = dummy_backend.get_collection("S2_FOOBAR")
+    cube2 = dummy_backend.get_collection("SENTINEL1_GRD")
+    assert cube1.resample_cube_spatial.call_count == 1
+    assert cube1.resample_cube_spatial.call_args.kwargs == {"target": cube2, "method": "near"}
+
+
+def test_execute_resample_cube_spatial_custom(api):
+    api.check_result(
+        {
+            "lc1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+            "lc2": {"process_id": "load_collection", "arguments": {"id": "SENTINEL1_GRD"}},
+            "resample": {
+                "process_id": "resample_cube_spatial",
+                "arguments": {"data": {"from_node": "lc1"}, "target": {"from_node": "lc2"}, "method": "lanczos"},
+                "result": True,
+            },
+        }
+    )
+    cube1 = dummy_backend.get_collection("S2_FOOBAR")
+    cube2 = dummy_backend.get_collection("SENTINEL1_GRD")
+    assert cube1.resample_cube_spatial.call_count == 1
+    assert cube1.resample_cube_spatial.call_args.kwargs == {"target": cube2, "method": "lanczos"}
+
+
+def test_execute_resample_cube_spatial_invalid(api):
+    res = api.result(
+        {
+            "lc1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+            "lc2": {"process_id": "load_collection", "arguments": {"id": "SENTINEL1_GRD"}},
+            "resample": {
+                "process_id": "resample_cube_spatial",
+                "arguments": {"data": {"from_node": "lc1"}, "target": {"from_node": "lc2"}, "method": "du chef"},
+                "result": True,
+            },
+        }
+    )
+    res.assert_error(
+        status_code=400,
+        error_code="ProcessParameterInvalid",
+        message=re.compile(r"Invalid enum value 'du chef'\. Expected one of.*cubic.*near"),
+    )
+
+
 def test_execute_resample_and_merge_cubes(api):
     api.check_result("resample_and_merge_cubes.json")
     dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
@@ -522,6 +647,7 @@ def test_execute_resample_and_merge_cubes(api):
     assert last_load_collection_call.target_resolution == [10, 10]
     assert dummy.merge_cubes.call_count == 1
     assert dummy.resample_cube_spatial.call_count == 1
+    assert dummy.resample_cube_spatial.call_args.kwargs["method"] == "cubic"
     args, kwargs = dummy.merge_cubes.call_args
     assert args[1:] == ('or',)
 

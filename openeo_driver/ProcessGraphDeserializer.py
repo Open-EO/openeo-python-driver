@@ -40,6 +40,7 @@ from openeo_driver.backend import (
     Processing,
     OpenEoBackendImplementation,
 )
+from openeo_driver.constants import RESAMPLE_SPATIAL_METHODS, RESAMPLE_SPATIAL_ALIGNS
 from openeo_driver.datacube import (
     DriverDataCube,
     DriverVectorCube,
@@ -1582,24 +1583,23 @@ def ndvi(args: dict, env: EvalEnv) -> DriverDataCube:
 @process
 def resample_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
-    resolution = args.get_optional("resolution", 0)
-    projection = args.get_optional("projection", None)
-    method = args.get_optional("method", "near")
-    align = args.get_optional("align", "upper-left")
+    resolution = args.get_optional(
+        "resolution",
+        default=0,
+        validator=lambda v: isinstance(v, (int, float)) or (isinstance(v, (tuple, list)) and len(v) == 2),
+    )
+    projection = args.get_optional("projection", default=None)
+    method = args.get_enum("method", options=RESAMPLE_SPATIAL_METHODS, default="near")
+    align = args.get_enum("align", options=RESAMPLE_SPATIAL_ALIGNS, default="upper-left")
     return cube.resample_spatial(resolution=resolution, projection=projection, method=method, align=align)
 
 
 @process
-def resample_cube_spatial(args: dict, env: EvalEnv) -> DriverDataCube:
-    image_collection = extract_arg(args, 'data')
-    target_image_collection = extract_arg(args, 'target')
-    method = args.get('method', 'near')
-    if not isinstance(image_collection, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="resample_cube_spatial",
-            reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
-        )
-    return image_collection.resample_cube_spatial(target=target_image_collection, method=method)
+def resample_cube_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    target: DriverDataCube = args.get_required("target", expected_type=DriverDataCube)
+    method = args.get_enum("method", options=RESAMPLE_SPATIAL_METHODS, default="near")
+    return cube.resample_cube_spatial(target=target, method=method)
 
 
 @process

@@ -22,3 +22,30 @@ class JOB_STATUS:
     CANCELED = "canceled"
     FINISHED = "finished"
     ERROR = "error"
+
+
+# Resample methods as used in official specs of `resample_spatial` and `resample_cube_spatial`
+RESAMPLE_SPATIAL_METHODS = [
+    "average",
+    "bilinear",
+    "cubic",
+    "cubicspline",
+    "lanczos",
+    "max",
+    "med",
+    "min",
+    "mode",
+    "near",
+    "q1",
+    "q3",
+    "rms",
+    "sum",
+]
+
+# Align options as used in official spec of `resample_spatial`
+RESAMPLE_SPATIAL_ALIGNS = [
+    "lower-left",
+    "upper-left",
+    "lower-right",
+    "upper-right",
+]
