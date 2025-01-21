@@ -1516,21 +1516,13 @@ def filter_bands(args: Dict, env: EvalEnv) -> Union[DriverDataCube, DriverVector
 
 
 @process
-def apply_kernel(args: Dict, env: EvalEnv) -> DriverDataCube:
-    image_collection = extract_arg(args, 'data')
-    kernel = np.asarray(extract_arg(args, 'kernel'))
-    factor = args.get('factor', 1.0)
-    border = args.get('border', 0)
-    if not isinstance(image_collection, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="apply_kernel",
-            reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
-        )
-    if border == "0":
-        # R-client sends `0` border as a string
-        border = 0
-    replace_invalid = args.get('replace_invalid', 0)
-    return image_collection.apply_kernel(kernel=kernel, factor=factor, border=border, replace_invalid=replace_invalid)
+def apply_kernel(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    kernel = np.asarray(args.get_required("kernel", expected_type=list))
+    factor = args.get_optional("factor", default=1.0, expected_type=(int, float))
+    border = args.get_optional("border", default=0, expected_type=int)
+    replace_invalid = args.get_optional("replace_invalid", default=0, expected_type=(int, float))
+    return cube.apply_kernel(kernel=kernel, factor=factor, border=border, replace_invalid=replace_invalid)
 
 
 @process
