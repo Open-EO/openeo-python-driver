@@ -13,7 +13,7 @@ import tempfile
 import time
 import warnings
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, Sequence
+from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, Sequence, Optional
 
 import geopandas as gpd
 import numpy as np
@@ -1187,51 +1187,34 @@ def add_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
 
 @process
-def drop_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
-    data_cube = extract_arg(args, 'data')
-    if not isinstance(data_cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="drop_dimension",
-            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
-        )
-    return data_cube.drop_dimension(name=extract_arg(args, 'name'))
+def drop_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    name: str = args.get_required("name", expected_type=str)
+    return cube.drop_dimension(name=name)
 
 
 @process
-def dimension_labels(args: dict, env: EvalEnv) -> DriverDataCube:
-    data_cube = extract_arg(args, 'data')
-    if not isinstance(data_cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="dimension_labels",
-            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
-        )
-    return data_cube.dimension_labels(dimension=extract_arg(args, 'dimension'))
+def dimension_labels(args: ProcessArgs, env: EvalEnv) -> List[str]:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    dimension: str = args.get_required("dimension", expected_type=str)
+    return cube.dimension_labels(dimension=dimension)
 
 
 @process
-def rename_dimension(args: dict, env: EvalEnv) -> DriverDataCube:
-    data_cube = extract_arg(args, 'data')
-    if not isinstance(data_cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="rename_dimension",
-            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
-        )
-    return data_cube.rename_dimension(source=extract_arg(args, 'source'),target=extract_arg(args, 'target'))
+def rename_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    source: str = args.get_required("source", expected_type=str)
+    target: str = args.get_required("target", expected_type=str)
+    return cube.rename_dimension(source=source, target=target)
 
 
 @process
-def rename_labels(args: dict, env: EvalEnv) -> DriverDataCube:
-    data_cube = extract_arg(args, 'data')
-    if not isinstance(data_cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="rename_labels",
-            reason=f"Invalid data type {type(data_cube)!r} expected raster-cube."
-        )
-    return data_cube.rename_labels(
-        dimension=extract_arg(args, 'dimension'),
-        target=extract_arg(args, 'target'),
-        source=args.get('source',[])
-    )
+def rename_labels(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    dimension: str = args.get_required("dimension", expected_type=str)
+    target: List = args.get_required("target", expected_type=list)
+    source: Optional[list] = args.get_optional("source", default=None, expected_type=list)
+    return cube.rename_labels(dimension=dimension, target=target, source=source)
 
 
 @process
