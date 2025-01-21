@@ -1360,14 +1360,10 @@ def aggregate_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
 
 @process
-def mask(args: dict, env: EvalEnv) -> DriverDataCube:
-    cube = extract_arg(args, 'data')
-    if not isinstance(cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="mask", reason=f"Invalid data type {type(cube)!r} expected raster-cube."
-        )
-    mask = extract_arg(args, 'mask')
-    replacement = args.get('replacement', None)
+def mask(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    mask: DriverDataCube = args.get_required("mask", expected_type=DriverDataCube)
+    replacement = args.get_optional("replacement", default=None)
     return cube.mask(mask=mask, replacement=replacement)
 
 
@@ -1471,24 +1467,16 @@ def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox", h
 
 
 @process
-def filter_bbox(args: Dict, env: EvalEnv) -> DriverDataCube:
-    cube = extract_arg(args, 'data')
-    if not isinstance(cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="filter_bbox", reason=f"Invalid data type {type(cube)!r} expected raster-cube."
-        )
+def filter_bbox(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
     spatial_extent = _extract_bbox_extent(args, "extent", process_id="filter_bbox")
     return cube.filter_bbox(**spatial_extent)
 
 
 @process
-def filter_spatial(args: Dict, env: EvalEnv) -> DriverDataCube:
-    cube = extract_arg(args, 'data')
-    geometries = extract_arg(args, 'geometries')
-    if not isinstance(cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="filter_spatial", reason=f"Invalid data type {type(cube)!r} expected raster-cube."
-        )
+def filter_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    geometries = args.get_required("geometries")
 
     if isinstance(geometries, dict):
         if "type" in geometries and geometries["type"] != "GeometryCollection":
@@ -1974,14 +1962,10 @@ def get_geometries(args: Dict, env: EvalEnv) -> Union[DelayedVector, dict]:
         .param('data', description="A raster data cube.", schema={"type": "object", "subtype": "raster-cube"})
         .returns("vector-cube", schema={"type": "object", "subtype": "vector-cube"})
 )
-def raster_to_vector(args: Dict, env: EvalEnv):
-    image_collection = extract_arg(args, 'data')
-    if not isinstance(image_collection, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="raster_to_vector",
-            reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
-        )
-    return image_collection.raster_to_vector()
+def raster_to_vector(args: ProcessArgs, env: EvalEnv):
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    # TODO: raster_to_vector is only defined on GeopysparkDataCube, not DriverDataCube
+    return cube.raster_to_vector()
 
 
 @non_standard_process(
@@ -2221,13 +2205,8 @@ def discard_result(args: ProcessArgs, env: EvalEnv):
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/mask_scl_dilation.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/mask_scl_dilation.json"))
-def mask_scl_dilation(args: Dict, env: EvalEnv):
-    cube: DriverDataCube = extract_arg(args, 'data')
-    if not isinstance(cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="mask_scl_dilation",
-            reason=f"Invalid data type {type(cube)!r} expected raster-cube."
-        )
+def mask_scl_dilation(args: ProcessArgs, env: EvalEnv):
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
     if hasattr(cube, "mask_scl_dilation"):
         the_args = args.copy()
         del the_args["data"]
@@ -2258,13 +2237,8 @@ def to_scl_dilation_mask(args: ProcessArgs, env: EvalEnv):
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/mask_l1c.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/mask_l1c.json"))
-def mask_l1c(args: Dict, env: EvalEnv):
-    cube: DriverDataCube = extract_arg(args, 'data')
-    if not isinstance(cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="mask_l1c",
-            reason=f"Invalid data type {type(cube)!r} expected raster-cube."
-        )
+def mask_l1c(args: ProcessArgs, env: EvalEnv):
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
     if hasattr(cube, "mask_l1c"):
         return cube.mask_l1c()
     else:
