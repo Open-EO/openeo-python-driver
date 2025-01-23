@@ -32,44 +32,67 @@ which are used to bootstrap the EvalEnv that is used for the real process graph 
 These source constraints can then be fetched from the EvalEnv at `load_collection` time.
 
 """
+
 from __future__ import annotations
+
 import logging
 from enum import Enum
-from typing import List, Union, Tuple, Any, Optional
+from typing import Any, List, Optional, Tuple, Union
 
 import numpy
 import shapely.geometry.base
+from openeo.metadata import (
+    Band,
+    BandDimension,
+    CollectionMetadata,
+    DimensionAlreadyExistsException,
+    SpatialDimension,
+    TemporalDimension,
+)
 from pyproj import CRS
-from shapely.geometry import Point, Polygon, MultiPolygon, GeometryCollection
+from shapely.geometry import GeometryCollection, MultiPolygon, Point, Polygon
 from shapely.geometry.base import BaseGeometry
 
-from openeo.metadata import (CollectionMetadata, DimensionAlreadyExistsException, Band, SpatialDimension,
-                             TemporalDimension, BandDimension)
 from openeo_driver import filter_properties
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube
-from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
+from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.errors import OpenEOApiException, FeatureUnsupportedException
+from openeo_driver.errors import FeatureUnsupportedException, OpenEOApiException
 from openeo_driver.save_result import (
     AggregatePolygonResult,
     AggregatePolygonSpatialResult,
 )
-from openeo_driver.util.geometry import geojson_to_geometry, GeometryBufferer, BoundingBox
-from openeo_driver.utils import to_hashable, EvalEnv
+from openeo_driver.util.geometry import (
+    BoundingBox,
+    GeometryBufferer,
+    geojson_to_geometry,
+)
+from openeo_driver.utils import EvalEnv, to_hashable
 
 _log = logging.getLogger(__name__)
 
 source_constraint_blockers = {
-    'bands': [
-        'sar_backscatter', 'atmospheric_correction', 'mask_scl_dilation', 'resolution_merge', 'custom_cloud_mask',
-        'apply_neighborhood', 'reduce_dimension', 'merge_cubes'
+    "bands": [
+        "sar_backscatter",
+        "atmospheric_correction",
+        "mask_scl_dilation",
+        "resolution_merge",
+        "custom_cloud_mask",
+        "apply_neighborhood",
+        "reduce_dimension",
+        "merge_cubes",
     ],
-    'spatial_extent': [],
-    'temporal_extent': [],
-    'resample': [
-        "apply_kernel", "reduce_dimension", "apply", "apply_dimension", "resample_spatial", "apply_neighborhood",
-        "reduce_dimension_binary"
-    ]
+    "spatial_extent": [],
+    "temporal_extent": [],
+    "resample": [
+        "apply_kernel",
+        "reduce_dimension",
+        "apply",
+        "apply_dimension",
+        "resample_spatial",
+        "apply_neighborhood",
+        "reduce_dimension_binary",
+    ],
 }
 
 
@@ -83,7 +106,7 @@ class DataTraceBase:
         # Identity hash (e.g. memory address)
         return id(self)
 
-    def get_source(self) -> 'DataSource':
+    def get_source(self) -> "DataSource":
         raise NotImplementedError
 
     def get_arguments_by_operation(self, operation: str) -> List[Union[dict, tuple]]:
@@ -103,7 +126,7 @@ class DataTraceBase:
     def describe(self) -> str:
         return "_base"
 
-    def add_child(self, child: 'DataTrace'):
+    def add_child(self, child: "DataTrace"):
         self.children.append(child)
 
     def __repr__(self):
@@ -112,6 +135,7 @@ class DataTraceBase:
 
 class DataSource(DataTraceBase):
     """Data source: a data (cube) generating process like `load_collection`, `load_disk_data`, ..."""
+
     __slots__ = ["_process", "_arguments"]
 
     def __init__(self, process: str = "load_collection", arguments: Union[dict, tuple] = ()):
@@ -119,7 +143,7 @@ class DataSource(DataTraceBase):
         self._process = process
         self._arguments = arguments
 
-    def get_source(self) -> 'DataSource':
+    def get_source(self) -> "DataSource":
         return self
 
     def get_source_id(self) -> tuple:
@@ -133,7 +157,7 @@ class DataSource(DataTraceBase):
             return self
 
     def __repr__(self):
-        return '<{c}#{i}({p!r}, {a!r})>'.format(
+        return "<{c}#{i}({p!r}, {a!r})>".format(
             c=self.__class__.__name__, i=id(self), p=self._process, a=self._arguments
         )
 
@@ -141,31 +165,39 @@ class DataSource(DataTraceBase):
         return self._process
 
     @classmethod
-    def load_collection(cls, collection_id, properties={}, bands = []) -> 'DataSource':
+    def load_collection(cls, collection_id, properties={}, bands=[]) -> "DataSource":
         """Factory for a `load_collection` DataSource."""
-        exact_property_matches = {property_name: filter_properties.extract_literal_match(condition)
-                                  for property_name, condition in properties.items()}
+        exact_property_matches = {
+            property_name: filter_properties.extract_literal_match(condition)
+            for property_name, condition in properties.items()
+        }
 
-        args = (collection_id, exact_property_matches, bands) if len(bands) >0 else (collection_id, exact_property_matches)
+        args = (
+            (collection_id, exact_property_matches, bands)
+            if len(bands) > 0
+            else (collection_id, exact_property_matches)
+        )
         return cls(process="load_collection", arguments=args)
 
     @classmethod
-    def load_disk_data(cls, glob_pattern: str, format: str, options: dict) -> 'DataSource':
+    def load_disk_data(cls, glob_pattern: str, format: str, options: dict) -> "DataSource":
         """Factory for a `load_disk_data` DataSource."""
         return cls(process="load_disk_data", arguments=(glob_pattern, format, options))
 
     @classmethod
-    def load_result(cls, job_id: str) -> 'DataSource':
+    def load_result(cls, job_id: str) -> "DataSource":
         """Factory for a `load_result` DataSource."""
         return cls(process="load_result", arguments=(job_id,))
 
     @classmethod
-    def load_stac(cls, url: str, properties={}, bands = []) -> 'DataSource':
+    def load_stac(cls, url: str, properties={}, bands=[]) -> "DataSource":
         """Factory for a `load_stac` DataSource."""
-        exact_property_matches = {property_name: filter_properties.extract_literal_match(condition)
-                                  for property_name, condition in properties.items()}
+        exact_property_matches = {
+            property_name: filter_properties.extract_literal_match(condition)
+            for property_name, condition in properties.items()
+        }
 
-        return cls(process="load_stac", arguments=(url, exact_property_matches,bands))
+        return cls(process="load_stac", arguments=(url, exact_property_matches, bands))
 
 
 class DataTrace(DataTraceBase):
@@ -175,6 +207,7 @@ class DataTrace(DataTraceBase):
     Note: this is not the same as a data cube, as a data cube can be combination of multiple data
     traces (e.g. after mask or merge process).
     """
+
     __slots__ = ["parent", "_operation", "_arguments"]
 
     def __init__(self, parent: DataTraceBase, operation: str, arguments: Union[dict, tuple]):
@@ -205,7 +238,7 @@ class DataTrace(DataTraceBase):
             return self
 
     def __repr__(self):
-        return '<{c}#{i}(#{p}, {o}, {a})>'.format(
+        return "<{c}#{i}(#{p}, {o}, {a})>".format(
             c=self.__class__.__name__, i=id(self), p=id(self.parent), o=self._operation, a=self._arguments
         )
 
@@ -236,18 +269,19 @@ class DryRunDataTracer:
 
     def process_traces(self, traces: List[DataTraceBase], operation: str, arguments: dict) -> List[DataTraceBase]:
         """Process given traces with an operation (and keep track of the results)."""
-        return [
-            self.add_trace(DataTrace(parent=t, operation=operation, arguments=arguments))
-            for t in traces
-        ]
+        return [self.add_trace(DataTrace(parent=t, operation=operation, arguments=arguments)) for t in traces]
 
-    def load_collection(self, collection_id: str, arguments: dict, metadata: dict = None) -> 'DryRunDataCube':
+    def load_collection(self, collection_id: str, arguments: dict, metadata: dict = None) -> "DryRunDataCube":
         """Create a DryRunDataCube from a `load_collection` process."""
         # TODO #275 avoid VITO/Terrascope specific handling here?
-        properties = {**CollectionMetadata(metadata).get("_vito", "properties", default={}),
-                      **arguments.get("properties", {})}
+        properties = {
+            **CollectionMetadata(metadata).get("_vito", "properties", default={}),
+            **arguments.get("properties", {}),
+        }
 
-        trace = DataSource.load_collection(collection_id=collection_id, properties=properties, bands= arguments.get("bands",[]))
+        trace = DataSource.load_collection(
+            collection_id=collection_id, properties=properties, bands=arguments.get("bands", [])
+        )
         self.add_trace(trace)
 
         cube = DryRunDataCube(traces=[trace], data_tracer=self, metadata=metadata)
@@ -263,7 +297,7 @@ class DryRunDataTracer:
 
         return cube
 
-    def load_disk_data(self, glob_pattern: str, format: str, options: dict) -> 'DryRunDataCube':
+    def load_disk_data(self, glob_pattern: str, format: str, options: dict) -> "DryRunDataCube":
         """Create a DryRunDataCube from a `load_disk_data` process."""
         trace = DataSource.load_disk_data(glob_pattern=glob_pattern, format=format, options=options)
         self.add_trace(trace)
@@ -279,7 +313,7 @@ class DryRunDataTracer:
         )
         return DryRunDataCube(traces=[trace], data_tracer=self, metadata=metadata)
 
-    def load_result(self, job_id: str, arguments: dict) -> 'DryRunDataCube':
+    def load_result(self, job_id: str, arguments: dict) -> "DryRunDataCube":
         trace = DataSource.load_result(job_id=job_id)
         self.add_trace(trace)
 
@@ -293,10 +327,10 @@ class DryRunDataTracer:
 
         return cube
 
-    def load_stac(self, url: str, arguments: dict) -> 'DryRunDataCube':
+    def load_stac(self, url: str, arguments: dict) -> "DryRunDataCube":
         properties = arguments.get("properties", {})
 
-        trace = DataSource.load_stac(url=url, properties=properties, bands=arguments.get("bands",[]))
+        trace = DataSource.load_stac(url=url, properties=properties, bands=arguments.get("bands", []))
         self.add_trace(trace)
 
         metadata = CollectionMetadata(
@@ -329,8 +363,9 @@ class DryRunDataTracer:
         leaves = []
 
         def get_leaves(tree: DataTraceBase) -> List[DataTraceBase]:
-            return ([tree] if len(tree.children) == 0
-                    else [leaf for child in tree.children for leaf in get_leaves(child)])
+            return (
+                [tree] if len(tree.children) == 0 else [leaf for child in tree.children for leaf in get_leaves(child)]
+            )
 
         for trace in self._traces:
             for leaf in get_leaves(trace):
@@ -363,7 +398,7 @@ class DryRunDataTracer:
                 args = pixel_buffer_op.get_arguments_by_operation("pixel_buffer")
                 if args:
                     buffer_size = args[0]["buffer_size"]
-                    constraints["pixel_buffer"] = {"buffer_size":buffer_size}
+                    constraints["pixel_buffer"] = {"buffer_size": buffer_size}
 
             resampling_op = leaf.get_operation_closest_to_source(["resample_cube_spatial", "resample_spatial"])
             if resampling_op:
@@ -371,8 +406,14 @@ class DryRunDataTracer:
                 # the resampling parameters can be taken into account during load_collection,
                 # under the condition that no operations occur in between that may be affected
                 for op in [
-                    "apply_kernel", "reduce_dimension", "apply", "apply_dimension",
-                    "apply_neighborhood", "reduce_dimension_binary", "mask", "to_scl_dilation_mask"
+                    "apply_kernel",
+                    "reduce_dimension",
+                    "apply",
+                    "apply_dimension",
+                    "apply_neighborhood",
+                    "reduce_dimension_binary",
+                    "mask",
+                    "to_scl_dilation_mask",
                 ]:
                     args = resampling_op.get_arguments_by_operation(op)
                     if args:
@@ -388,14 +429,18 @@ class DryRunDataTracer:
                         # TODO: derive resolution from openeo:gsd instead (see openeo-geopyspark-driver)
                         resolutions = [dim.step for dim in metadata.spatial_dimensions if dim.step is not None]
                         if len(resolutions) > 0 and spatial_dim.crs is not None:
-                            constraints["resample"] = {"target_crs": spatial_dim.crs, "resolution": resolutions, "method": method}
+                            constraints["resample"] = {
+                                "target_crs": spatial_dim.crs,
+                                "resolution": resolutions,
+                                "method": method,
+                            }
                     args = resampling_op.get_arguments_by_operation("resample_spatial")
                     if args:
                         resolution = args[0]["resolution"]
-                        if not isinstance(resolution,list):
-                            resolution = [resolution,resolution]
+                        if not isinstance(resolution, list):
+                            resolution = [resolution, resolution]
                         projection = args[0]["projection"]
-                        method = args[0].get("method","near")
+                        method = args[0].get("method", "near")
                         constraints["resample"] = {"target_crs": projection, "resolution": resolution, "method": method}
 
             for op in [
@@ -421,7 +466,6 @@ class DryRunDataTracer:
                     if subgraph_without_blocking_processes is not None:
                         leaf_without_blockers = subgraph_without_blocking_processes
 
-
                 # 2 merge filtering arguments
                 if leaf_without_blockers is not None:
                     args = leaf_without_blockers.get_arguments_by_operation(op)
@@ -444,9 +488,7 @@ class DryRunDataTracer:
 
     def get_geometries(
         self, operation="aggregate_spatial"
-    ) -> List[
-        Union[shapely.geometry.base.BaseGeometry, DelayedVector, DriverVectorCube]
-    ]:
+    ) -> List[Union[shapely.geometry.base.BaseGeometry, DelayedVector, DriverVectorCube]]:
         """Get geometries (polygons or DelayedVector), as used by aggregate_spatial"""
         geometries_by_id = {}
         for leaf in self.get_trace_leaves():
@@ -472,7 +514,6 @@ class DryRunDataTracer:
         return None
 
 
-
 class ProcessType(Enum):
     LOCAL = 1  # band math
     FOCAL_TIME = 2  # aggregate_temporal
@@ -489,76 +530,74 @@ class DryRunDataCube(DriverDataCube):
     estimate memory/cpu usage, ...
     """
 
-    def __init__(
-            self,
-            traces: List[DataTraceBase],
-            data_tracer: DryRunDataTracer,
-            metadata: CollectionMetadata = None
-    ):
+    def __init__(self, traces: List[DataTraceBase], data_tracer: DryRunDataTracer, metadata: CollectionMetadata = None):
         super(DryRunDataCube, self).__init__(metadata=metadata)
         self._traces = traces or []
         self._data_tracer = data_tracer
 
-    def _process(self, operation, arguments, metadata: CollectionMetadata = None) -> 'DryRunDataCube':
+    def _process(self, operation, arguments, metadata: CollectionMetadata = None) -> "DryRunDataCube":
         """Helper to handle single-cube operations"""
         # New data cube with operation added to each trace
         traces = self._data_tracer.process_traces(traces=self._traces, operation=operation, arguments=arguments)
         # TODO: manipulate metadata properly?
         return DryRunDataCube(traces=traces, data_tracer=self._data_tracer, metadata=metadata or self.metadata)
 
-    def _process_metadata(self, metadata: CollectionMetadata) -> 'DryRunDataCube':
+    def _process_metadata(self, metadata: CollectionMetadata) -> "DryRunDataCube":
         """Just process metadata (leave traces as is)"""
         return DryRunDataCube(traces=self._traces, data_tracer=self._data_tracer, metadata=metadata)
 
-    def filter_temporal(self, start: str, end: str) -> 'DryRunDataCube':
+    def filter_temporal(self, start: str, end: str) -> "DryRunDataCube":
         return self._process("temporal_extent", (start, end))
 
     def filter_bbox(
-            self, west, south, east, north, crs=None, base=None, height=None, operation="spatial_extent"
-    ) -> 'DryRunDataCube':
-        return self._process(operation, {"west": west, "south": south, "east": east, "north": north,
-                                         "crs": (crs or "EPSG:4326")})
+        self, west, south, east, north, crs=None, base=None, height=None, operation="spatial_extent"
+    ) -> "DryRunDataCube":
+        return self._process(
+            operation, {"west": west, "south": south, "east": east, "north": north, "crs": (crs or "EPSG:4326")}
+        )
 
     def filter_spatial(self, geometries):
         crs = None
-        if (len(self.metadata.spatial_dimensions) > 0):
+        if len(self.metadata.spatial_dimensions) > 0:
             spatial_dim = self.metadata.spatial_dimensions[0]
             crs = spatial_dim.crs
-        geometries, bbox = self._normalize_geometry(geometries,target_crs= crs)
+        geometries, bbox = self._normalize_geometry(geometries, target_crs=crs)
         cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
         return cube._process(operation="filter_spatial", arguments={"geometries": geometries})
 
-    def filter_bands(self, bands) -> 'DryRunDataCube':
+    def filter_bands(self, bands) -> "DryRunDataCube":
         return self._process("bands", bands)
 
-    def filter_properties(self, properties) -> 'DryRunDataCube':
+    def filter_properties(self, properties) -> "DryRunDataCube":
         return self._process("properties", properties)
 
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
         # TODO: this method should be deprecated (limited to single asset) in favor of write_assets (supports multiple assets)
         return self._process("save_result", {"format": format, "options": format_options})
 
-    def filter_labels(self, condition: dict,dimension: str, context: Optional[dict] = None, env: EvalEnv = None ) -> 'DryRunDataCube':
-        return self._process("filter_labels", arguments=dict(condition=condition, dimension=dimension,context=context))
+    def filter_labels(
+        self, condition: dict, dimension: str, context: Optional[dict] = None, env: EvalEnv = None
+    ) -> "DryRunDataCube":
+        return self._process("filter_labels", arguments=dict(condition=condition, dimension=dimension, context=context))
 
-    def mask(self, mask: 'DryRunDataCube', replacement=None) -> 'DryRunDataCube':
+    def mask(self, mask: "DryRunDataCube", replacement=None) -> "DryRunDataCube":
         # TODO: if mask cube has no temporal or bbox extent: copy from self?
         # TODO: or add reference to the self trace to the mask trace and vice versa?
         mask_resampled = mask._process("resample_cube_spatial", arguments={"target": self, "method": "near"})
         cube = self._process("mask", {"mask": mask_resampled})
         return DryRunDataCube(
-            traces=cube._traces + mask_resampled._traces, data_tracer=cube._data_tracer,
-            metadata=cube.metadata
+            traces=cube._traces + mask_resampled._traces, data_tracer=cube._data_tracer, metadata=cube.metadata
         )
 
-    def merge_cubes(self, other: 'DryRunDataCube', overlap_resolver) -> 'DryRunDataCube':
+    def merge_cubes(self, other: "DryRunDataCube", overlap_resolver) -> "DryRunDataCube":
         return DryRunDataCube(
-            traces=self._traces + other._traces, data_tracer=self._data_tracer,
+            traces=self._traces + other._traces,
+            data_tracer=self._data_tracer,
             # TODO: properly merge (other) metadata?
-            metadata=self.metadata
+            metadata=self.metadata,
         )._process("merge_cubes", arguments={})
 
-    def mask_polygon(self, mask, replacement=None, inside: bool = False) -> 'DriverDataCube':
+    def mask_polygon(self, mask, replacement=None, inside: bool = False) -> "DriverDataCube":
         cube = self
         if not inside and replacement is None:
             mask, bbox = cube._normalize_geometry(mask)
@@ -572,20 +611,24 @@ class DryRunDataCube(DriverDataCube):
         target_dimension: Optional[str] = None,
     ) -> "DryRunDataCube":
         if target_dimension:
-            raise FeatureUnsupportedException(f"Argument `target_dimension` with value {target_dimension} not supported in `aggregate_spatial`")
+            raise FeatureUnsupportedException(
+                f"Argument `target_dimension` with value {target_dimension} not supported in `aggregate_spatial`"
+            )
         # TODO #71 #114 EP-3981 normalize to vector cube instead of GeometryCollection
         geoms_is_empty = isinstance(geometries, DriverVectorCube) and len(geometries.get_geometries()) == 0
         cube = self
         if not geoms_is_empty:
             crs = None
-            if(len(self.metadata.spatial_dimensions)>0):
+            if len(self.metadata.spatial_dimensions) > 0:
                 spatial_dim = self.metadata.spatial_dimensions[0]
                 crs = spatial_dim.crs
-            geometries, bbox = self._normalize_geometry(geometries,target_crs=crs)
+            geometries, bbox = self._normalize_geometry(geometries, target_crs=crs)
             cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
         return cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
 
-    def _normalize_geometry(self, geometries, target_crs=None) -> Tuple[Union[DriverVectorCube, DelayedVector, BaseGeometry], dict]:
+    def _normalize_geometry(
+        self, geometries, target_crs=None
+    ) -> Tuple[Union[DriverVectorCube, DelayedVector, BaseGeometry], dict]:
         """
         Helper to preprocess geometries (as used in aggregate_spatial and mask_polygon)
         and extract bbox (e.g. for filter_bbox)
@@ -603,7 +646,9 @@ class DryRunDataCube(DriverDataCube):
                     target_crs = f"EPSG:{BoundingBox.from_wsen_tuple(geometries.get_bounding_box(),crs=geometries.get_crs()).best_utm()}"
                 else:
                     target_crs = BoundingBox.normalize_crs(target_crs)
-                bbox = geometries.buffer_points(distance=10).reproject(CRS.from_user_input( target_crs )).get_bounding_box()
+                bbox = (
+                    geometries.buffer_points(distance=10).reproject(CRS.from_user_input(target_crs)).get_bounding_box()
+                )
                 crs = target_crs
             else:
                 bbox = geometries.buffer_points(distance=10).get_bounding_box()
@@ -624,10 +669,7 @@ class DryRunDataCube(DriverDataCube):
             elif isinstance(geometries, GeometryCollection):
                 # TODO #71 deprecate using GeometryCollection as feature collections
                 geometries = GeometryCollection(
-                    [
-                        bufferer.buffer(g) if isinstance(g, Point) else g
-                        for g in geometries.geoms
-                    ]
+                    [bufferer.buffer(g) if isinstance(g, Point) else g for g in geometries.geoms]
                 )
             bbox = geometries.bounds
         else:
@@ -636,24 +678,27 @@ class DryRunDataCube(DriverDataCube):
         return geometries, bbox
 
     def raster_to_vector(self):
-        dimensions = [SpatialDimension(name=DriverVectorCube.DIM_GEOMETRY,extent=self.metadata.extent)]
-        if(self.metadata.has_temporal_dimension()):
+        dimensions = [SpatialDimension(name=DriverVectorCube.DIM_GEOMETRY, extent=self.metadata.extent)]
+        if self.metadata.has_temporal_dimension():
             dimensions.append(self.metadata.temporal_dimension)
-        if(self.metadata.has_band_dimension()):
+        if self.metadata.has_band_dimension():
             dimensions.append(self.metadata.band_dimension)
 
-        return self._process(operation="raster_to_vector", arguments={},metadata=CollectionMetadata(metadata={}, dimensions=dimensions))
+        return self._process(
+            operation="raster_to_vector", arguments={}, metadata=CollectionMetadata(metadata={}, dimensions=dimensions)
+        )
 
     def run_udf(self):
         return self._process(operation="run_udf", arguments={})
 
-    def resample_cube_spatial(self, target: 'DryRunDataCube', method: str = 'near') -> 'DryRunDataCube':
+    def resample_cube_spatial(self, target: "DryRunDataCube", method: str = "near") -> "DryRunDataCube":
         cube = self._process("process_type", [ProcessType.FOCAL_SPACE])
         cube = cube._process("resample_cube_spatial", arguments={"target": target, "method": method})
         return DryRunDataCube(
-            traces=cube._traces + target._traces, data_tracer=self._data_tracer,
+            traces=cube._traces + target._traces,
+            data_tracer=self._data_tracer,
             # TODO: properly merge (other) metadata?
-            metadata=self.metadata
+            metadata=self.metadata,
         )
 
     def reduce_dimension(
@@ -664,19 +709,30 @@ class DryRunDataCube(DriverDataCube):
             # TODO: reduce is not necessarily global in call cases
             dc = self._process("process_type", [ProcessType.GLOBAL_TIME])
 
-        return dc._process_metadata(self.metadata.reduce_dimension(dimension_name=dimension))._process("reduce_dimension", arguments={})
+        return dc._process_metadata(self.metadata.reduce_dimension(dimension_name=dimension))._process(
+            "reduce_dimension", arguments={}
+        )
 
-    def ndvi(self, nir: str = "nir", red: str = "red", target_band: str = None) -> 'DriverDataCube':
+    def ndvi(self, nir: str = "nir", red: str = "red", target_band: str = None) -> "DriverDataCube":
         if target_band == None and self.metadata.has_band_dimension():
-            return self._process_metadata(self.metadata.reduce_dimension(dimension_name=self.metadata.band_dimension.name))
-        elif target_band is not None  and self.metadata.has_band_dimension():
-            return self._process_metadata(self.metadata.append_band(Band(name=target_band, common_name=target_band, wavelength_um=None)))
+            return self._process_metadata(
+                self.metadata.reduce_dimension(dimension_name=self.metadata.band_dimension.name)
+            )
+        elif target_band is not None and self.metadata.has_band_dimension():
+            return self._process_metadata(
+                self.metadata.append_band(Band(name=target_band, common_name=target_band, wavelength_um=None))
+            )
         else:
             return self
 
     def chunk_polygon(
         # TODO #288: `chunks`: MultiPolygon should not be abused as collection of separate geometries.
-        self, reducer, chunks: MultiPolygon, mask_value: float, env: EvalEnv, context: Optional[dict] = None
+        self,
+        reducer,
+        chunks: MultiPolygon,
+        mask_value: float,
+        env: EvalEnv,
+        context: Optional[dict] = None,
     ) -> "DryRunDataCube":
         # TODO #229: rename/update `chunk_polygon` to `apply_polygon` (https://github.com/Open-EO/openeo-processes/pull/298)
         if isinstance(chunks, Polygon):
@@ -690,7 +746,7 @@ class DryRunDataCube(DriverDataCube):
         cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
         return cube._process("chunk_polygon", arguments={"geometries": geometries})
 
-    def add_dimension(self, name: str, label, type: str = "other") -> 'DryRunDataCube':
+    def add_dimension(self, name: str, label, type: str = "other") -> "DryRunDataCube":
         try:
             return self._process_metadata(self.metadata.add_dimension(name=name, label=label, type=type))
         except DimensionAlreadyExistsException:
@@ -698,13 +754,13 @@ class DryRunDataCube(DriverDataCube):
                 code="DimensionExists", status_code=400, message=f"A dimension with name {name} already exists."
             )
 
-    def drop_dimension(self, name: str) -> 'DryRunDataCube':
+    def drop_dimension(self, name: str) -> "DryRunDataCube":
         return self._process("drop_dimension", {"name": name}, metadata=self.metadata.drop_dimension(name=name))
 
-    def sar_backscatter(self, args: SarBackscatterArgs) -> 'DryRunDataCube':
+    def sar_backscatter(self, args: SarBackscatterArgs) -> "DryRunDataCube":
         return self._process("sar_backscatter", args)
 
-    def resolution_merge(self, args: ResolutionMergeArgs) -> 'DryRunDataCube':
+    def resolution_merge(self, args: ResolutionMergeArgs) -> "DryRunDataCube":
         return self._process("resolution_merge", args)
 
     def resample_spatial(
@@ -716,12 +772,12 @@ class DryRunDataCube(DriverDataCube):
     ):
         return self._process(
             "resample_spatial",
-            arguments={"resolution": resolution, "projection": projection, "method": method, "align": align}
+            arguments={"resolution": resolution, "projection": projection, "method": method, "align": align},
         )
 
-    def apply_kernel(self, kernel: numpy.ndarray, factor=1, border=0, replace_invalid=0) -> 'DriverDataCube':
+    def apply_kernel(self, kernel: numpy.ndarray, factor=1, border=0, replace_invalid=0) -> "DriverDataCube":
         cube = self._process("process_type", [ProcessType.FOCAL_SPACE])
-        cube = cube._process("pixel_buffer", arguments={"buffer_size":[x/2.0 for x in kernel.shape]})
+        cube = cube._process("pixel_buffer", arguments={"buffer_size": [x / 2.0 for x in kernel.shape]})
         return cube._process("apply_kernel", arguments={"kernel": kernel})
 
     def apply_dimension(
@@ -752,18 +808,23 @@ class DryRunDataCube(DriverDataCube):
     ) -> "DriverDataCube":
         cube = self._process("apply_neighborhood", {})
         temporal_size = temporal_overlap = None
-        size_dict = {e['dimension']: e for e in size}
-        overlap_dict = {e['dimension']: e for e in overlap}
-        if 'x' in overlap_dict or 'y' in overlap_dict:
-            x_size = overlap_dict.get("x",{}).get("value",0.0)
+        size_dict = {e["dimension"]: e for e in size}
+        overlap_dict = {e["dimension"]: e for e in overlap}
+        if "x" in overlap_dict or "y" in overlap_dict:
+            x_size = overlap_dict.get("x", {}).get("value", 0.0)
             y_size = overlap_dict.get("y", {}).get("value", 0.0)
-            if overlap_dict.get("x",{}).get("unit","px") != "px" or overlap_dict.get("y",{}).get("unit","px") != "px":
-                raise OpenEOApiException(f"apply_neighborhood: only pixel units are supported for overlap, but got: {overlap_dict.get('x',{}).get('unit','px')}")
+            if (
+                overlap_dict.get("x", {}).get("unit", "px") != "px"
+                or overlap_dict.get("y", {}).get("unit", "px") != "px"
+            ):
+                raise OpenEOApiException(
+                    f"apply_neighborhood: only pixel units are supported for overlap, but got: {overlap_dict.get('x',{}).get('unit','px')}"
+                )
             cube = cube._process("pixel_buffer", arguments={"buffer_size": [float(x_size), float(y_size)]})
         if self.metadata.has_temporal_dimension():
             temporal_size = size_dict.get(self.metadata.temporal_dimension.name, None)
             temporal_overlap = overlap_dict.get(self.metadata.temporal_dimension.name, None)
-            if temporal_size is None or temporal_size.get('value', None) is None:
+            if temporal_size is None or temporal_size.get("value", None) is None:
                 return cube._process("process_type", [ProcessType.GLOBAL_TIME])
         return cube
 
@@ -784,14 +845,15 @@ class DryRunDataCube(DriverDataCube):
         # default APDA water vapour algorithm
         wvp_doi = "https://doi.org/10.1109/LGRS.2016.2635942"
 
-        return self \
-            ._process("log_metadata_link", arguments={"rel": "atmospheric-scattering", "href": method_link}) \
-            ._process("log_metadata_link", arguments={"rel": "related", "href": aot_link}) \
-            ._process("log_metadata_link", arguments={"rel": "elevation-model", "href": dem_doi}) \
+        return (
+            self._process("log_metadata_link", arguments={"rel": "atmospheric-scattering", "href": method_link})
+            ._process("log_metadata_link", arguments={"rel": "related", "href": aot_link})
+            ._process("log_metadata_link", arguments={"rel": "elevation-model", "href": dem_doi})
             ._process("log_metadata_link", arguments={"rel": "water-vapor", "href": wvp_doi})
+        )
 
-    def mask_scl_dilation(self, **kwargs) -> 'DriverDataCube':
-        return self._process("custom_cloud_mask", arguments={**{"method":"mask_scl_dilation"},**kwargs})
+    def mask_scl_dilation(self, **kwargs) -> "DriverDataCube":
+        return self._process("custom_cloud_mask", arguments={**{"method": "mask_scl_dilation"}, **kwargs})
 
     def to_scl_dilation_mask(
         self,
@@ -803,19 +865,18 @@ class DryRunDataCube(DriverDataCube):
     ) -> DryRunDataCube:
         cube = self._process("process_type", [ProcessType.FOCAL_SPACE])
         size = kernel2_size
-        cube = cube._process("pixel_buffer", arguments={"buffer_size": [size/2.0,size/2.0]})
+        cube = cube._process("pixel_buffer", arguments={"buffer_size": [size / 2.0, size / 2.0]})
         cube = cube._process("to_scl_dilation_mask", arguments={})
         return cube
 
-    def mask_l1c(self) -> 'DriverDataCube':
+    def mask_l1c(self) -> "DriverDataCube":
         return self._process("custom_cloud_mask", arguments={"method": "mask_l1c"})
 
-    def _nop(self, *args, **kwargs) -> 'DryRunDataCube':
+    def _nop(self, *args, **kwargs) -> "DryRunDataCube":
         """No Operation: do nothing"""
         return self
 
     # TODO: some methods need metadata manipulation?
-
 
     apply_tiles = _nop
 
