@@ -22,6 +22,8 @@ and start a new "In Progress" section above it.
 ## In progress
 
 - Better argument validation in `resample_spatial`/`resample_cube_spatial` (related to [Open-EO/openeo-python-client#690](https://github.com/Open-EO/openeo-python-client/issues/690))
+- Improve `resample_spatial`/`resample_cube_spatial` metadata tracking in dry-run ([#348](https://github.com/Open-EO/openeo-python-driver/issues/348))
+
 
 ## 0.123.0
 

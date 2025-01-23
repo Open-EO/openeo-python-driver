@@ -644,7 +644,7 @@ def test_execute_resample_and_merge_cubes(api):
     dummy = dummy_backend.get_collection("S2_FAPAR_CLOUDCOVER")
     last_load_collection_call = dummy_backend.last_load_collection_call("S2_FAPAR_CLOUDCOVER")
     assert last_load_collection_call.target_crs == CRS_UTM
-    assert last_load_collection_call.target_resolution == [10, 10]
+    assert last_load_collection_call.target_resolution == (10, 10)
     assert dummy.merge_cubes.call_count == 1
     assert dummy.resample_cube_spatial.call_count == 1
     assert dummy.resample_cube_spatial.call_args.kwargs["method"] == "cubic"

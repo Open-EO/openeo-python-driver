@@ -48,11 +48,13 @@ from openeo.metadata import (
     DimensionAlreadyExistsException,
     SpatialDimension,
     TemporalDimension,
+    CubeMetadata,
 )
 from pyproj import CRS
 from shapely.geometry import GeometryCollection, MultiPolygon, Point, Polygon
 from shapely.geometry.base import BaseGeometry
 
+from openeo.utils.normalize import normalize_resample_resolution
 from openeo_driver import filter_properties
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs
@@ -427,7 +429,7 @@ class DryRunDataTracer:
                         metadata: CollectionMetadata = target.metadata
                         spatial_dim = metadata.spatial_dimensions[0]
                         # TODO: derive resolution from openeo:gsd instead (see openeo-geopyspark-driver)
-                        resolutions = [dim.step for dim in metadata.spatial_dimensions if dim.step is not None]
+                        resolutions = tuple(dim.step for dim in metadata.spatial_dimensions if dim.step is not None)
                         if len(resolutions) > 0 and spatial_dim.crs is not None:
                             constraints["resample"] = {
                                 "target_crs": spatial_dim.crs,
@@ -436,9 +438,7 @@ class DryRunDataTracer:
                             }
                     args = resampling_op.get_arguments_by_operation("resample_spatial")
                     if args:
-                        resolution = args[0]["resolution"]
-                        if not isinstance(resolution, list):
-                            resolution = [resolution, resolution]
+                        resolution = normalize_resample_resolution(args[0]["resolution"])
                         projection = args[0]["projection"]
                         method = args[0].get("method", "near")
                         constraints["resample"] = {"target_crs": projection, "resolution": resolution, "method": method}
@@ -530,12 +530,12 @@ class DryRunDataCube(DriverDataCube):
     estimate memory/cpu usage, ...
     """
 
-    def __init__(self, traces: List[DataTraceBase], data_tracer: DryRunDataTracer, metadata: CollectionMetadata = None):
+    def __init__(self, traces: List[DataTraceBase], data_tracer: DryRunDataTracer, metadata: CubeMetadata = None):
         super(DryRunDataCube, self).__init__(metadata=metadata)
         self._traces = traces or []
         self._data_tracer = data_tracer
 
-    def _process(self, operation, arguments, metadata: CollectionMetadata = None) -> "DryRunDataCube":
+    def _process(self, operation, arguments, metadata: CubeMetadata = None) -> "DryRunDataCube":
         """Helper to handle single-cube operations"""
         # New data cube with operation added to each trace
         traces = self._data_tracer.process_traces(traces=self._traces, operation=operation, arguments=arguments)
@@ -691,14 +691,30 @@ class DryRunDataCube(DriverDataCube):
     def run_udf(self):
         return self._process(operation="run_udf", arguments={})
 
+    def resample_spatial(
+        self,
+        resolution: Union[float, Tuple[float, float]],
+        projection: Union[int, str] = None,
+        method: str = "near",
+        align: str = "upper-left",
+    ):
+        return self._process(
+            "resample_spatial",
+            arguments={"resolution": resolution, "projection": projection, "method": method, "align": align},
+            metadata=(self.metadata or CubeMetadata()).resample_spatial(resolution=resolution, projection=projection),
+        )
+
     def resample_cube_spatial(self, target: "DryRunDataCube", method: str = "near") -> "DryRunDataCube":
         cube = self._process("process_type", [ProcessType.FOCAL_SPACE])
         cube = cube._process("resample_cube_spatial", arguments={"target": target, "method": method})
+        if target.metadata:
+            metadata = (self.metadata or CubeMetadata()).resample_cube_spatial(target=target.metadata)
+        else:
+            metadata = None
         return DryRunDataCube(
             traces=cube._traces + target._traces,
             data_tracer=self._data_tracer,
-            # TODO: properly merge (other) metadata?
-            metadata=self.metadata,
+            metadata=metadata,
         )
 
     def reduce_dimension(
@@ -762,18 +778,6 @@ class DryRunDataCube(DriverDataCube):
 
     def resolution_merge(self, args: ResolutionMergeArgs) -> "DryRunDataCube":
         return self._process("resolution_merge", args)
-
-    def resample_spatial(
-        self,
-        resolution: Union[float, Tuple[float, float]],
-        projection: Union[int, str] = None,
-        method: str = "near",
-        align: str = "upper-left",
-    ):
-        return self._process(
-            "resample_spatial",
-            arguments={"resolution": resolution, "projection": projection, "method": method, "align": align},
-        )
 
     def apply_kernel(self, kernel: numpy.ndarray, factor=1, border=0, replace_invalid=0) -> "DriverDataCube":
         cube = self._process("process_type", [ProcessType.FOCAL_SPACE])

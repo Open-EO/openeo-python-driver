@@ -5,6 +5,7 @@ import openeo.processes
 import pytest
 import shapely.geometry
 from openeo.internal.graph_building import PGNode
+from openeo.metadata import SpatialDimension
 from openeo.rest.datacube import DataCube
 
 from openeo_driver.datacube import DriverVectorCube
@@ -287,7 +288,7 @@ def test_evaluate_graph_diamond(dry_run_env, dry_run_tracer):
             ("load_collection", ("S2_FOOBAR", ())),
             {
                 "bands": ["grass"],
-                "resample": {"method": "near", "resolution": [10, 10], "target_crs": CRS_UTM},
+                "resample": {"method": "near", "resolution": (10, 10), "target_crs": CRS_UTM},
                 "spatial_extent": {"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"},
             },
         ),
@@ -961,7 +962,7 @@ def test_multiple_filter_spatial(dry_run_env, dry_run_tracer):
             "west": 166021.44308054057,
         },
         "filter_spatial": {"geometries": DummyVectorCube.from_geometry(shapely.geometry.shape(polygon1))},
-        "resample": {"method": "near", "resolution": [0.25, 0.25], "target_crs": 4326},
+        "resample": {"method": "near", "resolution": (0.25, 0.25), "target_crs": 4326},
         "weak_spatial_extent": {
             "crs": "EPSG:32631",
             "east": 1056748.2872412915,
@@ -1068,7 +1069,7 @@ def test_resample_filter_spatial(dry_run_env, dry_run_tracer):
             "west": 166021.44308054057,
         },
         "filter_spatial": {"geometries": DummyVectorCube.from_geometry(shapely.geometry.shape(polygon))},
-        "resample": {"method": "near", "resolution": [0.25, 0.25], "target_crs": 4326},
+        "resample": {"method": "near", "resolution": (0.25, 0.25), "target_crs": 4326},
         "weak_spatial_extent": {
             "crs": "EPSG:32631",
             "east": 1056748.2872412915,
@@ -1807,7 +1808,7 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
             {
                 "bands": ["ndvi"],
                 "process_type": [ProcessType.FOCAL_SPACE],
-                "resample": {"method": "average", "resolution": [10, 10], "target_crs": CRS_UTM},
+                "resample": {"method": "average", "resolution": (10, 10), "target_crs": CRS_UTM},
                 "spatial_extent": {
                     "crs": "EPSG:32631",
                     "east": 642140.0,
@@ -2385,11 +2386,11 @@ def test_complex_extract_load_stac(dry_run_env, dry_run_tracer):
     assert loadparams.bands == ["SCL"]
     assert loadparams.global_extent == expected_extent
     assert loadparams.pixel_buffer == [38.5, 38.5]
-    assert loadparams.target_resolution == None
+    assert loadparams.target_resolution is None
 
     loadparams = _extract_load_parameters(dry_run_env, source_id_stac)
     assert loadparams.global_extent == expected_extent
-    assert loadparams.target_resolution == [10, 10]
+    assert loadparams.target_resolution == (10, 10)
 
 
 def test_normalize_geometries(dry_run_env, dry_run_tracer):
@@ -2447,3 +2448,41 @@ def test_normalize_geometries(dry_run_env, dry_run_tracer):
         "south": 5654910,
         "west": 89920,
     }
+
+
+def test_resample_cube_spatial_from_resampled_target(dry_run_env, dry_run_tracer):
+    """
+    Use `resample_cube_spatial` with a target that is result from a separate `resample_spatial`
+    """
+    target = DataCube.load_collection("SENTINEL1_GRD", connection=None)
+    target = target.resample_spatial(resolution=(3, 5), projection=32631)
+    assert target.metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=[None, None], crs=32631, step=3),
+        SpatialDimension(name="y", extent=[None, None], crs=32631, step=5),
+    ]
+
+    cube = DataCube.load_collection("S2_FOOBAR", connection=None)
+    assert cube.metadata is None
+    cube = cube.resample_cube_spatial(target=target)
+    assert cube.metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=[None, None], crs=32631, step=3),
+        SpatialDimension(name="y", extent=[None, None], crs=32631, step=5),
+    ]
+
+    pg = cube.flat_graph()
+    _ = evaluate(pg, env=dry_run_env, do_dry_run=False)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert source_constraints == [
+        (
+            ("load_collection", ("S2_FOOBAR", ())),
+            {
+                "process_type": [ProcessType.FOCAL_SPACE],
+                "resample": {"method": "near", "resolution": (3, 5), "target_crs": 32631},
+            },
+        ),
+        (
+            ("load_collection", ("SENTINEL1_GRD", ())),
+            {"resample": {"method": "near", "resolution": (3, 5), "target_crs": 32631}},
+        ),
+    ]
