@@ -1447,19 +1447,28 @@ def test_load_stac_properties(dry_run_env, dry_run_tracer):
     ]
 
 
-def test_load_stac_spatial_extent_requires_a_polygon(dry_run_tracer, backend_implementation):
+@pytest.mark.parametrize(
+    "spatial_extent",
+    [
+        {"type": "Feature", "geometry": {"type": "Point", "coordinates": [5, 50]}},
+        {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Feature", "geometry": {"type": "Point", "coordinates": [5, 50]}},
+                }
+            ],
+        },
+    ],
+)
+def test_load_stac_spatial_extent_requires_a_polygon(dry_run_tracer, backend_implementation, spatial_extent):
     pg = {
         "loadstac1": {
             "process_id": "load_stac",
             "arguments": {
                 "url": "https://stac.test",
-                "spatial_extent": {
-                    "type": "Feature",
-                    "geometry": {
-                        "type": "Point",
-                        "coordinates": [5.0, 50.0]
-                    }
-                }
+                "spatial_extent": spatial_extent,
             },
             "result": True,
         }
