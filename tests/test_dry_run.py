@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 from pathlib import Path
 from unittest import mock
 
@@ -18,7 +19,7 @@ from openeo_driver.dry_run import (
     ProcessType,
 )
 from openeo_driver.dummy.dummy_backend import DummyVectorCube
-from openeo_driver.errors import OpenEOApiException
+from openeo_driver.errors import OpenEOApiException, ProcessParameterInvalidException
 from openeo_driver.ProcessGraphDeserializer import (
     ENV_DRY_RUN_TRACER,
     ENV_MAX_BUFFER,
@@ -1448,21 +1449,44 @@ def test_load_stac_properties(dry_run_env, dry_run_tracer):
 
 
 @pytest.mark.parametrize(
-    "spatial_extent",
+    ["spatial_extent", "expectation"],
     [
-        {"type": "Feature", "geometry": {"type": "Point", "coordinates": [5, 50]}},
-        {
-            "type": "FeatureCollection",
-            "features": [
-                {
-                    "type": "Feature",
-                    "geometry": {"type": "Feature", "geometry": {"type": "Point", "coordinates": [5, 50]}},
-                }
-            ],
-        },
+        ({"type": "Polygon", "coordinates": [[[0, 0], [1, 1], [1, 0]]]}, nullcontext()),
+        (
+            {
+                "type": "Feature",
+                "geometry": {"type": "MultiPolygon", "coordinates": [[[[0, 0], [1, 1], [1, 0]]]]},
+                "properties": {},
+            },
+            nullcontext(),
+        ),
+        (
+            {"type": "Feature", "geometry": {"type": "Point", "coordinates": [5, 50]}},
+            pytest.raises(
+                ProcessParameterInvalidException,
+                match=r"unsupported GeoJSON; requires at least one Polygon or MultiPolygon$",
+            ),
+        ),
+        (
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Point", "coordinates": [5, 50]},
+                    }
+                ],
+            },
+            pytest.raises(
+                ProcessParameterInvalidException,
+                match=r"unsupported GeoJSON; requires at least one Polygon or MultiPolygon$",
+            ),
+        ),
     ],
 )
-def test_load_stac_spatial_extent_requires_a_polygon(dry_run_tracer, backend_implementation, spatial_extent):
+def test_load_stac_spatial_extent_requires_a_polygon(
+    dry_run_tracer, backend_implementation, spatial_extent, expectation
+):
     pg = {
         "loadstac1": {
             "process_id": "load_stac",
@@ -1478,13 +1502,8 @@ def test_load_stac_spatial_extent_requires_a_polygon(dry_run_tracer, backend_imp
         {ENV_DRY_RUN_TRACER: dry_run_tracer, "backend_implementation": backend_implementation, "version": "2.0.0"}
     )
 
-    with pytest.raises(OpenEOApiException) as e:
+    with expectation:
         evaluate(pg, dry_run_env)
-
-    assert e.value.message == (
-        "The value passed for parameter 'spatial_extent' in process 'load_stac' is invalid: "
-        "unsupported GeoJSON; requires at least one Polygon or MultiPolygon"
-    )
 
 
 @pytest.mark.parametrize(
