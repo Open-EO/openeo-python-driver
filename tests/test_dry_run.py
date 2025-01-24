@@ -1447,6 +1447,37 @@ def test_load_stac_properties(dry_run_env, dry_run_tracer):
     ]
 
 
+def test_load_stac_spatial_extent_requires_a_polygon(dry_run_tracer, backend_implementation):
+    pg = {
+        "loadstac1": {
+            "process_id": "load_stac",
+            "arguments": {
+                "url": "https://stac.test",
+                "spatial_extent": {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [5.0, 50.0]
+                    }
+                }
+            },
+            "result": True,
+        }
+    }
+
+    dry_run_env = EvalEnv(
+        {ENV_DRY_RUN_TRACER: dry_run_tracer, "backend_implementation": backend_implementation, "version": "2.0.0"}
+    )
+
+    with pytest.raises(OpenEOApiException) as e:
+        evaluate(pg, dry_run_env)
+
+    assert e.value.message == (
+        "The value passed for parameter 'spatial_extent' in process 'load_stac' is invalid: "
+        "unsupported GeoJSON; requires at least one Polygon or MultiPolygon"
+    )
+
+
 @pytest.mark.parametrize(
     ["arguments", "expected"],
     [

@@ -1440,13 +1440,21 @@ def filter_labels(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
 def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox", handle_geojson=False) -> dict:
     extent = extract_arg(args, name=field, process_id=process_id)
+    # TODO: handle vector cube
     if handle_geojson and extent.get("type") in [
         "Polygon",
         "MultiPolygon",
-        "GeometryCollection",
+        "GeometryCollection",  # TODO: disallow GeometryCollection?
         "Feature",
         "FeatureCollection",
     ]:
+        if not _contains_polygon(extent):
+            raise ProcessParameterInvalidException(
+                parameter=field,
+                process=process_id,
+                reason="unsupported GeoJSON; requires at least one Polygon or MultiPolygon",
+            )
+
         w, s, e, n = DriverVectorCube.from_geojson(extent).get_bounding_box()
         # TODO: support (non-standard) CRS field in GeoJSON?
         d = {"west": w, "south": s, "east": e, "north": n, "crs": "EPSG:4326"}
@@ -1460,6 +1468,22 @@ def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox", h
             crs = "EPSG:{crs}".format(crs=crs)
         d["crs"] = crs
     return d
+
+
+def _contains_polygon(geojson: dict) -> bool:
+    if geojson["type"] in ["Polygon", "MultiPolygon"]:
+        return True
+
+    if geojson["type"] == "Feature":
+        return _contains_polygon(geojson["geometry"])
+
+    if geojson["type"] == "FeatureCollection":
+        return any(_contains_polygon(feature) for feature in geojson["features"])
+
+    if geojson["type"] == "GeometryCollection":
+        return any(_contains_polygon(geometry) for geometry in geojson["geometries"])
+
+    return False
 
 
 @process

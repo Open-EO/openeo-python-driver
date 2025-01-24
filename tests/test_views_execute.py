@@ -352,13 +352,6 @@ def test_load_collection_filter(api):
             ),
             {"west": 11, "south": 22, "east": 44, "north": 55, "crs": "EPSG:4326"},
         ),
-        (
-            as_geojson_feature_collection(
-                shapely.geometry.Point(2, 3),
-                shapely.geometry.Point(4, 5),
-            ),
-            {"west": 2, "south": 3, "east": 4, "north": 5, "crs": "EPSG:4326"},
-        ),
     ],
 )
 def test_load_collection_spatial_extent_geojson(api, spatial_extent, expected):
