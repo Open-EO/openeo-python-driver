@@ -27,7 +27,7 @@ import pyproj
 import shapely.geometry
 import shapely.ops
 from dateutil.relativedelta import relativedelta
-from openeo.capabilities import ComparableVersion
+from openeo.utils.version import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitException, ProcessGraphVisitor
 from openeo.metadata import CollectionMetadata, MetadataException
 from openeo.util import deep_get, load_json, rfc3339, str_truncate

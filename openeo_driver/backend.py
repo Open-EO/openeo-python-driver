@@ -22,7 +22,7 @@ from typing import List, Union, NamedTuple, Dict, Optional, Callable, Iterable
 import flask
 
 import openeo_driver.util.view_helpers
-from openeo.capabilities import ComparableVersion
+from openeo.utils.version import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 import openeo.udf
 from openeo.util import rfc3339, dict_no_none

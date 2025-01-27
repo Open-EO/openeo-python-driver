@@ -3,7 +3,7 @@ import urllib.parse
 from unittest import mock
 
 import pytest
-from openeo.capabilities import ComparableVersion
+from openeo.utils.version import ComparableVersion
 
 from openeo_driver.backend import (
     BatchJobMetadata,

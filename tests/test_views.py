@@ -17,7 +17,7 @@ import pystac.validation.stac_validator
 import pytest
 import re_assert
 import werkzeug.exceptions
-from openeo.capabilities import ComparableVersion
+from openeo.utils.version import ComparableVersion
 
 from openeo_driver.backend import (
     BatchJobMetadata,

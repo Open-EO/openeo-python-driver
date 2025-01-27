@@ -22,7 +22,7 @@ import shapely.geometry.base
 import shapely.wkt
 from flask import Response
 from flask.testing import FlaskClient
-from openeo.capabilities import ComparableVersion
+from openeo.utils.version import ComparableVersion
 from werkzeug.datastructures import Headers
 
 from openeo_driver.config.load import ConfigGetter, _backend_config_getter

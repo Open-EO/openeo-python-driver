@@ -24,7 +24,7 @@ from shapely.geometry import mapping
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from openeo.capabilities import ComparableVersion
+from openeo.utils.version import ComparableVersion
 from openeo.util import dict_no_none, deep_get, Rfc3339, TimingLogger
 from openeo_driver.urlsigning import UrlSigner
 from openeo_driver.backend import (
