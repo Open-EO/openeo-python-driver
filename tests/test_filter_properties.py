@@ -1,6 +1,9 @@
 import pytest
 
 from openeo_driver.filter_properties import extract_literal_match, PropertyConditionException
+from openeo_driver.utils import EvalEnv
+
+_empty_env = EvalEnv()
 
 
 def test_extract_literal_match_basic():
@@ -9,7 +12,7 @@ def test_extract_literal_match_basic():
         "arguments": {"x": {"from_parameter": "value"}, "y": "ASCENDING"},
         "result": True
     }}}
-    assert extract_literal_match(pg) == {"eq": "ASCENDING"}
+    assert extract_literal_match(pg, _empty_env) == {"eq": "ASCENDING"}
 
 
 def test_extract_literal_match_reverse():
@@ -18,7 +21,7 @@ def test_extract_literal_match_reverse():
         "arguments": {"x": "ASCENDING", "y": {"from_parameter": "value"}},
         "result": True
     }}}
-    assert extract_literal_match(pg) == {"eq": "ASCENDING"}
+    assert extract_literal_match(pg, _empty_env) == {"eq": "ASCENDING"}
 
 
 def test_extract_literal_match_lte():
@@ -27,7 +30,7 @@ def test_extract_literal_match_lte():
         "arguments": {"x": {"from_parameter": "value"}, "y": 20},
         "result": True
     }}}
-    assert extract_literal_match(pg) == {"lte": 20}
+    assert extract_literal_match(pg, _empty_env) == {"lte": 20}
 
 
 def test_extract_literal_match_gte_reverse():
@@ -36,7 +39,7 @@ def test_extract_literal_match_gte_reverse():
         "arguments": {"x": 20, "y": {"from_parameter": "value"}},
         "result": True
     }}}
-    assert extract_literal_match(pg) == {"lte": 20}
+    assert extract_literal_match(pg, _empty_env) == {"lte": 20}
 
 
 @pytest.mark.parametrize("node", [
@@ -47,9 +50,10 @@ def test_extract_literal_match_gte_reverse():
 ])
 def test_extract_literal_match_failures(node):
     node["result"] = True
+    env = EvalEnv().push_parameters({"data": "some parameter"})
     pg = {"process_graph": {"p": node}}
     with pytest.raises(PropertyConditionException):
-        extract_literal_match(pg)
+        extract_literal_match(pg, env)
 
 
 def test_array_contains():
@@ -66,4 +70,23 @@ def test_array_contains():
         }
     }
 
-    assert extract_literal_match(pg) == {"in": ["31UES", "31UFS"]}
+    assert extract_literal_match(pg, _empty_env) == {"in": ["31UES", "31UFS"]}
+
+
+def test_parameter():
+    env = EvalEnv().push_parameters({"orbit_state": "ASCENDING"})
+
+    pg = {
+        "process_graph": {
+            "eq1": {
+                "process_id": "eq",
+                "arguments": {
+                    "x": {"from_parameter": "value"},
+                    "y": {"from_parameter": "orbit_state"}
+                },
+                "result": True
+            }
+        }
+    }
+
+    assert extract_literal_match(pg, env) == {"eq": "ASCENDING"}

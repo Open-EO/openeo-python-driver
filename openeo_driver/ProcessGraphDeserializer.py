@@ -2407,9 +2407,11 @@ def load_stac(args: Dict, env: EvalEnv) -> DriverDataCube:
 
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
-        return dry_run_tracer.load_stac(url, arguments)
+        return dry_run_tracer.load_stac(url, arguments, env)
     else:
-        source_id = dry_run.DataSource.load_stac(url, properties=arguments.get("properties", {}), bands=arguments.get("bands",[])).get_source_id()
+        source_id = dry_run.DataSource.load_stac(
+            url, properties=arguments.get("properties", {}), bands=arguments.get("bands", []), env=env
+        ).get_source_id()
         load_params = _extract_load_parameters(env, source_id=source_id)
         load_params.update(arguments)
 

@@ -192,10 +192,10 @@ class DataSource(DataTraceBase):
         return cls(process="load_result", arguments=(job_id,))
 
     @classmethod
-    def load_stac(cls, url: str, properties={}, bands=[]) -> "DataSource":
+    def load_stac(cls, url: str, properties={}, bands=[], env=EvalEnv()) -> "DataSource":
         """Factory for a `load_stac` DataSource."""
         exact_property_matches = {
-            property_name: filter_properties.extract_literal_match(condition)
+            property_name: filter_properties.extract_literal_match(condition, env)
             for property_name, condition in properties.items()
         }
 
@@ -331,10 +331,10 @@ class DryRunDataTracer:
 
         return cube
 
-    def load_stac(self, url: str, arguments: dict) -> "DryRunDataCube":
+    def load_stac(self, url: str, arguments: dict, env: EvalEnv = EvalEnv()) -> "DryRunDataCube":
         properties = arguments.get("properties", {})
 
-        trace = DataSource.load_stac(url=url, properties=properties, bands=arguments.get("bands", []))
+        trace = DataSource.load_stac(url=url, properties=properties, bands=arguments.get("bands", []), env=env)
         self.add_trace(trace)
 
         metadata = CollectionMetadata(
