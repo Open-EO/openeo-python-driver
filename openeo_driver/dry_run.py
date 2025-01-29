@@ -167,10 +167,10 @@ class DataSource(DataTraceBase):
         return self._process
 
     @classmethod
-    def load_collection(cls, collection_id, properties={}, bands=[]) -> "DataSource":
+    def load_collection(cls, collection_id, properties={}, bands=[], env=EvalEnv()) -> "DataSource":
         """Factory for a `load_collection` DataSource."""
         exact_property_matches = {
-            property_name: filter_properties.extract_literal_match(condition)
+            property_name: filter_properties.extract_literal_match(condition, env)
             for property_name, condition in properties.items()
         }
 
@@ -273,7 +273,9 @@ class DryRunDataTracer:
         """Process given traces with an operation (and keep track of the results)."""
         return [self.add_trace(DataTrace(parent=t, operation=operation, arguments=arguments)) for t in traces]
 
-    def load_collection(self, collection_id: str, arguments: dict, metadata: dict = None) -> "DryRunDataCube":
+    def load_collection(
+        self, collection_id: str, arguments: dict, metadata: dict = None, env: EvalEnv = EvalEnv()
+    ) -> "DryRunDataCube":
         """Create a DryRunDataCube from a `load_collection` process."""
         # TODO #275 avoid VITO/Terrascope specific handling here?
         properties = {
@@ -282,7 +284,7 @@ class DryRunDataTracer:
         }
 
         trace = DataSource.load_collection(
-            collection_id=collection_id, properties=properties, bands=arguments.get("bands", [])
+            collection_id=collection_id, properties=properties, bands=arguments.get("bands", []), env=env
         )
         self.add_trace(trace)
 
