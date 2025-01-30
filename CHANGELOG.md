@@ -23,6 +23,7 @@ and start a new "In Progress" section above it.
 
 - Better argument validation in `resample_spatial`/`resample_cube_spatial` (related to [Open-EO/openeo-python-client#690](https://github.com/Open-EO/openeo-python-client/issues/690))
 - Improve `resample_spatial`/`resample_cube_spatial` metadata tracking in dry-run ([#348](https://github.com/Open-EO/openeo-python-driver/issues/348))
+- `load_collection`/`load_stac`: support parameters in `properties` ([#327](https://github.com/Open-EO/openeo-python-driver/issues/327))
 
 
 ## 0.123.0
