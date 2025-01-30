@@ -1,0 +1,9 @@
+{
+  "udp1": {
+    "process_id": "load_collection_property_from_parameter",
+    "arguments": {
+      "orbit_state": "ASCENDING"
+    },
+    "result": true
+  }
+}
