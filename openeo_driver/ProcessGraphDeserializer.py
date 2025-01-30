@@ -78,6 +78,18 @@ DEFAULT_TEMPORAL_EXTENT = ["1970-01-01", "2070-01-01"]  # also a sentinel value 
 
 _log = logging.getLogger(__name__)
 
+
+class NoPythonImplementationError(NotImplementedError):
+    """
+    Exception to use with the `ProcessRegistry.add_function` registration pattern
+    for openEO processes that don't have an actual Python implementation.
+    Typically used for callback processes that have an actual implementation elsewhere.
+    (e.g in openeo-geotrellis-extensions).
+    """
+
+    pass
+
+
 # Set up process registries (version dependent)
 
 # Process registry based on 1.x version of openeo-processes, to be used with api_version 1.0 an 1.1
@@ -1157,19 +1169,19 @@ def fit_class_catboost(args: ProcessArgs, env: EvalEnv) -> DriverMlModel:
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/predict_random_forest.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/predict_random_forest.json"))
 def predict_random_forest(args: ProcessArgs, env: EvalEnv):
-    raise NotImplementedError
+    raise NoPythonImplementationError
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/predict_catboost.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/predict_catboost.json"))
 def predict_catboost(args: ProcessArgs, env: EvalEnv):
-    raise NotImplementedError
+    raise NoPythonImplementationError
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/predict_probabilities.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/predict_probabilities.json"))
 def predict_probabilities(args: ProcessArgs, env: EvalEnv):
-    raise NotImplementedError
+    raise NoPythonImplementationError
 
 
 @process
@@ -2237,13 +2249,13 @@ custom_process_from_process_graph(read_spec("openeo-processes/1.x/proposals/ard_
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/array_append.json"))
 @process_registry_2xx.add_function
 def array_append(args: ProcessArgs, env: EvalEnv) -> list:
-    raise NotImplementedError
+    raise NoPythonImplementationError
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/array_interpolate_linear.json"))
 @process_registry_2xx.add_function
 def array_interpolate_linear(args: ProcessArgs, env: EvalEnv) -> list:
-    raise NotImplementedError
+    raise NoPythonImplementationError
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/date_shift.json"))
@@ -2262,7 +2274,7 @@ def date_shift(args: ProcessArgs, env: EvalEnv) -> str:
 
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/2.x/proposals/date_between.json"))
 def date_between(args: ProcessArgs, env: EvalEnv) -> bool:
-    raise NotImplementedError
+    raise NoPythonImplementationError
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/array_concat.json"))
