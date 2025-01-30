@@ -40,7 +40,11 @@ def extract_literal_match(condition: dict, env=EvalEnv()) -> Dict[str, Any]:
             if parameter_name == callback_parameter_name:
                 self.result["parameter"] = parameter_name
             else:
-                self.result["value"] = env.collect_parameters()[parameter_name]
+                env_parameters = env.collect_parameters()
+                if parameter_name not in env_parameters:
+                    raise PropertyConditionException(f"Unknown parameter {parameter_name}")
+
+                self.result["value"] = env_parameters[parameter_name]
 
         def constantArgument(self, argument_id: str, value):
             self.result["value"] = value
@@ -67,6 +71,6 @@ def extract_literal_match(condition: dict, env=EvalEnv()) -> Dict[str, Any]:
             f"Expected parameter {callback_parameter_name!r} but got {visitor.result['parameter']!r}"
         )
     if "value" not in visitor.result:
-        raise PropertyConditionException(f"No comparison with constant or value from parameter")
+        raise PropertyConditionException(f"No comparison with constant/value from parameter")
 
     return {visitor.result["operator"]: visitor.result["value"]}
