@@ -11,7 +11,7 @@ class PropertyConditionException(OpenEOApiException):
     message = "Property condition is invalid."
 
 
-def extract_literal_match(condition: dict, env: EvalEnv) -> Dict[str, Any]:
+def extract_literal_match(condition: dict, env=EvalEnv()) -> Dict[str, Any]:
     """
     Turns a condition as defined by the load_collection process into a set of criteria ((operator, value) pairs).
     Conditions are currently limited to processes "eq", "lte" and "gte" so they will be turned into a single criterion.

@@ -3,8 +3,6 @@ import pytest
 from openeo_driver.filter_properties import extract_literal_match, PropertyConditionException
 from openeo_driver.utils import EvalEnv
 
-_empty_env = EvalEnv()
-
 
 def test_extract_literal_match_basic():
     pg = {"process_graph": {"eq1": {
@@ -12,7 +10,7 @@ def test_extract_literal_match_basic():
         "arguments": {"x": {"from_parameter": "value"}, "y": "ASCENDING"},
         "result": True
     }}}
-    assert extract_literal_match(pg, _empty_env) == {"eq": "ASCENDING"}
+    assert extract_literal_match(pg) == {"eq": "ASCENDING"}
 
 
 def test_extract_literal_match_reverse():
@@ -21,7 +19,7 @@ def test_extract_literal_match_reverse():
         "arguments": {"x": "ASCENDING", "y": {"from_parameter": "value"}},
         "result": True
     }}}
-    assert extract_literal_match(pg, _empty_env) == {"eq": "ASCENDING"}
+    assert extract_literal_match(pg) == {"eq": "ASCENDING"}
 
 
 def test_extract_literal_match_lte():
@@ -30,7 +28,7 @@ def test_extract_literal_match_lte():
         "arguments": {"x": {"from_parameter": "value"}, "y": 20},
         "result": True
     }}}
-    assert extract_literal_match(pg, _empty_env) == {"lte": 20}
+    assert extract_literal_match(pg) == {"lte": 20}
 
 
 def test_extract_literal_match_gte_reverse():
@@ -39,7 +37,7 @@ def test_extract_literal_match_gte_reverse():
         "arguments": {"x": 20, "y": {"from_parameter": "value"}},
         "result": True
     }}}
-    assert extract_literal_match(pg, _empty_env) == {"lte": 20}
+    assert extract_literal_match(pg) == {"lte": 20}
 
 
 @pytest.mark.parametrize("node", [
@@ -70,7 +68,7 @@ def test_array_contains():
         }
     }
 
-    assert extract_literal_match(pg, _empty_env) == {"in": ["31UES", "31UFS"]}
+    assert extract_literal_match(pg) == {"in": ["31UES", "31UFS"]}
 
 
 def test_parameter():
