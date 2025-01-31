@@ -360,7 +360,7 @@ class ProcessGraphMissingException(OpenEOApiException):
     status_code = 400
     code = 'ProcessGraphMissing'
     message = "Invalid process specified. It doesn't contain a process graph."
-    _description = "The parameter `process` doesn't contain a valid process."
+    _description = "The process doesn't contain a process graph. For jobs, services, and sync. processing the parameter `process` must contain a `process_graph`."
     _tags = ['Batch Jobs', 'Data Processing', 'Secondary Services', 'User-Defined Processes']
 
 
@@ -442,8 +442,8 @@ class ProcessUnsupportedException(OpenEOApiException):
     status_code = 400
     code = 'ProcessUnsupported'
     message = "Process with identifier '{process}' is not available in namespace '{namespace}'."
-    _description = 'A process (pre-defined or user-defined) with the specified identifier is not available. To be used when validating or executing process graphs.'
-    _tags = ['Data Processing']
+    _description = "A process (predefined or user-defined) with the specified identifier is not available. To be used when validating or executing process graphs."
+    _tags = ["Data Processing"]
 
     def __init__(self, process: str, namespace: str = "backend"):
         super().__init__(message=self.message.format(process=process, namespace=namespace))
@@ -451,10 +451,10 @@ class ProcessUnsupportedException(OpenEOApiException):
 
 class PredefinedProcessExistsException(OpenEOApiException):
     status_code = 400
-    code = 'PredefinedProcessExists'
-    message = 'A predefined process with the given identifier exists.'
-    _description = 'If a user wants to store a user-defined process with the id of a pre-defined process.'
-    _tags = ['User-Defined Processes']
+    code = "PredefinedProcessExists"
+    message = "A predefined process with the given identifier exists."
+    _description = "If a user wants to store a user-defined process with the id of a predefined process."
+    _tags = ["User-Defined Processes"]
 
 
 class ProcessParameterRequiredException(OpenEOApiException):
