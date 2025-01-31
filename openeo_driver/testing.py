@@ -206,9 +206,11 @@ class ApiTester:
         if not self.default_request_headers.get("Authorization"):
             self.set_auth_bearer_token()
 
-    def get(self, path: str, headers: dict = None) -> ApiResponse:
+    def get(self, path: str, headers: dict = None, params: Optional[dict] = None) -> ApiResponse:
         """Do versioned GET request, given non-versioned path"""
-        return ApiResponse(self.client.get(path=self.url(path), headers=self._request_headers(headers)))
+        return ApiResponse(
+            self.client.get(path=self.url(path), headers=self._request_headers(headers), query_string=params)
+        )
 
     def head(self, path: str, headers: dict = None) -> ApiResponse:
         """Do versioned GET request, given non-versioned path"""
