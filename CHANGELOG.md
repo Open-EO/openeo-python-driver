@@ -22,6 +22,8 @@ and start a new "In Progress" section above it.
 ## In progress
 
 - Add STAC collections conformance class ([#195](https://github.com/Open-EO/openeo-python-driver/issues/195))
+- update openeo_driver/specs/openeo-api/1.x submodule to tag `1.2.0` ([#195](https://github.com/Open-EO/openeo-python-driver/issues/195))
+
 
 ## 0.125.0
 
