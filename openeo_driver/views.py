@@ -641,7 +641,8 @@ def register_views_processing(
         env = EvalEnv({
             "backend_implementation": backend_implementation,
             "version": g.api_version,
-            "user": None
+            "user": None,
+            "validation": True
         })
         errors = backend_implementation.processing.validate(process_graph=process_graph, env=env)
         return jsonify({"errors": errors})
