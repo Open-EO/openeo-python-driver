@@ -404,7 +404,8 @@ def register_views_general(
             "version": api_version,  # Deprecated pre-0.4.0 API version field
             "api_version": api_version,  # API version field since 0.4.0
             "backend_version": backend_version,
-            "stac_version": "0.9.0",
+            "stac_version": "0.9.0",  # TODO #363 bump to 1.x.y?
+            "type": "Catalog",
             "conformsTo": backend_implementation.conformance_classes(),
             "id": service_id,
             "title": title,
