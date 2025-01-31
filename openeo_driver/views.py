@@ -39,7 +39,7 @@ from openeo_driver.backend import (
     JobListing,
 )
 from openeo_driver.config import get_backend_config, OpenEoBackendConfig
-from openeo_driver.constants import STAC_EXTENSION
+from openeo_driver.constants import STAC_EXTENSION, DEFAULT_LOG_LEVEL_RETRIEVAL, DEFAULT_LOG_LEVEL_PROCESSING
 from openeo_driver.datacube import DriverMlModel
 from openeo_driver.errors import (
     OpenEOApiException,
@@ -404,7 +404,8 @@ def register_views_general(
             "version": api_version,  # Deprecated pre-0.4.0 API version field
             "api_version": api_version,  # API version field since 0.4.0
             "backend_version": backend_version,
-            "stac_version": "0.9.0",
+            "stac_version": "0.9.0",  # TODO #363 bump to 1.x.y?
+            "type": "Catalog",
             "conformsTo": backend_implementation.conformance_classes(),
             "id": service_id,
             "title": title,
@@ -654,7 +655,7 @@ def register_views_processing(
         process_graph = _extract_process_graph(post_data)
         budget = post_data.get("budget")
         plan = post_data.get("plan")
-        log_level = post_data.get("log_level", "info")
+        log_level = post_data.get("log_level", DEFAULT_LOG_LEVEL_PROCESSING)
         job_options = _extract_job_options(
             post_data, to_ignore=["process", "process_graph", "budget", "plan", "log_level"]
         )
@@ -880,7 +881,7 @@ def register_views_batch_jobs(
             post_data, to_ignore=["process", "process_graph", "title", "description", "plan", "budget", "log_level"]
         )
         metadata = {k: post_data[k] for k in ["title", "description", "plan", "budget"] if k in post_data}
-        metadata["log_level"] = post_data.get("log_level", "info")
+        metadata["log_level"] = post_data.get("log_level", DEFAULT_LOG_LEVEL_PROCESSING)
         job_info = backend_implementation.batch_jobs.create_job(
             # TODO: remove `filter_supported_kwargs` (when all implementations have migrated to `user` iso `user_id`)
             **filter_supported_kwargs(
@@ -1513,16 +1514,26 @@ def register_views_batch_jobs(
     @blueprint.route("/jobs/<job_id>/logs", methods=["GET"])
     @auth_handler.requires_bearer_auth
     def get_job_logs(job_id, user: User):
-        offset = request.args.get("offset")
-        level = request.args.get("level", "debug")
+        offset = request.args.get("offset", default=None)
+        limit = request.args.get("limit", default=None, type=int)
+        level = request.args.get("level", default=DEFAULT_LOG_LEVEL_RETRIEVAL)
         request_id = FlaskRequestCorrelationIdLogging.get_request_id()
         # TODO: implement paging support: `limit`, next/prev/first/last `links`, ...
-        logs = backend_implementation.batch_jobs.get_log_entries(
+
+        # TODO: remove this `function_has_argument` once all implementations are migrated
+        if function_has_argument(backend_implementation.batch_jobs.get_log_entries, argument="limit"):
+            logs = backend_implementation.batch_jobs.get_log_entries(
+                job_id=job_id, user_id=user.user_id, offset=offset, level=level, limit=limit
+            )
+        else:
+            logs = backend_implementation.batch_jobs.get_log_entries(
             job_id=job_id, user_id=user.user_id, offset=offset, level=level
         )
 
         def generate():
-            yield """{"logs":["""
+            yield "{"
+            yield f'"level": {json.dumps(level)},'
+            yield '"logs":['
 
             sep = ""
             try:
@@ -1550,7 +1561,9 @@ def register_views_batch_jobs(
                 }
                 yield sep + json.dumps(log)
 
-            yield """],"links":[]}"""
+            yield "],"
+            # TODO: add pagination links (next, prev, first, last)
+            yield '"links":[]}'
 
         return current_app.response_class(generate(), mimetype="application/json")
 
@@ -1665,12 +1678,13 @@ def register_views_secondary_services(
     @blueprint.route('/services/<service_id>/logs', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def service_logs(service_id, user: User):
-        level = request.args.get("level", "debug")
-        offset = request.args.get('offset', 0)
+        offset = request.args.get("offset", default=None)
+        limit = request.args.get("limit", default=None, type=int)
+        level = request.args.get("level", default=DEFAULT_LOG_LEVEL_RETRIEVAL)
         logs = backend_implementation.secondary_services.get_log_entries(
-            service_id=service_id, user_id=user.user_id, offset=offset
+            service_id=service_id, user_id=user.user_id, offset=offset, limit=limit, level=level
         )
-        return jsonify({"logs": logs, "links": []})
+        return jsonify({"logs": logs, "links": [], "level": level})
 
 
 def register_views_udp(

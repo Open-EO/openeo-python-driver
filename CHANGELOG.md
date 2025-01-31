@@ -21,6 +21,15 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+- Add STAC collections conformance class ([#195](https://github.com/Open-EO/openeo-python-driver/issues/195))
+- update openeo_driver/specs/openeo-api/1.x submodule to tag `1.2.0` ([#195](https://github.com/Open-EO/openeo-python-driver/issues/195))
+
+
+## 0.125.0
+
+- Add log level to batch job logs response ([#195](https://github.com/Open-EO/openeo-python-driver/issues/195))
+
+
 ## 0.124.0
 
 - Better argument validation in `resample_spatial`/`resample_cube_spatial` (related to [Open-EO/openeo-python-client#690](https://github.com/Open-EO/openeo-python-client/issues/690))
