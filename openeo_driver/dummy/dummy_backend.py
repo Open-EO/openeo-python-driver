@@ -12,7 +12,13 @@ import flask
 import numpy
 import openeo.udf
 import xarray
-from openeo.api.logs import normalize_log_level
+
+try:
+    from openeo.rest.models.logs import normalize_log_level
+except ImportError:
+    # TODO remove old deprecated import (since openeo 0.38.0)
+    from openeo.api.logs import normalize_log_level
+
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.metadata import (
     Band,
