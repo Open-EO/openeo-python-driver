@@ -1379,10 +1379,11 @@ def mask(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
 
 @process
-def mask_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
-    mask = extract_arg(args, 'mask')
-    replacement = args.get('replacement', None)
-    inside = args.get('inside', False)
+def mask_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube = args.get_required("data", expected_type=DriverDataCube)
+    mask = args.get_required("mask")
+    replacement = args.get_optional("replacement", default=None)
+    inside = args.get_optional("inside", default=False)
 
     # TODO #114: instead of if-elif-else chain: generically "cast" to VectorCube first (e.g. for wide input
     #       support: GeoJSON, WKT, ...) and then convert to MultiPolygon?
@@ -1402,8 +1403,9 @@ def mask_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     if polygon.area == 0:
         reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
         raise ProcessParameterInvalidException(parameter='mask', process='mask_polygon', reason=reason)
-    image_collection = extract_arg(args, 'data').mask_polygon(mask=polygon, replacement=replacement, inside=inside)
-    return image_collection
+
+    cube = cube.mask_polygon(mask=polygon, replacement=replacement, inside=inside)
+    return cube
 
 
 def _extract_temporal_extent(args: dict, field="extent", process_id="filter_temporal") -> Tuple[str, str]:
