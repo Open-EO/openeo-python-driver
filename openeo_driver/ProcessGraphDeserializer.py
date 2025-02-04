@@ -821,15 +821,18 @@ def _check_geometry_path_assumption(path: str, process: str, parameter: str):
         .returns(description="Output geometry (GeoJSON object) with the added or subtracted buffer",
                  schema={"type": "object", "subtype": "geojson"})
 )
-def vector_buffer(args: Dict, env: EvalEnv) -> dict:
-    if("geometry" in args):
-        #old style, not official
-        geometry = extract_arg(args, 'geometry')
+def vector_buffer(args: ProcessArgs, env: EvalEnv) -> dict:
+    if "geometry" in args and "geometries" not in args:
+        # TODO drop legacy support for non-standard arg
+        _log.warning("DEPRECATED: vector_buffer expects `geometries` argument, not `geometry`")
+        geometry = args.get_required("geometry")
     else:
-        geometry = extract_arg(args, 'geometries')
-    distance = extract_arg(args, 'distance')
-    #unit argument is not official spec
-    unit = args.get("unit","meter")
+        geometry = args.get_required("geometries")
+    distance = args.get_required("distance", expected_type=(int, float))
+    if "unit" in args:
+        # TODO resolve/eliminate non-official unit argument
+        _log.warning("vector_buffer: usage of non-standard 'unit' parameter")
+    unit = args.get_optional("unit", default="meter")
     input_crs = output_crs = 'epsg:4326'
     buffer_resolution = 3
 
