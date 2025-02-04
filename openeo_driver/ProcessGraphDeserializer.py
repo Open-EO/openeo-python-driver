@@ -1670,20 +1670,17 @@ def run_udf(args: dict, env: EvalEnv):
 
 
 @process
-def linear_scale_range(args: dict, env: EvalEnv) -> DriverDataCube:
-    image_collection = extract_arg(args, 'x')
-
-    inputMin = extract_arg(args, "inputMin")
-    inputMax = extract_arg(args, "inputMax")
-    outputMax = args.get("outputMax", 1.0)
-    outputMin = args.get("outputMin", 0.0)
-    if not isinstance(image_collection, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="linear_scale_range",
-            reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
-        )
-
-    return image_collection.linear_scale_range(inputMin, inputMax, outputMin, outputMax)
+def linear_scale_range(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    # TODO: eliminate this top-level linear_scale_range process implementation (should be used as `apply` callback)
+    _log.warning("DEPRECATED: linear_scale_range usage directly on cube is deprecated/non-standard.")
+    cube: DriverDataCube = args.get_required("x", expected_type=DriverDataCube)
+    # Note: non-standard camelCase parameter names (https://github.com/Open-EO/openeo-processes/issues/302)
+    input_min = args.get_required("inputMin")
+    input_max = args.get_required("inputMax")
+    output_min = args.get_optional("outputMin", default=0.0)
+    output_max = args.get_optional("outputMax", default=1.0)
+    # TODO linear_scale_range is defined on GeopysparkDataCube, but not on DriverDataCube
+    return cube.linear_scale_range(input_min, input_max, output_min, output_max)
 
 
 @process
