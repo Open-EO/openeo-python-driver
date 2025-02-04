@@ -930,10 +930,10 @@ def apply_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
 
 @process
-def save_result(args: Dict, env: EvalEnv) -> SaveResult:  # TODO: return type no longer holds
-    data = extract_arg(args, 'data')
-    format = extract_arg(args, 'format')
-    options = args.get('options', {})
+def save_result(args: ProcessArgs, env: EvalEnv) -> SaveResult:  # TODO: return type no longer holds
+    data = args.get_required("data")
+    format = args.get_required("format", expected_type=str)
+    options = args.get_optional("options", expected_type=dict, default={})
 
     if isinstance(data, SaveResult):
         # TODO: Is this an expected code path? `save_result` should be terminal node in a graph
