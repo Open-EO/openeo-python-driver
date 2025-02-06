@@ -22,7 +22,7 @@ from typing import List, Union, NamedTuple, Dict, Optional, Callable, Iterable
 import flask
 
 import openeo_driver.util.view_helpers
-from openeo.capabilities import ComparableVersion
+from openeo.utils.version import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 import openeo.udf
 from openeo.util import rfc3339, dict_no_none
@@ -31,7 +31,7 @@ from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCu
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.dry_run import SourceConstraint
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException, FeatureUnsupportedException
-from openeo_driver.constants import JOB_STATUS
+from openeo_driver.constants import JOB_STATUS, DEFAULT_LOG_LEVEL_RETRIEVAL
 from openeo_driver.processes import ProcessRegistry
 from openeo_driver.users import User
 from openeo_driver.users.oidc import OidcProvider
@@ -142,7 +142,15 @@ class SecondaryServices(MicroService):
         """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/delete-service"""
         raise NotImplementedError()
 
-    def get_log_entries(self, service_id: str, user_id: str, offset: str) -> List[dict]:
+    def get_log_entries(
+        self,
+        service_id: str,
+        *,
+        user_id: str,
+        offset: Union[str, None] = None,
+        limit: Union[int, None] = None,
+        level: str = DEFAULT_LOG_LEVEL_RETRIEVAL,
+    ) -> List[dict]:
         """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/debug-service"""
         # TODO require auth/user handle?
         return []
@@ -178,12 +186,12 @@ class LoadParameters(dict):
     """
     A buffer provided in the units of the target CRS. If target CRS is not provided, then it is assumed to be the native CRS
     of the collection.
-    
-    This buffer is applied to AOI when constructing the datacube, allowing operations that require neighbouring pixels 
+
+    This buffer is applied to AOI when constructing the datacube, allowing operations that require neighbouring pixels
     to be implemented correctly. Examples are apply_kernel and apply_neighborhood, but also certain resampling operations
     could be affected by this.
-    
-    The buffer has to be considered in the global extent! 
+
+    The buffer has to be considered in the global extent!
     """
     pixel_buffer = dict_item(default=None)
 
@@ -552,9 +560,11 @@ class BatchJobs(MicroService):
     def get_log_entries(
         self,
         job_id: str,
+        *,
         user_id: str,
-        offset: Optional[str] = None,
-        level: Optional[str] = None,
+        offset: Union[str, None] = None,
+        limit: Union[str, None] = None,
+        level: str = DEFAULT_LOG_LEVEL_RETRIEVAL,
     ) -> Iterable[dict]:
         """
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/debug-job
@@ -760,6 +770,9 @@ class OpenEoBackendImplementation:
         "https://api.openeo.org/1.2.0",
         # Support the "remote process definition" extension (originally known as the "remote-udp" extension)
         "https://api.openeo.org/extensions/remote-process-definition/0.1.0",
+        # STAC API conformance classes
+        # "https://api.stacspec.org/v1.0.0/core",  # TODO #363 can we claim this conformance class already?
+        "https://api.stacspec.org/v1.0.0/collections",
     ]
 
     def __init__(

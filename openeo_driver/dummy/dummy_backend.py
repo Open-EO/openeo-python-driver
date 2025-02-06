@@ -12,7 +12,13 @@ import flask
 import numpy
 import openeo.udf
 import xarray
-from openeo.api.logs import normalize_log_level
+
+try:
+    from openeo.rest.models.logs import normalize_log_level
+except ImportError:
+    # TODO remove old deprecated import (since openeo 0.38.0)
+    from openeo.api.logs import normalize_log_level
+
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.metadata import (
     Band,
@@ -43,7 +49,7 @@ from openeo_driver.backend import (
     UserDefinedProcessMetadata,
 )
 from openeo_driver.config import OpenEoBackendConfig
-from openeo_driver.constants import JOB_STATUS, STAC_EXTENSION
+from openeo_driver.constants import JOB_STATUS, STAC_EXTENSION, DEFAULT_LOG_LEVEL_RETRIEVAL
 from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCube
 from openeo_driver.datastructs import StacAsset
 from openeo_driver.delayed_vector import DelayedVector
@@ -172,9 +178,17 @@ class DummySecondaryServices(SecondaryServices):
     def service_info(self, user_id: str, service_id: str) -> ServiceMetadata:
         return next(s for s in self._registry if s.id == service_id)
 
-    def get_log_entries(self, service_id: str, user_id: str, offset: str) -> List[dict]:
+    def get_log_entries(
+        self,
+        service_id: str,
+        *,
+        user_id: str,
+        offset: Union[str, None] = None,
+        limit: Union[int, None] = None,
+        level: str = DEFAULT_LOG_LEVEL_RETRIEVAL,
+    ) -> List[dict]:
         return [
-            {"id": 3, "level": "info", "message": "Loaded data."}
+            {"id": 3, "level": "info", "message": "Loaded data."},
         ]
 
 
@@ -921,16 +935,18 @@ class DummyBatchJobs(BatchJobs):
     def get_log_entries(
         self,
         job_id: str,
+        *,
         user_id: str,
-        offset: Optional[str] = None,
-        level: Optional[str] = None,
+        offset: Union[str, None] = None,
+        limit: Union[str, None] = None,
+        level: str = DEFAULT_LOG_LEVEL_RETRIEVAL,
     ) -> Iterable[dict]:
         self._get_job_info(job_id=job_id, user_id=user_id)
         default_logs = [{"id": "1", "level": "info", "message": "hello world"}]
         requested_level = normalize_log_level(level)
         for log in self._custom_job_logs.get(job_id, default_logs):
             if isinstance(log, dict):
-                actual_level = normalize_log_level(log.get("log_level"))
+                actual_level = normalize_log_level(log.get("level"))
                 if actual_level < requested_level:
                     continue
                 yield log

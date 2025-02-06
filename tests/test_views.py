@@ -17,7 +17,7 @@ import pystac.validation.stac_validator
 import pytest
 import re_assert
 import werkzeug.exceptions
-from openeo.capabilities import ComparableVersion
+from openeo.utils.version import ComparableVersion
 
 from openeo_driver.backend import (
     BatchJobMetadata,
@@ -3055,11 +3055,32 @@ class TestBatchJobs:
         with self._fresh_job_registry():
             resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs', headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).json == {
+            "level": "debug",
             "logs": [
-                {"id": "1", "level": "info", "message": "hello world"}
+                {"id": "1", "level": "info", "message": "hello world"},
             ],
-            "links": []
+            "links": [],
         }
+
+    def test_get_batch_job_logs_level(self, api):
+        log_db = {
+            "07024ee9-7847-4b8a-b260-6c879a2b3cdc": [
+                {"id": "1", "level": "info", "message": "howdy world"},
+                {"id": "2", "level": "error", "message": "oh no"},
+            ]
+        }
+        with self._fresh_job_registry():
+            with mock.patch.dict(dummy_backend.DummyBatchJobs._custom_job_logs, log_db):
+                resp = api.get(
+                    "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs",
+                    headers=self.AUTH_HEADER,
+                    params={"level": "warning"},
+                )
+                assert resp.assert_status_code(200).json == {
+                    "level": "warning",
+                    "logs": [{"id": "2", "level": "error", "message": "oh no"}],
+                    "links": [],
+                }
 
     def test_get_batch_job_logs_failure(self, api):
         with self._fresh_job_registry():
@@ -3068,6 +3089,7 @@ class TestBatchJobs:
             }):
                 resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs', headers=self.AUTH_HEADER)
                 assert resp.assert_status_code(200).json == {
+                    "level": "debug",
                     "logs": [
                         {
                             "id": "",
@@ -3170,6 +3192,7 @@ class TestSecondaryServices:
     def test_service_logs_100(self, api):
         logs = api.get('/services/wmts-foo/logs', headers=self.AUTH_HEADER).json
         assert logs == {
+            "level": "debug",
             "logs": [
                 {"id": 3, "level": "info", "message": "Loaded data."},
             ],

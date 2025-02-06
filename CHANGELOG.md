@@ -21,11 +21,23 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
-## 0.124.0
-- Better argument validation in `resample_spatial`/`resample_cube_spatial` (related to [Open-EO/openeo-python-client#690](https://github.com/Open-EO/openeo-python-client/issues/690))
-- Improve `resample_spatial`/`resample_cube_spatial` metadata tracking in dry-run ([#348](https://github.com/Open-EO/openeo-python-driver/issues/348))
+## 0.126.0
+
+- Add STAC collections conformance class ([#195](https://github.com/Open-EO/openeo-python-driver/issues/195))
+- update openeo_driver/specs/openeo-api/1.x submodule to tag `1.2.0` ([#195](https://github.com/Open-EO/openeo-python-driver/issues/195))
 - `load_collection`/`load_stac`: `spatial_extent` requires a (Multi)Polygon geometry ([Open-EO/openeo-geopyspark-driver#996](https://github.com/Open-EO/openeo-geopyspark-driver/issues/996))
 
+
+## 0.125.0
+
+- Add log level to batch job logs response ([#195](https://github.com/Open-EO/openeo-python-driver/issues/195))
+
+
+## 0.124.0
+
+- Better argument validation in `resample_spatial`/`resample_cube_spatial` (related to [Open-EO/openeo-python-client#690](https://github.com/Open-EO/openeo-python-client/issues/690))
+- Improve `resample_spatial`/`resample_cube_spatial` metadata tracking in dry-run ([#348](https://github.com/Open-EO/openeo-python-driver/issues/348))
+- `load_collection`/`load_stac`: support parameters in `properties` ([#327](https://github.com/Open-EO/openeo-python-driver/issues/327))
 
 ## 0.123.0
 

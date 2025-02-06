@@ -4665,3 +4665,18 @@ def test_synchronous_processing_job_options(api, custom_process_registry, post_d
     api.ensure_auth_header()
     res = api.post(path="/result", json=post_data)
     assert res.assert_status_code(200).json == 123
+
+
+def test_load_collection_property_from_parameter(api, udp_registry):
+    # You can't execute a top-level process graph with parameters; instead, you execute a top-level process graph
+    # that calls a UDP with parameters.
+
+    api.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+    udp_spec = api.load_json("udp/load_collection_property_from_parameter.json")
+    udp_registry.save(user_id=TEST_USER, process_id="load_collection_property_from_parameter", spec=udp_spec)
+    pg = api.load_json("udp_load_collection_property_from_parameter.json")
+    api.check_result(pg)
+
+    params = dummy_backend.last_load_collection_call("SENTINEL1_GRD")
+
+    assert "sat:orbit_state" in params.properties

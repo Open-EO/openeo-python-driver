@@ -27,7 +27,7 @@ import pyproj
 import shapely.geometry
 import shapely.ops
 from dateutil.relativedelta import relativedelta
-from openeo.capabilities import ComparableVersion
+from openeo.utils.version import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitException, ProcessGraphVisitor
 from openeo.metadata import CollectionMetadata, MetadataException
 from openeo.util import deep_get, load_json, rfc3339, str_truncate
@@ -77,6 +77,18 @@ from openeo_driver.utils import EvalEnv, smart_bool
 DEFAULT_TEMPORAL_EXTENT = ["1970-01-01", "2070-01-01"]  # also a sentinel value for load_stac
 
 _log = logging.getLogger(__name__)
+
+
+class NoPythonImplementationError(NotImplementedError):
+    """
+    Exception to use with the `ProcessRegistry.add_function` registration pattern
+    for openEO processes that don't have an actual Python implementation.
+    Typically used for callback processes that have an actual implementation elsewhere.
+    (e.g in openeo-geotrellis-extensions).
+    """
+
+    pass
+
 
 # Set up process registries (version dependent)
 
@@ -747,15 +759,18 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
 
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
-        return dry_run_tracer.load_collection(collection_id=collection_id, arguments=arguments, metadata=metadata)
+        return dry_run_tracer.load_collection(
+            collection_id=collection_id, arguments=arguments, metadata=metadata, env=env
+        )
     else:
         # Extract basic source constraints.
         # TODO #275: eliminate this VITO specific handling?
         properties = {**CollectionMetadata(metadata).get("_vito", "properties", default={}),
                       **arguments.get("properties", {})}
 
-        source_id = dry_run.DataSource.load_collection(collection_id=collection_id,
-                                                       properties=properties,bands = arguments.get("bands",[])).get_source_id()
+        source_id = dry_run.DataSource.load_collection(
+            collection_id=collection_id, properties=properties, bands=arguments.get("bands", []), env=env
+        ).get_source_id()
         load_params = _extract_load_parameters(env, source_id=source_id)
         # Override with explicit arguments
         load_params.update(arguments)
@@ -806,15 +821,18 @@ def _check_geometry_path_assumption(path: str, process: str, parameter: str):
         .returns(description="Output geometry (GeoJSON object) with the added or subtracted buffer",
                  schema={"type": "object", "subtype": "geojson"})
 )
-def vector_buffer(args: Dict, env: EvalEnv) -> dict:
-    if("geometry" in args):
-        #old style, not official
-        geometry = extract_arg(args, 'geometry')
+def vector_buffer(args: ProcessArgs, env: EvalEnv) -> dict:
+    if "geometry" in args and "geometries" not in args:
+        # TODO drop legacy support for non-standard arg
+        _log.warning("DEPRECATED: vector_buffer expects `geometries` argument, not `geometry`")
+        geometry = args.get_required("geometry")
     else:
-        geometry = extract_arg(args, 'geometries')
-    distance = extract_arg(args, 'distance')
-    #unit argument is not official spec
-    unit = args.get("unit","meter")
+        geometry = args.get_required("geometries")
+    distance = args.get_required("distance", expected_type=(int, float))
+    if "unit" in args:
+        # TODO resolve/eliminate non-official unit argument
+        _log.warning("vector_buffer: usage of non-standard 'unit' parameter")
+    unit = args.get_optional("unit", default="meter")
     input_crs = output_crs = 'epsg:4326'
     buffer_resolution = 3
 
@@ -912,10 +930,10 @@ def apply_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
 
 @process
-def save_result(args: Dict, env: EvalEnv) -> SaveResult:  # TODO: return type no longer holds
-    data = extract_arg(args, 'data')
-    format = extract_arg(args, 'format')
-    options = args.get('options', {})
+def save_result(args: ProcessArgs, env: EvalEnv) -> SaveResult:  # TODO: return type no longer holds
+    data = args.get_required("data")
+    format = args.get_required("format", expected_type=str)
+    options = args.get_optional("options", expected_type=dict, default={})
 
     if isinstance(data, SaveResult):
         # TODO: Is this an expected code path? `save_result` should be terminal node in a graph
@@ -1157,19 +1175,19 @@ def fit_class_catboost(args: ProcessArgs, env: EvalEnv) -> DriverMlModel:
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/predict_random_forest.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/predict_random_forest.json"))
 def predict_random_forest(args: ProcessArgs, env: EvalEnv):
-    raise NotImplementedError
+    raise NoPythonImplementationError
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/predict_catboost.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/predict_catboost.json"))
 def predict_catboost(args: ProcessArgs, env: EvalEnv):
-    raise NotImplementedError
+    raise NoPythonImplementationError
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/predict_probabilities.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/predict_probabilities.json"))
 def predict_probabilities(args: ProcessArgs, env: EvalEnv):
-    raise NotImplementedError
+    raise NoPythonImplementationError
 
 
 @process
@@ -1364,10 +1382,11 @@ def mask(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
 
 @process
-def mask_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
-    mask = extract_arg(args, 'mask')
-    replacement = args.get('replacement', None)
-    inside = args.get('inside', False)
+def mask_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube = args.get_required("data", expected_type=DriverDataCube)
+    mask = args.get_required("mask")
+    replacement = args.get_optional("replacement", default=None)
+    inside = args.get_optional("inside", default=False)
 
     # TODO #114: instead of if-elif-else chain: generically "cast" to VectorCube first (e.g. for wide input
     #       support: GeoJSON, WKT, ...) and then convert to MultiPolygon?
@@ -1387,8 +1406,9 @@ def mask_polygon(args: dict, env: EvalEnv) -> DriverDataCube:
     if polygon.area == 0:
         reason = "mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area)
         raise ProcessParameterInvalidException(parameter='mask', process='mask_polygon', reason=reason)
-    image_collection = extract_arg(args, 'data').mask_polygon(mask=polygon, replacement=replacement, inside=inside)
-    return image_collection
+
+    cube = cube.mask_polygon(mask=polygon, replacement=replacement, inside=inside)
+    return cube
 
 
 def _extract_temporal_extent(args: dict, field="extent", process_id="filter_temporal") -> Tuple[str, str]:
@@ -1680,20 +1700,17 @@ def run_udf(args: dict, env: EvalEnv):
 
 
 @process
-def linear_scale_range(args: dict, env: EvalEnv) -> DriverDataCube:
-    image_collection = extract_arg(args, 'x')
-
-    inputMin = extract_arg(args, "inputMin")
-    inputMax = extract_arg(args, "inputMax")
-    outputMax = args.get("outputMax", 1.0)
-    outputMin = args.get("outputMin", 0.0)
-    if not isinstance(image_collection, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="linear_scale_range",
-            reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
-        )
-
-    return image_collection.linear_scale_range(inputMin, inputMax, outputMin, outputMax)
+def linear_scale_range(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    # TODO: eliminate this top-level linear_scale_range process implementation (should be used as `apply` callback)
+    _log.warning("DEPRECATED: linear_scale_range usage directly on cube is deprecated/non-standard.")
+    cube: DriverDataCube = args.get_required("x", expected_type=DriverDataCube)
+    # Note: non-standard camelCase parameter names (https://github.com/Open-EO/openeo-processes/issues/302)
+    input_min = args.get_required("inputMin")
+    input_max = args.get_required("inputMax")
+    output_min = args.get_optional("outputMin", default=0.0)
+    output_max = args.get_optional("outputMax", default=1.0)
+    # TODO linear_scale_range is defined on GeopysparkDataCube, but not on DriverDataCube
+    return cube.linear_scale_range(input_min, input_max, output_min, output_max)
 
 
 @process
@@ -2262,13 +2279,13 @@ custom_process_from_process_graph(read_spec("openeo-processes/1.x/proposals/ard_
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/array_append.json"))
 @process_registry_2xx.add_function
 def array_append(args: ProcessArgs, env: EvalEnv) -> list:
-    raise NotImplementedError
+    raise NoPythonImplementationError
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/array_interpolate_linear.json"))
 @process_registry_2xx.add_function
 def array_interpolate_linear(args: ProcessArgs, env: EvalEnv) -> list:
-    raise NotImplementedError
+    raise NoPythonImplementationError
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/date_shift.json"))
@@ -2287,7 +2304,7 @@ def date_shift(args: ProcessArgs, env: EvalEnv) -> str:
 
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/2.x/proposals/date_between.json"))
 def date_between(args: ProcessArgs, env: EvalEnv) -> bool:
-    raise NotImplementedError
+    raise NoPythonImplementationError
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/array_concat.json"))
@@ -2429,9 +2446,11 @@ def load_stac(args: Dict, env: EvalEnv) -> DriverDataCube:
 
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
-        return dry_run_tracer.load_stac(url, arguments)
+        return dry_run_tracer.load_stac(url, arguments, env)
     else:
-        source_id = dry_run.DataSource.load_stac(url, properties=arguments.get("properties", {}), bands=arguments.get("bands",[])).get_source_id()
+        source_id = dry_run.DataSource.load_stac(
+            url, properties=arguments.get("properties", {}), bands=arguments.get("bands", []), env=env
+        ).get_source_id()
         load_params = _extract_load_parameters(env, source_id=source_id)
         load_params.update(arguments)
 

@@ -18,8 +18,7 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 import requests
 import reretry
 from deprecated.classic import deprecated
-from openeo.rest.connection import url_join
-from openeo.util import TimingLogger, repr_truncate, rfc3339
+from openeo.util import TimingLogger, repr_truncate, rfc3339, url_join
 
 import openeo_driver._version
 from openeo_driver.backend import BatchJobMetadata, JobListing
