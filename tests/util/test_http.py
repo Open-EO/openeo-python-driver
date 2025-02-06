@@ -5,7 +5,7 @@ import pytest
 import requests.exceptions
 from re_assert import Matches
 
-from openeo_driver.util.http import UrlSafeStructCodec, requests_with_retry
+from openeo_driver.util.http import UrlSafeStructCodec, requests_with_retry, is_http_url
 
 
 def test_requests_with_retry(caplog):
@@ -83,3 +83,20 @@ class TestUrlSafeStructCodec:
         garbage = base64.b64encode(b"nope, n0t J$ON here").decode("utf8")
         with pytest.raises(ValueError, match="Failed to decode"):
             _ = UrlSafeStructCodec().decode(data=garbage)
+
+
+def test_is_http_url():
+    assert is_http_url("http://example.com") == True
+    assert is_http_url("http//example.com") == False
+    assert is_http_url("https://example.com") == True
+    assert is_http_url("https:/example.com") == False
+    assert is_http_url("click https://example.com") == False
+    assert is_http_url("httpz://example.com") == False
+
+
+def test_is_http_url_allow_http():
+    assert is_http_url("http://example.com") == True
+    assert is_http_url("http://example.com", allow_http=True) == True
+    assert is_http_url("http://example.com", allow_http=False) == False
+    assert is_http_url("https://example.com", allow_http=True) == True
+    assert is_http_url("https://example.com", allow_http=False) == True

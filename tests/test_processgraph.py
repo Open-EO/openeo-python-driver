@@ -1,5 +1,9 @@
 from openeo_driver.errors import OpenEOApiException
-from openeo_driver.processgraph import get_process_definition_from_url
+from openeo_driver.processgraph import (
+    get_process_definition_from_url,
+    extract_default_job_options_from_process_graph,
+    ProcessGraphFlatDict,
+)
 
 import pytest
 
@@ -53,3 +57,45 @@ class TestProcessDefinitionFromUrl:
         }
         assert pd.parameters == [{"name": "delta", "schema": {"type": "number", "optional": True, "default": 1}}]
         assert pd.returns == {"schema": {"type": "number"}}
+
+
+def test_extract_default_job_options_from_process_graph(requests_mock):
+    requests_mock.get(
+        "https://share.test/add3.json",
+        json={
+            "id": "add3",
+            "process_graph": {
+                "add": {"process_id": "add", "arguments": {"x": {"from_parameter": "x", "y": 3}, "result": True}}
+            },
+            "parameters": [
+                {"name": "x", "schema": {"type": "number"}},
+            ],
+            "returns": {"schema": {"type": "number"}},
+            "default_job_parameters": {
+                "memory": "2GB",
+                "cpu": "yellow",
+            },
+            "default_synchronous_parameters": {
+                "cpu": "green",
+            },
+        },
+    )
+
+    pg = ProcessGraphFlatDict(
+        {
+            "add12": {"process_id": "add", "arguments": {"x": 1, "y": 2}},
+            "add3": {
+                "process_id": "add3",
+                "namespace": "https://share.test/add3.json",
+                "arguments": {"x": {"from_node": "add12"}},
+                "result": True,
+            },
+        }
+    )
+    assert extract_default_job_options_from_process_graph(pg, processing_mode="batch_job") == {
+        "memory": "2GB",
+        "cpu": "yellow",
+    }
+    assert extract_default_job_options_from_process_graph(pg, processing_mode="synchronous") == {
+        "cpu": "green",
+    }

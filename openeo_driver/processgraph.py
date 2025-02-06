@@ -1,9 +1,31 @@
 import logging
 import requests
-from typing import NamedTuple, List, Optional
+from typing import NamedTuple, List, Optional, Union
 from openeo_driver.errors import OpenEOApiException
+from openeo_driver.util.http import is_http_url
 
 _log = logging.getLogger(__name__)
+
+
+class ProcessGraphFlatDict(dict):
+    """
+    Wrapper for the classic "flat dictionary" representation
+    of an openEO process graph, e.g.
+
+        {
+            "lc1": {"process_id": "load_collection", "arguments": {...
+            "rd1": {"process_id": "reduce_dimension", "arguments": {...
+            ...
+        }
+
+    - To be used as type annotation where one wants to clarify
+      what exact kind of dictionary-based process graph representation is expected.
+    - Implemented as a subclass of `dict` to be directly compatible
+      with existing, legacy code that expects a simple dictionary.
+    """
+
+    # TODO: move this to openeo python client library?
+    pass
 
 
 class ProcessDefinition(NamedTuple):
@@ -20,6 +42,11 @@ class ProcessDefinition(NamedTuple):
     parameters: List[dict]
     # Definition what the process returns
     returns: Optional[dict] = None
+
+    # TODO: official naming of these "processing parameter" related properties is undecided at the moment.
+    #       see https://github.com/Open-EO/openeo-api/pull/471#discussion_r1904253964
+    default_job_options: Optional[dict] = None
+    default_synchronous_options: Optional[dict] = None
 
 
 def get_process_definition_from_url(process_id: str, url: str) -> ProcessDefinition:
@@ -69,9 +96,57 @@ def get_process_definition_from_url(process_id: str, url: str) -> ProcessDefinit
             message=f"No valid process definition for {process_id!r} found at {url!r}.",
         )
 
+    # TODO: official property name for these "processing parameters" is undecided at the moment.
+    #       see https://github.com/Open-EO/openeo-api/pull/471#discussion_r1904253964
+    if "default_job_parameters" in spec:
+        _log.warning("Extracting experimental 'default_job_parameters' from process definition.")
+        default_job_options = spec["default_job_parameters"]
+    else:
+        default_job_options = None
+    if "default_synchronous_parameters" in spec:
+        _log.warning("Extracting experimental 'default_synchronous_parameters' from process definition.")
+        default_synchronous_options = spec["default_synchronous_parameters"]
+    else:
+        default_synchronous_options = None
+
     return ProcessDefinition(
         id=process_id,
         process_graph=spec["process_graph"],
         parameters=spec.get("parameters", []),
         returns=spec.get("returns"),
+        default_job_options=default_job_options,
+        default_synchronous_options=default_synchronous_options,
     )
+
+
+def extract_default_job_options_from_process_graph(
+    process_graph: ProcessGraphFlatDict, processing_mode: str = "batch_job"
+) -> Union[dict, None]:
+    """
+    Extract default job options from a process definitions in process graph.
+    based on "Processing Parameters" extension.
+
+    :param process_graph: process graph in flat graph format
+    :param processing_mode: "batch_job" or "synchronous"
+    """
+
+    job_options = []
+    for node in process_graph.values():
+        namespace = node.get("namespace")
+        process_id = node["process_id"]
+        if is_http_url(namespace):
+            process_definition = get_process_definition_from_url(process_id=process_id, url=namespace)
+            if processing_mode == "batch_job" and process_definition.default_job_options:
+                job_options.append(process_definition.default_job_options)
+            elif processing_mode == "synchronous" and process_definition.default_synchronous_options:
+                job_options.append(process_definition.default_synchronous_options)
+
+    if len(job_options) == 0:
+        return None
+    elif len(job_options) == 1:
+        return job_options[0]
+    else:
+        # TODO: how to combine multiple default for same parameters?
+        raise NotImplementedError(
+            "Merging multiple default job options from different process definitions is not yet implemented."
+        )
