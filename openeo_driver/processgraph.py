@@ -1,6 +1,9 @@
+import dataclasses
 import logging
+from typing import List, NamedTuple, Optional, Union
+
 import requests
-from typing import NamedTuple, List, Optional, Union
+
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.util.http import is_http_url
 
@@ -28,7 +31,8 @@ class ProcessGraphFlatDict(dict):
     pass
 
 
-class ProcessDefinition(NamedTuple):
+@dataclasses.dataclass(frozen=True)
+class ProcessDefinition:
     """
     Like `UserDefinedProcessMetadata`, but with different defaults
     (e.g. process graph and parameters are required).
@@ -43,8 +47,8 @@ class ProcessDefinition(NamedTuple):
     # Definition what the process returns
     returns: Optional[dict] = None
 
-    # TODO: official naming of these "processing parameter" related properties is undecided at the moment.
-    #       see https://github.com/Open-EO/openeo-api/pull/471#discussion_r1904253964
+    # Default processing options as defined by the Processing Parameters Extension
+    # (conformance class https://api.openeo.org/extensions/processing-parameters/0.1.0)
     default_job_options: Optional[dict] = None
     default_synchronous_options: Optional[dict] = None
 
@@ -111,18 +115,9 @@ def _get_process_definition_from_url(process_id: str, url: str) -> ProcessDefini
             message=f"No valid process definition for {process_id!r} found at {url!r}.",
         )
 
-    # TODO: official property name for these "processing parameters" is undecided at the moment.
-    #       see https://github.com/Open-EO/openeo-api/pull/471#discussion_r1904253964
-    if "default_job_parameters" in spec:
-        _log.warning("Extracting experimental 'default_job_parameters' from process definition.")
-        default_job_options = spec["default_job_parameters"]
-    else:
-        default_job_options = None
-    if "default_synchronous_parameters" in spec:
-        _log.warning("Extracting experimental 'default_synchronous_parameters' from process definition.")
-        default_synchronous_options = spec["default_synchronous_parameters"]
-    else:
-        default_synchronous_options = None
+    # Support for fields from Processing Parameters Extension
+    default_job_options = spec.get("default_job_options", None)
+    default_synchronous_options = spec.get("default_synchronous_options", None)
 
     return ProcessDefinition(
         id=process_id,

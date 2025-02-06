@@ -4707,7 +4707,7 @@ def test_synchronous_processing_job_options_and_defaults_from_remote_process_def
         "returns": {"schema": {"type": "number"}},
     }
     if default_job_options is not None:
-        process_definition["default_synchronous_parameters"] = default_job_options
+        process_definition["default_synchronous_options"] = default_job_options
     requests_mock.get("https://share.test/add3.json", json=process_definition)
 
     actual_job_options = []

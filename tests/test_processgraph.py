@@ -65,17 +65,17 @@ def test_extract_default_job_options_from_process_graph(requests_mock):
         json={
             "id": "add3",
             "process_graph": {
-                "add": {"process_id": "add", "arguments": {"x": {"from_parameter": "x", "y": 3}, "result": True}}
+                "add": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 3}, "result": True}
             },
             "parameters": [
                 {"name": "x", "schema": {"type": "number"}},
             ],
             "returns": {"schema": {"type": "number"}},
-            "default_job_parameters": {
+            "default_job_options": {
                 "memory": "2GB",
                 "cpu": "yellow",
             },
-            "default_synchronous_parameters": {
+            "default_synchronous_options": {
                 "cpu": "green",
             },
         },

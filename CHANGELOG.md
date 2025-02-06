@@ -26,7 +26,7 @@ and start a new "In Progress" section above it.
 
 - Add STAC collections conformance class ([#195](https://github.com/Open-EO/openeo-python-driver/issues/195))
 - update openeo_driver/specs/openeo-api/1.x submodule to tag `1.2.0` ([#195](https://github.com/Open-EO/openeo-python-driver/issues/195))
-- Extract job option defaults from UDPs and remote process descriptions ([#366](https://github.com/Open-EO/openeo-python-driver/issues/366),  based on Process Parameter Extension: [Open-EO/openeo-api#471](https://github.com/Open-EO/openeo-api/pull/471))
+- Extract job option defaults from UDPs and remote process descriptions ([#366](https://github.com/Open-EO/openeo-python-driver/issues/366),  [Process Parameter Extension](https://github.com/Open-EO/openeo-api/tree/draft/extensions/processing-parameters))
 
 
 ## 0.125.0
