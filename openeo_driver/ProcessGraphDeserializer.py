@@ -1440,11 +1440,12 @@ def filter_labels(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
 def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox", handle_geojson=False) -> dict:
     extent = extract_arg(args, name=field, process_id=process_id)
-    # TODO: handle vector cube
+    # TODO #114: support vector cube
     if handle_geojson and extent.get("type") in [
         "Polygon",
         "MultiPolygon",
-        "GeometryCollection",  # TODO: disallow GeometryCollection?
+        "GeometryCollection",  # TODO #71 #114: deprecate GeometryCollection
+        "GeometryCollection",
         "Feature",
         "FeatureCollection",
     ]:
