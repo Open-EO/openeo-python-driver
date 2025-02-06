@@ -58,6 +58,21 @@ def get_process_definition_from_url(process_id: str, url: str) -> ProcessDefinit
     -   a JSON doc with process listing, compatible with
         the `GET /process_graphs` openEO API endpoint.
     """
+    try:
+        process_definition: ProcessDefinition = _get_process_definition_from_url(process_id=process_id, url=url)
+    except OpenEOApiException:
+        raise
+    except Exception as e:
+        raise OpenEOApiException(
+            status_code=400,
+            code="ProcessNamespaceInvalid",
+            message=f"Process '{process_id}' specified with invalid namespace '{url}': {e!r}",
+        ) from e
+
+    return process_definition
+
+
+def _get_process_definition_from_url(process_id: str, url: str) -> ProcessDefinition:
     _log.debug(f"Trying to load process definition for {process_id=} from {url=}")
     # TODO: send headers, e.g. with custom user agent?
     # TODO: add/support caching. Add retrying too?

@@ -2067,16 +2067,7 @@ def evaluate_process_from_url(process_id: str, namespace: str, args: dict, env: 
     :param process_id: process id of process that should be available at given URL (namespace)
     :param namespace: URL of process definition
     """
-    try:
-        process_definition: ProcessDefinition = get_process_definition_from_url(process_id=process_id, url=namespace)
-    except OpenEOApiException:
-        raise
-    except Exception as e:
-        raise OpenEOApiException(
-            status_code=400,
-            code="ProcessNamespaceInvalid",
-            message=f"Process '{process_id}' specified with invalid namespace '{namespace}': {e!r}",
-        ) from e
+    process_definition: ProcessDefinition = get_process_definition_from_url(process_id=process_id, url=namespace)
 
     return _evaluate_process_graph_process(
         process_id=process_id,
