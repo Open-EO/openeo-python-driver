@@ -34,6 +34,7 @@ from openeo_driver.ProcessGraphDeserializer import (
     custom_process,
     custom_process_from_process_graph,
     collect,
+    ENV_DRY_RUN_TRACER,
 )
 from openeo_driver.testing import (
     TEST_USER,
@@ -4657,9 +4658,11 @@ def custom_process_registry(backend_implementation) -> ProcessRegistry:
 )
 def test_synchronous_processing_job_options(api, custom_process_registry, post_data_base, expected_job_options):
     """Test job options handling in synchronous processing in EvalEnv"""
-
+    actual_job_options = []
     def i_spy_with_my_little_eye(args: ProcessArgs, env: EvalEnv):
-        assert env.get("job_options") == expected_job_options
+        nonlocal actual_job_options
+        if not env.get(ENV_DRY_RUN_TRACER):
+            actual_job_options.append(env.get("job_options"))
         return args.get("x")
 
     custom_process_registry.add_function(i_spy_with_my_little_eye, spec={"id": "i_spy_with_my_little_eye"})
@@ -4672,6 +4675,71 @@ def test_synchronous_processing_job_options(api, custom_process_registry, post_d
     api.ensure_auth_header()
     res = api.post(path="/result", json=post_data)
     assert res.assert_status_code(200).json == 123
+    assert actual_job_options == [expected_job_options]
+
+
+@pytest.mark.parametrize(
+    ["default_job_options", "given_job_options", "expected_job_options"],
+    [
+        (None, None, None),
+        ({}, {}, {}),
+        ({"cpu": "yellow"}, {}, {"cpu": "yellow"}),
+        ({}, {"cpu": "yellow"}, {"cpu": "yellow"}),
+        ({"cpu": "yellow"}, {"cpu": "blue"}, {"cpu": "blue"}),
+        (
+            {"memory": "2GB", "cpu": "yellow"},
+            {"memory": "4GB", "queue": "fast"},
+            {"cpu": "yellow", "memory": "4GB", "queue": "fast"},
+        ),
+    ],
+)
+def test_synchronous_processing_job_options_and_defaults_from_remote_process_definition(
+    api, custom_process_registry, requests_mock, default_job_options, given_job_options, expected_job_options
+):
+    process_definition = {
+        "id": "add3",
+        "process_graph": {
+            "add": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 3}, "result": True}
+        },
+        "parameters": [
+            {"name": "x", "schema": {"type": "number"}},
+        ],
+        "returns": {"schema": {"type": "number"}},
+    }
+    if default_job_options is not None:
+        process_definition["default_synchronous_parameters"] = default_job_options
+    requests_mock.get("https://share.test/add3.json", json=process_definition)
+
+    actual_job_options = []
+
+    def i_spy_with_my_little_eye(args: ProcessArgs, env: EvalEnv):
+        nonlocal actual_job_options
+        if not env.get(ENV_DRY_RUN_TRACER):
+            actual_job_options.append(env.get("job_options"))
+        return args.get("x")
+
+    custom_process_registry.add_function(i_spy_with_my_little_eye, spec={"id": "i_spy_with_my_little_eye"})
+    custom_process_registry.add_process(name="add", function=lambda args, env: args.get("x") + args.get("y"))
+
+    pg = {
+        "ispy": {"process_id": "i_spy_with_my_little_eye", "arguments": {"x": 123}},
+        "add3": {
+            "process_id": "add3",
+            "namespace": "https://share.test/add3.json",
+            "arguments": {"x": {"from_node": "ispy"}},
+            "result": True,
+        },
+    }
+    post_data = {
+        "process": {"process_graph": pg},
+    }
+    if given_job_options is not None:
+        post_data["job_options"] = given_job_options
+
+    api.ensure_auth_header()
+    res = api.post(path="/result", json=post_data)
+    assert res.assert_status_code(200).json == 126
+    assert actual_job_options == [expected_job_options]
 
 
 def test_load_collection_property_from_parameter(api, udp_registry):

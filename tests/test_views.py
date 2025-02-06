@@ -1328,7 +1328,7 @@ class TestBatchJobs:
         process_definition = {
             "id": "add3",
             "process_graph": {
-                "add": {"process_id": "add", "arguments": {"x": {"from_parameter": "x", "y": 3}, "result": True}}
+                "add": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 3}, "result": True}
             },
             "parameters": [
                 {"name": "x", "schema": {"type": "number"}},

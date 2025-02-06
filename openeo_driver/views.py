@@ -658,9 +658,16 @@ def register_views_processing(
         budget = post_data.get("budget")
         plan = post_data.get("plan")
         log_level = post_data.get("log_level", DEFAULT_LOG_LEVEL_PROCESSING)
+
         job_options = _extract_job_options(
             post_data, to_ignore=["process", "process_graph", "budget", "plan", "log_level"]
         )
+        job_option_defaults = extract_default_job_options_from_process_graph(
+            process_graph=process_graph, processing_mode="synchronous"
+        )
+        if job_option_defaults:
+            _log.info(f"Extending {job_options=} with extracted {job_option_defaults=}")
+            job_options = {**job_option_defaults, **(job_options or {})}
 
         request_id = FlaskRequestCorrelationIdLogging.get_request_id()
 
