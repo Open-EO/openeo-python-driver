@@ -770,6 +770,8 @@ class OpenEoBackendImplementation:
         "https://api.openeo.org/1.2.0",
         # Support the "remote process definition" extension (originally known as the "remote-udp" extension)
         "https://api.openeo.org/extensions/remote-process-definition/0.1.0",
+        # Processing Parameters extension
+        "https://api.openeo.org/extensions/processing-parameters/0.1.0",
         # STAC API conformance classes
         # "https://api.stacspec.org/v1.0.0/core",  # TODO #363 can we claim this conformance class already?
         "https://api.stacspec.org/v1.0.0/collections",

@@ -1272,33 +1272,97 @@ class TestBatchJobs:
         assert job_info.title == "Foo job"
         assert job_info.description == "Run the `foo` process!"
 
-    def test_create_job_100_with_options(self, api100):
-        with self._fresh_job_registry(next_job_id="job-256"):
-            resp = api100.post('/jobs', headers=self.AUTH_HEADER, json={
-                'process': {
-                    'process_graph': {"foo": {"process_id": "foo", "arguments": {}}},
-                    'summary': 'my foo job',
+    @pytest.mark.parametrize(
+        ["post_data", "expected_job_options"],
+        [
+            (
+                # Under  "job_options" field
+                {
+                    "process": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
+                    "job_options": {
+                        "driver-memory": "3g",
+                        "executor-memory": "5g",
+                    },
                 },
-                'job_options': {"driver-memory": "3g", "executor-memory": "5g"},
-            }).assert_status_code(201)
-        assert resp.headers['Location'] == 'http://oeo.net/openeo/1.0.0/jobs/job-256'
-        assert resp.headers['OpenEO-Identifier'] == 'job-256'
-        job_info = dummy_backend.DummyBatchJobs._job_registry[TEST_USER, 'job-256']
-        assert job_info.job_options == {"driver-memory": "3g", "executor-memory": "5g"}
+                {"driver-memory": "3g", "executor-memory": "5g"},
+            ),
+            (
+                # separate, top-level job options
+                {
+                    "process": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
+                    "driver-memory": "3g",
+                    "executor-memory": "5g",
+                },
+                {"driver-memory": "3g", "executor-memory": "5g"},
+            ),
+        ],
+    )
+    def test_create_job_100_with_job_options(self, api100, post_data, expected_job_options):
+        with self._fresh_job_registry(next_job_id="job-256"):
+            resp = api100.post(
+                "/jobs",
+                headers=self.AUTH_HEADER,
+                json=post_data,
+            ).assert_status_code(201)
+        job_info = dummy_backend.DummyBatchJobs._job_registry[TEST_USER, "job-256"]
+        assert job_info.job_options == expected_job_options
 
-    def test_create_job_100_with_options_inline(self, api100):
+    @pytest.mark.parametrize(
+        ["default_job_options", "given_job_options", "expected_job_options"],
+        [
+            (None, None, None),
+            ({}, {}, {}),
+            ({"cpu": "yellow"}, {}, {"cpu": "yellow"}),
+            ({}, {"cpu": "yellow"}, {"cpu": "yellow"}),
+            ({"cpu": "yellow"}, {"cpu": "blue"}, {"cpu": "blue"}),
+            (
+                {"memory": "2GB", "cpu": "yellow"},
+                {"memory": "4GB", "queue": "fast"},
+                {"cpu": "yellow", "memory": "4GB", "queue": "fast"},
+            ),
+        ],
+    )
+    def test_create_job_100_with_job_options_and_defaults_from_remote_process_definition(
+        self, api100, requests_mock, default_job_options, given_job_options, expected_job_options
+    ):
+        process_definition = {
+            "id": "add3",
+            "process_graph": {
+                "add": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 3}, "result": True}
+            },
+            "parameters": [
+                {"name": "x", "schema": {"type": "number"}},
+            ],
+            "returns": {"schema": {"type": "number"}},
+        }
+        if default_job_options is not None:
+            process_definition["default_job_options"] = default_job_options
+        requests_mock.get("https://share.test/add3.json", json=process_definition)
+
+        pg = {
+            "add12": {"process_id": "add", "arguments": {"x": 1, "y": 2}},
+            "add3": {
+                "process_id": "add3",
+                "namespace": "https://share.test/add3.json",
+                "arguments": {"x": {"from_node": "add12"}},
+                "result": True,
+            },
+        }
+        post_data = {
+            "process": {"process_graph": pg},
+        }
+        if given_job_options is not None:
+            post_data["job_options"] = given_job_options
+
         with self._fresh_job_registry(next_job_id="job-256"):
-            resp = api100.post('/jobs', headers=self.AUTH_HEADER, json={
-                'process': {
-                    'process_graph': {"foo": {"process_id": "foo", "arguments": {}}},
-                    'summary': 'my foo job',
-                },
-                "driver-memory": "3g", "executor-memory": "5g"
-            }).assert_status_code(201)
-        assert resp.headers['Location'] == 'http://oeo.net/openeo/1.0.0/jobs/job-256'
-        assert resp.headers['OpenEO-Identifier'] == 'job-256'
-        job_info = dummy_backend.DummyBatchJobs._job_registry[TEST_USER, 'job-256']
-        assert job_info.job_options == {"driver-memory": "3g", "executor-memory": "5g"}
+            resp = api100.post(
+                "/jobs",
+                headers=self.AUTH_HEADER,
+                json=post_data,
+            ).assert_status_code(201)
+
+        job_info = dummy_backend.DummyBatchJobs._job_registry[TEST_USER, "job-256"]
+        assert job_info.job_options == expected_job_options
 
     def test_create_job_get_metadata(self, api100):
         with self._fresh_job_registry(next_job_id="job-245"):
