@@ -655,7 +655,7 @@ class DryRunDataCube(DriverDataCube):
                         points.append(g)
                     else:
                         other.append(g)
-                other_hull = reproject_geometry(shapely.union_all(other),geometries.get_crs(),CRS.from_user_input(target_crs))
+                other_hull = reproject_geometry(shapely.unary_union(other),geometries.get_crs(),CRS.from_user_input(target_crs))
 
                 if len(points) > 0:
                     point_hull = reproject_geometry(shapely.geometry.MultiPoint(points).envelope,geometries.get_crs(),CRS.from_user_input(target_crs))
