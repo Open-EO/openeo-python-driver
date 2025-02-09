@@ -67,7 +67,7 @@ from openeo_driver.save_result import (
 from openeo_driver.util.geometry import (
     BoundingBox,
     GeometryBufferer,
-    geojson_to_geometry,
+    geojson_to_geometry, reproject_geometry,
 )
 from openeo_driver.utils import EvalEnv, to_hashable
 
@@ -648,9 +648,24 @@ class DryRunDataCube(DriverDataCube):
                     target_crs = f"EPSG:{BoundingBox.from_wsen_tuple(geometries.get_bounding_box(),crs=geometries.get_crs()).best_utm()}"
                 else:
                     target_crs = BoundingBox.normalize_crs(target_crs)
-                bbox = (
-                    geometries.buffer_points(distance=10).reproject(CRS.from_user_input(target_crs)).get_bounding_box()
-                )
+                points = []
+                other = []
+                for g in geometries.get_geometries():
+                    if isinstance(g, Point):
+                        points.append(g)
+                    else:
+                        other.append(g)
+                other_hull = reproject_geometry(shapely.union_all(other),geometries.get_crs(),CRS.from_user_input(target_crs))
+
+                if len(points) > 0:
+                    point_hull = reproject_geometry(shapely.geometry.MultiPoint(points).envelope,geometries.get_crs(),CRS.from_user_input(target_crs))
+                    loi_point = point_hull.representative_point()
+                    bufferer = GeometryBufferer.from_meter_for_crs(
+                        distance=10, crs=target_crs, loi=(loi_point.x,loi_point.y), loi_crs=target_crs
+                    )
+                    bufferedPoints = bufferer.buffer(point_hull)
+                    other_hull = shapely.union(bufferedPoints,other_hull)
+                bbox = other_hull.bounds
                 crs = target_crs
             else:
                 bbox = geometries.buffer_points(distance=10).get_bounding_box()
@@ -781,7 +796,40 @@ class DryRunDataCube(DriverDataCube):
     def resolution_merge(self, args: ResolutionMergeArgs) -> "DryRunDataCube":
         return self._process("resolution_merge", args)
 
-    def apply_kernel(self, kernel: numpy.ndarray, factor=1, border=0, replace_invalid=0) -> "DriverDataCube":
+    def resample_spatial(
+        self,
+        resolution: Union[float, Tuple[float, float]],
+        projection: Union[int, str] = None,
+        method: str = "near",
+        align: str = "upper-left",
+    ):
+        #resampled_metadata = self._resample_spatial_metadata(resolution, projection)
+        return self._process(
+            "resample_spatial",
+            arguments={"resolution": resolution, "projection": projection, "method": method, "align": align},
+            #metadata=resampled_metadata
+        )
+
+    def _resample_spatial_metadata(self, resolution: Union[float, Tuple[float, float]], projection: Union[int, str] = None):
+        dims: Dict[str,SpatialDimension] = {dim.name:dim for dim in self.metadata.spatial_dimensions}
+
+        if  "x" in dims and "y" in dims:
+            box = BoundingBox(west=dims["x"].extent[0], south=dims["y"].extent[0], east=dims["x"].extent[1],
+                              north=dims["y"].extent[1])
+            if projection is not None:
+                box = box.reproject(projection)
+            resolution = (resolution, resolution) if isinstance(resolution, float) else resolution
+            if resolution is None:
+                resolution = (dims["x"].step, dims["y"].step)
+            return (self.metadata.drop_dimension("x").drop_dimension("y")
+                .add_dimension(SpatialDimension(name="x", extent=[box.west,box.east], step=resolution[0], crs=projection or dims["x"].crs))
+                .add_dimension(SpatialDimension(name="y", extent=[box.south, box.north], step=resolution[1],crs=projection or dims["x"].crs)))
+
+        else:
+            return self.metadata
+
+
+    def apply_kernel(self, kernel: numpy.ndarray, factor=1, border=0, replace_invalid=0) -> 'DriverDataCube':
         cube = self._process("process_type", [ProcessType.FOCAL_SPACE])
         cube = cube._process("pixel_buffer", arguments={"buffer_size": [x / 2.0 for x in kernel.shape]})
         return cube._process("apply_kernel", arguments={"kernel": kernel})
