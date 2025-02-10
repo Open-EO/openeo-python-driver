@@ -664,8 +664,8 @@ class DryRunDataCube(DriverDataCube):
                     bufferer = GeometryBufferer.from_meter_for_crs(
                         distance=10, crs=target_crs, loi=(loi_point.x,loi_point.y), loi_crs=target_crs
                     )
-                    bufferedPoints = bufferer.buffer(point_hull)
-                    other_hull = shapely.union(bufferedPoints,other_hull)
+                    buffered_points = bufferer.buffer(point_hull)
+                    other_hull = other_hull.union(buffered_points)
                 bbox = other_hull.bounds
                 crs = target_crs
             else:
