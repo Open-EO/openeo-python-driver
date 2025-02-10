@@ -1465,7 +1465,6 @@ def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox", h
         "Polygon",
         "MultiPolygon",
         "GeometryCollection",  # TODO #71 #114: deprecate GeometryCollection
-        "GeometryCollection",
         "Feature",
         "FeatureCollection",
     ]:
