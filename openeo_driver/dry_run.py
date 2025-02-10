@@ -809,38 +809,6 @@ class DryRunDataCube(DriverDataCube):
     def resolution_merge(self, args: ResolutionMergeArgs) -> "DryRunDataCube":
         return self._process("resolution_merge", args)
 
-    def resample_spatial(
-        self,
-        resolution: Union[float, Tuple[float, float]],
-        projection: Union[int, str] = None,
-        method: str = "near",
-        align: str = "upper-left",
-    ):
-        #resampled_metadata = self._resample_spatial_metadata(resolution, projection)
-        return self._process(
-            "resample_spatial",
-            arguments={"resolution": resolution, "projection": projection, "method": method, "align": align},
-            #metadata=resampled_metadata
-        )
-
-    def _resample_spatial_metadata(self, resolution: Union[float, Tuple[float, float]], projection: Union[int, str] = None):
-        dims: Dict[str,SpatialDimension] = {dim.name:dim for dim in self.metadata.spatial_dimensions}
-
-        if  "x" in dims and "y" in dims:
-            box = BoundingBox(west=dims["x"].extent[0], south=dims["y"].extent[0], east=dims["x"].extent[1],
-                              north=dims["y"].extent[1])
-            if projection is not None:
-                box = box.reproject(projection)
-            resolution = (resolution, resolution) if isinstance(resolution, float) else resolution
-            if resolution is None:
-                resolution = (dims["x"].step, dims["y"].step)
-            return (self.metadata.drop_dimension("x").drop_dimension("y")
-                .add_dimension(SpatialDimension(name="x", extent=[box.west,box.east], step=resolution[0], crs=projection or dims["x"].crs))
-                .add_dimension(SpatialDimension(name="y", extent=[box.south, box.north], step=resolution[1],crs=projection or dims["x"].crs)))
-
-        else:
-            return self.metadata
-
 
     def apply_kernel(self, kernel: numpy.ndarray, factor=1, border=0, replace_invalid=0) -> 'DriverDataCube':
         cube = self._process("process_type", [ProcessType.FOCAL_SPACE])
