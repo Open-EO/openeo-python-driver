@@ -53,6 +53,7 @@ from openeo.metadata import (
 from pyproj import CRS
 from shapely.geometry import GeometryCollection, MultiPolygon, Point, Polygon
 from shapely.geometry.base import BaseGeometry
+import shapely.ops
 
 from openeo.utils.normalize import normalize_resample_resolution
 from openeo_driver import filter_properties
@@ -655,7 +656,7 @@ class DryRunDataCube(DriverDataCube):
                         points.append(g)
                     else:
                         other.append(g)
-                other_hull = reproject_geometry(shapely.unary_union(other),geometries.get_crs(),CRS.from_user_input(target_crs))
+                other_hull = reproject_geometry(shapely.ops.unary_union(other),geometries.get_crs(),CRS.from_user_input(target_crs))
 
                 if len(points) > 0:
                     point_hull = reproject_geometry(shapely.geometry.MultiPoint(points).envelope,geometries.get_crs(),CRS.from_user_input(target_crs))
