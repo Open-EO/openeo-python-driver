@@ -8,6 +8,14 @@ import requests.adapters
 from openeo.util import repr_truncate
 
 
+def is_http_url(data: Union[str, None], *, allow_http: bool = True, allow_https: bool = True) -> bool:
+    """Does given string look like a valid HTTP(S) URL?"""
+    if not isinstance(data, str):
+        return False
+    data = data.lower()
+    return (allow_http and data.startswith("http://")) or (allow_https and data.startswith("https://"))
+
+
 def requests_with_retry(
     total: int = 3,  # the number of retries, not attempts (which is retries + 1)
     backoff_factor: float = 1,

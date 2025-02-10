@@ -653,10 +653,10 @@ def test_aggregate_spatial_only(dry_run_env, dry_run_tracer):
             approxify(
                 {
                     "crs": "EPSG:32631",
-                    "east": 610869.8770073673,
-                    "north": 552758.5425218772,
-                    "south": 331634.0169357686,
-                    "west": 388860.8935124034,
+                    "east": 611139.132350062,
+                    "north": 552758.6209151235,
+                    "south": 331633.9380733739,
+                    "west": 388860.86764994,
                 }
             ),
         ),
@@ -2435,7 +2435,7 @@ def test_complex_extract_load_stac(dry_run_env, dry_run_tracer):
     loadparams = _extract_load_parameters(dry_run_env, source_id_bands)
 
     print(loadparams)
-    expected_extent = {"crs": "EPSG:32633", "east": 400380, "north": 4700400, "south": 4679610, "west": 380120}
+    expected_extent = {'west': 379840, 'south': 4679580, 'east': 400460, 'north': 4700510, 'crs': 'EPSG:32633'}
     assert loadparams.global_extent == expected_extent
     assert loadparams.bands == ["B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"]
     assert loadparams.pixel_buffer == None
@@ -2500,12 +2500,11 @@ def test_normalize_geometries(dry_run_env, dry_run_tracer):
 
     # print(json.dumps(dict(type="FeatureCollection",features=[dict(type="Feature",geometry=mapping(e),properties={}) for e in extents])))
 
-    assert params[0].global_extent == {
-        "crs": "EPSG:32632",
-        "east": 636980,
-        "north": 5729350,
-        "south": 5654910,
-        "west": 89920,
+    assert params[0].global_extent == {'crs': 'EPSG:32632',
+     'east': 638890,
+     'north': 5736520,
+     'south': 5642750,
+     'west': 84850
     }
 
 

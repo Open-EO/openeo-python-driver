@@ -21,11 +21,15 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.127.0
+- `load_collection`/`load_stac`: `spatial_extent` requires a (Multi)Polygon geometry ([Open-EO/openeo-geopyspark-driver#996](https://github.com/Open-EO/openeo-geopyspark-driver/issues/996))
+
+
 ## 0.126.0
 
 - Add STAC collections conformance class ([#195](https://github.com/Open-EO/openeo-python-driver/issues/195))
 - update openeo_driver/specs/openeo-api/1.x submodule to tag `1.2.0` ([#195](https://github.com/Open-EO/openeo-python-driver/issues/195))
-- `load_collection`/`load_stac`: `spatial_extent` requires a (Multi)Polygon geometry ([Open-EO/openeo-geopyspark-driver#996](https://github.com/Open-EO/openeo-geopyspark-driver/issues/996))
+- Extract job option defaults from UDPs and remote process descriptions ([#366](https://github.com/Open-EO/openeo-python-driver/issues/366),  [Process Parameter Extension](https://github.com/Open-EO/openeo-api/tree/draft/extensions/processing-parameters))
 
 
 ## 0.125.0

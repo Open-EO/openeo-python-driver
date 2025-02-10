@@ -26,6 +26,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from openeo.utils.version import ComparableVersion
 from openeo.util import dict_no_none, deep_get, Rfc3339, TimingLogger
+from openeo_driver.processgraph import extract_default_job_options_from_process_graph, ProcessGraphFlatDict
 from openeo_driver.urlsigning import UrlSigner
 from openeo_driver.backend import (
     ServiceMetadata,
@@ -590,11 +591,12 @@ def register_views_auth(
         )
 
 
-def _extract_process_graph(post_data: dict) -> dict:
+def _extract_process_graph(post_data: dict) -> ProcessGraphFlatDict:
     """
     Extract process graph dictionary from POST data
 
     see https://github.com/Open-EO/openeo-api/pull/262
+    :return: process graph in flat graph format
     """
     try:
         if requested_api_version().at_least("1.0.0"):
@@ -607,7 +609,7 @@ def _extract_process_graph(post_data: dict) -> dict:
     if not isinstance(pg, dict):
         # TODO: more validity checks for (flat) process graph?
         raise ProcessGraphInvalidException
-    return pg
+    return ProcessGraphFlatDict(pg)
 
 
 def _extract_job_options(post_data: dict, to_ignore: typing.Container[str]) -> Union[dict, None]:
@@ -656,9 +658,16 @@ def register_views_processing(
         budget = post_data.get("budget")
         plan = post_data.get("plan")
         log_level = post_data.get("log_level", DEFAULT_LOG_LEVEL_PROCESSING)
+
         job_options = _extract_job_options(
             post_data, to_ignore=["process", "process_graph", "budget", "plan", "log_level"]
         )
+        job_option_defaults = extract_default_job_options_from_process_graph(
+            process_graph=process_graph, processing_mode="synchronous"
+        )
+        if job_option_defaults:
+            _log.info(f"Extending {job_options=} with extracted {job_option_defaults=}")
+            job_options = {**job_option_defaults, **(job_options or {})}
 
         request_id = FlaskRequestCorrelationIdLogging.get_request_id()
 
@@ -874,12 +883,20 @@ def register_views_batch_jobs(
     def create_job(user: User):
         # TODO: wrap this job specification in a 1.0-style ProcessGrahpWithMetadata?
         post_data = request.get_json()
+        process_graph = _extract_process_graph(post_data)
         # TODO: preserve original non-process_graph process fields too?
-        process = {"process_graph": _extract_process_graph(post_data)}
-        # TODO: this "job_options" is not part of official API. See https://github.com/Open-EO/openeo-api/issues/276
+        process = {"process_graph": process_graph}
+
         job_options = _extract_job_options(
             post_data, to_ignore=["process", "process_graph", "title", "description", "plan", "budget", "log_level"]
         )
+        job_option_defaults = extract_default_job_options_from_process_graph(
+            process_graph=process_graph, processing_mode="batch_job"
+        )
+        if job_option_defaults:
+            _log.info(f"Extending {job_options=} with extracted {job_option_defaults=}")
+            job_options = {**job_option_defaults, **(job_options or {})}
+
         metadata = {k: post_data[k] for k in ["title", "description", "plan", "budget"] if k in post_data}
         metadata["log_level"] = post_data.get("log_level", DEFAULT_LOG_LEVEL_PROCESSING)
         job_info = backend_implementation.batch_jobs.create_job(

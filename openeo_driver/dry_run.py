@@ -53,6 +53,7 @@ from openeo.metadata import (
 from pyproj import CRS
 from shapely.geometry import GeometryCollection, MultiPolygon, Point, Polygon
 from shapely.geometry.base import BaseGeometry
+import shapely.ops
 
 from openeo.utils.normalize import normalize_resample_resolution
 from openeo_driver import filter_properties
@@ -67,7 +68,7 @@ from openeo_driver.save_result import (
 from openeo_driver.util.geometry import (
     BoundingBox,
     GeometryBufferer,
-    geojson_to_geometry,
+    geojson_to_geometry, reproject_geometry,
 )
 from openeo_driver.utils import EvalEnv, to_hashable
 
@@ -560,10 +561,12 @@ class DryRunDataCube(DriverDataCube):
 
     def filter_spatial(self, geometries):
         crs = None
+        resolution = None
         if len(self.metadata.spatial_dimensions) > 0:
             spatial_dim = self.metadata.spatial_dimensions[0]
             crs = spatial_dim.crs
-        geometries, bbox = self._normalize_geometry(geometries, target_crs=crs)
+            resolution = spatial_dim.step
+        geometries, bbox = self._normalize_geometry(geometries, target_crs=crs, target_resolution=resolution)
         cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
         return cube._process(operation="filter_spatial", arguments={"geometries": geometries})
 
@@ -621,19 +624,25 @@ class DryRunDataCube(DriverDataCube):
         cube = self
         if not geoms_is_empty:
             crs = None
+            resolution = None
             if len(self.metadata.spatial_dimensions) > 0:
                 spatial_dim = self.metadata.spatial_dimensions[0]
+                resolution = spatial_dim.step
                 crs = spatial_dim.crs
-            geometries, bbox = self._normalize_geometry(geometries, target_crs=crs)
+            geometries, bbox = self._normalize_geometry(geometries, target_crs=crs, target_resolution=resolution)
             cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
         return cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
 
     def _normalize_geometry(
-        self, geometries, target_crs=None
+        self, geometries, target_crs=None, target_resolution = None
     ) -> Tuple[Union[DriverVectorCube, DelayedVector, BaseGeometry], dict]:
         """
         Helper to preprocess geometries (as used in aggregate_spatial and mask_polygon)
         and extract bbox (e.g. for filter_bbox)
+
+        :param geometries: geometries as BaseGeometry, GeoJSON dict, DelayedVector or DriverVectorCube
+        :param target_crs: target CRS to reproject geometries to
+        :param target_resolution: target resolution for geometries, in units of the target CRS, None by default which will use 10m
         """
         _log.debug(f"_normalize_geometry with {type(geometries)}")
         # TODO #71 #114 EP-3981 normalize to vector cube instead of GeometryCollection
@@ -648,17 +657,36 @@ class DryRunDataCube(DriverDataCube):
                     target_crs = f"EPSG:{BoundingBox.from_wsen_tuple(geometries.get_bounding_box(),crs=geometries.get_crs()).best_utm()}"
                 else:
                     target_crs = BoundingBox.normalize_crs(target_crs)
-                bbox = (
-                    geometries.buffer_points(distance=10).reproject(CRS.from_user_input(target_crs)).get_bounding_box()
-                )
+                points = []
+                other = []
+                for g in geometries.get_geometries():
+                    if isinstance(g, Point):
+                        points.append(g)
+                    else:
+                        other.append(g)
+                other_hull = reproject_geometry(shapely.ops.unary_union(other),geometries.get_crs(),CRS.from_user_input(target_crs))
+
+                if len(points) > 0:
+                    point_hull = reproject_geometry(shapely.geometry.MultiPoint(points).envelope,geometries.get_crs(),CRS.from_user_input(target_crs))
+                    buffered_points = None
+                    if target_resolution == None:
+                        loi_point = point_hull.representative_point()
+                        bufferer = GeometryBufferer.from_meter_for_crs(
+                            distance=10, crs=target_crs, loi=(loi_point.x,loi_point.y), loi_crs=target_crs
+                        )
+                        buffered_points = bufferer.buffer(point_hull)
+                    else:
+                        buffered_points = point_hull.buffer(distance=target_resolution)
+                    other_hull = other_hull.union(buffered_points)
+                bbox = other_hull.bounds
                 crs = target_crs
             else:
                 bbox = geometries.buffer_points(distance=10).get_bounding_box()
                 crs = geometries.get_crs_str()
         elif isinstance(geometries, dict):
-            return self._normalize_geometry(geojson_to_geometry(geometries))
+            return self._normalize_geometry(geojson_to_geometry(geometries),target_crs, target_resolution)
         elif isinstance(geometries, str):
-            return self._normalize_geometry(DelayedVector(geometries))
+            return self._normalize_geometry(DelayedVector(geometries),target_crs, target_resolution)
         elif isinstance(geometries, DelayedVector):
             bbox = geometries.bounds
         elif isinstance(geometries, shapely.geometry.base.BaseGeometry):
@@ -781,7 +809,8 @@ class DryRunDataCube(DriverDataCube):
     def resolution_merge(self, args: ResolutionMergeArgs) -> "DryRunDataCube":
         return self._process("resolution_merge", args)
 
-    def apply_kernel(self, kernel: numpy.ndarray, factor=1, border=0, replace_invalid=0) -> "DriverDataCube":
+
+    def apply_kernel(self, kernel: numpy.ndarray, factor=1, border=0, replace_invalid=0) -> 'DriverDataCube':
         cube = self._process("process_type", [ProcessType.FOCAL_SPACE])
         cube = cube._process("pixel_buffer", arguments={"buffer_size": [x / 2.0 for x in kernel.shape]})
         return cube._process("apply_kernel", arguments={"kernel": kernel})
