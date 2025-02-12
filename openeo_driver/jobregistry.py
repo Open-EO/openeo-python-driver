@@ -378,8 +378,8 @@ class ElasticJobRegistry(JobRegistryInterface):
                 else:
                     response = do_request()
             except Exception as e:
-                self.logger.exception(f"Failed to do EJR API request `{method} {path}`: {e!r}")
-                raise EjrApiError(f"Failed to do EJR API request `{method} {path}`") from e
+                self.logger.exception(f"Failed to do EJR API request `{method} {url}`: {e!r}")
+                raise EjrApiError(f"Failed to do EJR API request `{method} {url}`") from e
             self.logger.debug(f"EJR response on `{method} {path}`: {response.status_code!r}")
             if expected_status and response.status_code != expected_status:
                 exc = EjrApiResponseError.from_response(response=response)
