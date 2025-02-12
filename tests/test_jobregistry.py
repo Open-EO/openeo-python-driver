@@ -1066,7 +1066,10 @@ class TestElasticJobRegistry:
         with pytest.raises(EjrApiError, match="Failed to do EJR API request"):
             _ = ejr.get_job(job_id="job-123", user_id="john")
 
-        assert "Failed to do EJR API request `POST /jobs/search`: ConnectionError('Connection aborted')" in caplog.text
+        assert (
+            f"Failed to do EJR API request `POST {self.EJR_API_URL}/jobs/search`: ConnectionError('Connection aborted')"
+            in caplog.text
+        )
 
     @pytest.mark.parametrize(
         ["tries", "failures", "success"],
@@ -1094,7 +1097,9 @@ class TestElasticJobRegistry:
                 result = ejr.list_user_jobs(user_id="john")
                 assert result == [DUMMY_PROCESS]
             else:
-                with pytest.raises(EjrApiError, match="Failed to do EJR API request `POST /jobs/search`"):
+                with pytest.raises(
+                    EjrApiError, match=f"Failed to do EJR API request `POST {self.EJR_API_URL}/jobs/search`"
+                ):
                     _ = ejr.list_user_jobs(user_id="john")
 
         assert sleep.call_count > 0
