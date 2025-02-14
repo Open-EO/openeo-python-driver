@@ -477,7 +477,6 @@ class BatchJobs(MicroService):
     def create_job(
         self,
         *,
-        user_id: str,  # TODO: deprecate `user_id` in favor of `user`?
         user: User,
         process: dict,
         api_version: str,

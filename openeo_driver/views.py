@@ -900,7 +900,8 @@ def register_views_batch_jobs(
         metadata = {k: post_data[k] for k in ["title", "description", "plan", "budget"] if k in post_data}
         metadata["log_level"] = post_data.get("log_level", DEFAULT_LOG_LEVEL_PROCESSING)
         job_info = backend_implementation.batch_jobs.create_job(
-            # TODO: remove `filter_supported_kwargs` (when all implementations have migrated to `user` iso `user_id`)
+            # TODO: remove this case of `filter_supported_kwargs`
+            #       when we are significantly past openeo-geopyspark-driver 0.60.1 (mid 2025-02)
             **filter_supported_kwargs(
                 callable=backend_implementation.batch_jobs.create_job,
                 user_id=user.user_id,
