@@ -47,7 +47,6 @@ setup(
         ("openeo-python-driver-data", ["CHANGELOG.md"]),
     ],
     python_requires=">=3.8",
-    setup_requires=["pytest-runner"],
     tests_require=tests_require,
     install_requires=[
         "flask>=2.0.0",
