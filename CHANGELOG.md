@@ -21,6 +21,9 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+## 0.127.0
+- `load_collection`/`load_stac`: `spatial_extent` requires a (Multi)Polygon geometry ([Open-EO/openeo-geopyspark-driver#996](https://github.com/Open-EO/openeo-geopyspark-driver/issues/996))
+
 
 ## 0.127.0
 
