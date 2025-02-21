@@ -1,6 +1,8 @@
 import inspect
 import os
 from typing import Callable, Dict, List, Optional, Tuple, Type
+import logging
+
 
 import attrs
 
@@ -10,6 +12,8 @@ from openeo_driver.urlsigning import UrlSigner
 from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.workspace import Workspace
 
+
+_log = logging.getLogger(__name__)
 
 class ConfigException(ValueError):
     pass
@@ -78,6 +82,34 @@ class OpenEoBackendConfig:
 
     "Experimental: simple job progress fallback estimation. Specify average batch job completion time (wall clock) in seconds."
     simple_job_progress_estimation: Optional[float] = None
+
+    def __init__(self, **kwargs):
+        # Custom __init__ to filter out unknown kwargs
+        # and depending on strictness mode: ignore them, fail hard, or log a warning.
+        valid_kwargs = _extract_valid_kwargs(kwargs, cls=type(self))
+        self.__attrs_init__(**valid_kwargs)
+
+
+def _extract_valid_kwargs(kwargs: dict, cls: Type[OpenEoBackendConfig] = OpenEoBackendConfig) -> dict:
+    supported = {a.alias for a in attrs.fields(cls)}
+    valid = {}
+    invalid = {}
+    for k, v in kwargs.items():
+        if k in supported:
+            valid[k] = v
+        else:
+            invalid[k] = v
+
+    if invalid:
+        mode = os.environ.get("OPENEO_CONFIG_STRICTNESS")
+        if mode == "strict":
+            raise ConfigException(f"Invalid config arguments: {invalid}")
+        elif mode == "ignore":
+            pass
+        else:
+            _log.warning(f"Ignoring invalid config arguments: {invalid}")
+
+    return valid
 
 
 def check_config_definition(config_class: Type[OpenEoBackendConfig]):
