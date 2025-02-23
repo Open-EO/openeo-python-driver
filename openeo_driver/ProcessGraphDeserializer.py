@@ -1695,18 +1695,14 @@ def constant(args: ProcessArgs, env: EvalEnv):
 
 @process
 def array_apply(args: ProcessArgs, env: EvalEnv):
-    data = args.get("data",[])
-    p = args.get("process",None)
-    c = args.get("context",None)
-    if isinstance(p,JSONResult):
-        p = p.get_data()
-    if isinstance(data, JSONResult):
-        data = data.get_data()
-    if not isinstance(p, dict):
+    data = args.get_required("data")
+    p = args.get_required("process")
+    c = args.get_optional("context",None)
+    if not isinstance(p, dict) and not "process_graph" in p:
         raise ProcessParameterInvalidException(parameter="process", process="array_apply", reason=f"Parameter should be a process graph, but got {p}")
     if not isinstance(data,list):
         raise ProcessParameterInvalidException(parameter="data", process="array_apply", reason=f"Parameter should be a list, but got {data}")
-    result = [ evaluate(p,env.push_parameters(dict(context=c,x=d,index=index))) for index,d in enumerate(data)]
+    result = [ evaluate(p.get("process_graph"),env.push_parameters(dict(context=c,x=d,index=index))) for index,d in enumerate(data)]
 
     return result
 
@@ -1802,11 +1798,17 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
             return convert_node(args.get("accept"), env=env)
         else:
             return convert_node(args.get("reject"),env=env)
-    elif process_id == "array_apply":
-        args = {name: convert_node(expr, env=env) if name!="process" else expr for (name, expr) in sorted(args.items())}
     else:
         # first we resolve child nodes and arguments in an arbitrary but deterministic order
         args = {name: convert_node(expr, env=env) for (name, expr) in sorted(args.items())}
+
+    def normalize_arg(a):
+        if isinstance(a,JSONResult):
+            return a.get_data()
+        else:
+            return a
+
+    args = {name: normalize_arg(expr) for (name, expr) in args.items()}
 
     # when all arguments and dependencies are resolved, we can run the process
     if is_http_url(namespace):
