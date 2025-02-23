@@ -21,6 +21,7 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
+- array_apply: sub-process should now work on all supported processes ([Open-EO/openeo-geopyspark-driver#1064](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1064))
 
 ## 0.126.0
 
