@@ -135,7 +135,7 @@ def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List
 
 
 _OPENEO_PROCESSES_PYTHON_WHITELIST = [
-    'array_apply', 'array_contains', 'array_element', 'array_filter', 'array_find', 'array_labels',
+    'array_contains', 'array_element', 'array_filter', 'array_find', 'array_labels',
     'count', 'first', 'last', 'order', 'rearrange', 'sort',
     'between', 'eq', 'gt', 'gte', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
     'all', 'and', 'any', 'not', 'or', 'xor',
@@ -1693,6 +1693,23 @@ def linear_scale_range(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def constant(args: ProcessArgs, env: EvalEnv):
     return args.get_required("x")
 
+@process
+def array_apply(args: ProcessArgs, env: EvalEnv):
+    data = args.get("data",[])
+    p = args.get("process",None)
+    c = args.get("context",None)
+    if isinstance(p,JSONResult):
+        p = p.get_data()
+    if isinstance(data, JSONResult):
+        data = data.get_data()
+    if not isinstance(p, dict):
+        raise ProcessParameterInvalidException(parameter="process", process="array_apply", reason=f"Parameter should be a process graph, but got {p}")
+    if not isinstance(data,list):
+        raise ProcessParameterInvalidException(parameter="data", process="array_apply", reason=f"Parameter should be a list, but got {data}")
+    result = [ evaluate(p,env.push_parameters(dict(context=c,x=d,index=index))) for index,d in enumerate(data)]
+
+    return result
+
 
 def flatten_children_node_types(process_graph: Union[dict, list]):
     children_node_types = set()
@@ -1785,6 +1802,8 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
             return convert_node(args.get("accept"), env=env)
         else:
             return convert_node(args.get("reject"),env=env)
+    elif process_id == "array_apply":
+        args = {name: convert_node(expr, env=env) if name!="process" else expr for (name, expr) in sorted(args.items())}
     else:
         # first we resolve child nodes and arguments in an arbitrary but deterministic order
         args = {name: convert_node(expr, env=env) for (name, expr) in sorted(args.items())}
