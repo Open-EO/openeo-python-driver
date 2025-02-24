@@ -1668,7 +1668,10 @@ def run_udf(args: dict, env: EvalEnv):
         return DriverVectorCube.from_geodataframe(data=dataframe)
     structured_result = result_data.get_structured_data_list()
     if structured_result != None and len(structured_result)>0:
-        return JSONResult(structured_result[0].data)
+        if(len(structured_result)==1):
+            return structured_result[0].data
+        else:
+            return [s.data for s in structured_result]
 
     raise ProcessParameterInvalidException(
             parameter='udf', process='run_udf',
@@ -1802,13 +1805,6 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         # first we resolve child nodes and arguments in an arbitrary but deterministic order
         args = {name: convert_node(expr, env=env) for (name, expr) in sorted(args.items())}
 
-    def normalize_arg(a):
-        if isinstance(a,JSONResult):
-            return a.get_data()
-        else:
-            return a
-
-    args = {name: normalize_arg(expr) for (name, expr) in args.items()}
 
     # when all arguments and dependencies are resolved, we can run the process
     if is_http_url(namespace):
