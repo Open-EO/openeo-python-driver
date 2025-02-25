@@ -135,7 +135,7 @@ def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List
 
 
 _OPENEO_PROCESSES_PYTHON_WHITELIST = [
-    'array_apply', 'array_contains', 'array_element', 'array_filter', 'array_find', 'array_labels',
+    'array_contains', 'array_element', 'array_filter', 'array_find', 'array_labels',
     'count', 'first', 'last', 'order', 'rearrange', 'sort',
     'between', 'eq', 'gt', 'gte', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
     'all', 'and', 'any', 'not', 'or', 'xor',
@@ -1668,7 +1668,10 @@ def run_udf(args: dict, env: EvalEnv):
         return DriverVectorCube.from_geodataframe(data=dataframe)
     structured_result = result_data.get_structured_data_list()
     if structured_result != None and len(structured_result)>0:
-        return JSONResult(structured_result[0].data)
+        if(len(structured_result)==1):
+            return structured_result[0].data
+        else:
+            return [s.data for s in structured_result]
 
     raise ProcessParameterInvalidException(
             parameter='udf', process='run_udf',
@@ -1692,6 +1695,19 @@ def linear_scale_range(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 @process
 def constant(args: ProcessArgs, env: EvalEnv):
     return args.get_required("x")
+
+@process
+def array_apply(args: ProcessArgs, env: EvalEnv):
+    data = args.get_required("data")
+    p = args.get_required("process")
+    c = args.get_optional("context",None)
+    if not isinstance(p, dict) and not "process_graph" in p:
+        raise ProcessParameterInvalidException(parameter="process", process="array_apply", reason=f"Parameter should be a process graph, but got {p}")
+    if not isinstance(data,list):
+        raise ProcessParameterInvalidException(parameter="data", process="array_apply", reason=f"Parameter should be a list, but got {data}")
+    result = [ evaluate(p.get("process_graph"),env.push_parameters(dict(context=c,x=d,index=index))) for index,d in enumerate(data)]
+
+    return result
 
 
 def flatten_children_node_types(process_graph: Union[dict, list]):
@@ -1788,6 +1804,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
     else:
         # first we resolve child nodes and arguments in an arbitrary but deterministic order
         args = {name: convert_node(expr, env=env) for (name, expr) in sorted(args.items())}
+
 
     # when all arguments and dependencies are resolved, we can run the process
     if is_http_url(namespace):
