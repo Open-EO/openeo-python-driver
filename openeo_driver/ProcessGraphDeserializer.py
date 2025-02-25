@@ -632,7 +632,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
             extent = None
             if "spatial_extent" in constraint:
                 extent = constraint["spatial_extent"]
-            if "weak_spatial_extent" in constraint:
+            elif "weak_spatial_extent" in constraint:
                 extent = constraint["weak_spatial_extent"]
             if extent is not None:
                 collection_crs = _collection_crs(collection_id[1][0], env)
