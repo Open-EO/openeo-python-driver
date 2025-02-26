@@ -2425,6 +2425,80 @@ def test_complex_diamond_and_buffering(dry_run_env, dry_run_tracer):
     assert loadparams.pixel_buffer == [38.5, 38.5]
 
 
+def test_resampling_masking(dry_run_env, dry_run_tracer):
+    pg = load_json("pg/1.0/resample_mask_merge.json")
+    save_result = evaluate(pg, env=dry_run_env)
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    print(source_constraints)
+
+    dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
+    source_id_bands = (
+        "load_collection",
+        (
+            "S2_FOOBAR",
+            (("eo:cloud_cover", (("lte", 95),)),),
+            ( "B02", "B03", "B04"),
+        ),
+    )
+    source_id_scl = (
+        "load_collection",
+        ("S2_FOOBAR", (("eo:cloud_cover", (("lte", 95),)),), ("SCL",)),
+    )
+    source_id_s1 = ('load_collection', ('SENTINEL1_GRD', (('sat:orbit_state', (('eq', 'DESCENDING'),)),), ('VH', 'VV')))
+    loadparams = _extract_load_parameters(dry_run_env, source_id_bands)
+
+    expected_extent = {'crs': 'EPSG:3035',
+         'east': 3860390,
+         'north': 2280390,
+         'south': 2259610,
+         'west': 3839610}
+    assert loadparams.global_extent == expected_extent
+    assert loadparams.bands == [
+        "B02",
+        "B03",
+        "B04"
+    ]
+    assert loadparams.pixel_buffer == None
+    assert loadparams.target_crs == 3035
+    assert loadparams.target_resolution == (10,10)
+    assert loadparams.spatial_extent == {
+          "west": 3840000,
+          "east": 3860000,
+          "north": 2280000,
+          "south": 2260000,
+          "crs": "EPSG:3035"
+        }
+
+    # extract next set of params
+    loadparams = _extract_load_parameters(dry_run_env, source_id_scl)
+    assert loadparams.bands == ["SCL"]
+    assert loadparams.global_extent == expected_extent
+    assert loadparams.pixel_buffer == [38.5, 38.5]
+    assert loadparams.target_crs == 3035
+    assert loadparams.target_resolution == (10,10)
+    assert loadparams.spatial_extent == {
+        "west": 3840000,
+        "east": 3860000,
+        "north": 2280000,
+        "south": 2260000,
+        "crs": "EPSG:3035"
+    }
+
+    loadparams = _extract_load_parameters(dry_run_env, source_id_s1)
+    assert loadparams.global_extent == expected_extent
+    assert loadparams.pixel_buffer == None
+    assert loadparams.target_crs == 3035
+    assert loadparams.target_resolution == (10,10)
+    assert loadparams.spatial_extent == {
+        "west": 3840000,
+        "east": 3860000,
+        "north": 2280000,
+        "south": 2260000,
+        "crs": "EPSG:3035"
+    }
+
+
+
 def test_complex_extract_load_stac(dry_run_env, dry_run_tracer):
     pg = load_json("pg/1.0/complex_load_stac.json")
     save_result = evaluate(pg, env=dry_run_env)
