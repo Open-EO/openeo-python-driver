@@ -247,7 +247,7 @@ class EjrApiResponseError(EjrApiError):
     def from_response(cls, response: requests.Response) -> EjrApiResponseError:
         request = response.request
         return cls(
-            msg=f"EJR API error: {response.status_code} {response.reason!r} on `{request.method} {request.url!r}`: {response.text}",
+            msg=f"Error communicating with batch job system, consider trying again. Details: {response.status_code} {response.reason!r} on `{request.method} {request.url!r}`: {response.text}",
             status_code=response.status_code,
         )
 
@@ -378,8 +378,8 @@ class ElasticJobRegistry(JobRegistryInterface):
                 else:
                     response = do_request()
             except Exception as e:
-                self.logger.exception(f"Failed to do EJR API request `{method} {path}`: {e!r}")
-                raise EjrApiError(f"Failed to do EJR API request `{method} {path}`") from e
+                self.logger.exception(f"Failed to do EJR API request `{method} {url}`: {e!r}")
+                raise EjrApiError(f"Failed to do EJR API request `{method} {url}`") from e
             self.logger.debug(f"EJR response on `{method} {path}`: {response.status_code!r}")
             if expected_status and response.status_code != expected_status:
                 exc = EjrApiResponseError.from_response(response=response)

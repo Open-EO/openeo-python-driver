@@ -657,7 +657,7 @@ def register_views_processing(
         process_graph = _extract_process_graph(post_data)
         budget = post_data.get("budget")
         plan = post_data.get("plan")
-        log_level = post_data.get("log_level", DEFAULT_LOG_LEVEL_PROCESSING)
+        log_level = _assert_valid_log_level(post_data.get("log_level", DEFAULT_LOG_LEVEL_PROCESSING))
 
         job_options = _extract_job_options(
             post_data, to_ignore=["process", "process_graph", "budget", "plan", "log_level"]
@@ -871,6 +871,17 @@ def _s3_client():
     return s3_client
 
 
+def _assert_valid_log_level(level: str) -> str:
+    valid_levels = ["debug", "info", "warning", "error"]
+    if level not in valid_levels:
+        raise OpenEOApiException(
+            code="InvalidLogLevel",
+            status_code=400,
+            message=f"Invalid log level {level}. Should be one of {valid_levels}.",
+        )
+    return level
+
+
 def register_views_batch_jobs(
         blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
         auth_handler: HttpAuthHandler
@@ -898,9 +909,10 @@ def register_views_batch_jobs(
             job_options = {**job_option_defaults, **(job_options or {})}
 
         metadata = {k: post_data[k] for k in ["title", "description", "plan", "budget"] if k in post_data}
-        metadata["log_level"] = post_data.get("log_level", DEFAULT_LOG_LEVEL_PROCESSING)
+        metadata["log_level"] = _assert_valid_log_level(post_data.get("log_level", DEFAULT_LOG_LEVEL_PROCESSING))
         job_info = backend_implementation.batch_jobs.create_job(
-            # TODO: remove `filter_supported_kwargs` (when all implementations have migrated to `user` iso `user_id`)
+            # TODO: remove this case of `filter_supported_kwargs`
+            #       when we are significantly past openeo-geopyspark-driver 0.60.1 (mid 2025-02)
             **filter_supported_kwargs(
                 callable=backend_implementation.batch_jobs.create_job,
                 user_id=user.user_id,

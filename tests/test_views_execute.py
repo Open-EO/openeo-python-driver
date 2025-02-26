@@ -3044,6 +3044,10 @@ def test_execute_no_cube_1_plus_2(api):
     ({"cnt1": {"process_id": "count", "arguments": {"data": [2, 8, None, 3]}, "result": True}}, 3),
     ({"pi1": {"process_id": "pi", "arguments": {}, "result": True}}, math.pi),
     ({"e1": {"process_id": "e", "arguments": {}, "result": True}}, math.e),
+    ({"s": {"process_id": "array_apply", "arguments": {"data": [3, -25, 8], "process":
+        { "process_graph":{"s": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 5}, "result": True}}
+        }},
+                "result": True}}, [8, -20, 13]),
 ])
 def test_execute_no_cube_just_math(api, process_graph, expected):
     assert api.result(process_graph).assert_status_code(200).json == pytest.approx(expected,0.0001)

@@ -21,9 +21,16 @@ and start a new "In Progress" section above it.
 
 ## In progress
 
-## 0.127.0
-- `load_collection`/`load_stac`: `spatial_extent` requires a (Multi)Polygon geometry ([Open-EO/openeo-geopyspark-driver#996](https://github.com/Open-EO/openeo-geopyspark-driver/issues/996))
+- array_apply: sub-process should now work on all supported processes ([Open-EO/openeo-geopyspark-driver#1064](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1064))
 
+## 0.128.0
+
+- `load_collection`/`load_stac`: `spatial_extent` requires (Multi)Polygon geometries ([Open-EO/openeo-geopyspark-driver#996](https://github.com/Open-EO/openeo-geopyspark-driver/issues/996))
+
+## 0.127.0
+
+- Add `simple_job_progress_estimation` config for simple job progress estimation ([Open-EO/openeo-geopyspark-driver#772](https://github.com/Open-EO/openeo-geopyspark-driver/issues/772))
+- `OpenEoBackendConfig`: be more forgiving about unknown config keys to better support use cases that involve backward/forward incompatible configurations ([#322](https://github.com/Open-EO/openeo-python-driver/issues/322))
 
 ## 0.126.0
 

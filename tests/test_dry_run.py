@@ -1167,10 +1167,10 @@ def test_global_bounds_from_weak_spatial_extent(dry_run_env, dry_run_tracer):
         dry_run_env, source_id=("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()))
     )
     assert {
-        "west": 0.09999999927961767,
-        "east": 8.00008333258134,
-        "south": 0.09999999971959994,
-        "north": 5.000083333033345,
+        "west": 0.9999999992760138,
+        "east": 3.000083332601349,
+        "south": 0.9999999997160103,
+        "north": 3.0000833330413315,
         "crs": "EPSG:4326",
     } == load_params.global_extent
 

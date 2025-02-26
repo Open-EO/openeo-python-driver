@@ -667,7 +667,6 @@ class DummyBatchJobs(BatchJobs):
 
     def create_job(
         self,
-        user_id: str,
         user: User,
         process: dict,
         api_version: str,
@@ -684,7 +683,7 @@ class DummyBatchJobs(BatchJobs):
             title=metadata.get("title"),
             description=metadata.get("description"),
         )
-        self._job_registry[(user_id, job_id)] = job_info
+        self._job_registry[(user.user_id, job_id)] = job_info
         return job_info
 
     def get_job_info(self, job_id: str, user_id: str) -> BatchJobMetadata:
