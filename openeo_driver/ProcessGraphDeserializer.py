@@ -1469,7 +1469,7 @@ def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox", h
         "Feature",
         "FeatureCollection",
     ]:
-        if not _contains_polygon(extent):
+        if not _contains_only_polygons(extent):
             raise ProcessParameterInvalidException(
                 parameter=field,
                 process=process_id,
@@ -1491,18 +1491,15 @@ def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox", h
     return d
 
 
-def _contains_polygon(geojson: dict) -> bool:
+def _contains_only_polygons(geojson: dict) -> bool:
     if geojson["type"] in ["Polygon", "MultiPolygon"]:
         return True
 
     if geojson["type"] == "Feature":
-        return _contains_polygon(geojson["geometry"])
+        return _contains_only_polygons(geojson["geometry"])
 
     if geojson["type"] == "FeatureCollection":
-        return any(_contains_polygon(feature) for feature in geojson["features"])
-
-    if geojson["type"] == "GeometryCollection":
-        return any(_contains_polygon(geometry) for geometry in geojson["geometries"])
+        return all(_contains_only_polygons(feature) for feature in geojson["features"])
 
     return False
 

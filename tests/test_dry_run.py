@@ -1461,7 +1461,11 @@ def test_load_stac_properties(dry_run_env, dry_run_tracer):
             nullcontext(),
         ),
         (
-            {"type": "Feature", "geometry": {"type": "Point", "coordinates": [5, 50]}},
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [5, 50]},
+                "properties": {},
+            },
             pytest.raises(
                 ProcessParameterInvalidException,
                 match=r"unsupported GeoJSON; requires at least one Polygon or MultiPolygon$",
@@ -1474,7 +1478,13 @@ def test_load_stac_properties(dry_run_env, dry_run_tracer):
                     {
                         "type": "Feature",
                         "geometry": {"type": "Point", "coordinates": [5, 50]},
-                    }
+                        "properties": {},
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Polygon", "coordinates": [[[0, 0], [1, 1], [1, 0]]]},
+                        "properties": {},
+                    },
                 ],
             },
             pytest.raises(
