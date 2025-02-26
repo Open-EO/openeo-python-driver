@@ -648,10 +648,10 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
                         extent = bbox.reproject(crs).as_dict()
 
                         extent = {
-                            "west": extent["west"] - target_resolution[0] * buffer[0],
-                            "east": extent["east"] + target_resolution[0] * buffer[0],
-                            "south": extent["south"] - target_resolution[1] * buffer[1],
-                            "north": extent["north"] + target_resolution[1] * buffer[1],
+                            "west": extent["west"] - target_resolution[0] * math.ceil(buffer[0]),
+                            "east": extent["east"] + target_resolution[0] * math.ceil(buffer[0]),
+                            "south": extent["south"] - target_resolution[1] * math.ceil(buffer[1]),
+                            "north": extent["north"] + target_resolution[1] * math.ceil(buffer[1]),
                             "crs": extent["crs"]
                         }
                     else:
