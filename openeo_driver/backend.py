@@ -446,7 +446,7 @@ class JobListing:
         """
         Produce `GET /jobs` response data, to be JSONified.
 
-        :param build_url: function to generate a paginated" URL from given pagination related parameters,
+        :param build_url: function to generate a paginated URL from given pagination related parameters,
             e.g. `lambda params: flask.url_for(".list_jobs", **params, _external=True)`
         """
         links = []
@@ -660,15 +660,13 @@ class UserDefinedProcessMetadata(NamedTuple):
 
 
 class UserDefinedProcessesListing:
+    # TODO #377 pagination support
     def __init__(self, udps: List[UserDefinedProcessMetadata]):
         self._udps = udps
 
-    def to_response_dict(self, build_url: Callable[[dict], str], api_version: ComparableVersion = None) -> dict:
+    def to_response_dict(self) -> dict:
         """
         Produce `GET /process_graphs` response data, to be JSONified.
-
-        :param build_url: function to generate a paginated" URL from given pagination related parameters,
-            e.g. `lambda params: flask.url_for(".list_jobs", **params, _external=True)`
         """
         return {
             "processes": [udp.to_api_dict(full=False) for udp in self._udps],
@@ -705,7 +703,7 @@ class UserDefinedProcesses(MicroService):
         request_parameters: Optional[dict] = None,
     ) -> UserDefinedProcessesListing:
         udps = self.get_for_user(user_id=user_id)
-        ...
+        return UserDefinedProcessesListing(udps=udps)
 
     def save(self, user_id: str, process_id: str, spec: dict) -> None:
         """
