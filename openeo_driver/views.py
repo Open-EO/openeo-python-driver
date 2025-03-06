@@ -62,6 +62,7 @@ from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.util.geometry import BoundingBox, reproject_geometry
 from openeo_driver.util.logging import FlaskRequestCorrelationIdLogging, ExtraLoggingFilter
+from openeo_driver.util.pagination import PaginationRequest
 from openeo_driver.utils import EvalEnv, smart_bool, generate_unique_id, filter_supported_kwargs
 
 _log = logging.getLogger(__name__)
@@ -937,7 +938,8 @@ def register_views_batch_jobs(
         # TODO: openEO API currently prescribes no pagination by default (unset limit)
         #     This is however not very scalable, so we might want to set a default limit here.
         #     Also see https://github.com/Open-EO/openeo-api/issues/550
-        limit = flask.request.args.get("limit", type=int)
+        #  TODO #377 migrate this to `PaginationRequest`
+        limit = flask.request.args.get("limit", default=None, type=int)
         request_parameters = flask.request.args
 
         # TODO #332 settle on receiving just `JobListing` here and eliminate other options/code paths.
@@ -1762,8 +1764,8 @@ def register_views_udp(
     @blueprint.route('/process_graphs', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def udp_list_for_user(user: User):
-        # TODO #377 pagination support
-        udps = backend_implementation.user_defined_processes.list_for_user(user_id=user.user_id)
+        pagination = PaginationRequest.from_request(request=flask.request)
+        udps = backend_implementation.user_defined_processes.list_for_user(user_id=user.user_id, pagination=pagination)
         return jsonify(udps.to_response_dict())
 
     @api_endpoint

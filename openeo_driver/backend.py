@@ -37,6 +37,7 @@ from openeo_driver.users import User
 from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.util.date_math import simple_job_progress_estimation
 from openeo_driver.util.logging import just_log_exceptions
+from openeo_driver.util.pagination import PaginationRequest
 from openeo_driver.utils import read_json, dict_item, EvalEnv, extract_namedtuple_fields_from_dict, \
     get_package_versions
 
@@ -497,6 +498,7 @@ class BatchJobs(MicroService):
     def get_user_jobs(
         self,
         user_id: str,
+        #  TODO #377 migrate this to `PaginationRequest`
         limit: Optional[int] = None,
         request_parameters: Optional[dict] = None,
         # TODO #332 settle on returning just `JobListing` and eliminate other options/code paths.
@@ -692,16 +694,15 @@ class UserDefinedProcesses(MicroService):
         List user's UDPs
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-custom-processes
         """
-        # TODO remove this deprecated API when unused
+        # TODO remove this deprecated API when unused (replaced by `list_for_user`)
         raise NotImplementedError
 
     def list_for_user(
         self,
         user_id: str,
-        # TODO: encapsulate limit and request_parameters in a pagination object?
-        limit: Optional[int] = None,
-        request_parameters: Optional[dict] = None,
+        pagination: Optional[PaginationRequest] = None,
     ) -> UserDefinedProcessesListing:
+        # TODO: remove this adapter implementation once `get_for_user` is removed
         udps = self.get_for_user(user_id=user_id)
         return UserDefinedProcessesListing(udps=udps)
 
