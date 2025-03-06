@@ -634,6 +634,47 @@ class UserDefinedProcessMetadata(NamedTuple):
     def prepare_for_json(self) -> dict:
         return self._asdict()  # pylint: disable=no-member
 
+    def to_api_dict(self, full=True, user: User = None) -> dict:
+        """API-version-aware conversion of UDP metadata to jsonable dict"""
+        d = self.prepare_for_json()
+        if not full:
+            # API recommends to limit response size by omitting larger/optional fields
+            d = {k: v for k, v in d.items() if k in ["id", "summary", "description", "parameters", "returns"]}
+        elif self.public and user:
+            namespace = "u:" + user.user_id
+            d["links"] = (d.get("links") or []) + [
+                {
+                    "rel": "canonical",
+                    # TODO: use signed url?
+                    "href": flask.url_for(
+                        ".processes_details", namespace=namespace, process_id=self.id, _external=True
+                    ),
+                    "title": f"Public URL for user-defined process {self.id!r}",
+                }
+            ]
+        elif "public" in d and not d["public"]:
+            # Don't include non-standard "public" field when false to stay closer to standard API
+            del d["public"]
+
+        return dict_no_none(**d)
+
+
+class UserDefinedProcessesListing:
+    def __init__(self, udps: List[UserDefinedProcessMetadata]):
+        self._udps = udps
+
+    def to_response_dict(self, build_url: Callable[[dict], str], api_version: ComparableVersion = None) -> dict:
+        """
+        Produce `GET /process_graphs` response data, to be JSONified.
+
+        :param build_url: function to generate a paginated" URL from given pagination related parameters,
+            e.g. `lambda params: flask.url_for(".list_jobs", **params, _external=True)`
+        """
+        return {
+            "processes": [udp.to_api_dict(full=False) for udp in self._udps],
+            "links": [],
+        }
+
 
 class UserDefinedProcesses(MicroService):
     """
@@ -653,7 +694,18 @@ class UserDefinedProcesses(MicroService):
         List user's UDPs
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-custom-processes
         """
+        # TODO remove this deprecated API when unused
         raise NotImplementedError
+
+    def list_for_user(
+        self,
+        user_id: str,
+        # TODO: encapsulate limit and request_parameters in a pagination object?
+        limit: Optional[int] = None,
+        request_parameters: Optional[dict] = None,
+    ) -> UserDefinedProcessesListing:
+        udps = self.get_for_user(user_id=user_id)
+        ...
 
     def save(self, user_id: str, process_id: str, spec: dict) -> None:
         """
