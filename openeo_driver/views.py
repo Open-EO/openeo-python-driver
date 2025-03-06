@@ -754,10 +754,11 @@ def register_views_processing(
     def processes_from_namespace(namespace):
         # TODO: this endpoint is in draft at the moment
         #       see https://github.com/Open-EO/openeo-api/issues/310, https://github.com/Open-EO/openeo-api/pull/348
-        # TODO: convention for user namespace? use '@' instead of "u:"
         # TODO: unify with `/processes` endpoint?
+        _log.warning(f"Non-standard processes_from_namespace with {namespace=}")
         full = smart_bool(request.args.get("full", False))
         target_version = None
+        # TODO: convention for user namespace? use '@' instead of "u:"
         if namespace.startswith("u:") and backend_implementation.user_defined_processes:
             user_id = namespace.partition("u:")[-1]
             user_udps = [p for p in backend_implementation.user_defined_processes.get_for_user(user_id) if p.public]
@@ -791,6 +792,7 @@ def register_views_processing(
     def processes_details(namespace, process_id):
         # TODO: this endpoint is in draft at the moment
         #       see https://github.com/Open-EO/openeo-api/issues/310, https://github.com/Open-EO/openeo-api/pull/348
+        _log.warning(f"Non-standard processes_details with {namespace=} {process_id=}")
         if namespace.startswith("u:") and backend_implementation.user_defined_processes:
             user_id = namespace.partition("u:")[-1]
             udp = backend_implementation.user_defined_processes.get(user_id=user_id, process_id=process_id)
