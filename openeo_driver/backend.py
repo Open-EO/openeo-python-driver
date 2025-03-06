@@ -636,8 +636,14 @@ class UserDefinedProcessMetadata(NamedTuple):
     def prepare_for_json(self) -> dict:
         return self._asdict()  # pylint: disable=no-member
 
-    def to_api_dict(self, full=True, user: User = None) -> dict:
-        """API-version-aware conversion of UDP metadata to jsonable dict"""
+    def to_api_dict(
+        self,
+        *,
+        full=True,
+        user: User = None,
+        build_url: Callable = lambda **params: flask.url_for(".processes_details", **params, _external=True),
+    ) -> dict:
+        """Convert to openEO-API-style UDP construct (to be jsonified)"""
         # TODO: avoid coupling with user object through argument: make it a property of the UDP object, or generalize to namespace
         d = self.prepare_for_json()
         if not full:
@@ -649,9 +655,7 @@ class UserDefinedProcessMetadata(NamedTuple):
                 {
                     "rel": "canonical",
                     # TODO: use signed url?
-                    "href": flask.url_for(
-                        ".processes_details", namespace=namespace, process_id=self.id, _external=True
-                    ),
+                    "href": build_url(namespace=namespace, process_id=self.id),
                     "title": f"Public URL for user-defined process {self.id!r}",
                 }
             ]

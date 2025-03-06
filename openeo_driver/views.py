@@ -779,15 +779,14 @@ def register_views_processing(
                     {k: v for k, v in p.items() if k not in ["process_graph"]}
                     for p in processes
                 ]
-        else:
-            raise OpenEOApiException("Could not handle namespace {n!r}".format(n=namespace))
-        return jsonify(
-            {
+            response = {
                 "version": target_version,
                 "processes": processes,
                 "links": [],
             }
-        )
+        else:
+            raise OpenEOApiException("Could not handle namespace {n!r}".format(n=namespace))
+        return jsonify(response)
 
     @api_endpoint
     @blueprint.route('/processes/<namespace>/<process_id>', methods=['GET'])
