@@ -8,7 +8,7 @@ to allow composability, isolation and better reuse.
 
 Also see https://github.com/Open-EO/openeo-python-driver/issues/8
 """
-
+from __future__ import annotations
 import abc
 import json
 import logging
@@ -627,12 +627,30 @@ class UserDefinedProcessMetadata(NamedTuple):
     public: bool = False  # Note: experimental non-standard flag
 
     @classmethod
-    def from_dict(cls, d: dict) -> 'UserDefinedProcessMetadata':
+    def from_dict(cls, d: dict) -> UserDefinedProcessMetadata:
         d = extract_namedtuple_fields_from_dict(d, UserDefinedProcessMetadata)
         return cls(**d)
 
     def prepare_for_json(self) -> dict:
         return self._asdict()  # pylint: disable=no-member
+
+    def add_link(self, *, rel: str, href: str, title: Optional[str] = None):
+        """Create new UserDefinedProcessMetadata with added link"""
+        kwargs = self._asdict()
+        kwargs["links"] = (kwargs["links"] or []) + [dict_no_none(rel=rel, href=href, title=title)]
+        return UserDefinedProcessMetadata(**kwargs)
+
+    def to_api_dict(self, *, full: bool = True) -> dict:
+        """Produce openEO API-style UDP dict construct (to be jsonified)."""
+        d = self.prepare_for_json()
+        if not full:
+            # API recommends to limit response size by omitting larger/optional fields
+            d = {k: v for k, v in d.items() if k in ["id", "summary", "description", "parameters", "returns"]}
+        if "public" in d and not d["public"]:
+            # Don't include non-standard "public" field when false to stay closer to standard API
+            del d["public"]
+
+        return dict_no_none(**d)
 
 
 class UserDefinedProcesses(MicroService):

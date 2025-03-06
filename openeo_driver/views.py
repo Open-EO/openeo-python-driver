@@ -762,7 +762,7 @@ def register_views_processing(
         if namespace.startswith("u:") and backend_implementation.user_defined_processes:
             user_id = namespace.partition("u:")[-1]
             user_udps = [p for p in backend_implementation.user_defined_processes.get_for_user(user_id) if p.public]
-            processes = [_jsonable_udp_metadata(udp, full=full, user=User(user_id=user_id)) for udp in user_udps]
+            processes = [udp.to_api_dict(full=full) for udp in user_udps]
         elif ":" not in namespace:
             process_registry = backend_implementation.processing.get_process_registry(
                 api_version=requested_api_version()
@@ -798,7 +798,9 @@ def register_views_processing(
             udp = backend_implementation.user_defined_processes.get(user_id=user_id, process_id=process_id)
             if not udp or not udp.public:
                 raise ProcessUnsupportedException(process=process_id, namespace=namespace)
-            process = _jsonable_udp_metadata(udp, full=True, user=User(user_id=user_id))
+            if udp.public:
+                udp = _add_udp_canonical_link(udp=udp, user_id=user_id)
+            process = udp.to_api_dict(full=True)
         elif ":" not in namespace:
             process_registry = backend_implementation.processing.get_process_registry(
                 api_version=requested_api_version()
@@ -1755,10 +1757,11 @@ def register_views_udp(
     def udp_get(process_graph_id: str, user: User):
         _check_valid_process_graph_id(process_id=process_graph_id)
         udp = backend_implementation.user_defined_processes.get(user_id=user.user_id, process_id=process_graph_id)
-        if udp:
-            return _jsonable_udp_metadata(udp, full=True , user=user)
-
-        raise ProcessGraphNotFoundException(process_graph_id)
+        if not udp:
+            raise ProcessGraphNotFoundException(process_graph_id)
+        if udp.public:
+            udp = _add_udp_canonical_link(udp=udp, user_id=user.user_id)
+        return jsonify(udp.to_api_dict(full=True))
 
     @api_endpoint
     @blueprint.route('/process_graphs', methods=['GET'])
@@ -1766,7 +1769,7 @@ def register_views_udp(
     def udp_list_for_user(user: User):
         user_udps = backend_implementation.user_defined_processes.get_for_user(user.user_id)
         return {
-            'processes': [_jsonable_udp_metadata(udp, full=False) for udp in user_udps],
+            "processes": [udp.to_api_dict(full=False) for udp in user_udps],
             # TODO: pagination links?
             # TODO: allow backend_implementation to define links?
             "links": [],
@@ -1781,27 +1784,12 @@ def register_views_udp(
         return response_204_no_content()
 
 
-def _jsonable_udp_metadata(metadata: UserDefinedProcessMetadata, full=True, user: User = None) -> dict:
-    """API-version-aware conversion of UDP metadata to jsonable dict"""
-    d = metadata.prepare_for_json()
-    if not full:
-        # API recommends to limit response size by omitting larger/optional fields
-        d = {k: v for k, v in d.items() if k in ["id", "summary", "description", "parameters", "returns"]}
-    elif metadata.public and user:
-        namespace = "u:" + user.user_id
-        d["links"] = (d.get("links") or []) + [
-            {
-                "rel": "canonical",
-                # TODO: use signed url?
-                "href": url_for(".processes_details", namespace=namespace, process_id=metadata.id, _external=True),
-                "title": f"Public URL for user-defined process {metadata.id!r}"
-            }
-        ]
-    elif "public" in d and not d["public"]:
-        # Don't include non-standard "public" field when false to stay closer to standard API
-        del d["public"]
-
-    return dict_no_none(**d)
+def _add_udp_canonical_link(udp: UserDefinedProcessMetadata, user_id: str) -> UserDefinedProcessMetadata:
+    return udp.add_link(
+        rel="canonical",
+        href=url_for(".processes_details", namespace=f"u:{user_id}", process_id=udp.id, _external=True),
+        title=f"Public URL for user-defined process {udp.id!r}",
+    )
 
 
 def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersion, full=False) -> dict:
