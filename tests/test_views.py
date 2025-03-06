@@ -3534,6 +3534,33 @@ class TestUserDefinedProcesses:
         assert udp == expected
 
 
+    @pytest.mark.parametrize("public", [True, False])
+    def test_udp_public_access(self, api100, udp_store, public):
+        api100.put(
+            "/process_graphs/evi",
+            headers=TEST_USER_AUTH_HEADER,
+            json={
+                "process_graph": {"add35": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}},
+                "public": public,
+            },
+        ).assert_status_code(200)
+
+        resp = api100.get("/processes/u:Mr.Test/evi")
+        if public:
+            assert resp.assert_status_code(200).json == {
+                "id": "evi",
+                "process_graph": {"add35": {"arguments": {"x": 3, "y": 5}, "process_id": "add", "result": True}},
+                "public": True,
+                "links": [
+                    {
+                        "href": "http://oeo.net/openeo/1.0.0/processes/u:Mr.Test/evi",
+                        "rel": "canonical",
+                        "title": "Public URL for user-defined process 'evi'",
+                    }
+                ],
+            }
+        else:
+            resp.assert_error(400, "ProcessUnsupported")
 
     @pytest.mark.parametrize("body_id", [None, "evi", "meh"])
     def test_add_and_get_udp(self, api100, udp_store, body_id):

@@ -796,7 +796,7 @@ def register_views_processing(
         if namespace.startswith("u:") and backend_implementation.user_defined_processes:
             user_id = namespace.partition("u:")[-1]
             udp = backend_implementation.user_defined_processes.get(user_id=user_id, process_id=process_id)
-            if not udp:
+            if not udp or not udp.public:
                 raise ProcessUnsupportedException(process=process_id, namespace=namespace)
             process = _jsonable_udp_metadata(udp, full=True, user=User(user_id=user_id))
         elif ":" not in namespace:
