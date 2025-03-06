@@ -755,14 +755,18 @@ def register_views_processing(
     def processes_from_namespace(namespace):
         # TODO: this endpoint is in draft at the moment
         #       see https://github.com/Open-EO/openeo-api/issues/310, https://github.com/Open-EO/openeo-api/pull/348
-        # TODO: convention for user namespace? use '@' instead of "u:"
         # TODO: unify with `/processes` endpoint?
+        # TODO #377 pagination?
+        _log.warning(f"Usage of non-standard endpoint `/processes/{namespace}`")
         full = smart_bool(request.args.get("full", False))
         target_version = None
+        # TODO: convention for user namespace? use '@' instead of "u:"
         if namespace.startswith("u:") and backend_implementation.user_defined_processes:
             user_id = namespace.partition("u:")[-1]
-            user_udps = [p for p in backend_implementation.user_defined_processes.get_for_user(user_id) if p.public]
-            processes = [udp.to_api_dict(full=full, user=User(user_id=user_id)) for udp in user_udps]
+            udp_listing = backend_implementation.user_defined_processes.list_for_user(user_id, public_only=True)
+            response = udp_listing.to_response_dict(
+                full=full, target_version=target_version, user=User(user_id=user_id)
+            )
         elif ":" not in namespace:
             process_registry = backend_implementation.processing.get_process_registry(
                 api_version=requested_api_version()
@@ -777,7 +781,6 @@ def register_views_processing(
                 ]
         else:
             raise OpenEOApiException("Could not handle namespace {n!r}".format(n=namespace))
-        # TODO: pagination links?
         return jsonify(
             {
                 "version": target_version,
@@ -1766,7 +1769,7 @@ def register_views_udp(
     def udp_list_for_user(user: User):
         pagination = PaginationRequest.from_request(request=flask.request)
         udps = backend_implementation.user_defined_processes.list_for_user(user_id=user.user_id, pagination=pagination)
-        return jsonify(udps.to_response_dict())
+        return jsonify(udps.to_response_dict(full=False, user=user))
 
     @api_endpoint
     @blueprint.route('/process_graphs/<process_graph_id>', methods=['DELETE'])

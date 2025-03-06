@@ -638,6 +638,7 @@ class UserDefinedProcessMetadata(NamedTuple):
 
     def to_api_dict(self, full=True, user: User = None) -> dict:
         """API-version-aware conversion of UDP metadata to jsonable dict"""
+        # TODO: avoid coupling with user object through argument: make it a property of the UDP object, or generalize to namespace
         d = self.prepare_for_json()
         if not full:
             # API recommends to limit response size by omitting larger/optional fields
@@ -666,12 +667,13 @@ class UserDefinedProcessesListing:
     def __init__(self, udps: List[UserDefinedProcessMetadata]):
         self._udps = udps
 
-    def to_response_dict(self) -> dict:
+    def to_response_dict(self, *, full: bool = False, target_version: Optional[str] = None, user: User = None) -> dict:
         """
         Produce `GET /process_graphs` response data, to be JSONified.
         """
         return {
-            "processes": [udp.to_api_dict(full=False) for udp in self._udps],
+            "version": target_version,
+            "processes": [udp.to_api_dict(full=full, user=user) for udp in self._udps],
             "links": [],
         }
 
@@ -701,9 +703,12 @@ class UserDefinedProcesses(MicroService):
         self,
         user_id: str,
         pagination: Optional[PaginationRequest] = None,
+        public_only: bool = False,
     ) -> UserDefinedProcessesListing:
         # TODO: remove this adapter implementation once `get_for_user` is removed
         udps = self.get_for_user(user_id=user_id)
+        if public_only:
+            udps = [udp for udp in udps if udp.public]
         return UserDefinedProcessesListing(udps=udps)
 
     def save(self, user_id: str, process_id: str, spec: dict) -> None:
