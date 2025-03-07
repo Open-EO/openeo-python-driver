@@ -68,8 +68,17 @@ class OpenEoBackendConfig(_ConfigBase):
 
     url_signer: Optional[UrlSigner] = None
 
-    collection_exclusion_list: Dict[str, List[str]] = {}  # e.g. {"1.1.0":["my_collection_id"]}
-    processes_exclusion_list: Dict[str, List[str]] = {}  # e.g. {"1.1.0":["my_process_id"]}
+    """
+    Collection exclusion list: mapping of API version to collections to exclude
+    e.g. {"1.1.0": ["my_collection_id"]}
+    """
+    collection_exclusion_list: Dict[str, List[str]] = attrs.Factory(dict)
+
+    """
+    Process exclusion list: mapping of API version to processes to exclude
+    e.g. {"1.1.0": ["my_process_id"]}
+    """
+    processes_exclusion_list: Dict[str, List[str]] = attrs.Factory(dict)
 
     workspaces: Dict[str, Workspace] = attrs.Factory(dict)
 

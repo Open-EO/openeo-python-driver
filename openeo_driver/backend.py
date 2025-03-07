@@ -222,12 +222,35 @@ class LoadParameters(dict):
         return copy1 == copy2
 
 
+class CollectionsListing:
+    # TODO #377 pagination support
+    def __init__(self, collections: List[dict]):
+        """
+        :param collections: list of collection metadata dictionaries
+        """
+        self.collections = collections
+
+    def filter_by_id(self, exclusion_list: Iterable[str]) -> CollectionsListing:
+        return CollectionsListing(collections=[c for c in self.collections if c["id"] not in exclusion_list])
+
+    def to_response_dict(self, normalize: Callable[[dict], dict]) -> dict:
+        collections = [normalize(c) for c in self.collections]
+        return {
+            "collections": collections,
+            "links": [],
+        }
+
 class AbstractCollectionCatalog(MicroService, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def get_all_metadata(self) -> List[dict]:
         """Basic metadata for all collections"""
+        # TODO: deprecate/remove this in favor of get_collections_listing?
         ...
+
+    def get_collections_listing(self) -> CollectionsListing:
+        # TODO make this an abstract method once `get_all_metadata` has been eliminated
+        return CollectionsListing(collections=self.get_all_metadata())
 
     @abc.abstractmethod
     def get_collection_metadata(self, collection_id: str) -> dict:
