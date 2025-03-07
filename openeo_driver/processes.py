@@ -303,12 +303,6 @@ class ProcessesListing:
         self.processes = processes
         self.target_version = target_version
 
-    def filter_by_id(self, *, exclusion_list: Iterable[str]) -> ProcessesListing:
-        return ProcessesListing(
-            processes=[p for p in self.processes if p["id"] not in exclusion_list],
-            target_version=self.target_version,
-        )
-
     def to_response_dict(self) -> dict:
         return {
             "version": self.target_version,
