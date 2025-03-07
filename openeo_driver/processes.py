@@ -299,7 +299,7 @@ class ProcessRegistry:
 
 
 class ProcessesListing:
-    def __init__(self, processes: List[dict], target_version: str):
+    def __init__(self, processes: List[dict], *, target_version: str):
         self.processes = processes
         self.target_version = target_version
 
