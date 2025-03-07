@@ -270,7 +270,11 @@ def build_app(
 
 
 def requested_api_version() -> ComparableVersion:
-    """Get the currently requested API version as a ComparableVersion object"""
+    """
+    Get the currently requested API version
+    (`ApiVersionInfo.version` which is typically in "major.minor.patch" resolution)
+    as a ComparableVersion object
+    """
     return ComparableVersion(g.api_version)
 
 
@@ -1793,6 +1797,7 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
     """
     Make sure the given collection metadata roughly complies to desired version of OpenEO spec.
     """
+    # TODO: encapsulate this in a collection metadata class?
     # Make copy and remove all "private" fields
     metadata = copy.deepcopy(metadata)
     metadata = {k: v for (k, v) in metadata.items() if not k.startswith('_')}
@@ -1904,18 +1909,17 @@ def register_views_catalog(
     @blueprint.route('/collections', methods=['GET'])
     @backend_implementation.cache_control
     def collections():
-        metadata = [
-            _normalize_collection_metadata(metadata=m, api_version=requested_api_version(), full=False)
-            for m in backend_implementation.catalog.get_all_metadata()
-        ]
-        exclusion_list = get_backend_config().collection_exclusion_list
-        metadata = _filter_by_id(metadata, exclusion_list)
-        return jsonify(
-            {
-                "collections": metadata,
-                # TODO: how to allow customizing this "links" field?
-                "links": [],
-            }
+        collections_listing = backend_implementation.catalog.get_collections_listing()
+
+        api_version = requested_api_version()
+        exclusion_list = get_backend_config().collection_exclusion_list.get(api_version.to_string())
+        if exclusion_list:
+            collections_listing = collections_listing.filter_by_id(exclusion_list=exclusion_list)
+
+        return flask.jsonify(
+            collections_listing.to_response_dict(
+                normalize=lambda m: _normalize_collection_metadata(metadata=m, api_version=api_version, full=False)
+            )
         )
 
     @api_endpoint

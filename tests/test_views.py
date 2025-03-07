@@ -109,6 +109,11 @@ def api110(client) -> ApiTester:
     return ApiTester(api_version="1.1.0", client=client, data_root=TEST_DATA_ROOT)
 
 
+@pytest.fixture
+def api120(client) -> ApiTester:
+    return ApiTester(api_version="1.2", client=client, data_root=TEST_DATA_ROOT)
+
+
 def api_from_backend_implementation(
         backend_implementation: OpenEoBackendImplementation,
         api_version="1.0.0", data_root=TEST_DATA_ROOT
@@ -1160,6 +1165,32 @@ class TestCollections:
     def test_collection_full_metadata_invalid_caching(self, api):
         resp = api.get('/collections/FOOBOO').assert_error(404, "CollectionNotFound")
         assert "Cache-Control" not in resp.headers
+
+    @pytest.mark.parametrize(
+        ["backend_config_overrides", "expected_present", "expected_absent"],
+        [
+            (
+                {},
+                {"S2_FOOBAR", "S2_FAPAR_CLOUDCOVER", "SENTINEL1_GRD"},
+                set(),
+            ),
+            (
+                {"collection_exclusion_list": {"1.2.0": []}},
+                {"S2_FOOBAR", "S2_FAPAR_CLOUDCOVER", "SENTINEL1_GRD"},
+                set(),
+            ),
+            (
+                {"collection_exclusion_list": {"1.2.0": ["S2_FOOBAR"]}},
+                {"S2_FAPAR_CLOUDCOVER", "SENTINEL1_GRD"},
+                {"S2_FOOBAR"},
+            ),
+        ],
+    )
+    def test_collection_exclusion_list(self, api120, expected_present, expected_absent):
+        resp = api120.get("/collections").assert_status_code(200)
+        collection_ids = set(c["id"] for c in resp.json["collections"])
+        assert expected_present.issubset(collection_ids)
+        assert not expected_absent.intersection(collection_ids)
 
 
 class TestBatchJobs:
