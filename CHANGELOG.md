@@ -19,10 +19,16 @@ and start a new "In Progress" section above it.
 
 <!-- start-of-changelog -->
 
-## In progress: 0.129.0
+## In progress: 0.130.0
+
+- Allow customization of `GET /process_graphs` response (for [Open-EO/openeo-aggregator#125](https://github.com/Open-EO/openeo-aggregator/issues/125))
+
+
+## 0.129.0
 
 - array_apply: sub-process should now work on all supported processes ([Open-EO/openeo-geopyspark-driver#1064](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1064))
 - Prevent access to non-public UDPs through URL guessing.
+
 
 ## 0.128.0
 

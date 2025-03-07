@@ -761,7 +761,9 @@ def register_views_processing(
         # TODO: convention for user namespace? use '@' instead of "u:"
         if namespace.startswith("u:") and backend_implementation.user_defined_processes:
             user_id = namespace.partition("u:")[-1]
-            user_udps = [p for p in backend_implementation.user_defined_processes.get_for_user(user_id) if p.public]
+            user_udps = [
+                p for p in backend_implementation.user_defined_processes.list_for_user(user_id).udps if p.public
+            ]
             processes = [udp.to_api_dict(full=full) for udp in user_udps]
         elif ":" not in namespace:
             process_registry = backend_implementation.processing.get_process_registry(
@@ -1767,13 +1769,8 @@ def register_views_udp(
     @blueprint.route('/process_graphs', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def udp_list_for_user(user: User):
-        user_udps = backend_implementation.user_defined_processes.get_for_user(user.user_id)
-        return {
-            "processes": [udp.to_api_dict(full=False) for udp in user_udps],
-            # TODO: pagination links?
-            # TODO: allow backend_implementation to define links?
-            "links": [],
-        }
+        resp = backend_implementation.user_defined_processes.list_for_user(user_id=user.user_id)
+        return flask.jsonify(resp.to_response_dict(full=False))
 
     @api_endpoint
     @blueprint.route('/process_graphs/<process_graph_id>', methods=['DELETE'])

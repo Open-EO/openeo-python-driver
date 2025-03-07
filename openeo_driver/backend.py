@@ -653,6 +653,18 @@ class UserDefinedProcessMetadata(NamedTuple):
         return dict_no_none(**d)
 
 
+class UserDefinedProcessesListing:
+    # TODO #377 pagination support
+    def __init__(self, udps: List[UserDefinedProcessMetadata]):
+        self.udps = udps
+
+    def to_response_dict(self, full: bool = True) -> dict:
+        return {
+            "processes": [udp.to_api_dict(full=full) for udp in self.udps],
+            "links": [],
+        }
+
+
 class UserDefinedProcesses(MicroService):
     """
     Base contract/implementation for User-Defined Processes "microservice"
@@ -671,7 +683,14 @@ class UserDefinedProcesses(MicroService):
         List user's UDPs
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-custom-processes
         """
+        # TODO: eliminate this legacy API method
         raise NotImplementedError
+
+    def list_for_user(self, user_id: str) -> UserDefinedProcessesListing:
+        # TODO: replace this adapter implementation with `raise NotImplementedError`
+        #       once `get_for_user` can be eliminated
+        udps = self.get_for_user(user_id=user_id)
+        return UserDefinedProcessesListing(udps=udps)
 
     def save(self, user_id: str, process_id: str, spec: dict) -> None:
         """
