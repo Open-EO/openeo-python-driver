@@ -306,7 +306,7 @@ class ProcessesListing:
     def to_response_dict(self) -> dict:
         return {
             "version": self.target_version,
-            "collections": self.processes,
+            "processes": self.processes,
             "links": [],
         }
 
