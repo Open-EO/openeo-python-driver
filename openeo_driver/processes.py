@@ -1,9 +1,10 @@
+from __future__ import annotations
 import functools
 import inspect
 import warnings
 from collections import namedtuple
 from pathlib import Path
-from typing import Any, Callable, Collection, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Collection, Dict, List, Optional, Tuple, Union, Iterable
 
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.errors import (
@@ -262,9 +263,23 @@ class ProcessRegistry:
             raise ProcessUnsupportedException(process=name, namespace=namespace)
         return self._get(name, namespace).spec
 
-    def get_specs(self, substring: str = None, namespace: str = DEFAULT_NAMESPACE) -> List[dict]:
-        """Get all specs (or subset based on name substring)."""
-        id_match = (lambda p: True) if substring is None else (lambda p: substring.lower() in p.spec["id"].lower())
+    def get_specs(
+        self,
+        *,
+        substring: Optional[str] = None,
+        namespace: str = DEFAULT_NAMESPACE,
+        exclusion_list: Optional[Iterable[str]] = None,
+    ) -> List[dict]:
+        """Get all specs (or subset based on name substring/exclusion list)."""
+        exclusion_list = set(exclusion_list or [])
+
+        def id_match(p: ProcessData) -> bool:
+            process_id = p.spec["id"]
+            if substring and substring not in process_id:
+                return False
+            if process_id in exclusion_list:
+                return False
+            return True
         return [
             process_data.spec
             for (ns, n), process_data in self._processes.items()
@@ -276,6 +291,25 @@ class ProcessRegistry:
         if not self.contains(name, namespace) or self._get(name, namespace).function is None:
             raise ProcessUnsupportedException(process=name, namespace=namespace)
         return self._get(name, namespace).function
+
+    def get_processes_listing(self, *, exclusion_list: Optional[Iterable[str]] = None) -> ProcessesListing:
+        return ProcessesListing(
+            processes=self.get_specs(exclusion_list=exclusion_list),
+            target_version=self.target_version,
+        )
+
+
+class ProcessesListing:
+    def __init__(self, processes: List[dict], *, target_version: str):
+        self.processes = processes
+        self.target_version = target_version
+
+    def to_response_dict(self) -> dict:
+        return {
+            "version": self.target_version,
+            "processes": self.processes,
+            "links": [],
+        }
 
 
 # Type annotation aliases

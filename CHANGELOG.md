@@ -23,6 +23,7 @@ and start a new "In Progress" section above it.
 
 - Allow customization of `GET /process_graphs` response. Added `UserDefinedProcesses.list_for_user()` to replace now deprecated `UserDefinedProcesses.get_for_user()` (for [Open-EO/openeo-aggregator#125](https://github.com/Open-EO/openeo-aggregator/issues/125))
 - Allow customization of `GET /collections` response. Added `AbstractCollectionCatalog.get_collections_listing()` to eventually replace `AbstractCollectionCatalog.get_all_metadata()` (for [Open-EO/openeo-aggregator#122](https://github.com/Open-EO/openeo-aggregator/issues/122))
+- Allow customization of `GET /processes` response (for [Open-EO/openeo-aggregator#123](https://github.com/Open-EO/openeo-aggregator/issues/123))
 
 
 ## 0.129.0
