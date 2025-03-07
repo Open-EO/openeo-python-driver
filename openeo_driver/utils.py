@@ -307,12 +307,20 @@ def extract_namedtuple_fields_from_dict(
         )
 
     # Additional auto-conversions (by type annotation)
+    # TODO: this ad-hoc annotation based conversion is apparently brittle
+    #       when `from __future__ import annotations` is used in the module that defines the named tuple.
+    #       Consider switching to dataclasses/attrs instead?
     converters = {}
     if convert_datetime:
         converters[datetime.datetime] = lambda v: rfc3339.parse_datetime(v)
+        converters[typing.ForwardRef("datetime")] = lambda v: rfc3339.parse_datetime(v)
         converters[Optional[datetime.datetime]] = lambda v: Rfc3339(propagate_none=True).parse_datetime(v)
+        converters[typing.ForwardRef("Optional[datetime]")] = lambda v: Rfc3339(propagate_none=True).parse_datetime(v)
     if convert_timedelta:
         converters[datetime.timedelta] = lambda v: datetime.timedelta(seconds=v)  # TODO: assumes always seconds?
+        converters[typing.ForwardRef("timedelta")] = lambda v: datetime.timedelta(
+            seconds=v
+        )  # TODO: assumes always seconds?
 
     if converters:
         for k in result:

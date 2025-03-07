@@ -8,7 +8,7 @@ to allow composability, isolation and better reuse.
 
 Also see https://github.com/Open-EO/openeo-python-driver/issues/8
 """
-
+from __future__ import annotations
 import abc
 import json
 import logging
@@ -627,12 +627,42 @@ class UserDefinedProcessMetadata(NamedTuple):
     public: bool = False  # Note: experimental non-standard flag
 
     @classmethod
-    def from_dict(cls, d: dict) -> 'UserDefinedProcessMetadata':
+    def from_dict(cls, d: dict) -> UserDefinedProcessMetadata:
         d = extract_namedtuple_fields_from_dict(d, UserDefinedProcessMetadata)
         return cls(**d)
 
     def prepare_for_json(self) -> dict:
         return self._asdict()  # pylint: disable=no-member
+
+    def add_link(self, *, rel: str, href: str, title: Optional[str] = None):
+        """Create new UserDefinedProcessMetadata with added link"""
+        kwargs = self._asdict()
+        kwargs["links"] = (kwargs["links"] or []) + [dict_no_none(rel=rel, href=href, title=title)]
+        return UserDefinedProcessMetadata(**kwargs)
+
+    def to_api_dict(self, *, full: bool = True) -> dict:
+        """Produce openEO API-style UDP dict construct (to be jsonified)."""
+        d = self.prepare_for_json()
+        if not full:
+            # API recommends to limit response size by omitting larger/optional fields
+            d = {k: v for k, v in d.items() if k in ["id", "summary", "description", "parameters", "returns"]}
+        if "public" in d and not d["public"]:
+            # Don't include non-standard "public" field when false to stay closer to standard API
+            del d["public"]
+
+        return dict_no_none(**d)
+
+
+class UserDefinedProcessesListing:
+    # TODO #377 pagination support
+    def __init__(self, udps: List[UserDefinedProcessMetadata]):
+        self.udps = udps
+
+    def to_response_dict(self, full: bool = True) -> dict:
+        return {
+            "processes": [udp.to_api_dict(full=full) for udp in self.udps],
+            "links": [],
+        }
 
 
 class UserDefinedProcesses(MicroService):
@@ -653,7 +683,14 @@ class UserDefinedProcesses(MicroService):
         List user's UDPs
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-custom-processes
         """
+        # TODO: eliminate this legacy API method
         raise NotImplementedError
+
+    def list_for_user(self, user_id: str) -> UserDefinedProcessesListing:
+        # TODO: replace this adapter implementation with `raise NotImplementedError`
+        #       once `get_for_user` can be eliminated
+        udps = self.get_for_user(user_id=user_id)
+        return UserDefinedProcessesListing(udps=udps)
 
     def save(self, user_id: str, process_id: str, spec: dict) -> None:
         """
