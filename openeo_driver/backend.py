@@ -689,6 +689,7 @@ class UserDefinedProcesses(MicroService):
     def list_for_user(self, user_id: str) -> UserDefinedProcessesListing:
         # TODO: replace this adapter implementation with `raise NotImplementedError`
         #       once `get_for_user` can be eliminated
+        logger.warning("Falling back on deprecated `get_for_user`. Backend should implement `list_for_user` instead.")
         udps = self.get_for_user(user_id=user_id)
         return UserDefinedProcessesListing(udps=udps)
 

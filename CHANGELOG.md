@@ -21,7 +21,7 @@ and start a new "In Progress" section above it.
 
 ## In progress: 0.130.0
 
-- Allow customization of `GET /process_graphs` response (for [Open-EO/openeo-aggregator#125](https://github.com/Open-EO/openeo-aggregator/issues/125))
+- Allow customization of `GET /process_graphs` response. Added `UserDefinedProcesses.list_for_user()` to replace now deprecated `UserDefinedProcesses.get_for_user()` (for [Open-EO/openeo-aggregator#125](https://github.com/Open-EO/openeo-aggregator/issues/125))
 
 
 ## 0.129.0

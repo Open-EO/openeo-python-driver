@@ -47,6 +47,7 @@ from openeo_driver.backend import (
     ServiceMetadata,
     UserDefinedProcesses,
     UserDefinedProcessMetadata,
+    UserDefinedProcessesListing,
 )
 from openeo_driver.config import OpenEoBackendConfig
 from openeo_driver.constants import JOB_STATUS, STAC_EXTENSION, DEFAULT_LOG_LEVEL_RETRIEVAL
@@ -972,8 +973,10 @@ class DummyUserDefinedProcesses(UserDefinedProcesses):
     def get(self, user_id: str, process_id: str) -> Union[UserDefinedProcessMetadata, None]:
         return self._processes.get((user_id, process_id))
 
-    def get_for_user(self, user_id: str) -> List[UserDefinedProcessMetadata]:
-        return [udp for key, udp in self._processes.items() if key[0] == user_id]
+    def list_for_user(self, user_id: str) -> UserDefinedProcessesListing:
+        return UserDefinedProcessesListing(
+            udps=[udp for key, udp in self._processes.items() if key[0] == user_id],
+        )
 
     def save(self, user_id: str, process_id: str, spec: dict) -> None:
         self._processes[user_id, process_id] = UserDefinedProcessMetadata.from_dict(spec)
