@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+import typing
+
 import functools
 import inspect
 import warnings
@@ -100,6 +103,11 @@ class ProcessRegistryException(Exception):
 DEFAULT_NAMESPACE = "backend"
 
 
+class _ProcessRegKey(typing.NamedTuple):
+    namespace: str
+    name: str
+
+
 class ProcessRegistry:
     """
     Registry for processes we support in the backend.
@@ -115,7 +123,7 @@ class ProcessRegistry:
     ):
         self._processes_spec_root = spec_root
         # Dictionary (namespace, process_name) -> ProcessData
-        self._processes: Dict[Tuple[str, str], ProcessData] = {}
+        self._processes: Dict[_ProcessRegKey, ProcessData] = {}
         # Expected argument names that process function signature should start with
         self._argument_names = argument_names
         # openeo-processes version targeted by this collection of specs (per https://github.com/Open-EO/openeo-api/pull/549)
@@ -124,15 +132,11 @@ class ProcessRegistry:
     def __repr__(self):
         return "<{c} {n} processes>".format(c=self.__class__.__name__, n=len(self._processes))
 
-    def _key(self, name: str, namespace: str = DEFAULT_NAMESPACE) -> Tuple[str, str]:
-        """Lookup key for in `_processes` dict"""
-        return namespace, name
-
     def contains(self, name: str, namespace: str = DEFAULT_NAMESPACE) -> bool:
-        return self._key(name=name, namespace=namespace) in self._processes
+        return _ProcessRegKey(name=name, namespace=namespace) in self._processes
 
     def _get(self, name: str, namespace: str = DEFAULT_NAMESPACE) -> ProcessData:
-        return self._processes[self._key(name=name, namespace=namespace)]
+        return self._processes[_ProcessRegKey(name=name, namespace=namespace)]
 
     def load_predefined_spec(self, name: str) -> dict:
         """Get predefined process specification (dict) based on process name."""
@@ -165,7 +169,7 @@ class ProcessRegistry:
                     f"Process {name!r} has invalid argument names: {arg_names}. Expected {self._argument_names}"
                 )
 
-        self._processes[self._key(name=name, namespace=namespace)] = ProcessData(function=function, spec=spec)
+        self._processes[_ProcessRegKey(name=name, namespace=namespace)] = ProcessData(function=function, spec=spec)
 
     def add_spec(self, spec: dict, namespace: str = DEFAULT_NAMESPACE):
         """Add process specification dictionary."""
@@ -282,8 +286,8 @@ class ProcessRegistry:
             return True
         return [
             process_data.spec
-            for (ns, n), process_data in self._processes.items()
-            if ns == namespace and process_data.spec and id_match(process_data)
+            for k, process_data in self._processes.items()
+            if k.namespace == namespace and process_data.spec and id_match(process_data)
         ]
 
     def get_function(self, name: str, namespace: str = DEFAULT_NAMESPACE) -> Callable:
