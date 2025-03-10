@@ -32,9 +32,10 @@ from openeo_driver.backend import (
 from openeo_driver.config import OpenEoBackendConfig
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.dummy import dummy_backend, dummy_config
-from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
+from openeo_driver.dummy.dummy_backend import DummyBackendImplementation, DummyProcessing
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
+from openeo_driver.processes import ProcessesListing
 from openeo_driver.save_result import VectorCubeResult
 from openeo_driver.testing import (
     TEST_USER,
@@ -523,88 +524,6 @@ class TestGeneral:
         }
         assert response.headers["Cache-Control"] == "max-age=900, public"
 
-    @pytest.mark.parametrize("endpoint", [
-        "/processes",
-        "/processes/backend"
-    ])
-    def test_processes(self, api_version, api, endpoint):
-        resp = api.get(endpoint).assert_status_code(200).json
-        processes = resp["processes"]
-        process_ids = set(p['id'] for p in processes)
-        assert {"load_collection", "min", "max", "sin", "merge_cubes", "mask"}.issubset(process_ids)
-        expected_keys = {"id", "description", "parameters", "returns"}
-        for process in processes:
-            assert all(k in process for k in expected_keys)
-
-        expected_version = "2.0.0-rc.1" if ComparableVersion(api_version) >= "1.2" else "1.2.0"
-        assert resp["version"] == expected_version
-
-    @pytest.mark.parametrize("backend_config_overrides", [{"processes_exclusion_list": {"1.0.0":["merge_cubes"]}}])
-    def test_processes_exclusion(self, api, backend_config_overrides):
-        resp = api.get('/processes').assert_status_code(200).json
-        ids = [c["id"] for c in resp["processes"]]
-        if ComparableVersion(api.api_version) == "1.0.0":
-            assert "merge_cubes" not in ids
-        else:
-            assert "merge_cubes" in ids
-
-    def test_process_details(self, api100):
-        spec = api100.get("/processes/backend/add").assert_status_code(200).json
-        assert spec["id"] == "add"
-        assert spec["summary"].lower() == "addition of two numbers"
-        assert "x + y" in spec["description"]
-        assert set(p["name"] for p in spec["parameters"]) == {"x", "y"}
-        assert "computed sum" in spec["returns"]["description"]
-        assert "process_graph" in spec
-
-    def test_processes_non_standard_atmospheric_correction(self, api):
-        if api.api_version_compare.below("1.0.0"):
-            pytest.skip()
-        resp = api.get('/processes').assert_status_code(200).json
-        spec, = [p for p in resp["processes"] if p['id'] == "atmospheric_correction"]
-        assert spec["summary"] == "Apply atmospheric correction"
-        assert spec["categories"] == ["cubes", "optical"]
-        assert spec["experimental"] is True
-        assert spec["links"][0]["rel"] == "about"
-        assert "DigitalElevationModelInvalid" in spec["exceptions"]
-
-
-    def test_custom_process_listing(self, api100):
-        process_id = generate_unique_test_process_id()
-
-        # Register a custom process with process graph
-        process_spec = api100.load_json("pg/1.0/add_and_multiply.json")
-        process_spec["id"] = process_id
-        custom_process_from_process_graph(process_spec=process_spec)
-
-        processes = api100.get("/processes").assert_status_code(200).json["processes"]
-        processes_by_id = {p["id"]: p for p in processes}
-        assert process_id in processes_by_id
-        assert processes_by_id[process_id] == process_spec
-
-    def test_processes_from_namespace(self, api100):
-        process_id = generate_unique_test_process_id()
-
-        # Register a custom process with process graph
-        process_spec = api100.load_json("pg/1.0/add_and_multiply.json")
-        process_spec["id"] = process_id
-        custom_process_from_process_graph(process_spec=process_spec, namespace="foobar")
-        process_spec_short = process_spec.copy()
-        process_spec_short.pop("process_graph")
-
-        processes = api100.get("/processes/foobar").assert_status_code(200).json["processes"]
-        processes_by_id = {p["id"]: p for p in processes}
-        assert process_id in processes_by_id
-        assert processes_by_id[process_id] == process_spec_short
-
-        processes = api100.get("/processes/foobar?full=yes").assert_status_code(200).json["processes"]
-        processes_by_id = {p["id"]: p for p in processes}
-        assert process_id in processes_by_id
-        assert processes_by_id[process_id] == process_spec
-
-        processes = api100.get("/processes").assert_status_code(200).json["processes"]
-        assert "increment" not in set(p['id'] for p in processes)
-
     @pytest.mark.parametrize(["user_id", "expect_success"], [
         ("Mark", False),
         ("John", True),
@@ -648,6 +567,124 @@ class TestGeneral:
             response.assert_error(status_code=413, error_code="Internal", message="Request Entity Too Large")
         else:
             response.assert_status_code(201)
+
+
+class TestProcessRegistry:
+    @pytest.mark.parametrize(
+        "endpoint",
+        [
+            "/processes",
+            "/processes/backend",
+        ],
+    )
+    def test_processes_basic(self, api_version, api, endpoint):
+        resp = api.get(endpoint).assert_status_code(200).json
+        processes = resp["processes"]
+        process_ids = set(p["id"] for p in processes)
+        assert {"load_collection", "min", "max", "sin", "merge_cubes", "mask"}.issubset(process_ids)
+        expected_keys = {"id", "description", "parameters", "returns"}
+        for process in processes:
+            assert all(k in process for k in expected_keys)
+
+        expected_version = "2.0.0-rc.1" if ComparableVersion(api_version) >= "1.2" else "1.2.0"
+        assert resp["version"] == expected_version
+
+    @pytest.mark.parametrize(
+        "backend_config_overrides",
+        [
+            {"processes_exclusion_list": {"1.0.0": ["merge_cubes"]}},
+        ],
+    )
+    def test_processes_exclusion(self, api, backend_config_overrides):
+        resp = api.get("/processes").assert_status_code(200).json
+        ids = [c["id"] for c in resp["processes"]]
+        if ComparableVersion(api.api_version) == "1.0.0":
+            assert "merge_cubes" not in ids
+        else:
+            assert "merge_cubes" in ids
+
+    def test_process_details(self, api100):
+        spec = api100.get("/processes/backend/add").assert_status_code(200).json
+        assert spec["id"] == "add"
+        assert spec["summary"].lower() == "addition of two numbers"
+        assert "x + y" in spec["description"]
+        assert set(p["name"] for p in spec["parameters"]) == {"x", "y"}
+        assert "computed sum" in spec["returns"]["description"]
+        assert "process_graph" in spec
+
+    def test_processes_non_standard_atmospheric_correction(self, api):
+        if api.api_version_compare.below("1.0.0"):
+            pytest.skip()
+        resp = api.get("/processes").assert_status_code(200).json
+        (spec,) = [p for p in resp["processes"] if p["id"] == "atmospheric_correction"]
+        assert spec["summary"] == "Apply atmospheric correction"
+        assert spec["categories"] == ["cubes", "optical"]
+        assert spec["experimental"] is True
+        assert spec["links"][0]["rel"] == "about"
+        assert "DigitalElevationModelInvalid" in spec["exceptions"]
+
+    def test_custom_processes(self, api100):
+        process_id = generate_unique_test_process_id()
+
+        # Register a custom process with process graph
+        process_spec = api100.load_json("pg/1.0/add_and_multiply.json")
+        process_spec["id"] = process_id
+        custom_process_from_process_graph(process_spec=process_spec)
+
+        processes = api100.get("/processes").assert_status_code(200).json["processes"]
+        processes_by_id = {p["id"]: p for p in processes}
+        assert process_id in processes_by_id
+        assert processes_by_id[process_id] == process_spec
+
+    def test_processes_from_namespace(self, api100):
+        process_id = generate_unique_test_process_id()
+
+        # Register a custom process with process graph
+        process_spec = api100.load_json("pg/1.0/add_and_multiply.json")
+        process_spec["id"] = process_id
+        custom_process_from_process_graph(process_spec=process_spec, namespace="foobar")
+        process_spec_short = process_spec.copy()
+        process_spec_short.pop("process_graph")
+
+        processes = api100.get("/processes/foobar").assert_status_code(200).json["processes"]
+        processes_by_id = {p["id"]: p for p in processes}
+        assert process_id in processes_by_id
+        assert processes_by_id[process_id] == process_spec_short
+
+        processes = api100.get("/processes/foobar?full=yes").assert_status_code(200).json["processes"]
+        processes_by_id = {p["id"]: p for p in processes}
+        assert process_id in processes_by_id
+        assert processes_by_id[process_id] == process_spec
+
+        processes = api100.get("/processes").assert_status_code(200).json["processes"]
+        assert "increment" not in set(p["id"] for p in processes)
+
+    @pytest.mark.parametrize(
+        ["dummy_processing", "expected"],
+        [
+            (
+                DummyProcessing(use_dummy_process_registry=["add"]),
+                {
+                    "processes": dirty_equals.IsList(length=1),
+                    "flavor": "salt and pepper",
+                    "links": [{"rel": "docs", "href": "http://processing.test/dummy"}],
+                    "version": "dummy-v2",
+                },
+            ),
+            (
+                # Default: just use standard ProcessRegistries
+                None,
+                {
+                    "processes": dirty_equals.IsList(length=...),
+                    "links": [],
+                    "version": "2.0.0-rc.1",
+                },
+            ),
+        ],
+    )
+    def test_custom_process_listing_response(self, api120, dummy_processing, expected):
+        resp = api120.get("/processes").assert_status_code(200).json
+        assert resp == expected
 
 
 @pytest.fixture

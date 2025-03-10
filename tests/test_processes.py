@@ -370,10 +370,10 @@ def test_process_registry_get_specs():
     reg.add_spec_by_name("min")
     reg.add_spec_by_name("max")
     reg.add_spec_by_name("sin")
-    assert set(p['id'] for p in reg.get_specs()) == {"max", "min", "sin"}
-    assert set(p['id'] for p in reg.get_specs('')) == {"max", "min", "sin"}
-    assert set(p['id'] for p in reg.get_specs("m")) == {"max", "min"}
-    assert set(p['id'] for p in reg.get_specs("in")) == {"min", "sin"}
+    assert set(p["id"] for p in reg.get_specs()) == {"max", "min", "sin"}
+    assert set(p["id"] for p in reg.get_specs(substring="")) == {"max", "min", "sin"}
+    assert set(p["id"] for p in reg.get_specs(substring="m")) == {"max", "min"}
+    assert set(p["id"] for p in reg.get_specs(substring="in")) == {"min", "sin"}
 
 
 def test_process_registry_get_specs_namepsaces():
@@ -381,13 +381,13 @@ def test_process_registry_get_specs_namepsaces():
     reg.add_spec_by_name("min", namespace="stats")
     reg.add_spec_by_name("max", namespace="stats")
     reg.add_spec_by_name("sin", namespace="math")
-    assert set(p['id'] for p in reg.get_specs()) == set()
-    assert set(p['id'] for p in reg.get_specs(namespace="stats")) == {"max", "min"}
-    assert set(p['id'] for p in reg.get_specs(namespace="math")) == {"sin"}
-    assert set(p['id'] for p in reg.get_specs("", namespace="stats")) == {"max", "min"}
-    assert set(p['id'] for p in reg.get_specs("m", namespace="math")) == set()
-    assert set(p['id'] for p in reg.get_specs("in", namespace="stats")) == {"min"}
-    assert set(p['id'] for p in reg.get_specs("in", namespace="math")) == {"sin"}
+    assert set(p["id"] for p in reg.get_specs()) == set()
+    assert set(p["id"] for p in reg.get_specs(namespace="stats")) == {"max", "min"}
+    assert set(p["id"] for p in reg.get_specs(namespace="math")) == {"sin"}
+    assert set(p["id"] for p in reg.get_specs(substring="", namespace="stats")) == {"max", "min"}
+    assert set(p["id"] for p in reg.get_specs(substring="m", namespace="math")) == set()
+    assert set(p["id"] for p in reg.get_specs(substring="in", namespace="stats")) == {"min"}
+    assert set(p["id"] for p in reg.get_specs(substring="in", namespace="math")) == {"sin"}
 
 
 def test_process_registry_add_simple_function():

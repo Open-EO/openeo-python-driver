@@ -14,7 +14,7 @@ import openeo_driver.config.load
 import openeo_driver.dummy.dummy_config
 from openeo_driver.backend import UserDefinedProcesses
 from openeo_driver.config import OpenEoBackendConfig
-from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
+from openeo_driver.dummy.dummy_backend import DummyBackendImplementation, DummyProcessing
 from openeo_driver.testing import UrllibMocker, config_overrides
 from openeo_driver.util.logging import (
     LOGGING_CONTEXT_BATCH_JOB,
@@ -57,8 +57,13 @@ def backend_config(backend_config_overrides) -> OpenEoBackendConfig:
 
 
 @pytest.fixture
-def backend_implementation(backend_config) -> DummyBackendImplementation:
-    return DummyBackendImplementation()
+def dummy_processing() -> DummyProcessing:
+    return DummyProcessing()
+
+
+@pytest.fixture
+def backend_implementation(backend_config, dummy_processing) -> DummyBackendImplementation:
+    return DummyBackendImplementation(config=backend_config, processing=dummy_processing)
 
 
 @pytest.fixture

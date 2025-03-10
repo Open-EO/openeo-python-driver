@@ -28,6 +28,7 @@ from openeo.metadata import (
     TemporalDimension,
 )
 from openeo.util import rfc3339
+from openeo.utils.version import ComparableVersion
 from shapely.geometry import MultiPolygon, Polygon
 from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 from shapely.geometry.collection import GeometryCollection
@@ -62,6 +63,7 @@ from openeo_driver.errors import (
     PermissionsInsufficientException,
     ProcessGraphNotFoundException,
 )
+from openeo_driver.processes import ProcessRegistry, ProcessesListing
 from openeo_driver.ProcessGraphDeserializer import ConcreteProcessing
 from openeo_driver.save_result import (
     AggregatePolygonResult,
@@ -642,7 +644,36 @@ class DummyCatalog(CollectionCatalog):
         return unittest.mock.patch.dict(self._catalog, extra_collections)
 
 
+class DummyProcessesListing(ProcessesListing):
+    def to_response_dict(self) -> dict:
+        resp = super().to_response_dict()
+        resp["links"].append({"rel": "docs", "href": "http://processing.test/dummy"})
+        resp["flavor"] = "salt and pepper"
+        resp["version"] = "dummy-v2"
+        return resp
+
+
+class DummyProcessRegistry(ProcessRegistry):
+    def get_processes_listing(self, *, exclusion_list: Optional[Iterable[str]] = None) -> ProcessesListing:
+        return DummyProcessesListing(
+            processes=self.get_specs(exclusion_list=exclusion_list),
+            target_version=self.target_version,
+        )
+
+
 class DummyProcessing(ConcreteProcessing):
+    def __init__(self, use_dummy_process_registry: Union[bool, List[str]] = False):
+        super().__init__()
+        self.use_dummy_process_registry = use_dummy_process_registry
+
+    def get_process_registry(self, api_version: Union[str, ComparableVersion]) -> ProcessRegistry:
+        if self.use_dummy_process_registry:
+            reg = DummyProcessRegistry()
+            if isinstance(self.use_dummy_process_registry, list):
+                reg.add_spec_by_name(*self.use_dummy_process_registry)
+            return reg
+        return super().get_process_registry(api_version=api_version)
+
     def extra_validation(
             self, process_graph: dict, env: EvalEnv, result, source_constraints: List[SourceConstraint]
     ) -> Iterable[dict]:

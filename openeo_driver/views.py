@@ -740,17 +740,10 @@ def register_views_processing(
     @backend_implementation.cache_control
     def processes():
         process_registry = backend_implementation.processing.get_process_registry(api_version=requested_api_version())
-        processes = process_registry.get_specs()
-        exclusion_list = get_backend_config().processes_exclusion_list
-        processes = _filter_by_id(processes, exclusion_list)
-
-        return jsonify(
-            {
-                "version": process_registry.target_version,
-                "processes": processes,
-                "links": [],
-            }
-        )
+        api_version = requested_api_version()
+        exclusion_list = get_backend_config().processes_exclusion_list.get(api_version.to_string())
+        processes_listing = process_registry.get_processes_listing(exclusion_list=exclusion_list)
+        return flask.jsonify(processes_listing.to_response_dict())
 
     @api_endpoint
     @blueprint.route('/processes/<namespace>', methods=['GET'])
@@ -1896,10 +1889,6 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
 
     return metadata
 
-def _filter_by_id(metadata, exclusion_list):
-    if requested_api_version().to_string() in exclusion_list:
-        metadata = [m for m in metadata if m["id"] not in exclusion_list[requested_api_version().to_string()]]
-    return metadata
 
 def register_views_catalog(
         blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
