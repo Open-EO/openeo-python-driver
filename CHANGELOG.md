@@ -19,7 +19,12 @@ and start a new "In Progress" section above it.
 
 <!-- start-of-changelog -->
 
-## In progress: 0.130.0
+## In progress: 0.131.0
+
+- `ProcessRegistry`: add `allow_override mode` (related to [#376](https://github.com/Open-EO/openeo-python-driver/issues/376))
+
+
+## 0.130.0
 
 - Allow customization of `GET /process_graphs` response. Added `UserDefinedProcesses.list_for_user()` to replace now deprecated `UserDefinedProcesses.get_for_user()` (for [Open-EO/openeo-aggregator#125](https://github.com/Open-EO/openeo-aggregator/issues/125))
 - Allow customization of `GET /collections` response. Added `AbstractCollectionCatalog.get_collections_listing()` to eventually replace `AbstractCollectionCatalog.get_all_metadata()` (for [Open-EO/openeo-aggregator#122](https://github.com/Open-EO/openeo-aggregator/issues/122))

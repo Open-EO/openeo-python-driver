@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import typing
-
+import logging
 import functools
 import inspect
 import warnings
@@ -19,6 +19,8 @@ from openeo_driver.specs import SPECS_ROOT
 from openeo_driver.util.geometry import validate_geojson_basic
 from openeo_driver.utils import EvalEnv, read_json
 
+
+_log = logging.getLogger(__name__)
 
 class ProcessParameter:
     """Process Parameter."""
@@ -167,6 +169,7 @@ class ProcessRegistry:
         function: Optional[Callable] = None,
         spec: Optional[dict] = None,
         namespace: str = DEFAULT_NAMESPACE,
+        allow_override: bool = False,
     ):
         """
         Generic method to add a process to the registry,
@@ -196,7 +199,10 @@ class ProcessRegistry:
                 and also wrap it so that warnings are triggered when used
         """
         if self.contains(name, namespace):
-            raise ProcessRegistryException(f"Process {name!r} already defined in namespace {namespace!r}")
+            if allow_override:
+                _log.info(f"Overriding process {name} (namespace {namespace})")
+            else:
+                raise ProcessRegistryException(f"Process {name!r} already defined in namespace {namespace!r}")
         if spec:
             if name != spec["id"]:
                 raise ProcessRegistryException(f"Process {name!r} has unexpected id {spec['id']!r}")
@@ -234,6 +240,7 @@ class ProcessRegistry:
         name: Optional[str] = None,
         spec: Optional[dict] = None,
         namespace: str = DEFAULT_NAMESPACE,
+        allow_override: bool = False,
     ) -> Callable:
         """
         Register the process corresponding with given function.
@@ -245,14 +252,17 @@ class ProcessRegistry:
         """
         if f is None:
             # Called as parameterized decorator
-            return functools.partial(self.add_function, name=name, spec=spec, namespace=namespace)
+            return functools.partial(
+                self.add_function, name=name, spec=spec, namespace=namespace, allow_override=allow_override
+            )
 
         # TODO check if function arguments correspond with spec
         self.add_process(
             name=name or f.__name__,
             function=f,
             spec=spec or self.load_predefined_spec(name or f.__name__),
-            namespace=namespace
+            namespace=namespace,
+            allow_override=allow_override,
         )
         return f
 
