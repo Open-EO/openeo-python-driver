@@ -348,8 +348,10 @@ class ConcreteProcessing(Processing):
             _log.info("Dry run extracted these source constraints: {s}".format(s=source_constraints))
             env = env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
         except OpenEOApiException as e:
+            _log.error(f"dry run phase of validation failed: {e!r}", exc_info=True)
             return [{"code": e.code, "message": str(e)}]
         except Exception as e:
+            _log.error(f"dry run phase of validation failed: {e!r}", exc_info=True)
             return [{"code": "Internal", "message": str(e)}]
 
         errors = []
