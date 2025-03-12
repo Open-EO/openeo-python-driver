@@ -213,6 +213,7 @@ def custom_process_from_process_graph(
     process_spec: Union[dict, Path],
     process_registries: Sequence[ProcessRegistry] = (process_registry_100, process_registry_2xx),
     namespace: str = DEFAULT_NAMESPACE,
+    hidden: bool = False,
 ):
     """
     Register a custom process from a process spec containing a "process_graph" definition
@@ -227,7 +228,10 @@ def custom_process_from_process_graph(
     process_id = process_spec["id"]
     process_function = _process_function_from_process_graph(process_spec)
     for process_registry in process_registries:
-        process_registry.add_function(process_function, name=process_id, spec=process_spec, namespace=namespace)
+        if hidden:
+            process_registry.add_hidden(process_function, name=process_id, namespace=namespace)
+        else:
+            process_registry.add_function(process_function, name=process_id, spec=process_spec, namespace=namespace)
 
 
 def _process_function_from_process_graph(process_spec: dict) -> ProcessFunction:

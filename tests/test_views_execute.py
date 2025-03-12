@@ -3636,6 +3636,29 @@ def test_execute_custom_process_by_process_graph_namespaced(api):
     assert res == 30
 
 
+@pytest.mark.parametrize("hidden", [False, True])
+def test_execute_custom_process_by_process_graph_hidden(api, hidden):
+    process_id = generate_unique_test_process_id()
+    # Register a custom process with minimal process graph
+    process_spec = {
+        "id": process_id,
+        "process_graph": {
+            "increment": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 1}, "result": True}
+        },
+    }
+    custom_process_from_process_graph(process_spec=process_spec, hidden=hidden)
+    # Apply process
+    res = api.check_result(
+        {
+            "do_math": {"process_id": process_id, "arguments": {"x": 2}, "result": True},
+        }
+    ).json
+    assert res == 3
+
+    process_ids = set(p["id"] for p in api.get("/processes").assert_status_code(200).json["processes"])
+    assert (process_id not in process_ids) == hidden
+
+
 def test_normalized_difference(api):
     res = api.check_result({
         "do_math": {
