@@ -19,11 +19,13 @@ and start a new "In Progress" section above it.
 
 <!-- start-of-changelog -->
 
-## In progress: 0.131.0
+## In progress: 0.131.1
 
-- `ProcessRegistry`: add `allow_override mode` (related to [#376](https://github.com/Open-EO/openeo-python-driver/issues/376))
 - `custom_process_from_process_graph`: add option to hide process from public process listing
 
+## 0.131.0
+
+- `ProcessRegistry`: add `allow_override mode` (related to [#376](https://github.com/Open-EO/openeo-python-driver/issues/376))
 
 ## 0.130.0
 
