@@ -2210,6 +2210,10 @@ def atmospheric_correction(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/sar_backscatter.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/2.x/proposals/sar_backscatter.json"))
 def sar_backscatter(args: ProcessArgs, env: EvalEnv):
+    # Note: this default `sar_backscatter` implementation can be subject
+    #       to deployment-specific overrides (e.g. through "custom_processes" functionality).
+    #       For example to change possible coefficient values, defaults, etc.
+    #       Also see https://github.com/Open-EO/openeo-python-driver/issues/376
     cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
     kwargs = args.get_subset(
         names=[
