@@ -211,6 +211,7 @@ def custom_process(f: ProcessFunction):
 
 def custom_process_from_process_graph(
     process_spec: Union[dict, Path],
+    *,
     process_registries: Sequence[ProcessRegistry] = (process_registry_100, process_registry_2xx),
     namespace: str = DEFAULT_NAMESPACE,
     hidden: bool = False,
@@ -221,8 +222,9 @@ def custom_process_from_process_graph(
     :param process_spec: process spec dict or path to a JSON file,
         containing keys like "id", "process_graph", "parameter"
     :param process_registries: process registries to register to
+    :param namespace: process namespace
+    :param hidden: whether to register as hidden process
     """
-    # TODO: option to hide process graph for (public) listing
     if isinstance(process_spec, Path):
         process_spec = load_json(process_spec)
     process_id = process_spec["id"]
