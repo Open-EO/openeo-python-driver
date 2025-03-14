@@ -69,8 +69,9 @@ _log = logging.getLogger(__name__)
 ApiVersionInfo = namedtuple("ApiVersionInfo", ["version", "supported", "wellknown", "production"])
 
 # TODO: move this version info listing and default version configurable too?
+# TODO #382 deprecate API_VERSIONS in favor of OPENEO_API_VERSIONS
 # Available OpenEO API versions: map of URL version component to API version info
-API_VERSIONS = {
+OPENEO_API_VERSIONS = API_VERSIONS = {
     "1.0.0": ApiVersionInfo(version="1.0.0", supported=True, wellknown=False, production=True),
     "1.0": ApiVersionInfo(version="1.0.0", supported=True, wellknown=True, production=True),
     "1.0.1": ApiVersionInfo(version="1.0.1", supported=True, wellknown=False, production=True),
@@ -79,10 +80,10 @@ API_VERSIONS = {
     "1.2": ApiVersionInfo(version="1.2.0", supported=True, wellknown=True, production=True),
     "1": ApiVersionInfo(version="1.2.0", supported=True, wellknown=False, production=True),
 }
-API_VERSION_DEFAULT = "1.2"
+# TODO #382 deprecate API_VERSION_DEFAULT in favor of OPENEO_API_VERSION_DEFAULT
+OPENEO_API_VERSION_DEFAULT = API_VERSION_DEFAULT = "1.2"
 
-_log.info("API Versions: {v}".format(v=API_VERSIONS))
-_log.info("Default API Version: {v}".format(v=API_VERSION_DEFAULT))
+_log.info(f"{OPENEO_API_VERSIONS=} {OPENEO_API_VERSION_DEFAULT=}")
 
 
 STREAM_CHUNK_SIZE_DEFAULT = 10 * 1024
@@ -142,25 +143,27 @@ def build_app(
     @app.url_defaults
     def _add_version(endpoint, values):
         """Blueprint.url_defaults handler to automatically add "version" argument in `url_for` calls."""
+        # TODO #382 use key "openeo_api_version" for clarity instead of "version"?
         if "version" not in values and current_app.url_map.is_endpoint_expecting(
             endpoint, "version"
         ):
-            values["version"] = g.get("request_version", API_VERSION_DEFAULT)
+            values["version"] = g.get("request_version", OPENEO_API_VERSION_DEFAULT)
 
     @app.url_value_preprocessor
     def _pull_version(endpoint, values):
         """Get API version from request and store in global context"""
-        version = (values or {}).pop("version", API_VERSION_DEFAULT)
-        if not (version in API_VERSIONS and API_VERSIONS[version].supported):
+        # TODO #382 use key "openeo_api_version" for clarity instead of "version"?
+        version = (values or {}).pop("version", OPENEO_API_VERSION_DEFAULT)
+        if not (version in OPENEO_API_VERSIONS and OPENEO_API_VERSIONS[version].supported):
             raise OpenEOApiException(
                 status_code=501,
                 code="UnsupportedApiVersion",
                 message="Unsupported version component in URL: {v!r}.  Available versions: {s!r}".format(
-                    v=version, s=[k for k, v in API_VERSIONS.items() if v.supported]
+                    v=version, s=[k for k, v in OPENEO_API_VERSIONS.items() if v.supported]
                 )
             )
         g.request_version = version
-        g.api_version = API_VERSIONS[version].version
+        g.openeo_api_version = OPENEO_API_VERSIONS[version].version
 
     @app.before_request
     def _before_request():
@@ -191,17 +194,19 @@ def build_app(
     @app.route('/.well-known/openeo', methods=['GET'])
     @backend_implementation.cache_control
     def well_known_openeo():
-        return jsonify({
-            'versions': [
-                {
-                    "url": url_for('openeo.index', version=k, _external=True),
-                    "api_version": v.version,
-                    "production": v.production,
-                }
-                for k, v in API_VERSIONS.items()
-                if v.wellknown
-            ]
-        })
+        return jsonify(
+            {
+                "versions": [
+                    {
+                        "url": url_for("openeo.index", version=k, _external=True),
+                        "api_version": v.version,
+                        "production": v.production,
+                    }
+                    for k, v in OPENEO_API_VERSIONS.items()
+                    if v.wellknown
+                ]
+            }
+        )
 
     @app.route('/', methods=['GET'])
     def redirect_root():
@@ -275,7 +280,7 @@ def requested_api_version() -> ComparableVersion:
     (`ApiVersionInfo.version` which is typically in "major.minor.patch" resolution)
     as a ComparableVersion object
     """
-    return ComparableVersion(g.api_version)
+    return ComparableVersion(g.openeo_api_version)
 
 
 def register_error_handlers(app: flask.Flask, backend_implementation: OpenEoBackendImplementation):
@@ -415,7 +420,7 @@ def register_views_general(
             "id": service_id,
             "title": title,
             "description": textwrap.dedent(backend_config.capabilities_description).strip(),
-            "production": API_VERSIONS[g.request_version].production,
+            "production": OPENEO_API_VERSIONS[g.request_version].production,
             "endpoints": endpoints,
             "billing": backend_implementation.capabilities_billing(),
             # TODO: deprecate custom _backend_deploy_metadata
@@ -645,11 +650,15 @@ def register_views_processing(
             process_graph = post_data["process_graph"]
         except (KeyError, TypeError) as e:
             raise ProcessGraphMissingException
-        env = EvalEnv({
-            "backend_implementation": backend_implementation,
-            "version": g.api_version,
-            "user": None
-        })
+        env = EvalEnv(
+            {
+                "backend_implementation": backend_implementation,
+                # TODO #382 Deprecated field "version", use "openeo_api_version" instead
+                "version": g.openeo_api_version,
+                "openeo_api_version": g.openeo_api_version,
+                "user": None,
+            }
+        )
         errors = backend_implementation.processing.validate(process_graph=process_graph, env=env)
         return jsonify({"errors": errors})
 
@@ -678,7 +687,9 @@ def register_views_processing(
         env = EvalEnv(
             {
                 "backend_implementation": backend_implementation,
-                "version": g.api_version,
+                # TODO #382 Deprecated field "version", use "openeo_api_version" instead
+                "version": g.openeo_api_version,
+                "openeo_api_version": g.openeo_api_version,
                 "pyramid_levels": "highest",
                 "user": user,
                 "require_bounds": True,
@@ -922,7 +933,7 @@ def register_views_batch_jobs(
                 user=user,
             ),
             process=process,
-            api_version=g.api_version,
+            api_version=g.openeo_api_version,
             metadata=metadata,
             job_options=job_options,
         )
@@ -1655,7 +1666,7 @@ def register_views_secondary_services(
             user_id=user.user_id,
             process_graph=_extract_process_graph(post_data),
             service_type=post_data["type"],
-            api_version=g.api_version,
+            api_version=g.openeo_api_version,
             configuration=post_data.get("configuration", {})
         )
 
