@@ -1,68 +1,77 @@
 import copy
 import datetime as dt
 import functools
-import inspect
 import json
 import logging
 import os
-import sys
 import pathlib
 import re
 import textwrap
-from collections import namedtuple, defaultdict
 import typing
-from traceback_with_variables import format_exc, Format
-from typing import Callable, Tuple, List, Optional, Union
+from collections import defaultdict, namedtuple
+from typing import Callable, List, Optional, Tuple, Union
 
 import flask
 import flask_cors
-import numpy as np
-from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, \
-    current_app, redirect
+from flask import (
+    Blueprint,
+    Flask,
+    abort,
+    current_app,
+    g,
+    jsonify,
+    make_response,
+    redirect,
+    request,
+    send_from_directory,
+    url_for,
+)
+from openeo.util import Rfc3339, TimingLogger, deep_get, dict_no_none
+from openeo.utils.version import ComparableVersion
 from pyproj import CRS
 from shapely.geometry import mapping
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from openeo.utils.version import ComparableVersion
-from openeo.util import dict_no_none, deep_get, Rfc3339, TimingLogger
-from openeo_driver.processgraph import extract_default_job_options_from_process_graph, ProcessGraphFlatDict
-from openeo_driver.urlsigning import UrlSigner
 from openeo_driver.backend import (
-    ServiceMetadata,
     BatchJobMetadata,
-    UserDefinedProcessMetadata,
-    ErrorSummary,
-    OpenEoBackendImplementation,
     BatchJobs,
-    is_not_implemented,
-    function_has_argument,
+    ErrorSummary,
     JobListing,
+    OpenEoBackendImplementation,
+    ServiceMetadata,
+    UserDefinedProcessMetadata,
+    function_has_argument,
+    is_not_implemented,
 )
-from openeo_driver.config import get_backend_config, OpenEoBackendConfig
-from openeo_driver.constants import STAC_EXTENSION, DEFAULT_LOG_LEVEL_RETRIEVAL, DEFAULT_LOG_LEVEL_PROCESSING
+from openeo_driver.config import OpenEoBackendConfig, get_backend_config
+from openeo_driver.constants import (
+    DEFAULT_LOG_LEVEL_PROCESSING,
+    DEFAULT_LOG_LEVEL_RETRIEVAL,
+    JOB_STATUS,
+    STAC_EXTENSION,
+)
 from openeo_driver.datacube import DriverMlModel
 from openeo_driver.errors import (
-    OpenEOApiException,
-    ProcessGraphMissingException,
-    ServiceNotFoundException,
-    FilePathInvalidException,
-    ProcessGraphNotFoundException,
     FeatureUnsupportedException,
-    ProcessUnsupportedException,
-    JobNotFinishedException,
-    ProcessGraphInvalidException,
+    FilePathInvalidException,
     InternalException,
-    ProcessGraphComplexityException,
+    JobNotFinishedException,
+    OpenEOApiException,
+    ProcessGraphInvalidException,
+    ProcessGraphMissingException,
+    ProcessGraphNotFoundException,
+    ProcessUnsupportedException,
+    ServiceNotFoundException,
 )
-from openeo_driver.constants import JOB_STATUS
 from openeo_driver.jobregistry import PARTIAL_JOB_STATUS
+from openeo_driver.processgraph import ProcessGraphFlatDict, extract_default_job_options_from_process_graph
 from openeo_driver.save_result import SaveResult, to_save_result
-from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
+from openeo_driver.users import User, user_id_b64_decode, user_id_b64_encode
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.util.geometry import BoundingBox, reproject_geometry
-from openeo_driver.util.logging import FlaskRequestCorrelationIdLogging, ExtraLoggingFilter
-from openeo_driver.utils import EvalEnv, smart_bool, generate_unique_id, filter_supported_kwargs
+from openeo_driver.util.logging import ExtraLoggingFilter, FlaskRequestCorrelationIdLogging
+from openeo_driver.utils import EvalEnv, filter_supported_kwargs, smart_bool
 
 _log = logging.getLogger(__name__)
 

@@ -32,7 +32,7 @@ from openeo_driver.ProcessGraphDeserializer import (
 )
 from openeo_driver.save_result import SaveResult
 from openeo_driver.testing import DictSubSet, approxify, ephemeral_fileserver
-from openeo_driver.util.geometry import BoundingBox, as_geojson_feature_collection
+from openeo_driver.util.geometry import as_geojson_feature_collection
 from openeo_driver.utils import EvalEnv
 from openeo_driver.views import OPENEO_API_VERSION_DEFAULT
 from openeo_driver.workspacerepository import WorkspaceRepository

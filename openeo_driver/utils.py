@@ -10,12 +10,10 @@ import typing
 import uuid
 from math import isnan
 from pathlib import Path
-from typing import Any, List, Optional, Tuple, Union, Callable
+from typing import Any, Callable, List, Optional, Tuple, Union
 
-from deprecated import deprecated
-from openeo.util import rfc3339, Rfc3339
+from openeo.util import Rfc3339, rfc3339
 from openeo.utils.version import ComparableVersion
-
 
 _log = logging.getLogger(__name__)
 

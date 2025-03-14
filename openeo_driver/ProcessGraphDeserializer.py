@@ -9,17 +9,12 @@ import datetime
 import logging
 import math
 import re
-import tempfile
 import time
-import warnings
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, Sequence, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import geopandas as gpd
 import numpy as np
-from pyproj import CRS
-from pyproj.exceptions import CRSError
-
 import openeo.udf
 import openeo_processes
 import pandas as pd
@@ -27,50 +22,53 @@ import pyproj
 import shapely.geometry
 import shapely.ops
 from dateutil.relativedelta import relativedelta
-from openeo.utils.version import ComparableVersion
 from openeo.internal.process_graph_visitor import ProcessGraphVisitException, ProcessGraphVisitor
-from openeo.metadata import CollectionMetadata, MetadataException
-from openeo.util import deep_get, load_json, rfc3339, str_truncate
+from openeo.metadata import CollectionMetadata
+from openeo.util import load_json, rfc3339, str_truncate
+from openeo.utils.version import ComparableVersion
+from pyproj import CRS
+from pyproj.exceptions import CRSError
 from shapely.geometry import GeometryCollection, MultiPolygon, mapping, shape
 
 from openeo_driver import dry_run
 from openeo_driver.backend import (
-    UserDefinedProcessMetadata,
     LoadParameters,
-    Processing,
     OpenEoBackendImplementation,
+    Processing,
+    UserDefinedProcessMetadata,
 )
-from openeo_driver.constants import RESAMPLE_SPATIAL_METHODS, RESAMPLE_SPATIAL_ALIGNS
+from openeo_driver.constants import RESAMPLE_SPATIAL_ALIGNS, RESAMPLE_SPATIAL_METHODS
 from openeo_driver.datacube import (
     DriverDataCube,
-    DriverVectorCube,
     DriverMlModel,
+    DriverVectorCube,
     SupportsRunUdf,
 )
-from openeo_driver.datastructs import SarBackscatterArgs, ResolutionMergeArgs
+from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint, DryRunDataCube
+from openeo_driver.dry_run import DryRunDataCube, DryRunDataTracer, SourceConstraint
 from openeo_driver.errors import (
-    ProcessParameterRequiredException,
-    ProcessParameterInvalidException,
+    CollectionNotFoundException,
     FeatureUnsupportedException,
     OpenEOApiException,
-    CollectionNotFoundException, ProcessUnsupportedException,
+    ProcessParameterInvalidException,
+    ProcessParameterRequiredException,
+    ProcessUnsupportedException,
 )
-from openeo_driver.processes import ProcessRegistry, ProcessSpec, DEFAULT_NAMESPACE, ProcessArgs
-from openeo_driver.processgraph import get_process_definition_from_url, ProcessDefinition
+from openeo_driver.processes import DEFAULT_NAMESPACE, ProcessArgs, ProcessRegistry, ProcessSpec
+from openeo_driver.processgraph import ProcessDefinition, get_process_definition_from_url
 from openeo_driver.save_result import (
-    JSONResult,
-    SaveResult,
     AggregatePolygonResult,
-    NullResult,
-    to_save_result,
     AggregatePolygonSpatialResult,
+    JSONResult,
     MlModelResult,
+    NullResult,
+    SaveResult,
+    to_save_result,
 )
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.util.date_math import month_shift
-from openeo_driver.util.geometry import geojson_to_geometry, geojson_to_multipolygon, spatial_extent_union, BoundingBox
+from openeo_driver.util.geometry import BoundingBox, geojson_to_geometry, geojson_to_multipolygon, spatial_extent_union
 from openeo_driver.util.http import is_http_url
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
 from openeo_driver.utils import EvalEnv, smart_bool
@@ -1290,7 +1288,7 @@ def aggregate_temporal_period(args: ProcessArgs, env: EvalEnv) -> DriverDataCube
 
 
 def _period_to_intervals(start, end, period) -> List[Tuple[pd.Timestamp, pd.Timestamp]]:
-    from datetime import datetime, timedelta
+    from datetime import timedelta
     start = pd.to_datetime(start)
     end = pd.to_datetime(end)
     if start.tzinfo:
