@@ -74,6 +74,7 @@ from openeo_driver.util.geometry import geojson_to_geometry, geojson_to_multipol
 from openeo_driver.util.http import is_http_url
 from openeo_driver.util.utm import auto_utm_epsg_for_geometry
 from openeo_driver.utils import EvalEnv, smart_bool
+from openeo_driver.views import OPENEO_API_VERSION_DEFAULT
 
 DEFAULT_TEMPORAL_EXTENT = ["1970-01-01", "2070-01-01"]  # also a sentinel value for load_stac
 
@@ -301,14 +302,13 @@ class SimpleProcessing(Processing):
             self._registry_cache[spec] = registry
         return self._registry_cache[spec]
 
-    def get_basic_env(self, api_version=None) -> EvalEnv:
+    def get_basic_env(self, api_version: str = OPENEO_API_VERSION_DEFAULT) -> EvalEnv:
         return EvalEnv(
             {
                 "backend_implementation": OpenEoBackendImplementation(processing=self),
                 # TODO #382 Deprecated field "version", use "openeo_api_version" instead
-                # TODO #382 bump default to OPENEO_API_VERSION_DEFAULT
-                "version": api_version or "1.0.0",  # TODO: get better default api version from somewhere?
-                "openeo_api_version": api_version or "1.0.0",
+                "version": api_version,
+                "openeo_api_version": api_version,
                 "node_caching": False,
             }
         )
@@ -441,11 +441,10 @@ def evaluate(
 
     if "version" not in env:
         # TODO #382 Deprecated field "version", use "openeo_api_version" instead
-        # TODO #382 bump default to OPENEO_API_VERSION_DEFAULT
-        env = env.push({"version": "1.0.0"})
+        env = env.push({"version": OPENEO_API_VERSION_DEFAULT})
     if "openeo_api_version" not in env:
-        _log.warning("No 'openeo_api_version' in `evaluate()` env. Blindly assuming 1.0.0.")
-        env = env.push({"openeo_api_version": "1.0.0"})
+        _log.warning(f"No 'openeo_api_version' in `evaluate()` env. Blindly assuming {OPENEO_API_VERSION_DEFAULT}.")
+        env = env.push({"openeo_api_version": OPENEO_API_VERSION_DEFAULT})
 
     collected_process_graph, top_level_node_id = _collect_end_nodes(process_graph)
     top_level_node = collected_process_graph[top_level_node_id]

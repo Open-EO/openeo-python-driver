@@ -34,6 +34,7 @@ from openeo_driver.save_result import SaveResult
 from openeo_driver.testing import DictSubSet, approxify, ephemeral_fileserver
 from openeo_driver.util.geometry import BoundingBox, as_geojson_feature_collection
 from openeo_driver.utils import EvalEnv
+from openeo_driver.views import OPENEO_API_VERSION_DEFAULT
 from openeo_driver.workspacerepository import WorkspaceRepository
 from tests.data import TEST_DATA_ROOT, get_path, load_json
 
@@ -70,8 +71,8 @@ def dry_run_env(dry_run_tracer, backend_implementation) -> EvalEnv:
         {
             ENV_DRY_RUN_TRACER: dry_run_tracer,
             "backend_implementation": backend_implementation,
-            "version": "1.0.0",
-            "openeo_api_version": "1.0.0",
+            "version": OPENEO_API_VERSION_DEFAULT,
+            "openeo_api_version": OPENEO_API_VERSION_DEFAULT,
             ENV_MAX_BUFFER: {},
         }
     )
@@ -1961,6 +1962,7 @@ def test_evaluate_drop_dimension(dry_run_env, dry_run_tracer, dimension_name, ex
 
 
 def test_load_result_constraints(dry_run_env, dry_run_tracer):
+    dry_run_env = dry_run_env.push({"openeo_api_version": "1.0.0"})
     pg = {
         "loadresult1": {
             "process_id": "load_result",
