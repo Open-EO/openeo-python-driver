@@ -2779,7 +2779,7 @@ def test_user_defined_process_udp_vs_pdp_priority(api, udp_registry):
     api.check_result("udp_ndvi.json")
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.ndvi.call_count == 1
-    dummy.ndvi.assert_called_with(nir=None, red=None, target_band=None)
+    dummy.ndvi.assert_called_with(nir="nir", red="red", target_band=None)
     assert dummy.reduce_dimension.call_count == 0
 
     # Overload ndvi with UDP.

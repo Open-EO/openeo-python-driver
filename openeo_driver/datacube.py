@@ -199,7 +199,7 @@ class DriverDataCube:
         # TODO #47: remove this non-standard process
         self._not_implemented()
 
-    def ndvi(self, nir: str = "nir", red: str = "red", target_band: str = None) -> 'DriverDataCube':
+    def ndvi(self, nir: str = "nir", red: str = "red", target_band: Optional[str] = None) -> "DriverDataCube":
         self._not_implemented()
 
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:

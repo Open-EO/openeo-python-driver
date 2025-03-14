@@ -1570,21 +1570,12 @@ def apply_kernel(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
 
 @process
-def ndvi(args: dict, env: EvalEnv) -> DriverDataCube:
-    image_collection = extract_arg(args, 'data')
-    if not isinstance(image_collection, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="ndvi",
-            reason=f"Invalid data type {type(image_collection)!r} expected raster-cube."
-        )
-    if ComparableVersion("1.0.0").or_higher(env["version"]):
-        red = args.get("red")
-        nir = args.get("nir")
-        target_band = args.get("target_band")
-        return image_collection.ndvi(nir=nir, red=red, target_band=target_band)
-    else:
-        name = args.get("name", "ndvi")
-        return image_collection.ndvi(name=name)
+def ndvi(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube = args.get_required("data", expected_type=DriverDataCube)
+    nir = args.get_optional("nir", default="nir")
+    red = args.get_optional("red", default="red")
+    target_band = args.get_optional("target_band", default=None)
+    return cube.ndvi(nir=nir, red=red, target_band=target_band)
 
 
 @process

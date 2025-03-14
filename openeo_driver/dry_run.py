@@ -759,8 +759,8 @@ class DryRunDataCube(DriverDataCube):
             "reduce_dimension", arguments={}
         )
 
-    def ndvi(self, nir: str = "nir", red: str = "red", target_band: str = None) -> "DriverDataCube":
-        if target_band == None and self.metadata.has_band_dimension():
+    def ndvi(self, nir: str = "nir", red: str = "red", target_band: Optional[str] = None) -> "DryRunDataCube":
+        if target_band is None and self.metadata.has_band_dimension():
             return self._process_metadata(
                 self.metadata.reduce_dimension(dimension_name=self.metadata.band_dimension.name)
             )
