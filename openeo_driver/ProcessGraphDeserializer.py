@@ -305,7 +305,10 @@ class SimpleProcessing(Processing):
         return EvalEnv(
             {
                 "backend_implementation": OpenEoBackendImplementation(processing=self),
+                # TODO #382 Deprecated field "version", use "openeo_api_version" instead
+                # TODO #382 bump default to OPENEO_API_VERSION_DEFAULT
                 "version": api_version or "1.0.0",  # TODO: get better default api version from somewhere?
+                "openeo_api_version": api_version or "1.0.0",
                 "node_caching": False,
             }
         )
@@ -437,8 +440,12 @@ def evaluate(
     """
 
     if "version" not in env:
-        _log.warning("No version in `evaluate()` env. Blindly assuming 1.0.0.")
+        # TODO #382 Deprecated field "version", use "openeo_api_version" instead
+        # TODO #382 bump default to OPENEO_API_VERSION_DEFAULT
         env = env.push({"version": "1.0.0"})
+    if "openeo_api_version" not in env:
+        _log.warning("No 'openeo_api_version' in `evaluate()` env. Blindly assuming 1.0.0.")
+        env = env.push({"openeo_api_version": "1.0.0"})
 
     collected_process_graph, top_level_node_id = _collect_end_nodes(process_graph)
     top_level_node = collected_process_graph[top_level_node_id]
@@ -1836,7 +1843,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
             process_id=process_id, namespace=namespace, args=args, env=env
         )
 
-    process_registry = env.backend_implementation.processing.get_process_registry(api_version=env["version"])
+    process_registry = env.backend_implementation.processing.get_process_registry(api_version=env.openeo_api_version())
 
     try:
         process_function = process_registry.get_function(process_id, namespace=(namespace or "backend"))

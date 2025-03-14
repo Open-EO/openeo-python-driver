@@ -14,6 +14,7 @@ from typing import Any, List, Optional, Tuple, Union, Callable
 
 from deprecated import deprecated
 from openeo.util import rfc3339, Rfc3339
+from openeo.utils.version import ComparableVersion
 
 
 _log = logging.getLogger(__name__)
@@ -102,6 +103,10 @@ class EvalEnv:
     @property
     def backend_implementation(self) -> 'OpenEoBackendImplementation':
         return self["backend_implementation"]
+
+    def openeo_api_version(self) -> ComparableVersion:
+        return ComparableVersion(self["openeo_api_version"])
+
 
 class WhiteListEvalEnv(EvalEnv):
     """

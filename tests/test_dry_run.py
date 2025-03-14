@@ -71,6 +71,7 @@ def dry_run_env(dry_run_tracer, backend_implementation) -> EvalEnv:
             ENV_DRY_RUN_TRACER: dry_run_tracer,
             "backend_implementation": backend_implementation,
             "version": "1.0.0",
+            "openeo_api_version": "1.0.0",
             ENV_MAX_BUFFER: {},
         }
     )

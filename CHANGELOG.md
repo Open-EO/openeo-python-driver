@@ -19,7 +19,12 @@ and start a new "In Progress" section above it.
 
 <!-- start-of-changelog -->
 
-## In progress: 0.131.1
+## In progress: 0.132.0
+
+- `EvalEnv`: add `openeo_api_version` field to replace vague `version` ([#382](https://github.com/Open-EO/openeo-python-driver/issues/382))
+
+
+## 0.131.1
 
 - `custom_process_from_process_graph`: add option to hide process from public process listing
 
