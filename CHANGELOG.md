@@ -19,7 +19,11 @@ and start a new "In Progress" section above it.
 
 <!-- start-of-changelog -->
 
-## In progress: 0.132.0
+## In progress: 0.133.0
+
+- Add `namespace` option to `non_standard_process`
+
+## 0.132.0
 
 - `EvalEnv`: add `openeo_api_version` field to replace vague `version` ([#382](https://github.com/Open-EO/openeo-python-driver/issues/382))
 

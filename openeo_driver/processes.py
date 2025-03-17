@@ -267,7 +267,12 @@ class ProcessRegistry:
         return f
 
     def add_simple_function(
-        self, f: Optional[Callable] = None, *, name: Optional[str] = None, spec: Optional[dict] = None
+        self,
+        f: Optional[Callable] = None,
+        *,
+        name: Optional[str] = None,
+        spec: Optional[dict] = None,
+        namespace: str = DEFAULT_NAMESPACE,
     ):
         """
         Register a simple function that uses normal arguments instead of `args: ProcessArgs, env: EvalEnv`:
@@ -306,7 +311,7 @@ class ProcessRegistry:
             return f(**kwargs)
 
         spec = spec or self.load_predefined_spec(process_id)
-        self.add_process(name=process_id, function=wrapped, spec=spec)
+        self.add_process(name=process_id, function=wrapped, spec=spec, namespace=namespace)
         return f
 
     def add_hidden(self, f: Callable, *, name: Optional[str] = None, namespace: str = DEFAULT_NAMESPACE):

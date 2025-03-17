@@ -190,12 +190,14 @@ def simple_function(f: Callable) -> Callable:
     return f
 
 
-def non_standard_process(spec: ProcessSpec) -> Callable[[ProcessFunction], ProcessFunction]:
+def non_standard_process(
+    spec: ProcessSpec, namespace: str = DEFAULT_NAMESPACE
+) -> Callable[[ProcessFunction], ProcessFunction]:
     """Decorator for registering non-standard process functions"""
 
     def decorator(f: ProcessFunction) -> ProcessFunction:
-        process_registry_100.add_function(f=f, spec=spec.to_dict_100())
-        process_registry_2xx.add_function(f=f, spec=spec.to_dict_100())
+        process_registry_100.add_function(f=f, spec=spec.to_dict_100(), namespace=namespace)
+        process_registry_2xx.add_function(f=f, spec=spec.to_dict_100(), namespace=namespace)
         return f
 
     return decorator
