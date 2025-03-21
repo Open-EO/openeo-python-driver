@@ -77,6 +77,44 @@ class TestDriverVectorCube:
             ]
         })
 
+    def test_to_legacy(self):
+        fc = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Polygon", "coordinates": (((1, 1), (3, 1), (2, 3), (1, 1)),)},
+                    "properties": {"id": "first", "pop": 1234},
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Polygon", "coordinates": (((4, 2), (5, 4), (3, 4), (4, 2)),)},
+                    "properties": {"id": "second", "pop": 5678},
+                }]
+        }
+        vc = DriverVectorCube.from_geojson(fc)
+        jsonResult = vc.to_legacy_save_result()
+        assert jsonResult.data == {'bbox': (1.0, 1.0, 5.0, 4.0),
+                         'features': [{'bbox': (1.0, 1.0, 3.0, 3.0),
+                                       'geometry': {'coordinates': (((1.0, 1.0),
+                                                                     (3.0, 1.0),
+                                                                     (2.0, 3.0),
+                                                                     (1.0, 1.0)),),
+                                                    'type': 'Polygon'},
+                                       'id': '0',
+                                       'properties': {'id': 'first', 'pop': 1234},
+                                       'type': 'Feature'},
+                                      {'bbox': (3.0, 2.0, 5.0, 4.0),
+                                       'geometry': {'coordinates': (((4.0, 2.0),
+                                                                     (5.0, 4.0),
+                                                                     (3.0, 4.0),
+                                                                     (4.0, 2.0)),),
+                                                    'type': 'Polygon'},
+                                       'id': '1',
+                                       'properties': {'id': 'second', 'pop': 5678},
+                                       'type': 'Feature'}],
+                         'type': 'FeatureCollection'}
+
     @pytest.mark.parametrize(
         ["with_cube", "include_properties", "expected_properties"],
         [

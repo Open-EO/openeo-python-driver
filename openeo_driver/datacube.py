@@ -657,6 +657,8 @@ class DriverVectorCube:
             # we keep it simple here with a basic JSONResult result.
             cube = cube.transpose(self.DIM_GEOMETRY, self.DIM_BANDS)
             return JSONResult(data=cube.values.tolist())
+        elif cube.dims == (self.DIM_GEOMETRY, self.DIM_PROPERTIES):
+            return JSONResult(data=self.to_geojson(include_properties=True))
         raise ValueError(
             f"Unsupported cube configuration {cube.dims} for _write_legacy_aggregate_polygon_result_json"
         )
