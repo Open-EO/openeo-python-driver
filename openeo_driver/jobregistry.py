@@ -573,8 +573,17 @@ class ElasticJobRegistry(JobRegistryInterface):
         )
 
     def set_usage(self, job_id: str, costs: float, usage: dict) -> JobDict:
+        data = {
+            "costs": costs,
+            "usage": usage,
+            "input_pixel": 0
+        }
+        if "input_pixel" in usage and "value" in usage["input_pixel"]:
+            input_pixel = usage["input_pixel"]["value"]
+            if isinstance(input_pixel, int) or isinstance(input_pixel, float):
+                data["input_pixel"] = input_pixel
         return self._update(
-            job_id=job_id, data={"costs": costs, "usage": usage}
+            job_id=job_id, data=data
         )
 
     def set_proxy_user(self, job_id: str, proxy_user: str) -> JobDict:
