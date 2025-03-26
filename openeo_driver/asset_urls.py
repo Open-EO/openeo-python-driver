@@ -38,7 +38,6 @@ class AssetUrl:
         else:
             return flask.url_for('.download_job_result', job_id=job_id, filename=asset_name, _external=True)
 
-    @lru_cache()
     def _get_signer(self) -> Optional[UrlSigner]:
         """
         A helper to get a signer from config.
