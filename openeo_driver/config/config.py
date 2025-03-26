@@ -14,6 +14,7 @@ from openeo_driver.server import build_backend_deploy_metadata
 from openeo_driver.urlsigning import UrlSigner
 from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.workspace import Workspace
+from openeo_driver.asset_urls import AssetUrl
 
 __all__ = ["OpenEoBackendConfig", "openeo_backend_config_class", "ConfigException", "check_config_definition"]
 
@@ -67,6 +68,7 @@ class OpenEoBackendConfig(_ConfigBase):
     )
 
     url_signer: Optional[UrlSigner] = None
+    asset_url: AssetUrl = AssetUrl()
 
     """
     Collection exclusion list: mapping of API version to collections to exclude
