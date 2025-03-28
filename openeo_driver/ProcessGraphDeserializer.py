@@ -361,7 +361,7 @@ class ConcreteProcessing(Processing):
             return [{"code": e.code, "message": str(e)}]
         except Exception as e:
             _log.error(f"dry run phase of validation failed: {e!r}", exc_info=True)
-            return [{"code": "Internal", "message": str(e)}]
+            return [{"code": "Internal", "message": env.backend_implementation.summarize_exception(e).summary}]
 
         errors = []
         # TODO: check other resources for errors, warnings?
