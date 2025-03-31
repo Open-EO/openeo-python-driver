@@ -83,6 +83,7 @@ class JobRegistryInterface:
 
     def create_job(
         self,
+        *,
         process: dict,
         user_id: str,
         job_id: Optional[str] = None,
@@ -94,10 +95,10 @@ class JobRegistryInterface:
     ) -> JobDict:
         raise NotImplementedError
 
-    def get_job(self, job_id: str, user_id: Optional[str] = None) -> JobDict:
+    def get_job(self, job_id: str, *, user_id: Optional[str] = None) -> JobDict:
         raise NotImplementedError
 
-    def delete_job(self, job_id: str, user_id: Optional[str] = None) -> None:
+    def delete_job(self, job_id: str, *, user_id: Optional[str] = None) -> None:
         raise NotImplementedError
 
     def set_status(
@@ -411,6 +412,7 @@ class ElasticJobRegistry(JobRegistryInterface):
 
     def create_job(
         self,
+        *,
         process: dict,
         user_id: str,
         job_id: Optional[str] = None,
@@ -454,7 +456,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             result = self._do_request("POST", "/jobs", json=job_data, expected_status=201)
             return result
 
-    def get_job(self, job_id: str, user_id: Optional[str] = None, fields: Optional[List[str]] = None) -> JobDict:
+    def get_job(self, job_id: str, *, user_id: Optional[str] = None, fields: Optional[List[str]] = None) -> JobDict:
         with ExtraLoggingFilter.with_extra_logging(job_id=job_id, user_id=user_id):
             self.logger.debug(f"EJR get job data {job_id=} {user_id=}")
 
@@ -488,7 +490,7 @@ class ElasticJobRegistry(JobRegistryInterface):
                 )
                 raise InternalException(message=f"Found {len(jobs)} jobs for {job_id=} {user_id=}")
 
-    def delete_job(self, job_id: str, user_id: Optional[str] = None) -> None:
+    def delete_job(self, job_id: str, *, user_id: Optional[str] = None) -> None:
         with ExtraLoggingFilter.with_extra_logging(job_id=job_id, user_id=user_id):
             try:
                 self.get_job(job_id=job_id, user_id=user_id, fields=["job_id"])  # assert own job
