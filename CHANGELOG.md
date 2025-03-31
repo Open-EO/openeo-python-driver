@@ -19,10 +19,14 @@ and start a new "In Progress" section above it.
 
 <!-- start-of-changelog -->
 
-## In progress: 0.133.0
+## In progress: 0.134.0
+
+- `export_workspace`: merge `"derived_from"` links of STAC Collections ([Open-EO/openeo-geopyspark-driver#1050](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1050))
+
+## 0.133.0
 
 - Add `namespace` option to `non_standard_process`
-- `export_workspace`: merge `"derived_from"` links of STAC Collections ([Open-EO/openeo-geopyspark-driver#1050](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1050))
+- Improve API alignment between `JobRegistryInterface`/`ElasticJobRegistry` and `DoubleJobRegistry` ([Open-EO/openeo-geopyspark-driver#863](https://github.com/Open-EO/openeo-geopyspark-driver/issues/863), [Open-EO/openeo-geopyspark-driver#1123](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1123))
 
 ## 0.132.0
 
