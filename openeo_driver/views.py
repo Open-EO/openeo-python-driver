@@ -1486,7 +1486,7 @@ def register_views_batch_jobs(
             {
                 "title": asset_metadata.get("title", filename),
                 "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF)
-                        or backend_implementation.config.asset_url.get(asset_metadata, filename, job_id, user_id),
+                        or backend_implementation.config.asset_url.get(asset_metadata=asset_metadata, asset_name=filename, job_id=job_id, user_id=user_id),
                 "type": asset_metadata.get("type", asset_metadata.get("media_type", "application/octet-stream")),
                 "roles": asset_metadata.get("roles", ["data"]),
                 "raster:bands": asset_metadata.get("raster:bands"),
