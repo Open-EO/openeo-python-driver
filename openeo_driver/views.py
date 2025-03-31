@@ -1464,7 +1464,7 @@ def register_views_batch_jobs(
         for asset in assets.values():
             if not asset["href"].startswith("http"):
                 asset_file_name = pathlib.Path(asset["href"]).name
-                asset["href"] = backend_implementation.config.asset_url.get(asset, asset_file_name, job_id, user_id)
+                asset["href"] = backend_implementation.config.asset_url.get(asset_metadata=asset, asset_name=asset_file_name, job_id=job_id, user_id=user_id)
         stac_item = {
             "stac_version": ml_model_metadata.get("stac_version", "0.9.0"),
             "stac_extensions": ml_model_metadata.get("stac_extensions", []),
