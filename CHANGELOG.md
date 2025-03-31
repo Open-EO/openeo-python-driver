@@ -22,6 +22,7 @@ and start a new "In Progress" section above it.
 ## In progress: 0.133.0
 
 - Add `namespace` option to `non_standard_process`
+- Improve API alignment between `JobRegistryInterface`/`ElasticJobRegistry` and `DoubleJobRegistry` ([Open-EO/openeo-geopyspark-driver#863](https://github.com/Open-EO/openeo-geopyspark-driver/issues/863), [Open-EO/openeo-geopyspark-driver#1123](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1123))
 
 ## 0.132.0
 

@@ -109,37 +109,32 @@ class JobRegistryInterface:
         updated: Optional[str] = None,
         started: Optional[str] = None,
         finished: Optional[str] = None,
-    ) -> JobDict:
+    ) -> None:
         raise NotImplementedError
 
-    def set_dependencies(
-        self, job_id: str, dependencies: List[Dict[str, str]]
-    ) -> JobDict:
+    def set_dependencies(self, job_id: str, dependencies: List[Dict[str, str]]) -> None:
         raise NotImplementedError
 
-    def remove_dependencies(self, job_id: str) -> JobDict:
+    def remove_dependencies(self, job_id: str) -> None:
         raise NotImplementedError
 
-    def set_dependency_status(self, job_id: str, dependency_status: str) -> JobDict:
+    def set_dependency_status(self, job_id: str, dependency_status: str) -> None:
         raise NotImplementedError
 
-    def set_dependency_usage(self, job_id: str, dependency_usage: Decimal) -> JobDict:
+    def set_dependency_usage(self, job_id: str, dependency_usage: Decimal) -> None:
         raise NotImplementedError
 
-    def set_proxy_user(self, job_id: str, proxy_user: str) -> JobDict:
+    def set_proxy_user(self, job_id: str, proxy_user: str) -> None:
         # TODO #275 this "proxy_user" is a pretty implementation (YARN/VITO) specific field. Generalize this in some way?
         raise NotImplementedError
 
-    def set_application_id(self, job_id: str, application_id: str) -> JobDict:
-        raise NotImplementedError
-
-    @deprecated("call set_results_metadata instead", version="0.82.0")
-    def set_usage(self, job_id: str, costs: float, usage: dict) -> JobDict:
+    def set_application_id(self, job_id: str, application_id: str) -> None:
         raise NotImplementedError
 
     # TODO: improve name?
-    def set_results_metadata(self, job_id: str, costs: Optional[float], usage: dict,
-                             results_metadata: Dict[str, Any]) -> JobDict:
+    def set_results_metadata(
+        self, job_id: str, costs: Optional[float], usage: dict, results_metadata: Dict[str, Any]
+    ) -> None:
         raise NotImplementedError
 
     def list_user_jobs(
@@ -537,7 +532,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         updated: Optional[str] = None,
         started: Optional[str] = None,
         finished: Optional[str] = None,
-    ) -> JobDict:
+    ) -> None:
         data = {
             "status": status,
             "updated": rfc3339.datetime(updated) if updated else rfc3339.utcnow(),
@@ -546,7 +541,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             data["started"] = rfc3339.datetime(started)
         if finished:
             data["finished"] = rfc3339.datetime(finished)
-        return self._update(job_id=job_id, data=data)
+        self._update(job_id=job_id, data=data)
 
     def _update(self, job_id: str, data: dict) -> JobDict:
         """Generic update method"""
@@ -554,25 +549,17 @@ class ElasticJobRegistry(JobRegistryInterface):
             self.logger.info(f"EJR update {job_id=} {data=}")
             return self._do_request("PATCH", f"/jobs/{job_id}", json=data)
 
-    def set_dependencies(
-        self, job_id: str, dependencies: List[Dict[str, str]]
-    ) -> JobDict:
-        return self._update(job_id=job_id, data={"dependencies": dependencies})
+    def set_dependencies(self, job_id: str, dependencies: List[Dict[str, str]]) -> None:
+        self._update(job_id=job_id, data={"dependencies": dependencies})
 
-    def remove_dependencies(self, job_id: str) -> JobDict:
-        return self._update(
-            job_id=job_id, data={"dependencies": None, "dependency_status": None}
-        )
+    def remove_dependencies(self, job_id: str) -> None:
+        self._update(job_id=job_id, data={"dependencies": None, "dependency_status": None})
 
-    def set_dependency_status(self, job_id: str, dependency_status: str) -> JobDict:
-        return self._update(
-            job_id=job_id, data={"dependency_status": dependency_status}
-        )
+    def set_dependency_status(self, job_id: str, dependency_status: str) -> None:
+        self._update(job_id=job_id, data={"dependency_status": dependency_status})
 
-    def set_dependency_usage(self, job_id: str, dependency_usage: Decimal) -> JobDict:
-        return self._update(
-            job_id=job_id, data={"dependency_usage": str(dependency_usage)}
-        )
+    def set_dependency_usage(self, job_id: str, dependency_usage: Decimal) -> None:
+        self._update(job_id=job_id, data={"dependency_usage": str(dependency_usage)})
 
     def set_usage(self, job_id: str, costs: float, usage: dict) -> JobDict:
         data = {
@@ -588,12 +575,12 @@ class ElasticJobRegistry(JobRegistryInterface):
             job_id=job_id, data=data
         )
 
-    def set_proxy_user(self, job_id: str, proxy_user: str) -> JobDict:
+    def set_proxy_user(self, job_id: str, proxy_user: str) -> None:
         # TODO #275 this "proxy_user" is a pretty implementation (YARN/VITO) specific field. Generalize this in some way?
-        return self._update(job_id=job_id, data={"proxy_user": proxy_user})
+        self._update(job_id=job_id, data={"proxy_user": proxy_user})
 
-    def set_application_id(self, job_id: str, application_id: str) -> JobDict:
-        return self._update(job_id=job_id, data={"application_id": application_id})
+    def set_application_id(self, job_id: str, application_id: str) -> None:
+        self._update(job_id=job_id, data={"application_id": application_id})
 
     def _search(self, query: dict, fields: Optional[List[str]] = None) -> List[JobDict]:
         # TODO: sorting, pagination?
@@ -732,12 +719,15 @@ class ElasticJobRegistry(JobRegistryInterface):
 
     def set_results_metadata(
         self, job_id: str, costs: Optional[float], usage: dict, results_metadata: Dict[str, Any]
-    ) -> JobDict:
-        return self._update(job_id=job_id, data={
-            "costs": costs,
-            "usage": usage,
-            "results_metadata": results_metadata,
-        })
+    ) -> None:
+        self._update(
+            job_id=job_id,
+            data={
+                "costs": costs,
+                "usage": usage,
+                "results_metadata": results_metadata,
+            },
+        )
 
 
 class CliApp:

@@ -819,11 +819,12 @@ class TestElasticJobRegistry:
                 "updated": "2022-12-14T12:34:56Z",
             },
         )
-        requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
+        path_job = requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
 
         with time_machine.travel("2022-12-14T12:34:56Z"):
-            result = ejr.set_status(job_id="job-123", status=JOB_STATUS.RUNNING)
-        assert result["status"] == "running"
+            ejr.set_status(job_id="job-123", status=JOB_STATUS.RUNNING)
+
+        assert path_job.call_count == 1
 
     def test_set_status_with_started(self, requests_mock, oidc_mock, ejr):
         handler = self._handle_patch_jobs(
@@ -836,15 +837,15 @@ class TestElasticJobRegistry:
                 }
             ),
         )
-        requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
+        patch_job = requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
 
-        result = ejr.set_status(
+        ejr.set_status(
             job_id="job-123",
             status=JOB_STATUS.RUNNING,
             updated="2022-12-14T10:00:00",
             started="2022-12-14T10:00:00",
         )
-        assert result["status"] == "running"
+        assert patch_job.call_count == 1
 
     def test_set_status_with_finished(self, requests_mock, oidc_mock, ejr):
         handler = self._handle_patch_jobs(
@@ -857,14 +858,14 @@ class TestElasticJobRegistry:
                 }
             ),
         )
-        requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
+        patch_job = requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
         with time_machine.travel("2022-12-14T12:34:56Z"):
-            result = ejr.set_status(
+            ejr.set_status(
                 job_id="job-123",
                 status=JOB_STATUS.RUNNING,
                 finished="2022-12-14T10:00:00",
             )
-        assert result["status"] == "running"
+        assert patch_job.call_count == 1
 
     def test_set_dependencies(self, requests_mock, oidc_mock, ejr):
         handler = self._handle_patch_jobs(
