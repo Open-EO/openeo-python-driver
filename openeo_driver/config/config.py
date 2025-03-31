@@ -68,7 +68,7 @@ class OpenEoBackendConfig(_ConfigBase):
     )
 
     url_signer: Optional[UrlSigner] = None
-    asset_url: AssetUrl = AssetUrl()
+    asset_url: AssetUrl = attrs.Factory(AssetUrl)
 
     """
     Collection exclusion list: mapping of API version to collections to exclude
