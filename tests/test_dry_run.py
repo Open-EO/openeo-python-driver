@@ -2376,13 +2376,14 @@ def test_ndvi_reduce(dry_run_env):
     assert not save_result.metadata.has_band_dimension()
 
 
-@pytest.mark.skip(
-    "temporarily disabled because "
-    "https://artifactory.vgt.vito.be/artifactory/auxdata-public/gfmap-temp/openeogfmap_dataframe_38.parquet changed"
-)
 def test_complex_diamond_and_buffering(dry_run_env, dry_run_tracer):
-    pg = load_json("pg/1.0/sample_extract_diamond_buffering.json")
-    save_result = evaluate(pg, env=dry_run_env)
+    with ephemeral_fileserver(path=get_path("parquet")) as fileserver_root:
+        url = f"{fileserver_root}/mol.pq"
+        pg = load_json(
+            "pg/1.0/sample_extract_diamond_buffering.json",
+            preprocess=lambda s: s.replace("PLACEHOLDER_LOAD_URL", url),
+        )
+        save_result = evaluate(pg, env=dry_run_env)
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     print(source_constraints)
 
@@ -2402,7 +2403,7 @@ def test_complex_diamond_and_buffering(dry_run_env, dry_run_tracer):
     loadparams = _extract_load_parameters(dry_run_env, source_id_bands)
 
     print(loadparams)
-    expected_extent = {"crs": "EPSG:32631", "east": 704870, "north": 5194350, "south": 5164550, "west": 691730}
+    expected_extent = {"crs": "EPSG:32631", "east": 648990, "south": 5671740, "west": 644750, "north": 5676610}
     assert loadparams.global_extent == expected_extent
     assert loadparams.bands == [
         "B01",
