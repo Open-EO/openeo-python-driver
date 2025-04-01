@@ -7,7 +7,7 @@ from typing import Optional, Union
 from urllib.parse import urlparse
 
 from openeo_driver.utils import remove_slash_prefix
-from pystac import Asset, Collection, STACObject, SpatialExtent, TemporalExtent, Item
+from pystac import Asset, Collection, STACObject, SpatialExtent, TemporalExtent, Item, RelType
 from pystac.catalog import CatalogType
 from pystac.layout import HrefLayoutStrategy, CustomLayoutStrategy
 
@@ -146,6 +146,8 @@ def _merge_collection_metadata(existing_collection: Collection, new_collection: 
         existing_collection.extent.temporal, new_collection.extent.temporal
     )
 
+    _merge_derived_from_links(existing_collection, new_collection)
+
     # TODO: retains existing collection ID and description; is this right?
     # TODO: merge additional metadata?
 
@@ -200,3 +202,12 @@ def _merge_temporal_extents(a: TemporalExtent, b: TemporalExtent) -> TemporalExt
         merged_temporal_extent.intervals.append(merged_sub_intervals)
 
     return merged_temporal_extent
+
+
+def _merge_derived_from_links(existing_collection: Collection, new_collection: Collection):
+    for new_link in new_collection.get_links(rel=RelType.DERIVED_FROM):
+        if not any(
+            existing_link.href == new_link.href
+            for existing_link in existing_collection.get_links(rel=RelType.DERIVED_FROM)
+        ):
+            existing_collection.add_link(new_link)
