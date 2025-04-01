@@ -2376,6 +2376,10 @@ def test_ndvi_reduce(dry_run_env):
     assert not save_result.metadata.has_band_dimension()
 
 
+@pytest.mark.skip(
+    "temporarily disabled because "
+    "https://artifactory.vgt.vito.be/artifactory/auxdata-public/gfmap-temp/openeogfmap_dataframe_38.parquet changed"
+)
 def test_complex_diamond_and_buffering(dry_run_env, dry_run_tracer):
     pg = load_json("pg/1.0/sample_extract_diamond_buffering.json")
     save_result = evaluate(pg, env=dry_run_env)
