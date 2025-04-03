@@ -15,7 +15,7 @@ def load_json(filename: Union[str, Path], preprocess: Callable = None) -> dict:
     """
     Parse data from JSON file.
 
-    ::param preprocess: optional callable to preprocess the JSON string before decoding
+    :param preprocess: optional callable to preprocess the JSON string before decoding
         for example to replace some placeholder
     """
     with get_path(filename).open("r") as f:
