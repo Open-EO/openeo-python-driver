@@ -4,11 +4,6 @@ import functools
 import flask
 
 
-def _utcnow() -> datetime.datetime:
-    # Allow patching utcnow for unit testing
-    # TODO: just start using `time_machine` module for time mocking
-    return datetime.datetime.utcnow()
-
 
 def cache_control(
         max_age=None, no_cache=None, no_store=None,
@@ -32,7 +27,7 @@ def cache_control(
             for key, value in settings.items():
                 setattr(response.cache_control, key, value)
             if max_age is not None:
-                response.expires = _utcnow() + datetime.timedelta(seconds=max_age)
+                response.expires = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=max_age)
         return response
 
     def decorator(func):

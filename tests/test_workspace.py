@@ -200,7 +200,7 @@ def _collection(
         extent=Extent(spatial_extent, temporal_extent),
     )
 
-    item = Item(id=asset_filename, geometry=None, bbox=None, datetime=dt.datetime.utcnow(), properties={})
+    item = Item(id=asset_filename, geometry=None, bbox=None, datetime=dt.datetime.now(dt.timezone.utc), properties={})
 
     asset_path = root_path / item.id / asset_filename
     asset = Asset(href=asset_path.name)  # relative to item
