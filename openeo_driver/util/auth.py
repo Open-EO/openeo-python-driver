@@ -102,7 +102,7 @@ class ClientCredentialsAccessTokenHelper:
         """
         # TODO: eliminate need for this separate `setup` and just do it always from `__init__`?
         self._cache = _AccessTokenCache("", 0)
-        _log.debug(f"Setting up {self.__class__.__name__} with {credentials!r}")
+        # _log.debug(f"Setting up {self.__class__.__name__} with {credentials!r}")
         oidc_provider = OidcProviderInfo(
             issuer=credentials.oidc_issuer,
             requests_session=self._session,

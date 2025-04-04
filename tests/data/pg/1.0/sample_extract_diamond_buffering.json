@@ -103,7 +103,7 @@
       "process_id": "load_url",
       "arguments": {
         "format": "Parquet",
-        "url": "https://artifactory.vgt.vito.be/artifactory/auxdata-public/gfmap-temp/openeogfmap_dataframe_38.parquet"
+        "url": "PLACEHOLDER_LOAD_URL"
       }
     },
     "resamplespatial1": {
