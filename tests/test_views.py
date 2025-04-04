@@ -3,7 +3,7 @@ import logging
 import re
 import urllib.parse
 from contextlib import ExitStack, contextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 from unittest import mock
@@ -1322,6 +1322,7 @@ class TestBatchJobs:
                     )
             yield dummy_backend.DummyBatchJobs._job_registry
 
+    @time_machine.travel("2024-01-02T13:14:15Z", tick=False)
     def test_create_job_100(self, api100):
         with self._fresh_job_registry(next_job_id="job-245"):
             resp = api100.post('/jobs', headers=self.AUTH_HEADER, json={
@@ -1337,7 +1338,7 @@ class TestBatchJobs:
         assert job_info.id == "job-245"
         assert job_info.process == {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}}
         assert job_info.status == "created"
-        assert job_info.created == dummy_backend.DEFAULT_DATETIME
+        assert job_info.created == datetime(2024, 1, 2, 13, 14, 15, tzinfo=timezone.utc)
         assert job_info.job_options is None
         assert job_info.title == "Foo job"
         assert job_info.description == "Run the `foo` process!"
@@ -1434,6 +1435,7 @@ class TestBatchJobs:
         job_info = dummy_backend.DummyBatchJobs._job_registry[TEST_USER, "job-256"]
         assert job_info.job_options == expected_job_options
 
+    @time_machine.travel("2024-01-02T13:14:15Z")
     def test_create_job_get_metadata(self, api100):
         with self._fresh_job_registry(next_job_id="job-245"):
             resp = api100.post(
@@ -1451,7 +1453,7 @@ class TestBatchJobs:
 
             resp = api100.get("/jobs/job-245", headers=self.AUTH_HEADER)
             assert resp.assert_status_code(200).json == {
-                "created": "2020-04-23T16:20:27Z",
+                "created": "2024-01-02T13:14:15Z",
                 "id": "job-245",
                 "process": {"process_graph": {"foo": {"arguments": {}, "process_id": "foo"}}},
                 "progress": 0,

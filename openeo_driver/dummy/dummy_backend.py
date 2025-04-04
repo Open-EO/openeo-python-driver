@@ -2,7 +2,7 @@ import importlib.metadata
 import json
 import numbers
 import unittest.mock
-from datetime import datetime
+import datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
@@ -73,17 +73,11 @@ from openeo_driver.users import User
 from openeo_driver.util.http import UrlSafeStructCodec
 from openeo_driver.utils import EvalEnv, WhiteListEvalEnv, generate_unique_id
 
-DEFAULT_DATETIME = datetime(2020, 4, 23, 16, 20, 27)
 
 # TODO: eliminate this global state with proper pytest fixture usage!
 _collections = {}
 _load_collection_calls = {}
 
-
-def utcnow() -> datetime:
-    # To simplify testing, we break time.
-    # TODO: just start using `time_machine` module for time mocking
-    return DEFAULT_DATETIME
 
 
 def get_collection(collection_id: str) -> 'DummyDataCube':
@@ -145,7 +139,7 @@ class DummySecondaryServices(SecondaryServices):
             configuration={"version": "0.5.8"},
             attributes={},
             title="Test service",
-            created=datetime(2020, 4, 9, 15, 5, 8)
+            created=datetime.datetime(2020, 4, 9, 15, 5, 8),
         )
     ]
 
@@ -710,7 +704,7 @@ class DummyBatchJobs(BatchJobs):
             id=job_id,
             status=JOB_STATUS.CREATED,
             process=process,
-            created=utcnow(),
+            created=datetime.datetime.now(tz=datetime.timezone.utc),
             job_options=job_options,
             title=metadata.get("title"),
             description=metadata.get("description"),
