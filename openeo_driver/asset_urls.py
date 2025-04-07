@@ -19,7 +19,7 @@ class AssetUrl:
         If an url_signer is defined these urls will be signed.
 
         """
-        from openeo_driver import backend  # otherwise cicurlar import
+        from openeo_driver import backend  # otherwise circular import
 
         signer = backend.get_backend_config().url_signer
         if signer:
