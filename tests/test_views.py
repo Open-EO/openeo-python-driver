@@ -1324,10 +1324,10 @@ class TestBatchJobs:
 
             if jobs:
                 for job_id, job_settings in jobs.items():
-                    key = (job_settings.build_url("user", TEST_USER), job_id)
+                    key = (job_settings.get("user", TEST_USER), job_id)
                     dummy_backend.DummyBatchJobs._job_registry[key] = BatchJobMetadata(
                         id=job_id,
-                        status=job_settings.build_url("status", "running"),
+                        status=job_settings.get("status", "running"),
                         process={'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
                         created=datetime(2017, 1, 1, 9, 32, 12),
                     )
