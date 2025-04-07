@@ -117,7 +117,7 @@ def api120(client) -> ApiTester:
 
 
 class DummyDirectS3Assets(AssetUrl):
-    S3_ENDPOINT = "https://s3.oeo.net"
+    S3_ENDPOINT = "https://s3.oeo.test"
 
     def build_url(self, asset_metadata: dict, asset_name: str, job_id: str, user_id: str) -> str:
         href = asset_metadata.get("href", "")
@@ -3036,22 +3036,14 @@ class TestBatchJobs:
             extensions=resp_data.get("stac_extensions", []),
         )
 
-    @pytest.mark.parametrize(["vector_item_id", "vector_asset_media_type", "backend_config_overrides"], [
-        ("timeseries.csv", "text/csv", {"asset_url": DummyDirectS3Assets()}),
-        ("timeseries.csv", "text/csv", {}),
-        ("timeseries.parquet", "application/parquet; profile=geo", {"asset_url": DummyDirectS3Assets()}),
-        ("timeseries.parquet", "application/parquet; profile=geo", {}),
+    @pytest.mark.parametrize(["vector_item_id", "vector_asset_media_type", "backend_config_overrides", "expected_asset_href"], [
+        ("timeseries.csv", "text/csv", {"asset_url": DummyDirectS3Assets()}, f"{DummyDirectS3Assets.S3_ENDPOINT}/OpenEO-data/batch_jobs/j-2406047c20fc4966ab637d387502728f/timeseries.csv"),
+        ("timeseries.csv", "text/csv", {}, "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/timeseries.csv"),
+        ("timeseries.parquet", "application/parquet; profile=geo", {"asset_url": DummyDirectS3Assets()}, f"{DummyDirectS3Assets.S3_ENDPOINT}/OpenEO-data/batch_jobs/j-2406047c20fc4966ab637d387502728f/timeseries.parquet"),
+        ("timeseries.parquet", "application/parquet; profile=geo", {}, "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/timeseries.parquet"),
     ])
-    def test_get_vector_cube_job_result_item(self, flask_app, api110, vector_item_id, vector_asset_media_type, backend_config_overrides):
+    def test_get_vector_cube_job_result_item(self, flask_app, api110, vector_item_id, vector_asset_media_type, backend_config_overrides, expected_asset_href):
         vector_asset_filename = vector_item_id
-        if backend_config_overrides.get("asset_url") is None:
-            expected_asset_href = {
-                vector_asset_filename: f"http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/{vector_asset_filename}"
-            }
-        else:
-            expected_asset_href = {
-                vector_asset_filename: f"{DummyDirectS3Assets.S3_ENDPOINT}/OpenEO-data/batch_jobs/j-2406047c20fc4966ab637d387502728f/{vector_asset_filename}"
-            }
 
         with self._fresh_job_registry():
             resp = api110.get(f"/jobs/j-2406047c20fc4966ab637d387502728f/results/items/{vector_item_id}",
@@ -3090,7 +3082,7 @@ class TestBatchJobs:
             ],
             'assets': {
                 vector_asset_filename: {
-                    'href': expected_asset_href[vector_asset_filename],
+                    'href': expected_asset_href,
                     'type': vector_asset_media_type,
                     'roles': ["data"],
                     'title': vector_asset_filename,
