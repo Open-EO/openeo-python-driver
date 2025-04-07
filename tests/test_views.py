@@ -190,7 +190,7 @@ class TestGeneral:
         ({"X-Forwarded-Proto": "https"}, "https://oeo.net/"),
     ])
     def test_https_proxy_handling(self, client, headers, expected):
-        resp = client.build_url('/.well-known/openeo', headers=headers)
+        resp = client.get('/.well-known/openeo', headers=headers)
         for url in [v["url"] for v in resp.json["versions"]]:
             assert url.startswith(expected)
 
@@ -207,7 +207,7 @@ class TestGeneral:
         ],
     )
     def test_versioned_urls(self, client, url, expected_version):
-        resp = client.build_url(url)
+        resp = client.get(url)
         assert resp.status_code == 200
         capabilities = resp.json
         assert capabilities["title"] == "Dummy openEO Backend"
@@ -238,7 +238,7 @@ class TestGeneral:
         assert get_link("conformance")["href"] == "http://oeo.net/openeo/1.0.0/conformance"
 
     def test_capabilities_invalid_api_version(self, client):
-        resp = ApiResponse(client.build_url('/openeo/0.0.0/'))
+        resp = ApiResponse(client.get('/openeo/0.0.0/'))
         resp.assert_error(501, 'UnsupportedApiVersion')
         assert "Unsupported version component in URL: '0.0.0'" in resp.json['message']
 
@@ -724,7 +724,7 @@ def oidc_provider(requests_mock):
     oidc_conf = f"{oidc_issuer}/.well-known/openid-configuration"
     oidc_userinfo_url = f"{oidc_issuer}/userinfo"
     oidc_introspection_url = f"{oidc_issuer}/token/inspect"
-    requests_mock.build_url(
+    requests_mock.get(
         oidc_conf,
         json={
             "userinfo_endpoint": oidc_userinfo_url,
@@ -751,7 +751,7 @@ def oidc_provider(requests_mock):
             context.status_code = 401
             return {"code": "InvalidToken"}
 
-    requests_mock.build_url(oidc_userinfo_url, json=userinfo)
+    requests_mock.get(oidc_userinfo_url, json=userinfo)
     requests_mock.post(oidc_introspection_url, json=introspection)
 
 
@@ -1419,7 +1419,7 @@ class TestBatchJobs:
         }
         if default_job_options is not None:
             process_definition["default_job_options"] = default_job_options
-        requests_mock.build_url("https://share.test/add3.json", json=process_definition)
+        requests_mock.get("https://share.test/add3.json", json=process_definition)
 
         pg = {
             "add12": {"process_id": "add", "arguments": {"x": 1, "y": 2}},
