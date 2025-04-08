@@ -14,6 +14,7 @@ from typing import Any, Callable, List, Optional, Tuple, Union
 
 from openeo.util import Rfc3339, rfc3339
 from openeo.utils.version import ComparableVersion
+from openeo_driver.util.date_math import now_utc
 
 _log = logging.getLogger(__name__)
 
@@ -358,7 +359,7 @@ def generate_unique_id(prefix: Optional[str] = None, *, date_prefix: Union[bool,
     if date_prefix:
         if not isinstance(date_prefix, str):
             date_prefix = "%y%m%d%H%M%S"
-        date_repr = datetime.datetime.now(datetime.timezone.utc).strftime(date_prefix)
+        date_repr = now_utc().strftime(date_prefix)
         id = f"{date_repr}{id[len(date_repr):]}"
     if prefix:
         id = f"{prefix}-{id}"

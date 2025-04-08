@@ -70,6 +70,7 @@ from openeo_driver.save_result import (
     AggregatePolygonSpatialResult,
 )
 from openeo_driver.users import User
+from openeo_driver.util.date_math import now_utc
 from openeo_driver.util.http import UrlSafeStructCodec
 from openeo_driver.utils import EvalEnv, WhiteListEvalEnv, generate_unique_id
 
@@ -704,7 +705,7 @@ class DummyBatchJobs(BatchJobs):
             id=job_id,
             status=JOB_STATUS.CREATED,
             process=process,
-            created=datetime.datetime.now(tz=datetime.timezone.utc),
+            created=now_utc(),
             job_options=job_options,
             title=metadata.get("title"),
             description=metadata.get("description"),
