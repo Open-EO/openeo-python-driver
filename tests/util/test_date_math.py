@@ -4,7 +4,18 @@ import pandas as pd
 import pytest
 import time_machine
 
-from openeo_driver.util.date_math import month_shift, simple_job_progress_estimation
+from openeo_driver.util.date_math import month_shift, simple_job_progress_estimation, now_utc
+
+
+def test_now_utc_timezone():
+    now = now_utc()
+    assert now.tzinfo == dt.timezone.utc
+
+
+@time_machine.travel("2025-04-08T10:11:12+00")
+def test_now_utc():
+    now = now_utc()
+    assert now == dt.datetime(2025, 4, 8, 10, 11, 12, tzinfo=dt.timezone.utc)
 
 
 def test_month_shift_date():

@@ -6,6 +6,7 @@ from pathlib import Path
 from pystac import Asset, Collection, Extent, Item, SpatialExtent, TemporalExtent, CatalogType, Link, RelType
 import pytest
 
+from openeo_driver.util.date_math import now_utc
 from openeo_driver.workspace import DiskWorkspace
 
 
@@ -200,7 +201,7 @@ def _collection(
         extent=Extent(spatial_extent, temporal_extent),
     )
 
-    item = Item(id=asset_filename, geometry=None, bbox=None, datetime=dt.datetime.utcnow(), properties={})
+    item = Item(id=asset_filename, geometry=None, bbox=None, datetime=now_utc(), properties={})
 
     asset_path = root_path / item.id / asset_filename
     asset = Asset(href=asset_path.name)  # relative to item
