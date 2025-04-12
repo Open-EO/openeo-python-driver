@@ -1489,8 +1489,14 @@ def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox", h
                 process=process_id,
                 reason="unsupported GeoJSON; requires at least one Polygon or MultiPolygon",
             )
-
-        w, s, e, n = DriverVectorCube.from_geojson(extent).get_bounding_box()
+        try:
+            w, s, e, n = DriverVectorCube.from_geojson(extent).get_bounding_box()
+        except Exception as e:
+            raise ProcessParameterInvalidException(
+                parameter=field,
+                process=process_id,
+                reason="GeoJSON is not valid: {e!r}".format(e=e),
+            )
         # TODO: support (non-standard) CRS field in GeoJSON?
         d = {"west": w, "south": s, "east": e, "north": n, "crs": "EPSG:4326"}
     else:
