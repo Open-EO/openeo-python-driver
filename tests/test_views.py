@@ -123,7 +123,7 @@ class DummyDirectS3Assets(AssetUrl):
         href = asset_metadata.get("href", "")
         if href.startswith("s3://"):
             return href.replace("s3://", f"{self.S3_ENDPOINT}/")
-        return super().build_url(asset_metadata, asset_name, job_id, user_id)
+        return super().build_url(asset_metadata=asset_metadata, asset_name=asset_name, job_id=job_id, user_id=user_id)
 
 
 def api_from_backend_implementation(
