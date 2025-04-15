@@ -451,7 +451,10 @@ class ElasticJobRegistry(JobRegistryInterface):
             result = self._do_request("POST", "/jobs", json=job_data, expected_status=201)
             return result
 
-    def get_job(self, job_id: str, *, user_id: Optional[str] = None, fields: Optional[List[str]] = None) -> JobDict:
+    def get_job(self, job_id: str, *, user_id: Optional[str] = None) -> JobDict:
+        return self._get_job(job_id=job_id, user_id=user_id)
+
+    def _get_job(self, job_id: str, *, user_id: Optional[str] = None, fields: Optional[List[str]] = None) -> JobDict:
         with ExtraLoggingFilter.with_extra_logging(job_id=job_id, user_id=user_id):
             self._log.debug(f"EJR get job data {job_id=} {user_id=}")
 
@@ -488,7 +491,7 @@ class ElasticJobRegistry(JobRegistryInterface):
     def delete_job(self, job_id: str, *, user_id: Optional[str] = None) -> None:
         with ExtraLoggingFilter.with_extra_logging(job_id=job_id, user_id=user_id):
             try:
-                self.get_job(job_id=job_id, user_id=user_id, fields=["job_id"])  # assert own job
+                self._get_job(job_id=job_id, user_id=user_id, fields=["job_id"])  # assert own job
                 self._do_request(method="DELETE", path=f"/jobs/{job_id}", log_response_errors=False)
                 self._log.info(f"EJR deleted {job_id=}")
             except EjrApiResponseError as e:
@@ -511,7 +514,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             self._log.debug(f"_verify_job_existence {job_id=} {user_id=} {exists=} {backoff=}")
             time.sleep(backoff)
             try:
-                self.get_job(job_id=job_id, user_id=user_id, fields=["job_id"])
+                self._get_job(job_id=job_id, user_id=user_id, fields=["job_id"])
                 if exists:
                     return
             except JobNotFoundException:
