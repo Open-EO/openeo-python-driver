@@ -1348,6 +1348,8 @@ def register_views_batch_jobs(
             )
             resp.headers['Accept-Ranges'] = 'bytes'
             resp.headers['Content-Length'] = s3_file_object['ContentLength']
+            if 'ContentRange' in s3_file_object:
+                resp.headers['Content-Range'] = s3_file_object['ContentRange']
             return resp
         except s3_instance.exceptions.NoSuchKey:
             _log.exception(f"No such key: s3://{bucket}/{key}")
