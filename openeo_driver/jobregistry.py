@@ -290,7 +290,7 @@ class ElasticJobRegistry(JobRegistryInterface):
 
     PAGINATION_URL_PARAM = "page"
 
-    logger = logging.getLogger(f"{__name__}.elastic")
+    _log = logging.getLogger(f"{__name__}.elastic")
 
     def __init__(
         self,
@@ -303,7 +303,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         if not api_url:
             raise ValueError(api_url)
 
-        self.logger.debug(f"Creating ElasticJobRegistry with {backend_id=} and {api_url=}")
+        self._log.debug(f"Creating ElasticJobRegistry with {backend_id=} and {api_url=}")
         self._backend_id: Optional[str] = backend_id
         self._api_url = api_url
         self._access_token_helper = ClientCredentialsAccessTokenHelper(session=session)
@@ -344,17 +344,17 @@ class ElasticJobRegistry(JobRegistryInterface):
         retry: bool = False,
     ) -> Union[dict, list, None]:
         """Do an HTTP request to Elastic Job Tracker service."""
-        with TimingLogger(logger=self.logger.debug, title=f"EJR Request `{method} {path}`"):
+        with TimingLogger(logger=self._log.debug, title=f"EJR Request `{method} {path}`"):
             headers = {}
             if use_auth:
                 access_token = self._access_token_helper.get_access_token()
                 headers["Authorization"] = f"Bearer {access_token}"
 
             url = url_join(self._api_url, path)
-            self.logger.debug(f"Doing EJR request `{method} {url}` {params=} {headers.keys()=}")
+            self._log.debug(f"Doing EJR request `{method} {url}` {params=} {headers.keys()=}")
             if self._debug_show_curl:
                 curl_command = self._as_curl(method=method, url=url, params=params, data=json, headers=headers)
-                self.logger.debug(f"Equivalent curl command: {curl_command}")
+                self._log.debug(f"Equivalent curl command: {curl_command}")
             try:
                 do_request = lambda: self._session.request(
                     method=method,
@@ -368,19 +368,19 @@ class ElasticJobRegistry(JobRegistryInterface):
                     response = reretry.retry_call(
                         do_request,
                         exceptions=requests.exceptions.RequestException,
-                        logger=self.logger,
+                        logger=self._log,
                         **get_backend_config().ejr_retry_settings,
                     )
                 else:
                     response = do_request()
             except Exception as e:
-                self.logger.exception(f"Failed to do EJR API request `{method} {url}`: {e!r}")
+                self._log.exception(f"Failed to do EJR API request `{method} {url}`: {e!r}")
                 raise EjrApiError(f"Failed to do EJR API request `{method} {url}`") from e
-            self.logger.debug(f"EJR response on `{method} {path}`: {response.status_code!r}")
+            self._log.debug(f"EJR response on `{method} {path}`: {response.status_code!r}")
             if expected_status and response.status_code != expected_status:
                 exc = EjrApiResponseError.from_response(response=response)
                 if log_response_errors:
-                    self.logger.error(str(exc))
+                    self._log.error(str(exc))
                 raise exc
             else:
                 response.raise_for_status()
@@ -402,7 +402,7 @@ class ElasticJobRegistry(JobRegistryInterface):
     def health_check(self, use_auth: bool = True, log: bool = True) -> dict:
         response = self._do_request("GET", "/health", use_auth=use_auth)
         if log:
-            self.logger.info(f"EJR health check {response}")
+            self._log.info(f"EJR health check {response}")
         return response
 
     def create_job(
@@ -447,13 +447,13 @@ class ElasticJobRegistry(JobRegistryInterface):
             # TODO: additional technical metadata, see https://github.com/Open-EO/openeo-api/issues/472
         }
         with ExtraLoggingFilter.with_extra_logging(job_id=job_id):
-            self.logger.info(f"EJR creating {job_id=} {created=}")
+            self._log.info(f"EJR creating {job_id=} {created=}")
             result = self._do_request("POST", "/jobs", json=job_data, expected_status=201)
             return result
 
     def get_job(self, job_id: str, *, user_id: Optional[str] = None, fields: Optional[List[str]] = None) -> JobDict:
         with ExtraLoggingFilter.with_extra_logging(job_id=job_id, user_id=user_id):
-            self.logger.debug(f"EJR get job data {job_id=} {user_id=}")
+            self._log.debug(f"EJR get job data {job_id=} {user_id=}")
 
             filters = [
                 {"term": {"backend_id": self.backend_id}},
@@ -476,11 +476,11 @@ class ElasticJobRegistry(JobRegistryInterface):
                 assert user_id is None or job["user_id"] == user_id, f"{job['user_id']=} != {user_id=}"
                 return job
             elif len(jobs) == 0:
-                self.logger.warning(f"Found no jobs for {job_id=} {user_id=}")
+                self._log.warning(f"Found no jobs for {job_id=} {user_id=}")
                 raise JobNotFoundException(job_id=job_id)
             else:
                 summary = [{k: j.get(k) for k in ["user_id", "created"]} for j in jobs]
-                self.logger.error(
+                self._log.error(
                     f"Found multiple ({len(jobs)}) jobs for {job_id=} {user_id=}: {repr_truncate(summary, width=200)}"
                 )
                 raise InternalException(message=f"Found {len(jobs)} jobs for {job_id=} {user_id=}")
@@ -490,7 +490,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             try:
                 self.get_job(job_id=job_id, user_id=user_id, fields=["job_id"])  # assert own job
                 self._do_request(method="DELETE", path=f"/jobs/{job_id}", log_response_errors=False)
-                self.logger.info(f"EJR deleted {job_id=}")
+                self._log.info(f"EJR deleted {job_id=}")
             except EjrApiResponseError as e:
                 if e.status_code == 404:
                     raise JobNotFoundException(job_id=job_id) from e
@@ -508,7 +508,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         if not backoffs:
             return
         for backoff in backoffs:
-            self.logger.debug(f"_verify_job_existence {job_id=} {user_id=} {exists=} {backoff=}")
+            self._log.debug(f"_verify_job_existence {job_id=} {user_id=} {exists=} {backoff=}")
             time.sleep(backoff)
             try:
                 self.get_job(job_id=job_id, user_id=user_id, fields=["job_id"])
@@ -519,10 +519,10 @@ class ElasticJobRegistry(JobRegistryInterface):
                     return
             except Exception as e:
                 # TODO: fail hard instead of just logging?
-                self.logger.exception(f"Unexpected error while verifying {job_id=} {user_id=} {exists=}: {e=}")
+                self._log.exception(f"Unexpected error while verifying {job_id=} {user_id=} {exists=}: {e=}")
                 return
         # TODO: fail hard instead of just logging?
-        self.logger.error(f"Verification of {job_id=} {user_id=} {exists=} unsure after {len(backoffs)} attempts")
+        self._log.error(f"Verification of {job_id=} {user_id=} {exists=} unsure after {len(backoffs)} attempts")
 
     def set_status(
         self,
@@ -546,7 +546,7 @@ class ElasticJobRegistry(JobRegistryInterface):
     def _update(self, job_id: str, data: dict) -> JobDict:
         """Generic update method"""
         with ExtraLoggingFilter.with_extra_logging(job_id=job_id):
-            self.logger.info(f"EJR update {job_id=} {data=}")
+            self._log.info(f"EJR update {job_id=} {data=}")
             return self._do_request("PATCH", f"/jobs/{job_id}", json=data)
 
     def set_dependencies(self, job_id: str, dependencies: List[Dict[str, str]]) -> None:
@@ -591,7 +591,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             "query": query,
             "_source": list(fields),
         }
-        self.logger.debug(f"Doing search with query {json.dumps(body)}")
+        self._log.debug(f"Doing search with query {json.dumps(body)}")
         return self._do_request("POST", "/jobs/search", json=body, retry=True)
 
     @dataclasses.dataclass(frozen=True)
@@ -620,7 +620,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             "query": query,
             "_source": list(fields),
         }
-        self.logger.debug(f"Doing search with query {json.dumps(body)} and {params=}")
+        self._log.debug(f"Doing search with query {json.dumps(body)} and {params=}")
         response = self._do_request("POST", "/jobs/search/paginated", params=params, json=body, retry=True)
         # Response structure:
         #   {
@@ -648,7 +648,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             next_page_number = next_page_params["page"]
         else:
             next_page_number = None
-        self.logger.debug(f"_search_paginated: parsed {next_page_number=} from {pagination=}")
+        self._log.debug(f"_search_paginated: parsed {next_page_number=} from {pagination=}")
         return next_page_number
 
     def list_user_jobs(
