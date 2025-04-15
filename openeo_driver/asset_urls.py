@@ -13,7 +13,7 @@ class AssetUrl:
     class and go straight to the external storage. If the driver always has access to the artifacts then it is
      recommended fallback to the default implementation by calling the method from its base class.
     """
-    def build_url(self, asset_metadata: dict, asset_name: str, job_id: str, user_id: str) -> str:
+    def build_url(self, *, asset_metadata: dict, asset_name: str, job_id: str, user_id: str) -> str:
         """
         The default implementation will create urls that go to the driver application.
         If an url_signer is defined these urls will be signed.
