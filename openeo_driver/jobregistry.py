@@ -656,7 +656,7 @@ class ElasticJobRegistry(JobRegistryInterface):
 
     def list_user_jobs(
         self,
-        user_id: Optional[str],
+        user_id: str,
         *,
         fields: Optional[List[str]] = None,
         limit: Optional[int] = None,
