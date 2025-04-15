@@ -280,6 +280,12 @@ def get_ejr_credentials_from_env(
         return ClientCredentials(**kwargs)
 
 
+@dataclasses.dataclass(frozen=True)
+class _PaginatedSearchResult:
+    jobs: List[JobDict]
+    next_page: Union[int, None]
+
+
 class ElasticJobRegistry(JobRegistryInterface):
     """
     (Base)class to manage storage of batch job metadata
@@ -597,11 +603,6 @@ class ElasticJobRegistry(JobRegistryInterface):
         self._log.debug(f"Doing search with query {json.dumps(body)}")
         return self._do_request("POST", "/jobs/search", json=body, retry=True)
 
-    @dataclasses.dataclass(frozen=True)
-    class PaginatedSearchResult:
-        jobs: List[JobDict]
-        next_page: Union[int, None]
-
     def _search_paginated(
         self,
         query: dict,
@@ -609,7 +610,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         fields: Optional[List[str]] = None,
         page_size: Optional[int] = None,
         page_number: Optional[int] = None,
-    ) -> PaginatedSearchResult:
+    ) -> _PaginatedSearchResult:
         fields = set(fields or [])
         # Make sure to include some basic fields by default
         # TODO #332 avoid duplication of this default field set
