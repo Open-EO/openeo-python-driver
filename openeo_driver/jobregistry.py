@@ -635,7 +635,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             pagination=response.get("pagination"),
             expected_size=page_size,
         )
-        return self.PaginatedSearchResult(
+        return _PaginatedSearchResult(
             jobs=response.get("jobs", []),
             next_page=next_page_number,
         )
