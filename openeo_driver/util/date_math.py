@@ -4,6 +4,14 @@ from typing import Union
 import pandas as pd
 
 
+def now_utc() -> dt.datetime:
+    """
+    Current timezone-aware (UTC) datetime
+    to be used instead of deprecated naive datetime.utcnow()
+    """
+    return dt.datetime.now(tz=dt.timezone.utc)
+
+
 def month_shift(
         d: Union[dt.date, dt.datetime, pd.Timestamp],
         months: int = 1

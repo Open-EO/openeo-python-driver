@@ -26,7 +26,7 @@ from flask import (
     send_from_directory,
     url_for,
 )
-from openeo.util import Rfc3339, TimingLogger, deep_get, dict_no_none
+from openeo.util import Rfc3339, TimingLogger, deep_get, dict_no_none, rfc3339
 from openeo.utils.version import ComparableVersion
 from pyproj import CRS
 from shapely.geometry import mapping
@@ -1125,9 +1125,7 @@ def register_views_batch_jobs(
                     "license": "proprietary",  # TODO?
                     "extent": {
                         "spatial": {"bbox": [[-180, -90, 180, 90]]},
-                        "temporal": {
-                            "interval": [[to_datetime(dt.datetime.utcnow()), to_datetime(dt.datetime.utcnow())]]
-                        },
+                        "temporal": {"interval": [[rfc3339.utcnow(), rfc3339.utcnow()]]},
                     },
                     "links": [
                         {
