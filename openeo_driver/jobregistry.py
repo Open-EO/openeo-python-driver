@@ -294,6 +294,7 @@ class ElasticJobRegistry(JobRegistryInterface):
 
     _REQUEST_TIMEOUT = 20
 
+    # Request parameter used for page in pagination (e.g. of user job listings)
     PAGINATION_URL_PARAM = "page"
 
     _log = logging.getLogger(f"{__name__}.elastic")
@@ -318,11 +319,11 @@ class ElasticJobRegistry(JobRegistryInterface):
             self._session = session
         else:
             self._session = requests.Session()
-            self.set_user_agent()
+            self._set_user_agent()
 
         self._debug_show_curl = _debug_show_curl
 
-    def set_user_agent(self):
+    def _set_user_agent(self):
         user_agent = f"openeo_driver-{openeo_driver._version.__version__}/{self.__class__.__name__}"
         if self._backend_id:
             user_agent += f"/{self._backend_id}"
@@ -335,6 +336,7 @@ class ElasticJobRegistry(JobRegistryInterface):
 
     def setup_auth_oidc_client_credentials(self, credentials: ClientCredentials) -> None:
         """Set up OIDC client credentials authentication."""
+        # TODO: just move this to __init__ instead of requiring this additional setup method?
         self._access_token_helper.setup_credentials(credentials)
 
     def _do_request(
