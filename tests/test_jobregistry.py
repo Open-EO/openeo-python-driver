@@ -926,25 +926,6 @@ class TestElasticJobRegistry:
         ejr.set_application_id(job_id="job-123", application_id="app-456")
         assert patch_mock.call_count == 1
 
-    def test_set_usage(self, requests_mock, oidc_mock, ejr):
-        handler = self._handle_patch_jobs(
-            oidc_mock=oidc_mock, expected_data={"costs": 22, "input_pixel": 12.07, "usage": {
-                "cpu": {"value": 3283, "unit": "cpu-seconds"},
-                "memory": {"value": 8040202, "unit": "mb-seconds"},
-                "input_pixel": {"value": 12.07, "unit": "mega-pixel"},
-                "sentinelhub": {"value": 108.33333656191826, "unit": "sentinelhub_processing_unit"}}}
-        )
-        patch_mock = requests_mock.patch(
-            f"{self.EJR_API_URL}/jobs/job-123", json=handler
-        )
-
-        ejr.set_usage(job_id="job-123", costs=22, usage={
-            "cpu": {"value": 3283, "unit": "cpu-seconds"},
-            "memory": {"value": 8040202, "unit": "mb-seconds"},
-            "sentinelhub": {"value": 108.33333656191826, "unit": "sentinelhub_processing_unit"},
-            "input_pixel": {"value": 12.07, "unit": "mega-pixel"}})
-        assert patch_mock.call_count == 1
-
     def test_set_results_metadata(self, requests_mock, oidc_mock, ejr):
         handler = self._handle_patch_jobs(
             oidc_mock=oidc_mock, expected_data={

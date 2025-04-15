@@ -570,20 +570,6 @@ class ElasticJobRegistry(JobRegistryInterface):
     def set_dependency_usage(self, job_id: str, dependency_usage: Decimal) -> None:
         self._update(job_id=job_id, data={"dependency_usage": str(dependency_usage)})
 
-    def set_usage(self, job_id: str, costs: float, usage: dict) -> JobDict:
-        data = {
-            "costs": costs,
-            "usage": usage,
-            "input_pixel": 0
-        }
-        if "input_pixel" in usage and isinstance(usage["input_pixel"], dict) and "value" in usage["input_pixel"]:
-            input_pixel = usage["input_pixel"]["value"]
-            if isinstance(input_pixel, int) or isinstance(input_pixel, float):
-                data["input_pixel"] = input_pixel
-        return self._update(
-            job_id=job_id, data=data
-        )
-
     def set_proxy_user(self, job_id: str, proxy_user: str) -> None:
         # TODO #275 this "proxy_user" is a pretty implementation (YARN/VITO) specific field. Generalize this in some way?
         self._update(job_id=job_id, data={"proxy_user": proxy_user})
