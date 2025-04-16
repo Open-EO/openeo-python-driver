@@ -1,5 +1,7 @@
 import logging
 from openeo_driver.users import user_id_b64_encode
+import openeo_driver.config
+
 import flask
 _log = logging.getLogger(__name__)
 
@@ -19,9 +21,7 @@ class AssetUrl:
         If an url_signer is defined these urls will be signed.
 
         """
-        from openeo_driver import backend  # otherwise circular import
-
-        signer = backend.get_backend_config().url_signer
+        signer = openeo_driver.config.get_backend_config().url_signer
         if signer:
             expires = signer.get_expires()
             secure_key = signer.sign_job_asset(
