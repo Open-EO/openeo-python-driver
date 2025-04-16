@@ -112,16 +112,18 @@ class JobRegistryInterface:
     ) -> None:
         raise NotImplementedError
 
-    def set_dependencies(self, job_id: str, dependencies: List[Dict[str, str]]) -> None:
+    def set_dependencies(
+        self, job_id: str, *, user_id: Optional[str] = None, dependencies: List[Dict[str, str]]
+    ) -> None:
         raise NotImplementedError
 
-    def remove_dependencies(self, job_id: str) -> None:
+    def remove_dependencies(self, job_id: str, *, user_id: Optional[str] = None) -> None:
         raise NotImplementedError
 
-    def set_dependency_status(self, job_id: str, dependency_status: str) -> None:
+    def set_dependency_status(self, job_id: str, *, user_id: Optional[str] = None, dependency_status: str) -> None:
         raise NotImplementedError
 
-    def set_dependency_usage(self, job_id: str, dependency_usage: Decimal) -> None:
+    def set_dependency_usage(self, job_id: str, *, user_id: Optional[str] = None, dependency_usage: Decimal) -> None:
         raise NotImplementedError
 
     def set_proxy_user(self, job_id: str, proxy_user: str) -> None:
@@ -560,16 +562,18 @@ class ElasticJobRegistry(JobRegistryInterface):
             self._log.info(f"EJR update {job_id=} {data=}")
             return self._do_request("PATCH", f"/jobs/{job_id}", json=data)
 
-    def set_dependencies(self, job_id: str, dependencies: List[Dict[str, str]]) -> None:
+    def set_dependencies(
+        self, job_id: str, *, user_id: Optional[str] = None, dependencies: List[Dict[str, str]]
+    ) -> None:
         self._update(job_id=job_id, data={"dependencies": dependencies})
 
-    def remove_dependencies(self, job_id: str) -> None:
+    def remove_dependencies(self, job_id: str, *, user_id: Optional[str] = None) -> None:
         self._update(job_id=job_id, data={"dependencies": None, "dependency_status": None})
 
-    def set_dependency_status(self, job_id: str, dependency_status: str) -> None:
+    def set_dependency_status(self, job_id: str, *, user_id: Optional[str] = None, dependency_status: str) -> None:
         self._update(job_id=job_id, data={"dependency_status": dependency_status})
 
-    def set_dependency_usage(self, job_id: str, dependency_usage: Decimal) -> None:
+    def set_dependency_usage(self, job_id: str, *, user_id: Optional[str] = None, dependency_usage: Decimal) -> None:
         self._update(job_id=job_id, data={"dependency_usage": str(dependency_usage)})
 
     def set_proxy_user(self, job_id: str, proxy_user: str) -> None:
