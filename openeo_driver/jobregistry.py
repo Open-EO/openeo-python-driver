@@ -104,8 +104,9 @@ class JobRegistryInterface:
     def set_status(
         self,
         job_id: str,
-        status: str,
         *,
+        user_id: Optional[str] = None,
+        status: str,
         updated: Optional[str] = None,
         started: Optional[str] = None,
         finished: Optional[str] = None,
@@ -540,8 +541,9 @@ class ElasticJobRegistry(JobRegistryInterface):
     def set_status(
         self,
         job_id: str,
-        status: str,
         *,
+        user_id: Optional[str] = None,
+        status: str,
         updated: Optional[str] = None,
         started: Optional[str] = None,
         finished: Optional[str] = None,
