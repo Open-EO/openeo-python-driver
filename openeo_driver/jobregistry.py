@@ -136,7 +136,13 @@ class JobRegistryInterface:
 
     # TODO: improve name?
     def set_results_metadata(
-        self, job_id: str, costs: Optional[float], usage: dict, results_metadata: Dict[str, Any]
+        self,
+        job_id: str,
+        *,
+        user_id: Optional[str] = None,
+        costs: Optional[float],
+        usage: dict,
+        results_metadata: Dict[str, Any],
     ) -> None:
         raise NotImplementedError
 
@@ -716,7 +722,13 @@ class ElasticJobRegistry(JobRegistryInterface):
         return self._search(query=query, fields=fields)
 
     def set_results_metadata(
-        self, job_id: str, costs: Optional[float], usage: dict, results_metadata: Dict[str, Any]
+        self,
+        job_id: str,
+        *,
+        user_id: Optional[str] = None,
+        costs: Optional[float],
+        usage: dict,
+        results_metadata: Dict[str, Any],
     ) -> None:
         self._update(
             job_id=job_id,
