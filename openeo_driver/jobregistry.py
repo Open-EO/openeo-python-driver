@@ -126,7 +126,7 @@ class JobRegistryInterface:
     def set_dependency_usage(self, job_id: str, *, user_id: Optional[str] = None, dependency_usage: Decimal) -> None:
         raise NotImplementedError
 
-    def set_proxy_user(self, job_id: str, proxy_user: str) -> None:
+    def set_proxy_user(self, job_id: str, *, user_id: Optional[str] = None, proxy_user: str) -> None:
         # TODO #275 this "proxy_user" is a pretty implementation (YARN/VITO) specific field. Generalize this in some way?
         raise NotImplementedError
 
@@ -576,7 +576,7 @@ class ElasticJobRegistry(JobRegistryInterface):
     def set_dependency_usage(self, job_id: str, *, user_id: Optional[str] = None, dependency_usage: Decimal) -> None:
         self._update(job_id=job_id, data={"dependency_usage": str(dependency_usage)})
 
-    def set_proxy_user(self, job_id: str, proxy_user: str) -> None:
+    def set_proxy_user(self, job_id: str, *, user_id: Optional[str] = None, proxy_user: str) -> None:
         # TODO #275 this "proxy_user" is a pretty implementation (YARN/VITO) specific field. Generalize this in some way?
         self._update(job_id=job_id, data={"proxy_user": proxy_user})
 
