@@ -2929,27 +2929,25 @@ class TestBatchJobs:
 
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
-    def test_download_result_with_s3_object_storage_with_expiration_NoSuchKey_is_logged(
+    def test_download_result_with_s3_object_storage_with_expiration_NoSuchKey_error(
             self, api, mock_s3_resource, backend_config_overrides, caplog):
         job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
         s3_bucket_name = "openeo-test-bucket"
         output_root = f"s3://{s3_bucket_name}/some-data-dir"
         s3_key = f"some-data-dir/{job_id}/output.tiff"
 
-        s3_bucket = create_s3_bucket(mock_s3_resource, s3_bucket_name)
+        create_s3_bucket(mock_s3_resource, s3_bucket_name)
 
         jobs = {job_id: {"status": "finished"}}
         with self._fresh_job_registry(output_root=output_root, jobs=jobs):
             full_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
-            # should return a 500 response
-            # should have logged an ERROR
 
-        assert (full_get_resp.assert_status_code(500).json["message"]
-                == "Server error: NoSuchKey('An error occurred (NoSuchKey) when calling the GetObject operation:"
-                   " The specified key does not exist.')")
-
-        assert ("openeo_driver.views", logging.ERROR,
-                f"No such key: s3://{s3_bucket_name}/{s3_key}") in caplog.record_tuples
+        assert full_get_resp.assert_status_code(404).json["message"] == s3_key
+        assert (
+            "openeo_driver.views",
+            logging.ERROR,
+            f"No such key: s3://{s3_bucket_name}/{s3_key}",
+        ) in caplog.record_tuples
 
     @mock.patch("time.time", mock.MagicMock(return_value=3456))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
