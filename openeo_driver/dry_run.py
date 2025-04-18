@@ -71,7 +71,7 @@ from openeo_driver.util.geometry import (
     GeometryBufferer,
     geojson_to_geometry, reproject_geometry,
 )
-from openeo_driver.util.stac import get_spatial_dimensions
+import openeo_driver.stac.datacube
 from openeo_driver.utils import EvalEnv, to_hashable
 
 _log = logging.getLogger(__name__)
@@ -343,13 +343,14 @@ class DryRunDataTracer:
         try:
             spatial_dimensions = [
                 SpatialDimension(name=n, extent=dim.extent, crs=dim.reference_system, step=dim.step)
-                for n, dim in get_spatial_dimensions(pystac.read_file(href=url)).items()
+                for n, dim in openeo_driver.stac.datacube.get_spatial_dimensions(pystac.read_file(href=url)).items()
             ]
         except Exception as e:
-            _log.error("Failed to extract spatial dimension info from STAC: %s", e)
+            _log.exception("Dry-run load_stac: failed to extract spatial dimension info from STAC: %s", e)
             spatial_dimensions = []
         if not spatial_dimensions:
             # TODO: this is just a naive fallback for now. Be more strict?
+            _log.warning("Dry-run load_stac: falling back on generic spatial dimensions")
             spatial_dimensions = [
                 SpatialDimension(name="x", extent=[]),
                 SpatialDimension(name="y", extent=[]),
