@@ -1,9 +1,12 @@
 import pandas as pd
+import geopandas as gpd
 import pytest
 from numpy import nan
 from shapely.geometry import GeometryCollection, Polygon
 
+from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.save_result import AggregatePolygonResult
+from .data import get_path
 
 
 def test_aggregate_polygon_result_basic(tmp_path):
@@ -111,3 +114,10 @@ def test_aggregate_polygon_result_inconsistent_bands(tmp_path):
 
     with pytest.raises(IndexError):
         result.to_csv(tmp_path / 'timeseries_invalid.csv')
+
+def test_write_driver_vector_cube_to_csv(tmp_path):
+    vector_cube = DriverVectorCube(gpd.read_file(str(get_path("geojson/FeatureCollection02.json"))))
+    vector_cube.write_assets(tmp_path / "dummy", format="CSV")
+
+    actual_gdf = gpd.read_file(tmp_path / "vectorcube.csv")
+    assert actual_gdf.shape == (2, 4)
