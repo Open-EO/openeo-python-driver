@@ -55,6 +55,7 @@ from pyproj import CRS
 from shapely.geometry import GeometryCollection, MultiPolygon, Point, Polygon
 from shapely.geometry.base import BaseGeometry
 import shapely.ops
+import pystac
 
 from openeo.utils.normalize import normalize_resample_resolution
 from openeo_driver import filter_properties
@@ -71,6 +72,7 @@ from openeo_driver.util.geometry import (
     GeometryBufferer,
     geojson_to_geometry, reproject_geometry,
 )
+import openeo_driver.stac.datacube
 from openeo_driver.utils import EvalEnv, to_hashable
 
 _log = logging.getLogger(__name__)
@@ -339,11 +341,26 @@ class DryRunDataTracer:
         trace = DataSource.load_stac(url=url, properties=properties, bands=arguments.get("bands", []), env=env)
         self.add_trace(trace)
 
-        metadata = CollectionMetadata(
-            {},
-            dimensions=[
+        try:
+            spatial_dimensions = [
+                SpatialDimension(name=n, extent=dim.extent, crs=dim.reference_system, step=dim.step)
+                for n, dim in openeo_driver.stac.datacube.get_spatial_dimensions(pystac.read_file(href=url)).items()
+            ]
+        except Exception as e:
+            _log.exception("Dry-run load_stac: failed to extract spatial dimension info from STAC: %s", e)
+            spatial_dimensions = []
+        if not spatial_dimensions:
+            # TODO: this is just a naive fallback for now. Be more strict?
+            _log.warning("Dry-run load_stac: falling back on generic spatial dimensions")
+            spatial_dimensions = [
                 SpatialDimension(name="x", extent=[]),
                 SpatialDimension(name="y", extent=[]),
+            ]
+
+        metadata = CollectionMetadata(
+            {},
+            dimensions=spatial_dimensions
+            + [
                 TemporalDimension(name="t", extent=[]),
                 BandDimension(name="bands", bands=[Band("unknown")]),
             ],
