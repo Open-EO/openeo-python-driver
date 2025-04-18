@@ -1351,15 +1351,15 @@ def register_views_batch_jobs(
             if 'ContentRange' in s3_file_object:
                 resp.headers['Content-Range'] = s3_file_object['ContentRange']
             return resp
-        except s3_instance.exceptions.NoSuchKey:
+        except s3_instance.exceptions.NoSuchKey as e:
             _log.exception(f"No such key: s3://{bucket}/{key}")
-            raise
+            raise OpenEOApiException(code="NotFound", status_code=404, message=key) from e
         except botocore.exceptions.ClientError as e:
             if e.response.get("ResponseMetadata").get("HTTPStatusCode") == 416:  # best effort really
                 raise OpenEOApiException(
                     code="RangeNotSatisfiable", status_code=416,
                     message=f"Invalid Range {bytes_range}"
-                )
+                ) from e
 
             raise
 
