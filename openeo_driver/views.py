@@ -1464,7 +1464,9 @@ def register_views_batch_jobs(
         for asset in assets.values():
             if not asset["href"].startswith("http"):
                 asset_file_name = pathlib.Path(asset["href"]).name
-                asset["href"] = backend_implementation.config.asset_url.build_url(asset_metadata=asset, asset_name=asset_file_name, job_id=job_id, user_id=user_id)
+                asset["href"] = backend_implementation.config.asset_url.build_url(
+                    asset_metadata=asset, asset_name=asset_file_name, job_id=job_id, user_id=user_id
+                )
         stac_item = {
             "stac_version": ml_model_metadata.get("stac_version", "0.9.0"),
             "stac_extensions": ml_model_metadata.get("stac_extensions", []),
@@ -1486,7 +1488,9 @@ def register_views_batch_jobs(
             {
                 "title": asset_metadata.get("title", filename),
                 "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF)
-                        or backend_implementation.config.asset_url.build_url(asset_metadata=asset_metadata, asset_name=filename, job_id=job_id, user_id=user_id),
+                or backend_implementation.config.asset_url.build_url(
+                    asset_metadata=asset_metadata, asset_name=filename, job_id=job_id, user_id=user_id
+                ),
                 "type": asset_metadata.get("type", asset_metadata.get("media_type", "application/octet-stream")),
                 "roles": asset_metadata.get("roles", ["data"]),
                 "raster:bands": asset_metadata.get("raster:bands"),

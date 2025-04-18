@@ -3036,13 +3036,38 @@ class TestBatchJobs:
             extensions=resp_data.get("stac_extensions", []),
         )
 
-    @pytest.mark.parametrize(["vector_item_id", "vector_asset_media_type", "backend_config_overrides", "expected_asset_href"], [
-        ("timeseries.csv", "text/csv", {"asset_url": DummyDirectS3Assets()}, f"{DummyDirectS3Assets.S3_ENDPOINT}/OpenEO-data/batch_jobs/j-2406047c20fc4966ab637d387502728f/timeseries.csv"),
-        ("timeseries.csv", "text/csv", {}, "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/timeseries.csv"),
-        ("timeseries.parquet", "application/parquet; profile=geo", {"asset_url": DummyDirectS3Assets()}, f"{DummyDirectS3Assets.S3_ENDPOINT}/OpenEO-data/batch_jobs/j-2406047c20fc4966ab637d387502728f/timeseries.parquet"),
-        ("timeseries.parquet", "application/parquet; profile=geo", {}, "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/timeseries.parquet"),
-    ])
-    def test_get_vector_cube_job_result_item(self, flask_app, api110, vector_item_id, vector_asset_media_type, backend_config_overrides, expected_asset_href):
+    @pytest.mark.parametrize(
+        ["vector_item_id", "vector_asset_media_type", "backend_config_overrides", "expected_asset_href"],
+        [
+            (
+                "timeseries.csv",
+                "text/csv",
+                {"asset_url": DummyDirectS3Assets()},
+                f"{DummyDirectS3Assets.S3_ENDPOINT}/OpenEO-data/batch_jobs/j-2406047c20fc4966ab637d387502728f/timeseries.csv",
+            ),
+            (
+                "timeseries.csv",
+                "text/csv",
+                {},
+                "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/timeseries.csv",
+            ),
+            (
+                "timeseries.parquet",
+                "application/parquet; profile=geo",
+                {"asset_url": DummyDirectS3Assets()},
+                f"{DummyDirectS3Assets.S3_ENDPOINT}/OpenEO-data/batch_jobs/j-2406047c20fc4966ab637d387502728f/timeseries.parquet",
+            ),
+            (
+                "timeseries.parquet",
+                "application/parquet; profile=geo",
+                {},
+                "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/timeseries.parquet",
+            ),
+        ],
+    )
+    def test_get_vector_cube_job_result_item(
+        self, flask_app, api110, vector_item_id, vector_asset_media_type, backend_config_overrides, expected_asset_href
+    ):
         vector_asset_filename = vector_item_id
 
         with self._fresh_job_registry():

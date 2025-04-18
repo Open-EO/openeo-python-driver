@@ -1,9 +1,10 @@
 import os
-from typing import Callable, Dict, List, Optional, Tuple, Type
+from typing import Callable, Dict, List, Optional, Tuple
 
 import attrs
 
 import openeo_driver
+from openeo_driver.asset_urls import AssetUrl
 from openeo_driver.config.base import (
     ConfigException,
     _ConfigBase,
@@ -14,7 +15,6 @@ from openeo_driver.server import build_backend_deploy_metadata
 from openeo_driver.urlsigning import UrlSigner
 from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.workspace import Workspace
-from openeo_driver.asset_urls import AssetUrl
 
 __all__ = ["OpenEoBackendConfig", "openeo_backend_config_class", "ConfigException", "check_config_definition"]
 
