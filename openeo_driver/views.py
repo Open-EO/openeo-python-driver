@@ -1038,22 +1038,6 @@ def register_views_batch_jobs(
             _log.info(f"`POST /jobs/{job_id}/results`: not (re)starting job (status {job_info.status}")
         return make_response("", 202)
 
-    def _job_result_download_url(job_id, user_id, filename) -> str:
-        signer = get_backend_config().url_signer
-        if signer:
-            expires = signer.get_expires()
-            secure_key = signer.sign_job_asset(
-                job_id=job_id, user_id=user_id, filename=filename, expires=expires
-            )
-            user_base64 = user_id_b64_encode(user_id)
-            return url_for(
-                '.download_job_result_signed',
-                job_id=job_id, user_base64=user_base64, filename=filename, expires=expires, secure_key=secure_key,
-                _external=True
-            )
-        else:
-            return url_for('.download_job_result', job_id=job_id, filename=filename, _external=True)
-
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results', methods=['GET'])
     @auth_handler.requires_bearer_auth
@@ -1480,7 +1464,9 @@ def register_views_batch_jobs(
         for asset in assets.values():
             if not asset["href"].startswith("http"):
                 asset_file_name = pathlib.Path(asset["href"]).name
-                asset["href"] = _job_result_download_url(job_id, user_id, asset_file_name)
+                asset["href"] = backend_implementation.config.asset_url.build_url(
+                    asset_metadata=asset, asset_name=asset_file_name, job_id=job_id, user_id=user_id
+                )
         stac_item = {
             "stac_version": ml_model_metadata.get("stac_version", "0.9.0"),
             "stac_extensions": ml_model_metadata.get("stac_extensions", []),
@@ -1502,7 +1488,9 @@ def register_views_batch_jobs(
             {
                 "title": asset_metadata.get("title", filename),
                 "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF)
-                or _job_result_download_url(job_id, user_id, filename),
+                or backend_implementation.config.asset_url.build_url(
+                    asset_metadata=asset_metadata, asset_name=filename, job_id=job_id, user_id=user_id
+                ),
                 "type": asset_metadata.get("type", asset_metadata.get("media_type", "application/octet-stream")),
                 "roles": asset_metadata.get("roles", ["data"]),
                 "raster:bands": asset_metadata.get("raster:bands"),

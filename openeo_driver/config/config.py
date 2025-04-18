@@ -1,9 +1,10 @@
 import os
-from typing import Callable, Dict, List, Optional, Tuple, Type
+from typing import Callable, Dict, List, Optional, Tuple
 
 import attrs
 
 import openeo_driver
+from openeo_driver.asset_urls import AssetUrl
 from openeo_driver.config.base import (
     ConfigException,
     _ConfigBase,
@@ -67,6 +68,7 @@ class OpenEoBackendConfig(_ConfigBase):
     )
 
     url_signer: Optional[UrlSigner] = None
+    asset_url: AssetUrl = attrs.Factory(AssetUrl)
 
     """
     Collection exclusion list: mapping of API version to collections to exclude
