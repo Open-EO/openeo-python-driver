@@ -7,6 +7,7 @@ from unittest import mock
 import openeo.processes
 import pytest
 import shapely.geometry
+import dirty_equals
 from openeo.internal.graph_building import PGNode
 from openeo.metadata import SpatialDimension
 from openeo.rest.datacube import DataCube
@@ -2652,14 +2653,17 @@ def test_resample_cube_spatial_from_resampled_target(dry_run_env, dry_run_tracer
             None,
             [
                 (
+                    # TODO #370/#396 get rid of this warning
                     "openeo_driver.stac.datacube",
                     logging.WARN,
                     "Forcing pystac datacube extension on possibly unsupported metadata",
                 ),
                 (
                     "openeo_driver.dry_run",
-                    logging.WARN,
-                    "Dry-run load_stac: falling back on generic spatial dimensions",
+                    logging.ERROR,
+                    dirty_equals.IsStr(
+                        regex="Dry-run load_stac: failed to parse cube metadata from.*No datacube extension found in STAC object.*Falling back in generic metadata",
+                    ),
                 ),
             ],
         ),
@@ -2671,11 +2675,13 @@ def test_resample_cube_spatial_from_resampled_target(dry_run_env, dry_run_tracer
             None,
             [
                 (
+                    # TODO #370/#396 get rid of this warning
                     "openeo_driver.stac.datacube",
                     logging.WARN,
                     "Forcing pystac datacube extension on possibly unsupported metadata",
                 ),
                 (
+                    # TODO #370/#396 get rid of this warning
                     "openeo_driver.stac.datacube",
                     logging.WARN,
                     "Forcing pystac datacube extension on possibly unsupported metadata",
@@ -2683,12 +2689,9 @@ def test_resample_cube_spatial_from_resampled_target(dry_run_env, dry_run_tracer
                 (
                     "openeo_driver.dry_run",
                     logging.ERROR,
-                    "Dry-run load_stac: failed to extract spatial dimension info from STAC: 'cube_dimension' does not have required property type",
-                ),
-                (
-                    "openeo_driver.dry_run",
-                    logging.WARN,
-                    "Dry-run load_stac: falling back on generic spatial dimensions",
+                    dirty_equals.IsStr(
+                        regex="Dry-run load_stac: failed to parse cube metadata from.*RequiredPropertyMissing.*does not have required property type.*Falling back in generic metadata",
+                    ),
                 ),
             ],
         ),
@@ -2703,11 +2706,13 @@ def test_resample_cube_spatial_from_resampled_target(dry_run_env, dry_run_tracer
             None,
             [
                 (
+                    # TODO #370/#396 get rid of this warning
                     "openeo_driver.stac.datacube",
                     logging.WARN,
                     "Forcing pystac datacube extension on possibly unsupported metadata",
                 ),
                 (
+                    # TODO #370/#396 get rid of this warning
                     "openeo_driver.stac.datacube",
                     logging.WARN,
                     "Forcing pystac datacube extension on possibly unsupported metadata",
@@ -2728,11 +2733,13 @@ def test_resample_cube_spatial_from_resampled_target(dry_run_env, dry_run_tracer
             (11, 22),
             [
                 (
+                    # TODO #370/#396 get rid of this warning
                     "openeo_driver.stac.datacube",
                     logging.WARN,
                     "Forcing pystac datacube extension on possibly unsupported metadata",
                 ),
                 (
+                    # TODO #370/#396 get rid of this warning
                     "openeo_driver.stac.datacube",
                     logging.WARN,
                     "Forcing pystac datacube extension on possibly unsupported metadata",

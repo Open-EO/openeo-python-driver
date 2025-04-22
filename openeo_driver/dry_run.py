@@ -341,31 +341,20 @@ class DryRunDataTracer:
         trace = DataSource.load_stac(url=url, properties=properties, bands=arguments.get("bands", []), env=env)
         self.add_trace(trace)
 
-        # TODO: constructing the CubeMetadata object should become a single, reusable utility call
         try:
-            spatial_dimensions = [
-                SpatialDimension(name=n, extent=dim.extent, crs=dim.reference_system, step=dim.step)
-                for n, dim in openeo_driver.stac.datacube.get_spatial_dimensions(stac_ref=url).items()
-            ]
+            metadata = openeo_driver.stac.datacube.stac_to_cube_metadata(stac_ref=url)
         except Exception as e:
-            _log.exception("Dry-run load_stac: failed to extract spatial dimension info from STAC: %s", e)
-            spatial_dimensions = []
-        if not spatial_dimensions:
-            # TODO: this is just a naive fallback for now. Be more strict?
-            _log.warning("Dry-run load_stac: falling back on generic spatial dimensions")
-            spatial_dimensions = [
-                SpatialDimension(name="x", extent=[]),
-                SpatialDimension(name="y", extent=[]),
-            ]
-
-        metadata = CubeMetadata(
-            dimensions=spatial_dimensions
-            + [
-                # TODO: also extract temporal/band metadata from STAC url?
-                TemporalDimension(name="t", extent=[]),
-                BandDimension(name="bands", bands=[Band("unknown")]),
-            ],
-        )
+            _log.exception(
+                f"Dry-run load_stac: failed to parse cube metadata from {url!r} ({e!r}). Falling back in generic metadata"
+            )
+            metadata = CubeMetadata(
+                dimensions=[
+                    SpatialDimension(name="x", extent=[]),
+                    SpatialDimension(name="y", extent=[]),
+                    TemporalDimension(name="t", extent=[]),
+                    BandDimension(name="bands", bands=[Band("unknown")]),
+                ]
+            )
 
         cube = DryRunDataCube(traces=[trace], data_tracer=self, metadata=metadata)
         if "temporal_extent" in arguments:
