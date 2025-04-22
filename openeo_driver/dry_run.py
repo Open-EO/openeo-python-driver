@@ -280,9 +280,10 @@ class DryRunDataTracer:
         self, collection_id: str, arguments: dict, metadata: dict = None, env: EvalEnv = EvalEnv()
     ) -> "DryRunDataCube":
         """Create a DryRunDataCube from a `load_collection` process."""
-        # TODO #275 avoid VITO/Terrascope specific handling here?
+        metadata = CollectionMetadata(metadata=metadata)
         properties = {
-            **CollectionMetadata(metadata).get("_vito", "properties", default={}),
+            # TODO #275 avoid VITO/Terrascope specific handling here?
+            **metadata.get("_vito", "properties", default={}),
             **arguments.get("properties", {}),
         }
 
@@ -357,9 +358,7 @@ class DryRunDataTracer:
                 SpatialDimension(name="y", extent=[]),
             ]
 
-        # TODO: changing this to CubeMetadata makes the tests fail?
-        metadata = CollectionMetadata(
-            metadata={},
+        metadata = CubeMetadata(
             dimensions=spatial_dimensions
             + [
                 # TODO: also extract temporal/band metadata from STAC url?
@@ -553,7 +552,9 @@ class DryRunDataCube(DriverDataCube):
     estimate memory/cpu usage, ...
     """
 
-    def __init__(self, traces: List[DataTraceBase], data_tracer: DryRunDataTracer, metadata: CubeMetadata = None):
+    def __init__(
+        self, traces: List[DataTraceBase], data_tracer: DryRunDataTracer, metadata: Optional[CubeMetadata] = None
+    ):
         super(DryRunDataCube, self).__init__(metadata=metadata)
         self._traces = traces or []
         self._data_tracer = data_tracer

@@ -18,7 +18,7 @@ import shapely.geometry.base
 import shapely.ops
 import xarray
 from geopandas import GeoDataFrame, GeoSeries
-from openeo.metadata import CollectionMetadata
+from openeo.metadata import CollectionMetadata, CubeMetadata
 from openeo.util import ensure_dir, str_truncate
 from pyproj import CRS
 
@@ -55,10 +55,12 @@ class SupportsRunUdf(metaclass=abc.ABCMeta):
 class DriverDataCube:
     """Base class for "driver" side raster data cubes."""
 
-    def __init__(self, metadata: CollectionMetadata = None):
-        self.metadata = (
-            metadata if isinstance(metadata, CollectionMetadata) else CollectionMetadata(metadata=metadata or {})
-        )
+    def __init__(self, metadata: Optional[CubeMetadata] = None):
+        if isinstance(metadata, dict):
+            # TODO: remove this security net once we're sure it's not necessary anymore
+            log.warning("DriverDataCube: deprecated dict-based metadata usage")
+            metadata = CollectionMetadata(metadata=metadata)
+        self.metadata: CubeMetadata = metadata or CubeMetadata()
 
     def __eq__(self, o: object) -> bool:
         if o.__class__ == self.__class__:
