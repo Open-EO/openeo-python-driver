@@ -1,3 +1,4 @@
+import logging
 import json
 from contextlib import nullcontext
 from pathlib import Path
@@ -2641,15 +2642,58 @@ def test_resample_cube_spatial_from_resampled_target(dry_run_env, dry_run_tracer
 
 
 @pytest.mark.parametrize(
-    ["s2_cube_dimensions", "expected_agera5_constraints", "expected_crs", "expected_resolution"],
+    ["s2_cube_dimensions", "expected_agera5_constraints", "expected_crs", "expected_resolution", "expected_logs"],
     [
         (
+            # No datacube/dimension metadata
             None,
             {"process_type": [ProcessType.FOCAL_SPACE]},
             None,
             None,
+            [
+                (
+                    "openeo_driver.stac.datacube",
+                    logging.WARN,
+                    "Forcing pystac datacube extension on possibly unsupported metadata",
+                ),
+                (
+                    "openeo_driver.dry_run",
+                    logging.WARN,
+                    "Dry-run load_stac: falling back on generic spatial dimensions",
+                ),
+            ],
         ),
         (
+            # Invalid datacube/dimension metadata
+            {"x": {"type-typo!?!": "spatial"}},
+            {"process_type": [ProcessType.FOCAL_SPACE]},
+            None,
+            None,
+            [
+                (
+                    "openeo_driver.stac.datacube",
+                    logging.WARN,
+                    "Forcing pystac datacube extension on possibly unsupported metadata",
+                ),
+                (
+                    "openeo_driver.stac.datacube",
+                    logging.WARN,
+                    "Forcing pystac datacube extension on possibly unsupported metadata",
+                ),
+                (
+                    "openeo_driver.dry_run",
+                    logging.ERROR,
+                    "Dry-run load_stac: failed to extract spatial dimension info from STAC: 'cube_dimension' does not have required property type",
+                ),
+                (
+                    "openeo_driver.dry_run",
+                    logging.WARN,
+                    "Dry-run load_stac: falling back on generic spatial dimensions",
+                ),
+            ],
+        ),
+        (
+            # Simple spatial dimension metadata
             {
                 "x": {"type": "spatial", "axis": "x", "extent": [1, 5]},
                 "y": {"type": "spatial", "axis": "y", "extent": [40, 50]},
@@ -2657,8 +2701,21 @@ def test_resample_cube_spatial_from_resampled_target(dry_run_env, dry_run_tracer
             {"process_type": [ProcessType.FOCAL_SPACE]},
             None,
             None,
+            [
+                (
+                    "openeo_driver.stac.datacube",
+                    logging.WARN,
+                    "Forcing pystac datacube extension on possibly unsupported metadata",
+                ),
+                (
+                    "openeo_driver.stac.datacube",
+                    logging.WARN,
+                    "Forcing pystac datacube extension on possibly unsupported metadata",
+                ),
+            ],
         ),
         (
+            # Spatial metadata includes CRS and resolution
             {
                 "x": {"type": "spatial", "axis": "x", "extent": [1, 5], "reference_system": 32631, "step": 11},
                 "y": {"type": "spatial", "axis": "y", "extent": [40, 50], "reference_system": 32631, "step": 22},
@@ -2669,6 +2726,18 @@ def test_resample_cube_spatial_from_resampled_target(dry_run_env, dry_run_tracer
             },
             32631,
             (11, 22),
+            [
+                (
+                    "openeo_driver.stac.datacube",
+                    logging.WARN,
+                    "Forcing pystac datacube extension on possibly unsupported metadata",
+                ),
+                (
+                    "openeo_driver.stac.datacube",
+                    logging.WARN,
+                    "Forcing pystac datacube extension on possibly unsupported metadata",
+                ),
+            ],
         ),
     ],
 )
@@ -2680,10 +2749,25 @@ def test_load_stac_resample_cube_spatial(
     expected_agera5_constraints,
     expected_crs,
     expected_resolution,
+    expected_logs,
+    caplog,
 ):
     """
-    https://github.com/Open-EO/openeo-geopyspark-driver/issues/1114
+    https://github.com/Open-EO/openeo-geopyspark-driver/issues/1114:
+
+    use case:
+
+        load_stac            load_stac
+        s2_extractions       agera5
+                \             /
+               resample_cube_spatial
+               resample agera5 to s2_extractions
+
+    Resolution info from s2_extractions (if available)
+    should be pushed as load parameters to load_stac of agera5
     """
+    caplog.set_level(logging.WARN)
+
     s2_extractions_path = tmp_path / "s2_extractions.json"
     s2_extractions_path.write_text(
         json.dumps(
@@ -2731,3 +2815,5 @@ def test_load_stac_resample_cube_spatial(
     dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
     load_params = _extract_load_parameters(dry_run_env, source_id=("load_stac", (str(agera5_path), (), ())))
     assert (load_params.target_crs, load_params.target_resolution) == (expected_crs, expected_resolution)
+
+    assert caplog.record_tuples == expected_logs

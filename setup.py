@@ -73,7 +73,7 @@ setup(
         "reretry~=0.11.8",
         "markdown>3.4",
         "traceback-with-variables==2.0.4",
-        "pystac~=1.8.0",
+        "pystac~=1.8.0",  # TODO #370/#396 bump to more recent pystac version
     ],
     extras_require={
         "dev": tests_require,

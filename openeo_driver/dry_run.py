@@ -55,7 +55,6 @@ from pyproj import CRS
 from shapely.geometry import GeometryCollection, MultiPolygon, Point, Polygon
 from shapely.geometry.base import BaseGeometry
 import shapely.ops
-import pystac
 
 from openeo.utils.normalize import normalize_resample_resolution
 from openeo_driver import filter_properties
@@ -341,10 +340,11 @@ class DryRunDataTracer:
         trace = DataSource.load_stac(url=url, properties=properties, bands=arguments.get("bands", []), env=env)
         self.add_trace(trace)
 
+        # TODO: constructing the CubeMetadata object should become a single, reusable utility call
         try:
             spatial_dimensions = [
                 SpatialDimension(name=n, extent=dim.extent, crs=dim.reference_system, step=dim.step)
-                for n, dim in openeo_driver.stac.datacube.get_spatial_dimensions(pystac.read_file(href=url)).items()
+                for n, dim in openeo_driver.stac.datacube.get_spatial_dimensions(stac_ref=url).items()
             ]
         except Exception as e:
             _log.exception("Dry-run load_stac: failed to extract spatial dimension info from STAC: %s", e)
@@ -357,10 +357,12 @@ class DryRunDataTracer:
                 SpatialDimension(name="y", extent=[]),
             ]
 
+        # TODO: changing this to CubeMetadata makes the tests fail?
         metadata = CollectionMetadata(
-            {},
+            metadata={},
             dimensions=spatial_dimensions
             + [
+                # TODO: also extract temporal/band metadata from STAC url?
                 TemporalDimension(name="t", extent=[]),
                 BandDimension(name="bands", bands=[Band("unknown")]),
             ],
