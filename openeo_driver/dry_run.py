@@ -47,6 +47,7 @@ from openeo.metadata import (
     CollectionMetadata,
     DimensionAlreadyExistsException,
     SpatialDimension,
+    GeometryDimension,
     TemporalDimension,
     CubeMetadata,
 )
@@ -708,7 +709,7 @@ class DryRunDataCube(DriverDataCube):
         return geometries, bbox
 
     def raster_to_vector(self):
-        dimensions = [SpatialDimension(name=DriverVectorCube.DIM_GEOMETRY, extent=self.metadata.extent)]
+        dimensions = [GeometryDimension(name=DriverVectorCube.DIM_GEOMETRY)]
         if self.metadata.has_temporal_dimension():
             dimensions.append(self.metadata.temporal_dimension)
         if self.metadata.has_band_dimension():
