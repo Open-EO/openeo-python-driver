@@ -2942,11 +2942,11 @@ class TestBatchJobs:
         with self._fresh_job_registry(output_root=output_root, jobs=jobs):
             full_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
 
-        assert full_get_resp.assert_status_code(404).json["message"] == s3_key
+        assert full_get_resp.assert_status_code(404).json["message"] == "Not found: output.tiff"
         assert (
             "openeo_driver.views",
             logging.ERROR,
-            f"No such key: s3://{s3_bucket_name}/{s3_key}",
+            f"Not found: s3://{s3_bucket_name}/{s3_key}",
         ) in caplog.record_tuples
 
     @mock.patch("time.time", mock.MagicMock(return_value=3456))

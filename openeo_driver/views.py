@@ -1315,13 +1315,15 @@ def register_views_batch_jobs(
             raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
         result = results[filename]
         if result.get("href", "").startswith("s3://"):
-            return _stream_from_s3(result["href"], result, request.headers.get("Range"))
+            return _stream_from_s3(result["href"], filename, result.get("type"), request.headers.get("Range"))
         elif "output_dir" in result:
             out_dir_url = result["output_dir"]
             if out_dir_url.startswith("s3://"):
                 # TODO: Would be nice if we could use the s3:// URL directly without splitting into bucket and key.
                 # Ignoring the "s3://" at the start makes it easier to split into the bucket and the rest.
-                resp = _stream_from_s3(f"{out_dir_url}/{filename}", result, request.headers.get("Range"))
+                resp = _stream_from_s3(
+                    f"{out_dir_url}/{filename}", filename, result.get("type"), request.headers.get("Range")
+                )
             else:
                 resp = send_from_directory(result["output_dir"], filename, mimetype=result.get("type"))
                 resp.headers['Accept-Ranges'] = 'bytes'
@@ -1332,7 +1334,7 @@ def register_views_batch_jobs(
             _log.error(f"Unsupported job result: {result!r}")
             raise InternalException("Unsupported job result")
 
-    def _stream_from_s3(s3_url, result, bytes_range: Optional[str]):
+    def _stream_from_s3(s3_url, filename, mimetype: Optional[str], bytes_range: Optional[str]):
         import botocore.exceptions
 
         bucket, key = s3_url[5:].split("/", 1)
@@ -1344,7 +1346,7 @@ def register_views_batch_jobs(
             resp = flask.Response(
                 response=body.iter_chunks(STREAM_CHUNK_SIZE_DEFAULT),
                 status=206 if bytes_range else 200,
-                mimetype=result.get("type"),
+                mimetype=mimetype,
             )
             resp.headers['Accept-Ranges'] = 'bytes'
             resp.headers['Content-Length'] = s3_file_object['ContentLength']
@@ -1352,8 +1354,8 @@ def register_views_batch_jobs(
                 resp.headers['Content-Range'] = s3_file_object['ContentRange']
             return resp
         except s3_instance.exceptions.NoSuchKey as e:
-            _log.exception(f"No such key: s3://{bucket}/{key}")
-            raise OpenEOApiException(code="NotFound", status_code=404, message=key) from e
+            _log.exception(f"Not found: {s3_url}")
+            raise OpenEOApiException(code="NotFound", status_code=404, message=f"Not found: {filename}") from e
         except botocore.exceptions.ClientError as e:
             if e.response.get("ResponseMetadata").get("HTTPStatusCode") == 416:  # best effort really
                 raise OpenEOApiException(
