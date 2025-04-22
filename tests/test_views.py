@@ -20,6 +20,7 @@ import time_machine
 import werkzeug.exceptions
 from openeo.utils.version import ComparableVersion
 
+from openeo_driver.asset_urls import AssetUrl
 from openeo_driver.backend import (
     BatchJobMetadata,
     BatchJobResultMetadata,
@@ -113,6 +114,16 @@ def api110(client) -> ApiTester:
 @pytest.fixture
 def api120(client) -> ApiTester:
     return ApiTester(api_version="1.2", client=client, data_root=TEST_DATA_ROOT)
+
+
+class DummyDirectS3Assets(AssetUrl):
+    S3_ENDPOINT = "https://s3.oeo.test"
+
+    def build_url(self, asset_metadata: dict, asset_name: str, job_id: str, user_id: str) -> str:
+        href = asset_metadata.get("href", "")
+        if href.startswith("s3://"):
+            return href.replace("s3://", f"{self.S3_ENDPOINT}/")
+        return super().build_url(asset_metadata=asset_metadata, asset_name=asset_name, job_id=job_id, user_id=user_id)
 
 
 def api_from_backend_implementation(
@@ -2291,7 +2302,12 @@ class TestBatchJobs:
                 }
             )
 
-    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
+    @pytest.mark.parametrize(
+        "backend_config_overrides", [
+            {"asset_url": DummyDirectS3Assets(), "url_signer": UrlSigner(secret="123&@#")},
+            {"url_signer": UrlSigner(secret="123&@#")},
+        ]
+    )
     def test_get_job_results_signed_110(self, api110, flask_app, backend_config_overrides):
         with self._fresh_job_registry():
             dummy_backend.DummyBatchJobs._update_status(
@@ -3018,11 +3034,38 @@ class TestBatchJobs:
             extensions=resp_data.get("stac_extensions", []),
         )
 
-    @pytest.mark.parametrize(["vector_item_id", "vector_asset_media_type"], [
-        ("timeseries.csv", "text/csv"),
-        ("timeseries.parquet", "application/parquet; profile=geo"),
-    ])
-    def test_get_vector_cube_job_result_item(self, flask_app, api110, vector_item_id, vector_asset_media_type):
+    @pytest.mark.parametrize(
+        ["vector_item_id", "vector_asset_media_type", "backend_config_overrides", "expected_asset_href"],
+        [
+            (
+                "timeseries.csv",
+                "text/csv",
+                {"asset_url": DummyDirectS3Assets()},
+                f"{DummyDirectS3Assets.S3_ENDPOINT}/OpenEO-data/batch_jobs/j-2406047c20fc4966ab637d387502728f/timeseries.csv",
+            ),
+            (
+                "timeseries.csv",
+                "text/csv",
+                {},
+                "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/timeseries.csv",
+            ),
+            (
+                "timeseries.parquet",
+                "application/parquet; profile=geo",
+                {"asset_url": DummyDirectS3Assets()},
+                f"{DummyDirectS3Assets.S3_ENDPOINT}/OpenEO-data/batch_jobs/j-2406047c20fc4966ab637d387502728f/timeseries.parquet",
+            ),
+            (
+                "timeseries.parquet",
+                "application/parquet; profile=geo",
+                {},
+                "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/timeseries.parquet",
+            ),
+        ],
+    )
+    def test_get_vector_cube_job_result_item(
+        self, flask_app, api110, vector_item_id, vector_asset_media_type, backend_config_overrides, expected_asset_href
+    ):
         vector_asset_filename = vector_item_id
 
         with self._fresh_job_registry():
@@ -3062,7 +3105,7 @@ class TestBatchJobs:
             ],
             'assets': {
                 vector_asset_filename: {
-                    'href': f"http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/{vector_asset_filename}",
+                    'href': expected_asset_href,
                     'type': vector_asset_media_type,
                     'roles': ["data"],
                     'title': vector_asset_filename,

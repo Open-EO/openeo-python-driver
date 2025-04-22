@@ -21,6 +21,8 @@ and start a new "In Progress" section above it.
 
 ## In progress: 0.134.0
 
+- Introduce `asset_url` option to allow backend implementations to have custom code for retrieving assets. Default
+  behavior remains unchanged.
 - Return `NoSuchKey` error as 404 Not Found response [Open-EO/openeo-geopyspark-driver#1149](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1149)
 
 
