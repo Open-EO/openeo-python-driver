@@ -594,6 +594,8 @@ class DriverVectorCube:
         gdf = self._as_geopandas_df(flatten_prefix=options.get("flatten_prefix"))
         if format_info.format == "Parquet":
             gdf.to_parquet(path)
+        elif format_info.format.lower() == "csv":
+            gdf.to_csv(path)
         else:
             gdf.to_file(str(path), driver=format_info.fiona_driver, crs=self.get_crs())
 
