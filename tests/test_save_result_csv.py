@@ -116,8 +116,8 @@ def test_aggregate_polygon_result_inconsistent_bands(tmp_path):
         result.to_csv(tmp_path / 'timeseries_invalid.csv')
 
 def test_write_driver_vector_cube_to_csv(tmp_path):
-    vector_cube = DriverVectorCube(gpd.read_file(str(get_path("geojson/FeatureCollection02.json"))))
+    vector_cube = DriverVectorCube.from_fiona([str(get_path("geojson/FeatureCollection02.json"))],driver="geojson")
     vector_cube.write_assets(tmp_path / "dummy", format="CSV")
 
-    actual_gdf = gpd.read_file(tmp_path / "vectorcube.csv")
+    actual_gdf = pd.read_csv(tmp_path / "vectorcube.csv")
     assert actual_gdf.shape == (2, 4)
