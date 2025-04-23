@@ -1,5 +1,4 @@
 import copy
-import datetime as dt
 import functools
 import json
 import logging
@@ -57,6 +56,7 @@ from openeo_driver.errors import (
     FilePathInvalidException,
     InternalException,
     JobNotFinishedException,
+    NotFoundException,
     OpenEOApiException,
     ProcessGraphInvalidException,
     ProcessGraphMissingException,
@@ -515,7 +515,7 @@ def register_views_general(
     @blueprint.route('/.well-known/openeo')
     def versioned_well_known_openeo():
         # Clients might request this for version discovery. Avoid polluting (error) logs by explicitly handling this.
-        error = OpenEOApiException(status_code=404, code="NotFound", message="Not a well-known openEO URI")
+        error = NotFoundException(message="Not a well-known openEO URI")
         return make_response(jsonify(error.to_dict()), error.status_code)
 
     @blueprint.route('/CHANGELOG', methods=['GET'])
@@ -1299,14 +1299,19 @@ def register_views_batch_jobs(
             raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
         result = results[filename]
         if result.get("href", "").startswith("s3://"):
-            return _stream_from_s3(result["href"], filename, result.get("type"), request.headers.get("Range"))
+            return _stream_from_s3(
+                result["href"], filename=filename, mimetype=result.get("type"), bytes_range=request.headers.get("Range")
+            )
         elif "output_dir" in result:
             out_dir_url = result["output_dir"]
             if out_dir_url.startswith("s3://"):
                 # TODO: Would be nice if we could use the s3:// URL directly without splitting into bucket and key.
                 # Ignoring the "s3://" at the start makes it easier to split into the bucket and the rest.
                 resp = _stream_from_s3(
-                    f"{out_dir_url}/{filename}", filename, result.get("type"), request.headers.get("Range")
+                    f"{out_dir_url}/{filename}",
+                    filename=filename,
+                    mimetype=result.get("type"),
+                    bytes_range=request.headers.get("Range"),
                 )
             else:
                 resp = send_from_directory(result["output_dir"], filename, mimetype=result.get("type"))
@@ -1318,7 +1323,7 @@ def register_views_batch_jobs(
             _log.error(f"Unsupported job result: {result!r}")
             raise InternalException("Unsupported job result")
 
-    def _stream_from_s3(s3_url, filename, mimetype: Optional[str], bytes_range: Optional[str]):
+    def _stream_from_s3(s3_url, *, filename, mimetype: Optional[str], bytes_range: Optional[str]):
         import botocore.exceptions
 
         bucket, key = s3_url[5:].split("/", 1)
@@ -1339,7 +1344,7 @@ def register_views_batch_jobs(
             return resp
         except s3_instance.exceptions.NoSuchKey as e:
             _log.exception(f"Not found: {s3_url}")
-            raise OpenEOApiException(code="NotFound", status_code=404, message=f"Not found: {filename}") from e
+            raise NotFoundException(message=f"Not found: {filename}") from e
         except botocore.exceptions.ClientError as e:
             if e.response.get("ResponseMetadata").get("HTTPStatusCode") == 416:  # best effort really
                 raise OpenEOApiException(
