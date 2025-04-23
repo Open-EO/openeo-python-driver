@@ -26,6 +26,7 @@ from openeo.metadata import (
     CollectionMetadata,
     SpatialDimension,
     TemporalDimension,
+    CubeMetadata,
 )
 from openeo.util import rfc3339
 from openeo.utils.version import ComparableVersion
@@ -202,7 +203,7 @@ def mock_side_effect(fun):
 
 class DummyDataCube(DriverDataCube):
 
-    def __init__(self, metadata: CollectionMetadata = None):
+    def __init__(self, metadata: Optional[CubeMetadata] = None):
         super(DummyDataCube, self).__init__(metadata=metadata)
 
         # TODO #47: remove this non-standard process?
@@ -227,15 +228,15 @@ class DummyDataCube(DriverDataCube):
     def reduce_dimension(
         self, reducer, *, dimension: str, context: Optional[dict] = None, env: EvalEnv
     ) -> "DummyDataCube":
-        return DummyDataCube(self.metadata.reduce_dimension(dimension_name=dimension))
+        return DummyDataCube(metadata=self.metadata.reduce_dimension(dimension_name=dimension))
 
     @mock_side_effect
     def add_dimension(self, name: str, label, type: str = "other") -> 'DummyDataCube':
-        return DummyDataCube(self.metadata.add_dimension(name=name, label=label, type=type))
+        return DummyDataCube(metadata=self.metadata.add_dimension(name=name, label=label, type=type))
 
     @mock_side_effect
     def drop_dimension(self, name: str) -> 'DriverDataCube':
-        return DummyDataCube(self.metadata.drop_dimension(name=name))
+        return DummyDataCube(metadata=self.metadata.drop_dimension(name=name))
 
     @mock_side_effect
     def dimension_labels(self, dimension: str) -> 'DriverDataCube':
@@ -1068,8 +1069,7 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
             self, format: str, glob_pattern: str, options: dict, load_params: LoadParameters, env: EvalEnv
     ) -> DummyDataCube:
         _register_load_collection_call(glob_pattern, load_params)
-        metadata = CollectionMetadata(
-            {},
+        metadata = CubeMetadata(
             dimensions=[
                 SpatialDimension(name="x", extent=[]),
                 SpatialDimension(name="y", extent=[]),

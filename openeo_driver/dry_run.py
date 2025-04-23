@@ -71,6 +71,7 @@ from openeo_driver.util.geometry import (
     GeometryBufferer,
     geojson_to_geometry, reproject_geometry,
 )
+import openeo_driver.stac.datacube
 from openeo_driver.utils import EvalEnv, to_hashable
 
 _log = logging.getLogger(__name__)
@@ -279,9 +280,10 @@ class DryRunDataTracer:
         self, collection_id: str, arguments: dict, metadata: dict = None, env: EvalEnv = EvalEnv()
     ) -> "DryRunDataCube":
         """Create a DryRunDataCube from a `load_collection` process."""
-        # TODO #275 avoid VITO/Terrascope specific handling here?
+        metadata = CollectionMetadata(metadata=metadata)
         properties = {
-            **CollectionMetadata(metadata).get("_vito", "properties", default={}),
+            # TODO #275 avoid VITO/Terrascope specific handling here?
+            **metadata.get("_vito", "properties", default={}),
             **arguments.get("properties", {}),
         }
 
@@ -339,15 +341,20 @@ class DryRunDataTracer:
         trace = DataSource.load_stac(url=url, properties=properties, bands=arguments.get("bands", []), env=env)
         self.add_trace(trace)
 
-        metadata = CollectionMetadata(
-            {},
-            dimensions=[
-                SpatialDimension(name="x", extent=[]),
-                SpatialDimension(name="y", extent=[]),
-                TemporalDimension(name="t", extent=[]),
-                BandDimension(name="bands", bands=[Band("unknown")]),
-            ],
-        )
+        try:
+            metadata = openeo_driver.stac.datacube.stac_to_cube_metadata(stac_ref=url)
+        except Exception as e:
+            _log.exception(
+                f"Dry-run load_stac: failed to parse cube metadata from {url!r} ({e!r}). Falling back in generic metadata"
+            )
+            metadata = CubeMetadata(
+                dimensions=[
+                    SpatialDimension(name="x", extent=[]),
+                    SpatialDimension(name="y", extent=[]),
+                    TemporalDimension(name="t", extent=[]),
+                    BandDimension(name="bands", bands=[Band("unknown")]),
+                ]
+            )
 
         cube = DryRunDataCube(traces=[trace], data_tracer=self, metadata=metadata)
         if "temporal_extent" in arguments:
@@ -534,7 +541,9 @@ class DryRunDataCube(DriverDataCube):
     estimate memory/cpu usage, ...
     """
 
-    def __init__(self, traces: List[DataTraceBase], data_tracer: DryRunDataTracer, metadata: CubeMetadata = None):
+    def __init__(
+        self, traces: List[DataTraceBase], data_tracer: DryRunDataTracer, metadata: Optional[CubeMetadata] = None
+    ):
         super(DryRunDataCube, self).__init__(metadata=metadata)
         self._traces = traces or []
         self._data_tracer = data_tracer
