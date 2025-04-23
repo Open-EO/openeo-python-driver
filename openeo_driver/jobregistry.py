@@ -439,7 +439,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         """
         if not job_id:
             job_id = self.generate_job_id()
-        created = rfc3339.utcnow()
+        created = rfc3339.now_utc()
         job_data = {
             # Essential identifiers
             "backend_id": self.backend_id,
@@ -556,7 +556,7 @@ class ElasticJobRegistry(JobRegistryInterface):
     ) -> None:
         data = {
             "status": status,
-            "updated": rfc3339.datetime(updated) if updated else rfc3339.utcnow(),
+            "updated": rfc3339.datetime(updated) if updated else rfc3339.now_utc(),
         }
         if started:
             data["started"] = rfc3339.datetime(started)

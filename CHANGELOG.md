@@ -23,7 +23,8 @@ and start a new "In Progress" section above it.
 
 - Introduce `asset_url` option to allow backend implementations to have custom code for retrieving assets. Default
   behavior remains unchanged.
-- Return `NoSuchKey` error as 404 Not Found response [Open-EO/openeo-geopyspark-driver#1149](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1149)
+- Improve data cube dimension detection in `load_stac` dry-run ([#394](https://github.com/Open-EO/openeo-python-driver/issues/394))
+- Download asset: return `NoSuchKey` error as 404 Not Found response [Open-EO/openeo-geopyspark-driver#1149](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1149)
 
 
 ## 0.133.0
