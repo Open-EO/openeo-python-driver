@@ -1109,7 +1109,7 @@ def register_views_batch_jobs(
                     "license": "proprietary",  # TODO?
                     "extent": {
                         "spatial": {"bbox": [[-180, -90, 180, 90]]},
-                        "temporal": {"interval": [[rfc3339.utcnow(), rfc3339.utcnow()]]},
+                        "temporal": {"interval": [[rfc3339.now_utc(), rfc3339.now_utc()]]},
                     },
                     "links": [
                         {
