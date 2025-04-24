@@ -659,6 +659,7 @@ def register_views_processing(
             process_graph = post_data["process_graph"]
         except (KeyError, TypeError) as e:
             raise ProcessGraphMissingException
+
         env = EvalEnv(
             {
                 "backend_implementation": backend_implementation,
@@ -666,6 +667,7 @@ def register_views_processing(
                 "version": g.openeo_api_version,
                 "openeo_api_version": g.openeo_api_version,
                 "user": None,
+                "validation": True
             }
         )
         errors = backend_implementation.processing.validate(process_graph=process_graph, env=env)

@@ -1644,6 +1644,9 @@ def run_udf(args: dict, env: EvalEnv):
         # This way a weak_spatial_extent can be calculated from the UDF's output.
         return data.run_udf()
 
+    if env.get("validation", False):
+        raise FeatureUnsupportedException("run_udf is not supported in validation mode.")
+
     if isinstance(data, SupportsRunUdf) and data.supports_udf(udf=udf, runtime=runtime):
         _log.info(f"run_udf: data of type {type(data)} has direct run_udf support")
         return data.run_udf(udf=udf, runtime=runtime, context=context, env=env)
