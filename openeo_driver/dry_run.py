@@ -344,8 +344,8 @@ class DryRunDataTracer:
         try:
             metadata = openeo_driver.stac.datacube.stac_to_cube_metadata(stac_ref=url)
         except Exception as e:
-            _log.exception(
-                f"Dry-run load_stac: failed to parse cube metadata from {url!r} ({e!r}). Falling back in generic metadata"
+            _log.warning(
+                f"Dry-run load_stac: failed to parse cube metadata from {url!r} ({e!r}). Falling back on generic metadata."
             )
             metadata = CubeMetadata(
                 dimensions=[
