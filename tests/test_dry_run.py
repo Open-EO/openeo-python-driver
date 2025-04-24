@@ -2660,9 +2660,9 @@ def test_resample_cube_spatial_from_resampled_target(dry_run_env, dry_run_tracer
                 ),
                 (
                     "openeo_driver.dry_run",
-                    logging.ERROR,
+                    logging.WARNING,
                     dirty_equals.IsStr(
-                        regex="Dry-run load_stac: failed to parse cube metadata from.*No datacube extension found in STAC object.*Falling back in generic metadata",
+                        regex="Dry-run load_stac: failed to parse cube metadata from.*No datacube extension found in STAC object.*Falling back on generic metadata.*",
                     ),
                 ),
             ],
@@ -2688,9 +2688,9 @@ def test_resample_cube_spatial_from_resampled_target(dry_run_env, dry_run_tracer
                 ),
                 (
                     "openeo_driver.dry_run",
-                    logging.ERROR,
+                    logging.WARNING,
                     dirty_equals.IsStr(
-                        regex="Dry-run load_stac: failed to parse cube metadata from.*RequiredPropertyMissing.*does not have required property type.*Falling back in generic metadata",
+                        regex="Dry-run load_stac: failed to parse cube metadata from.*RequiredPropertyMissing.*does not have required property type.*Falling back on generic metadata.*",
                     ),
                 ),
             ],
