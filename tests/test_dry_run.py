@@ -2824,3 +2824,42 @@ def test_load_stac_resample_cube_spatial(
     assert (load_params.target_crs, load_params.target_resolution) == (expected_crs, expected_resolution)
 
     assert caplog.record_tuples == expected_logs
+
+
+@pytest.mark.parametrize(
+    ["dimension", "expected"],
+    [
+        ("bands", ["t", "x", "y"]),
+        ("t", ["bands", "x", "y"]),
+    ],
+)
+def test_resample_cube_spatial_preserve_non_spatial(dry_run_env, dimension, expected):
+    """
+    https://github.com/Open-EO/openeo-python-driver/issues/397
+    """
+    pg = {
+        "4d": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FOOBAR"},
+        },
+        "3d": {
+            "process_id": "reduce_dimension",
+            "arguments": {
+                "data": {"from_node": "4d"},
+                "dimension": dimension,
+                "reducer": {
+                    "process_graph": {
+                        "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}}
+                    }
+                },
+            },
+        },
+        "resample_cube_spatial": {
+            "process_id": "resample_cube_spatial",
+            "arguments": {"data": {"from_node": "3d"}, "target": {"from_node": "4d"}},
+            "result": True,
+        },
+    }
+    result = evaluate(pg, env=dry_run_env)
+    assert isinstance(result, DryRunDataCube)
+    assert result.metadata.dimension_names() == expected

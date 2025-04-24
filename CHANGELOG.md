@@ -25,6 +25,7 @@ and start a new "In Progress" section above it.
   behavior remains unchanged.
 - Improve data cube dimension detection in `load_stac` dry-run ([#394](https://github.com/Open-EO/openeo-python-driver/issues/394))
 - Download asset: return `NoSuchKey` error as 404 Not Found response [Open-EO/openeo-geopyspark-driver#1149](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1149)
+- Preserve original non-spatial dimensions in `resample_cube_spatial` dry run ([#397](https://github.com/Open-EO/openeo-python-driver/issues/397))
 
 
 ## 0.133.0
