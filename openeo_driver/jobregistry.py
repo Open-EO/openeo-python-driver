@@ -730,12 +730,22 @@ class ElasticJobRegistry(JobRegistryInterface):
         usage: dict,
         results_metadata: Dict[str, Any],
     ) -> None:
+
+        def _extract_input_pixel(usage_dict: dict) -> int:
+            if isinstance(usage_dict.get("input_pixel"), dict) and "value" in usage_dict["input_pixel"]:
+                input_pixel = usage_dict["input_pixel"]["value"]
+                if isinstance(input_pixel, (int, float)):
+                    return input_pixel
+            self._log.info(f"input_pixel not in usage: {usage_dict=}", exc_info=True)
+            return 0
+
         self._update(
             job_id=job_id,
             data={
                 "costs": costs,
                 "usage": usage,
                 "results_metadata": results_metadata,
+                "input_pixel": _extract_input_pixel(usage),
             },
         )
 
