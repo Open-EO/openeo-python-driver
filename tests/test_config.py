@@ -16,6 +16,7 @@ from openeo_driver.config import (
     get_backend_config,
     from_env,
     from_env_as_list,
+    openeo_backend_config_class,
 )
 from openeo_driver.config.config import check_config_definition
 from openeo_driver.config.env import default_from_env_as_list
@@ -167,7 +168,7 @@ def test_kw_only():
 
 
 def test_add_mandatory_fields():
-    @attrs.frozen(kw_only=True)
+    @openeo_backend_config_class
     class MyConfig(OpenEoBackendConfig):
         color: str = "red"
         set_this_or_die: int
@@ -360,7 +361,7 @@ def test_check_config_definition_backend_config():
 
 
 def test_check_config_definition_subclass_ok():
-    @attrs.frozen(kw_only=True)
+    @openeo_backend_config_class
     class MyConfig(OpenEoBackendConfig):
         color: str = "red"
 
@@ -368,7 +369,7 @@ def test_check_config_definition_subclass_ok():
 
 
 def test_check_config_definition_subclass_no_annotation():
-    @attrs.frozen(kw_only=True)
+    @openeo_backend_config_class
     class MyConfig(OpenEoBackendConfig):
         color = "red"
 
@@ -380,7 +381,7 @@ def test_check_config_definition_subclass_no_annotation():
 
 
 def test_check_config_definition_subclass_field_without_annotation():
-    @attrs.frozen(kw_only=True)
+    @openeo_backend_config_class
     class MyConfig(OpenEoBackendConfig):
         color = attrs.field(default="red", type=str)
 

@@ -12,7 +12,12 @@ def get_path(filename: str) -> Path:
 
 
 def load_json(filename: Union[str, Path], preprocess: Callable = None) -> dict:
-    """Parse data from JSON file"""
+    """
+    Parse data from JSON file.
+
+    :param preprocess: optional callable to preprocess the JSON string before decoding
+        for example to replace some placeholder
+    """
     with get_path(filename).open("r") as f:
         data = f.read()
         if preprocess:

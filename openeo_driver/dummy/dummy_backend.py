@@ -2,7 +2,7 @@ import importlib.metadata
 import json
 import numbers
 import unittest.mock
-from datetime import datetime
+import datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
@@ -12,7 +12,13 @@ import flask
 import numpy
 import openeo.udf
 import xarray
-from openeo.api.logs import normalize_log_level
+
+try:
+    from openeo.rest.models.logs import normalize_log_level
+except ImportError:
+    # TODO remove old deprecated import (since openeo 0.38.0)
+    from openeo.api.logs import normalize_log_level
+
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.metadata import (
     Band,
@@ -20,8 +26,10 @@ from openeo.metadata import (
     CollectionMetadata,
     SpatialDimension,
     TemporalDimension,
+    CubeMetadata,
 )
 from openeo.util import rfc3339
+from openeo.utils.version import ComparableVersion
 from shapely.geometry import MultiPolygon, Polygon
 from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 from shapely.geometry.collection import GeometryCollection
@@ -41,9 +49,10 @@ from openeo_driver.backend import (
     ServiceMetadata,
     UserDefinedProcesses,
     UserDefinedProcessMetadata,
+    UserDefinedProcessesListing,
 )
 from openeo_driver.config import OpenEoBackendConfig
-from openeo_driver.constants import JOB_STATUS, STAC_EXTENSION
+from openeo_driver.constants import JOB_STATUS, STAC_EXTENSION, DEFAULT_LOG_LEVEL_RETRIEVAL
 from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCube
 from openeo_driver.datastructs import StacAsset
 from openeo_driver.delayed_vector import DelayedVector
@@ -55,26 +64,22 @@ from openeo_driver.errors import (
     PermissionsInsufficientException,
     ProcessGraphNotFoundException,
 )
+from openeo_driver.processes import ProcessRegistry, ProcessesListing
 from openeo_driver.ProcessGraphDeserializer import ConcreteProcessing
 from openeo_driver.save_result import (
     AggregatePolygonResult,
     AggregatePolygonSpatialResult,
 )
 from openeo_driver.users import User
+from openeo_driver.util.date_math import now_utc
 from openeo_driver.util.http import UrlSafeStructCodec
 from openeo_driver.utils import EvalEnv, WhiteListEvalEnv, generate_unique_id
 
-DEFAULT_DATETIME = datetime(2020, 4, 23, 16, 20, 27)
 
 # TODO: eliminate this global state with proper pytest fixture usage!
 _collections = {}
 _load_collection_calls = {}
 
-
-def utcnow() -> datetime:
-    # To simplify testing, we break time.
-    # TODO: just start using `time_machine` module for time mocking
-    return DEFAULT_DATETIME
 
 
 def get_collection(collection_id: str) -> 'DummyDataCube':
@@ -136,7 +141,7 @@ class DummySecondaryServices(SecondaryServices):
             configuration={"version": "0.5.8"},
             attributes={},
             title="Test service",
-            created=datetime(2020, 4, 9, 15, 5, 8)
+            created=datetime.datetime(2020, 4, 9, 15, 5, 8),
         )
     ]
 
@@ -172,9 +177,17 @@ class DummySecondaryServices(SecondaryServices):
     def service_info(self, user_id: str, service_id: str) -> ServiceMetadata:
         return next(s for s in self._registry if s.id == service_id)
 
-    def get_log_entries(self, service_id: str, user_id: str, offset: str) -> List[dict]:
+    def get_log_entries(
+        self,
+        service_id: str,
+        *,
+        user_id: str,
+        offset: Union[str, None] = None,
+        limit: Union[int, None] = None,
+        level: str = DEFAULT_LOG_LEVEL_RETRIEVAL,
+    ) -> List[dict]:
         return [
-            {"id": 3, "level": "info", "message": "Loaded data."}
+            {"id": 3, "level": "info", "message": "Loaded data."},
         ]
 
 
@@ -190,7 +203,7 @@ def mock_side_effect(fun):
 
 class DummyDataCube(DriverDataCube):
 
-    def __init__(self, metadata: CollectionMetadata = None):
+    def __init__(self, metadata: Optional[CubeMetadata] = None):
         super(DummyDataCube, self).__init__(metadata=metadata)
 
         # TODO #47: remove this non-standard process?
@@ -215,15 +228,15 @@ class DummyDataCube(DriverDataCube):
     def reduce_dimension(
         self, reducer, *, dimension: str, context: Optional[dict] = None, env: EvalEnv
     ) -> "DummyDataCube":
-        return DummyDataCube(self.metadata.reduce_dimension(dimension_name=dimension))
+        return DummyDataCube(metadata=self.metadata.reduce_dimension(dimension_name=dimension))
 
     @mock_side_effect
     def add_dimension(self, name: str, label, type: str = "other") -> 'DummyDataCube':
-        return DummyDataCube(self.metadata.add_dimension(name=name, label=label, type=type))
+        return DummyDataCube(metadata=self.metadata.add_dimension(name=name, label=label, type=type))
 
     @mock_side_effect
     def drop_dimension(self, name: str) -> 'DriverDataCube':
-        return DummyDataCube(self.metadata.drop_dimension(name=name))
+        return DummyDataCube(metadata=self.metadata.drop_dimension(name=name))
 
     @mock_side_effect
     def dimension_labels(self, dimension: str) -> 'DriverDataCube':
@@ -627,7 +640,36 @@ class DummyCatalog(CollectionCatalog):
         return unittest.mock.patch.dict(self._catalog, extra_collections)
 
 
+class DummyProcessesListing(ProcessesListing):
+    def to_response_dict(self) -> dict:
+        resp = super().to_response_dict()
+        resp["links"].append({"rel": "docs", "href": "http://processing.test/dummy"})
+        resp["flavor"] = "salt and pepper"
+        resp["version"] = "dummy-v2"
+        return resp
+
+
+class DummyProcessRegistry(ProcessRegistry):
+    def get_processes_listing(self, *, exclusion_list: Optional[Iterable[str]] = None) -> ProcessesListing:
+        return DummyProcessesListing(
+            processes=self.get_specs(exclusion_list=exclusion_list),
+            target_version=self.target_version,
+        )
+
+
 class DummyProcessing(ConcreteProcessing):
+    def __init__(self, use_dummy_process_registry: Union[bool, List[str]] = False):
+        super().__init__()
+        self.use_dummy_process_registry = use_dummy_process_registry
+
+    def get_process_registry(self, api_version: Union[str, ComparableVersion]) -> ProcessRegistry:
+        if self.use_dummy_process_registry:
+            reg = DummyProcessRegistry()
+            if isinstance(self.use_dummy_process_registry, list):
+                reg.add_spec_by_name(*self.use_dummy_process_registry)
+            return reg
+        return super().get_process_registry(api_version=api_version)
+
     def extra_validation(
             self, process_graph: dict, env: EvalEnv, result, source_constraints: List[SourceConstraint]
     ) -> Iterable[dict]:
@@ -653,7 +695,6 @@ class DummyBatchJobs(BatchJobs):
 
     def create_job(
         self,
-        user_id: str,
         user: User,
         process: dict,
         api_version: str,
@@ -665,12 +706,12 @@ class DummyBatchJobs(BatchJobs):
             id=job_id,
             status=JOB_STATUS.CREATED,
             process=process,
-            created=utcnow(),
+            created=now_utc(),
             job_options=job_options,
             title=metadata.get("title"),
             description=metadata.get("description"),
         )
-        self._job_registry[(user_id, job_id)] = job_info
+        self._job_registry[(user.user_id, job_id)] = job_info
         return job_info
 
     def get_job_info(self, job_id: str, user_id: str) -> BatchJobMetadata:
@@ -921,16 +962,18 @@ class DummyBatchJobs(BatchJobs):
     def get_log_entries(
         self,
         job_id: str,
+        *,
         user_id: str,
-        offset: Optional[str] = None,
-        level: Optional[str] = None,
+        offset: Union[str, None] = None,
+        limit: Union[str, None] = None,
+        level: str = DEFAULT_LOG_LEVEL_RETRIEVAL,
     ) -> Iterable[dict]:
         self._get_job_info(job_id=job_id, user_id=user_id)
         default_logs = [{"id": "1", "level": "info", "message": "hello world"}]
         requested_level = normalize_log_level(level)
         for log in self._custom_job_logs.get(job_id, default_logs):
             if isinstance(log, dict):
-                actual_level = normalize_log_level(log.get("log_level"))
+                actual_level = normalize_log_level(log.get("level"))
                 if actual_level < requested_level:
                     continue
                 yield log
@@ -957,8 +1000,10 @@ class DummyUserDefinedProcesses(UserDefinedProcesses):
     def get(self, user_id: str, process_id: str) -> Union[UserDefinedProcessMetadata, None]:
         return self._processes.get((user_id, process_id))
 
-    def get_for_user(self, user_id: str) -> List[UserDefinedProcessMetadata]:
-        return [udp for key, udp in self._processes.items() if key[0] == user_id]
+    def list_for_user(self, user_id: str) -> UserDefinedProcessesListing:
+        return UserDefinedProcessesListing(
+            udps=[udp for key, udp in self._processes.items() if key[0] == user_id],
+        )
 
     def save(self, user_id: str, process_id: str, spec: dict) -> None:
         self._processes[user_id, process_id] = UserDefinedProcessMetadata.from_dict(spec)
@@ -1024,8 +1069,7 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
             self, format: str, glob_pattern: str, options: dict, load_params: LoadParameters, env: EvalEnv
     ) -> DummyDataCube:
         _register_load_collection_call(glob_pattern, load_params)
-        metadata = CollectionMetadata(
-            {},
+        metadata = CubeMetadata(
             dimensions=[
                 SpatialDimension(name="x", extent=[]),
                 SpatialDimension(name="y", extent=[]),

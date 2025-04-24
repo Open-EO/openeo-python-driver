@@ -1,0 +1,38 @@
+{
+  "id": "load_collection_property_from_parameter",
+  "parameters": [
+    {
+      "name": "orbit_state",
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "process_graph": {
+    "loadcollection1": {
+      "process_id": "load_collection",
+      "arguments": {
+        "id": "SENTINEL1_GRD",
+        "properties": {
+          "sat:orbit_state": {
+            "process_graph": {
+              "eq1": {
+                "arguments": {
+                  "x": {
+                    "from_parameter": "value"
+                  },
+                  "y": {
+                    "from_parameter": "orbit_state"
+                  }
+                },
+                "process_id": "eq",
+                "result": true
+              }
+            }
+          }
+        }
+      },
+      "result": true
+    }
+  }
+}

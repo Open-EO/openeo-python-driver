@@ -17,7 +17,7 @@ _log = logging.getLogger(__name__)
 def build_backend_deploy_metadata(packages: List[str]) -> dict:
     """Build deploy metadata (version listing of provided python packages)"""
     return {
-        "date": rfc3339.utcnow(),
+        "date": rfc3339.now_utc(),
         "versions": get_package_versions(packages),
     }
 

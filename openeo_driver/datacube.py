@@ -18,7 +18,7 @@ import shapely.geometry.base
 import shapely.ops
 import xarray
 from geopandas import GeoDataFrame, GeoSeries
-from openeo.metadata import CollectionMetadata
+from openeo.metadata import CollectionMetadata, CubeMetadata
 from openeo.util import ensure_dir, str_truncate
 from pyproj import CRS
 
@@ -55,10 +55,12 @@ class SupportsRunUdf(metaclass=abc.ABCMeta):
 class DriverDataCube:
     """Base class for "driver" side raster data cubes."""
 
-    def __init__(self, metadata: CollectionMetadata = None):
-        self.metadata = (
-            metadata if isinstance(metadata, CollectionMetadata) else CollectionMetadata(metadata=metadata or {})
-        )
+    def __init__(self, metadata: Optional[CubeMetadata] = None):
+        if isinstance(metadata, dict):
+            # TODO: remove this security net once we're sure it's not necessary anymore
+            log.warning("DriverDataCube: deprecated dict-based metadata usage")
+            metadata = CollectionMetadata(metadata=metadata)
+        self.metadata: CubeMetadata = metadata or CubeMetadata()
 
     def __eq__(self, o: object) -> bool:
         if o.__class__ == self.__class__:
@@ -199,7 +201,7 @@ class DriverDataCube:
         # TODO #47: remove this non-standard process
         self._not_implemented()
 
-    def ndvi(self, nir: str = "nir", red: str = "red", target_band: str = None) -> 'DriverDataCube':
+    def ndvi(self, nir: str = "nir", red: str = "red", target_band: Optional[str] = None) -> "DriverDataCube":
         self._not_implemented()
 
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
@@ -594,6 +596,8 @@ class DriverVectorCube:
         gdf = self._as_geopandas_df(flatten_prefix=options.get("flatten_prefix"))
         if format_info.format == "Parquet":
             gdf.to_parquet(path)
+        elif format_info.format.lower() == "csv":
+            gdf.to_csv(path)
         else:
             gdf.to_file(str(path), driver=format_info.fiona_driver, crs=self.get_crs())
 
@@ -657,6 +661,8 @@ class DriverVectorCube:
             # we keep it simple here with a basic JSONResult result.
             cube = cube.transpose(self.DIM_GEOMETRY, self.DIM_BANDS)
             return JSONResult(data=cube.values.tolist())
+        elif cube.dims == (self.DIM_GEOMETRY, self.DIM_PROPERTIES):
+            return JSONResult(data=self.to_geojson(include_properties=True))
         raise ValueError(
             f"Unsupported cube configuration {cube.dims} for _write_legacy_aggregate_polygon_result_json"
         )

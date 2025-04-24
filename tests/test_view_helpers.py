@@ -1,5 +1,4 @@
 import datetime
-from unittest import mock
 
 import flask
 import pytest
@@ -8,6 +7,9 @@ from openeo_driver.util.view_helpers import cache_control
 
 
 class TestCacheControl:
+    @pytest.fixture(autouse=True)
+    def set_time(self, time_machine):
+        time_machine.move_to("2022-06-01T15:50:00", tick=False)
 
     def test_default(self, ):
         app = flask.Flask(__name__)
@@ -22,12 +24,6 @@ class TestCacheControl:
         assert "Cache-Control" not in resp.headers
         assert "Expires" not in resp.headers
 
-    def _patch_utcnow(self):
-        return mock.patch(
-            "openeo_driver.util.view_helpers._utcnow",
-            return_value=datetime.datetime(2022, 6, 1, 15, 50, 00),
-        )
-
     @pytest.mark.parametrize("max_age", [
         123,
         datetime.timedelta(minutes=2, seconds=3),
@@ -40,9 +36,8 @@ class TestCacheControl:
         def hello():
             return flask.jsonify(hello="world")
 
-        with self._patch_utcnow():
-            with app.test_client() as client:
-                resp = client.get("/hello")
+        with app.test_client() as client:
+            resp = client.get("/hello")
         assert resp.headers["Cache-Control"] == "max-age=123"
         assert resp.headers["Expires"] == "Wed, 01 Jun 2022 15:52:03 GMT"
 
@@ -63,14 +58,13 @@ class TestCacheControl:
         def bye():
             return flask.jsonify(bye="world")
 
-        with self._patch_utcnow():
-            with app.test_client() as client:
-                resp = client.get("/hello")
-                assert resp.headers["Cache-Control"] == "max-age=123"
-                resp = client.get("/hi")
-                assert resp.headers["Cache-Control"] == "max-age=1234"
-                resp = client.get("/bye")
-                assert "Cache-Control" not in resp.headers
+        with app.test_client() as client:
+            resp = client.get("/hello")
+            assert resp.headers["Cache-Control"] == "max-age=123"
+            resp = client.get("/hi")
+            assert resp.headers["Cache-Control"] == "max-age=1234"
+            resp = client.get("/bye")
+            assert "Cache-Control" not in resp.headers
 
     @pytest.mark.parametrize(["status", "caching"], [
         (200, True),
@@ -87,9 +81,8 @@ class TestCacheControl:
         def hello():
             return flask.Response(response="hello", status=status)
 
-        with self._patch_utcnow():
-            with app.test_client() as client:
-                resp = client.get("/hello")
+        with app.test_client() as client:
+            resp = client.get("/hello")
 
         if caching:
             assert resp.headers["Cache-Control"] == "max-age=123"
@@ -106,8 +99,7 @@ class TestCacheControl:
         def hello():
             return flask.jsonify(hello="world")
 
-        with self._patch_utcnow():
-            with app.test_client() as client:
-                resp = client.get("/hello")
+        with app.test_client() as client:
+            resp = client.get("/hello")
         assert resp.headers["Cache-Control"] == "max-age=123, no-cache, public, must-revalidate"
         assert resp.headers["Expires"] == "Wed, 01 Jun 2022 15:52:03 GMT"

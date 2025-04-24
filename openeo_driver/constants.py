@@ -49,3 +49,9 @@ RESAMPLE_SPATIAL_ALIGNS = [
     "lower-right",
     "upper-right",
 ]
+
+
+# Default value for `log_level` parameter in `POST /result`, `POST /jobs`, ... requests
+DEFAULT_LOG_LEVEL_PROCESSING = "info"
+# Default value for `level in `GET /jobs/{job_id}/logs`, `GET /services/{service_id}/logs` requests
+DEFAULT_LOG_LEVEL_RETRIEVAL = "debug"

@@ -9,7 +9,7 @@ from numpy.testing import assert_allclose
 from pyproj.exceptions import CRSError
 from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseGeometry
-from shapely.geos import WKTWriter
+
 
 from openeo_driver.util.geometry import (
     BoundingBox,
@@ -249,8 +249,13 @@ def test_spatial_extent_union_mixed_crs():
 
 
 def to_wkt(geometry: BaseGeometry, rounding_precision=2):
-    wkt_writer = WKTWriter(shapely.geos.lgeos, rounding_precision=rounding_precision)
-    return wkt_writer.write(geometry)
+    try:
+        from shapely import to_wkt
+        to_wkt(geometry,rounding_precision=rounding_precision)
+    except ImportError:
+        from shapely.geos import WKTWriter
+        wkt_writer = WKTWriter(shapely.geos.lgeos, rounding_precision=rounding_precision)
+        return wkt_writer.write(geometry)
 
 
 class TestGeometryBufferer:

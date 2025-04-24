@@ -1,26 +1,26 @@
-import inspect
 import os
-from typing import Callable, Dict, List, Optional, Tuple, Type
+from typing import Callable, Dict, List, Optional, Tuple
 
 import attrs
 
 import openeo_driver
+from openeo_driver.asset_urls import AssetUrl
+from openeo_driver.config.base import (
+    ConfigException,
+    _ConfigBase,
+    check_config_definition,
+    openeo_backend_config_class,
+)
 from openeo_driver.server import build_backend_deploy_metadata
 from openeo_driver.urlsigning import UrlSigner
 from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.workspace import Workspace
 
-
-class ConfigException(ValueError):
-    pass
+__all__ = ["OpenEoBackendConfig", "openeo_backend_config_class", "ConfigException", "check_config_definition"]
 
 
-@attrs.frozen(
-    # Note: `kw_only=True` enforces "kwargs" based construction (which is good for readability/maintainability)
-    # and allows defining mandatory fields (fields without default) after optional fields.
-    kw_only=True
-)
-class OpenEoBackendConfig:
+@openeo_backend_config_class
+class OpenEoBackendConfig(_ConfigBase):
     """
     Configuration for openEO backend.
     """
@@ -68,22 +68,23 @@ class OpenEoBackendConfig:
     )
 
     url_signer: Optional[UrlSigner] = None
+    asset_url: AssetUrl = attrs.Factory(AssetUrl)
 
-    collection_exclusion_list: Dict[str, List[str]] = {}  # e.g. {"1.1.0":["my_collection_id"]}
-    processes_exclusion_list: Dict[str, List[str]] = {}  # e.g. {"1.1.0":["my_process_id"]}
+    """
+    Collection exclusion list: mapping of API version to collections to exclude
+    e.g. {"1.1.0": ["my_collection_id"]}
+    """
+    collection_exclusion_list: Dict[str, List[str]] = attrs.Factory(dict)
+
+    """
+    Process exclusion list: mapping of API version to processes to exclude
+    e.g. {"1.1.0": ["my_process_id"]}
+    """
+    processes_exclusion_list: Dict[str, List[str]] = attrs.Factory(dict)
 
     workspaces: Dict[str, Workspace] = attrs.Factory(dict)
 
     ejr_retry_settings: dict = attrs.Factory(lambda: dict(tries=4, delay=2, backoff=2))
 
-
-def check_config_definition(config_class: Type[OpenEoBackendConfig]):
-    """
-    Verify that the config class definition is correct (e.g. all fields have type annotations).
-    """
-    annotated = set(k for cls in config_class.__mro__ for k in cls.__dict__.get("__annotations__", {}).keys())
-    members = set(k for k, v in inspect.getmembers(config_class) if not k.startswith("_"))
-
-    if annotated != members:
-        missing_annotations = members.difference(annotated)
-        raise ConfigException(f"{config_class.__name__}: fields without type annotation: {missing_annotations}.")
+    "Experimental: simple job progress fallback estimation. Specify average batch job completion time (wall clock) in seconds."
+    simple_job_progress_estimation: Optional[float] = None

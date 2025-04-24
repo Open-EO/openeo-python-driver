@@ -1,6 +1,7 @@
 import re
 
 import pytest
+import dirty_equals
 
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.errors import (
@@ -223,6 +224,43 @@ def test_process_registry_add_function_argument_names():
     assert reg.get_function('max') is max
 
 
+def test_process_registry_add_function_no_override():
+    reg = ProcessRegistry()
+
+    reg.add_spec_by_name("min", "max")
+
+    with pytest.raises(ProcessRegistryException, match="Process 'max' already defined in namespace 'backend'"):
+
+        @reg.add_function
+        def max(*args):
+            return max(*args)
+
+    assert reg.contains("max")
+
+
+def test_process_registry_add_function_allow_override():
+    reg = ProcessRegistry()
+
+    reg.add_spec_by_name("min", "max")
+
+    assert reg.get_spec("max") == dirty_equals.IsPartialDict(
+        {
+            "id": "max",
+            "summary": "Maximum value",
+        }
+    )
+
+    @reg.add_function(allow_override=True, spec={"id": "max", "summary": "Ultra pro max!"})
+    def max(*args):
+        return max(*args)
+
+    assert reg.contains("max")
+    assert reg.get_spec("max") == {
+        "id": "max",
+        "summary": "Ultra pro max!",
+    }
+
+
 def test_process_registry_with_spec_040():
     reg = ProcessRegistry()
 
@@ -370,10 +408,10 @@ def test_process_registry_get_specs():
     reg.add_spec_by_name("min")
     reg.add_spec_by_name("max")
     reg.add_spec_by_name("sin")
-    assert set(p['id'] for p in reg.get_specs()) == {"max", "min", "sin"}
-    assert set(p['id'] for p in reg.get_specs('')) == {"max", "min", "sin"}
-    assert set(p['id'] for p in reg.get_specs("m")) == {"max", "min"}
-    assert set(p['id'] for p in reg.get_specs("in")) == {"min", "sin"}
+    assert set(p["id"] for p in reg.get_specs()) == {"max", "min", "sin"}
+    assert set(p["id"] for p in reg.get_specs(substring="")) == {"max", "min", "sin"}
+    assert set(p["id"] for p in reg.get_specs(substring="m")) == {"max", "min"}
+    assert set(p["id"] for p in reg.get_specs(substring="in")) == {"min", "sin"}
 
 
 def test_process_registry_get_specs_namepsaces():
@@ -381,13 +419,13 @@ def test_process_registry_get_specs_namepsaces():
     reg.add_spec_by_name("min", namespace="stats")
     reg.add_spec_by_name("max", namespace="stats")
     reg.add_spec_by_name("sin", namespace="math")
-    assert set(p['id'] for p in reg.get_specs()) == set()
-    assert set(p['id'] for p in reg.get_specs(namespace="stats")) == {"max", "min"}
-    assert set(p['id'] for p in reg.get_specs(namespace="math")) == {"sin"}
-    assert set(p['id'] for p in reg.get_specs("", namespace="stats")) == {"max", "min"}
-    assert set(p['id'] for p in reg.get_specs("m", namespace="math")) == set()
-    assert set(p['id'] for p in reg.get_specs("in", namespace="stats")) == {"min"}
-    assert set(p['id'] for p in reg.get_specs("in", namespace="math")) == {"sin"}
+    assert set(p["id"] for p in reg.get_specs()) == set()
+    assert set(p["id"] for p in reg.get_specs(namespace="stats")) == {"max", "min"}
+    assert set(p["id"] for p in reg.get_specs(namespace="math")) == {"sin"}
+    assert set(p["id"] for p in reg.get_specs(substring="", namespace="stats")) == {"max", "min"}
+    assert set(p["id"] for p in reg.get_specs(substring="m", namespace="math")) == set()
+    assert set(p["id"] for p in reg.get_specs(substring="in", namespace="stats")) == {"min"}
+    assert set(p["id"] for p in reg.get_specs(substring="in", namespace="math")) == {"sin"}
 
 
 def test_process_registry_add_simple_function():

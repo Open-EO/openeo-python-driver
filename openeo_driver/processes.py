@@ -1,9 +1,12 @@
+from __future__ import annotations
+
+import typing
+import logging
 import functools
 import inspect
 import warnings
-from collections import namedtuple
 from pathlib import Path
-from typing import Any, Callable, Collection, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Collection, Dict, List, Optional, Tuple, Union, Iterable
 
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.errors import (
@@ -16,6 +19,8 @@ from openeo_driver.specs import SPECS_ROOT
 from openeo_driver.util.geometry import validate_geojson_basic
 from openeo_driver.utils import EvalEnv, read_json
 
+
+_log = logging.getLogger(__name__)
 
 class ProcessParameter:
     """Process Parameter."""
@@ -89,21 +94,35 @@ class ProcessSpec:
         }}
 
 
-ProcessData = namedtuple("ProcessData", ["function", "spec"])
+DEFAULT_NAMESPACE = "backend"
+
+
+class ProcessData(typing.NamedTuple):
+    function: Optional[Callable]
+    spec: Optional[dict]
+
+
+class _ProcessRegKey(typing.NamedTuple):
+    namespace: str
+    name: str
 
 
 class ProcessRegistryException(Exception):
     pass
 
 
-DEFAULT_NAMESPACE = "backend"
-
-
 class ProcessRegistry:
     """
     Registry for processes we support in the backend.
 
-    Basically a dictionary of process specification dictionaries
+    For each process (name or "id" in official openEO terminology), we keep track of:
+    - optional: a Python function that implements the process in some way.
+        While generally optional, it is a requirement for openEO processes
+        that are used in the top level of an openEO process graph.
+    - optional: a specification (dictionary construct) in the style of the official
+        openEO processes specifications.
+        While generally optional, it is a requirement for processes that should
+        be visible to standard openEO tooling (e.g. listed under `GET /processes`).
     """
 
     def __init__(
@@ -114,7 +133,7 @@ class ProcessRegistry:
     ):
         self._processes_spec_root = spec_root
         # Dictionary (namespace, process_name) -> ProcessData
-        self._processes: Dict[Tuple[str, str], ProcessData] = {}
+        self._processes: Dict[_ProcessRegKey, ProcessData] = {}
         # Expected argument names that process function signature should start with
         self._argument_names = argument_names
         # openeo-processes version targeted by this collection of specs (per https://github.com/Open-EO/openeo-api/pull/549)
@@ -123,15 +142,11 @@ class ProcessRegistry:
     def __repr__(self):
         return "<{c} {n} processes>".format(c=self.__class__.__name__, n=len(self._processes))
 
-    def _key(self, name: str, namespace: str = DEFAULT_NAMESPACE) -> Tuple[str, str]:
-        """Lookup key for in `_processes` dict"""
-        return namespace, name
-
     def contains(self, name: str, namespace: str = DEFAULT_NAMESPACE) -> bool:
-        return self._key(name=name, namespace=namespace) in self._processes
+        return _ProcessRegKey(name=name, namespace=namespace) in self._processes
 
     def _get(self, name: str, namespace: str = DEFAULT_NAMESPACE) -> ProcessData:
-        return self._processes[self._key(name=name, namespace=namespace)]
+        return self._processes[_ProcessRegKey(name=name, namespace=namespace)]
 
     def load_predefined_spec(self, name: str) -> dict:
         """Get predefined process specification (dict) based on process name."""
@@ -147,12 +162,47 @@ class ProcessRegistry:
         """List all processes with a spec JSON file."""
         return {p.stem: p for p in self._processes_spec_root.glob("*.json")}
 
-    def add_process(self, name: str, function: Callable = None, spec: dict = None, namespace: str = DEFAULT_NAMESPACE):
+    def add_process(
+        self,
+        name: str,
+        *,
+        function: Optional[Callable] = None,
+        spec: Optional[dict] = None,
+        namespace: str = DEFAULT_NAMESPACE,
+        allow_override: bool = False,
+    ):
         """
-        Add a process to the registry, with callable function (optional) and specification dict (optional)
+        Generic method to add a process to the registry,
+        with callable function (optional) and specification dict (optional).
+
+        There are multiple methods to add an entry in the registry.
+        Which one to pick depends on the situation or use case:
+
+        - :py:meth:`add_process`: most generic method, used by all other methods,
+            but least recommended for general use, because it hides intent and purpose.
+
+        - spec only:
+            - :py:meth:`add_spec`: add a process just by a specification dict (e.g. loaded from a JSON file),
+                without handling function
+            - :py:meth:`add_spec_by_name`: add one or more standard openEO processes just by process id
+                (spec will be fetched from collection of official openEO-process specs)
+
+        - function-focussed or function-only:
+            - :py:meth:`add_function` add a Python function, and guess the rest (process id, spec, ...) from that (unless given).
+                The Python function must accept a `args: ProcessArgs` and `env EvalEnv` argument
+            - :py:meth:`add_simple_function`: like `add_function`, but the function can have simple argument,
+                e.g. `x` and `y`. The function will be wrapped to automatically extract
+                these argument values from the actual runtime `ProcessArgs`.
+            - :py:meth:`add_hidden`: add a Python function like `add_function`,
+                but don't register any spec to make it hidden from the process listing.
+            - :py:meth:`add_deprecated`: add a Python function like `add_hidden`
+                and also wrap it so that warnings are triggered when used
         """
         if self.contains(name, namespace):
-            raise ProcessRegistryException(f"Process {name!r} already defined in namespace {namespace!r}")
+            if allow_override:
+                _log.info(f"Overriding process {name} (namespace {namespace})")
+            else:
+                raise ProcessRegistryException(f"Process {name!r} already defined in namespace {namespace!r}")
         if spec:
             if name != spec["id"]:
                 raise ProcessRegistryException(f"Process {name!r} has unexpected id {spec['id']!r}")
@@ -164,49 +214,75 @@ class ProcessRegistry:
                     f"Process {name!r} has invalid argument names: {arg_names}. Expected {self._argument_names}"
                 )
 
-        self._processes[self._key(name=name, namespace=namespace)] = ProcessData(function=function, spec=spec)
+        self._processes[_ProcessRegKey(name=name, namespace=namespace)] = ProcessData(function=function, spec=spec)
 
-    def add_spec(self, spec: dict, namespace: str = DEFAULT_NAMESPACE):
-        """Add process specification dictionary."""
+    def add_spec(self, spec: dict, *, namespace: str = DEFAULT_NAMESPACE):
+        """
+        Add process by specification dictionary (no function).
+
+        Also see :py:meth:`add_process` for alternatives.
+        """
         self.add_process(name=spec['id'], spec=spec, namespace=namespace)
 
     def add_spec_by_name(self, *names: str, namespace: str = DEFAULT_NAMESPACE):
-        """Add process by name. Multiple processes can be given."""
+        """
+        Add process by name (process id). Multiple processes can be given.
+
+        Also see :py:meth:`add_process` for alternatives.
+        """
         for name in set(names):
             self.add_spec(self.load_predefined_spec(name), namespace=namespace)
 
     def add_function(
-            self, f: Callable = None, name: str = None, spec: dict = None, namespace: str = DEFAULT_NAMESPACE
+        self,
+        f: Union[Callable, None] = None,
+        *,
+        name: Optional[str] = None,
+        spec: Optional[dict] = None,
+        namespace: str = DEFAULT_NAMESPACE,
+        allow_override: bool = False,
     ) -> Callable:
         """
         Register the process corresponding with given function.
         Process name can be specified explicitly, otherwise the function name will be used.
         Process spec can be specified explicitly, otherwise it will be derived from function name.
         Can be used as function decorator.
+
+        Also see :py:meth:`add_process` for alternatives.
         """
         if f is None:
             # Called as parameterized decorator
-            return functools.partial(self.add_function, name=name, spec=spec, namespace=namespace)
+            return functools.partial(
+                self.add_function, name=name, spec=spec, namespace=namespace, allow_override=allow_override
+            )
 
         # TODO check if function arguments correspond with spec
         self.add_process(
             name=name or f.__name__,
             function=f,
             spec=spec or self.load_predefined_spec(name or f.__name__),
-            namespace=namespace
+            namespace=namespace,
+            allow_override=allow_override,
         )
         return f
 
     def add_simple_function(
-        self, f: Optional[Callable] = None, name: Optional[str] = None, spec: Optional[dict] = None
+        self,
+        f: Optional[Callable] = None,
+        *,
+        name: Optional[str] = None,
+        spec: Optional[dict] = None,
+        namespace: str = DEFAULT_NAMESPACE,
     ):
         """
         Register a simple function that uses normal arguments instead of `args: ProcessArgs, env: EvalEnv`:
         wrap it in a wrapper that automatically extracts these arguments
+
         :param f:
         :param name: process_id (when guessing from `f.__name__` doesn't work)
         :param spec: optional spec dict
-        :return:
+
+        Also see :py:meth:`add_process` for alternatives.
         """
         if f is None:
             # Called as parameterized decorator
@@ -235,16 +311,24 @@ class ProcessRegistry:
             return f(**kwargs)
 
         spec = spec or self.load_predefined_spec(process_id)
-        self.add_process(name=process_id, function=wrapped, spec=spec)
+        self.add_process(name=process_id, function=wrapped, spec=spec, namespace=namespace)
         return f
 
-    def add_hidden(self, f: Callable, name: str = None, namespace: str = DEFAULT_NAMESPACE):
-        """Just register the function, but don't register spec for (public) listing."""
+    def add_hidden(self, f: Callable, *, name: Optional[str] = None, namespace: str = DEFAULT_NAMESPACE):
+        """
+        Just register the function, but don't register spec for (public) listing.
+
+        Also see :py:meth:`add_process` for alternatives.
+        """
         self.add_process(name=name or f.__name__, function=f, spec=None, namespace=namespace)
         return f
 
     def add_deprecated(self, f: Callable = None, namespace: str = DEFAULT_NAMESPACE):
-        """Register a deprecated function (non-public, throwing warnings)."""
+        """
+        Register a deprecated function (non-public, throwing warnings).
+
+        Also see :py:meth:`add_process` for alternatives.
+        """
         if f is None:
             # Called as parameterized decorator
             return functools.partial(self.add_deprecated, namespace=namespace)
@@ -262,13 +346,27 @@ class ProcessRegistry:
             raise ProcessUnsupportedException(process=name, namespace=namespace)
         return self._get(name, namespace).spec
 
-    def get_specs(self, substring: str = None, namespace: str = DEFAULT_NAMESPACE) -> List[dict]:
-        """Get all specs (or subset based on name substring)."""
-        id_match = (lambda p: True) if substring is None else (lambda p: substring.lower() in p.spec["id"].lower())
+    def get_specs(
+        self,
+        *,
+        substring: Optional[str] = None,
+        namespace: str = DEFAULT_NAMESPACE,
+        exclusion_list: Optional[Iterable[str]] = None,
+    ) -> List[dict]:
+        """Get all specs (or subset based on name substring/exclusion list)."""
+        exclusion_list = set(exclusion_list or [])
+
+        def id_match(p: ProcessData) -> bool:
+            process_id = p.spec["id"]
+            if substring and substring not in process_id:
+                return False
+            if process_id in exclusion_list:
+                return False
+            return True
         return [
             process_data.spec
-            for (ns, n), process_data in self._processes.items()
-            if ns == namespace and process_data.spec and id_match(process_data)
+            for k, process_data in self._processes.items()
+            if k.namespace == namespace and process_data.spec and id_match(process_data)
         ]
 
     def get_function(self, name: str, namespace: str = DEFAULT_NAMESPACE) -> Callable:
@@ -276,6 +374,25 @@ class ProcessRegistry:
         if not self.contains(name, namespace) or self._get(name, namespace).function is None:
             raise ProcessUnsupportedException(process=name, namespace=namespace)
         return self._get(name, namespace).function
+
+    def get_processes_listing(self, *, exclusion_list: Optional[Iterable[str]] = None) -> ProcessesListing:
+        return ProcessesListing(
+            processes=self.get_specs(exclusion_list=exclusion_list),
+            target_version=self.target_version,
+        )
+
+
+class ProcessesListing:
+    def __init__(self, processes: List[dict], *, target_version: str):
+        self.processes = processes
+        self.target_version = target_version
+
+    def to_response_dict(self) -> dict:
+        return {
+            "version": self.target_version,
+            "processes": self.processes,
+            "links": [],
+        }
 
 
 # Type annotation aliases

@@ -10,11 +10,11 @@ import typing
 import uuid
 from math import isnan
 from pathlib import Path
-from typing import Any, List, Optional, Tuple, Union, Callable
+from typing import Any, Callable, List, Optional, Tuple, Union
 
-from deprecated import deprecated
-from openeo.util import rfc3339, Rfc3339
-
+from openeo.util import Rfc3339, rfc3339
+from openeo.utils.version import ComparableVersion
+from openeo_driver.util.date_math import now_utc
 
 _log = logging.getLogger(__name__)
 
@@ -102,6 +102,10 @@ class EvalEnv:
     @property
     def backend_implementation(self) -> 'OpenEoBackendImplementation':
         return self["backend_implementation"]
+
+    def openeo_api_version(self) -> ComparableVersion:
+        return ComparableVersion(self["openeo_api_version"])
+
 
 class WhiteListEvalEnv(EvalEnv):
     """
@@ -307,12 +311,20 @@ def extract_namedtuple_fields_from_dict(
         )
 
     # Additional auto-conversions (by type annotation)
+    # TODO: this ad-hoc annotation based conversion is apparently brittle
+    #       when `from __future__ import annotations` is used in the module that defines the named tuple.
+    #       Consider switching to dataclasses/attrs instead?
     converters = {}
     if convert_datetime:
         converters[datetime.datetime] = lambda v: rfc3339.parse_datetime(v)
+        converters[typing.ForwardRef("datetime")] = lambda v: rfc3339.parse_datetime(v)
         converters[Optional[datetime.datetime]] = lambda v: Rfc3339(propagate_none=True).parse_datetime(v)
+        converters[typing.ForwardRef("Optional[datetime]")] = lambda v: Rfc3339(propagate_none=True).parse_datetime(v)
     if convert_timedelta:
         converters[datetime.timedelta] = lambda v: datetime.timedelta(seconds=v)  # TODO: assumes always seconds?
+        converters[typing.ForwardRef("timedelta")] = lambda v: datetime.timedelta(
+            seconds=v
+        )  # TODO: assumes always seconds?
 
     if converters:
         for k in result:
@@ -347,7 +359,7 @@ def generate_unique_id(prefix: Optional[str] = None, *, date_prefix: Union[bool,
     if date_prefix:
         if not isinstance(date_prefix, str):
             date_prefix = "%y%m%d%H%M%S"
-        date_repr = datetime.datetime.now(datetime.timezone.utc).strftime(date_prefix)
+        date_repr = now_utc().strftime(date_prefix)
         id = f"{date_repr}{id[len(date_repr):]}"
     if prefix:
         id = f"{prefix}-{id}"

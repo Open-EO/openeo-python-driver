@@ -1,12 +1,17 @@
+import logging
+import json
+from contextlib import nullcontext
 from pathlib import Path
 from unittest import mock
 
 import openeo.processes
 import pytest
 import shapely.geometry
+import dirty_equals
 from openeo.internal.graph_building import PGNode
 from openeo.metadata import SpatialDimension
 from openeo.rest.datacube import DataCube
+from openeo.testing.stac import StacDummyBuilder
 
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs
@@ -18,7 +23,7 @@ from openeo_driver.dry_run import (
     ProcessType,
 )
 from openeo_driver.dummy.dummy_backend import DummyVectorCube
-from openeo_driver.errors import OpenEOApiException
+from openeo_driver.errors import OpenEOApiException, ProcessParameterInvalidException
 from openeo_driver.ProcessGraphDeserializer import (
     ENV_DRY_RUN_TRACER,
     ENV_MAX_BUFFER,
@@ -31,8 +36,9 @@ from openeo_driver.ProcessGraphDeserializer import (
 )
 from openeo_driver.save_result import SaveResult
 from openeo_driver.testing import DictSubSet, approxify, ephemeral_fileserver
-from openeo_driver.util.geometry import BoundingBox, as_geojson_feature_collection
+from openeo_driver.util.geometry import as_geojson_feature_collection
 from openeo_driver.utils import EvalEnv
+from openeo_driver.views import OPENEO_API_VERSION_DEFAULT
 from openeo_driver.workspacerepository import WorkspaceRepository
 from tests.data import TEST_DATA_ROOT, get_path, load_json
 
@@ -69,7 +75,8 @@ def dry_run_env(dry_run_tracer, backend_implementation) -> EvalEnv:
         {
             ENV_DRY_RUN_TRACER: dry_run_tracer,
             "backend_implementation": backend_implementation,
-            "version": "1.0.0",
+            "version": OPENEO_API_VERSION_DEFAULT,
+            "openeo_api_version": OPENEO_API_VERSION_DEFAULT,
             ENV_MAX_BUFFER: {},
         }
     )
@@ -652,10 +659,10 @@ def test_aggregate_spatial_only(dry_run_env, dry_run_tracer):
             approxify(
                 {
                     "crs": "EPSG:32631",
-                    "east": 610869.8770073673,
-                    "north": 552758.5425218772,
-                    "south": 331634.0169357686,
-                    "west": 388860.8935124034,
+                    "east": 611139.132350062,
+                    "north": 552758.6209151235,
+                    "south": 331633.9380733739,
+                    "west": 388860.86764994,
                 }
             ),
         ),
@@ -1166,10 +1173,10 @@ def test_global_bounds_from_weak_spatial_extent(dry_run_env, dry_run_tracer):
         dry_run_env, source_id=("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()))
     )
     assert {
-        "west": 0.09999999927961767,
-        "east": 8.00008333258134,
-        "south": 0.09999999971959994,
-        "north": 5.000083333033345,
+        "west": 0.9999999992760138,
+        "east": 3.000083332601349,
+        "south": 0.9999999997160103,
+        "north": 3.0000833330413315,
         "crs": "EPSG:4326",
     } == load_params.global_extent
 
@@ -1445,6 +1452,74 @@ def test_load_stac_properties(dry_run_env, dry_run_tracer):
             {"bands": ["B04", "B05"], "properties": properties},
         ),
     ]
+
+
+@pytest.mark.parametrize(
+    ["spatial_extent", "expectation"],
+    [
+        ({"type": "Polygon", "coordinates": [[[0, 0], [1, 1], [1, 0]]]}, nullcontext()),
+        (
+            {
+                "type": "Feature",
+                "geometry": {"type": "MultiPolygon", "coordinates": [[[[0, 0], [1, 1], [1, 0]]]]},
+                "properties": {},
+            },
+            nullcontext(),
+        ),
+        (
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [5, 50]},
+                "properties": {},
+            },
+            pytest.raises(
+                ProcessParameterInvalidException,
+                match=r"unsupported GeoJSON; requires at least one Polygon or MultiPolygon$",
+            ),
+        ),
+        (
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Point", "coordinates": [5, 50]},
+                        "properties": {},
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Polygon", "coordinates": [[[0, 0], [1, 1], [1, 0]]]},
+                        "properties": {},
+                    },
+                ],
+            },
+            pytest.raises(
+                ProcessParameterInvalidException,
+                match=r"unsupported GeoJSON; requires at least one Polygon or MultiPolygon$",
+            ),
+        ),
+    ],
+)
+def test_load_stac_spatial_extent_requires_a_polygon(
+    dry_run_tracer, backend_implementation, spatial_extent, expectation
+):
+    pg = {
+        "loadstac1": {
+            "process_id": "load_stac",
+            "arguments": {
+                "url": "https://stac.test",
+                "spatial_extent": spatial_extent,
+            },
+            "result": True,
+        }
+    }
+
+    dry_run_env = EvalEnv(
+        {ENV_DRY_RUN_TRACER: dry_run_tracer, "backend_implementation": backend_implementation, "version": "2.0.0"}
+    )
+
+    with expectation:
+        evaluate(pg, dry_run_env)
 
 
 @pytest.mark.parametrize(
@@ -1891,6 +1966,7 @@ def test_evaluate_drop_dimension(dry_run_env, dry_run_tracer, dimension_name, ex
 
 
 def test_load_result_constraints(dry_run_env, dry_run_tracer):
+    dry_run_env = dry_run_env.push({"openeo_api_version": "1.0.0"})
     pg = {
         "loadresult1": {
             "process_id": "load_result",
@@ -2305,8 +2381,13 @@ def test_ndvi_reduce(dry_run_env):
 
 
 def test_complex_diamond_and_buffering(dry_run_env, dry_run_tracer):
-    pg = load_json("pg/1.0/sample_extract_diamond_buffering.json")
-    save_result = evaluate(pg, env=dry_run_env)
+    with ephemeral_fileserver(path=get_path("parquet")) as fileserver_root:
+        url = f"{fileserver_root}/mol.pq"
+        pg = load_json(
+            "pg/1.0/sample_extract_diamond_buffering.json",
+            preprocess=lambda s: s.replace("PLACEHOLDER_LOAD_URL", url),
+        )
+        save_result = evaluate(pg, env=dry_run_env)
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     print(source_constraints)
 
@@ -2326,7 +2407,7 @@ def test_complex_diamond_and_buffering(dry_run_env, dry_run_tracer):
     loadparams = _extract_load_parameters(dry_run_env, source_id_bands)
 
     print(loadparams)
-    expected_extent = {"crs": "EPSG:32631", "east": 704870, "north": 5194350, "south": 5164550, "west": 691730}
+    expected_extent = {"crs": "EPSG:32631", "east": 648990, "south": 5671740, "west": 644750, "north": 5676610}
     assert loadparams.global_extent == expected_extent
     assert loadparams.bands == [
         "B01",
@@ -2356,6 +2437,80 @@ def test_complex_diamond_and_buffering(dry_run_env, dry_run_tracer):
     assert loadparams.pixel_buffer == [38.5, 38.5]
 
 
+def test_resampling_masking(dry_run_env, dry_run_tracer):
+    pg = load_json("pg/1.0/resample_mask_merge.json")
+    save_result = evaluate(pg, env=dry_run_env)
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    print(source_constraints)
+
+    dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
+    source_id_bands = (
+        "load_collection",
+        (
+            "S2_FOOBAR",
+            (("eo:cloud_cover", (("lte", 95),)),),
+            ( "B02", "B03", "B04"),
+        ),
+    )
+    source_id_scl = (
+        "load_collection",
+        ("S2_FOOBAR", (("eo:cloud_cover", (("lte", 95),)),), ("SCL",)),
+    )
+    source_id_s1 = ('load_collection', ('SENTINEL1_GRD', (('sat:orbit_state', (('eq', 'DESCENDING'),)),), ('VH', 'VV')))
+    loadparams = _extract_load_parameters(dry_run_env, source_id_bands)
+
+    expected_extent = {'crs': 'EPSG:3035',
+         'east': 3860390,
+         'north': 2280390,
+         'south': 2259610,
+         'west': 3839610}
+    assert loadparams.global_extent == expected_extent
+    assert loadparams.bands == [
+        "B02",
+        "B03",
+        "B04"
+    ]
+    assert loadparams.pixel_buffer == None
+    assert loadparams.target_crs == 3035
+    assert loadparams.target_resolution == (10,10)
+    assert loadparams.spatial_extent == {
+          "west": 3840000,
+          "east": 3860000,
+          "north": 2280000,
+          "south": 2260000,
+          "crs": "EPSG:3035"
+        }
+
+    # extract next set of params
+    loadparams = _extract_load_parameters(dry_run_env, source_id_scl)
+    assert loadparams.bands == ["SCL"]
+    assert loadparams.global_extent == expected_extent
+    assert loadparams.pixel_buffer == [38.5, 38.5]
+    assert loadparams.target_crs == 3035
+    assert loadparams.target_resolution == (10,10)
+    assert loadparams.spatial_extent == {
+        "west": 3840000,
+        "east": 3860000,
+        "north": 2280000,
+        "south": 2260000,
+        "crs": "EPSG:3035"
+    }
+
+    loadparams = _extract_load_parameters(dry_run_env, source_id_s1)
+    assert loadparams.global_extent == expected_extent
+    assert loadparams.pixel_buffer == None
+    assert loadparams.target_crs == 3035
+    assert loadparams.target_resolution == (10,10)
+    assert loadparams.spatial_extent == {
+        "west": 3840000,
+        "east": 3860000,
+        "north": 2280000,
+        "south": 2260000,
+        "crs": "EPSG:3035"
+    }
+
+
+
 def test_complex_extract_load_stac(dry_run_env, dry_run_tracer):
     pg = load_json("pg/1.0/complex_load_stac.json")
     save_result = evaluate(pg, env=dry_run_env)
@@ -2376,7 +2531,7 @@ def test_complex_extract_load_stac(dry_run_env, dry_run_tracer):
     loadparams = _extract_load_parameters(dry_run_env, source_id_bands)
 
     print(loadparams)
-    expected_extent = {"crs": "EPSG:32633", "east": 400380, "north": 4700400, "south": 4679610, "west": 380120}
+    expected_extent = {'west': 379840, 'south': 4679580, 'east': 400460, 'north': 4700510, 'crs': 'EPSG:32633'}
     assert loadparams.global_extent == expected_extent
     assert loadparams.bands == ["B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"]
     assert loadparams.pixel_buffer == None
@@ -2441,12 +2596,11 @@ def test_normalize_geometries(dry_run_env, dry_run_tracer):
 
     # print(json.dumps(dict(type="FeatureCollection",features=[dict(type="Feature",geometry=mapping(e),properties={}) for e in extents])))
 
-    assert params[0].global_extent == {
-        "crs": "EPSG:32632",
-        "east": 636980,
-        "north": 5729350,
-        "south": 5654910,
-        "west": 89920,
+    assert params[0].global_extent == {'crs': 'EPSG:32632',
+     'east': 638890,
+     'north': 5736520,
+     'south': 5642750,
+     'west': 84850
     }
 
 
@@ -2486,3 +2640,187 @@ def test_resample_cube_spatial_from_resampled_target(dry_run_env, dry_run_tracer
             {"resample": {"method": "near", "resolution": (3, 5), "target_crs": 32631}},
         ),
     ]
+
+
+@pytest.mark.parametrize(
+    ["s2_cube_dimensions", "expected_agera5_constraints", "expected_crs", "expected_resolution", "expected_logs"],
+    [
+        (
+            # No datacube/dimension metadata
+            None,
+            {"process_type": [ProcessType.FOCAL_SPACE]},
+            None,
+            None,
+            [
+                (
+                    # TODO #370/#396 get rid of this warning
+                    "openeo_driver.stac.datacube",
+                    logging.WARN,
+                    "Forcing pystac datacube extension on possibly unsupported metadata",
+                ),
+                (
+                    "openeo_driver.dry_run",
+                    logging.ERROR,
+                    dirty_equals.IsStr(
+                        regex="Dry-run load_stac: failed to parse cube metadata from.*No datacube extension found in STAC object.*Falling back in generic metadata",
+                    ),
+                ),
+            ],
+        ),
+        (
+            # Invalid datacube/dimension metadata
+            {"x": {"type-typo!?!": "spatial"}},
+            {"process_type": [ProcessType.FOCAL_SPACE]},
+            None,
+            None,
+            [
+                (
+                    # TODO #370/#396 get rid of this warning
+                    "openeo_driver.stac.datacube",
+                    logging.WARN,
+                    "Forcing pystac datacube extension on possibly unsupported metadata",
+                ),
+                (
+                    # TODO #370/#396 get rid of this warning
+                    "openeo_driver.stac.datacube",
+                    logging.WARN,
+                    "Forcing pystac datacube extension on possibly unsupported metadata",
+                ),
+                (
+                    "openeo_driver.dry_run",
+                    logging.ERROR,
+                    dirty_equals.IsStr(
+                        regex="Dry-run load_stac: failed to parse cube metadata from.*RequiredPropertyMissing.*does not have required property type.*Falling back in generic metadata",
+                    ),
+                ),
+            ],
+        ),
+        (
+            # Simple spatial dimension metadata
+            {
+                "x": {"type": "spatial", "axis": "x", "extent": [1, 5]},
+                "y": {"type": "spatial", "axis": "y", "extent": [40, 50]},
+            },
+            {"process_type": [ProcessType.FOCAL_SPACE]},
+            None,
+            None,
+            [
+                (
+                    # TODO #370/#396 get rid of this warning
+                    "openeo_driver.stac.datacube",
+                    logging.WARN,
+                    "Forcing pystac datacube extension on possibly unsupported metadata",
+                ),
+                (
+                    # TODO #370/#396 get rid of this warning
+                    "openeo_driver.stac.datacube",
+                    logging.WARN,
+                    "Forcing pystac datacube extension on possibly unsupported metadata",
+                ),
+            ],
+        ),
+        (
+            # Spatial metadata includes CRS and resolution
+            {
+                "x": {"type": "spatial", "axis": "x", "extent": [1, 5], "reference_system": 32631, "step": 11},
+                "y": {"type": "spatial", "axis": "y", "extent": [40, 50], "reference_system": 32631, "step": 22},
+            },
+            {
+                "process_type": [ProcessType.FOCAL_SPACE],
+                "resample": {"method": "near", "resolution": (11, 22), "target_crs": 32631},
+            },
+            32631,
+            (11, 22),
+            [
+                (
+                    # TODO #370/#396 get rid of this warning
+                    "openeo_driver.stac.datacube",
+                    logging.WARN,
+                    "Forcing pystac datacube extension on possibly unsupported metadata",
+                ),
+                (
+                    # TODO #370/#396 get rid of this warning
+                    "openeo_driver.stac.datacube",
+                    logging.WARN,
+                    "Forcing pystac datacube extension on possibly unsupported metadata",
+                ),
+            ],
+        ),
+    ],
+)
+def test_load_stac_resample_cube_spatial(
+    dry_run_env,
+    dry_run_tracer,
+    tmp_path,
+    s2_cube_dimensions,
+    expected_agera5_constraints,
+    expected_crs,
+    expected_resolution,
+    expected_logs,
+    caplog,
+):
+    """
+    https://github.com/Open-EO/openeo-geopyspark-driver/issues/1114:
+
+    use case:
+
+        load_stac            load_stac
+        s2_extractions       agera5
+                \             /
+               resample_cube_spatial
+               resample agera5 to s2_extractions
+
+    Resolution info from s2_extractions (if available)
+    should be pushed as load parameters to load_stac of agera5
+    """
+    caplog.set_level(logging.WARN)
+
+    s2_extractions_path = tmp_path / "s2_extractions.json"
+    s2_extractions_path.write_text(
+        json.dumps(
+            StacDummyBuilder.collection(
+                id="s2_extractions",
+                cube_dimensions=s2_cube_dimensions,
+            )
+        )
+    )
+    agera5_path = tmp_path / "agera5.json"
+    agera5_path.write_text(
+        json.dumps(
+            StacDummyBuilder.collection(
+                id="agera5",
+                cube_dimensions={
+                    "x": {"type": "spatial", "axis": "x", "extent": [1, 5], "reference_system": 4326, "step": 1},
+                    "y": {"type": "spatial", "axis": "y", "extent": [40, 50], "reference_system": 4326, "step": 1},
+                },
+            )
+        )
+    )
+
+    pg = {
+        "loadstac1": {"process_id": "load_stac", "arguments": {"url": str(s2_extractions_path)}},
+        "loadstac2": {"process_id": "load_stac", "arguments": {"url": str(agera5_path)}},
+        "resamplecubespatial1": {
+            "process_id": "resample_cube_spatial",
+            "arguments": {"data": {"from_node": "loadstac2"}, "target": {"from_node": "loadstac1"}},
+        },
+        "saveresult1": {
+            "process_id": "save_result",
+            "arguments": {"data": {"from_node": "resamplecubespatial1"}, "format": "GTiff", "options": {}},
+            "result": True,
+        },
+    }
+
+    _ = evaluate(pg, env=dry_run_env, do_dry_run=False)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert source_constraints == [
+        (("load_stac", (str(agera5_path), (), ())), expected_agera5_constraints),
+        (("load_stac", (str(s2_extractions_path), (), ())), {}),
+    ]
+
+    dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
+    load_params = _extract_load_parameters(dry_run_env, source_id=("load_stac", (str(agera5_path), (), ())))
+    assert (load_params.target_crs, load_params.target_resolution) == (expected_crs, expected_resolution)
+
+    assert caplog.record_tuples == expected_logs

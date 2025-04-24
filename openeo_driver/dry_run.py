@@ -47,12 +47,14 @@ from openeo.metadata import (
     CollectionMetadata,
     DimensionAlreadyExistsException,
     SpatialDimension,
+    GeometryDimension,
     TemporalDimension,
     CubeMetadata,
 )
 from pyproj import CRS
 from shapely.geometry import GeometryCollection, MultiPolygon, Point, Polygon
 from shapely.geometry.base import BaseGeometry
+import shapely.ops
 
 from openeo.utils.normalize import normalize_resample_resolution
 from openeo_driver import filter_properties
@@ -67,8 +69,9 @@ from openeo_driver.save_result import (
 from openeo_driver.util.geometry import (
     BoundingBox,
     GeometryBufferer,
-    geojson_to_geometry,
+    geojson_to_geometry, reproject_geometry,
 )
+import openeo_driver.stac.datacube
 from openeo_driver.utils import EvalEnv, to_hashable
 
 _log = logging.getLogger(__name__)
@@ -167,10 +170,10 @@ class DataSource(DataTraceBase):
         return self._process
 
     @classmethod
-    def load_collection(cls, collection_id, properties={}, bands=[]) -> "DataSource":
+    def load_collection(cls, collection_id, properties={}, bands=[], env=EvalEnv()) -> "DataSource":
         """Factory for a `load_collection` DataSource."""
         exact_property_matches = {
-            property_name: filter_properties.extract_literal_match(condition)
+            property_name: filter_properties.extract_literal_match(condition, env)
             for property_name, condition in properties.items()
         }
 
@@ -192,10 +195,10 @@ class DataSource(DataTraceBase):
         return cls(process="load_result", arguments=(job_id,))
 
     @classmethod
-    def load_stac(cls, url: str, properties={}, bands=[]) -> "DataSource":
+    def load_stac(cls, url: str, properties={}, bands=[], env=EvalEnv()) -> "DataSource":
         """Factory for a `load_stac` DataSource."""
         exact_property_matches = {
-            property_name: filter_properties.extract_literal_match(condition)
+            property_name: filter_properties.extract_literal_match(condition, env)
             for property_name, condition in properties.items()
         }
 
@@ -273,16 +276,19 @@ class DryRunDataTracer:
         """Process given traces with an operation (and keep track of the results)."""
         return [self.add_trace(DataTrace(parent=t, operation=operation, arguments=arguments)) for t in traces]
 
-    def load_collection(self, collection_id: str, arguments: dict, metadata: dict = None) -> "DryRunDataCube":
+    def load_collection(
+        self, collection_id: str, arguments: dict, metadata: dict = None, env: EvalEnv = EvalEnv()
+    ) -> "DryRunDataCube":
         """Create a DryRunDataCube from a `load_collection` process."""
-        # TODO #275 avoid VITO/Terrascope specific handling here?
+        metadata = CollectionMetadata(metadata=metadata)
         properties = {
-            **CollectionMetadata(metadata).get("_vito", "properties", default={}),
+            # TODO #275 avoid VITO/Terrascope specific handling here?
+            **metadata.get("_vito", "properties", default={}),
             **arguments.get("properties", {}),
         }
 
         trace = DataSource.load_collection(
-            collection_id=collection_id, properties=properties, bands=arguments.get("bands", [])
+            collection_id=collection_id, properties=properties, bands=arguments.get("bands", []), env=env
         )
         self.add_trace(trace)
 
@@ -329,21 +335,26 @@ class DryRunDataTracer:
 
         return cube
 
-    def load_stac(self, url: str, arguments: dict) -> "DryRunDataCube":
+    def load_stac(self, url: str, arguments: dict, env: EvalEnv = EvalEnv()) -> "DryRunDataCube":
         properties = arguments.get("properties", {})
 
-        trace = DataSource.load_stac(url=url, properties=properties, bands=arguments.get("bands", []))
+        trace = DataSource.load_stac(url=url, properties=properties, bands=arguments.get("bands", []), env=env)
         self.add_trace(trace)
 
-        metadata = CollectionMetadata(
-            {},
-            dimensions=[
-                SpatialDimension(name="x", extent=[]),
-                SpatialDimension(name="y", extent=[]),
-                TemporalDimension(name="t", extent=[]),
-                BandDimension(name="bands", bands=[Band("unknown")]),
-            ],
-        )
+        try:
+            metadata = openeo_driver.stac.datacube.stac_to_cube_metadata(stac_ref=url)
+        except Exception as e:
+            _log.exception(
+                f"Dry-run load_stac: failed to parse cube metadata from {url!r} ({e!r}). Falling back in generic metadata"
+            )
+            metadata = CubeMetadata(
+                dimensions=[
+                    SpatialDimension(name="x", extent=[]),
+                    SpatialDimension(name="y", extent=[]),
+                    TemporalDimension(name="t", extent=[]),
+                    BandDimension(name="bands", bands=[Band("unknown")]),
+                ]
+            )
 
         cube = DryRunDataCube(traces=[trace], data_tracer=self, metadata=metadata)
         if "temporal_extent" in arguments:
@@ -530,7 +541,9 @@ class DryRunDataCube(DriverDataCube):
     estimate memory/cpu usage, ...
     """
 
-    def __init__(self, traces: List[DataTraceBase], data_tracer: DryRunDataTracer, metadata: CubeMetadata = None):
+    def __init__(
+        self, traces: List[DataTraceBase], data_tracer: DryRunDataTracer, metadata: Optional[CubeMetadata] = None
+    ):
         super(DryRunDataCube, self).__init__(metadata=metadata)
         self._traces = traces or []
         self._data_tracer = data_tracer
@@ -558,10 +571,12 @@ class DryRunDataCube(DriverDataCube):
 
     def filter_spatial(self, geometries):
         crs = None
+        resolution = None
         if len(self.metadata.spatial_dimensions) > 0:
             spatial_dim = self.metadata.spatial_dimensions[0]
             crs = spatial_dim.crs
-        geometries, bbox = self._normalize_geometry(geometries, target_crs=crs)
+            resolution = spatial_dim.step
+        geometries, bbox = self._normalize_geometry(geometries, target_crs=crs, target_resolution=resolution)
         cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
         return cube._process(operation="filter_spatial", arguments={"geometries": geometries})
 
@@ -619,19 +634,25 @@ class DryRunDataCube(DriverDataCube):
         cube = self
         if not geoms_is_empty:
             crs = None
+            resolution = None
             if len(self.metadata.spatial_dimensions) > 0:
                 spatial_dim = self.metadata.spatial_dimensions[0]
+                resolution = spatial_dim.step
                 crs = spatial_dim.crs
-            geometries, bbox = self._normalize_geometry(geometries, target_crs=crs)
+            geometries, bbox = self._normalize_geometry(geometries, target_crs=crs, target_resolution=resolution)
             cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
         return cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
 
     def _normalize_geometry(
-        self, geometries, target_crs=None
+        self, geometries, target_crs=None, target_resolution = None
     ) -> Tuple[Union[DriverVectorCube, DelayedVector, BaseGeometry], dict]:
         """
         Helper to preprocess geometries (as used in aggregate_spatial and mask_polygon)
         and extract bbox (e.g. for filter_bbox)
+
+        :param geometries: geometries as BaseGeometry, GeoJSON dict, DelayedVector or DriverVectorCube
+        :param target_crs: target CRS to reproject geometries to
+        :param target_resolution: target resolution for geometries, in units of the target CRS, None by default which will use 10m
         """
         _log.debug(f"_normalize_geometry with {type(geometries)}")
         # TODO #71 #114 EP-3981 normalize to vector cube instead of GeometryCollection
@@ -646,17 +667,36 @@ class DryRunDataCube(DriverDataCube):
                     target_crs = f"EPSG:{BoundingBox.from_wsen_tuple(geometries.get_bounding_box(),crs=geometries.get_crs()).best_utm()}"
                 else:
                     target_crs = BoundingBox.normalize_crs(target_crs)
-                bbox = (
-                    geometries.buffer_points(distance=10).reproject(CRS.from_user_input(target_crs)).get_bounding_box()
-                )
+                points = []
+                other = []
+                for g in geometries.get_geometries():
+                    if isinstance(g, Point):
+                        points.append(g)
+                    else:
+                        other.append(g)
+                other_hull = reproject_geometry(shapely.ops.unary_union(other),geometries.get_crs(),CRS.from_user_input(target_crs))
+
+                if len(points) > 0:
+                    point_hull = reproject_geometry(shapely.geometry.MultiPoint(points).envelope,geometries.get_crs(),CRS.from_user_input(target_crs))
+                    buffered_points = None
+                    if target_resolution == None:
+                        loi_point = point_hull.representative_point()
+                        bufferer = GeometryBufferer.from_meter_for_crs(
+                            distance=10, crs=target_crs, loi=(loi_point.x,loi_point.y), loi_crs=target_crs
+                        )
+                        buffered_points = bufferer.buffer(point_hull)
+                    else:
+                        buffered_points = point_hull.buffer(distance=target_resolution)
+                    other_hull = other_hull.union(buffered_points)
+                bbox = other_hull.bounds
                 crs = target_crs
             else:
                 bbox = geometries.buffer_points(distance=10).get_bounding_box()
                 crs = geometries.get_crs_str()
         elif isinstance(geometries, dict):
-            return self._normalize_geometry(geojson_to_geometry(geometries))
+            return self._normalize_geometry(geojson_to_geometry(geometries),target_crs, target_resolution)
         elif isinstance(geometries, str):
-            return self._normalize_geometry(DelayedVector(geometries))
+            return self._normalize_geometry(DelayedVector(geometries),target_crs, target_resolution)
         elif isinstance(geometries, DelayedVector):
             bbox = geometries.bounds
         elif isinstance(geometries, shapely.geometry.base.BaseGeometry):
@@ -678,7 +718,7 @@ class DryRunDataCube(DriverDataCube):
         return geometries, bbox
 
     def raster_to_vector(self):
-        dimensions = [SpatialDimension(name=DriverVectorCube.DIM_GEOMETRY, extent=self.metadata.extent)]
+        dimensions = [GeometryDimension(name=DriverVectorCube.DIM_GEOMETRY)]
         if self.metadata.has_temporal_dimension():
             dimensions.append(self.metadata.temporal_dimension)
         if self.metadata.has_band_dimension():
@@ -729,8 +769,8 @@ class DryRunDataCube(DriverDataCube):
             "reduce_dimension", arguments={}
         )
 
-    def ndvi(self, nir: str = "nir", red: str = "red", target_band: str = None) -> "DriverDataCube":
-        if target_band == None and self.metadata.has_band_dimension():
+    def ndvi(self, nir: str = "nir", red: str = "red", target_band: Optional[str] = None) -> "DryRunDataCube":
+        if target_band is None and self.metadata.has_band_dimension():
             return self._process_metadata(
                 self.metadata.reduce_dimension(dimension_name=self.metadata.band_dimension.name)
             )
@@ -779,7 +819,8 @@ class DryRunDataCube(DriverDataCube):
     def resolution_merge(self, args: ResolutionMergeArgs) -> "DryRunDataCube":
         return self._process("resolution_merge", args)
 
-    def apply_kernel(self, kernel: numpy.ndarray, factor=1, border=0, replace_invalid=0) -> "DriverDataCube":
+
+    def apply_kernel(self, kernel: numpy.ndarray, factor=1, border=0, replace_invalid=0) -> 'DriverDataCube':
         cube = self._process("process_type", [ProcessType.FOCAL_SPACE])
         cube = cube._process("pixel_buffer", arguments={"buffer_size": [x / 2.0 for x in kernel.shape]})
         return cube._process("apply_kernel", arguments={"kernel": kernel})

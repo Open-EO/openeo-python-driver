@@ -1,6 +1,7 @@
 import pytest
 
 from openeo_driver.filter_properties import extract_literal_match, PropertyConditionException
+from openeo_driver.utils import EvalEnv
 
 
 def test_extract_literal_match_basic():
@@ -47,9 +48,10 @@ def test_extract_literal_match_gte_reverse():
 ])
 def test_extract_literal_match_failures(node):
     node["result"] = True
+    env = EvalEnv().push_parameters({"data": "some parameter"})
     pg = {"process_graph": {"p": node}}
     with pytest.raises(PropertyConditionException):
-        extract_literal_match(pg)
+        extract_literal_match(pg, env)
 
 
 def test_array_contains():
@@ -67,3 +69,22 @@ def test_array_contains():
     }
 
     assert extract_literal_match(pg) == {"in": ["31UES", "31UFS"]}
+
+
+def test_parameter():
+    env = EvalEnv().push_parameters({"orbit_state": "ASCENDING"})
+
+    pg = {
+        "process_graph": {
+            "eq1": {
+                "process_id": "eq",
+                "arguments": {
+                    "x": {"from_parameter": "value"},
+                    "y": {"from_parameter": "orbit_state"}
+                },
+                "result": True
+            }
+        }
+    }
+
+    assert extract_literal_match(pg, env) == {"eq": "ASCENDING"}

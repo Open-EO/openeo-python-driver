@@ -84,6 +84,8 @@ def test_error_code(error_code):
             raise Exception("Exception class {c} has placeholder in message but no custom __init__".format(
                 c=exception_cls.__name__))
 
+        assert exception_cls._description == error_spec["description"]
+
 
 def test_flask_request_id_as_api_error_id():
     app = flask.Flask(__name__)

@@ -34,6 +34,7 @@ from openeo_driver.ProcessGraphDeserializer import (
     custom_process,
     custom_process_from_process_graph,
     collect,
+    ENV_DRY_RUN_TRACER,
 )
 from openeo_driver.testing import (
     TEST_USER,
@@ -351,13 +352,6 @@ def test_load_collection_filter(api):
                 ),
             ),
             {"west": 11, "south": 22, "east": 44, "north": 55, "crs": "EPSG:4326"},
-        ),
-        (
-            as_geojson_feature_collection(
-                shapely.geometry.Point(2, 3),
-                shapely.geometry.Point(4, 5),
-            ),
-            {"west": 2, "south": 3, "east": 4, "north": 5, "crs": "EPSG:4326"},
         ),
     ],
 )
@@ -2785,7 +2779,7 @@ def test_user_defined_process_udp_vs_pdp_priority(api, udp_registry):
     api.check_result("udp_ndvi.json")
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.ndvi.call_count == 1
-    dummy.ndvi.assert_called_with(nir=None, red=None, target_band=None)
+    dummy.ndvi.assert_called_with(nir="nir", red="red", target_band=None)
     assert dummy.reduce_dimension.call_count == 0
 
     # Overload ndvi with UDP.
@@ -3050,6 +3044,10 @@ def test_execute_no_cube_1_plus_2(api):
     ({"cnt1": {"process_id": "count", "arguments": {"data": [2, 8, None, 3]}, "result": True}}, 3),
     ({"pi1": {"process_id": "pi", "arguments": {}, "result": True}}, math.pi),
     ({"e1": {"process_id": "e", "arguments": {}, "result": True}}, math.e),
+    ({"s": {"process_id": "array_apply", "arguments": {"data": [3, -25, 8], "process":
+        { "process_graph":{"s": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 5}, "result": True}}
+        }},
+                "result": True}}, [8, -20, 13]),
 ])
 def test_execute_no_cube_just_math(api, process_graph, expected):
     assert api.result(process_graph).assert_status_code(200).json == pytest.approx(expected,0.0001)
@@ -3636,6 +3634,29 @@ def test_execute_custom_process_by_process_graph_namespaced(api):
         },
     }).json
     assert res == 30
+
+
+@pytest.mark.parametrize("hidden", [False, True])
+def test_execute_custom_process_by_process_graph_hidden(api, hidden):
+    process_id = generate_unique_test_process_id()
+    # Register a custom process with minimal process graph
+    process_spec = {
+        "id": process_id,
+        "process_graph": {
+            "increment": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 1}, "result": True}
+        },
+    }
+    custom_process_from_process_graph(process_spec=process_spec, hidden=hidden)
+    # Apply process
+    res = api.check_result(
+        {
+            "do_math": {"process_id": process_id, "arguments": {"x": 2}, "result": True},
+        }
+    ).json
+    assert res == 3
+
+    process_ids = set(p["id"] for p in api.get("/processes").assert_status_code(200).json["processes"])
+    assert (process_id not in process_ids) == hidden
 
 
 def test_normalized_difference(api):
@@ -4657,9 +4678,11 @@ def custom_process_registry(backend_implementation) -> ProcessRegistry:
 )
 def test_synchronous_processing_job_options(api, custom_process_registry, post_data_base, expected_job_options):
     """Test job options handling in synchronous processing in EvalEnv"""
-
+    actual_job_options = []
     def i_spy_with_my_little_eye(args: ProcessArgs, env: EvalEnv):
-        assert env.get("job_options") == expected_job_options
+        nonlocal actual_job_options
+        if not env.get(ENV_DRY_RUN_TRACER):
+            actual_job_options.append(env.get("job_options"))
         return args.get("x")
 
     custom_process_registry.add_function(i_spy_with_my_little_eye, spec={"id": "i_spy_with_my_little_eye"})
@@ -4672,3 +4695,83 @@ def test_synchronous_processing_job_options(api, custom_process_registry, post_d
     api.ensure_auth_header()
     res = api.post(path="/result", json=post_data)
     assert res.assert_status_code(200).json == 123
+    assert actual_job_options == [expected_job_options]
+
+
+@pytest.mark.parametrize(
+    ["default_job_options", "given_job_options", "expected_job_options"],
+    [
+        (None, None, None),
+        ({}, {}, {}),
+        ({"cpu": "yellow"}, {}, {"cpu": "yellow"}),
+        ({}, {"cpu": "yellow"}, {"cpu": "yellow"}),
+        ({"cpu": "yellow"}, {"cpu": "blue"}, {"cpu": "blue"}),
+        (
+            {"memory": "2GB", "cpu": "yellow"},
+            {"memory": "4GB", "queue": "fast"},
+            {"cpu": "yellow", "memory": "4GB", "queue": "fast"},
+        ),
+    ],
+)
+def test_synchronous_processing_job_options_and_defaults_from_remote_process_definition(
+    api, custom_process_registry, requests_mock, default_job_options, given_job_options, expected_job_options
+):
+    process_definition = {
+        "id": "add3",
+        "process_graph": {
+            "add": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 3}, "result": True}
+        },
+        "parameters": [
+            {"name": "x", "schema": {"type": "number"}},
+        ],
+        "returns": {"schema": {"type": "number"}},
+    }
+    if default_job_options is not None:
+        process_definition["default_synchronous_options"] = default_job_options
+    requests_mock.get("https://share.test/add3.json", json=process_definition)
+
+    actual_job_options = []
+
+    def i_spy_with_my_little_eye(args: ProcessArgs, env: EvalEnv):
+        nonlocal actual_job_options
+        if not env.get(ENV_DRY_RUN_TRACER):
+            actual_job_options.append(env.get("job_options"))
+        return args.get("x")
+
+    custom_process_registry.add_function(i_spy_with_my_little_eye, spec={"id": "i_spy_with_my_little_eye"})
+    custom_process_registry.add_process(name="add", function=lambda args, env: args.get("x") + args.get("y"))
+
+    pg = {
+        "ispy": {"process_id": "i_spy_with_my_little_eye", "arguments": {"x": 123}},
+        "add3": {
+            "process_id": "add3",
+            "namespace": "https://share.test/add3.json",
+            "arguments": {"x": {"from_node": "ispy"}},
+            "result": True,
+        },
+    }
+    post_data = {
+        "process": {"process_graph": pg},
+    }
+    if given_job_options is not None:
+        post_data["job_options"] = given_job_options
+
+    api.ensure_auth_header()
+    res = api.post(path="/result", json=post_data)
+    assert res.assert_status_code(200).json == 126
+    assert actual_job_options == [expected_job_options]
+
+
+def test_load_collection_property_from_parameter(api, udp_registry):
+    # You can't execute a top-level process graph with parameters; instead, you execute a top-level process graph
+    # that calls a UDP with parameters.
+
+    api.set_auth_bearer_token(TEST_USER_BEARER_TOKEN)
+    udp_spec = api.load_json("udp/load_collection_property_from_parameter.json")
+    udp_registry.save(user_id=TEST_USER, process_id="load_collection_property_from_parameter", spec=udp_spec)
+    pg = api.load_json("udp_load_collection_property_from_parameter.json")
+    api.check_result(pg)
+
+    params = dummy_backend.last_load_collection_call("SENTINEL1_GRD")
+
+    assert "sat:orbit_state" in params.properties

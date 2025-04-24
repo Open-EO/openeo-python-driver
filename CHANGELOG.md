@@ -19,11 +19,75 @@ and start a new "In Progress" section above it.
 
 <!-- start-of-changelog -->
 
-## In progress
+## In progress: 0.134.0
+
+- Introduce `asset_url` option to allow backend implementations to have custom code for retrieving assets. Default
+  behavior remains unchanged.
+- Improve data cube dimension detection in `load_stac` dry-run ([#394](https://github.com/Open-EO/openeo-python-driver/issues/394))
+- Download asset: return `NoSuchKey` error as 404 Not Found response [Open-EO/openeo-geopyspark-driver#1149](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1149)
+
+
+## 0.133.0
+
+- Add `namespace` option to `non_standard_process`
+- Improve API alignment between `JobRegistryInterface`/`ElasticJobRegistry` and `DoubleJobRegistry` ([Open-EO/openeo-geopyspark-driver#863](https://github.com/Open-EO/openeo-geopyspark-driver/issues/863), [Open-EO/openeo-geopyspark-driver#1123](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1123))
+- `export_workspace`: merge `"derived_from"` links of STAC Collections ([Open-EO/openeo-geopyspark-driver#1050](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1050))
+- Eliminate usage of deprecated `datetime.utcnow()` ([#389](https://github.com/Open-EO/openeo-python-driver/issues/389))
+- Add `Content-Range` header when streaming job result content from S3 buckets to support byte range downloads
+
+
+## 0.132.0
+
+- `EvalEnv`: add `openeo_api_version` field to replace vague `version` ([#382](https://github.com/Open-EO/openeo-python-driver/issues/382))
+
+
+## 0.131.1
+
+- `custom_process_from_process_graph`: add option to hide process from public process listing
+
+## 0.131.0
+
+- `ProcessRegistry`: add `allow_override mode` (related to [#376](https://github.com/Open-EO/openeo-python-driver/issues/376))
+
+## 0.130.0
+
+- Allow customization of `GET /process_graphs` response. Added `UserDefinedProcesses.list_for_user()` to replace now deprecated `UserDefinedProcesses.get_for_user()` (for [Open-EO/openeo-aggregator#125](https://github.com/Open-EO/openeo-aggregator/issues/125))
+- Allow customization of `GET /collections` response. Added `AbstractCollectionCatalog.get_collections_listing()` to eventually replace `AbstractCollectionCatalog.get_all_metadata()` (for [Open-EO/openeo-aggregator#122](https://github.com/Open-EO/openeo-aggregator/issues/122))
+- Allow customization of `GET /processes` response (for [Open-EO/openeo-aggregator#123](https://github.com/Open-EO/openeo-aggregator/issues/123))
+
+
+## 0.129.0
+
+- array_apply: sub-process should now work on all supported processes ([Open-EO/openeo-geopyspark-driver#1064](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1064))
+- Prevent access to non-public UDPs through URL guessing.
+
+
+## 0.128.0
+
+- `load_collection`/`load_stac`: `spatial_extent` requires (Multi)Polygon geometries ([Open-EO/openeo-geopyspark-driver#996](https://github.com/Open-EO/openeo-geopyspark-driver/issues/996))
+
+## 0.127.0
+
+- Add `simple_job_progress_estimation` config for simple job progress estimation ([Open-EO/openeo-geopyspark-driver#772](https://github.com/Open-EO/openeo-geopyspark-driver/issues/772))
+- `OpenEoBackendConfig`: be more forgiving about unknown config keys to better support use cases that involve backward/forward incompatible configurations ([#322](https://github.com/Open-EO/openeo-python-driver/issues/322))
+
+## 0.126.0
+
+- Add STAC collections conformance class ([#195](https://github.com/Open-EO/openeo-python-driver/issues/195))
+- update openeo_driver/specs/openeo-api/1.x submodule to tag `1.2.0` ([#195](https://github.com/Open-EO/openeo-python-driver/issues/195))
+- Extract job option defaults from UDPs and remote process descriptions ([#366](https://github.com/Open-EO/openeo-python-driver/issues/366),  [Process Parameter Extension](https://github.com/Open-EO/openeo-api/tree/draft/extensions/processing-parameters))
+
+
+## 0.125.0
+
+- Add log level to batch job logs response ([#195](https://github.com/Open-EO/openeo-python-driver/issues/195))
+
+
+## 0.124.0
 
 - Better argument validation in `resample_spatial`/`resample_cube_spatial` (related to [Open-EO/openeo-python-client#690](https://github.com/Open-EO/openeo-python-client/issues/690))
 - Improve `resample_spatial`/`resample_cube_spatial` metadata tracking in dry-run ([#348](https://github.com/Open-EO/openeo-python-driver/issues/348))
-
+- `load_collection`/`load_stac`: support parameters in `properties` ([#327](https://github.com/Open-EO/openeo-python-driver/issues/327))
 
 ## 0.123.0
 

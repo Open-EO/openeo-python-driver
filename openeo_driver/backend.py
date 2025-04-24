@@ -8,7 +8,7 @@ to allow composability, isolation and better reuse.
 
 Also see https://github.com/Open-EO/openeo-python-driver/issues/8
 """
-
+from __future__ import annotations
 import abc
 import json
 import logging
@@ -31,10 +31,12 @@ from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCu
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.dry_run import SourceConstraint
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException, FeatureUnsupportedException
-from openeo_driver.constants import JOB_STATUS
+from openeo_driver.constants import JOB_STATUS, DEFAULT_LOG_LEVEL_RETRIEVAL
 from openeo_driver.processes import ProcessRegistry
 from openeo_driver.users import User
 from openeo_driver.users.oidc import OidcProvider
+from openeo_driver.util.date_math import simple_job_progress_estimation
+from openeo_driver.util.logging import just_log_exceptions
 from openeo_driver.utils import read_json, dict_item, EvalEnv, extract_namedtuple_fields_from_dict, \
     get_package_versions
 
@@ -142,7 +144,15 @@ class SecondaryServices(MicroService):
         """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/delete-service"""
         raise NotImplementedError()
 
-    def get_log_entries(self, service_id: str, user_id: str, offset: str) -> List[dict]:
+    def get_log_entries(
+        self,
+        service_id: str,
+        *,
+        user_id: str,
+        offset: Union[str, None] = None,
+        limit: Union[int, None] = None,
+        level: str = DEFAULT_LOG_LEVEL_RETRIEVAL,
+    ) -> List[dict]:
         """https://openeo.org/documentation/1.0/developers/api/reference.html#operation/debug-service"""
         # TODO require auth/user handle?
         return []
@@ -178,12 +188,12 @@ class LoadParameters(dict):
     """
     A buffer provided in the units of the target CRS. If target CRS is not provided, then it is assumed to be the native CRS
     of the collection.
-    
-    This buffer is applied to AOI when constructing the datacube, allowing operations that require neighbouring pixels 
+
+    This buffer is applied to AOI when constructing the datacube, allowing operations that require neighbouring pixels
     to be implemented correctly. Examples are apply_kernel and apply_neighborhood, but also certain resampling operations
     could be affected by this.
-    
-    The buffer has to be considered in the global extent! 
+
+    The buffer has to be considered in the global extent!
     """
     pixel_buffer = dict_item(default=None)
 
@@ -212,12 +222,35 @@ class LoadParameters(dict):
         return copy1 == copy2
 
 
+class CollectionsListing:
+    # TODO #377 pagination support
+    def __init__(self, collections: List[dict]):
+        """
+        :param collections: list of collection metadata dictionaries
+        """
+        self.collections = collections
+
+    def filter_by_id(self, exclusion_list: Iterable[str]) -> CollectionsListing:
+        return CollectionsListing(collections=[c for c in self.collections if c["id"] not in exclusion_list])
+
+    def to_response_dict(self, normalize: Callable[[dict], dict]) -> dict:
+        collections = [normalize(c) for c in self.collections]
+        return {
+            "collections": collections,
+            "links": [],
+        }
+
 class AbstractCollectionCatalog(MicroService, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def get_all_metadata(self) -> List[dict]:
         """Basic metadata for all collections"""
+        # TODO: deprecate/remove this in favor of get_collections_listing?
         ...
+
+    def get_collections_listing(self) -> CollectionsListing:
+        # TODO make this an abstract method once `get_all_metadata` has been eliminated
+        return CollectionsListing(collections=self.get_all_metadata())
 
     @abc.abstractmethod
     def get_collection_metadata(self, collection_id: str) -> dict:
@@ -292,6 +325,7 @@ class BatchJobMetadata(NamedTuple):
     job_options: Optional[dict] = None
     title: Optional[str] = None
     description: Optional[str] = None
+    # Progress as percent value: 0.0 (just started) - 100.0 (fully completed)
     progress: Optional[float] = None
     updated: Optional[datetime] = None
     plan: Optional[str] = None
@@ -367,8 +401,21 @@ class BatchJobMetadata(NamedTuple):
         result["created"] = rfc3339.datetime(self.created) if self.created else None
         result["updated"] = rfc3339.datetime(self.updated) if self.updated else None
 
+        progress = self.progress
+        if (
+            self.status == JOB_STATUS.RUNNING
+            and self.started
+            and progress is None
+            and get_backend_config().simple_job_progress_estimation
+        ):
+            # TODO: is there a cleaner place to inject this fallback progress estimation?
+            with just_log_exceptions(log=logger, name="simple_job_progress_estimation"):
+                progress = 100 * simple_job_progress_estimation(
+                    started=self.started, average_run_time=get_backend_config().simple_job_progress_estimation
+                )
         # Clamp "progress" for certain "status" values according to the spec.
-        result["progress"] = {"created": 0, "queued": 0, "finished": 100}.get(self.status, self.progress)
+        progress = {"created": 0, "queued": 0, "finished": 100}.get(self.status, progress)
+        result["progress"] = progress
 
         if full:
             usage = self.usage or {}
@@ -453,7 +500,6 @@ class BatchJobs(MicroService):
     def create_job(
         self,
         *,
-        user_id: str,  # TODO: deprecate `user_id` in favor of `user`?
         user: User,
         process: dict,
         api_version: str,
@@ -552,9 +598,11 @@ class BatchJobs(MicroService):
     def get_log_entries(
         self,
         job_id: str,
+        *,
         user_id: str,
-        offset: Optional[str] = None,
-        level: Optional[str] = None,
+        offset: Union[str, None] = None,
+        limit: Union[str, None] = None,
+        level: str = DEFAULT_LOG_LEVEL_RETRIEVAL,
     ) -> Iterable[dict]:
         """
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/debug-job
@@ -602,12 +650,42 @@ class UserDefinedProcessMetadata(NamedTuple):
     public: bool = False  # Note: experimental non-standard flag
 
     @classmethod
-    def from_dict(cls, d: dict) -> 'UserDefinedProcessMetadata':
+    def from_dict(cls, d: dict) -> UserDefinedProcessMetadata:
         d = extract_namedtuple_fields_from_dict(d, UserDefinedProcessMetadata)
         return cls(**d)
 
     def prepare_for_json(self) -> dict:
         return self._asdict()  # pylint: disable=no-member
+
+    def add_link(self, *, rel: str, href: str, title: Optional[str] = None):
+        """Create new UserDefinedProcessMetadata with added link"""
+        kwargs = self._asdict()
+        kwargs["links"] = (kwargs["links"] or []) + [dict_no_none(rel=rel, href=href, title=title)]
+        return UserDefinedProcessMetadata(**kwargs)
+
+    def to_api_dict(self, *, full: bool = True) -> dict:
+        """Produce openEO API-style UDP dict construct (to be jsonified)."""
+        d = self.prepare_for_json()
+        if not full:
+            # API recommends to limit response size by omitting larger/optional fields
+            d = {k: v for k, v in d.items() if k in ["id", "summary", "description", "parameters", "returns"]}
+        if "public" in d and not d["public"]:
+            # Don't include non-standard "public" field when false to stay closer to standard API
+            del d["public"]
+
+        return dict_no_none(**d)
+
+
+class UserDefinedProcessesListing:
+    # TODO #377 pagination support
+    def __init__(self, udps: List[UserDefinedProcessMetadata]):
+        self.udps = udps
+
+    def to_response_dict(self, full: bool = True) -> dict:
+        return {
+            "processes": [udp.to_api_dict(full=full) for udp in self.udps],
+            "links": [],
+        }
 
 
 class UserDefinedProcesses(MicroService):
@@ -628,7 +706,15 @@ class UserDefinedProcesses(MicroService):
         List user's UDPs
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/list-custom-processes
         """
+        # TODO: eliminate this legacy API method
         raise NotImplementedError
+
+    def list_for_user(self, user_id: str) -> UserDefinedProcessesListing:
+        # TODO: replace this adapter implementation with `raise NotImplementedError`
+        #       once `get_for_user` can be eliminated
+        logger.warning("Falling back on deprecated `get_for_user`. Backend should implement `list_for_user` instead.")
+        udps = self.get_for_user(user_id=user_id)
+        return UserDefinedProcessesListing(udps=udps)
 
     def save(self, user_id: str, process_id: str, spec: dict) -> None:
         """
@@ -760,6 +846,11 @@ class OpenEoBackendImplementation:
         "https://api.openeo.org/1.2.0",
         # Support the "remote process definition" extension (originally known as the "remote-udp" extension)
         "https://api.openeo.org/extensions/remote-process-definition/0.1.0",
+        # Processing Parameters extension
+        "https://api.openeo.org/extensions/processing-parameters/0.1.0",
+        # STAC API conformance classes
+        # "https://api.stacspec.org/v1.0.0/core",  # TODO #363 can we claim this conformance class already?
+        "https://api.stacspec.org/v1.0.0/collections",
     ]
 
     def __init__(

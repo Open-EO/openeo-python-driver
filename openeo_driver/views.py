@@ -1,75 +1,86 @@
 import copy
-import datetime as dt
 import functools
-import inspect
 import json
 import logging
 import os
-import sys
 import pathlib
 import re
 import textwrap
-from collections import namedtuple, defaultdict
 import typing
-from traceback_with_variables import format_exc, Format
-from typing import Callable, Tuple, List, Optional, Union
+from collections import defaultdict, namedtuple
+from typing import Callable, List, Optional, Tuple, Union
 
 import flask
 import flask_cors
-import numpy as np
-from flask import Flask, request, url_for, jsonify, send_from_directory, abort, make_response, Blueprint, g, \
-    current_app, redirect
+from flask import (
+    Blueprint,
+    Flask,
+    abort,
+    current_app,
+    g,
+    jsonify,
+    make_response,
+    redirect,
+    request,
+    send_from_directory,
+    url_for,
+)
+from openeo.util import Rfc3339, TimingLogger, deep_get, dict_no_none, rfc3339
+from openeo.utils.version import ComparableVersion
 from pyproj import CRS
 from shapely.geometry import mapping
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from openeo.utils.version import ComparableVersion
-from openeo.util import dict_no_none, deep_get, Rfc3339, TimingLogger
-from openeo_driver.urlsigning import UrlSigner
 from openeo_driver.backend import (
-    ServiceMetadata,
     BatchJobMetadata,
-    UserDefinedProcessMetadata,
-    ErrorSummary,
-    OpenEoBackendImplementation,
     BatchJobs,
-    is_not_implemented,
-    function_has_argument,
+    ErrorSummary,
     JobListing,
+    OpenEoBackendImplementation,
+    ServiceMetadata,
+    UserDefinedProcessMetadata,
+    function_has_argument,
+    is_not_implemented,
 )
-from openeo_driver.config import get_backend_config, OpenEoBackendConfig
-from openeo_driver.constants import STAC_EXTENSION
+from openeo_driver.config import OpenEoBackendConfig, get_backend_config
+from openeo_driver.constants import (
+    DEFAULT_LOG_LEVEL_PROCESSING,
+    DEFAULT_LOG_LEVEL_RETRIEVAL,
+    JOB_STATUS,
+    STAC_EXTENSION,
+)
 from openeo_driver.datacube import DriverMlModel
 from openeo_driver.errors import (
-    OpenEOApiException,
-    ProcessGraphMissingException,
-    ServiceNotFoundException,
-    FilePathInvalidException,
-    ProcessGraphNotFoundException,
     FeatureUnsupportedException,
-    ProcessUnsupportedException,
-    JobNotFinishedException,
-    ProcessGraphInvalidException,
+    FilePathInvalidException,
     InternalException,
-    ProcessGraphComplexityException,
+    JobNotFinishedException,
+    NotFoundException,
+    OpenEOApiException,
+    ProcessGraphInvalidException,
+    ProcessGraphMissingException,
+    ProcessGraphNotFoundException,
+    ProcessUnsupportedException,
+    ServiceNotFoundException,
 )
-from openeo_driver.constants import JOB_STATUS
 from openeo_driver.jobregistry import PARTIAL_JOB_STATUS
+from openeo_driver.processgraph import ProcessGraphFlatDict, extract_default_job_options_from_process_graph
 from openeo_driver.save_result import SaveResult, to_save_result
-from openeo_driver.users import User, user_id_b64_encode, user_id_b64_decode
+from openeo_driver.users import User, user_id_b64_decode, user_id_b64_encode
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.util.geometry import BoundingBox, reproject_geometry
-from openeo_driver.util.logging import FlaskRequestCorrelationIdLogging, ExtraLoggingFilter
-from openeo_driver.utils import EvalEnv, smart_bool, generate_unique_id, filter_supported_kwargs
+from openeo_driver.util.logging import ExtraLoggingFilter, FlaskRequestCorrelationIdLogging
+from openeo_driver.utils import EvalEnv, filter_supported_kwargs, smart_bool
 
 _log = logging.getLogger(__name__)
 
 ApiVersionInfo = namedtuple("ApiVersionInfo", ["version", "supported", "wellknown", "production"])
 
 # TODO: move this version info listing and default version configurable too?
+# TODO #382 deprecate API_VERSIONS in favor of OPENEO_API_VERSIONS
 # Available OpenEO API versions: map of URL version component to API version info
-API_VERSIONS = {
+OPENEO_API_VERSIONS = API_VERSIONS = {
     "1.0.0": ApiVersionInfo(version="1.0.0", supported=True, wellknown=False, production=True),
     "1.0": ApiVersionInfo(version="1.0.0", supported=True, wellknown=True, production=True),
     "1.0.1": ApiVersionInfo(version="1.0.1", supported=True, wellknown=False, production=True),
@@ -78,10 +89,10 @@ API_VERSIONS = {
     "1.2": ApiVersionInfo(version="1.2.0", supported=True, wellknown=True, production=True),
     "1": ApiVersionInfo(version="1.2.0", supported=True, wellknown=False, production=True),
 }
-API_VERSION_DEFAULT = "1.2"
+# TODO #382 deprecate API_VERSION_DEFAULT in favor of OPENEO_API_VERSION_DEFAULT
+OPENEO_API_VERSION_DEFAULT = API_VERSION_DEFAULT = "1.2"
 
-_log.info("API Versions: {v}".format(v=API_VERSIONS))
-_log.info("Default API Version: {v}".format(v=API_VERSION_DEFAULT))
+_log.info(f"{OPENEO_API_VERSIONS=} {OPENEO_API_VERSION_DEFAULT=}")
 
 
 STREAM_CHUNK_SIZE_DEFAULT = 10 * 1024
@@ -141,25 +152,27 @@ def build_app(
     @app.url_defaults
     def _add_version(endpoint, values):
         """Blueprint.url_defaults handler to automatically add "version" argument in `url_for` calls."""
+        # TODO #382 use key "openeo_api_version" for clarity instead of "version"?
         if "version" not in values and current_app.url_map.is_endpoint_expecting(
             endpoint, "version"
         ):
-            values["version"] = g.get("request_version", API_VERSION_DEFAULT)
+            values["version"] = g.get("request_version", OPENEO_API_VERSION_DEFAULT)
 
     @app.url_value_preprocessor
     def _pull_version(endpoint, values):
         """Get API version from request and store in global context"""
-        version = (values or {}).pop("version", API_VERSION_DEFAULT)
-        if not (version in API_VERSIONS and API_VERSIONS[version].supported):
+        # TODO #382 use key "openeo_api_version" for clarity instead of "version"?
+        version = (values or {}).pop("version", OPENEO_API_VERSION_DEFAULT)
+        if not (version in OPENEO_API_VERSIONS and OPENEO_API_VERSIONS[version].supported):
             raise OpenEOApiException(
                 status_code=501,
                 code="UnsupportedApiVersion",
                 message="Unsupported version component in URL: {v!r}.  Available versions: {s!r}".format(
-                    v=version, s=[k for k, v in API_VERSIONS.items() if v.supported]
+                    v=version, s=[k for k, v in OPENEO_API_VERSIONS.items() if v.supported]
                 )
             )
         g.request_version = version
-        g.api_version = API_VERSIONS[version].version
+        g.openeo_api_version = OPENEO_API_VERSIONS[version].version
 
     @app.before_request
     def _before_request():
@@ -190,17 +203,19 @@ def build_app(
     @app.route('/.well-known/openeo', methods=['GET'])
     @backend_implementation.cache_control
     def well_known_openeo():
-        return jsonify({
-            'versions': [
-                {
-                    "url": url_for('openeo.index', version=k, _external=True),
-                    "api_version": v.version,
-                    "production": v.production,
-                }
-                for k, v in API_VERSIONS.items()
-                if v.wellknown
-            ]
-        })
+        return jsonify(
+            {
+                "versions": [
+                    {
+                        "url": url_for("openeo.index", version=k, _external=True),
+                        "api_version": v.version,
+                        "production": v.production,
+                    }
+                    for k, v in OPENEO_API_VERSIONS.items()
+                    if v.wellknown
+                ]
+            }
+        )
 
     @app.route('/', methods=['GET'])
     def redirect_root():
@@ -269,8 +284,12 @@ def build_app(
 
 
 def requested_api_version() -> ComparableVersion:
-    """Get the currently requested API version as a ComparableVersion object"""
-    return ComparableVersion(g.api_version)
+    """
+    Get the currently requested API version
+    (`ApiVersionInfo.version` which is typically in "major.minor.patch" resolution)
+    as a ComparableVersion object
+    """
+    return ComparableVersion(g.openeo_api_version)
 
 
 def register_error_handlers(app: flask.Flask, backend_implementation: OpenEoBackendImplementation):
@@ -404,12 +423,13 @@ def register_views_general(
             "version": api_version,  # Deprecated pre-0.4.0 API version field
             "api_version": api_version,  # API version field since 0.4.0
             "backend_version": backend_version,
-            "stac_version": "0.9.0",
+            "stac_version": "0.9.0",  # TODO #363 bump to 1.x.y?
+            "type": "Catalog",
             "conformsTo": backend_implementation.conformance_classes(),
             "id": service_id,
             "title": title,
             "description": textwrap.dedent(backend_config.capabilities_description).strip(),
-            "production": API_VERSIONS[g.request_version].production,
+            "production": OPENEO_API_VERSIONS[g.request_version].production,
             "endpoints": endpoints,
             "billing": backend_implementation.capabilities_billing(),
             # TODO: deprecate custom _backend_deploy_metadata
@@ -495,7 +515,7 @@ def register_views_general(
     @blueprint.route('/.well-known/openeo')
     def versioned_well_known_openeo():
         # Clients might request this for version discovery. Avoid polluting (error) logs by explicitly handling this.
-        error = OpenEOApiException(status_code=404, code="NotFound", message="Not a well-known openEO URI")
+        error = NotFoundException(message="Not a well-known openEO URI")
         return make_response(jsonify(error.to_dict()), error.status_code)
 
     @blueprint.route('/CHANGELOG', methods=['GET'])
@@ -589,11 +609,12 @@ def register_views_auth(
         )
 
 
-def _extract_process_graph(post_data: dict) -> dict:
+def _extract_process_graph(post_data: dict) -> ProcessGraphFlatDict:
     """
     Extract process graph dictionary from POST data
 
     see https://github.com/Open-EO/openeo-api/pull/262
+    :return: process graph in flat graph format
     """
     try:
         if requested_api_version().at_least("1.0.0"):
@@ -606,7 +627,7 @@ def _extract_process_graph(post_data: dict) -> dict:
     if not isinstance(pg, dict):
         # TODO: more validity checks for (flat) process graph?
         raise ProcessGraphInvalidException
-    return pg
+    return ProcessGraphFlatDict(pg)
 
 
 def _extract_job_options(post_data: dict, to_ignore: typing.Container[str]) -> Union[dict, None]:
@@ -638,12 +659,17 @@ def register_views_processing(
             process_graph = post_data["process_graph"]
         except (KeyError, TypeError) as e:
             raise ProcessGraphMissingException
-        env = EvalEnv({
-            "backend_implementation": backend_implementation,
-            "version": g.api_version,
-            "user": None,
-            "validation": True
-        })
+
+        env = EvalEnv(
+            {
+                "backend_implementation": backend_implementation,
+                # TODO #382 Deprecated field "version", use "openeo_api_version" instead
+                "version": g.openeo_api_version,
+                "openeo_api_version": g.openeo_api_version,
+                "user": None,
+                "validation": True
+            }
+        )
         errors = backend_implementation.processing.validate(process_graph=process_graph, env=env)
         return jsonify({"errors": errors})
 
@@ -655,17 +681,26 @@ def register_views_processing(
         process_graph = _extract_process_graph(post_data)
         budget = post_data.get("budget")
         plan = post_data.get("plan")
-        log_level = post_data.get("log_level", "info")
+        log_level = _assert_valid_log_level(post_data.get("log_level", DEFAULT_LOG_LEVEL_PROCESSING))
+
         job_options = _extract_job_options(
             post_data, to_ignore=["process", "process_graph", "budget", "plan", "log_level"]
         )
+        job_option_defaults = extract_default_job_options_from_process_graph(
+            process_graph=process_graph, processing_mode="synchronous"
+        )
+        if job_option_defaults:
+            _log.info(f"Extending {job_options=} with extracted {job_option_defaults=}")
+            job_options = {**job_option_defaults, **(job_options or {})}
 
         request_id = FlaskRequestCorrelationIdLogging.get_request_id()
 
         env = EvalEnv(
             {
                 "backend_implementation": backend_implementation,
-                "version": g.api_version,
+                # TODO #382 Deprecated field "version", use "openeo_api_version" instead
+                "version": g.openeo_api_version,
+                "openeo_api_version": g.openeo_api_version,
                 "pyramid_levels": "highest",
                 "user": user,
                 "require_bounds": True,
@@ -727,17 +762,10 @@ def register_views_processing(
     @backend_implementation.cache_control
     def processes():
         process_registry = backend_implementation.processing.get_process_registry(api_version=requested_api_version())
-        processes = process_registry.get_specs()
-        exclusion_list = get_backend_config().processes_exclusion_list
-        processes = _filter_by_id(processes, exclusion_list)
-
-        return jsonify(
-            {
-                "version": process_registry.target_version,
-                "processes": processes,
-                "links": [],
-            }
-        )
+        api_version = requested_api_version()
+        exclusion_list = get_backend_config().processes_exclusion_list.get(api_version.to_string())
+        processes_listing = process_registry.get_processes_listing(exclusion_list=exclusion_list)
+        return flask.jsonify(processes_listing.to_response_dict())
 
     @api_endpoint
     @blueprint.route('/processes/<namespace>', methods=['GET'])
@@ -745,14 +773,17 @@ def register_views_processing(
     def processes_from_namespace(namespace):
         # TODO: this endpoint is in draft at the moment
         #       see https://github.com/Open-EO/openeo-api/issues/310, https://github.com/Open-EO/openeo-api/pull/348
-        # TODO: convention for user namespace? use '@' instead of "u:"
         # TODO: unify with `/processes` endpoint?
+        _log.warning(f"Non-standard processes_from_namespace with {namespace=}")
         full = smart_bool(request.args.get("full", False))
         target_version = None
+        # TODO: convention for user namespace? use '@' instead of "u:"
         if namespace.startswith("u:") and backend_implementation.user_defined_processes:
             user_id = namespace.partition("u:")[-1]
-            user_udps = [p for p in backend_implementation.user_defined_processes.get_for_user(user_id) if p.public]
-            processes = [_jsonable_udp_metadata(udp, full=full, user=User(user_id=user_id)) for udp in user_udps]
+            user_udps = [
+                p for p in backend_implementation.user_defined_processes.list_for_user(user_id).udps if p.public
+            ]
+            processes = [udp.to_api_dict(full=full) for udp in user_udps]
         elif ":" not in namespace:
             process_registry = backend_implementation.processing.get_process_registry(
                 api_version=requested_api_version()
@@ -782,12 +813,15 @@ def register_views_processing(
     def processes_details(namespace, process_id):
         # TODO: this endpoint is in draft at the moment
         #       see https://github.com/Open-EO/openeo-api/issues/310, https://github.com/Open-EO/openeo-api/pull/348
+        _log.warning(f"Non-standard processes_details with {namespace=} {process_id=}")
         if namespace.startswith("u:") and backend_implementation.user_defined_processes:
             user_id = namespace.partition("u:")[-1]
             udp = backend_implementation.user_defined_processes.get(user_id=user_id, process_id=process_id)
-            if not udp:
+            if not udp or not udp.public:
                 raise ProcessUnsupportedException(process=process_id, namespace=namespace)
-            process = _jsonable_udp_metadata(udp, full=True, user=User(user_id=user_id))
+            if udp.public:
+                udp = _add_udp_canonical_link(udp=udp, user_id=user_id)
+            process = udp.to_api_dict(full=True)
         elif ":" not in namespace:
             process_registry = backend_implementation.processing.get_process_registry(
                 api_version=requested_api_version()
@@ -862,6 +896,17 @@ def _s3_client():
     return s3_client
 
 
+def _assert_valid_log_level(level: str) -> str:
+    valid_levels = ["debug", "info", "warning", "error"]
+    if level not in valid_levels:
+        raise OpenEOApiException(
+            code="InvalidLogLevel",
+            status_code=400,
+            message=f"Invalid log level {level}. Should be one of {valid_levels}.",
+        )
+    return level
+
+
 def register_views_batch_jobs(
         blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
         auth_handler: HttpAuthHandler
@@ -874,23 +919,32 @@ def register_views_batch_jobs(
     def create_job(user: User):
         # TODO: wrap this job specification in a 1.0-style ProcessGrahpWithMetadata?
         post_data = request.get_json()
+        process_graph = _extract_process_graph(post_data)
         # TODO: preserve original non-process_graph process fields too?
-        process = {"process_graph": _extract_process_graph(post_data)}
-        # TODO: this "job_options" is not part of official API. See https://github.com/Open-EO/openeo-api/issues/276
+        process = {"process_graph": process_graph}
+
         job_options = _extract_job_options(
             post_data, to_ignore=["process", "process_graph", "title", "description", "plan", "budget", "log_level"]
         )
+        job_option_defaults = extract_default_job_options_from_process_graph(
+            process_graph=process_graph, processing_mode="batch_job"
+        )
+        if job_option_defaults:
+            _log.info(f"Extending {job_options=} with extracted {job_option_defaults=}")
+            job_options = {**job_option_defaults, **(job_options or {})}
+
         metadata = {k: post_data[k] for k in ["title", "description", "plan", "budget"] if k in post_data}
-        metadata["log_level"] = post_data.get("log_level", "info")
+        metadata["log_level"] = _assert_valid_log_level(post_data.get("log_level", DEFAULT_LOG_LEVEL_PROCESSING))
         job_info = backend_implementation.batch_jobs.create_job(
-            # TODO: remove `filter_supported_kwargs` (when all implementations have migrated to `user` iso `user_id`)
+            # TODO: remove this case of `filter_supported_kwargs`
+            #       when we are significantly past openeo-geopyspark-driver 0.60.1 (mid 2025-02)
             **filter_supported_kwargs(
                 callable=backend_implementation.batch_jobs.create_job,
                 user_id=user.user_id,
                 user=user,
             ),
             process=process,
-            api_version=g.api_version,
+            api_version=g.openeo_api_version,
             metadata=metadata,
             job_options=job_options,
         )
@@ -986,22 +1040,6 @@ def register_views_batch_jobs(
             _log.info(f"`POST /jobs/{job_id}/results`: not (re)starting job (status {job_info.status}")
         return make_response("", 202)
 
-    def _job_result_download_url(job_id, user_id, filename) -> str:
-        signer = get_backend_config().url_signer
-        if signer:
-            expires = signer.get_expires()
-            secure_key = signer.sign_job_asset(
-                job_id=job_id, user_id=user_id, filename=filename, expires=expires
-            )
-            user_base64 = user_id_b64_encode(user_id)
-            return url_for(
-                '.download_job_result_signed',
-                job_id=job_id, user_base64=user_base64, filename=filename, expires=expires, secure_key=secure_key,
-                _external=True
-            )
-        else:
-            return url_for('.download_job_result', job_id=job_id, filename=filename, _external=True)
-
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results', methods=['GET'])
     @auth_handler.requires_bearer_auth
@@ -1073,9 +1111,7 @@ def register_views_batch_jobs(
                     "license": "proprietary",  # TODO?
                     "extent": {
                         "spatial": {"bbox": [[-180, -90, 180, 90]]},
-                        "temporal": {
-                            "interval": [[to_datetime(dt.datetime.utcnow()), to_datetime(dt.datetime.utcnow())]]
-                        },
+                        "temporal": {"interval": [[rfc3339.now_utc(), rfc3339.now_utc()]]},
                     },
                     "links": [
                         {
@@ -1265,13 +1301,20 @@ def register_views_batch_jobs(
             raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
         result = results[filename]
         if result.get("href", "").startswith("s3://"):
-            return _stream_from_s3(result["href"], result, request.headers.get("Range"))
+            return _stream_from_s3(
+                result["href"], filename=filename, mimetype=result.get("type"), bytes_range=request.headers.get("Range")
+            )
         elif "output_dir" in result:
             out_dir_url = result["output_dir"]
             if out_dir_url.startswith("s3://"):
                 # TODO: Would be nice if we could use the s3:// URL directly without splitting into bucket and key.
                 # Ignoring the "s3://" at the start makes it easier to split into the bucket and the rest.
-                resp = _stream_from_s3(f"{out_dir_url}/{filename}", result, request.headers.get("Range"))
+                resp = _stream_from_s3(
+                    f"{out_dir_url}/{filename}",
+                    filename=filename,
+                    mimetype=result.get("type"),
+                    bytes_range=request.headers.get("Range"),
+                )
             else:
                 resp = send_from_directory(result["output_dir"], filename, mimetype=result.get("type"))
                 resp.headers['Accept-Ranges'] = 'bytes'
@@ -1282,7 +1325,7 @@ def register_views_batch_jobs(
             _log.error(f"Unsupported job result: {result!r}")
             raise InternalException("Unsupported job result")
 
-    def _stream_from_s3(s3_url, result, bytes_range: Optional[str]):
+    def _stream_from_s3(s3_url, *, filename, mimetype: Optional[str], bytes_range: Optional[str]):
         import botocore.exceptions
 
         bucket, key = s3_url[5:].split("/", 1)
@@ -1294,20 +1337,22 @@ def register_views_batch_jobs(
             resp = flask.Response(
                 response=body.iter_chunks(STREAM_CHUNK_SIZE_DEFAULT),
                 status=206 if bytes_range else 200,
-                mimetype=result.get("type"),
+                mimetype=mimetype,
             )
             resp.headers['Accept-Ranges'] = 'bytes'
             resp.headers['Content-Length'] = s3_file_object['ContentLength']
+            if 'ContentRange' in s3_file_object:
+                resp.headers['Content-Range'] = s3_file_object['ContentRange']
             return resp
-        except s3_instance.exceptions.NoSuchKey:
-            _log.exception(f"No such key: s3://{bucket}/{key}")
-            raise
+        except s3_instance.exceptions.NoSuchKey as e:
+            _log.exception(f"Not found: {s3_url}")
+            raise NotFoundException(message=f"Not found: {filename}") from e
         except botocore.exceptions.ClientError as e:
             if e.response.get("ResponseMetadata").get("HTTPStatusCode") == 416:  # best effort really
                 raise OpenEOApiException(
                     code="RangeNotSatisfiable", status_code=416,
                     message=f"Invalid Range {bytes_range}"
-                )
+                ) from e
 
             raise
 
@@ -1428,7 +1473,9 @@ def register_views_batch_jobs(
         for asset in assets.values():
             if not asset["href"].startswith("http"):
                 asset_file_name = pathlib.Path(asset["href"]).name
-                asset["href"] = _job_result_download_url(job_id, user_id, asset_file_name)
+                asset["href"] = backend_implementation.config.asset_url.build_url(
+                    asset_metadata=asset, asset_name=asset_file_name, job_id=job_id, user_id=user_id
+                )
         stac_item = {
             "stac_version": ml_model_metadata.get("stac_version", "0.9.0"),
             "stac_extensions": ml_model_metadata.get("stac_extensions", []),
@@ -1450,7 +1497,9 @@ def register_views_batch_jobs(
             {
                 "title": asset_metadata.get("title", filename),
                 "href": asset_metadata.get(BatchJobs.ASSET_PUBLIC_HREF)
-                or _job_result_download_url(job_id, user_id, filename),
+                or backend_implementation.config.asset_url.build_url(
+                    asset_metadata=asset_metadata, asset_name=filename, job_id=job_id, user_id=user_id
+                ),
                 "type": asset_metadata.get("type", asset_metadata.get("media_type", "application/octet-stream")),
                 "roles": asset_metadata.get("roles", ["data"]),
                 "raster:bands": asset_metadata.get("raster:bands"),
@@ -1514,16 +1563,26 @@ def register_views_batch_jobs(
     @blueprint.route("/jobs/<job_id>/logs", methods=["GET"])
     @auth_handler.requires_bearer_auth
     def get_job_logs(job_id, user: User):
-        offset = request.args.get("offset")
-        level = request.args.get("level", "debug")
+        offset = request.args.get("offset", default=None)
+        limit = request.args.get("limit", default=None, type=int)
+        level = request.args.get("level", default=DEFAULT_LOG_LEVEL_RETRIEVAL)
         request_id = FlaskRequestCorrelationIdLogging.get_request_id()
         # TODO: implement paging support: `limit`, next/prev/first/last `links`, ...
-        logs = backend_implementation.batch_jobs.get_log_entries(
+
+        # TODO: remove this `function_has_argument` once all implementations are migrated
+        if function_has_argument(backend_implementation.batch_jobs.get_log_entries, argument="limit"):
+            logs = backend_implementation.batch_jobs.get_log_entries(
+                job_id=job_id, user_id=user.user_id, offset=offset, level=level, limit=limit
+            )
+        else:
+            logs = backend_implementation.batch_jobs.get_log_entries(
             job_id=job_id, user_id=user.user_id, offset=offset, level=level
         )
 
         def generate():
-            yield """{"logs":["""
+            yield "{"
+            yield f'"level": {json.dumps(level)},'
+            yield '"logs":['
 
             sep = ""
             try:
@@ -1551,7 +1610,9 @@ def register_views_batch_jobs(
                 }
                 yield sep + json.dumps(log)
 
-            yield """],"links":[]}"""
+            yield "],"
+            # TODO: add pagination links (next, prev, first, last)
+            yield '"links":[]}'
 
         return current_app.response_class(generate(), mimetype="application/json")
 
@@ -1611,7 +1672,7 @@ def register_views_secondary_services(
             user_id=user.user_id,
             process_graph=_extract_process_graph(post_data),
             service_type=post_data["type"],
-            api_version=g.api_version,
+            api_version=g.openeo_api_version,
             configuration=post_data.get("configuration", {})
         )
 
@@ -1666,12 +1727,13 @@ def register_views_secondary_services(
     @blueprint.route('/services/<service_id>/logs', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def service_logs(service_id, user: User):
-        level = request.args.get("level", "debug")
-        offset = request.args.get('offset', 0)
+        offset = request.args.get("offset", default=None)
+        limit = request.args.get("limit", default=None, type=int)
+        level = request.args.get("level", default=DEFAULT_LOG_LEVEL_RETRIEVAL)
         logs = backend_implementation.secondary_services.get_log_entries(
-            service_id=service_id, user_id=user.user_id, offset=offset
+            service_id=service_id, user_id=user.user_id, offset=offset, limit=limit, level=level
         )
-        return jsonify({"logs": logs, "links": []})
+        return jsonify({"logs": logs, "links": [], "level": level})
 
 
 def register_views_udp(
@@ -1711,22 +1773,18 @@ def register_views_udp(
     def udp_get(process_graph_id: str, user: User):
         _check_valid_process_graph_id(process_id=process_graph_id)
         udp = backend_implementation.user_defined_processes.get(user_id=user.user_id, process_id=process_graph_id)
-        if udp:
-            return _jsonable_udp_metadata(udp, full=True , user=user)
-
-        raise ProcessGraphNotFoundException(process_graph_id)
+        if not udp:
+            raise ProcessGraphNotFoundException(process_graph_id)
+        if udp.public:
+            udp = _add_udp_canonical_link(udp=udp, user_id=user.user_id)
+        return jsonify(udp.to_api_dict(full=True))
 
     @api_endpoint
     @blueprint.route('/process_graphs', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def udp_list_for_user(user: User):
-        user_udps = backend_implementation.user_defined_processes.get_for_user(user.user_id)
-        return {
-            'processes': [_jsonable_udp_metadata(udp, full=False) for udp in user_udps],
-            # TODO: pagination links?
-            # TODO: allow backend_implementation to define links?
-            "links": [],
-        }
+        resp = backend_implementation.user_defined_processes.list_for_user(user_id=user.user_id)
+        return flask.jsonify(resp.to_response_dict(full=False))
 
     @api_endpoint
     @blueprint.route('/process_graphs/<process_graph_id>', methods=['DELETE'])
@@ -1737,33 +1795,19 @@ def register_views_udp(
         return response_204_no_content()
 
 
-def _jsonable_udp_metadata(metadata: UserDefinedProcessMetadata, full=True, user: User = None) -> dict:
-    """API-version-aware conversion of UDP metadata to jsonable dict"""
-    d = metadata.prepare_for_json()
-    if not full:
-        # API recommends to limit response size by omitting larger/optional fields
-        d = {k: v for k, v in d.items() if k in ["id", "summary", "description", "parameters", "returns"]}
-    elif metadata.public and user:
-        namespace = "u:" + user.user_id
-        d["links"] = (d.get("links") or []) + [
-            {
-                "rel": "canonical",
-                # TODO: use signed url?
-                "href": url_for(".processes_details", namespace=namespace, process_id=metadata.id, _external=True),
-                "title": f"Public URL for user-defined process {metadata.id!r}"
-            }
-        ]
-    elif "public" in d and not d["public"]:
-        # Don't include non-standard "public" field when false to stay closer to standard API
-        del d["public"]
-
-    return dict_no_none(**d)
+def _add_udp_canonical_link(udp: UserDefinedProcessMetadata, user_id: str) -> UserDefinedProcessMetadata:
+    return udp.add_link(
+        rel="canonical",
+        href=url_for(".processes_details", namespace=f"u:{user_id}", process_id=udp.id, _external=True),
+        title=f"Public URL for user-defined process {udp.id!r}",
+    )
 
 
 def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersion, full=False) -> dict:
     """
     Make sure the given collection metadata roughly complies to desired version of OpenEO spec.
     """
+    # TODO: encapsulate this in a collection metadata class?
     # Make copy and remove all "private" fields
     metadata = copy.deepcopy(metadata)
     metadata = {k: v for (k, v) in metadata.items() if not k.startswith('_')}
@@ -1862,10 +1906,6 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
 
     return metadata
 
-def _filter_by_id(metadata, exclusion_list):
-    if requested_api_version().to_string() in exclusion_list:
-        metadata = [m for m in metadata if m["id"] not in exclusion_list[requested_api_version().to_string()]]
-    return metadata
 
 def register_views_catalog(
         blueprint: Blueprint, backend_implementation: OpenEoBackendImplementation, api_endpoint: EndpointRegistry,
@@ -1875,18 +1915,17 @@ def register_views_catalog(
     @blueprint.route('/collections', methods=['GET'])
     @backend_implementation.cache_control
     def collections():
-        metadata = [
-            _normalize_collection_metadata(metadata=m, api_version=requested_api_version(), full=False)
-            for m in backend_implementation.catalog.get_all_metadata()
-        ]
-        exclusion_list = get_backend_config().collection_exclusion_list
-        metadata = _filter_by_id(metadata, exclusion_list)
-        return jsonify(
-            {
-                "collections": metadata,
-                # TODO: how to allow customizing this "links" field?
-                "links": [],
-            }
+        collections_listing = backend_implementation.catalog.get_collections_listing()
+
+        api_version = requested_api_version()
+        exclusion_list = get_backend_config().collection_exclusion_list.get(api_version.to_string())
+        if exclusion_list:
+            collections_listing = collections_listing.filter_by_id(exclusion_list=exclusion_list)
+
+        return flask.jsonify(
+            collections_listing.to_response_dict(
+                normalize=lambda m: _normalize_collection_metadata(metadata=m, api_version=api_version, full=False)
+            )
         )
 
     @api_endpoint
