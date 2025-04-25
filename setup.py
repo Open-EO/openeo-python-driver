@@ -56,8 +56,7 @@ setup(
         "openeo_processes==0.0.4",  # 0.0.4 is special build/release, also see https://github.com/Open-EO/openeo-python-driver/issues/152
         "gunicorn>=20.0.1",
         "numpy>=1.22.0",
-        "shapely<2.0.0; python_version<='3.9'",
-        "shapely>=2.0.0; python_version>'3.9'",
+        "shapely>=1.8.5",  # TODO #158 bump requirement to at least 2.0.0 for simplicity (once openeo-geopyspark-driver allows it too)
         "pandas>=1.4.0",
         "geopandas>=0.11.0",  # 0.11.0 fixes https://github.com/geopandas/geopandas/pull/2243
         "xarray>=0.16.2",

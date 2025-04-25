@@ -89,7 +89,7 @@ def test_geojson_to_multipolygon():
     def assert_equal_multipolygon(a, b):
         assert isinstance(a, shapely.geometry.MultiPolygon)
         assert isinstance(b, shapely.geometry.MultiPolygon)
-        assert len(a) == len(b)
+        assert len(a.geoms) == len(b.geoms)
         assert a.equals(b), f"{a!s} ?= {b!s}"
 
     poly_1 = shapely.geometry.Polygon(poly1_coords)

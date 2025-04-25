@@ -430,10 +430,10 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
 
     def to_netcdf(self, destination: Optional[str] = None) -> str:
         def features_ids_from_index(geometries):
-            return ['feature_%d' % i for i in range(len(geometries))]
+            return ["feature_%d" % i for i in range(len(geometries.geoms))]
 
         if isinstance(self._regions, GeometryCollection):
-            points = [r.representative_point() for r in self._regions]
+            points = [r.representative_point() for r in self._regions.geoms]
             feature_ids = features_ids_from_index(self._regions)
         else:
             points = [r.representative_point() for r in self._regions.get_geometries()]
@@ -684,7 +684,7 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
                     geometries = list(regions.geometries)
                     amount_of_regions = len(geometries)
                 elif isinstance(self._regions, GeometryCollection):
-                    amount_of_regions = len(self._regions)
+                    amount_of_regions = len(self._regions.geoms)
                 else:
                     _log.warning("Using polygon with largest index to estimate how many input polygons there where.")
                     amount_of_regions = features.max() + 1

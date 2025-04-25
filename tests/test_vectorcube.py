@@ -38,7 +38,7 @@ class TestDriverVectorCube:
         vc = DriverVectorCube(gdf)
         mp = vc.to_multipolygon()
         assert isinstance(mp, MultiPolygon)
-        assert len(mp) == 2
+        assert len(mp.geoms) == 2
         assert mp.equals(MultiPolygon([
             Polygon([(1, 1), (2, 3), (3, 1), (1, 1)]),
             Polygon([(4, 2), (5, 4), (3, 4), (4, 2)]),
