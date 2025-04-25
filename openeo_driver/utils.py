@@ -189,6 +189,8 @@ def to_hashable(obj):
         return tuple((k, to_hashable(v)) for (k, v) in sorted(obj.items()))
     elif isinstance(obj, set):
         return to_hashable(sorted(obj))
+    elif obj is None:
+        return obj
     else:
         raise ValueError(obj)
 
