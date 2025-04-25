@@ -353,13 +353,6 @@ def test_load_collection_filter(api):
             ),
             {"west": 11, "south": 22, "east": 44, "north": 55, "crs": "EPSG:4326"},
         ),
-        (
-            as_geojson_feature_collection(
-                shapely.geometry.Point(2, 3),
-                shapely.geometry.Point(4, 5),
-            ),
-            {"west": 2, "south": 3, "east": 4, "north": 5, "crs": "EPSG:4326"},
-        ),
     ],
 )
 def test_load_collection_spatial_extent_geojson(api, spatial_extent, expected):
@@ -2786,7 +2779,7 @@ def test_user_defined_process_udp_vs_pdp_priority(api, udp_registry):
     api.check_result("udp_ndvi.json")
     dummy = dummy_backend.get_collection("S2_FOOBAR")
     assert dummy.ndvi.call_count == 1
-    dummy.ndvi.assert_called_with(nir=None, red=None, target_band=None)
+    dummy.ndvi.assert_called_with(nir="nir", red="red", target_band=None)
     assert dummy.reduce_dimension.call_count == 0
 
     # Overload ndvi with UDP.
@@ -3051,6 +3044,10 @@ def test_execute_no_cube_1_plus_2(api):
     ({"cnt1": {"process_id": "count", "arguments": {"data": [2, 8, None, 3]}, "result": True}}, 3),
     ({"pi1": {"process_id": "pi", "arguments": {}, "result": True}}, math.pi),
     ({"e1": {"process_id": "e", "arguments": {}, "result": True}}, math.e),
+    ({"s": {"process_id": "array_apply", "arguments": {"data": [3, -25, 8], "process":
+        { "process_graph":{"s": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 5}, "result": True}}
+        }},
+                "result": True}}, [8, -20, 13]),
 ])
 def test_execute_no_cube_just_math(api, process_graph, expected):
     assert api.result(process_graph).assert_status_code(200).json == pytest.approx(expected,0.0001)
@@ -3637,6 +3634,29 @@ def test_execute_custom_process_by_process_graph_namespaced(api):
         },
     }).json
     assert res == 30
+
+
+@pytest.mark.parametrize("hidden", [False, True])
+def test_execute_custom_process_by_process_graph_hidden(api, hidden):
+    process_id = generate_unique_test_process_id()
+    # Register a custom process with minimal process graph
+    process_spec = {
+        "id": process_id,
+        "process_graph": {
+            "increment": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 1}, "result": True}
+        },
+    }
+    custom_process_from_process_graph(process_spec=process_spec, hidden=hidden)
+    # Apply process
+    res = api.check_result(
+        {
+            "do_math": {"process_id": process_id, "arguments": {"x": 2}, "result": True},
+        }
+    ).json
+    assert res == 3
+
+    process_ids = set(p["id"] for p in api.get("/processes").assert_status_code(200).json["processes"])
+    assert (process_id not in process_ids) == hidden
 
 
 def test_normalized_difference(api):

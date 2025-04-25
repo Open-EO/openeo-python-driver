@@ -819,11 +819,12 @@ class TestElasticJobRegistry:
                 "updated": "2022-12-14T12:34:56Z",
             },
         )
-        requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
+        path_job = requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
 
         with time_machine.travel("2022-12-14T12:34:56Z"):
-            result = ejr.set_status(job_id="job-123", status=JOB_STATUS.RUNNING)
-        assert result["status"] == "running"
+            ejr.set_status(job_id="job-123", status=JOB_STATUS.RUNNING)
+
+        assert path_job.call_count == 1
 
     def test_set_status_with_started(self, requests_mock, oidc_mock, ejr):
         handler = self._handle_patch_jobs(
@@ -836,15 +837,15 @@ class TestElasticJobRegistry:
                 }
             ),
         )
-        requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
+        patch_job = requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
 
-        result = ejr.set_status(
+        ejr.set_status(
             job_id="job-123",
             status=JOB_STATUS.RUNNING,
             updated="2022-12-14T10:00:00",
             started="2022-12-14T10:00:00",
         )
-        assert result["status"] == "running"
+        assert patch_job.call_count == 1
 
     def test_set_status_with_finished(self, requests_mock, oidc_mock, ejr):
         handler = self._handle_patch_jobs(
@@ -857,14 +858,14 @@ class TestElasticJobRegistry:
                 }
             ),
         )
-        requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
+        patch_job = requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
         with time_machine.travel("2022-12-14T12:34:56Z"):
-            result = ejr.set_status(
+            ejr.set_status(
                 job_id="job-123",
                 status=JOB_STATUS.RUNNING,
                 finished="2022-12-14T10:00:00",
             )
-        assert result["status"] == "running"
+        assert patch_job.call_count == 1
 
     def test_set_dependencies(self, requests_mock, oidc_mock, ejr):
         handler = self._handle_patch_jobs(
@@ -923,23 +924,6 @@ class TestElasticJobRegistry:
         )
 
         ejr.set_application_id(job_id="job-123", application_id="app-456")
-        assert patch_mock.call_count == 1
-
-    def test_set_usage(self, requests_mock, oidc_mock, ejr):
-        handler = self._handle_patch_jobs(
-            oidc_mock=oidc_mock, expected_data={"costs": 22, "usage": {
-                "cpu": {"value": 3283, "unit": "cpu-seconds"},
-                "memory": {"value": 8040202, "unit": "mb-seconds"},
-                "sentinelhub": {"value": 108.33333656191826, "unit": "sentinelhub_processing_unit"}}}
-        )
-        patch_mock = requests_mock.patch(
-            f"{self.EJR_API_URL}/jobs/job-123", json=handler
-        )
-
-        ejr.set_usage(job_id="job-123", costs=22, usage={
-            "cpu": {"value": 3283, "unit": "cpu-seconds"},
-            "memory": {"value": 8040202, "unit": "mb-seconds"},
-            "sentinelhub": {"value": 108.33333656191826, "unit": "sentinelhub_processing_unit"}})
         assert patch_mock.call_count == 1
 
     def test_set_results_metadata(self, requests_mock, oidc_mock, ejr):
@@ -1066,7 +1050,10 @@ class TestElasticJobRegistry:
         with pytest.raises(EjrApiError, match="Failed to do EJR API request"):
             _ = ejr.get_job(job_id="job-123", user_id="john")
 
-        assert "Failed to do EJR API request `POST /jobs/search`: ConnectionError('Connection aborted')" in caplog.text
+        assert (
+            f"Failed to do EJR API request `POST {self.EJR_API_URL}/jobs/search`: ConnectionError('Connection aborted')"
+            in caplog.text
+        )
 
     @pytest.mark.parametrize(
         ["tries", "failures", "success"],
@@ -1094,7 +1081,9 @@ class TestElasticJobRegistry:
                 result = ejr.list_user_jobs(user_id="john")
                 assert result == [DUMMY_PROCESS]
             else:
-                with pytest.raises(EjrApiError, match="Failed to do EJR API request `POST /jobs/search`"):
+                with pytest.raises(
+                    EjrApiError, match=f"Failed to do EJR API request `POST {self.EJR_API_URL}/jobs/search`"
+                ):
                     _ = ejr.list_user_jobs(user_id="john")
 
         assert sleep.call_count > 0

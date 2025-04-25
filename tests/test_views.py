@@ -3,7 +3,7 @@ import logging
 import re
 import urllib.parse
 from contextlib import ExitStack, contextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 from unittest import mock
@@ -16,9 +16,11 @@ import moto
 import pystac.validation.stac_validator
 import pytest
 import re_assert
+import time_machine
 import werkzeug.exceptions
 from openeo.utils.version import ComparableVersion
 
+from openeo_driver.asset_urls import AssetUrl
 from openeo_driver.backend import (
     BatchJobMetadata,
     BatchJobResultMetadata,
@@ -31,9 +33,10 @@ from openeo_driver.backend import (
 from openeo_driver.config import OpenEoBackendConfig
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.dummy import dummy_backend, dummy_config
-from openeo_driver.dummy.dummy_backend import DummyBackendImplementation
+from openeo_driver.dummy.dummy_backend import DummyBackendImplementation, DummyProcessing
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
+from openeo_driver.processes import ProcessesListing
 from openeo_driver.save_result import VectorCubeResult
 from openeo_driver.testing import (
     TEST_USER,
@@ -106,6 +109,21 @@ def api100(client) -> ApiTester:
 @pytest.fixture
 def api110(client) -> ApiTester:
     return ApiTester(api_version="1.1.0", client=client, data_root=TEST_DATA_ROOT)
+
+
+@pytest.fixture
+def api120(client) -> ApiTester:
+    return ApiTester(api_version="1.2", client=client, data_root=TEST_DATA_ROOT)
+
+
+class DummyDirectS3Assets(AssetUrl):
+    S3_ENDPOINT = "https://s3.oeo.test"
+
+    def build_url(self, asset_metadata: dict, asset_name: str, job_id: str, user_id: str) -> str:
+        href = asset_metadata.get("href", "")
+        if href.startswith("s3://"):
+            return href.replace("s3://", f"{self.S3_ENDPOINT}/")
+        return super().build_url(asset_metadata=asset_metadata, asset_name=asset_name, job_id=job_id, user_id=user_id)
 
 
 def api_from_backend_implementation(
@@ -517,88 +535,6 @@ class TestGeneral:
         }
         assert response.headers["Cache-Control"] == "max-age=900, public"
 
-    @pytest.mark.parametrize("endpoint", [
-        "/processes",
-        "/processes/backend"
-    ])
-    def test_processes(self, api_version, api, endpoint):
-        resp = api.get(endpoint).assert_status_code(200).json
-        processes = resp["processes"]
-        process_ids = set(p['id'] for p in processes)
-        assert {"load_collection", "min", "max", "sin", "merge_cubes", "mask"}.issubset(process_ids)
-        expected_keys = {"id", "description", "parameters", "returns"}
-        for process in processes:
-            assert all(k in process for k in expected_keys)
-
-        expected_version = "2.0.0-rc.1" if ComparableVersion(api_version) >= "1.2" else "1.2.0"
-        assert resp["version"] == expected_version
-
-    @pytest.mark.parametrize("backend_config_overrides", [{"processes_exclusion_list": {"1.0.0":["merge_cubes"]}}])
-    def test_processes_exclusion(self, api, backend_config_overrides):
-        resp = api.get('/processes').assert_status_code(200).json
-        ids = [c["id"] for c in resp["processes"]]
-        if ComparableVersion(api.api_version) == "1.0.0":
-            assert "merge_cubes" not in ids
-        else:
-            assert "merge_cubes" in ids
-
-    def test_process_details(self, api100):
-        spec = api100.get("/processes/backend/add").assert_status_code(200).json
-        assert spec["id"] == "add"
-        assert spec["summary"].lower() == "addition of two numbers"
-        assert "x + y" in spec["description"]
-        assert set(p["name"] for p in spec["parameters"]) == {"x", "y"}
-        assert "computed sum" in spec["returns"]["description"]
-        assert "process_graph" in spec
-
-    def test_processes_non_standard_atmospheric_correction(self, api):
-        if api.api_version_compare.below("1.0.0"):
-            pytest.skip()
-        resp = api.get('/processes').assert_status_code(200).json
-        spec, = [p for p in resp["processes"] if p['id'] == "atmospheric_correction"]
-        assert spec["summary"] == "Apply atmospheric correction"
-        assert spec["categories"] == ["cubes", "optical"]
-        assert spec["experimental"] is True
-        assert spec["links"][0]["rel"] == "about"
-        assert "DigitalElevationModelInvalid" in spec["exceptions"]
-
-
-    def test_custom_process_listing(self, api100):
-        process_id = generate_unique_test_process_id()
-
-        # Register a custom process with process graph
-        process_spec = api100.load_json("pg/1.0/add_and_multiply.json")
-        process_spec["id"] = process_id
-        custom_process_from_process_graph(process_spec=process_spec)
-
-        processes = api100.get("/processes").assert_status_code(200).json["processes"]
-        processes_by_id = {p["id"]: p for p in processes}
-        assert process_id in processes_by_id
-        assert processes_by_id[process_id] == process_spec
-
-    def test_processes_from_namespace(self, api100):
-        process_id = generate_unique_test_process_id()
-
-        # Register a custom process with process graph
-        process_spec = api100.load_json("pg/1.0/add_and_multiply.json")
-        process_spec["id"] = process_id
-        custom_process_from_process_graph(process_spec=process_spec, namespace="foobar")
-        process_spec_short = process_spec.copy()
-        process_spec_short.pop("process_graph")
-
-        processes = api100.get("/processes/foobar").assert_status_code(200).json["processes"]
-        processes_by_id = {p["id"]: p for p in processes}
-        assert process_id in processes_by_id
-        assert processes_by_id[process_id] == process_spec_short
-
-        processes = api100.get("/processes/foobar?full=yes").assert_status_code(200).json["processes"]
-        processes_by_id = {p["id"]: p for p in processes}
-        assert process_id in processes_by_id
-        assert processes_by_id[process_id] == process_spec
-
-        processes = api100.get("/processes").assert_status_code(200).json["processes"]
-        assert "increment" not in set(p['id'] for p in processes)
-
     @pytest.mark.parametrize(["user_id", "expect_success"], [
         ("Mark", False),
         ("John", True),
@@ -642,6 +578,124 @@ class TestGeneral:
             response.assert_error(status_code=413, error_code="Internal", message="Request Entity Too Large")
         else:
             response.assert_status_code(201)
+
+
+class TestProcessRegistry:
+    @pytest.mark.parametrize(
+        "endpoint",
+        [
+            "/processes",
+            "/processes/backend",
+        ],
+    )
+    def test_processes_basic(self, api_version, api, endpoint):
+        resp = api.get(endpoint).assert_status_code(200).json
+        processes = resp["processes"]
+        process_ids = set(p["id"] for p in processes)
+        assert {"load_collection", "min", "max", "sin", "merge_cubes", "mask"}.issubset(process_ids)
+        expected_keys = {"id", "description", "parameters", "returns"}
+        for process in processes:
+            assert all(k in process for k in expected_keys)
+
+        expected_version = "2.0.0-rc.1" if ComparableVersion(api_version) >= "1.2" else "1.2.0"
+        assert resp["version"] == expected_version
+
+    @pytest.mark.parametrize(
+        "backend_config_overrides",
+        [
+            {"processes_exclusion_list": {"1.0.0": ["merge_cubes"]}},
+        ],
+    )
+    def test_processes_exclusion(self, api, backend_config_overrides):
+        resp = api.get("/processes").assert_status_code(200).json
+        ids = [c["id"] for c in resp["processes"]]
+        if ComparableVersion(api.api_version) == "1.0.0":
+            assert "merge_cubes" not in ids
+        else:
+            assert "merge_cubes" in ids
+
+    def test_process_details(self, api100):
+        spec = api100.get("/processes/backend/add").assert_status_code(200).json
+        assert spec["id"] == "add"
+        assert spec["summary"].lower() == "addition of two numbers"
+        assert "x + y" in spec["description"]
+        assert set(p["name"] for p in spec["parameters"]) == {"x", "y"}
+        assert "computed sum" in spec["returns"]["description"]
+        assert "process_graph" in spec
+
+    def test_processes_non_standard_atmospheric_correction(self, api):
+        if api.api_version_compare.below("1.0.0"):
+            pytest.skip()
+        resp = api.get("/processes").assert_status_code(200).json
+        (spec,) = [p for p in resp["processes"] if p["id"] == "atmospheric_correction"]
+        assert spec["summary"] == "Apply atmospheric correction"
+        assert spec["categories"] == ["cubes", "optical"]
+        assert spec["experimental"] is True
+        assert spec["links"][0]["rel"] == "about"
+        assert "DigitalElevationModelInvalid" in spec["exceptions"]
+
+    def test_custom_processes(self, api100):
+        process_id = generate_unique_test_process_id()
+
+        # Register a custom process with process graph
+        process_spec = api100.load_json("pg/1.0/add_and_multiply.json")
+        process_spec["id"] = process_id
+        custom_process_from_process_graph(process_spec=process_spec)
+
+        processes = api100.get("/processes").assert_status_code(200).json["processes"]
+        processes_by_id = {p["id"]: p for p in processes}
+        assert process_id in processes_by_id
+        assert processes_by_id[process_id] == process_spec
+
+    def test_processes_from_namespace(self, api100):
+        process_id = generate_unique_test_process_id()
+
+        # Register a custom process with process graph
+        process_spec = api100.load_json("pg/1.0/add_and_multiply.json")
+        process_spec["id"] = process_id
+        custom_process_from_process_graph(process_spec=process_spec, namespace="foobar")
+        process_spec_short = process_spec.copy()
+        process_spec_short.pop("process_graph")
+
+        processes = api100.get("/processes/foobar").assert_status_code(200).json["processes"]
+        processes_by_id = {p["id"]: p for p in processes}
+        assert process_id in processes_by_id
+        assert processes_by_id[process_id] == process_spec_short
+
+        processes = api100.get("/processes/foobar?full=yes").assert_status_code(200).json["processes"]
+        processes_by_id = {p["id"]: p for p in processes}
+        assert process_id in processes_by_id
+        assert processes_by_id[process_id] == process_spec
+
+        processes = api100.get("/processes").assert_status_code(200).json["processes"]
+        assert "increment" not in set(p["id"] for p in processes)
+
+    @pytest.mark.parametrize(
+        ["dummy_processing", "expected"],
+        [
+            (
+                DummyProcessing(use_dummy_process_registry=["add"]),
+                {
+                    "processes": dirty_equals.IsList(length=1),
+                    "flavor": "salt and pepper",
+                    "links": [{"rel": "docs", "href": "http://processing.test/dummy"}],
+                    "version": "dummy-v2",
+                },
+            ),
+            (
+                # Default: just use standard ProcessRegistries
+                None,
+                {
+                    "processes": dirty_equals.IsList(length=...),
+                    "links": [],
+                    "version": "2.0.0-rc.1",
+                },
+            ),
+        ],
+    )
+    def test_custom_process_listing_response(self, api120, dummy_processing, expected):
+        resp = api120.get("/processes").assert_status_code(200).json
+        assert resp == expected
 
 
 @pytest.fixture
@@ -1160,6 +1214,32 @@ class TestCollections:
         resp = api.get('/collections/FOOBOO').assert_error(404, "CollectionNotFound")
         assert "Cache-Control" not in resp.headers
 
+    @pytest.mark.parametrize(
+        ["backend_config_overrides", "expected_present", "expected_absent"],
+        [
+            (
+                {},
+                {"S2_FOOBAR", "S2_FAPAR_CLOUDCOVER", "SENTINEL1_GRD"},
+                set(),
+            ),
+            (
+                {"collection_exclusion_list": {"1.2.0": []}},
+                {"S2_FOOBAR", "S2_FAPAR_CLOUDCOVER", "SENTINEL1_GRD"},
+                set(),
+            ),
+            (
+                {"collection_exclusion_list": {"1.2.0": ["S2_FOOBAR"]}},
+                {"S2_FAPAR_CLOUDCOVER", "SENTINEL1_GRD"},
+                {"S2_FOOBAR"},
+            ),
+        ],
+    )
+    def test_collection_exclusion_list(self, api120, expected_present, expected_absent):
+        resp = api120.get("/collections").assert_status_code(200)
+        collection_ids = set(c["id"] for c in resp.json["collections"])
+        assert expected_present.issubset(collection_ids)
+        assert not expected_absent.intersection(collection_ids)
+
 
 class TestBatchJobs:
     AUTH_HEADER = TEST_USER_AUTH_HEADER
@@ -1186,6 +1266,7 @@ class TestBatchJobs:
                     status='running',
                     process={'process_graph': {'foo': {'process_id': 'foo', 'arguments': {}}}},
                     created=datetime(2017, 1, 1, 9, 32, 12),
+                    started=datetime(2017, 1, 1, 12, 0, 0),
                 ),
                 (TEST_USER, '53c71345-09b4-46b4-b6b0-03fd6fe1f199'): BatchJobMetadata(
                     id='53c71345-09b4-46b4-b6b0-03fd6fe1f199',
@@ -1252,6 +1333,7 @@ class TestBatchJobs:
                     )
             yield dummy_backend.DummyBatchJobs._job_registry
 
+    @time_machine.travel("2024-01-02T13:14:15Z", tick=False)
     def test_create_job_100(self, api100):
         with self._fresh_job_registry(next_job_id="job-245"):
             resp = api100.post('/jobs', headers=self.AUTH_HEADER, json={
@@ -1267,7 +1349,7 @@ class TestBatchJobs:
         assert job_info.id == "job-245"
         assert job_info.process == {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}}
         assert job_info.status == "created"
-        assert job_info.created == dummy_backend.DEFAULT_DATETIME
+        assert job_info.created == datetime(2024, 1, 2, 13, 14, 15, tzinfo=timezone.utc)
         assert job_info.job_options is None
         assert job_info.title == "Foo job"
         assert job_info.description == "Run the `foo` process!"
@@ -1364,6 +1446,7 @@ class TestBatchJobs:
         job_info = dummy_backend.DummyBatchJobs._job_registry[TEST_USER, "job-256"]
         assert job_info.job_options == expected_job_options
 
+    @time_machine.travel("2024-01-02T13:14:15Z")
     def test_create_job_get_metadata(self, api100):
         with self._fresh_job_registry(next_job_id="job-245"):
             resp = api100.post(
@@ -1381,7 +1464,7 @@ class TestBatchJobs:
 
             resp = api100.get("/jobs/job-245", headers=self.AUTH_HEADER)
             assert resp.assert_status_code(200).json == {
-                "created": "2020-04-23T16:20:27Z",
+                "created": "2024-01-02T13:14:15Z",
                 "id": "job-245",
                 "process": {"process_graph": {"foo": {"arguments": {}, "process_id": "foo"}}},
                 "progress": 0,
@@ -1458,6 +1541,18 @@ class TestBatchJobs:
     def test_get_job_info_invalid(self, api):
         resp = api.get('/jobs/deadbeef-f00', headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
         assert resp.json["message"] == "The batch job 'deadbeef-f00' does not exist."
+
+    @pytest.mark.parametrize("backend_config_overrides", [{"simple_job_progress_estimation": 600}])
+    def test_get_job_info_simple_job_progress_estimation(self, api100, backend_config_overrides):
+        with self._fresh_job_registry(), time_machine.travel(datetime(2017, 1, 1, 12, 5, 0)):
+            resp = api100.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc", headers=self.AUTH_HEADER)
+        assert resp.assert_status_code(200).json == {
+            "id": "07024ee9-7847-4b8a-b260-6c879a2b3cdc",
+            "status": "running",
+            "progress": pytest.approx(33.33, abs=0.1),
+            "created": "2017-01-01T09:32:12Z",
+            "process": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
+        }
 
     def test_list_user_jobs_100(self, api100):
         with self._fresh_job_registry():
@@ -2207,7 +2302,12 @@ class TestBatchJobs:
                 }
             )
 
-    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
+    @pytest.mark.parametrize(
+        "backend_config_overrides", [
+            {"asset_url": DummyDirectS3Assets(), "url_signer": UrlSigner(secret="123&@#")},
+            {"url_signer": UrlSigner(secret="123&@#")},
+        ]
+    )
     def test_get_job_results_signed_110(self, api110, flask_app, backend_config_overrides):
         with self._fresh_job_registry():
             dummy_backend.DummyBatchJobs._update_status(
@@ -2845,27 +2945,25 @@ class TestBatchJobs:
 
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
-    def test_download_result_with_s3_object_storage_with_expiration_NoSuchKey_is_logged(
+    def test_download_result_with_s3_object_storage_with_expiration_NoSuchKey_error(
             self, api, mock_s3_resource, backend_config_overrides, caplog):
         job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
         s3_bucket_name = "openeo-test-bucket"
         output_root = f"s3://{s3_bucket_name}/some-data-dir"
         s3_key = f"some-data-dir/{job_id}/output.tiff"
 
-        s3_bucket = create_s3_bucket(mock_s3_resource, s3_bucket_name)
+        create_s3_bucket(mock_s3_resource, s3_bucket_name)
 
         jobs = {job_id: {"status": "finished"}}
         with self._fresh_job_registry(output_root=output_root, jobs=jobs):
             full_get_resp = api.get('/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA%3D%3D/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234')
-            # should return a 500 response
-            # should have logged an ERROR
 
-        assert (full_get_resp.assert_status_code(500).json["message"]
-                == "Server error: NoSuchKey('An error occurred (NoSuchKey) when calling the GetObject operation:"
-                   " The specified key does not exist.')")
-
-        assert ("openeo_driver.views", logging.ERROR,
-                f"No such key: s3://{s3_bucket_name}/{s3_key}") in caplog.record_tuples
+        assert full_get_resp.assert_status_code(404).json["message"] == "Not found: output.tiff"
+        assert (
+            "openeo_driver.views",
+            logging.ERROR,
+            f"Not found: s3://{s3_bucket_name}/{s3_key}",
+        ) in caplog.record_tuples
 
     @mock.patch("time.time", mock.MagicMock(return_value=3456))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
@@ -2936,11 +3034,38 @@ class TestBatchJobs:
             extensions=resp_data.get("stac_extensions", []),
         )
 
-    @pytest.mark.parametrize(["vector_item_id", "vector_asset_media_type"], [
-        ("timeseries.csv", "text/csv"),
-        ("timeseries.parquet", "application/parquet; profile=geo"),
-    ])
-    def test_get_vector_cube_job_result_item(self, flask_app, api110, vector_item_id, vector_asset_media_type):
+    @pytest.mark.parametrize(
+        ["vector_item_id", "vector_asset_media_type", "backend_config_overrides", "expected_asset_href"],
+        [
+            (
+                "timeseries.csv",
+                "text/csv",
+                {"asset_url": DummyDirectS3Assets()},
+                f"{DummyDirectS3Assets.S3_ENDPOINT}/OpenEO-data/batch_jobs/j-2406047c20fc4966ab637d387502728f/timeseries.csv",
+            ),
+            (
+                "timeseries.csv",
+                "text/csv",
+                {},
+                "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/timeseries.csv",
+            ),
+            (
+                "timeseries.parquet",
+                "application/parquet; profile=geo",
+                {"asset_url": DummyDirectS3Assets()},
+                f"{DummyDirectS3Assets.S3_ENDPOINT}/OpenEO-data/batch_jobs/j-2406047c20fc4966ab637d387502728f/timeseries.parquet",
+            ),
+            (
+                "timeseries.parquet",
+                "application/parquet; profile=geo",
+                {},
+                "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/timeseries.parquet",
+            ),
+        ],
+    )
+    def test_get_vector_cube_job_result_item(
+        self, flask_app, api110, vector_item_id, vector_asset_media_type, backend_config_overrides, expected_asset_href
+    ):
         vector_asset_filename = vector_item_id
 
         with self._fresh_job_registry():
@@ -2980,7 +3105,7 @@ class TestBatchJobs:
             ],
             'assets': {
                 vector_asset_filename: {
-                    'href': f"http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/{vector_asset_filename}",
+                    'href': expected_asset_href,
                     'type': vector_asset_media_type,
                     'roles': ["data"],
                     'title': vector_asset_filename,
@@ -3520,6 +3645,33 @@ class TestUserDefinedProcesses:
         assert udp == expected
 
 
+    @pytest.mark.parametrize("public", [True, False])
+    def test_udp_public_access(self, api100, udp_store, public):
+        api100.put(
+            "/process_graphs/evi",
+            headers=TEST_USER_AUTH_HEADER,
+            json={
+                "process_graph": {"add35": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}},
+                "public": public,
+            },
+        ).assert_status_code(200)
+
+        resp = api100.get("/processes/u:Mr.Test/evi")
+        if public:
+            assert resp.assert_status_code(200).json == {
+                "id": "evi",
+                "process_graph": {"add35": {"arguments": {"x": 3, "y": 5}, "process_id": "add", "result": True}},
+                "public": True,
+                "links": [
+                    {
+                        "href": "http://oeo.net/openeo/1.0.0/processes/u:Mr.Test/evi",
+                        "rel": "canonical",
+                        "title": "Public URL for user-defined process 'evi'",
+                    }
+                ],
+            }
+        else:
+            resp.assert_error(400, "ProcessUnsupported")
 
     @pytest.mark.parametrize("body_id", [None, "evi", "meh"])
     def test_add_and_get_udp(self, api100, udp_store, body_id):

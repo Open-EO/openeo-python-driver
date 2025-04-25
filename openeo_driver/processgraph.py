@@ -4,7 +4,7 @@ from typing import List, NamedTuple, Optional, Union
 
 import requests
 
-from openeo_driver.errors import OpenEOApiException
+from openeo_driver.errors import OpenEOApiException, ProcessGraphInvalidException
 from openeo_driver.util.http import is_http_url
 
 _log = logging.getLogger(__name__)
@@ -142,6 +142,8 @@ def extract_default_job_options_from_process_graph(
 
     job_options = []
     for node in process_graph.values():
+        if not (isinstance(node, dict) and "process_id" in node and "arguments" in node):
+            raise ProcessGraphInvalidException
         namespace = node.get("namespace")
         process_id = node["process_id"]
         if is_http_url(namespace):

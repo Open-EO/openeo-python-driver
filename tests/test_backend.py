@@ -51,47 +51,74 @@ def test_load_parameters():
     assert params_copy.bands is None
 
 
-def test_user_defined_process_metadata():
-    udp = UserDefinedProcessMetadata(id="enhance", process_graph={"foo": {"process_id": "foo"}})
-    assert udp.prepare_for_json() == {
-        "id": "enhance",
-        "process_graph": {"foo": {"process_id": "foo"}},
-        "parameters": None,
-        "returns": None,
-        "summary": None,
-        "description": None,
-        "links": None,
-        "public": False
-    }
+class TestUserDefinedProcessMetadata:
+    def test_basic(self):
+        udp = UserDefinedProcessMetadata(id="enhance", process_graph={"foo": {"process_id": "foo"}})
+        assert udp.prepare_for_json() == {
+            "id": "enhance",
+            "process_graph": {"foo": {"process_id": "foo"}},
+            "parameters": None,
+            "returns": None,
+            "summary": None,
+            "description": None,
+            "links": None,
+            "public": False,
+        }
+
+    def test_from_dict_minimal(self):
+        udp = UserDefinedProcessMetadata.from_dict({"id": "enhance", "process_graph": {"foo": {"process_id": "foo"}}})
+        assert udp.id == "enhance"
+        assert udp.process_graph == {"foo": {"process_id": "foo"}}
+        assert udp.parameters is None
 
 
-def test_user_defined_process_metadata_from_dict_minimal():
-    udp = UserDefinedProcessMetadata.from_dict({"id": "enhance", "process_graph": {"foo": {"process_id": "foo"}}})
-    assert udp.id == "enhance"
-    assert udp.process_graph == {"foo": {"process_id": "foo"}}
-    assert udp.parameters is None
+    def test_from_dict_no_id(self):
+        with pytest.raises(KeyError):
+            _ = UserDefinedProcessMetadata.from_dict({"process_graph": {"foo": {"process_id": "foo"}}})
 
 
-def test_user_defined_process_metadata_from_dict_no_id():
-    with pytest.raises(KeyError):
-        _ = UserDefinedProcessMetadata.from_dict({"process_graph": {"foo": {"process_id": "foo"}}})
+    def test_from_dict_extra(self):
+        udp = UserDefinedProcessMetadata.from_dict(
+            {
+                "id": "enhance",
+                "process_graph": {"foo": {"process_id": "foo"}},
+                "parameters": [],
+                "returns": {"schema": {"type": "number"}},
+                "summary": "Enhance it!",
+                "description": "Enhance the image with the foo process.",
+            }
+        )
+        assert udp.id == "enhance"
+        assert udp.process_graph == {"foo": {"process_id": "foo"}}
+        assert udp.parameters == []
+        assert udp.returns == {"schema": {"type": "number"}}
+        assert udp.summary == "Enhance it!"
+        assert udp.description == "Enhance the image with the foo process."
 
+    @pytest.mark.parametrize(
+        ["initial_links", "expected_links"],
+        [
+            (None, [{"rel": "doc", "href": "https://doc.test/enhance"}]),
+            ([], [{"rel": "doc", "href": "https://doc.test/enhance"}]),
+            (
+                [{"rel": "self", "href": "https://oeo.test/udp/enhance"}],
+                [
+                    {"rel": "self", "href": "https://oeo.test/udp/enhance"},
+                    {"rel": "doc", "href": "https://doc.test/enhance"},
+                ],
+            ),
+        ],
+    )
+    def test_add_link(self, initial_links, expected_links):
+        udp1 = UserDefinedProcessMetadata(
+            id="enhance", process_graph={"foo": {"process_id": "foo"}}, links=initial_links
+        )
 
-def test_user_defined_process_metadata_from_dict_extra():
-    udp = UserDefinedProcessMetadata.from_dict({
-        "id": "enhance",
-        "process_graph": {"foo": {"process_id": "foo"}},
-        "parameters": [],
-        "returns": {"schema": {"type": "number"}},
-        "summary": "Enhance it!",
-        "description": "Enhance the image with the foo process."
-    })
-    assert udp.id == "enhance"
-    assert udp.process_graph == {"foo": {"process_id": "foo"}}
-    assert udp.parameters == []
-    assert udp.returns == {"schema": {"type": "number"}}
-    assert udp.summary == "Enhance it!"
-    assert udp.description == "Enhance the image with the foo process."
+        udp2 = udp1.add_link(rel="doc", href="https://doc.test/enhance")
+        assert udp2 is not udp1
+
+        assert udp1.links == initial_links
+        assert udp2.links == expected_links
 
 
 def test_service_metadata_from_dict_essentials():

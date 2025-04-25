@@ -1,4 +1,4 @@
-from openeo_driver.errors import OpenEOApiException
+from openeo_driver.errors import OpenEOApiException, ProcessGraphInvalidException
 from openeo_driver.processgraph import (
     get_process_definition_from_url,
     extract_default_job_options_from_process_graph,
@@ -99,3 +99,15 @@ def test_extract_default_job_options_from_process_graph(requests_mock):
     assert extract_default_job_options_from_process_graph(pg, processing_mode="synchronous") == {
         "cpu": "green",
     }
+
+
+@pytest.mark.parametrize(
+    "pg",
+    [
+        {"garbage": "yez"},
+        {"almost": {"procezz_id": "add", "arguments": {"x": "nope"}}},
+    ],
+)
+def test_extract_default_job_options_from_process_graph_garbage(pg):
+    with pytest.raises(ProcessGraphInvalidException):
+        extract_default_job_options_from_process_graph(ProcessGraphFlatDict(pg))

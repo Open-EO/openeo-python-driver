@@ -3,9 +3,10 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from pystac import Asset, Collection, Extent, Item, SpatialExtent, TemporalExtent, CatalogType
+from pystac import Asset, Collection, Extent, Item, SpatialExtent, TemporalExtent, CatalogType, Link, RelType
 import pytest
 
+from openeo_driver.util.date_math import now_utc
 from openeo_driver.workspace import DiskWorkspace
 
 
@@ -129,6 +130,17 @@ def test_merge_from_disk_into_existing(tmp_path):
          dt.datetime.fromisoformat("2024-11-04T00:00:00+00:00")]
     ]
 
+    assert [link.to_dict() for link in exported_collection.get_links(rel=RelType.DERIVED_FROM)] == [
+        {
+            "rel": "derived_from",
+            "href": "https://src.test/asset1.tif",
+        },
+        {
+            "rel": "derived_from",
+            "href": "https://src.test/asset2.tif",
+        },
+    ]
+
     for item in exported_collection.get_items():
         for asset in item.get_assets().values():
             assert Path(item.get_self_href()).parent == Path(asset.get_absolute_href()).parent
@@ -189,13 +201,15 @@ def _collection(
         extent=Extent(spatial_extent, temporal_extent),
     )
 
-    item = Item(id=asset_filename, geometry=None, bbox=None, datetime=dt.datetime.utcnow(), properties={})
+    item = Item(id=asset_filename, geometry=None, bbox=None, datetime=now_utc(), properties={})
 
     asset_path = root_path / item.id / asset_filename
     asset = Asset(href=asset_path.name)  # relative to item
 
     item.add_asset(key=asset_filename, asset=asset)
     collection.add_item(item)
+
+    collection.add_link(Link(rel=RelType.DERIVED_FROM, target=f"https://src.test/{asset_filename}"))
 
     collection.normalize_and_save(root_href=str(root_path), catalog_type=CatalogType.SELF_CONTAINED)
 
