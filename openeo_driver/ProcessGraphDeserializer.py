@@ -829,9 +829,18 @@ def _check_geometry_path_assumption(path: str, process: str, parameter: str):
 
 @non_standard_process(
     ProcessSpec(id='vector_buffer', description="Add a buffer around a geometry.")
-        .param(name='geometries', description="Input geometry (GeoJSON object) to add buffer to.",
-               schema={"type": "object", "subtype": "geojson"})
-        .param(name='distance', description="The size of the buffer. Can be negative to subtract the buffer",
+        .param(name='geometries', description="Input geometry to add buffer to, vector-cube or GeoJSON(deprecated).",
+               schema=[{
+                "type": "object",
+                "subtype": "datacube",
+                "dimensions": [
+                    {
+                        "type": "geometry"
+                    }
+                ]
+            },{"type": "object", "subtype": "geojson"}]
+        )
+        .param(name='distance', description="The distance of the buffer in meters. A positive distance expands the geometries, resulting in outward buffering (dilation), while a negative distance shrinks the geometries, resulting in inward buffering (erosion).\n\nIf the unit of the spatial reference system is not meters, a `UnitMismatch` error is thrown. Use ``vector_reproject()`` to convert the geometries to a suitable spatial reference system.",
                schema={"type": "number"}, required=True)
         .returns(description="Output geometry (GeoJSON object) with the added or subtracted buffer",
                  schema={"type": "object", "subtype": "geojson"})
