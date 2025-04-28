@@ -930,7 +930,6 @@ class TestElasticJobRegistry:
         handler = self._handle_patch_jobs(
             oidc_mock=oidc_mock, expected_data={
                 "costs": 22,
-                "input_pixel": 0,
                 "usage": {
                     "cpu": {"value": 3283, "unit": "cpu-seconds"},
                     "memory": {"value": 8040202, "unit": "mb-seconds"},
