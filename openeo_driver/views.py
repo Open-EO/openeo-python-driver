@@ -966,13 +966,9 @@ def register_views_batch_jobs(
         request_parameters = flask.request.args
 
         # TODO #332 settle on receiving just `JobListing` here and eliminate other options/code paths.
-        get_user_jobs = backend_implementation.batch_jobs.get_user_jobs
-        if function_has_argument(get_user_jobs, argument="request_parameters"):
-            # TODO #332 make this the one and only code path when all `get_user_jobs` implementations are migrated
-            listing = get_user_jobs(user_id=user.user_id, limit=limit, request_parameters=request_parameters)
-        else:
-            # TODO #332 remove support for this old API
-            listing = get_user_jobs(user_id=user.user_id)
+        listing = backend_implementation.batch_jobs.get_user_jobs(
+            user_id=user.user_id, limit=limit, request_parameters=request_parameters
+        )
 
         # TODO #332 while eliminating old `get_user_jobs` API above, also just settle on JobListing based return,
         #       and drop all this legacy cruft
