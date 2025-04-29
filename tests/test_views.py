@@ -444,7 +444,7 @@ class TestGeneral:
             (
                 "openeo_driver.views.error",
                 logging.ERROR,
-                "ValueError(-123)",
+                "No negatives please.",
             )
         ]
 

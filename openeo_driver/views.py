@@ -326,7 +326,7 @@ def register_error_handlers(app: flask.Flask, backend_implementation: OpenEoBack
         # TODO: is it possible to eliminate this custom summarize_exception/ErrorSummary handling?
         error = backend_implementation.summarize_exception(error)
         if isinstance(error, ErrorSummary):
-            log_message = repr(error.exception)
+            log_message = error.summary
             if error.is_client_error:
                 api_error = OpenEOApiException(message=error.summary, code="BadRequest", status_code=400)
             else:
