@@ -406,13 +406,7 @@ class TestGeneral:
             (
                 "openeo_driver.views.error",
                 logging.ERROR,
-                re_assert.Matches(
-                    re.escape(
-                        f"""InternalException(status_code=500, code='Internal', message="Server error: Exception('Computer says no.')", id='"""
-                    )
-                    + "r-[0-9a-f]{32}"
-                    + re.escape("')")
-                ),
+                "Exception('Computer says no.')",
             ),
         ]
 
@@ -431,13 +425,7 @@ class TestGeneral:
             (
                 "openeo_driver.views.error",
                 logging.ERROR,
-                re_assert.Matches(
-                    re.escape(
-                        f"""InternalException(status_code=500, code='Internal', message='Server error: NotImplementedError()', id='"""
-                    )
-                    + "r-[0-9a-f]{32}"
-                    + re.escape("')")
-                ),
+                "NotImplementedError()",
             )
         ]
 
@@ -456,13 +444,7 @@ class TestGeneral:
             (
                 "openeo_driver.views.error",
                 logging.ERROR,
-                re_assert.Matches(
-                    re.escape(
-                        f"""InternalException(status_code=500, code='Internal', message='Server error: No negatives please.', id='"""
-                    )
-                    + "r-[0-9a-f]{32}"
-                    + re.escape("')")
-                ),
+                "ValueError(-123)",
             )
         ]
 

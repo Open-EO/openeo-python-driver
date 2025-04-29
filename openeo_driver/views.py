@@ -308,9 +308,9 @@ def register_error_handlers(app: flask.Flask, backend_implementation: OpenEoBack
         ))
 
     @app.errorhandler(OpenEOApiException)
-    def handle_openeoapi_exception(error: OpenEOApiException):
+    def handle_openeoapi_exception(error: OpenEOApiException, log_message: Optional[str] = None):
         """Error handler for OpenEOApiException"""
-        _log.error(repr(error), exc_info=True)
+        _log.error(log_message or repr(error), exc_info=True)
         # most_recent_exception = sys.exc_info()[1]
         # fmt = Format(max_value_str_len=1000)
         # _log.error(
@@ -335,7 +335,7 @@ def register_error_handlers(app: flask.Flask, backend_implementation: OpenEoBack
             log_message = repr(error)
             api_error = InternalException(message=repr(error))
 
-        return handle_openeoapi_exception(api_error)
+        return handle_openeoapi_exception(api_error, log_message=log_message)
 
 def response_204_no_content():
     return make_response('', 204, {"Content-Type": "application/json"})
