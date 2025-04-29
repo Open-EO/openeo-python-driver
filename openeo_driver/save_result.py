@@ -726,6 +726,10 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
     def to_csv(self, destination=None):
         csv_paths = glob.glob(self._csv_dir + "/*.csv")
 
+        if(len(csv_paths) == 0):
+            _log.warning(f"save_result: no csv files found at expected location: {self._csv_dir}")
+            return
+
         if(len(csv_paths) == 1):
             if(destination == None):
                 return csv_paths[0]
