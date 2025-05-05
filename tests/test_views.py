@@ -1603,7 +1603,12 @@ class TestBatchJobs:
         `get_user_jobs` returns a richer `dict` instead of just `List[BatchJobMetadata]`
         """
 
-        def get_user_jobs(self, user_id: str):
+        def get_user_jobs(
+            self,
+            user_id: str,
+            limit: Optional[int] = None,
+            request_parameters: Optional[dict] = None,
+        ):
             return {
                 "jobs": [BatchJobMetadata(id='id-123', status='running', created=datetime(2017, 1, 1, 9, 32, 12))],
                 "links": [{"rel": "info", "href": "https://info.test"}],
