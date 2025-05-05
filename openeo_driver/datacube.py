@@ -23,7 +23,8 @@ from openeo.util import ensure_dir, str_truncate
 from pyproj import CRS
 
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs, StacAsset
-from openeo_driver.errors import FeatureUnsupportedException, InternalException, ProcessGraphInvalidException
+from openeo_driver.errors import FeatureUnsupportedException, InternalException, ProcessGraphInvalidException, \
+    OpenEOApiException
 from openeo_driver.util.geometry import GeometryBufferer, reproject_geometry, validate_geojson_coordinates
 from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.util.pgparsing import SingleRunUDFProcessGraph
@@ -402,11 +403,19 @@ class DriverVectorCube:
         columns_for_cube = (options or {}).get("columns_for_cube", cls.COLUMN_SELECTION_NUMERICAL)
         # TODO #114 EP-3981: lazy loading like/with DelayedVector
         # note for GeoJSON: will consider Feature.id as well as Feature.properties.id
-        if driver and "parquet" == driver.lower():
-            return cls.from_parquet(paths=paths, columns_for_cube=columns_for_cube)
-        else:
-            gdf = gpd.read_file(paths[0], driver=driver)
-            return cls.from_geodataframe(gdf, columns_for_cube=columns_for_cube)
+        try:
+            if driver and "parquet" == driver.lower():
+                return cls.from_parquet(paths=paths, columns_for_cube=columns_for_cube)
+            else:
+                gdf = gpd.read_file(paths[0], driver=driver)
+                return cls.from_geodataframe(gdf, columns_for_cube=columns_for_cube)
+        except Exception as e:
+            if not isinstance(e, OpenEOApiException):
+                raise OpenEOApiException(code="load_url_reading_error", status_code=400,
+                                         message=f"load_url failed for {paths} with format {driver}: {str(e)}")
+            else:
+                raise e
+
 
     @classmethod
     def from_parquet(
