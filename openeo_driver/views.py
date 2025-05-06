@@ -1328,9 +1328,14 @@ def register_views_batch_jobs(
         bucket, key = s3_url[5:].split("/", 1)
         s3_instance = None
         details = BucketDetails.from_name(bucket)
-        if details.type is not BucketDetails._BUCKET_TYPE_UNKNOWN:
+        if details.type is not BucketDetails._BUCKET_TYPE_UNKNOWN :
             #TODO: this should not be depending on specific cloud provider
-            s3_instance = _s3_client(f"https://s3.{details.region}.cloudferro.com")
+            if( "waw" in details.region):
+                s3_instance = _s3_client(f"https://s3.{details.region}.cloudferro.com")
+            elif( "eu-nl" in details.region or "eu-de" in details.region):
+                s3_instance = _s3_client(f"https://obs.{details.region}.otc.t-systems.com")
+            else:
+                s3_instance = _s3_client()
         else:
             s3_instance = _s3_client()
 
