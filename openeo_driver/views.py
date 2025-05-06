@@ -64,6 +64,7 @@ from openeo_driver.errors import (
     ProcessUnsupportedException,
     ServiceNotFoundException,
 )
+from openeo_driver.integrations.s3.bucket_details import BucketDetails
 from openeo_driver.jobregistry import PARTIAL_JOB_STATUS
 from openeo_driver.processgraph import ProcessGraphFlatDict, extract_default_job_options_from_process_graph
 from openeo_driver.save_result import SaveResult, to_save_result
@@ -877,7 +878,7 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
     return properties
 
 
-def _s3_client():
+def _s3_client(endpoint_url = os.environ.get("SWIFT_URL")):
     """Create an S3 client to access object storage on Swift."""
 
     # Keep this import inside the method so we kan keep installing boto3 as optional,
@@ -888,11 +889,11 @@ def _s3_client():
     # TODO: Get these credentials/secrets from config instead of os.environ
     aws_access_key_id = os.environ.get("SWIFT_ACCESS_KEY_ID", os.environ.get("AWS_ACCESS_KEY_ID"))
     aws_secret_access_key = os.environ.get("SWIFT_SECRET_ACCESS_KEY", os.environ.get("AWS_SECRET_ACCESS_KEY"))
-    swift_url = os.environ.get("SWIFT_URL")
+
     s3_client = boto3.client("s3",
         aws_access_key_id=aws_access_key_id,
         aws_secret_access_key=aws_secret_access_key,
-        endpoint_url=swift_url)
+        endpoint_url=endpoint_url)
     return s3_client
 
 
@@ -1325,7 +1326,13 @@ def register_views_batch_jobs(
         import botocore.exceptions
 
         bucket, key = s3_url[5:].split("/", 1)
-        s3_instance = _s3_client()
+        s3_instance = None
+        details = BucketDetails.from_name(bucket)
+        if details.type is not BucketDetails._BUCKET_TYPE_UNKNOWN:
+            #TODO: this should not be depending on specific cloud provider
+            s3_instance = _s3_client(f"https://s3.{details.region}.cloudferro.com")
+        else:
+            s3_instance = _s3_client()
 
         try:
             s3_file_object = s3_instance.get_object(Bucket=bucket, Key=key, **dict_no_none(Range=bytes_range))
