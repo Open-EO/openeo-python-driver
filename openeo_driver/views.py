@@ -890,6 +890,10 @@ def _s3_client(endpoint_url = os.environ.get("SWIFT_URL")):
     aws_access_key_id = os.environ.get("SWIFT_ACCESS_KEY_ID", os.environ.get("AWS_ACCESS_KEY_ID"))
     aws_secret_access_key = os.environ.get("SWIFT_SECRET_ACCESS_KEY", os.environ.get("AWS_SECRET_ACCESS_KEY"))
 
+    if "waw" in endpoint_url.lower():
+        aws_access_key_id = os.environ.get("WAW31_ACCESS_KEY_ID", aws_access_key_id)
+        aws_secret_access_key = os.environ.get("WAW31_SECRET_ACCESS_KEY", aws_secret_access_key)
+
     s3_client = boto3.client("s3",
         aws_access_key_id=aws_access_key_id,
         aws_secret_access_key=aws_secret_access_key,
