@@ -849,12 +849,18 @@ class DryRunDataCube(DriverDataCube):
         return cube
 
     def apply_neighborhood(
-        self, process, *, size: List[dict], overlap: List[dict], context: Optional[dict] = None, env: EvalEnv
+        self,
+        process,
+        *,
+        size: List[dict],
+        overlap: Optional[List[dict]] = None,
+        context: Optional[dict] = None,
+        env: EvalEnv,
     ) -> "DriverDataCube":
         cube = self._process("apply_neighborhood", {})
         temporal_size = temporal_overlap = None
         size_dict = {e["dimension"]: e for e in size}
-        overlap_dict = {e["dimension"]: e for e in overlap}
+        overlap_dict = {e["dimension"]: e for e in (overlap or [])}
         if "x" in overlap_dict or "y" in overlap_dict:
             x_size = overlap_dict.get("x", {}).get("value", 0.0)
             y_size = overlap_dict.get("y", {}).get("value", 0.0)

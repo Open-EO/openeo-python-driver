@@ -27,6 +27,7 @@ and start a new "In Progress" section above it.
 - Download asset: return `NoSuchKey` error as 404 Not Found response [Open-EO/openeo-geopyspark-driver#1149](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1149)
 - Preserve original non-spatial dimensions in `resample_cube_spatial` dry run ([#397](https://github.com/Open-EO/openeo-python-driver/issues/397))
 - Fix compatibility with Shapely2 ([#158](https://github.com/Open-EO/openeo-python-driver/issues/158))
+- Allow `overlap` in `apply_neighborhood` to be not specified ([#401](https://github.com/Open-EO/openeo-python-driver/issues/401))
 
 
 ## 0.133.0
