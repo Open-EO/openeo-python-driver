@@ -81,7 +81,7 @@ class ProcessSpec:
     def to_dict_100(self) -> dict:
         """Generate process spec as (JSON-able) dictionary (API 1.0.0 style)."""
         if len(self._parameters) == 0:
-            warnings.warn("Process with no parameters")
+            warnings.warn(f"Process with no parameters: '{self.id}'")
         assert self._returns is not None
         return {**self.extra, **{
             "id": self.id,
