@@ -894,6 +894,28 @@ class OpenEoBackendImplementation:
         """
         return {"input": {}, "output": {}}
 
+    def processing_parameters(self) -> dict:
+        """
+        List the available processing parameters in the format defined by openEO processing parameters extension.
+
+        https://github.com/Open-EO/openeo-api/blob/draft/extensions/processing-parameters/openapi.yaml
+
+        Example output:
+        ```
+        {
+          "name": "memory"
+          "description": "Maximum amount of memory that will be allocated for processing, in gigabytes."
+          "optional": True
+          "default": 32
+          "schema":{
+            "type": "integer"
+            "minimum": 1
+          }
+        }
+        ```
+        """
+        return {}
+
     def load_disk_data(
             self, format: str, glob_pattern: str, options: dict, load_params: LoadParameters, env: EvalEnv
     ) -> DriverDataCube:

@@ -506,6 +506,12 @@ def register_views_general(
     def file_formats():
         return jsonify(backend_implementation.file_formats())
 
+    @api_endpoint(version=ComparableVersion("1.0.0").or_higher)
+    @blueprint.route('/processing_parameters')
+    @backend_implementation.cache_control
+    def processing_parameters():
+        return jsonify(backend_implementation.processing_parameters())
+
     @api_endpoint
     @blueprint.route('/udf_runtimes')
     @backend_implementation.cache_control
