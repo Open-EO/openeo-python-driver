@@ -1148,6 +1148,47 @@ def test_auto_align(dry_run_env, dry_run_tracer):
     } == load_params.global_extent
 
 
+def test_no_auto_align_when_resampling(dry_run_env, dry_run_tracer):
+    polygon = {"type": "Polygon", "coordinates": [[(0.1, 0.1), (3, 5), (8, 2), (0.1, 0.1)]]}
+    cube = DataCube(PGNode("load_collection", id="ESA_WORLDCOVER_10M_2020_V1"), connection=None)
+    cube = cube.filter_spatial(geometries=polygon)
+    cube = cube.resample_spatial(resolution = 0.001)
+
+    pg = cube.flat_graph()
+    res = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints[0]
+    assert src == ("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()))
+    (geometries,) = dry_run_tracer.get_geometries(operation="filter_spatial")
+    assert constraints == {
+        'resample': {'method': 'near',
+                     'resolution': (0.001, 0.001),
+                     'target_crs': None},
+        "spatial_extent": {"crs": "EPSG:4326", "east": 8.0, "north": 5.0, "south": 0.1, "west": 0.1},
+        "filter_spatial": {"geometries": DummyVectorCube.from_geometry(shapely.geometry.shape(polygon))},
+        "weak_spatial_extent": {"west": 0.1, "south": 0.1, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
+    }
+    assert isinstance(geometries, DummyVectorCube)
+    assert shapely.geometry.mapping(geometries.to_multipolygon()) == {
+        "type": "Polygon",
+        "coordinates": (((0.1, 0.1), (3.0, 5.0), (8.0, 2.0), (0.1, 0.1)),),
+    }
+    # source_constraints = dry_run_tracer.get_source_constraints()
+    dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
+    load_params = _extract_load_parameters(
+        dry_run_env, source_id=("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()))
+    )
+    assert {
+        "west": 0.09999999927961767,
+        "east": 8.00008333258134,
+        "south": 0.09999999971959994,
+        "north": 5.000083333033345,
+        "crs": "EPSG:4326",
+    } == load_params.global_extent
+
+
 def test_global_bounds_from_weak_spatial_extent(dry_run_env, dry_run_tracer):
     # The global extent is the union from the spatial extent and the weak spatial extent.
     bbox = {"west": 1, "south": 1, "east": 3, "north": 3, "crs": "EPSG:4326"}
@@ -2511,6 +2552,156 @@ def test_resampling_masking(dry_run_env, dry_run_tracer):
 
 
 
+def test_resampling_masking(dry_run_env, dry_run_tracer):
+    pg = load_json("pg/1.0/resample_mask_merge.json")
+    save_result = evaluate(pg, env=dry_run_env)
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    print(source_constraints)
+
+    dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
+    source_id_bands = (
+        "load_collection",
+        (
+            "S2_FOOBAR",
+            (("eo:cloud_cover", (("lte", 95),)),),
+            ( "B02", "B03", "B04"),
+        ),
+    )
+    source_id_scl = (
+        "load_collection",
+        ("S2_FOOBAR", (("eo:cloud_cover", (("lte", 95),)),), ("SCL",)),
+    )
+    source_id_s1 = ('load_collection', ('SENTINEL1_GRD', (('sat:orbit_state', (('eq', 'DESCENDING'),)),), ('VH', 'VV')))
+    loadparams = _extract_load_parameters(dry_run_env, source_id_bands)
+
+    expected_extent = {'crs': 'EPSG:3035',
+         'east': 3860390,
+         'north': 2280390,
+         'south': 2259610,
+         'west': 3839610}
+    assert loadparams.global_extent == expected_extent
+    assert loadparams.bands == [
+        "B02",
+        "B03",
+        "B04"
+    ]
+    assert loadparams.pixel_buffer == None
+    assert loadparams.target_crs == 3035
+    assert loadparams.target_resolution == (10,10)
+    assert loadparams.spatial_extent == {
+          "west": 3840000,
+          "east": 3860000,
+          "north": 2280000,
+          "south": 2260000,
+          "crs": "EPSG:3035"
+        }
+
+    # extract next set of params
+    loadparams = _extract_load_parameters(dry_run_env, source_id_scl)
+    assert loadparams.bands == ["SCL"]
+    assert loadparams.global_extent == expected_extent
+    assert loadparams.pixel_buffer == [38.5, 38.5]
+    assert loadparams.target_crs == 3035
+    assert loadparams.target_resolution == (10,10)
+    assert loadparams.spatial_extent == {
+        "west": 3840000,
+        "east": 3860000,
+        "north": 2280000,
+        "south": 2260000,
+        "crs": "EPSG:3035"
+    }
+
+    loadparams = _extract_load_parameters(dry_run_env, source_id_s1)
+    assert loadparams.global_extent == expected_extent
+    assert loadparams.pixel_buffer == None
+    assert loadparams.target_crs == 3035
+    assert loadparams.target_resolution == (10,10)
+    assert loadparams.spatial_extent == {
+        "west": 3840000,
+        "east": 3860000,
+        "north": 2280000,
+        "south": 2260000,
+        "crs": "EPSG:3035"
+    }
+
+
+def test_resampling_masking_variant(dry_run_env, dry_run_tracer):
+    pg = load_json("pg/1.0/resample_mask_merge.json")
+    #skip explicit resampling and see what happens
+    pg["toscldilationmask1"]["arguments"]["data"]["from_node"] = "loadcollection2"
+    del pg["resample1"]
+    save_result = evaluate(pg, env=dry_run_env)
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    print(source_constraints)
+
+    dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
+    source_id_bands = (
+        "load_collection",
+        (
+            "S2_FOOBAR",
+            (("eo:cloud_cover", (("lte", 95),)),),
+            ( "B02", "B03", "B04"),
+        ),
+    )
+    source_id_scl = (
+        "load_collection",
+        ("S2_FOOBAR", (("eo:cloud_cover", (("lte", 95),)),), ("SCL",)),
+    )
+    source_id_s1 = ('load_collection', ('SENTINEL1_GRD', (('sat:orbit_state', (('eq', 'DESCENDING'),)),), ('VH', 'VV')))
+    loadparams = _extract_load_parameters(dry_run_env, source_id_bands)
+
+    expected_extent = {'crs': 'EPSG:3035',
+         'east': 3860390,
+         'north': 2280390,
+         'south': 2259610,
+         'west': 3839610}
+    assert loadparams.global_extent == expected_extent
+    assert loadparams.bands == [
+        "B02",
+        "B03",
+        "B04"
+    ]
+    assert loadparams.pixel_buffer == None
+    assert loadparams.target_crs == 3035
+    assert loadparams.target_resolution == (10,10)
+    assert loadparams.spatial_extent == {
+          "west": 3840000,
+          "east": 3860000,
+          "north": 2280000,
+          "south": 2260000,
+          "crs": "EPSG:3035"
+        }
+
+    # extract next set of params
+    loadparams = _extract_load_parameters(dry_run_env, source_id_scl)
+    assert loadparams.bands == ["SCL"]
+    assert loadparams.global_extent == expected_extent
+    assert loadparams.pixel_buffer == [38.5, 38.5]
+    assert loadparams.target_crs == 3035
+    assert loadparams.target_resolution == (10,10)
+    assert loadparams.spatial_extent == {
+        "west": 3840000,
+        "east": 3860000,
+        "north": 2280000,
+        "south": 2260000,
+        "crs": "EPSG:3035"
+    }
+
+    loadparams = _extract_load_parameters(dry_run_env, source_id_s1)
+    assert loadparams.global_extent == expected_extent
+    assert loadparams.pixel_buffer == None
+    assert loadparams.target_crs == 3035
+    assert loadparams.target_resolution == (10,10)
+    assert loadparams.spatial_extent == {
+        "west": 3840000,
+        "east": 3860000,
+        "north": 2280000,
+        "south": 2260000,
+        "crs": "EPSG:3035"
+    }
+
+
+
 def test_complex_extract_load_stac(dry_run_env, dry_run_tracer):
     pg = load_json("pg/1.0/complex_load_stac.json")
     save_result = evaluate(pg, env=dry_run_env)
@@ -2863,3 +3054,74 @@ def test_resample_cube_spatial_preserve_non_spatial(dry_run_env, dimension, expe
     result = evaluate(pg, env=dry_run_env)
     assert isinstance(result, DryRunDataCube)
     assert result.metadata.dimension_names() == expected
+
+
+def test_geoparquet_nan(dry_run_env, dry_run_tracer):
+    pg = {
+            "loadstac1": {
+              "process_id": "load_stac",
+              "arguments": {
+                "bands": [
+                  "precipitation-flux",
+                  "temperature-mean"
+                ],
+                "temporal_extent": [
+                  "2017-09-01",
+                  "2019-04-30"
+                ],
+                "url": "https://stac.openeo.vito.be/collections/agera5_monthly"
+              }
+            },
+
+
+            "loadurl1": {
+              "process_id": "load_url",
+              "arguments": {
+                "format": "Parquet",
+                "url": "https://artifactory.vgt.vito.be/artifactory/auxdata-public/gfmap-temp/openeogfmap_df_1.parquet"
+              }
+            },
+            "aggregatespatial1": {
+              "process_id": "aggregate_spatial",
+              "arguments": {
+                "data": {
+                  "from_node": "loadstac1"
+                },
+                "geometries": {
+                  "from_node": "loadurl1"
+                },
+                "reducer": {
+                  "process_graph": {
+                    "mean1": {
+                      "process_id": "mean",
+                      "arguments": {
+                        "data": {
+                          "from_parameter": "data"
+                        }
+                      },
+                      "result": True
+                    }
+                  }
+                }
+              }
+            },
+            "saveresult1": {
+              "process_id": "save_result",
+              "arguments": {
+                "data": {
+                  "from_node": "aggregatespatial1"
+                },
+                "format": "Parquet",
+                "options": {}
+              },
+              "result": True
+            }
+          }
+
+    cube = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    #print(source_constraints)
+    extent = source_constraints.pop()[1]['spatial_extent']
+    assert extent == {'west': 4.862395256511758, 'south': -17.096960743488243, 'east': 13.492143743488247, 'north': 68.06561874348824, 'crs': 'EPSG:4326'}
+    print(extent)
