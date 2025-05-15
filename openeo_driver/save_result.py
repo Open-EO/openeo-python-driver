@@ -306,6 +306,8 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
             warnings.warn("AggregatePolygonResult: GeometryCollection or DriverVectorCube expected but got {t}".format(t=type(regions)))
         self._regions = regions
         self._metadata = metadata
+        # TODO #298 this "raster:bands" helper is old-style
+        #      and just used for "statistics" which moved to the common metadata in v2
         self.raster_bands = None
 
     def get_data(self):
@@ -662,7 +664,6 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
     def __init__(self, csv_dir, regions: Union[GeometryCollection, DriverVectorCube, DelayedVector, BaseGeometry], metadata: CollectionMetadata = None):
         super().__init__(timeseries=None, regions=regions, metadata=metadata)
         self._csv_dir = csv_dir
-        self.raster_bands = None
 
     def get_data(self):
         if self.data is None:
@@ -717,6 +718,8 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
                 stats["stddev"] = series.std()
                 stats["valid_percent"] = ((100.0 * len(series.dropna()) / len(series)) if len(series) else None)
                 return {"statistics": stats}
+
+            # TODO #298 `raster:bands>statistics` has moved to common STAC in raster extension 2.0.0
             self.raster_bands = [stats(b) for b in bands]
 
         if self.is_format('covjson', 'coveragejson'):

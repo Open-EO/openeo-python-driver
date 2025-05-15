@@ -1517,6 +1517,7 @@ def register_views_batch_jobs(
                 ),
                 "type": asset_metadata.get("type", asset_metadata.get("media_type", "application/octet-stream")),
                 "roles": asset_metadata.get("roles", ["data"]),
+                # TODO: eliminate this legacy "raster:bands" construct at some point?
                 "raster:bands": asset_metadata.get("raster:bands"),
                 "file:size": asset_metadata.get("file:size"),
                 "alternate": asset_metadata.get("alternate"),

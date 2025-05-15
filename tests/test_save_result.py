@@ -7,6 +7,7 @@ import geopandas as gpd
 import numpy as np
 import pytest
 from shapely.geometry import GeometryCollection, Polygon
+import dirty_equals
 
 from openeo.metadata import CollectionMetadata
 from openeo_driver.datacube import DriverVectorCube
@@ -181,8 +182,6 @@ def test_aggregate_polygon_result_inconsistent_bands():
 
 
 def test_aggregate_polygon_result_CSV(tmp_path):
-
-
     metadata = CollectionMetadata({
         "cube:dimensions": {
             "x": {"type": "spatial"},
@@ -196,28 +195,66 @@ def test_aggregate_polygon_result_CSV(tmp_path):
         Polygon([(6, 1), (1, 7), (9, 9)])
     ])
 
-
     result = AggregatePolygonResultCSV(csv_dir=Path(__file__).parent / "data" /"aggregate_spatial_spacetime_cube", regions=regions_with_nonexistant, metadata=metadata)
     result.set_format("json")
 
     assets = result.write_assets(tmp_path / "ignored")
-    theAsset = assets.popitem()[1]
-    filename = theAsset['href']
+    [(_, asset_metadata)] = assets.items()
 
-    assert 'application/json' == theAsset['type']
-    assert ["red", "green", "blue"] == [b['name'] for b in theAsset['bands']]
-    assert 'raster:bands' in theAsset
-    assert 'file:size' in theAsset
+    assert "application/json" == asset_metadata["type"]
+    assert asset_metadata["bands"] == [
+        dirty_equals.IsPartialDict(name="red"),
+        dirty_equals.IsPartialDict(name="green"),
+        dirty_equals.IsPartialDict(name="blue"),
+    ]
+    assert asset_metadata["raster:bands"] == [
+        {
+            "statistics": {
+                "minimum": pytest.approx(4646, rel=0.1),
+                "mean": pytest.approx(4646, rel=0.1),
+                "maximum": pytest.approx(4646, rel=0.1),
+                "stddev": pytest.approx(0.31, rel=0.1),
+                "valid_percent": 100.0,
+            }
+        },
+        {
+            "statistics": {
+                "minimum": pytest.approx(4865, rel=0.1),
+                "mean": pytest.approx(4865, rel=0.1),
+                "maximum": pytest.approx(4865, rel=0.1),
+                "stddev": pytest.approx(0.265, rel=0.1),
+                "valid_percent": 100.0,
+            }
+        },
+        {
+            "statistics": {
+                "minimum": pytest.approx(5178, rel=0.1),
+                "mean": pytest.approx(5178, rel=0.1),
+                "maximum": pytest.approx(5178, rel=0.1),
+                "stddev": pytest.approx(0.41, rel=0.1),
+                "valid_percent": 100.0,
+            }
+        },
+    ]
 
-    assert 'mean' in theAsset['raster:bands'][0]["statistics"]
-    assert 'minimum' in theAsset['raster:bands'][0]["statistics"]
-    assert 100.0 == theAsset['raster:bands'][0]["statistics"]['valid_percent']
+    assert "file:size" in asset_metadata
 
-    expected = {'2017-09-05T00:00:00Z': [[4646.262612301313, 4865.926572218383, 5178.517363510712], [None, None, None], [4645.719597475695, 4865.467252259935, 5177.803342998465]], '2017-09-06T00:00:00Z': [[None, None, None], [None, None, None], [4645.719597475695, 4865.467252259935, 5177.803342998465]]}
+    filename = asset_metadata["href"]
+    expected = {
+        "2017-09-05T00:00:00Z": [
+            [4646.262612301313, 4865.926572218383, 5178.517363510712],
+            [None, None, None],
+            [4645.719597475695, 4865.467252259935, 5177.803342998465],
+        ],
+        "2017-09-06T00:00:00Z": [
+            [None, None, None],
+            [None, None, None],
+            [4645.719597475695, 4865.467252259935, 5177.803342998465],
+        ],
+    }
     with open(filename) as f:
-
         timeseries_ds = json.load(f)
-        assert expected == timeseries_ds
+    assert timeseries_ds == expected
 
 class TestAggregatePolygonSpatialResult:
 
