@@ -29,6 +29,7 @@ and start a new "In Progress" section above it.
 - Fix compatibility with Shapely2 ([#158](https://github.com/Open-EO/openeo-python-driver/issues/158))
 - Allow `overlap` in `apply_neighborhood` to be not specified ([#401](https://github.com/Open-EO/openeo-python-driver/issues/401))
 - Start including STAC-1.1.0-style "bands" metadata in assets in batch job results ([#298](https://github.com/Open-EO/openeo-python-driver/issues/298))
+- Start including STAC-1.1.0-style "bands" summaries in collection metadata ([#298](https://github.com/Open-EO/openeo-python-driver/issues/298))
 
 
 ## 0.133.0

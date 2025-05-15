@@ -1849,7 +1849,9 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
     # Version dependent metadata conversions
     cube_dims_100 = deep_get(metadata, "cube:dimensions", default=None)
     cube_dims_040 = deep_get(metadata, "properties", "cube:dimensions", default=None)
+    bands_110 = deep_get(metadata, "summaries", "bands", default=None)
     eo_bands_100 = deep_get(metadata, "summaries", "eo:bands", default=None)
+    # TODO do we still need normalization of openEO 0.4 style eo:bands?
     eo_bands_040 = deep_get(metadata, "properties", "eo:bands", default=None)
     extent_spatial_100 = deep_get(metadata, "extent", "spatial", "bbox", default=None)
     extent_spatial_040 = deep_get(metadata, "extent", "spatial", default=None)
@@ -1859,6 +1861,19 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
     if full and not cube_dims_100 and cube_dims_040:
         _log.warning("Collection metadata 'cube:dimensions' in API 0.4 style instead of 1.0 style")
         metadata["cube:dimensions"] = cube_dims_040
+    if full and not bands_110 and eo_bands_100:
+        _log.warning("_normalize_collection_metadata: converting eo:bands to bands metadata")
+        # TODO #298/#363: "bands" is a STAC>=1.1 feature, but here we don't know what version we are in.
+        metadata["summaries"]["bands"] = [
+            dict_no_none(
+                {
+                    "name": b.get("name"),
+                    "eo:common_name": b.get("common_name"),
+                    "eo:center_wavelength": b.get("center_wavelength"),
+                }
+            )
+            for b in eo_bands_100
+        ]
     if full and not eo_bands_100 and eo_bands_040:
         _log.warning("Collection metadata 'eo:bands' in API 0.4 style instead of 1.0 style")
         metadata.setdefault("summaries", {})
@@ -1886,13 +1901,14 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
                     dim["extent"] = interval
 
     # Make sure some required fields are set.
+    # TODO #363 bump stac_version default to 1.0.0 or even 1.1.0?
     metadata.setdefault("stac_version", "0.9.0")
     metadata.setdefault(
         "stac_extensions",
         [
             # TODO: enable these extensions only when necessary?
             STAC_EXTENSION.DATACUBE,
-            STAC_EXTENSION.EO,
+            STAC_EXTENSION.EO_V110,
         ],
     )
 

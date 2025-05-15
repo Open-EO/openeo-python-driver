@@ -1066,6 +1066,36 @@ class TestCollections:
         assert res["cube:dimensions"] == {"x": {"type": "spatial"}, "b": {"type": "bands", "values": ["B02", "B03"]}}
         assert res["summaries"]["eo:bands"] == [{"name": "B02"}, {"name": "B03"}]
 
+    def test_normalize_collection_metadata_bands_stac110(self, caplog):
+        """Test normalization of legacy "eo:bands" metadata to common "bands" metadata"""
+        metadata = {
+            "id": "foobar",
+            "summaries": {
+                "eo:bands": [
+                    {"name": "B02", "common_name": "blue", "center_wavelength": 0.47},
+                    {"name": "B03", "common_name": "green", "center_wavelength": 0.56},
+                ],
+            },
+        }
+        res = _normalize_collection_metadata(metadata, api_version=ComparableVersion("1.0.0"), full=True)
+        assert res == dirty_equals.IsPartialDict(
+            id="foobar",
+            stac_version="0.9.0",  # TODO #363
+            stac_extensions=dirty_equals.Contains(
+                "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+            ),
+            summaries={
+                "eo:bands": [
+                    {"name": "B02", "common_name": "blue", "center_wavelength": 0.47},
+                    {"name": "B03", "common_name": "green", "center_wavelength": 0.56},
+                ],
+                "bands": [
+                    {"name": "B02", "eo:common_name": "blue", "eo:center_wavelength": 0.47},
+                    {"name": "B03", "eo:common_name": "green", "eo:center_wavelength": 0.56},
+                ],
+            },
+        )
+
     def test_normalize_collection_metadata_datetime(self, caplog):
         metadata = {
             "id": "foobar",
