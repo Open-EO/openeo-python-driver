@@ -146,6 +146,12 @@ class JobRegistryInterface:
     ) -> None:
         raise NotImplementedError
 
+    def get_results_metadata(
+        self,
+        job_id: str,
+    ) -> Dict[str, Any]:
+        raise NotImplementedError
+
     def list_user_jobs(
         self,
         user_id: str,
@@ -738,6 +744,24 @@ class ElasticJobRegistry(JobRegistryInterface):
                 "results_metadata": results_metadata,
             },
         )
+
+    def get_results_metadata(
+        self,
+        job_id: str,
+    ) -> Dict[str, Any]:
+        body = {
+            "query": {
+                "bool": {
+                    "filter": [
+                        {"term": {"backend_id": self.backend_id}},
+                        {"term": {"job_id": job_id}},
+                    ]
+                }
+            },
+            "_source": ["job_id", "costs", "usage", "results_metadata"],
+        }
+        self._log.debug(f"Doing search with query {json.dumps(body)}")
+        return self._do_request("POST", "/jobs/search", json=body, retry=True)
 
 
 class CliApp:
