@@ -72,6 +72,7 @@ from openeo_driver.users import User, user_id_b64_decode, user_id_b64_encode
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.util.geometry import BoundingBox, reproject_geometry
 from openeo_driver.util.logging import ExtraLoggingFilter, FlaskRequestCorrelationIdLogging
+from openeo_driver.util.stac import sniff_stac_extension_prefix
 from openeo_driver.utils import EvalEnv, filter_supported_kwargs, smart_bool
 
 _log = logging.getLogger(__name__)
@@ -1166,7 +1167,9 @@ def register_views_batch_jobs(
             )
 
         assets = {
-            filename: _asset_object(job_id, user_id, filename, asset_metadata, job_info)
+            filename: _asset_object(
+                job_id=job_id, user_id=user_id, filename=filename, asset_metadata=asset_metadata, job_info=job_info
+            )
             for filename, asset_metadata in result_assets.items()
             if asset_metadata.get("asset", True)
         }
@@ -1211,7 +1214,7 @@ def register_views_batch_jobs(
                     "type": "Collection",
                     "stac_version": "1.0.0",
                     "stac_extensions": [
-                        STAC_EXTENSION.EO,
+                        STAC_EXTENSION.EO_V110,
                         STAC_EXTENSION.FILEINFO,
                         STAC_EXTENSION.PROCESSING,
                         STAC_EXTENSION.PROJECTION,
@@ -1274,8 +1277,8 @@ def register_views_batch_jobs(
                 STAC_EXTENSION.FILEINFO,
             ]
 
-            if any("eo:bands" in asset_object for asset_object in result["assets"].values()):
-                result["stac_extensions"].append(STAC_EXTENSION.EO)
+            if sniff_stac_extension_prefix(result["assets"].values(), prefix="eo:"):
+                result["stac_extensions"].append(STAC_EXTENSION.EO_V110)
 
             if any(key.startswith("proj:") for key in result["properties"]) or any(
                 key.startswith("proj:") for key in result["assets"]
@@ -1439,9 +1442,9 @@ def register_views_batch_jobs(
             "type": "Feature",
             "stac_version": "1.0.0",
             "stac_extensions": [
-                STAC_EXTENSION.EO,
+                STAC_EXTENSION.EO_V110,
                 STAC_EXTENSION.FILEINFO,
-                STAC_EXTENSION.PROJECTION
+                STAC_EXTENSION.PROJECTION,
             ],
             "id": item_id,
             "geometry": geometry,
@@ -1514,6 +1517,7 @@ def register_views_batch_jobs(
                 ),
                 "type": asset_metadata.get("type", asset_metadata.get("media_type", "application/octet-stream")),
                 "roles": asset_metadata.get("roles", ["data"]),
+                # TODO: eliminate this legacy "raster:bands" construct at some point?
                 "raster:bands": asset_metadata.get("raster:bands"),
                 "file:size": asset_metadata.get("file:size"),
                 "alternate": asset_metadata.get("alternate"),
@@ -1524,20 +1528,31 @@ def register_views_batch_jobs(
             return result_dict
         bands = asset_metadata.get("bands")
 
+        if bands:
+            # TODO: eliminate this legacy "eo:bands" construct at some point?
+            result_dict["eo:bands"] = [
+                dict_no_none(
+                    {
+                        "name": band.name,
+                        "center_wavelength": band.wavelength_um,
+                    }
+                )
+                for band in bands
+            ]
+            # TODO: "bands" is a STAC>=1.1 feature, but here we don't know what version we are in.
+            result_dict["bands"] = [
+                dict_no_none(
+                    {
+                        "name": band.name,
+                        "eo:center_wavelength": band.wavelength_um,
+                    }
+                )
+                for band in bands
+            ]
+
         result_dict.update(
             dict_no_none(
                 **{
-                    "eo:bands": [
-                        dict_no_none(
-                            **{
-                                "name": band.name,
-                                "center_wavelength": band.wavelength_um,
-                            }
-                        )
-                        for band in bands
-                    ]
-                    if bands
-                    else None,
                     "proj:bbox": asset_metadata.get("proj:bbox", job_info.proj_bbox),
                     "proj:epsg": asset_metadata.get("proj:epsg", job_info.epsg),
                     "proj:shape": asset_metadata.get("proj:shape", job_info.proj_shape),
@@ -1835,7 +1850,9 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
     # Version dependent metadata conversions
     cube_dims_100 = deep_get(metadata, "cube:dimensions", default=None)
     cube_dims_040 = deep_get(metadata, "properties", "cube:dimensions", default=None)
+    bands_110 = deep_get(metadata, "summaries", "bands", default=None)
     eo_bands_100 = deep_get(metadata, "summaries", "eo:bands", default=None)
+    # TODO do we still need normalization of openEO 0.4 style eo:bands?
     eo_bands_040 = deep_get(metadata, "properties", "eo:bands", default=None)
     extent_spatial_100 = deep_get(metadata, "extent", "spatial", "bbox", default=None)
     extent_spatial_040 = deep_get(metadata, "extent", "spatial", default=None)
@@ -1845,6 +1862,19 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
     if full and not cube_dims_100 and cube_dims_040:
         _log.warning("Collection metadata 'cube:dimensions' in API 0.4 style instead of 1.0 style")
         metadata["cube:dimensions"] = cube_dims_040
+    if full and not bands_110 and eo_bands_100:
+        _log.warning("_normalize_collection_metadata: converting eo:bands to bands metadata")
+        # TODO #298/#363: "bands" is a STAC>=1.1 feature, but here we don't know what version we are in.
+        metadata["summaries"]["bands"] = [
+            dict_no_none(
+                {
+                    "name": b.get("name"),
+                    "eo:common_name": b.get("common_name"),
+                    "eo:center_wavelength": b.get("center_wavelength"),
+                }
+            )
+            for b in eo_bands_100
+        ]
     if full and not eo_bands_100 and eo_bands_040:
         _log.warning("Collection metadata 'eo:bands' in API 0.4 style instead of 1.0 style")
         metadata.setdefault("summaries", {})
@@ -1872,13 +1902,14 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
                     dim["extent"] = interval
 
     # Make sure some required fields are set.
+    # TODO #363 bump stac_version default to 1.0.0 or even 1.1.0?
     metadata.setdefault("stac_version", "0.9.0")
     metadata.setdefault(
         "stac_extensions",
         [
             # TODO: enable these extensions only when necessary?
             STAC_EXTENSION.DATACUBE,
-            STAC_EXTENSION.EO,
+            STAC_EXTENSION.EO_V110,
         ],
     )
 
