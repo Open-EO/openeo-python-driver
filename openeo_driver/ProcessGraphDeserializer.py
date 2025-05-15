@@ -587,7 +587,7 @@ def _align_extent(extent,collection_id,env,target_resolution=None):
     if (    crs == 4326
             and extent.get('crs','') == "EPSG:4326"
             and "extent" in x and "extent" in y
-            and target_resolution != None and  target_resolution != collection_resolution
+            and (target_resolution == None or  target_resolution == collection_resolution)
     ):
         #only align to collection resolution
         target_resolution = collection_resolution

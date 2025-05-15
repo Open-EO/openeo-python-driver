@@ -1180,13 +1180,7 @@ def test_no_auto_align_when_resampling(dry_run_env, dry_run_tracer):
     load_params = _extract_load_parameters(
         dry_run_env, source_id=("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()))
     )
-    assert {
-        "west": 0.09999999927961767,
-        "east": 8.00008333258134,
-        "south": 0.09999999971959994,
-        "north": 5.000083333033345,
-        "crs": "EPSG:4326",
-    } == load_params.global_extent
+    assert {'crs': 'EPSG:4326', 'east': 8.0, 'north': 5.0, 'south': 0.1, 'west': 0.1} == load_params.global_extent
 
 
 def test_global_bounds_from_weak_spatial_extent(dry_run_env, dry_run_tracer):
