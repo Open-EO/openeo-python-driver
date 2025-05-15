@@ -2185,10 +2185,9 @@ class TestBatchJobs:
                 "nodata": np.nan,
             }
         }
-        with (
-            self._fresh_job_registry(jobs={"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}),
-            mock.patch.object(backend_implementation.batch_jobs, "get_result_assets", return_value=results_data),
-        ):
+        with self._fresh_job_registry(
+            jobs={"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
+        ), mock.patch.object(backend_implementation.batch_jobs, "get_result_assets", return_value=results_data):
             resp = api.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results", headers=self.AUTH_HEADER)
         res = resp.assert_status_code(200).json
         assert res["assets"] == {

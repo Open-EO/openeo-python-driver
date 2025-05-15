@@ -1,9 +1,13 @@
 
 [tool.black]
 line-length = 120
+# TODO: drop this target-version when `project.requires-python` is set
+target-version = ["py38", "py39", "py310", "py311"]
 
 [tool.isort]
 profile = "black"
 
 [tool.ruff]
 line-length = 120
+# TODO: drop this target-version when `project.requires-python` is set
+target-version = "py38"
