@@ -72,6 +72,7 @@ from openeo_driver.users import User, user_id_b64_decode, user_id_b64_encode
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.util.geometry import BoundingBox, reproject_geometry
 from openeo_driver.util.logging import ExtraLoggingFilter, FlaskRequestCorrelationIdLogging
+from openeo_driver.util.stac import sniff_stac_extension_prefix
 from openeo_driver.utils import EvalEnv, filter_supported_kwargs, smart_bool
 
 _log = logging.getLogger(__name__)
@@ -1166,7 +1167,9 @@ def register_views_batch_jobs(
             )
 
         assets = {
-            filename: _asset_object(job_id, user_id, filename, asset_metadata, job_info)
+            filename: _asset_object(
+                job_id=job_id, user_id=user_id, filename=filename, asset_metadata=asset_metadata, job_info=job_info
+            )
             for filename, asset_metadata in result_assets.items()
             if asset_metadata.get("asset", True)
         }
@@ -1211,7 +1214,7 @@ def register_views_batch_jobs(
                     "type": "Collection",
                     "stac_version": "1.0.0",
                     "stac_extensions": [
-                        STAC_EXTENSION.EO,
+                        STAC_EXTENSION.EO_V110,
                         STAC_EXTENSION.FILEINFO,
                         STAC_EXTENSION.PROCESSING,
                         STAC_EXTENSION.PROJECTION,
@@ -1274,8 +1277,8 @@ def register_views_batch_jobs(
                 STAC_EXTENSION.FILEINFO,
             ]
 
-            if any("eo:bands" in asset_object for asset_object in result["assets"].values()):
-                result["stac_extensions"].append(STAC_EXTENSION.EO)
+            if sniff_stac_extension_prefix(result["assets"].values(), prefix="eo:"):
+                result["stac_extensions"].append(STAC_EXTENSION.EO_V110)
 
             if any(key.startswith("proj:") for key in result["properties"]) or any(
                 key.startswith("proj:") for key in result["assets"]
@@ -1439,9 +1442,9 @@ def register_views_batch_jobs(
             "type": "Feature",
             "stac_version": "1.0.0",
             "stac_extensions": [
-                STAC_EXTENSION.EO,
+                STAC_EXTENSION.EO_V110,
                 STAC_EXTENSION.FILEINFO,
-                STAC_EXTENSION.PROJECTION
+                STAC_EXTENSION.PROJECTION,
             ],
             "id": item_id,
             "geometry": geometry,
@@ -1524,20 +1527,31 @@ def register_views_batch_jobs(
             return result_dict
         bands = asset_metadata.get("bands")
 
+        if bands:
+            # TODO: eliminate this legacy "eo:bands" construct at some point?
+            result_dict["eo:bands"] = [
+                dict_no_none(
+                    {
+                        "name": band.name,
+                        "center_wavelength": band.wavelength_um,
+                    }
+                )
+                for band in bands
+            ]
+            # TODO: "bands" is a STAC>=1.1 feature, but here we don't know what version we are in.
+            result_dict["bands"] = [
+                dict_no_none(
+                    {
+                        "name": band.name,
+                        "eo:center_wavelength": band.wavelength_um,
+                    }
+                )
+                for band in bands
+            ]
+
         result_dict.update(
             dict_no_none(
                 **{
-                    "eo:bands": [
-                        dict_no_none(
-                            **{
-                                "name": band.name,
-                                "center_wavelength": band.wavelength_um,
-                            }
-                        )
-                        for band in bands
-                    ]
-                    if bands
-                    else None,
                     "proj:bbox": asset_metadata.get("proj:bbox", job_info.proj_bbox),
                     "proj:epsg": asset_metadata.get("proj:epsg", job_info.epsg),
                     "proj:shape": asset_metadata.get("proj:shape", job_info.proj_shape),

@@ -1775,6 +1775,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff",
                         "type": "image/tiff; application=geotiff",
                         "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
+                        "bands": [{"name": "NDVI", "eo:center_wavelength": 1.23}],
                     },
                     "output.nc": {
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.nc",
@@ -1847,6 +1848,7 @@ class TestBatchJobs:
                         "proj:epsg": 4326,
                         "proj:shape": [300, 600],
                         "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
+                        "bands": [{"name": "NDVI", "eo:center_wavelength": 1.23}],
                     },
                     "output.nc": {
                         "href": "http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.nc",
@@ -1945,6 +1947,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff",
                         "type": "image/tiff; application=geotiff",
                         "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
+                        "bands": [{"name": "NDVI", "eo:center_wavelength": 1.23}],
                     },
                     "output.nc": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.nc",
@@ -2029,6 +2032,7 @@ class TestBatchJobs:
                         "proj:epsg": 4326,
                         "proj:shape": [300, 600],
                         "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
+                        "bands": [{"name": "NDVI", "eo:center_wavelength": 1.23}],
                     },
                     "output.nc": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.nc",
@@ -2132,6 +2136,7 @@ class TestBatchJobs:
                                 {"name": "S2-L2A-EVI_t1"},
                                 {"name": "S2-L2A-EVI_t2"},
                             ],
+                            "bands": [{"name": "S2-L2A-EVI_t0"}, {"name": "S2-L2A-EVI_t1"}, {"name": "S2-L2A-EVI_t2"}],
                         },
                         "timeseries.parquet": {
                             "href": "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/timeseries.parquet",
@@ -2143,6 +2148,7 @@ class TestBatchJobs:
                                 {"name": "S2-L2A-EVI_t1"},
                                 {"name": "S2-L2A-EVI_t2"},
                             ],
+                            "bands": [{"name": "S2-L2A-EVI_t0"}, {"name": "S2-L2A-EVI_t1"}, {"name": "S2-L2A-EVI_t2"}],
                         },
                     },
                     "links": [
@@ -2214,6 +2220,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
                         "type": "image/tiff; application=geotiff",
                         "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
+                        "bands": [{"name": "NDVI", "eo:center_wavelength": 1.23}],
                     },
                     "output.nc": {
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/e28f17365e698783574dd313de0d64cd/output.nc",
@@ -2355,6 +2362,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
                         "type": "image/tiff; application=geotiff",
                         "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
+                        "bands": [{"name": "NDVI", "eo:center_wavelength": 1.23}],
                     },
                     "output.nc": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/e28f17365e698783574dd313de0d64cd/output.nc",
@@ -2498,6 +2506,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234",
                         "type": "image/tiff; application=geotiff",
                         "eo:bands": [{"name": "NDVI", "center_wavelength": 1.23}],
+                        "bands": [{"name": "NDVI", "eo:center_wavelength": 1.23}],
                     },
                     "output.nc": {
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/3ed7b944c4f9cc88d2c3ef7534a27596/output.nc?expires=2234",
@@ -2685,6 +2694,7 @@ class TestBatchJobs:
                         "proj:epsg": 4326,
                         "proj:shape": [300, 600],
                         "eo:bands": [{"center_wavelength": 1.23, "name": "NDVI"}],
+                        "bands": [{"eo:center_wavelength": 1.23, "name": "NDVI"}],
                         "roles": ["data"],
                     },
                     "output.nc": {
@@ -3068,6 +3078,7 @@ class TestBatchJobs:
                     "proj:epsg": 4326,
                     "proj:shape": [300, 600],
                     "eo:bands": [{"center_wavelength": 1.23, "name": "NDVI"}],
+                    "bands": [{"eo:center_wavelength": 1.23, "name": "NDVI"}],
                     "roles": ["data"],
                 }
             },
@@ -3166,6 +3177,7 @@ class TestBatchJobs:
                         "roles": ["data"],
                         "title": vector_asset_filename,
                         "eo:bands": [{"name": "S2-L2A-EVI_t0"}, {"name": "S2-L2A-EVI_t1"}, {"name": "S2-L2A-EVI_t2"}],
+                        "bands": [{"name": "S2-L2A-EVI_t0"}, {"name": "S2-L2A-EVI_t1"}, {"name": "S2-L2A-EVI_t2"}],
                     }
                 },
             }
@@ -3231,6 +3243,7 @@ class TestBatchJobs:
                         "roles": ["data"],
                         "title": "timeseries.parquet",
                         "eo:bands": [{"name": "S1-SIGMA0-VV"}, {"name": "S1-SIGMA0-VH"}, {"name": "S2-L2A-B01"}],
+                        "bands": [{"name": "S1-SIGMA0-VV"}, {"name": "S1-SIGMA0-VH"}, {"name": "S2-L2A-B01"}],
                     }
                 },
             }
