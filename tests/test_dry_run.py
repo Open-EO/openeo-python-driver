@@ -1148,6 +1148,41 @@ def test_auto_align(dry_run_env, dry_run_tracer):
     } == load_params.global_extent
 
 
+def test_no_auto_align_when_resampling(dry_run_env, dry_run_tracer):
+    polygon = {"type": "Polygon", "coordinates": [[(0.1, 0.1), (3, 5), (8, 2), (0.1, 0.1)]]}
+    cube = DataCube(PGNode("load_collection", id="ESA_WORLDCOVER_10M_2020_V1"), connection=None)
+    cube = cube.filter_spatial(geometries=polygon)
+    cube = cube.resample_spatial(resolution = 0.001)
+
+    pg = cube.flat_graph()
+    res = evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints[0]
+    assert src == ("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()))
+    (geometries,) = dry_run_tracer.get_geometries(operation="filter_spatial")
+    assert constraints == {
+        'resample': {'method': 'near',
+                     'resolution': (0.001, 0.001),
+                     'target_crs': None},
+        "spatial_extent": {"crs": "EPSG:4326", "east": 8.0, "north": 5.0, "south": 0.1, "west": 0.1},
+        "filter_spatial": {"geometries": DummyVectorCube.from_geometry(shapely.geometry.shape(polygon))},
+        "weak_spatial_extent": {"west": 0.1, "south": 0.1, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
+    }
+    assert isinstance(geometries, DummyVectorCube)
+    assert shapely.geometry.mapping(geometries.to_multipolygon()) == {
+        "type": "Polygon",
+        "coordinates": (((0.1, 0.1), (3.0, 5.0), (8.0, 2.0), (0.1, 0.1)),),
+    }
+    # source_constraints = dry_run_tracer.get_source_constraints()
+    dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
+    load_params = _extract_load_parameters(
+        dry_run_env, source_id=("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()))
+    )
+    assert {'crs': 'EPSG:4326', 'east': 8.0, 'north': 5.0, 'south': 0.1, 'west': 0.1} == load_params.global_extent
+
+
 def test_global_bounds_from_weak_spatial_extent(dry_run_env, dry_run_tracer):
     # The global extent is the union from the spatial extent and the weak spatial extent.
     bbox = {"west": 1, "south": 1, "east": 3, "north": 3, "crs": "EPSG:4326"}
