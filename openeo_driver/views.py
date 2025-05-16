@@ -1557,6 +1557,7 @@ def register_views_batch_jobs(
                 dict_no_none(
                     {
                         "name": band.name,
+                        "common_name": band.common_name,
                         "center_wavelength": band.wavelength_um,
                     }
                 )
@@ -1567,6 +1568,7 @@ def register_views_batch_jobs(
                 dict_no_none(
                     {
                         "name": band.name,
+                        "eo:common_name": band.common_name,
                         "eo:center_wavelength": band.wavelength_um,
                     }
                 )
