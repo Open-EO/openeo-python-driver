@@ -894,7 +894,7 @@ class OpenEoBackendImplementation:
         """
         return {"input": {}, "output": {}}
 
-    def processing_parameters(self) -> dict:
+    def processing_parameters(self) -> list:
         """
         List the available processing parameters in the format defined by openEO processing parameters extension.
 
@@ -902,7 +902,7 @@ class OpenEoBackendImplementation:
 
         Example output:
         ```
-        {
+        [{
           "name": "memory"
           "description": "Maximum amount of memory that will be allocated for processing, in gigabytes."
           "optional": True
@@ -911,10 +911,10 @@ class OpenEoBackendImplementation:
             "type": "integer"
             "minimum": 1
           }
-        }
+        }]
         ```
         """
-        return {}
+        return []
 
     def load_disk_data(
             self, format: str, glob_pattern: str, options: dict, load_params: LoadParameters, env: EvalEnv
