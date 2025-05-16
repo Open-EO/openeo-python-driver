@@ -1873,6 +1873,12 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         return process_function(args=ProcessArgs(args, process_id=process_id), env=env)
     except ProcessUnsupportedException as e:
         pass
+    except Exception as e:
+        if isinstance(e, OpenEOApiException):
+            raise e
+        else:
+            raise OpenEOApiException(f"{process_id}: unexpected error {str(e)} for process arguments {str(args)}")
+
 
 
     if namespace in ["user", None]:
