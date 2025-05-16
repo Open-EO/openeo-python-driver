@@ -579,16 +579,18 @@ def _align_extent(extent,collection_id,env,target_resolution=None):
 
     x = metadata.get('cube:dimensions', {}).get('x', {})
     y = metadata.get('cube:dimensions', {}).get('y', {})
-    if (target_resolution == None and collection_resolution != None ):
-        target_resolution = collection_resolution
-    elif target_resolution == None:
+
+    if (target_resolution == None and collection_resolution == None):
         return extent
+
 
     if (    crs == 4326
             and extent.get('crs','') == "EPSG:4326"
             and "extent" in x and "extent" in y
+            and (target_resolution == None or  target_resolution == collection_resolution)
     ):
-
+        #only align to collection resolution
+        target_resolution = collection_resolution
         def align(v, dimension, rounding, resolution):
             range = dimension.get('extent', [])
             if v < range[0]:
@@ -1871,6 +1873,12 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         return process_function(args=ProcessArgs(args, process_id=process_id), env=env)
     except ProcessUnsupportedException as e:
         pass
+    except Exception as e:
+        if isinstance(e, OpenEOApiException):
+            raise e
+        else:
+            raise OpenEOApiException(f"{process_id}: unexpected error {str(e)} for process arguments {str(args)}")
+
 
 
     if namespace in ["user", None]:

@@ -452,10 +452,9 @@ class DummyCatalog(CollectionCatalog):
                 "t": {"type": "temporal", "extent": ["2019-01-01", None]},
                 "bands": {"type": "bands", "values": ["MAP"]},
             },
-            'summaries': {
-                "eo:bands": [
-                    {"name": "MAP", "common_name": "blue"}
-                ]
+            "summaries": {
+                "eo:bands": [{"name": "MAP", "common_name": "blue"}],
+                "bands": [{"name": "MAP", "eo:common_name": "blue"}],
             },
             'links': [],
             '_private': {'password': 'dragon'},
@@ -482,11 +481,15 @@ class DummyCatalog(CollectionCatalog):
                 "t": {"type": "temporal", "extent": ["2019-01-01", None]},
                 "bands": {"type": "bands", "values": ["VV","VH"]},
             },
-            'summaries': {
+            "summaries": {
                 "eo:bands": [
                     {"name": "VV", "common_name": "blue"},
-                    {"name": "VH", "common_name": "blue"}
-                ]
+                    {"name": "VH", "common_name": "blue"},
+                ],
+                "bands": [
+                    {"name": "VV", "eo:common_name": "blue"},
+                    {"name": "VH", "eo:common_name": "blue"},
+                ],
             },
             'links': [],
             '_private': {'password': 'dragon'}
@@ -522,6 +525,16 @@ class DummyCatalog(CollectionCatalog):
                     {"name": "SCL", "common_name": "nir"},
                     {"name": "sunAzimuthAngles", "common_name": "nir"},
                     {"name": "sunZenithAngles", "common_name": "nir"},
+                ],
+                "bands": [
+                    {"name": "B02", "eo:common_name": "blue"},
+                    {"name": "B03", "eo:common_name": "green"},
+                    {"name": "B04", "eo:common_name": "red"},
+                    {"name": "B08", "eo:common_name": "nir"},
+                    {"name": "CLP", "eo:common_name": "nir"},
+                    {"name": "SCL", "eo:common_name": "nir"},
+                    {"name": "sunAzimuthAngles", "eo:common_name": "nir"},
+                    {"name": "sunZenithAngles", "eo:common_name": "nir"},
                 ]
             },
             'links': [],
@@ -554,6 +567,12 @@ class DummyCatalog(CollectionCatalog):
                     {"name": "B03", "common_name": "green"},
                     {"name": "B04", "common_name": "red"},
                     {"name": "B08", "common_name": "nir"},
+                ],
+                "bands": [
+                    {"name": "B02", "eo:common_name": "blue"},
+                    {"name": "B03", "eo:common_name": "green"},
+                    {"name": "B04", "eo:common_name": "red"},
+                    {"name": "B08", "eo:common_name": "nir"},
                 ]
             },
             'links': [],
@@ -587,8 +606,12 @@ class DummyCatalog(CollectionCatalog):
             "summaries": {
                 "eo:bands": [
                     {"name": "FAPAR_10M"},
-                    {"name": "SCENECLASSIFICATION_20M"}
-                ]
+                    {"name": "SCENECLASSIFICATION_20M"},
+                ],
+                "bands": [
+                    {"name": "FAPAR_10M"},
+                    {"name": "SCENECLASSIFICATION_20M"},
+                ],
             },
             "_vito": {
                 "properties": {
