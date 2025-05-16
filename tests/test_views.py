@@ -258,6 +258,7 @@ class TestGeneral:
         assert endpoints["/processes"] == ["GET"]
         assert endpoints["/udf_runtimes"] == ["GET"]
         assert endpoints["/file_formats"] == ["GET"]
+        assert endpoints["/processing_parameters"] == ["GET"]
         assert endpoints["/service_types"] == ["GET"]
         assert endpoints["/services"] == ["GET", "POST"]
         assert endpoints["/services/{service_id}"] == ["DELETE", "GET"]
@@ -564,6 +565,13 @@ class TestGeneral:
             ),
         }
         assert response.headers["Cache-Control"] == "max-age=900, public"
+
+    def test_processing_parameters(self, api100):
+        response = api100.get('/processing_parameters')
+        resp = response.assert_status_code(200).json
+        assert resp == {}
+        assert response.headers["Cache-Control"] == "max-age=900, public"
+
 
     @pytest.mark.parametrize(
         ["user_id", "expect_success"],
