@@ -30,6 +30,7 @@ and start a new "In Progress" section above it.
 - Allow `overlap` in `apply_neighborhood` to be not specified ([#401](https://github.com/Open-EO/openeo-python-driver/issues/401))
 - Start including STAC-1.1.0-style "bands" metadata in assets in batch job results ([#298](https://github.com/Open-EO/openeo-python-driver/issues/298))
 - Start including STAC-1.1.0-style "bands" summaries in collection metadata ([#298](https://github.com/Open-EO/openeo-python-driver/issues/298))
+- Harden "bands" metadata handling in batch job results listings ([Open-EO/openeo-aggregator#183](https://github.com/Open-EO/openeo-aggregator/issues/183))
 
 
 ## 0.133.0

@@ -25,6 +25,7 @@ from flask import (
     send_from_directory,
     url_for,
 )
+import openeo.metadata
 from openeo.util import Rfc3339, TimingLogger, deep_get, dict_no_none, rfc3339
 from openeo.utils.version import ComparableVersion
 from pyproj import CRS
@@ -1535,6 +1536,22 @@ def register_views_batch_jobs(
         bands = asset_metadata.get("bands")
 
         if bands:
+            # TODO: #298 this is a quick stop-gap solution for lack of clear API
+            #       what "bands" actually is expected to be:
+            #       a list of Band objects (current approach in openeo-geopyspark-driver)
+            #       or a list of dictionaries (as handled in openeo-aggregator)
+            # TODO: move this normalization to a more general utility?
+            bands = [
+                openeo.metadata.Band(
+                    name=b.get("name"),
+                    common_name=b.get("eo:common_name") or b.get("common_name"),
+                    wavelength_um=b.get("eo:center_wavelength") or b.get("center_wavelength"),
+                )
+                if isinstance(b, dict)
+                else b
+                for b in bands
+            ]
+
             # TODO: eliminate this legacy "eo:bands" construct at some point?
             result_dict["eo:bands"] = [
                 dict_no_none(
