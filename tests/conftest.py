@@ -133,3 +133,14 @@ def enhanced_logging(
     finally:
         root_logger.removeHandler(handler)
         root_logger.setLevel(orig_root_level)
+
+
+TEST_SWIFT_URL = "https://s3.example.test"
+
+
+@pytest.fixture
+def swift_url(monkeypatch):
+    """
+    For real environments this is used as the fallback endpoint for doing S3 requests.
+    """
+    monkeypatch.setenv("SWIFT_URL", TEST_SWIFT_URL)

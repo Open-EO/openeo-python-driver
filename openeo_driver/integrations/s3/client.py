@@ -25,6 +25,16 @@ class S3ClientBuilder:
                 "will be limited to a single endpoint for which the platform is configured."
             )
             region_name = os.environ.get("AWS_REGION", "UNKNOWN")
-        return boto3.client(
-            "s3", region_name=region_name, endpoint_url=get_endpoint(region_name), **get_credentials(region_name)
+        return cls._s3_client(
+            region_name=region_name, endpoint_url=get_endpoint(region_name), **get_credentials(region_name)
         )
+
+    @classmethod
+    def _s3_client(cls, *args, **kwargs) -> S3Client:
+        """
+        Have a separate client creating class. This will be mocked for tests. This is required because the mocking
+        library we use in tests (moto) patches before-send hook for botocore and checks the urls to figure out which
+        service it is handling but unfortunately this means custom S3 urls are ignored and the request is actually
+        sent over the wire to the defined endpoint.
+        """
+        return boto3.client("s3", *args, **kwargs)
