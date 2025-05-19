@@ -10,11 +10,12 @@ UNKNOWN = "unknown"  # unknown provider uses the legacy behavior
 
 
 def get_s3_provider(region_name: str) -> str:
-    if region_name in ["waw3-1", "waw3-2", "waw4-1"]:
+    region_name_lc = region_name.lower()
+    if region_name_lc in ["waw3-1", "waw3-2", "waw4-1"]:
         return CF
-    elif region_name in ["eu-nl", "eu-de"]:
+    elif region_name_lc in ["eu-nl", "eu-de"]:
         return OTC
-    elif region_name in ["eodata"]:
+    elif region_name_lc in ["eodata"]:
         return EODATA
     else:
         return UNKNOWN

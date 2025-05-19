@@ -47,6 +47,7 @@ def swift_credentials(monkeypatch):
             "https://s3.waw4-1.cloudferro.com",
         ),
         pytest.param("eu-nl", "https://obs.eu-nl.otc.t-systems.com"),
+        pytest.param("EU-NL", "https://obs.EU-NL.otc.t-systems.com"),
         pytest.param("eu-de", "https://obs.eu-de.otc.t-systems.com"),
         pytest.param("eodata", f"http://{eodata_test_endpoint}"),
         pytest.param("eu-faketest-central", legacy_test_endpoint),

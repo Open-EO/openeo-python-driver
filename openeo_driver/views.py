@@ -66,6 +66,7 @@ from openeo_driver.errors import (
     ServiceNotFoundException,
 )
 from openeo_driver.integrations.s3.bucket_details import BucketDetails
+from openeo_driver.integrations.s3.client import S3ClientBuilder
 from openeo_driver.jobregistry import PARTIAL_JOB_STATUS
 from openeo_driver.processgraph import ProcessGraphFlatDict, extract_default_job_options_from_process_graph
 from openeo_driver.save_result import SaveResult, to_save_result
@@ -1340,18 +1341,11 @@ def register_views_batch_jobs(
         import botocore.exceptions
 
         bucket, key = s3_url[5:].split("/", 1)
-        s3_instance = None
         details = BucketDetails.from_name(bucket)
         if details.type is not "UNKNOWN":
-            #TODO: this should not be depending on specific cloud provider
-            if( "waw" in details.region):
-                s3_instance = _s3_client(f"https://s3.{details.region}.cloudferro.com")
-            elif( "eu-nl" in details.region or "eu-de" in details.region):
-                s3_instance = _s3_client(f"https://obs.{details.region}.otc.t-systems.com")
-            else:
-                s3_instance = _s3_client()
+            s3_instance = S3ClientBuilder.from_region(details.region)
         else:
-            s3_instance = _s3_client()
+            s3_instance = S3ClientBuilder.from_region(None)
 
         try:
             s3_file_object = s3_instance.get_object(Bucket=bucket, Key=key, **dict_no_none(Range=bytes_range))
