@@ -3044,7 +3044,7 @@ class TestBatchJobs:
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
     def test_download_result_with_s3_object_storage_with_expiration_NoSuchKey_error(
-        self, api, mock_s3_resource, backend_config_overrides, caplog
+        self, api, mock_s3_resource, backend_config_overrides, caplog, swift_url
     ):
         job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
         s3_bucket_name = "openeo-test-bucket"
