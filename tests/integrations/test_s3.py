@@ -49,7 +49,6 @@ def swift_credentials(monkeypatch):
         pytest.param("eu-nl", "https://obs.eu-nl.otc.t-systems.com"),
         pytest.param("EU-NL", "https://obs.EU-NL.otc.t-systems.com"),
         pytest.param("eu-de", "https://obs.eu-de.otc.t-systems.com"),
-        pytest.param("eodata", f"http://{eodata_test_endpoint}"),
         pytest.param("eu-faketest-central", legacy_test_endpoint),
     ],
 )
@@ -66,28 +65,11 @@ def test_s3_client_has_expected_endpoint_and_region(
 
 
 @pytest.mark.parametrize(
-    "region_name,expected_endpoint",
-    [
-        pytest.param("eodata", f"https://{eodata_test_endpoint}"),
-    ],
-)
-def test_s3_client_prefered_eodata_config(
-    new_eodata_endpoint_env_config,
-    historic_eodata_endpoint_env_config,
-    swift_credentials,
-    region_name: str,
-    expected_endpoint: str,
-):
-    c = S3ClientBuilder.from_region(region_name)
-    assert region_name == c.meta.region_name
-    assert expected_endpoint == c.meta.endpoint_url
-
-
-@pytest.mark.parametrize(
-    "region_name,env,exp_akid,exp_secret",
+    "region_name,provider_name,env,exp_akid,exp_secret",
     [
         pytest.param(
             "waw3-1",
+            "cf",
             {
                 "SWIFT_ACCESS_KEY_ID": "swiftkey",
                 "SWIFT_SECRET_ACCESS_KEY": "swiftsecret",
@@ -100,6 +82,7 @@ def test_s3_client_prefered_eodata_config(
         ),
         pytest.param(
             "waw3-1",
+            "cf",
             {
                 "AWS_ACCESS_KEY_ID": "awskey",
                 "AWS_SECRET_ACCESS_KEY": "awssecret",
@@ -110,6 +93,7 @@ def test_s3_client_prefered_eodata_config(
         ),
         pytest.param(
             "waw3-1",
+            "cf",
             {
                 "OTC_ACCESS_KEY_ID": "cfaccess",
                 "OTC_SECRET_ACCESS_KEY": "csecret",
@@ -124,6 +108,7 @@ def test_s3_client_prefered_eodata_config(
         ),
         pytest.param(
             "waw3-1",
+            "cf",
             {
                 "CF_ACCESS_KEY_ID": "cfaccess",
                 "CF_SECRET_ACCESS_KEY": "csecret",
@@ -138,6 +123,7 @@ def test_s3_client_prefered_eodata_config(
         ),
         pytest.param(
             "waw3-1",
+            "cf",
             {
                 "WAW3_1_ACCESS_KEY_ID": "cfaccesswaw31",
                 "WAW3_1_SECRET_ACCESS_KEY": "csecretwaw31",
@@ -153,29 +139,30 @@ def test_s3_client_prefered_eodata_config(
             id="RegionSpecificCredentialsTakePrecedenceIfMatch",
         ),
         pytest.param(
-            "eodata",
+            "eu-nl",
+            "otc",
             {
                 "WAW3_1_ACCESS_KEY_ID": "cfaccesswaw31",
                 "WAW3_1_SECRET_ACCESS_KEY": "csecretwaw31",
-                "CF_ACCESS_KEY_ID": "cfaccess",
-                "CF_SECRET_ACCESS_KEY": "csecret",
-                "EODATA_ACCESS_KEY_ID": "eodataaccess",
-                "EODATA_SECRET_ACCESS_KEY": "eodataecret",
+                "OTC_ACCESS_KEY_ID": "otcaccess",
+                "OTC_SECRET_ACCESS_KEY": "otcsecret",
                 "SWIFT_ACCESS_KEY_ID": "swiftkey",
                 "SWIFT_SECRET_ACCESS_KEY": "swiftsecret",
                 "AWS_ACCESS_KEY_ID": "awskey",
                 "AWS_SECRET_ACCESS_KEY": "awssecret",
             },
-            "eodataaccess",
-            "eodataecret",
-            id="EodataProviderConfigIsResolvable",
+            "otcaccess",
+            "otcsecret",
+            id="RegionSpecificCredentialsIgnoredIfNoMatch",
         ),
     ],
 )
-def test_s3_credentials_retrieval_from_env(monkeypatch, region_name: str, env: dict, exp_akid, exp_secret: str):
+def test_s3_credentials_retrieval_from_env(
+    monkeypatch, region_name: str, provider_name: str, env: dict, exp_akid, exp_secret: str
+):
     for env_var, env_val in env.items():
         monkeypatch.setenv(env_var, env_val)
-    creds = get_credentials(region_name)
+    creds = get_credentials(region_name, provider_name)
     assert exp_akid == creds["aws_access_key_id"]
     assert exp_secret == creds["aws_secret_access_key"]
 

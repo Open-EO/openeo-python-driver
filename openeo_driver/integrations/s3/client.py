@@ -3,12 +3,9 @@ from __future__ import annotations
 import logging
 import os
 
-import boto3
-
 from typing import TYPE_CHECKING, Optional
-from openeo_driver.integrations.s3.endpoint import get_endpoint
 from openeo_driver.integrations.s3.credentials import get_credentials
-
+from openeo_driver.config import get_backend_config
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -25,8 +22,12 @@ class S3ClientBuilder:
                 "will be limited to a single endpoint for which the platform is configured."
             )
             region_name = os.environ.get("AWS_REGION", "UNKNOWN")
+        s3_config = get_backend_config().s3_provider_config
+        provider_name = s3_config.get_provider(region_name)
+        endpoint = s3_config.get_endpoint(region_name)
+
         return cls._s3_client(
-            region_name=region_name, endpoint_url=get_endpoint(region_name), **get_credentials(region_name)
+            region_name=region_name, endpoint_url=endpoint, **get_credentials(region_name, provider_name)
         )
 
     @classmethod
@@ -37,4 +38,8 @@ class S3ClientBuilder:
         service it is handling but unfortunately this means custom S3 urls are ignored and the request is actually
         sent over the wire to the defined endpoint.
         """
+        # Keep this import inside the method so we kan keep installing boto3 as optional,
+        # because we don't always use objects storage.
+        # We want to avoid unnecessary dependencies. (And dependencies  of dependencies!)
+        import boto3
         return boto3.client("s3", *args, **kwargs)

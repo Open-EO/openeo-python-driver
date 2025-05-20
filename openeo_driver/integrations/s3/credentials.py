@@ -2,9 +2,6 @@ import logging
 import os
 from typing import TypedDict, Optional
 
-
-from openeo_driver.integrations.s3.providers import get_s3_provider
-
 _log = logging.getLogger(__name__)
 
 
@@ -13,7 +10,7 @@ class Boto3CredentialsTypeDef(TypedDict):
     aws_secret_access_key: str
 
 
-def get_credentials(region_name: str) -> Boto3CredentialsTypeDef:
+def get_credentials(region_name: str, provider_name: str) -> Boto3CredentialsTypeDef:
     """
     Credential resolving should always go from most specific to least specific. So let's say we are checking region
     waw3-1 of the cloudferro cloud we must check in order:
@@ -22,8 +19,6 @@ def get_credentials(region_name: str) -> Boto3CredentialsTypeDef:
     - SWIFT_ACCESS_KEY_ID && SWIFT_SECRET_ACCESS_KEY  # for backwards compatibility
     - AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY
     """
-    provider_name = get_s3_provider(region_name)
-
     for prefix in [f"{region_name}", f"{provider_name}", "SWIFT", "AWS"]:
         credential_candidate = get_credential_for_prefix(prefix)
         if credential_candidate is not None:

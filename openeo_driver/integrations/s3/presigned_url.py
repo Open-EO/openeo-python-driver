@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING, Optional
-from botocore.exceptions import ClientError
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -12,6 +11,7 @@ _log = logging.getLogger(__name__)
 
 
 def create_presigned_url(client: S3Client, bucket_name: str, object_name: str, expiration: int = 3600) -> Optional[str]:
+    from botocore.exceptions import ClientError
     """
     Generate a presigned URL to share an S3 object
 

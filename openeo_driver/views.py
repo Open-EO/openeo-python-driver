@@ -66,7 +66,6 @@ from openeo_driver.errors import (
     ServiceNotFoundException,
 )
 from openeo_driver.integrations.s3.bucket_details import BucketDetails
-from openeo_driver.integrations.s3.client import S3ClientBuilder
 from openeo_driver.jobregistry import PARTIAL_JOB_STATUS
 from openeo_driver.processgraph import ProcessGraphFlatDict, extract_default_job_options_from_process_graph
 from openeo_driver.save_result import SaveResult, to_save_result
@@ -887,6 +886,7 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
     return properties
 
 
+# TODO: Remove
 def _s3_client(endpoint_url = os.environ.get("SWIFT_URL")):
     """Create an S3 client to access object storage on Swift."""
 
@@ -1338,7 +1338,9 @@ def register_views_batch_jobs(
             raise InternalException("Unsupported job result")
 
     def _stream_from_s3(s3_url, *, filename, mimetype: Optional[str], bytes_range: Optional[str]):
+        # Local imports as S3 requirements are optional
         import botocore.exceptions
+        from openeo_driver.integrations.s3.client import S3ClientBuilder
 
         bucket, key = s3_url[5:].split("/", 1)
         details = BucketDetails.from_name(bucket)

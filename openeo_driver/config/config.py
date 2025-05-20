@@ -1,5 +1,5 @@
 import os
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import attrs
 
@@ -15,6 +15,7 @@ from openeo_driver.server import build_backend_deploy_metadata
 from openeo_driver.urlsigning import UrlSigner
 from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.workspace import Workspace
+from openeo_driver.integrations.s3.provider_cfg import ProvidersCfg
 
 __all__ = ["OpenEoBackendConfig", "openeo_backend_config_class", "ConfigException", "check_config_definition"]
 
@@ -88,3 +89,17 @@ class OpenEoBackendConfig(_ConfigBase):
 
     "Experimental: simple job progress fallback estimation. Specify average batch job completion time (wall clock) in seconds."
     simple_job_progress_estimation: Optional[float] = None
+
+    "When using S3 compatible object storage the supported regions and endpoints should be defined here"
+    s3_provider_config: ProvidersCfg = ProvidersCfg(
+        {
+            "cf": {
+                "regions": ["waw3-1", "waw3-2", "waw4-1"],
+                "endpoint": "https://s3.{region}.cloudferro.com",
+            },
+            "otc": {
+                "regions": ["eu-nl", "eu-de"],
+                "endpoint": "https://obs.{region}.otc.t-systems.com",
+            },
+        }
+    )
