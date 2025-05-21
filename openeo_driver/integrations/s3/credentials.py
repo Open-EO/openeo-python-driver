@@ -6,12 +6,12 @@ from typing import TypedDict, Optional
 _log = logging.getLogger(__name__)
 
 
-class Boto3CredentialsTypeDef(TypedDict):
+class Boto3Credentials(TypedDict):
     aws_access_key_id: str
     aws_secret_access_key: str
 
 
-def get_credentials(region_name: str, provider_name: str) -> Boto3CredentialsTypeDef:
+def get_credentials(region_name: str, provider_name: str) -> Boto3Credentials:
     """
     Credential resolving should always go from most specific to least specific. So let's say we are checking region
     waw3-1 of the cloudferro cloud we must check in order:
@@ -31,7 +31,7 @@ def _sanitize_env_name(env_name: str) -> str:
     return re.sub("[^A-Z0-9]+", "_", env_name.upper())
 
 
-def get_credential_for_prefix(prefix: str) -> Optional[Boto3CredentialsTypeDef]:
+def get_credential_for_prefix(prefix: str) -> Optional[Boto3Credentials]:
     """
     When getting credentials from the environment they should have both parts to be valid (access_key_id and secret_key)
     """
