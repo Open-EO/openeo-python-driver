@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from typing import TypedDict, Optional
 
 _log = logging.getLogger(__name__)
@@ -27,7 +28,7 @@ def get_credentials(region_name: str, provider_name: str) -> Boto3CredentialsTyp
 
 
 def _sanitize_env_name(env_name: str) -> str:
-    re.sub("[^A-Z0-9]+", "_", env_name.upper())
+    return re.sub("[^A-Z0-9]+", "_", env_name.upper())
 
 
 def get_credential_for_prefix(prefix: str) -> Optional[Boto3CredentialsTypeDef]:

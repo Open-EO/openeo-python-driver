@@ -1,5 +1,5 @@
 import os
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple
 
 import attrs
 
@@ -15,7 +15,7 @@ from openeo_driver.server import build_backend_deploy_metadata
 from openeo_driver.urlsigning import UrlSigner
 from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.workspace import Workspace
-from openeo_driver.integrations.s3.provider_cfg import ProvidersCfg
+from openeo_driver.config.integrations.s3_config import S3ProvidersConfig
 
 __all__ = ["OpenEoBackendConfig", "openeo_backend_config_class", "ConfigException", "check_config_definition"]
 
@@ -91,7 +91,7 @@ class OpenEoBackendConfig(_ConfigBase):
     simple_job_progress_estimation: Optional[float] = None
 
     "When using S3 compatible object storage the supported regions and endpoints should be defined here"
-    s3_provider_config: ProvidersCfg = ProvidersCfg(
+    s3_provider_config: S3ProvidersConfig = S3ProvidersConfig(
         {
             "cf": {
                 "regions": ["waw3-1", "waw3-2", "waw4-1"],

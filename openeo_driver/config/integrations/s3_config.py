@@ -29,7 +29,7 @@ class RegionDetails(TypedDict):
     endpoint: str
 
 
-class ProvidersCfg:
+class S3ProvidersConfig:
     def __init__(self, cfg: Dict[str, ProviderDetails]):
         """region config maps each lower-cased region on its provider name and the endpoint to be used."""
         region_cfg = {}
