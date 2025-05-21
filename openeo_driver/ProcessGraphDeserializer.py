@@ -546,10 +546,11 @@ def _collection_crs(collection_id, env) -> str:
         metadata = env.backend_implementation.catalog.get_collection_metadata(collection_id)
     except CollectionNotFoundException:
         return None
-    crs = metadata.get('cube:dimensions', {}).get('x', {}).get('reference_system', None)
+    crs = metadata.get("cube:dimensions", {}).get("x", {}).get("reference_system", None)
     return crs
 
-def _collection_resolution(collection_id, env) -> str:
+
+def _collection_resolution(collection_id, env) -> Optional[List[int]]:
     try:
         metadata = env.backend_implementation.catalog.get_collection_metadata(collection_id)
     except CollectionNotFoundException:
@@ -583,14 +584,17 @@ def _align_extent(extent,collection_id,env,target_resolution=None):
     if (target_resolution == None and collection_resolution == None):
         return extent
 
-
-    if (    crs == 4326
-            and extent.get('crs','') == "EPSG:4326"
-            and "extent" in x and "extent" in y
-            and (target_resolution == None or  target_resolution == collection_resolution)
+    if (
+        crs == 4326
+        and extent.get("crs", "") == "EPSG:4326"
+        and "extent" in x
+        and "extent" in y
+        and (target_resolution is None or target_resolution == collection_resolution)
+        and collection_resolution[0] <= 20
     ):
-        #only align to collection resolution
+        # only align to collection resolution
         target_resolution = collection_resolution
+
         def align(v, dimension, rounding, resolution):
             range = dimension.get('extent', [])
             if v < range[0]:
