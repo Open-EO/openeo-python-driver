@@ -27,7 +27,7 @@ def get_credentials(region_name: str, provider_name: str) -> Boto3CredentialsTyp
 
 
 def _sanitize_env_name(env_name: str) -> str:
-    return env_name.upper().replace("-", "_")
+    re.sub("[^A-Z0-9]+", "_", env_name.upper())
 
 
 def get_credential_for_prefix(prefix: str) -> Optional[Boto3CredentialsTypeDef]:
