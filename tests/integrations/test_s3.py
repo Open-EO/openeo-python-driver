@@ -32,24 +32,15 @@ def swift_credentials(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "region_name,expected_endpoint",
+    ["region_name", "expected_endpoint"],
     [
-        pytest.param(
-            "waw3-1",
-            "https://s3.waw3-1.cloudferro.com",
-        ),
-        pytest.param(
-            "waw3-2",
-            "https://s3.waw3-2.cloudferro.com",
-        ),
-        pytest.param(
-            "waw4-1",
-            "https://s3.waw4-1.cloudferro.com",
-        ),
-        pytest.param("eu-nl", "https://obs.eu-nl.otc.t-systems.com"),
-        pytest.param("EU-NL", "https://obs.EU-NL.otc.t-systems.com"),
-        pytest.param("eu-de", "https://obs.eu-de.otc.t-systems.com"),
-        pytest.param("eu-faketest-central", legacy_test_endpoint),
+        ("waw3-1", "https://s3.waw3-1.cloudferro.com"),
+        ("waw3-2", "https://s3.waw3-2.cloudferro.com"),
+        ("waw4-1", "https://s3.waw4-1.cloudferro.com"),
+        ("eu-nl", "https://obs.eu-nl.otc.t-systems.com"),
+        ("EU-NL", "https://obs.EU-NL.otc.t-systems.com"),
+        ("eu-de", "https://obs.eu-de.otc.t-systems.com"),
+        ("eu-faketest-central", legacy_test_endpoint),
     ],
 )
 def test_s3_client_has_expected_endpoint_and_region(
