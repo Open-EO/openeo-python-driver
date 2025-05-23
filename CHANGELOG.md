@@ -21,6 +21,7 @@ and start a new "In Progress" section above it.
 
 ## In progress: 0.135.0
 
+- Have `integrations.s3` for interaction with Object Storage that follows the S3 API.
 
 ## 0.134.0
 
