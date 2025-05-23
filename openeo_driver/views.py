@@ -886,30 +886,6 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
     return properties
 
 
-# TODO: Remove
-def _s3_client(endpoint_url = os.environ.get("SWIFT_URL")):
-    """Create an S3 client to access object storage on Swift."""
-
-    # Keep this import inside the method so we kan keep installing boto3 as optional,
-    # because we don't always use objects storage.
-    # We want to avoid unnecessary dependencies. (And dependencies  of dependencies!)
-    import boto3
-
-    # TODO: Get these credentials/secrets from config instead of os.environ
-    aws_access_key_id = os.environ.get("SWIFT_ACCESS_KEY_ID", os.environ.get("AWS_ACCESS_KEY_ID"))
-    aws_secret_access_key = os.environ.get("SWIFT_SECRET_ACCESS_KEY", os.environ.get("AWS_SECRET_ACCESS_KEY"))
-
-    if "waw" in (endpoint_url or "").lower():
-        aws_access_key_id = os.environ.get("WAW31_ACCESS_KEY_ID", aws_access_key_id)
-        aws_secret_access_key = os.environ.get("WAW31_SECRET_ACCESS_KEY", aws_secret_access_key)
-
-    s3_client = boto3.client("s3",
-        aws_access_key_id=aws_access_key_id,
-        aws_secret_access_key=aws_secret_access_key,
-        endpoint_url=endpoint_url)
-    return s3_client
-
-
 def _assert_valid_log_level(level: str) -> str:
     valid_levels = ["debug", "info", "warning", "error"]
     if level not in valid_levels:
