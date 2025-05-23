@@ -886,6 +886,7 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
     return properties
 
 
+# TODO: Remove
 def _s3_client(endpoint_url = os.environ.get("SWIFT_URL")):
     """Create an S3 client to access object storage on Swift."""
 
@@ -1337,21 +1338,16 @@ def register_views_batch_jobs(
             raise InternalException("Unsupported job result")
 
     def _stream_from_s3(s3_url, *, filename, mimetype: Optional[str], bytes_range: Optional[str]):
+        # Local imports as S3 requirements are optional
         import botocore.exceptions
+        from openeo_driver.integrations.s3.client import S3ClientBuilder
 
         bucket, key = s3_url[5:].split("/", 1)
-        s3_instance = None
         details = BucketDetails.from_name(bucket)
         if details.type is not "UNKNOWN":
-            #TODO: this should not be depending on specific cloud provider
-            if( "waw" in details.region):
-                s3_instance = _s3_client(f"https://s3.{details.region}.cloudferro.com")
-            elif( "eu-nl" in details.region or "eu-de" in details.region):
-                s3_instance = _s3_client(f"https://obs.{details.region}.otc.t-systems.com")
-            else:
-                s3_instance = _s3_client()
+            s3_instance = S3ClientBuilder.from_region(details.region)
         else:
-            s3_instance = _s3_client()
+            s3_instance = S3ClientBuilder.from_region(None)
 
         try:
             s3_file_object = s3_instance.get_object(Bucket=bucket, Key=key, **dict_no_none(Range=bytes_range))

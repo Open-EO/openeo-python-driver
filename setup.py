@@ -33,6 +33,10 @@ tests_require = [
     "dirty-equals>=0.6",
 ]
 
+typing_require = [
+    "mypy-boto3-s3",
+]
+
 setup(
     name="openeo_driver",
     version=version,
@@ -75,7 +79,7 @@ setup(
         "pystac~=1.8.0",  # TODO #370/#396 bump to more recent pystac version
     ],
     extras_require={
-        "dev": tests_require,
+        "dev": tests_require + typing_require,
         "s3": ["boto3[s3]>=1.26.17", "botocore"],
         "vault": ["hvac>=1.0.2"],
     },

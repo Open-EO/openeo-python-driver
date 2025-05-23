@@ -37,6 +37,7 @@ from openeo_driver.dummy.dummy_backend import DummyBackendImplementation, DummyP
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
 from openeo_driver.processes import ProcessesListing
+from openeo_driver.integrations.s3.client import S3ClientBuilder
 from openeo_driver.save_result import VectorCubeResult
 from openeo_driver.testing import (
     TEST_USER,
@@ -155,8 +156,13 @@ def aws_credentials(monkeypatch):
 
 
 @pytest.fixture(scope="function")
-def mock_s3_resource(aws_credentials):
+def mock_s3_resource(aws_credentials, monkeypatch):
     with moto.mock_aws():
+        # Make sure clients with custom endpoints are within Moto scope as by default they are not
+        def _get_client(*args, **kwargs):
+            return boto3.client("s3")
+
+        monkeypatch.setattr(S3ClientBuilder, "_s3_client", _get_client)
         yield boto3.resource("s3", region_name=TEST_AWS_REGION_NAME)
 
 
@@ -2895,7 +2901,7 @@ class TestBatchJobs:
         assert "features" in resp.json.keys()
         assert resp.headers["Content-Type"] == "application/geo+json"
 
-    def test_download_result_with_s3_object_storage(self, api, mock_s3_resource):
+    def test_download_result_with_s3_object_storage(self, api, mock_s3_resource, swift_url):
         job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
         s3_bucket_name = "openeo-test-bucket"
         output_root = f"s3://{s3_bucket_name}/some-data-dir"
@@ -2956,7 +2962,7 @@ class TestBatchJobs:
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
     def test_download_result_signed_with_expiration_supports_range_request(
-        self, api, tmp_path, flask_app, backend_config_overrides
+        self, api, tmp_path, flask_app, backend_config_overrides, swift_url
     ):
         output_root = Path(tmp_path)
         output = output_root / "07024ee9-7847-4b8a-b260-6c879a2b3cdc" / "output.tiff"
@@ -2996,7 +3002,7 @@ class TestBatchJobs:
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
     def test_download_result_with_s3_object_storage_with_expiration_supports_range_request(
-        self, api, mock_s3_resource, backend_config_overrides
+        self, api, mock_s3_resource, backend_config_overrides, swift_url
     ):
         job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
         s3_bucket_name = "openeo-test-bucket"
@@ -3038,7 +3044,7 @@ class TestBatchJobs:
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
     def test_download_result_with_s3_object_storage_with_expiration_NoSuchKey_error(
-        self, api, mock_s3_resource, backend_config_overrides, caplog
+        self, api, mock_s3_resource, backend_config_overrides, caplog, swift_url
     ):
         job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
         s3_bucket_name = "openeo-test-bucket"
