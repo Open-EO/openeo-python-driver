@@ -8,32 +8,27 @@ if TYPE_CHECKING:
 
 
 _log = logging.getLogger(__name__)
+# Sentinel value for unset values
+_UNSET = object()
 
 
-def create_presigned_url(client: S3Client, bucket_name: str, object_name: str, expiration: int = 3600) -> str:
-    """
-    Generate a presigned URL to share an S3 object
-
-    :return: Presigned URL as string.
-    """
-    return client.generate_presigned_url(
-        "get_object",
-        Params={"Bucket": bucket_name, "Key": object_name},
-        ExpiresIn=expiration,
-    )
-
-
-def attempt_create_presigned_url(
-    client: S3Client, bucket_name: str, object_name: str, expiration: int = 3600
+def create_presigned_url(
+    client: S3Client, bucket_name: str, object_name: str, expiration: int = 3600, default: Optional[str] = _UNSET
 ) -> Optional[str]:
     from botocore.exceptions import ClientError
+
     """
     Generate a presigned URL to share an S3 object
-
-    :return: Presigned URL as string. If error, returns None.
+    If a default value is provided rather then that value is returned instead of throwing an exception
     """
     try:
-        return create_presigned_url(client, bucket_name=bucket_name, object_name=object_name, expiration=expiration)
+        return client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": bucket_name, "Key": object_name},
+            ExpiresIn=expiration,
+        )
     except ClientError as e:
-        logging.info(f"Failed to create presigned url: {e}, continuing without.")
+        logging.info(f"Failed to create presigned url: {e}")
+        if default is not _UNSET:
+            return default
         return None
