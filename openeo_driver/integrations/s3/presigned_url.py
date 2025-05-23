@@ -31,4 +31,4 @@ def create_presigned_url(
         logging.info(f"Failed to create presigned url: {e}")
         if default is not _UNSET:
             return default
-        return None
+        raise e
