@@ -24,4 +24,5 @@ pythonPipeline {
   ]
   pre_test_script = 'pre_test.sh'
   enable_uv = true
+  enable_caching = true
 }
