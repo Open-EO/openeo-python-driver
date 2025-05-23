@@ -590,7 +590,6 @@ def _align_extent(extent,collection_id,env,target_resolution=None):
         and "extent" in x
         and "extent" in y
         and (target_resolution is None or target_resolution == collection_resolution)
-        and collection_resolution[0] <= 20
     ):
         # only align to collection resolution
         target_resolution = collection_resolution
@@ -616,15 +615,20 @@ def _align_extent(extent,collection_id,env,target_resolution=None):
         _log.info(f"Realigned input extent {extent} into {new_extent}")
 
         return new_extent
-    elif(isUTM):
-        bbox = BoundingBox.from_dict(extent,default_crs=4326)
-        bbox_utm = bbox.reproject_to_best_utm()
+    elif isUTM:
+        if collection_resolution[0] <= 20:
+            bbox = BoundingBox.from_dict(extent, default_crs=4326)
+            bbox_utm = bbox.reproject_to_best_utm()
 
-        new_extent = bbox_utm.round_to_resolution(target_resolution[0],target_resolution[1])
+            new_extent = bbox_utm.round_to_resolution(target_resolution[0], target_resolution[1])
 
-        _log.info(f"Realigned input extent {extent} into {new_extent}")
-        return new_extent.as_dict()
+            _log.info(f"Realigned input extent {extent} into {new_extent}")
+            return new_extent.as_dict()
+        else:
+            _log.info(f"Not realigning input extent {extent} because crs is UTM and resolution > 20m")
+            return extent
     else:
+        _log.info(f"Not realigning input extent {extent} (collection crs: {crs}, resolution: {collection_resolution})")
         return extent
 
 def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
