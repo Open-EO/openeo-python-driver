@@ -27,7 +27,7 @@ class ResolutionMergeArgs(NamedTuple):
 # Simple type hint alias (for now) for a STAC Asset object (dictionary with at least a "href" item)
 # https://github.com/radiantearth/stac-spec/blob/master/item-spec/item-spec.md#asset-object
 StacAsset = dict
-
+StacItem = dict
 
 def secretive_repr(*, hide_patterns: Optional[List[str]] = None):
     """
