@@ -15,6 +15,8 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tupl
 
 import geopandas as gpd
 import numpy as np
+from py4j.protocol import Py4JJavaError
+
 import openeo.udf
 import openeo_processes
 import pandas as pd
@@ -35,7 +37,7 @@ from openeo_driver.backend import (
     LoadParameters,
     OpenEoBackendImplementation,
     Processing,
-    UserDefinedProcessMetadata,
+    UserDefinedProcessMetadata, ErrorSummary,
 )
 from openeo_driver.constants import RESAMPLE_SPATIAL_ALIGNS, RESAMPLE_SPATIAL_METHODS
 from openeo_driver.datacube import (
@@ -1876,7 +1878,11 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
     except OpenEOApiException:
         raise
     except Exception as e:
-        raise OpenEOApiException(f"Unexpected error during {process_id!r} with {args!r}: {e!r}") from e
+        errorsummary = env.backend_implementation.summarize_exception(e)
+        detail = f"{e!r}"
+        if isinstance(errorsummary,ErrorSummary):
+            detail = errorsummary.summary
+        raise OpenEOApiException(f"Unexpected error during {process_id!r} with {args!r}: {detail}") from e
 
     if namespace in ["user", None]:
         user = env.get("user")
