@@ -15,7 +15,6 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tupl
 
 import geopandas as gpd
 import numpy as np
-from py4j.protocol import Py4JJavaError
 
 import openeo.udf
 import openeo_processes
