@@ -120,15 +120,18 @@ class TestElasticJobRegistry:
         return oidc_mock
 
     @pytest.fixture
-    def ejr(self, oidc_mock) -> ElasticJobRegistry:
-        """ElasticJobRegistry set up with authentication"""
-        ejr = ElasticJobRegistry(api_url=self.EJR_API_URL, backend_id="unittests")
-        credentials = ClientCredentials(
+    def ejr_credentials(self) -> ClientCredentials:
+        return ClientCredentials(
             oidc_issuer=self.OIDC_CLIENT_INFO["oidc_issuer"],
             client_id=self.OIDC_CLIENT_INFO["client_id"],
             client_secret=self.OIDC_CLIENT_INFO["client_secret"],
         )
-        ejr.setup_auth_oidc_client_credentials(credentials)
+
+    @pytest.fixture
+    def ejr(self, oidc_mock, ejr_credentials) -> ElasticJobRegistry:
+        """ElasticJobRegistry set up with authentication"""
+        ejr = ElasticJobRegistry(api_url=self.EJR_API_URL, backend_id="unittests")
+        ejr.setup_auth_oidc_client_credentials(ejr_credentials)
         return ejr
 
     def test_access_token_caching(self, requests_mock, oidc_mock, ejr):
@@ -324,6 +327,51 @@ class TestElasticJobRegistry:
         with pytest.raises(EjrError) as e:
             _ = ejr.create_job(process=DUMMY_PROCESS, user_id="john")
 
+    @pytest.mark.parametrize(
+        ["preserialize_process", "expected"],
+        [
+            (False, DUMMY_PROCESS),
+            (
+                True,
+                '{"summary":"calculate 3+5, please","process_graph":{"add":{"process_id":"add","arguments":{"x":3,"y":5},"result":true}}}',
+            ),
+        ],
+    )
+    def test_create_job_preserialize_process_graph(
+        self, requests_mock, oidc_mock, ejr_credentials, preserialize_process, expected
+    ):
+        ejr = ElasticJobRegistry(
+            api_url=self.EJR_API_URL, backend_id="unittests", preserialize_process=preserialize_process
+        )
+        ejr.setup_auth_oidc_client_credentials(ejr_credentials)
+
+        posted = []
+
+        def post_jobs(request, context):
+            """Handler of `POST /jobs`"""
+            assert self._auth_is_valid(oidc_mock=oidc_mock, request=request)
+            # TODO: what to return? What does API return?  https://github.com/Open-EO/openeo-job-tracker-elastic-api/issues/3
+            context.status_code = 201
+            post_data = request.json()
+            posted.append(post_data)
+            return post_data
+
+        requests_mock.post(f"{self.EJR_API_URL}/jobs", json=post_jobs)
+
+        with time_machine.travel("2020-01-02 03:04:05+00", tick=False):
+            ejr.create_job(process=DUMMY_PROCESS, user_id="john")
+
+        assert posted == [
+            dirty_equals.IsPartialDict(
+                {
+                    "job_id": RegexMatcher("j-[0-9a-f]+"),
+                    "user_id": "john",
+                    "process": expected,
+                    "job_options": None,
+                }
+            )
+        ]
+
     def _build_handler_post_jobs_search_single_job_lookup(
         self,
         *,
@@ -333,6 +381,7 @@ class TestElasticJobRegistry:
         status: str = "created",
         source_fields: Sequence[str] = ("job_id", "user_id", "created", "status", "updated", "*"),
         oidc_mock: OidcMock,
+        process: Union[dict, str, None] = None,
     ) -> Callable:
         """
         Build handler for 'POST /jobs/search for a single job lookup.
@@ -354,7 +403,10 @@ class TestElasticJobRegistry:
                 },
                 "_source": IgnoreOrder(list(source_fields)),
             }
-            return [{"job_id": job_id, "user_id": user_id, "status": status}]
+            job = {"job_id": job_id, "user_id": user_id, "status": status}
+            if process:
+                job["process"] = process
+            return [job]
 
         return handler
 
@@ -379,6 +431,20 @@ class TestElasticJobRegistry:
 
         with pytest.raises(JobNotFoundException):
             _ = ejr.get_job(job_id="job-123", user_id="john")
+
+    @pytest.mark.parametrize(
+        ["process_payload", "expected"], [(DUMMY_PROCESS, DUMMY_PROCESS), ('{"foo":"bar"}', {"foo": "bar"})]
+    )
+    def test_get_job_deserialize(self, requests_mock, oidc_mock, ejr, process_payload, expected):
+        requests_mock.post(
+            f"{self.EJR_API_URL}/jobs/search",
+            json=self._build_handler_post_jobs_search_single_job_lookup(
+                job_id="job-123", user_id="john", status="created", oidc_mock=oidc_mock, process=process_payload
+            ),
+        )
+
+        result = ejr.get_job(job_id="job-123", user_id="john")
+        assert result == {"job_id": "job-123", "user_id": "john", "status": "created", "process": expected}
 
     def test_delete_job(self, requests_mock, oidc_mock, ejr):
         search_mock = requests_mock.post(

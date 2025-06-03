@@ -314,12 +314,13 @@ class ElasticJobRegistry(JobRegistryInterface):
         backend_id: Optional[str] = None,
         *,
         session: Optional[requests.Session] = None,
+        preserialize_process: bool = False,
         _debug_show_curl: bool = False,
     ):
         if not api_url:
             raise ValueError(api_url)
 
-        self._log.debug(f"Creating ElasticJobRegistry with {backend_id=} and {api_url=}")
+        self._log.debug(f"Creating ElasticJobRegistry with {backend_id=} and {api_url=} ({preserialize_process=})")
         self._backend_id: Optional[str] = backend_id
         self._api_url = api_url
         self._access_token_helper = ClientCredentialsAccessTokenHelper(session=session)
@@ -330,6 +331,7 @@ class ElasticJobRegistry(JobRegistryInterface):
             self._session = requests.Session()
             self._set_user_agent()
 
+        self._preserialize_process = bool(preserialize_process)
         self._debug_show_curl = _debug_show_curl
 
     def _set_user_agent(self):
@@ -440,6 +442,10 @@ class ElasticJobRegistry(JobRegistryInterface):
         if not job_id:
             job_id = self.generate_job_id()
         created = rfc3339.now_utc()
+
+        if self._preserialize_process:
+            process = self._preserialize(process)
+
         job_data = {
             # Essential identifiers
             "backend_id": self.backend_id,
@@ -468,6 +474,17 @@ class ElasticJobRegistry(JobRegistryInterface):
             result = self._do_request("POST", "/jobs", json=job_data, expected_status=201)
             return result
 
+    def _preserialize(self, data: dict) -> str:
+        """Preserialize given data structure to a string"""
+        # TODO: additional processing: e.g. compression+base64 when dump is too large in some sense?
+        return json.dumps(obj=data, separators=(",", ":"))
+
+    def _postdeserialize(self, data: Union[dict, str]) -> dict:
+        """Handle additional (pre)serialization of the data (if any)."""
+        if isinstance(data, str) and data.startswith("{"):
+            data = json.loads(data)
+        return data
+
     def get_job(self, job_id: str, *, user_id: Optional[str] = None) -> JobDict:
         return self._get_job(job_id=job_id, user_id=user_id)
 
@@ -494,6 +511,8 @@ class ElasticJobRegistry(JobRegistryInterface):
                 job = jobs[0]
                 assert job["job_id"] == job_id, f"{job['job_id']=} != {job_id=}"
                 assert user_id is None or job["user_id"] == user_id, f"{job['user_id']=} != {user_id=}"
+                if "process" in job:
+                    job["process"] = self._postdeserialize(job["process"])
                 return job
             elif len(jobs) == 0:
                 self._log.warning(f"Found no jobs for {job_id=} {user_id=}")
