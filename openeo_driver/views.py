@@ -1161,16 +1161,20 @@ def register_views_batch_jobs(
         if TREAT_JOB_RESULTS_V100_LIKE_V110 or requested_api_version().at_least("1.1.0"):
             ml_model_metadata = None
 
-            def job_result_item_url(item_id) -> str:
+            def job_result_item_url(item_id, is11 = False) -> str:
                 signer = get_backend_config().url_signer
+
+                method_start = ".get_job_result_item"
+                if is11:
+                    method_start = method_start + "11"
                 if not signer:
-                    return url_for(".get_job_result_item", job_id=job_id, item_id=item_id, _external=True)
+                    return url_for(method_start, job_id=job_id, item_id=item_id, _external=True)
 
                 expires = signer.get_expires()
                 secure_key = signer.sign_job_item(job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
                 user_base64 = user_id_b64_encode(user_id)
                 return url_for(
-                    ".get_job_result_item_signed",
+                    method_start + "_signed",
                     job_id=job_id,
                     user_base64=user_base64,
                     secure_key=secure_key,
@@ -1179,19 +1183,27 @@ def register_views_batch_jobs(
                     _external=True,
                 )
 
-            for filename, metadata in result_assets.items():
-                if ("data" in metadata.get("roles", []) and
-                        any(media_type in metadata.get("type", "") for media_type in
-                            ["geotiff", "netcdf", "text/csv", "application/parquet"])):
+
+            if len(result_metadata.items) > 0 :
+                for item_id, metadata in result_metadata.items.items():
                     links.append(
-                        {"rel": "item", "href": job_result_item_url(item_id=filename), "type": stac_item_media_type}
+                        {"rel": "item", "href": job_result_item_url(item_id=item_id, is11=True), "type": stac_item_media_type}
                     )
-                elif metadata.get("ml_model_metadata", False):
-                    # TODO: Currently we only support one ml_model per batch job.
-                    ml_model_metadata = metadata
-                    links.append(
-                        {"rel": "item", "href": job_result_item_url(item_id=filename), "type": "application/json"}
-                    )
+            else:
+
+                for filename, metadata in result_assets.items():
+                    if ("data" in metadata.get("roles", []) and
+                            any(media_type in metadata.get("type", "") for media_type in
+                                ["geotiff", "netcdf", "text/csv", "application/parquet"])):
+                        links.append(
+                            {"rel": "item", "href": job_result_item_url(item_id=filename), "type": stac_item_media_type}
+                        )
+                    elif metadata.get("ml_model_metadata", False):
+                        # TODO: Currently we only support one ml_model per batch job.
+                        ml_model_metadata = metadata
+                        links.append(
+                            {"rel": "item", "href": job_result_item_url(item_id=filename), "type": "application/json"}
+                        )
 
             result = dict_no_none(
                 {
