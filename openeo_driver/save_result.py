@@ -93,7 +93,7 @@ class SaveResult:
             return send_from_directory(path.parent, path.name, mimetype=mimetype)
 
     def get_mimetype(self, default="application/octet-stream"):
-        return IOFORMATS.get_mimetype(self.format)
+        return IOFORMATS.get_mimetype(self.format, default=default)
 
     def add_workspace_export(self, workspace_id: str, merge: Optional[str]):
         # TODO: should probably return a copy (like with_format) but does not work well with evaluate() returning
