@@ -1371,11 +1371,43 @@ def register_views_batch_jobs(
         signer.verify_job_item(signature=secure_key, job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
         return _get_job_result_item(job_id, item_id, user_id)
 
+    @api_endpoint
+    @blueprint.route('/jobs/<job_id>/results/items11/<user_base64>/<secure_key>/<item_id>', methods=['GET'])
+    def get_job_result_item11_signed(job_id, user_base64, secure_key, item_id):
+        expires = request.args.get('expires')
+        signer = get_backend_config().url_signer
+        user_id = user_id_b64_decode(user_base64)
+        signer.verify_job_item(signature=secure_key, job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
+        return _get_job_result_item11(job_id, item_id, user_id)
+
     @api_endpoint(version=ComparableVersion("1.1.0").or_higher)
     @blueprint.route('/jobs/<job_id>/results/items/<item_id>', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def get_job_result_item(job_id: str, item_id: str, user: User) -> flask.Response:
         return _get_job_result_item(job_id, item_id, user.user_id)
+
+    @api_endpoint(version=ComparableVersion("1.1.0").or_higher)
+    @blueprint.route('/jobs/<job_id>/results/items11/<item_id>', methods=['GET'])
+    @auth_handler.requires_bearer_auth
+    def get_job_result_item11(job_id: str, item_id: str, user: User) -> flask.Response:
+        return _get_job_result_item11(job_id, item_id, user.user_id)
+
+    def _get_job_result_item11(job_id, item_id, user_id):
+        if item_id == DriverMlModel.METADATA_FILE_NAME:
+            return _download_ml_model_metadata(job_id, item_id, user_id)
+
+        metadata = backend_implementation.batch_jobs.get_result_metadata(
+            job_id=job_id, user_id=user_id
+        )
+
+        if item_id not in metadata.items:
+            raise OpenEOApiException("Item with id {item_id!r} not found in job {job_id!r}".format(item_id=item_id, job_id=job_id))
+        item_metadata = metadata.items.get(item_id,None)
+
+        resp = jsonify(item_metadata)
+        resp.mimetype = stac_item_media_type
+        return resp
+
 
     def _get_job_result_item(job_id, item_id, user_id):
         if item_id == DriverMlModel.METADATA_FILE_NAME:
