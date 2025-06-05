@@ -442,6 +442,7 @@ class BatchJobMetadata(NamedTuple):
 class BatchJobResultMetadata:
     # Basic dataclass based wrapper for batch job result metadata (allows cleaner code navigation and discovery)
     assets: Dict[str, dict] = dataclasses.field(default_factory=dict)
+    items: Dict[str, dict] = dataclasses.field(default_factory=dict)
     links: List[dict] = dataclasses.field(default_factory=list)
     providers: List[dict] = dataclasses.field(default_factory=list)
     # TODO: more fields
