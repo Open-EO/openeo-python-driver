@@ -63,6 +63,9 @@ class DriverDataCube:
             metadata = CollectionMetadata(metadata=metadata)
         self.metadata: CubeMetadata = metadata or CubeMetadata()
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(metadata={self.metadata!r})"
+
     def __eq__(self, o: object) -> bool:
         if o.__class__ == self.__class__:
             if o.metadata == self.metadata:
