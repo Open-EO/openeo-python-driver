@@ -21,6 +21,7 @@ from openeo_driver.jobregistry import (
     EjrApiResponseError,
     EjrError,
     ElasticJobRegistry,
+    ejr_job_info_to_metadata,
     get_ejr_credentials_from_env,
 )
 from openeo_driver.testing import (
@@ -96,6 +97,17 @@ def test_get_partial_job_status():
     assert PARTIAL_JOB_STATUS.for_job_status(JOB_STATUS.FINISHED) == 'finished'
     assert PARTIAL_JOB_STATUS.for_job_status(JOB_STATUS.ERROR) == 'error'
     assert PARTIAL_JOB_STATUS.for_job_status(JOB_STATUS.CANCELED) == 'canceled'
+
+
+def test_ejr_job_info_to_metadata():
+    job_info = {
+        "job_id": "j-123",
+        "status": "running",
+        "results_metadata_uri": "s3://bucket/path/to/job_metadata.json",
+    }
+
+    metadata = ejr_job_info_to_metadata(job_info)
+    assert metadata.results_metadata_uri == "s3://bucket/path/to/job_metadata.json"
 
 
 class TestElasticJobRegistry:
