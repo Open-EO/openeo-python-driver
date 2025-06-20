@@ -146,6 +146,11 @@ class JobRegistryInterface:
     ) -> None:
         raise NotImplementedError
 
+    def set_results_metadata_uri(
+        self, job_id: str, *, user_id: Optional[str] = None, results_metadata_uri: str
+    ) -> None:
+        raise NotImplementedError
+
     def list_user_jobs(
         self,
         user_id: str,
@@ -227,6 +232,7 @@ def ejr_job_info_to_metadata(job_info: JobDict, full: bool = True) -> BatchJobMe
         costs=job_info.get("costs"),
         proj_shape=get_results_metadata("proj:shape"),
         proj_bbox=get_results_metadata("proj:bbox"),
+        results_metadata_uri=job_info.get("results_metadata_uri"),
     )
 
 
@@ -609,6 +615,11 @@ class ElasticJobRegistry(JobRegistryInterface):
 
     def set_application_id(self, job_id: str, *, user_id: Optional[str] = None, application_id: str) -> None:
         self._update(job_id=job_id, data={"application_id": application_id})
+
+    def set_results_metadata_uri(
+        self, job_id: str, *, user_id: Optional[str] = None, results_metadata_uri: str
+    ) -> None:
+        self._update(job_id=job_id, data={"results_metadata_uri": results_metadata_uri})
 
     def _search(self, query: dict, fields: Optional[List[str]] = None) -> List[JobDict]:
         # TODO: sorting, pagination?
