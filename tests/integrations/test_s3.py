@@ -1,8 +1,13 @@
+import boto3
+from botocore.exceptions import ParamValidationError
+
 from openeo_driver.integrations.s3.client import S3ClientBuilder
 import pytest
 
 from openeo_driver.integrations.s3.credentials import get_credentials
+from urllib import parse
 
+from openeo_driver.integrations.s3.presigned_url import create_presigned_url
 
 # Without protocol because legacy eodata config did not have protocol in endpoint
 eodata_test_endpoint = "eodata.oeo.test"
@@ -163,3 +168,37 @@ def test_exception_when_not_having_legacy_config_and_unsupported_region(
 ):
     with pytest.raises(EnvironmentError):
         S3ClientBuilder.from_region("eu-faketest-central")
+
+
+@pytest.fixture(scope="function")
+def aws_credentials(monkeypatch):
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+    monkeypatch.setenv("AWS_SESSION_TOKEN", "testing")
+
+
+def test_presigning_get_object_with_custom_parameter(aws_credentials):
+    # GIVEN a supported custom parameter with any value
+    test_key = "X-Proxy-Head-As-Get"
+    test_value = "true"
+    # GIVEN an S3 client
+    s3 = boto3.client("s3")
+    # WHEN we generate a presigned url requesting extra parameters
+
+    u = create_presigned_url(s3, "test-bucket", "test_object", parameters={test_key: test_value})
+    # THEN the value is passed in the url
+    u_qs = parse.parse_qs(parse.urlsplit(u).query)
+    assert u_qs[test_key] == [test_value]
+
+
+def test_presigning_get_object_with_unsupported_custom_parameter(aws_credentials):
+    # GIVEN an unsupported custom parameter with any value
+    test_key = "unsupported-test"
+    test_value = "value123-"
+    # GIVEN an S3 client
+    s3 = boto3.client("s3")
+    # WHEN we generate a presigned url requesting extra parameters
+
+    # THEN parameter validation should fail
+    with pytest.raises(ParamValidationError):
+        create_presigned_url(s3, "test-bucket", "test_object", parameters={test_key: test_value})
