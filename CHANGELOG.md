@@ -23,7 +23,7 @@ and start a new "In Progress" section above it.
 
 - Have `integrations.s3` for interaction with Object Storage that follows the S3 API.
 - `ElasticJobRegistry`: add support for pre-serialization of process graph ([Open-EO/openeo-geopyspark-driver#1232](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1232))
-- Support `results_metadata_uri` in batch job entity ([[Open-EO/openeo-geopyspark-driver#1255](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1255)])
+- Support persisting results metadata URI in job registry ([Open-EO/openeo-geopyspark-driver#1255](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1255))
 
 ## 0.134.0
 

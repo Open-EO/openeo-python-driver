@@ -355,7 +355,6 @@ class BatchJobMetadata(NamedTuple):
     # TODO #190 the STAC projection extension fields "proj:..." are not batch job metadata, but batch job *result* metadata:
     proj_shape: Optional[List[int]] = None
     proj_bbox: Optional[List[int]] = None
-    results_metadata_uri: Optional[str] = None
 
     @property
     def duration(self) -> Union[timedelta, None]:

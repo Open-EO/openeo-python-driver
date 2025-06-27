@@ -107,7 +107,7 @@ def test_ejr_job_info_to_metadata():
     }
 
     metadata = ejr_job_info_to_metadata(job_info)
-    assert metadata.results_metadata_uri == "s3://bucket/path/to/job_metadata.json"
+    assert metadata.status == JOB_STATUS.RUNNING
 
 
 class TestElasticJobRegistry:

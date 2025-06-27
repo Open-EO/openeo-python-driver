@@ -232,7 +232,6 @@ def ejr_job_info_to_metadata(job_info: JobDict, full: bool = True) -> BatchJobMe
         costs=job_info.get("costs"),
         proj_shape=get_results_metadata("proj:shape"),
         proj_bbox=get_results_metadata("proj:bbox"),
-        results_metadata_uri=job_info.get("results_metadata_uri"),
     )
 
 
