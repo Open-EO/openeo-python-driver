@@ -294,9 +294,9 @@ class CollectionCatalog(AbstractCollectionCatalog):
         Full metadata for a specific dataset
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-collection
         """
-        try:
+        if collection_id in self._catalog:
             return self._catalog[collection_id]
-        except KeyError:
+        else:
             raise CollectionNotFoundException(collection_id)
 
     def load_collection(self, collection_id: str, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
