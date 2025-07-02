@@ -90,29 +90,37 @@ class DiskWorkspace(Workspace):
 
                 return CustomLayoutStrategy(collection_func=collection_func, item_func=item_func)
 
-            def replace_asset_href(asset_key: str, asset: Asset) -> Asset:
+            def replace_asset_href(asset_key: str, asset: Asset, collection_href:str) -> Asset:
                 if urlparse(asset.href).scheme not in ["", "file"]:  # TODO: convenient place; move elsewhere?
                     raise NotImplementedError(f"only importing files on disk is supported, found: {asset.href}")
 
                 # TODO: crummy way to export assets after STAC Collection has been written to disk with new asset hrefs;
                 #  it ends up in the asset metadata on disk
-                asset.extra_fields["_original_absolute_href"] = asset.get_absolute_href()
-                asset.href = Path(asset_key).name  # asset key matches the asset filename, becomes the relative path
+                asset_href = asset.get_absolute_href()
+                asset.extra_fields["_original_absolute_href"] = asset_href
+                if asset_href.startswith("s3"):
+                    asset.href = Path(asset_href).name
+                else:
+                    common_path = os.path.commonpath([asset_href,collection_href])
+                    asset.href = os.path.relpath(asset_href,common_path)
                 return asset
 
+            collection_href = new_collection.get_self_href()
             if not existing_collection:
                 new_collection.normalize_hrefs(root_href=str(target.parent), strategy=href_layout_strategy())
-                new_collection = new_collection.map_assets(replace_asset_href)
+                new_collection = new_collection.map_assets(lambda k,v: replace_asset_href(k,v,collection_href))
                 new_collection.save(CatalogType.SELF_CONTAINED)
 
                 for new_item in new_collection.get_items():
                     for asset in new_item.get_assets().values():
+                        asset_path = Path(new_item.get_self_href()).parent / Path(asset.href).parent
+                        asset_path.mkdir(parents=True)
                         file_operation(
-                            asset.extra_fields["_original_absolute_href"], str(Path(new_item.get_self_href()).parent)
+                            asset.extra_fields["_original_absolute_href"], str(asset_path)
                         )
             else:
                 merged_collection = _merge_collection_metadata(existing_collection, new_collection)
-                new_collection = new_collection.map_assets(replace_asset_href)
+                new_collection = new_collection.map_assets(lambda k,v: replace_asset_href(k,v,collection_href))
 
                 for new_item in new_collection.get_items():
                     new_item.clear_links()  # sever ties with previous collection
@@ -123,13 +131,15 @@ class DiskWorkspace(Workspace):
 
                 for new_item in new_collection.get_items():
                     for asset in new_item.get_assets().values():
+                        asset_path = Path(new_item.get_self_href()).parent / Path(asset.href).parent
+                        asset_path.mkdir(parents=True)
                         file_operation(
-                            asset.extra_fields["_original_absolute_href"], Path(new_item.get_self_href()).parent
+                            asset.extra_fields["_original_absolute_href"], str(asset_path)
                         )
 
             for item in new_collection.get_items():
                 for asset in item.assets.values():
-                    workspace_uri = f"file:{Path(item.get_self_href()).parent / Path(asset.href).name}"
+                    workspace_uri = f"file:{Path(item.get_self_href()).parent / asset.href}"
                     asset.extra_fields["alternate"] = {"file": workspace_uri}
 
             return new_collection

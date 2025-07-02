@@ -67,7 +67,7 @@ def test_merge_from_disk_new(tmp_path):
         for asset_key, asset in item.get_assets().items()
     }
     assert asset_workspace_uris == {
-        "asset.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'collection.json_items' / 'asset.tif'}"
+        "asset.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'collection.json_items' / 'asset.tif' / 'asset.tif'}"
     }
 
     # load it again
@@ -81,7 +81,8 @@ def test_merge_from_disk_new(tmp_path):
 
     for item in exported_collection.get_items():
         for asset in item.get_assets().values():
-            assert Path(item.get_self_href()).parent == Path(asset.get_absolute_href()).parent
+            item_path_parts = Path(item.get_self_href()).parent.parts
+            assert item_path_parts == Path(asset.get_absolute_href()).parts[0:len(item_path_parts)]
 
 
 def test_merge_from_disk_into_existing(tmp_path):
@@ -115,7 +116,7 @@ def test_merge_from_disk_into_existing(tmp_path):
         for asset_key, asset in item.get_assets().items()
     }
     assert asset_workspace_uris == {
-        "asset2.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'collection.json_items' / 'asset2.tif'}",
+        "asset2.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'collection.json_items'/ 'asset2.tif' / 'asset2.tif'}",
     }
 
     # load it again
@@ -143,7 +144,8 @@ def test_merge_from_disk_into_existing(tmp_path):
 
     for item in exported_collection.get_items():
         for asset in item.get_assets().values():
-            assert Path(item.get_self_href()).parent == Path(asset.get_absolute_href()).parent
+            item_path_parts = Path(item.get_self_href()).parent.parts
+            assert item_path_parts == Path(asset.get_absolute_href()).parts[0:len(item_path_parts)]
 
 
 def test_adjacent_collections_do_not_have_interfering_items_and_assets(tmp_path):
