@@ -218,6 +218,9 @@ def _collection(
         extent=Extent(spatial_extent, temporal_extent),
     )
 
+    # note: filepath_per_band behavior is tested in e.g. openeo-geopyspark-driver's
+    # test_batch_result.test_export_workspace_merge_filepath_per_band
+
     item = Item(id=asset_filename, geometry=None, bbox=None, datetime=now_utc(), properties={})
 
     asset_path = root_path / item.id / asset_filename
