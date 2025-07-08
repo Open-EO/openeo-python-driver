@@ -66,8 +66,8 @@ def test_merge_from_disk_new(tmp_path):
 
     assert _paths_relative_to(workspace_dir) == {
         Path("collection.json"),
+        Path("collection.json_items") / "ASSET.TIF.json",
         Path("collection.json_items") / "asset.tif",
-        Path("collection.json_items") / "asset.tif.json",
     }
 
     assert isinstance(imported_collection, Collection)
@@ -77,7 +77,7 @@ def test_merge_from_disk_new(tmp_path):
         for asset_key, asset in item.get_assets().items()
     }
     assert asset_workspace_uris == {
-        "asset.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'collection.json_items' / 'asset.tif' / 'asset.tif'}"
+        "asset.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'collection.json_items' / 'asset.tif'}"
     }
 
     # load it again
@@ -90,8 +90,7 @@ def test_merge_from_disk_new(tmp_path):
 
     for item in exported_collection.get_items():
         for asset in item.get_assets().values():
-            item_path_parts = Path(item.get_self_href()).parent.parts
-            assert item_path_parts == Path(asset.get_absolute_href()).parts[0:len(item_path_parts)]
+            assert Path(item.get_self_href()).parent == Path(asset.get_absolute_href()).parent
 
 
 def test_merge_from_disk_into_existing(tmp_path):
@@ -122,9 +121,9 @@ def test_merge_from_disk_into_existing(tmp_path):
     assert _paths_relative_to(workspace_dir) == {
         Path("collection.json"),
         Path("collection.json_items") / "asset1.tif",
-        Path("collection.json_items") / "asset1.tif.json",
+        Path("collection.json_items") / "ASSET1.TIF.json",
         Path("collection.json_items") / "asset2.tif",
-        Path("collection.json_items") / "asset2.tif.json",
+        Path("collection.json_items") / "ASSET2.TIF.json",
     }
 
     assert isinstance(imported_collection, Collection)
@@ -134,7 +133,7 @@ def test_merge_from_disk_into_existing(tmp_path):
         for asset_key, asset in item.get_assets().items()
     }
     assert asset_workspace_uris == {
-        "asset2.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'collection.json_items'/ 'asset2.tif' / 'asset2.tif'}",
+        "asset2.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'collection.json_items' / 'asset2.tif'}",
     }
 
     # load it again
@@ -161,8 +160,7 @@ def test_merge_from_disk_into_existing(tmp_path):
 
     for item in exported_collection.get_items():
         for asset in item.get_assets().values():
-            item_path_parts = Path(item.get_self_href()).parent.parts
-            assert item_path_parts == Path(asset.get_absolute_href()).parts[0:len(item_path_parts)]
+            assert Path(item.get_self_href()).parent == Path(asset.get_absolute_href()).parent
 
 
 def test_adjacent_collections_do_not_have_interfering_items_and_assets(tmp_path):
@@ -193,18 +191,18 @@ def test_adjacent_collections_do_not_have_interfering_items_and_assets(tmp_path)
             return f.read()
 
     workspace.merge(collection1, target=Path("collection1.json"))
-    assert asset_contents(collection_filename="collection1.json") == "collection1-asset1.tif-asset1.tif\n"
+    assert asset_contents(collection_filename="collection1.json") == "collection1-ASSET1.TIF-asset1.tif\n"
 
     # put collection2 next to collection1
     workspace.merge(collection2, target=Path("collection2.json"))
-    assert asset_contents(collection_filename="collection2.json") == "collection2-asset1.tif-asset1.tif\n"
+    assert asset_contents(collection_filename="collection2.json") == "collection2-ASSET1.TIF-asset1.tif\n"
 
     # separate collection files
     assert (workspace.root_directory / "collection1.json").exists()
     assert (workspace.root_directory / "collection2.json").exists()
 
     # collection2 should not overwrite collection1's items/assets
-    assert asset_contents(collection_filename="collection1.json") == "collection1-asset1.tif-asset1.tif\n"
+    assert asset_contents(collection_filename="collection1.json") == "collection1-ASSET1.TIF-asset1.tif\n"
 
 
 def _collection(
@@ -223,10 +221,13 @@ def _collection(
     # note: filepath_per_band behavior is tested in e.g. openeo-geopyspark-driver's
     # test_batch_result.test_export_workspace_merge_filepath_per_band
 
-    item = Item(id=asset_filename, geometry=None, bbox=None, datetime=now_utc(), properties={})
+    item_id = asset_filename.upper()  # different from asset_filename: unique yet predictable for the tests
+    item = Item(id=item_id, geometry=None, bbox=None, datetime=now_utc(), properties={})
 
-    asset_path = root_path / item.id / asset_filename
-    asset = Asset(href=asset_path.name)  # relative to item
+    # TODO: implementation assumes that relative asset path is a sibling of the collection file so this setup mirrors
+    #  that; is it possible to assert this or even avoid entirely?
+    asset_path = root_path / asset_filename
+    asset = Asset(href=str(asset_path.absolute()))
 
     item.add_asset(key=asset_filename, asset=asset)
     collection.add_item(item)
