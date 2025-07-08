@@ -452,9 +452,13 @@ class ProcessArgs(dict):
             if not isinstance(value, expected_type):
                 if expected_type is DriverDataCube:
                     expected_type = "raster cube"
-                raise ProcessParameterInvalidException(
-                    parameter=name, process=self.process_id, reason=f"Expected {expected_type} but got {type(value)}."
-                )
+                # ints can mostly be considered as floats. (Except for very high numbers)
+                if not (expected_type == float and isinstance(value, int)):
+                    raise ProcessParameterInvalidException(
+                        parameter=name,
+                        process=self.process_id,
+                        reason=f"Expected {expected_type} but got {type(value)}.",
+                    )
         if validator:
             reason = None
             try:
