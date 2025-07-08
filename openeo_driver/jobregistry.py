@@ -17,8 +17,7 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 
 import requests
 import reretry
-from deprecated.classic import deprecated
-from openeo.util import TimingLogger, repr_truncate, rfc3339, url_join
+from openeo.util import TimingLogger, dict_no_none, repr_truncate, rfc3339, url_join
 
 import openeo_driver._version
 from openeo_driver.backend import BatchJobMetadata, JobListing
@@ -140,9 +139,9 @@ class JobRegistryInterface:
         job_id: str,
         *,
         user_id: Optional[str] = None,
+        results_metadata: Dict[str, Any] = None,
         costs: Optional[float],
         usage: dict,
-        results_metadata: Dict[str, Any],
     ) -> None:
         raise NotImplementedError
 
@@ -755,17 +754,19 @@ class ElasticJobRegistry(JobRegistryInterface):
         job_id: str,
         *,
         user_id: Optional[str] = None,
+        results_metadata: Dict[str, Any] = None,
         costs: Optional[float],
         usage: dict,
-        results_metadata: Dict[str, Any],
     ) -> None:
         self._update(
             job_id=job_id,
-            data={
-                "costs": costs,
-                "usage": usage,
-                "results_metadata": results_metadata,
-            },
+            data=dict_no_none(
+                {
+                    "costs": costs,
+                    "usage": usage,
+                    "results_metadata": results_metadata,
+                }
+            ),
         )
 
 
