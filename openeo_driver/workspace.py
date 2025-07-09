@@ -86,33 +86,41 @@ class DiskWorkspace(Workspace):
                 def item_func(item: Item, parent_dir: str) -> str:
                     # prevent items/assets of 2 adjacent Collection documents from interfering with each other:
                     # unlike an object storage object, a Collection file cannot act as a parent "directory" as well
-                    return f"{parent_dir}/{target.name}_items/{item.id}.json"
+                    unique_item_filename = item.id.replace('/', '_')
+                    return f"{parent_dir}/{target.name}_items/{unique_item_filename}.json"  # !!! can be a relative_asset_path but does not have to be; always put item JSON in root of "_items" subdirectory
 
                 return CustomLayoutStrategy(collection_func=collection_func, item_func=item_func)
 
-            def replace_asset_href(asset_key: str, asset: Asset) -> Asset:
+            def replace_asset_href(asset: Asset, collection: Path) -> Asset:
                 if urlparse(asset.href).scheme not in ["", "file"]:  # TODO: convenient place; move elsewhere?
                     raise NotImplementedError(f"only importing files on disk is supported, found: {asset.href}")
 
                 # TODO: crummy way to export assets after STAC Collection has been written to disk with new asset hrefs;
                 #  it ends up in the asset metadata on disk
                 asset.extra_fields["_original_absolute_href"] = asset.get_absolute_href()
-                asset.href = Path(asset_key).name  # asset key matches the asset filename, becomes the relative path
+                relative_asset_path = os.path.relpath(asset.get_absolute_href(), collection.parent)
+                asset.href = relative_asset_path  # !!! do not assume asset ends up next to item
                 return asset
 
             if not existing_collection:
+                collection_path = Path(new_collection.get_self_href())
                 new_collection.normalize_hrefs(root_href=str(target.parent), strategy=href_layout_strategy())
-                new_collection = new_collection.map_assets(replace_asset_href)
+                new_collection = new_collection.map_assets(lambda _, asset: replace_asset_href(asset, collection_path))
                 new_collection.save(CatalogType.SELF_CONTAINED)
 
                 for new_item in new_collection.get_items():
                     for asset in new_item.get_assets().values():
+                        # !!! needs an mkdir because the asset might not end up next to the item
+                        relative_asset_path = asset.href
+                        asset_parent_dir = (Path(new_collection.get_self_href()).parent / f"{target.name}_items" / relative_asset_path).parent
+                        os.makedirs(asset_parent_dir, exist_ok=True)
                         file_operation(
-                            asset.extra_fields["_original_absolute_href"], str(Path(new_item.get_self_href()).parent)
+                            asset.extra_fields["_original_absolute_href"], str(asset_parent_dir)  # !!! do not assume asset ends up next to item
                         )
             else:
+                collection_path = Path(new_collection.get_self_href())
                 merged_collection = _merge_collection_metadata(existing_collection, new_collection)
-                new_collection = new_collection.map_assets(replace_asset_href)
+                new_collection = new_collection.map_assets(lambda _, asset: replace_asset_href(asset, collection_path))
 
                 for new_item in new_collection.get_items():
                     new_item.clear_links()  # sever ties with previous collection
@@ -123,6 +131,10 @@ class DiskWorkspace(Workspace):
 
                 for new_item in new_collection.get_items():
                     for asset in new_item.get_assets().values():
+                        relative_asset_path = asset.href
+                        asset_parent_dir = (Path(
+                            new_collection.get_self_href()).parent / f"{target.name}_items" / relative_asset_path).parent
+                        os.makedirs(asset_parent_dir, exist_ok=True)
                         file_operation(
                             asset.extra_fields["_original_absolute_href"], Path(new_item.get_self_href()).parent
                         )
