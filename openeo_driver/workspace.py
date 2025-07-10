@@ -98,9 +98,9 @@ class DiskWorkspace(Workspace):
                 if asset_uri_parts.scheme not in ["", "file"]:  # TODO: convenient place; move elsewhere?
                     raise NotImplementedError(f"only importing files on disk is supported, found: {asset.href}")
 
+                absolute_asset_path = Path(asset_uri_parts.path)
                 # TODO: crummy way to export assets after STAC Collection has been written to disk with new asset hrefs;
                 #  it ends up in the asset metadata on disk
-                absolute_asset_path = Path(asset_uri_parts.path)
                 asset.extra_fields["_original_absolute_path"] = str(absolute_asset_path)
                 relative_asset_path = absolute_asset_path.relative_to(src_collection_path.parent)
                 asset.href = str(relative_asset_path)  # relative to item document
