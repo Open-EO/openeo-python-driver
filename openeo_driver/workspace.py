@@ -118,7 +118,9 @@ class DiskWorkspace(Workspace):
                 for new_item in new_collection.get_items():
                     for asset in new_item.get_assets().values():
                         relative_asset_path = asset.href
-                        asset_parent_dir = (Path(new_collection.get_self_href()).parent / f"{target.name}_items" / relative_asset_path).parent
+                        asset_parent_dir = (
+                            Path(new_collection.get_self_href()).parent / f"{target.name}_items" / relative_asset_path
+                        ).parent
                         asset_parent_dir.mkdir(parents=True, exist_ok=True)  # asset might not end up next to item
                         file_operation(asset.extra_fields["_original_absolute_path"], str(asset_parent_dir))
             else:
@@ -137,7 +139,11 @@ class DiskWorkspace(Workspace):
                 for new_item in new_collection.get_items():
                     for asset in new_item.get_assets().values():
                         relative_asset_path = asset.href
-                        asset_parent_dir = (Path(merged_collection.get_self_href()).parent / f"{target.name}_items" / relative_asset_path).parent
+                        asset_parent_dir = (
+                            Path(merged_collection.get_self_href()).parent
+                            / f"{target.name}_items"
+                            / relative_asset_path
+                        ).parent
                         asset_parent_dir.mkdir(parents=True, exist_ok=True)
                         file_operation(asset.extra_fields["_original_absolute_path"], str(asset_parent_dir))
 
