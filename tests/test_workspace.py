@@ -224,8 +224,8 @@ def _collection(
     item_id = asset_filename.upper()  # different from asset_filename: unique yet predicatable for the tests
     item = Item(id=item_id, geometry=None, bbox=None, datetime=now_utc(), properties={})
 
-    # TODO: implementation assumes that relative asset path is a sibling of the collection file;
-    #  is it possible to assert this or even avoid entirely?
+    # TODO: implementation assumes that relative asset path is a sibling of the collection file so this setup mirrors
+    #  that; is it possible to assert this or even avoid entirely?
     asset_path = root_path / asset_filename
     asset = Asset(href=str(asset_path.absolute()))
 
