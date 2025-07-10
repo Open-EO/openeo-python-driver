@@ -132,11 +132,10 @@ class DiskWorkspace(Workspace):
                 for new_item in new_collection.get_items():
                     for asset in new_item.get_assets().values():
                         relative_asset_path = asset.href
-                        asset_parent_dir = (Path(
-                            new_collection.get_self_href()).parent / f"{target.name}_items" / relative_asset_path).parent
+                        asset_parent_dir = (Path(merged_collection.get_self_href()).parent / f"{target.name}_items" / relative_asset_path).parent
                         os.makedirs(asset_parent_dir, exist_ok=True)
                         file_operation(
-                            asset.extra_fields["_original_absolute_href"], Path(new_item.get_self_href()).parent
+                            asset.extra_fields["_original_absolute_href"], str(asset_parent_dir)
                         )
 
             for item in new_collection.get_items():
