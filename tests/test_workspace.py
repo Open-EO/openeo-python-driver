@@ -221,7 +221,7 @@ def _collection(
     # note: filepath_per_band behavior is tested in e.g. openeo-geopyspark-driver's
     # test_batch_result.test_export_workspace_merge_filepath_per_band
 
-    item_id = asset_filename.upper()  # different from asset_filename: unique yet predicatable for the tests
+    item_id = asset_filename.upper()  # different from asset_filename: unique yet predictable for the tests
     item = Item(id=item_id, geometry=None, bbox=None, datetime=now_utc(), properties={})
 
     # TODO: implementation assumes that relative asset path is a sibling of the collection file so this setup mirrors
