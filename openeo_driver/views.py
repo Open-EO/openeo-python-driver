@@ -1034,7 +1034,6 @@ def register_views_batch_jobs(
         partial = str(request.args.get("partial")).lower() in {"true", "1"}
         return _list_job_results(job_id, user.user_id, partial=partial)
 
-    @api_endpoint
     @blueprint.route('/jobs/<job_id>/results/<user_base64>/<secure_key>', methods=['GET'])
     def list_job_results_signed(job_id, user_base64, secure_key):
         expires = request.args.get('expires')
@@ -1350,7 +1349,6 @@ def register_views_batch_jobs(
 
             raise
 
-    @api_endpoint
     @blueprint.route('/jobs/<job_id>/results/items/<user_base64>/<secure_key>/<item_id>', methods=['GET'])
     def get_job_result_item_signed(job_id, user_base64, secure_key, item_id):
         expires = request.args.get('expires')
@@ -1359,7 +1357,6 @@ def register_views_batch_jobs(
         signer.verify_job_item(signature=secure_key, job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
         return _get_job_result_item(job_id, item_id, user_id)
 
-    @api_endpoint(version=ComparableVersion("1.1.0").or_higher)
     @blueprint.route('/jobs/<job_id>/results/items/<item_id>', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def get_job_result_item(job_id: str, item_id: str, user: User) -> flask.Response:
@@ -1565,13 +1562,11 @@ def register_views_batch_jobs(
 
         return result_dict
 
-    @api_endpoint
     @blueprint.route("/jobs/<job_id>/results/assets/<path:filename>", methods=["GET"])
     @auth_handler.requires_bearer_auth
     def download_job_result(job_id, filename, user: User):
         return _download_job_result(job_id=job_id, filename=filename, user_id=user.user_id)
 
-    @api_endpoint
     @blueprint.route("/jobs/<job_id>/results/assets/<user_base64>/<secure_key>/<path:filename>", methods=["GET"])
     def download_job_result_signed(job_id, user_base64, secure_key, filename):
         expires = request.args.get('expires')

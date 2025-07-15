@@ -1,7 +1,9 @@
 import datetime as dt
+import os
 import shutil
 import tempfile
 from pathlib import Path
+from typing import Set
 
 from pystac import Asset, Collection, Extent, Item, SpatialExtent, TemporalExtent, CatalogType, Link, RelType
 import pytest
@@ -60,6 +62,14 @@ def test_merge_from_disk_new(tmp_path):
     workspace = DiskWorkspace(root_directory=tmp_path)
     imported_collection = workspace.merge(stac_resource=new_collection, target=target)
 
+    workspace_dir = (workspace.root_directory / target).parent
+
+    assert _paths_relative_to(workspace_dir) == {
+        Path("collection.json"),
+        Path("collection.json_items") / "ASSET.TIF.json",
+        Path("collection.json_items") / "asset.tif",
+    }
+
     assert isinstance(imported_collection, Collection)
     asset_workspace_uris = {
         asset_key: asset.extra_fields["alternate"]["file"]
@@ -71,7 +81,6 @@ def test_merge_from_disk_new(tmp_path):
     }
 
     # load it again
-    workspace_dir = (workspace.root_directory / target).parent
     exported_collection = Collection.from_file(str(workspace_dir / "collection.json"))
     assert exported_collection.validate_all() == 1
     assert _downloadable_assets(exported_collection) == 1
@@ -108,6 +117,15 @@ def test_merge_from_disk_into_existing(tmp_path):
     workspace.merge(stac_resource=existing_collection, target=target)
     imported_collection = workspace.merge(stac_resource=new_collection, target=target)
 
+    workspace_dir = (workspace.root_directory / target).parent
+    assert _paths_relative_to(workspace_dir) == {
+        Path("collection.json"),
+        Path("collection.json_items") / "asset1.tif",
+        Path("collection.json_items") / "ASSET1.TIF.json",
+        Path("collection.json_items") / "asset2.tif",
+        Path("collection.json_items") / "ASSET2.TIF.json",
+    }
+
     assert isinstance(imported_collection, Collection)
     asset_workspace_uris = {
         asset_key: asset.extra_fields["alternate"]["file"]
@@ -119,7 +137,6 @@ def test_merge_from_disk_into_existing(tmp_path):
     }
 
     # load it again
-    workspace_dir = (workspace.root_directory / target).parent
     exported_collection = Collection.from_file(str(workspace_dir / "collection.json"))
     assert exported_collection.validate_all() == 2
     assert _downloadable_assets(exported_collection) == 2
@@ -174,18 +191,18 @@ def test_adjacent_collections_do_not_have_interfering_items_and_assets(tmp_path)
             return f.read()
 
     workspace.merge(collection1, target=Path("collection1.json"))
-    assert asset_contents(collection_filename="collection1.json") == "collection1-asset1.tif-asset1.tif\n"
+    assert asset_contents(collection_filename="collection1.json") == "collection1-ASSET1.TIF-asset1.tif\n"
 
     # put collection2 next to collection1
     workspace.merge(collection2, target=Path("collection2.json"))
-    assert asset_contents(collection_filename="collection2.json") == "collection2-asset1.tif-asset1.tif\n"
+    assert asset_contents(collection_filename="collection2.json") == "collection2-ASSET1.TIF-asset1.tif\n"
 
     # separate collection files
     assert (workspace.root_directory / "collection1.json").exists()
     assert (workspace.root_directory / "collection2.json").exists()
 
     # collection2 should not overwrite collection1's items/assets
-    assert asset_contents(collection_filename="collection1.json") == "collection1-asset1.tif-asset1.tif\n"
+    assert asset_contents(collection_filename="collection1.json") == "collection1-ASSET1.TIF-asset1.tif\n"
 
 
 def _collection(
@@ -201,10 +218,16 @@ def _collection(
         extent=Extent(spatial_extent, temporal_extent),
     )
 
-    item = Item(id=asset_filename, geometry=None, bbox=None, datetime=now_utc(), properties={})
+    # note: filepath_per_band behavior is tested in e.g. openeo-geopyspark-driver's
+    # test_batch_result.test_export_workspace_merge_filepath_per_band
 
-    asset_path = root_path / item.id / asset_filename
-    asset = Asset(href=asset_path.name)  # relative to item
+    item_id = asset_filename.upper()  # different from asset_filename: unique yet predictable for the tests
+    item = Item(id=item_id, geometry=None, bbox=None, datetime=now_utc(), properties={})
+
+    # TODO: implementation assumes that relative asset path is a sibling of the collection file so this setup mirrors
+    #  that; is it possible to assert this or even avoid entirely?
+    asset_path = root_path / asset_filename
+    asset = Asset(href=str(asset_path.absolute()))
 
     item.add_asset(key=asset_filename, asset=asset)
     collection.add_item(item)
@@ -230,3 +253,11 @@ def _downloadable_assets(collection: Collection) -> int:
             shutil.copy(asset.get_absolute_href(), temp_file.name)  # "download" the asset without altering its href
 
     return len(assets)
+
+
+def _paths_relative_to(base: Path) -> Set[Path]:
+    return {
+        (Path(dirpath) / filename).relative_to(base)
+        for dirpath, dirnames, filenames in os.walk(base)
+        for filename in filenames
+    }
