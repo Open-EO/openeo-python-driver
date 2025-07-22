@@ -141,7 +141,7 @@ class JobRegistryInterface:
         user_id: Optional[str] = None,
         costs: Optional[float],
         usage: dict,
-        results_metadata: Dict[str, Any] = None,
+        results_metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
         raise NotImplementedError
 
@@ -756,7 +756,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         user_id: Optional[str] = None,
         costs: Optional[float],
         usage: dict,
-        results_metadata: Dict[str, Any] = None,
+        results_metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
         self._update(
             job_id=job_id,
