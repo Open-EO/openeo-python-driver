@@ -256,7 +256,9 @@ class EjrApiResponseError(EjrApiError):
     def from_response(cls, response: requests.Response) -> EjrApiResponseError:
         request = response.request
         return cls(
-            msg=f"Error communicating with batch job system, consider trying again. Details: {response.status_code} {response.reason!r} on `{request.method} {request.url!r}`: {response.text}",
+            msg=f"Error communicating with the openEO job database system."
+            + f" For transient errors it might be enough to retry."
+            + f" Details: {response.status_code} {response.reason!r} on `{request.method} {request.url}`: {response.text}",
             status_code=response.status_code,
         )
 
