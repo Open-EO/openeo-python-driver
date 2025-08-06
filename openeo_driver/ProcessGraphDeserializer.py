@@ -674,16 +674,16 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
                     else:
                         _log.warning("Not applying buffer to extent because the target CRS is not known.")
 
-                no_resampling = "resample" not in constraint or crs == collection_crs
-                if (not no_resampling) and collection_crs is not None and ("42001" in str(collection_crs)):
-                    #resampling auto utm to utm is still considered no resampling
+                load_collection_in_native_grid = "resample" not in constraint or crs == collection_crs
+                if (not load_collection_in_native_grid) and collection_crs is not None and ("42001" in str(collection_crs)):
+                    #resampling auto utm to utm means we are loading in native grid
                     try:
-                        no_resampling = "UTM zone" in CRS.from_user_input(crs).to_wkt()
+                        load_collection_in_native_grid = "UTM zone" in CRS.from_user_input(crs).to_wkt()
                     except CRSError as e:
                         pass
 
 
-                if  no_resampling:
+                if  load_collection_in_native_grid:
                     # Ensure that the extent that the user provided is aligned with the collection's native grid.
 
                     extent = _align_extent(extent, collection_id[1][0], env,target_resolution)
