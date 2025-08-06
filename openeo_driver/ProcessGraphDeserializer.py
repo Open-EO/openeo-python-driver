@@ -616,7 +616,7 @@ def _align_extent(extent,collection_id,env,target_resolution=None):
 
         return new_extent
     elif isUTM:
-        if collection_resolution[0] <= 20:
+        if collection_resolution[0] <= 20 and target_resolution[0] <= 20:
             bbox = BoundingBox.from_dict(extent, default_crs=4326)
             bbox_utm = bbox.reproject_to_best_utm()
 
