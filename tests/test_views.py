@@ -575,7 +575,7 @@ class TestGeneral:
     def test_processing_parameters(self, api100):
         response = api100.get('/processing_parameters')
         resp = response.assert_status_code(200).json
-        assert resp == []
+        assert resp == {}
         assert response.headers["Cache-Control"] == "max-age=900, public"
 
 
