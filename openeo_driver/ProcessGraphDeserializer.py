@@ -492,17 +492,17 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
             if caching_flag and "result_cache" in processGraph:
                 cached =  processGraph["result_cache"]
 
-            process_result = apply_process(process_id=process_id, args=processGraph.get('arguments', {}),
-                                           namespace=processGraph.get("namespace", None), env=env)
             if caching_flag:
                 if cached is not None:
-                    comparison = cached == process_result
-                    #numpy arrays have a custom eq that requires this weird check
-                    if isinstance(comparison,bool) and comparison:
-                        _log.info(f"Reusing an already evaluated subgraph for process {process_id}")
-                        return cached
+                    # No equality check anymore, so apply_process only needs to be called when needed
+                    _log.info(f"Reusing an already evaluated subgraph for process {process_id}")
+                    return cached
                 # TODO: this manipulates the process graph, while we often assume it's immutable.
                 #       Adding complex data structures could also interfere with attempts to (re)encode the process graph as JSON again.
+            process_result = apply_process(process_id=process_id, args=processGraph.get('arguments', {}),
+                                           namespace=processGraph.get("namespace", None), env=env)
+
+            if caching_flag:
                 processGraph["result_cache"] = process_result
 
             if processGraph.get("result", False) and ENV_FINAL_RESULT in env:
