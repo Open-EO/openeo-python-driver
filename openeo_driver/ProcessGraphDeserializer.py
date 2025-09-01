@@ -621,7 +621,9 @@ def _align_extent(extent,collection_id,env,target_resolution=None):
             bbox = BoundingBox.from_dict(extent, default_crs=4326)
             bbox_utm = bbox.reproject_to_best_utm()
 
-            new_extent = bbox_utm.round_to_resolution(target_resolution[0], target_resolution[1])
+            res = target_resolution if target_resolution[0] > 0 else collection_resolution
+
+            new_extent = bbox_utm.round_to_resolution(res[0], res[1])
 
             _log.info(f"Realigned input extent {extent} into {new_extent}")
             return new_extent.as_dict()
