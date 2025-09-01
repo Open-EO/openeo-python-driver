@@ -452,7 +452,8 @@ class DryRunDataTracer:
                         resolution = normalize_resample_resolution(args[0]["resolution"])
                         projection = args[0]["projection"]
                         method = args[0].get("method", "near")
-                        constraints["resample"] = {"target_crs": projection, "resolution": resolution, "method": method}
+                        if method != "geocode":
+                            constraints["resample"] = {"target_crs": projection, "resolution": resolution, "method": method}
 
             for op in [
                 "temporal_extent",
