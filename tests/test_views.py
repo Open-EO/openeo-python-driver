@@ -33,7 +33,7 @@ from openeo_driver.backend import (
 from openeo_driver.config import OpenEoBackendConfig
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.dummy import dummy_backend, dummy_config
-from openeo_driver.dummy.dummy_backend import DummyBackendImplementation, DummyProcessing
+from openeo_driver.dummy.dummy_backend import DummyBackendImplementation, DummyProcessing, DummyProcessRegistry
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
 from openeo_driver.processes import ProcessesListing
@@ -719,7 +719,7 @@ class TestProcessRegistry:
         ["dummy_processing", "expected"],
         [
             (
-                DummyProcessing(use_dummy_process_registry=["add"]),
+                DummyProcessing(process_registry=DummyProcessRegistry().with_specs_by_name(["add"])),
                 {
                     "processes": dirty_equals.IsList(length=1),
                     "flavor": "salt and pepper",
