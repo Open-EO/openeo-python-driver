@@ -155,8 +155,8 @@ class ProcessRegistry:
             # Health check: required fields for predefined processes
             assert all(k in spec for k in ['id', 'description', 'parameters', 'returns'])
             return spec
-        except Exception:
-            raise ProcessRegistryException("Failed to load predefined spec of process {n!r}".format(n=name))
+        except Exception as e:
+            raise ProcessRegistryException(f"Failed to load predefined spec of process {name!r}: {e}")
 
     def list_predefined_specs(self) -> Dict[str, Path]:
         """List all processes with a spec JSON file."""
