@@ -5,7 +5,7 @@ import unittest.mock
 import datetime
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 from unittest.mock import Mock
 
 import flask
@@ -42,7 +42,6 @@ from openeo_driver.backend import (
     CollectionCatalog,
     JobListing,
     LoadParameters,
-    OidcProvider,
     OpenEoBackendImplementation,
     Processing,
     SecondaryServices,

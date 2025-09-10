@@ -9,7 +9,7 @@ import textwrap
 from io import BytesIO
 from pathlib import Path
 from typing import Iterable, Optional
-from unittest import mock, skip
+from unittest import mock
 from zipfile import ZipFile
 import http.client
 
@@ -21,8 +21,7 @@ from pyproj import CRS
 
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs
-from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.dry_run import ProcessType, DryRunDataCube, DryRunDataTracer
+from openeo_driver.dry_run import ProcessType
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyVisitor
 from openeo_driver.errors import (
@@ -31,7 +30,6 @@ from openeo_driver.errors import (
 )
 from openeo_driver.processes import ProcessArgs, ProcessRegistry
 from openeo_driver.ProcessGraphDeserializer import (
-    custom_process,
     custom_process_from_process_graph,
     collect,
     ENV_DRY_RUN_TRACER,

@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Union, Sequence, Tuple, Any, Callable, Dict, Optional
+from typing import Union, Tuple, Any, Callable, Dict, Optional
 
 _log = logging.getLogger(__name__)
 

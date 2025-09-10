@@ -4,7 +4,7 @@ with some optional transformations.
 """
 
 import os
-from typing import Optional, Union, Callable, List, Mapping
+from typing import Optional, Union, Callable, List
 import attrs
 
 

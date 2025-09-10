@@ -5,7 +5,6 @@ import dirty_equals
 
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.errors import (
-    FileTypeInvalidException,
     OpenEOApiException,
     ProcessParameterInvalidException,
     ProcessParameterRequiredException,

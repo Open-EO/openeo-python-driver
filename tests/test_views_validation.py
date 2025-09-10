@@ -1,10 +1,7 @@
-from typing import List, Iterator
-from unittest import mock
 import pytest
 
-from openeo_driver.dry_run import SourceConstraint
 from openeo_driver.testing import ApiTester
-from .data import get_path, TEST_DATA_ROOT, load_json
+from .data import TEST_DATA_ROOT
 
 
 @pytest.fixture

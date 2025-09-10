@@ -1,4 +1,4 @@
-from openeo_driver.errors import OpenEOApiException, ProcessGraphInvalidException
+from openeo_driver.errors import ProcessGraphInvalidException
 from openeo_driver.processgraph import (
     get_process_definition_from_url,
     extract_default_job_options_from_process_graph,

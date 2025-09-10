@@ -36,7 +36,6 @@ from openeo_driver.dummy import dummy_backend, dummy_config
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation, DummyProcessing, DummyProcessRegistry
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
-from openeo_driver.processes import ProcessesListing
 from openeo_driver.integrations.s3.client import S3ClientBuilder
 from openeo_driver.save_result import VectorCubeResult
 from openeo_driver.testing import (

@@ -1,5 +1,4 @@
 import pandas as pd
-import geopandas as gpd
 import pytest
 from numpy import nan
 from shapely.geometry import GeometryCollection, Polygon

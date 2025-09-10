@@ -1,6 +1,5 @@
 import datetime
 import urllib.parse
-from unittest import mock
 
 import pytest
 from openeo.utils.version import ComparableVersion
