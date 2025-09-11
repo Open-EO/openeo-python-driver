@@ -5,7 +5,7 @@ import unittest.mock
 import datetime
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 from unittest.mock import Mock
 
 import flask
@@ -42,7 +42,6 @@ from openeo_driver.backend import (
     CollectionCatalog,
     JobListing,
     LoadParameters,
-    OidcProvider,
     OpenEoBackendImplementation,
     Processing,
     SecondaryServices,
@@ -65,7 +64,11 @@ from openeo_driver.errors import (
     ProcessGraphNotFoundException,
 )
 from openeo_driver.processes import ProcessRegistry, ProcessesListing
-from openeo_driver.ProcessGraphDeserializer import ConcreteProcessing
+from openeo_driver.ProcessGraphDeserializer import (
+    ConcreteProcessing,
+    _add_standard_processes,
+    _OPENEO_PROCESSES_PYTHON_WHITELIST,
+)
 from openeo_driver.save_result import (
     AggregatePolygonResult,
     AggregatePolygonSpatialResult,
@@ -678,6 +681,13 @@ class DummyProcessRegistry(ProcessRegistry):
             processes=self.get_specs(exclusion_list=exclusion_list),
             target_version=self.target_version,
         )
+
+    def with_standard_processes(self, process_ids: Optional[List[str]] = None) -> "DummyProcessRegistry":
+        """Populate the registry with standard processes from the Python process implementation."""
+        if process_ids is None:
+            process_ids = _OPENEO_PROCESSES_PYTHON_WHITELIST
+        _add_standard_processes(self, process_ids=process_ids)
+        return self
 
     def with_specs_by_name(self, process_ids: List[str]) -> "DummyProcessRegistry":
         self.add_spec_by_name(*process_ids)

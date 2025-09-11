@@ -6,7 +6,6 @@ from hashlib import md5
 from typing import Optional
 
 from openeo_driver.errors import CredentialsInvalidException, ResultLinkExpiredException
-from openeo_driver.utils import smart_bool
 
 _log = logging.getLogger(__name__)
 

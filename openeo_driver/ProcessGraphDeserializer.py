@@ -6,6 +6,8 @@
 import calendar
 import copy
 import datetime
+import dataclasses
+import functools
 import logging
 import math
 import re
@@ -68,6 +70,7 @@ from openeo_driver.save_result import (
     to_save_result,
 )
 from openeo_driver.specs import SPECS_ROOT, read_spec
+from openeo_driver.util import UNSET
 from openeo_driver.util.date_math import month_shift
 from openeo_driver.util.geometry import BoundingBox, geojson_to_geometry, geojson_to_multipolygon, spatial_extent_union
 from openeo_driver.util.http import is_http_url
@@ -108,6 +111,7 @@ def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List
     """
     Add standard processes as implemented by the openeo-processes-python project.
     """
+    # TODO: make this a ProcessRegistry method?
 
     def wrap(process: Callable):
         """Adapter to connect the kwargs style of openeo-processes-python with args/EvalEnv"""
@@ -402,6 +406,7 @@ def _collect_end_nodes(process_graph: dict) -> (dict, str):
         },
     )
 
+    # TODO: dereference_from_node_arguments manipulates process_graph in-place here, which easily leads to bugs that are hard to figure out
     ProcessGraphVisitor.dereference_from_node_arguments(collected_process_graph)
     return collected_process_graph, top_level_node_id
 
@@ -447,6 +452,9 @@ def evaluate(
         _log.warning(f"No 'openeo_api_version' in `evaluate()` env. Blindly assuming {OPENEO_API_VERSION_DEFAULT}.")
         env = env.push({"openeo_api_version": OPENEO_API_VERSION_DEFAULT})
 
+    # TODO: _collect_end_nodes heavily manipulates the process graph in-place
+    #       (from flat-graph representation to mixed flat+nested construction)
+    #       which is not obvious
     collected_process_graph, top_level_node_id = _collect_end_nodes(process_graph)
     top_level_node = collected_process_graph[top_level_node_id]
     if ENV_SAVE_RESULT not in env:
@@ -478,8 +486,67 @@ def evaluate(
         return result
 
 
-def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
+@dataclasses.dataclass(frozen=True)
+class _ResultCachingMode:
     """
+    How the reuse/caching of the processing result of a process graph node should be handled.
+    """
+
+    # Whether to do reuse/caching
+    enabled: bool = True
+
+    # Special mode for use with openeo-geopyspark:
+    # - result is assumed to be lazily evaluated at a later phase (e.g. RDDs),
+    #   meaning that creating the (lazy) result is cheap
+    # - compare the lazy result with the cached value
+    #   (without triggering processing) before reusing the cached value
+    lazy_and_compare: bool = False
+
+    @classmethod
+    def from_env(cls, env: EvalEnv, process_id: str) -> "_ResultCachingMode":
+        """Extract caching mode from env/context"""
+
+        node_caching = env.get("node_caching", None)
+
+        if node_caching is None:
+            # TODO: better default? (e.g. avoid being geopyspark-specific)
+            node_caching = "geopyspark-conservative"
+            # TODO: this warns about suboptimal default. Once we have a better default, this warning can go away.
+            cls._warn(f"No 'node_caching' specified in env. Using {node_caching!r}.")
+        elif node_caching is True:
+            # Handle legacy default node_caching=True
+            # TODO: Eliminate node_caching=True usage and this special handling
+            node_caching = "geopyspark-conservative"
+            cls._warn(f"Legacy 'node_caching' value True. Using {node_caching!r}.")
+
+        if node_caching == "geopyspark-conservative":
+            # Original geopyspark-driver-specific behavior:
+            # Assume lazy evaluated results and compare before reuse.
+            # Also disable caching for load_collection, which has its own caching mechanism
+            return cls(enabled=process_id != "load_collection", lazy_and_compare=True)
+        elif node_caching == "geopyspark-progressive":
+            # Experimental: reuse regardless of comparison of lazy result.
+            # Still skip caching for load_collection.
+            return cls(enabled=process_id != "load_collection", lazy_and_compare=False)
+        elif node_caching == "full":
+            return cls(enabled=True, lazy_and_compare=False)
+        elif node_caching in (False, "off"):
+            return cls(enabled=False, lazy_and_compare=False)
+        else:
+            raise ValueError(f"Unrecognized {node_caching=}")
+
+    @staticmethod
+    @functools.lru_cache
+    def _warn(message: str):
+        # lru_cache-based trick to avoid spamming the log with the same warning
+        _log.warning(message)
+
+def convert_node(processGraph: Union[dict, list], env: EvalEnv):
+    """
+
+    :param processGraph: process graph in nested representation
+        (as oposed to the flat representation from the API),
+        as returned from `ProcessGraphVisitor.dereference_from_node_arguments`
 
     Warning: this function could manipulate the given process graph dict in-place,
     e.g. by adding a "result_cache" key (see lower).
@@ -487,20 +554,29 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv = None):
     if isinstance(processGraph, dict):
         if 'process_id' in processGraph:
             process_id = processGraph['process_id']
-            caching_flag = smart_bool(env.get("node_caching", True)) and process_id != "load_collection"
-            cached = None
-            if caching_flag and "result_cache" in processGraph:
-                cached =  processGraph["result_cache"]
+            caching_mode = _ResultCachingMode.from_env(env=env, process_id=process_id)
 
-            process_result = apply_process(process_id=process_id, args=processGraph.get('arguments', {}),
-                                           namespace=processGraph.get("namespace", None), env=env)
-            if caching_flag:
-                if cached is not None:
+            cached = processGraph.get("result_cache", UNSET) if caching_mode.enabled else UNSET
+
+            if cached is UNSET or caching_mode.lazy_and_compare:
+                process_result = apply_process(
+                    process_id=process_id,
+                    args=processGraph.get("arguments", {}),
+                    namespace=processGraph.get("namespace", None),
+                    env=env,
+                )
+            else:
+                process_result = cached
+
+            if caching_mode.lazy_and_compare:
+                if cached is not UNSET:
                     comparison = cached == process_result
                     #numpy arrays have a custom eq that requires this weird check
                     if isinstance(comparison,bool) and comparison:
                         _log.info(f"Reusing an already evaluated subgraph for process {process_id}")
                         return cached
+
+            if caching_mode.enabled:
                 # TODO: this manipulates the process graph, while we often assume it's immutable.
                 #       Adding complex data structures could also interfere with attempts to (re)encode the process graph as JSON again.
                 processGraph["result_cache"] = process_result

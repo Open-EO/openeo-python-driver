@@ -1,14 +1,22 @@
+import itertools
+
 import math
 import pytest
 
+from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.rest.datacube import DataCube, PGNode
 from openeo_driver.ProcessGraphDeserializer import (
     _period_to_intervals,
     SimpleProcessing,
     flatten_children_node_types,
     flatten_children_node_names,
+    convert_node,
 )
+from openeo_driver.dummy.dummy_backend import DummyProcessing, DummyBackendImplementation, DummyProcessRegistry
 from openeo_driver.errors import ProcessParameterRequiredException
+from openeo_driver.processes import ProcessArgs
+from openeo_driver.util import UNSET
+from openeo_driver.utils import EvalEnv
 
 
 def test_period_to_intervals():
@@ -246,3 +254,220 @@ class TestSimpleProcessing:
 
         assert len(children_node_types) == 2
         assert len(children_node_names) == 2
+
+
+class TestConvertNode:
+    """
+    Tests for `convert_node` function
+    """
+    _API_VERSION = "1.1.0"
+
+    @pytest.fixture
+    def fancy_add(self):
+        """Fixture for process that allows to play with caching behavior"""
+
+        class FancyAdd:
+            """Add two numbers and the number of times this process was called before"""
+
+            def __init__(self):
+                self.call_history = []
+
+            def __call__(self, args: ProcessArgs, env: EvalEnv) -> int:
+                x = args.get_required("x")
+                y = args.get_required("y")
+                res = x + y + len(self.call_history)
+                self.call_history.append((x, y))
+                return res
+
+        return FancyAdd()
+
+    @pytest.fixture
+    def dummy_process_registry(self, fancy_add) -> DummyProcessRegistry:
+        registry = DummyProcessRegistry().with_standard_processes()
+
+        # Register additional processes to play with and inspect caching behavior
+        registry.add_process(name="fancy_add", function=fancy_add, spec={"id": "fancy_add"})
+        return registry
+
+    @pytest.fixture
+    def backend_implementation(self, backend_config, dummy_process_registry) -> DummyBackendImplementation:
+        processing = DummyProcessing(process_registry=dummy_process_registry)
+        return DummyBackendImplementation(config=backend_config, processing=processing)
+
+    @pytest.fixture
+    def env(self, backend_implementation):
+        return EvalEnv(
+            {
+                "backend_implementation": backend_implementation,
+                "openeo_api_version": self._API_VERSION,
+            }
+        )
+
+    def _preprocess_process_graph(self, process_graph: dict) -> dict:
+        """
+        convert_node expects a process graph node in nested representation
+        instead of flat graph representation.
+        This helper function takes care of the conversion
+        """
+        # TODO: improve this poor DX experience and improve abstraction/encapsulation
+        node_id = ProcessGraphVisitor.dereference_from_node_arguments(process_graph)
+        return process_graph[node_id]
+
+    def test_basic(self, env):
+        process_graph = {
+            "add35": {
+                "process_id": "add",
+                "arguments": {"x": 3, "y": 5},
+                "result": True,
+            },
+        }
+        result = convert_node(self._preprocess_process_graph(process_graph), env=env)
+        assert result == 8
+        assert process_graph == {
+            "add35": {
+                "process_id": "add",
+                "arguments": {"x": 3, "y": 5},
+                "result": True,
+                "result_cache": 8,
+            }
+        }
+
+    @pytest.mark.parametrize(
+        ["node_caching", "expected_result", "expected_calls"],
+        [
+            (UNSET, 4030, [(1, 2), (1, 2)]),
+            (None, 4030, [(1, 2), (1, 2)]),
+            (False, 4030, [(1, 2), (1, 2)]),
+            ("full", 3030, [(1, 2)]),
+            ("geopyspark-conservative", 4030, [(1, 2), (1, 2)]),
+            ("geopyspark-progressive", 3030, [(1, 2)]),
+        ],
+    )
+    def test_node_caching_basic(self, env, node_caching, expected_result, fancy_add, expected_calls):
+        # Process graph with a `fancy_add` node that produces different results:
+        # first call gives correct sum, but subsequent calls increment that each time
+        process_graph = {
+            "A": {
+                "process_id": "fancy_add",
+                "arguments": {"x": 1, "y": 2},
+            },
+            "A10": {
+                "process_id": "multiply",
+                "arguments": {"x": {"from_node": "A"}, "y": 10},
+            },
+            "A1000": {
+                "process_id": "multiply",
+                "arguments": {"x": {"from_node": "A"}, "y": 1000},
+            },
+            "result": {
+                "process_id": "add",
+                "arguments": {"x": {"from_node": "A10"}, "y": {"from_node": "A1000"}},
+                "result": True,
+            },
+        }
+        if node_caching is not UNSET:
+            env = env.push({"node_caching": node_caching})
+
+        result = convert_node(self._preprocess_process_graph(process_graph), env=env)
+        assert result == expected_result
+        assert fancy_add.call_history == expected_calls
+
+    @pytest.mark.parametrize(
+        ["node_caching", "expected"],
+        [
+            (
+                False,
+                {"constructed": [1, 2], "evaluated": [1, 2]},
+            ),
+            (
+                "full",
+                {"constructed": [1], "evaluated": [1, 1]},
+            ),
+            (
+                "geopyspark-conservative",
+                # Multiple results are constructed, but only first is evaluated
+                {"constructed": [1, 2], "evaluated": [1, 1]},
+            ),
+            (
+                "geopyspark-progressive",
+                {"constructed": [1], "evaluated": [1, 1]},
+            ),
+        ],
+    )
+    def test_node_caching_geopyspark_conservative_lazy_and_compare(
+        self, env, dummy_process_registry, node_caching, expected
+    ):
+        class LazyResult:
+            """Helper to take care of lazy evaluation aspects"""
+
+            _get_next_id = itertools.count(1).__next__
+            stats = {"constructed": [], "evaluated": []}
+
+            def __init__(self, value):
+                self.value = value
+                self.id = self._get_next_id()
+                self.stats["constructed"].append(self.id)
+
+            def evaluate(self):
+                self.stats["evaluated"].append(self.id)
+                return self.value
+
+            def __eq__(self, other):
+                return isinstance(other, LazyResult) and self.value == other.value
+
+        @dummy_process_registry.add_function(spec={"id": "lazy_wrap"})
+        def lazy_wrap(args: ProcessArgs, env: EvalEnv):
+            data = args.get_required("data")
+            return LazyResult(data)
+
+        @dummy_process_registry.add_function(spec={"id": "lazy_collect"})
+        def lazy_collect(args: ProcessArgs, env: EvalEnv):
+            items = args.get_required("items")
+            return [item.evaluate() for item in items]
+
+        process_graph = {
+            "source": {
+                "process_id": "add",
+                "arguments": {"x": 3, "y": 5},
+            },
+            "lazy_wrap": {
+                "process_id": "lazy_wrap",
+                "arguments": {"data": {"from_node": "source"}},
+            },
+            "lazy_collect": {
+                "process_id": "lazy_collect",
+                "arguments": {"items": [{"from_node": "lazy_wrap"}, {"from_node": "lazy_wrap"}]},
+                "result": True,
+            },
+        }
+
+        if node_caching is not UNSET:
+            env = env.push({"node_caching": node_caching})
+        result = convert_node(self._preprocess_process_graph(process_graph), env=env)
+
+        assert result == [8, 8]
+        assert LazyResult.stats == expected
+
+    def test_node_caching_warnings(self, env, caplog):
+        # Process graph with multiple nodes
+        # and legacy node_caching setting that should trigger a warning, once
+        process_graph = {
+            "add12": {
+                "process_id": "add",
+                "arguments": {"x": 1, "y": 2},
+            },
+            "add34": {
+                "process_id": "add",
+                "arguments": {"x": {"from_node": "add12"}, "y": 34},
+            },
+            "add56": {
+                "process_id": "add",
+                "arguments": {"x": {"from_node": "add34"}, "y": 56},
+                "result": True,
+            },
+        }
+        env = env.push({"node_caching": True})
+        caplog.set_level("WARNING")
+        result = convert_node(self._preprocess_process_graph(process_graph), env=env)
+        assert result == 93
+        assert len([m for m in caplog.messages if "node_caching" in m]) == 1

@@ -10,7 +10,6 @@ Also see https://github.com/Open-EO/openeo-python-driver/issues/8
 """
 from __future__ import annotations
 import abc
-import json
 import logging
 import dataclasses
 import inspect
@@ -29,7 +28,6 @@ from openeo.util import rfc3339, dict_no_none
 from openeo_driver.config import OpenEoBackendConfig, get_backend_config
 from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs
-from openeo_driver.dry_run import SourceConstraint
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException, FeatureUnsupportedException
 from openeo_driver.constants import JOB_STATUS, DEFAULT_LOG_LEVEL_RETRIEVAL
 from openeo_driver.processes import ProcessRegistry

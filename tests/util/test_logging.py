@@ -16,7 +16,6 @@ from openeo_driver.util.logging import (
     LOGGING_CONTEXT_BATCH_JOB,
     LOGGING_CONTEXT_FLASK,
     BatchJobLoggingFilter,
-    ExtraLoggingFilter,
     FlaskRequestCorrelationIdLogging,
     FlaskUserIdLogging,
     GlobalExtraLoggingFilter,

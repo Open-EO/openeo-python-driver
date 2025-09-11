@@ -19,7 +19,7 @@ import shapely.ops
 import xarray
 from geopandas import GeoDataFrame, GeoSeries
 from openeo.metadata import CollectionMetadata, CubeMetadata
-from openeo.util import ensure_dir, str_truncate
+from openeo.util import str_truncate
 from pyproj import CRS
 
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs, StacAsset
