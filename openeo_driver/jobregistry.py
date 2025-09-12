@@ -329,7 +329,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         self._log.debug(f"Creating ElasticJobRegistry with {backend_id=} and {api_url=} ({preserialize_process=})")
         self._backend_id: Optional[str] = backend_id
         self._api_url = api_url
-        self._access_token_helper = ClientCredentialsAccessTokenHelper(session=session)
+        self._access_token_helper = ClientCredentialsAccessTokenHelper(session=session, default_ttl=45 * 60)
 
         if session:
             self._session = session
