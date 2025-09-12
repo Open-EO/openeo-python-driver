@@ -824,6 +824,9 @@ class DummyBatchJobs(BatchJobs):
             )
             return result_md
 
+    def get_result_items(self, job_id: str, user_id: str) -> Optional[Dict[str, dict]]:
+        return None
+
     def get_result_assets(self, job_id: str, user_id: str) -> Dict[str, dict]:
         if (
             self._get_job_info(job_id=job_id, user_id=user_id).status
