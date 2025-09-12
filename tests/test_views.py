@@ -1336,14 +1336,6 @@ class TestBatchJobs:
                     end_datetime=datetime(1981, 4, 24, 3, 0, 0),
                     instruments=["MSI"],
                     epsg=4326,
-                    links=[
-                        {
-                            "rel": "custom",
-                            "href": "53c71345-09b4-46b4-b6b0-03fd6fe1f199_input_items.json",
-                            "type": "application/json",
-                            "_expose_internal": True,
-                        }
-                    ],
                     plan="some_plan",
                     costs=1.23,
                     budget=4.56,
@@ -3118,12 +3110,6 @@ class TestBatchJobs:
                 {
                     "rel": "collection",
                     "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results",
-                    "type": "application/json",
-                },
-                {
-                    "rel": "custom",
-                    # TODO: what does the URL look like? Currently /aux instead of /assets; should /items be in there?
-                    "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/aux/TXIuVGVzdA==/e8ad3022a08bbc5c123597c1f948f6d4/53c71345-09b4-46b4-b6b0-03fd6fe1f199_input_items.json?expires=2234",
                     "type": "application/json",
                 },
             ],

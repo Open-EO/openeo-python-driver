@@ -1382,13 +1382,6 @@ def register_views_batch_jobs(
 
         job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
 
-        exposable_links = [link for link in (job_info.links or []) if link.get("_expose_internal", False)]
-        for link in exposable_links:
-            link.pop("_expose_internal")
-            link["href"] = backend_implementation.config.asset_url.build_url(  # TODO: not an asset
-                    asset_metadata={}, asset_name=pathlib.Path(link["href"]).name, job_id=job_id, user_id=user_id  # TODO: assumes href is an absolute file path; prepare for S3 URI and put it in asset_metadata's href?
-                )
-
         geometry = asset_metadata.get("geometry", job_info.geometry)
         bbox = asset_metadata.get("bbox", job_info.bbox)
 
@@ -1445,8 +1438,7 @@ def register_views_batch_jobs(
                     "href": url_for(".list_job_results", job_id=job_id, _external=True),  # SHOULD be absolute
                     "type": "application/json",
                 },
-            ]
-            + exposable_links,
+            ],
             "assets": {asset_filename: _asset_object(job_id, user_id, asset_filename, asset_metadata, job_info)},
             "collection": job_id,
         }

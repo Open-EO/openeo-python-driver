@@ -26,7 +26,6 @@ and start a new "In Progress" section above it.
 - `DiskWorkspace`: support unified asset keys ([Open-EO/openeo-geopyspark-driver#1111](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1111))
 - Support persisting results metadata URI in job registry ([Open-EO/openeo-geopyspark-driver#1255](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1255))
 - More fine-grained `convert_node` cache control ([Open-EO/openeo-geopyspark-driver#1331](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1331)/[#422](https://github.com/Open-EO/openeo-python-driver/pull/422))
-- Support signed links to auxiliary files in batch job result STAC items ([Open-EO/openeo-geopyspark-driver#1278](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1278))
 
 
 ## 0.134.0
