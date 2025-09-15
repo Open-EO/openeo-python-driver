@@ -1183,6 +1183,57 @@ def test_no_auto_align_when_resampling(dry_run_env, dry_run_tracer):
     assert {'crs': 'EPSG:4326', 'east': 8.0, 'north': 5.0, 'south': 0.1, 'west': 0.1} == load_params.global_extent
 
 
+def test_auto_align_without_explicit_resolution(dry_run_env, dry_run_tracer):
+    """
+    Test against a ZeroDivisionError regression. https://github.com/Open-EO/openeo-geotrellis-extensions/issues/506
+    """
+    polygon = {"type": "Polygon", "coordinates": [[(0.1, 0.1), (3, 5), (8, 2), (0.1, 0.1)]]}
+    cube = DataCube(PGNode("load_collection", id="S2_FAPAR_CLOUDCOVER"), connection=None)
+    cube = cube.filter_spatial(geometries=polygon)
+    cube = cube.resample_spatial(projection="EPSG:32632")
+
+    pg = cube.flat_graph()
+    evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints[0]
+    assert src == ("load_collection", ("S2_FAPAR_CLOUDCOVER", ()))
+    (geometries,) = dry_run_tracer.get_geometries(operation="filter_spatial")
+    assert constraints == {
+        "resample": {"method": "near", "resolution": (0, 0), "target_crs": "EPSG:32632"},
+        "spatial_extent": {
+            "crs": "EPSG:32631",
+            "east": 1056748.2872412915,
+            "north": 552664.2968779367,
+            "south": 11067.273501737884,
+            "west": 177164.2952187257,
+        },
+        "filter_spatial": {"geometries": DummyVectorCube.from_geometry(shapely.geometry.shape(polygon))},
+        "weak_spatial_extent": {
+            "crs": "EPSG:32631",
+            "east": 1056748.2872412915,
+            "north": 552664.2968779367,
+            "south": 11067.273501737884,
+            "west": 177164.2952187257,
+        },
+    }
+    assert isinstance(geometries, DummyVectorCube)
+    assert shapely.geometry.mapping(geometries.to_multipolygon()) == {
+        "type": "Polygon",
+        "coordinates": (((0.1, 0.1), (3.0, 5.0), (8.0, 2.0), (0.1, 0.1)),),
+    }
+    dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
+    load_params = _extract_load_parameters(dry_run_env, source_id=("load_collection", ("S2_FAPAR_CLOUDCOVER", ())))
+    assert {
+        "crs": "EPSG:32631",
+        "east": 1056750,
+        "north": 552670,
+        "south": 11060,
+        "west": 177160,
+    } == load_params.global_extent
+
+
 def test_global_bounds_from_weak_spatial_extent(dry_run_env, dry_run_tracer):
     # The global extent is the union from the spatial extent and the weak spatial extent.
     bbox = {"west": 1, "south": 1, "east": 3, "north": 3, "crs": "EPSG:4326"}

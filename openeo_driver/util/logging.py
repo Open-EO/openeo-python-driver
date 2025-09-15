@@ -12,7 +12,6 @@ from typing import Dict, List, Optional, Union, Callable
 import flask
 import pythonjsonlogger.jsonlogger
 
-import openeo.udf.debug
 from openeo_driver.utils import generate_unique_id
 
 _log = logging.getLogger(__name__)

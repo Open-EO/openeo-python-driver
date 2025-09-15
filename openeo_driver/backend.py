@@ -10,7 +10,6 @@ Also see https://github.com/Open-EO/openeo-python-driver/issues/8
 """
 from __future__ import annotations
 import abc
-import json
 import logging
 import dataclasses
 import inspect
@@ -29,7 +28,6 @@ from openeo.util import rfc3339, dict_no_none
 from openeo_driver.config import OpenEoBackendConfig, get_backend_config
 from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs
-from openeo_driver.dry_run import SourceConstraint
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException, FeatureUnsupportedException
 from openeo_driver.constants import JOB_STATUS, DEFAULT_LOG_LEVEL_RETRIEVAL
 from openeo_driver.processes import ProcessRegistry
@@ -294,9 +292,9 @@ class CollectionCatalog(AbstractCollectionCatalog):
         Full metadata for a specific dataset
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-collection
         """
-        try:
+        if collection_id in self._catalog:
             return self._catalog[collection_id]
-        except KeyError:
+        else:
             raise CollectionNotFoundException(collection_id)
 
     def load_collection(self, collection_id: str, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
@@ -895,27 +893,28 @@ class OpenEoBackendImplementation:
         """
         return {"input": {}, "output": {}}
 
-    def processing_parameters(self) -> list:
+    def processing_parameters(self) -> Dict[str, List[dict]]:
         """
         List the available processing parameters in the format defined by openEO processing parameters extension.
 
         https://github.com/Open-EO/openeo-api/blob/draft/extensions/processing-parameters/openapi.yaml
 
         Example output:
-        ```
-        [{
-          "name": "memory"
-          "description": "Maximum amount of memory that will be allocated for processing, in gigabytes."
-          "optional": True
-          "default": 32
-          "schema":{
-            "type": "integer"
-            "minimum": 1
-          }
-        }]
+        ```json
+        {
+          "create_job_parameters": [
+            {
+              "name": "memory",
+              "description": "Maximum amount of memory that will be allocated for processing, in gigabytes.",
+              "optional": true,
+              "default": 32,
+              "schema": {"type": "integer", "minimum": 1}
+            }
+          ]
+        }
         ```
         """
-        return []
+        return {}
 
     def load_disk_data(
             self, format: str, glob_pattern: str, options: dict, load_params: LoadParameters, env: EvalEnv

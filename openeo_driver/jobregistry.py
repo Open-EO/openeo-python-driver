@@ -17,8 +17,7 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 
 import requests
 import reretry
-from deprecated.classic import deprecated
-from openeo.util import TimingLogger, repr_truncate, rfc3339, url_join
+from openeo.util import TimingLogger, dict_no_none, repr_truncate, rfc3339, url_join
 
 import openeo_driver._version
 from openeo_driver.backend import BatchJobMetadata, JobListing
@@ -142,7 +141,12 @@ class JobRegistryInterface:
         user_id: Optional[str] = None,
         costs: Optional[float],
         usage: dict,
-        results_metadata: Dict[str, Any],
+        results_metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        raise NotImplementedError
+
+    def set_results_metadata_uri(
+        self, job_id: str, *, user_id: Optional[str] = None, results_metadata_uri: str
     ) -> None:
         raise NotImplementedError
 
@@ -252,7 +256,9 @@ class EjrApiResponseError(EjrApiError):
     def from_response(cls, response: requests.Response) -> EjrApiResponseError:
         request = response.request
         return cls(
-            msg=f"Error communicating with batch job system, consider trying again. Details: {response.status_code} {response.reason!r} on `{request.method} {request.url!r}`: {response.text}",
+            msg=f"Error communicating with the openEO job database system."
+            + f" For transient errors it might be enough to retry."
+            + f" Details: {response.status_code} {response.reason!r} on `{request.method} {request.url}`: {response.text}",
             status_code=response.status_code,
         )
 
@@ -323,7 +329,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         self._log.debug(f"Creating ElasticJobRegistry with {backend_id=} and {api_url=} ({preserialize_process=})")
         self._backend_id: Optional[str] = backend_id
         self._api_url = api_url
-        self._access_token_helper = ClientCredentialsAccessTokenHelper(session=session)
+        self._access_token_helper = ClientCredentialsAccessTokenHelper(session=session, default_ttl=45 * 60)
 
         if session:
             self._session = session
@@ -610,6 +616,11 @@ class ElasticJobRegistry(JobRegistryInterface):
     def set_application_id(self, job_id: str, *, user_id: Optional[str] = None, application_id: str) -> None:
         self._update(job_id=job_id, data={"application_id": application_id})
 
+    def set_results_metadata_uri(
+        self, job_id: str, *, user_id: Optional[str] = None, results_metadata_uri: str
+    ) -> None:
+        self._update(job_id=job_id, data={"results_metadata_uri": results_metadata_uri})
+
     def _search(self, query: dict, fields: Optional[List[str]] = None) -> List[JobDict]:
         # TODO: sorting, pagination?
         fields = set(fields or [])
@@ -747,15 +758,17 @@ class ElasticJobRegistry(JobRegistryInterface):
         user_id: Optional[str] = None,
         costs: Optional[float],
         usage: dict,
-        results_metadata: Dict[str, Any],
+        results_metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
         self._update(
             job_id=job_id,
-            data={
-                "costs": costs,
-                "usage": usage,
-                "results_metadata": results_metadata,
-            },
+            data=dict_no_none(
+                {
+                    "costs": costs,
+                    "usage": usage,
+                    "results_metadata": results_metadata,
+                }
+            ),
         )
 
 

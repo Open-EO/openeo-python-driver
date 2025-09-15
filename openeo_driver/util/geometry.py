@@ -2,7 +2,6 @@ import dataclasses
 import json
 import logging
 import math
-import re
 from pathlib import Path
 from typing import Any, Collection, List, Mapping, Optional, Sequence, Tuple, Union
 

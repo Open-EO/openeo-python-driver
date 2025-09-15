@@ -5,7 +5,7 @@ import unittest.mock
 import datetime
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 from unittest.mock import Mock
 
 import flask
@@ -42,7 +42,6 @@ from openeo_driver.backend import (
     CollectionCatalog,
     JobListing,
     LoadParameters,
-    OidcProvider,
     OpenEoBackendImplementation,
     Processing,
     SecondaryServices,
@@ -65,7 +64,11 @@ from openeo_driver.errors import (
     ProcessGraphNotFoundException,
 )
 from openeo_driver.processes import ProcessRegistry, ProcessesListing
-from openeo_driver.ProcessGraphDeserializer import ConcreteProcessing
+from openeo_driver.ProcessGraphDeserializer import (
+    ConcreteProcessing,
+    _add_standard_processes,
+    _OPENEO_PROCESSES_PYTHON_WHITELIST,
+)
 from openeo_driver.save_result import (
     AggregatePolygonResult,
     AggregatePolygonSpatialResult,
@@ -679,18 +682,26 @@ class DummyProcessRegistry(ProcessRegistry):
             target_version=self.target_version,
         )
 
+    def with_standard_processes(self, process_ids: Optional[List[str]] = None) -> "DummyProcessRegistry":
+        """Populate the registry with standard processes from the Python process implementation."""
+        if process_ids is None:
+            process_ids = _OPENEO_PROCESSES_PYTHON_WHITELIST
+        _add_standard_processes(self, process_ids=process_ids)
+        return self
+
+    def with_specs_by_name(self, process_ids: List[str]) -> "DummyProcessRegistry":
+        self.add_spec_by_name(*process_ids)
+        return self
+
 
 class DummyProcessing(ConcreteProcessing):
-    def __init__(self, use_dummy_process_registry: Union[bool, List[str]] = False):
+    def __init__(self, process_registry: Optional[ProcessRegistry] = None):
         super().__init__()
-        self.use_dummy_process_registry = use_dummy_process_registry
+        self._process_registry = process_registry
 
     def get_process_registry(self, api_version: Union[str, ComparableVersion]) -> ProcessRegistry:
-        if self.use_dummy_process_registry:
-            reg = DummyProcessRegistry()
-            if isinstance(self.use_dummy_process_registry, list):
-                reg.add_spec_by_name(*self.use_dummy_process_registry)
-            return reg
+        if self._process_registry:
+            return self._process_registry
         return super().get_process_registry(api_version=api_version)
 
     def extra_validation(

@@ -5,7 +5,6 @@ import requests.exceptions
 from flask import Flask, jsonify, Response, request
 
 from openeo_driver.backend import OidcProvider
-from openeo_driver.config import OpenEoBackendConfig
 from openeo_driver.errors import OpenEOApiException, PermissionsInsufficientException, TokenInvalidException
 from openeo_driver.testing import build_basic_http_auth_header, DictSubSet
 from openeo_driver.users import User

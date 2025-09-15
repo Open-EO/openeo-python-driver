@@ -33,10 +33,9 @@ from openeo_driver.backend import (
 from openeo_driver.config import OpenEoBackendConfig
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.dummy import dummy_backend, dummy_config
-from openeo_driver.dummy.dummy_backend import DummyBackendImplementation, DummyProcessing
+from openeo_driver.dummy.dummy_backend import DummyBackendImplementation, DummyProcessing, DummyProcessRegistry
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.ProcessGraphDeserializer import custom_process_from_process_graph
-from openeo_driver.processes import ProcessesListing
 from openeo_driver.integrations.s3.client import S3ClientBuilder
 from openeo_driver.save_result import VectorCubeResult
 from openeo_driver.testing import (
@@ -575,7 +574,7 @@ class TestGeneral:
     def test_processing_parameters(self, api100):
         response = api100.get('/processing_parameters')
         resp = response.assert_status_code(200).json
-        assert resp == []
+        assert resp == {}
         assert response.headers["Cache-Control"] == "max-age=900, public"
 
 
@@ -719,7 +718,7 @@ class TestProcessRegistry:
         ["dummy_processing", "expected"],
         [
             (
-                DummyProcessing(use_dummy_process_registry=["add"]),
+                DummyProcessing(process_registry=DummyProcessRegistry().with_specs_by_name(["add"])),
                 {
                     "processes": dirty_equals.IsList(length=1),
                     "flavor": "salt and pepper",

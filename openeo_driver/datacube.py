@@ -19,7 +19,7 @@ import shapely.ops
 import xarray
 from geopandas import GeoDataFrame, GeoSeries
 from openeo.metadata import CollectionMetadata, CubeMetadata
-from openeo.util import ensure_dir, str_truncate
+from openeo.util import str_truncate
 from pyproj import CRS
 
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs, StacAsset
@@ -62,6 +62,9 @@ class DriverDataCube:
             log.warning("DriverDataCube: deprecated dict-based metadata usage")
             metadata = CollectionMetadata(metadata=metadata)
         self.metadata: CubeMetadata = metadata or CubeMetadata()
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(metadata={self.metadata!r})"
 
     def __eq__(self, o: object) -> bool:
         if o.__class__ == self.__class__:

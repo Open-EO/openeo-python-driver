@@ -21,6 +21,7 @@ from openeo_driver.jobregistry import (
     EjrApiResponseError,
     EjrError,
     ElasticJobRegistry,
+    ejr_job_info_to_metadata,
     get_ejr_credentials_from_env,
 )
 from openeo_driver.testing import (
@@ -96,6 +97,17 @@ def test_get_partial_job_status():
     assert PARTIAL_JOB_STATUS.for_job_status(JOB_STATUS.FINISHED) == 'finished'
     assert PARTIAL_JOB_STATUS.for_job_status(JOB_STATUS.ERROR) == 'error'
     assert PARTIAL_JOB_STATUS.for_job_status(JOB_STATUS.CANCELED) == 'canceled'
+
+
+def test_ejr_job_info_to_metadata():
+    job_info = {
+        "job_id": "j-123",
+        "status": "running",
+        "results_metadata_uri": "s3://bucket/path/to/job_metadata.json",
+    }
+
+    metadata = ejr_job_info_to_metadata(job_info)
+    assert metadata.status == JOB_STATUS.RUNNING
 
 
 class TestElasticJobRegistry:
@@ -990,6 +1002,15 @@ class TestElasticJobRegistry:
         )
 
         ejr.set_application_id(job_id="job-123", application_id="app-456")
+        assert patch_mock.call_count == 1
+
+    def test_set_results_metadata_uri(self, requests_mock, oidc_mock, ejr):
+        handler = self._handle_patch_jobs(
+            oidc_mock=oidc_mock, expected_data={"results_metadata_uri": "s3://bucket/path/to/job_metadata.json"}
+        )
+        patch_mock = requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
+
+        ejr.set_results_metadata_uri(job_id="job-123", results_metadata_uri="s3://bucket/path/to/job_metadata.json")
         assert patch_mock.call_count == 1
 
     def test_set_results_metadata(self, requests_mock, oidc_mock, ejr):

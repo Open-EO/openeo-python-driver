@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import logging
 from enum import Enum
-from typing import Any, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy
 import shapely.geometry.base
@@ -62,10 +62,6 @@ from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import FeatureUnsupportedException, OpenEOApiException
-from openeo_driver.save_result import (
-    AggregatePolygonResult,
-    AggregatePolygonSpatialResult,
-)
 from openeo_driver.util.geometry import (
     BoundingBox,
     GeometryBufferer,
@@ -452,7 +448,8 @@ class DryRunDataTracer:
                         resolution = normalize_resample_resolution(args[0]["resolution"])
                         projection = args[0]["projection"]
                         method = args[0].get("method", "near")
-                        constraints["resample"] = {"target_crs": projection, "resolution": resolution, "method": method}
+                        if method != "geocode":
+                            constraints["resample"] = {"target_crs": projection, "resolution": resolution, "method": method}
 
             for op in [
                 "temporal_extent",

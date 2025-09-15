@@ -1,6 +1,6 @@
 import dataclasses
 import logging
-from typing import List, NamedTuple, Optional, Union
+from typing import List, Optional, Union
 
 import requests
 
