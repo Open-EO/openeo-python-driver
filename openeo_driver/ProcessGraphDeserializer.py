@@ -1544,6 +1544,11 @@ def _extract_temporal_extent(args: dict, field="extent", process_id="filter_temp
             process=process_id, parameter=field, reason="end '{e}' is before start '{s}'".format(e=end, s=start)
         )
 
+    if start and end and start == end:
+        _log.warning(
+            f"{process_id} {field} with same start and end ({args.get('extent')!r}) is invalid/deprecated and will trigger a TemporalExtentEmpty error in the future. Use a proper left-closed temporal interval."
+        )
+
     # TODO: convert to datetime? or at least normalize?
     return tuple(extent)
 
@@ -1556,8 +1561,8 @@ def filter_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
             parameter="data", process="filter_temporal",
             reason=f"Invalid data type {type(cube)!r} expected raster-cube."
         )
-    extent = _extract_temporal_extent(args, field="extent", process_id="filter_temporal")
-    return cube.filter_temporal(start=extent[0], end=extent[1])
+    start, end = _extract_temporal_extent(args, field="extent", process_id="filter_temporal")
+    return cube.filter_temporal(start=start, end=end)
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/filter_labels.json"))
