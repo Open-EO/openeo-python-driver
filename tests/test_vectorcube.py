@@ -858,7 +858,7 @@ class TestDriverVectorCube:
             ],
         }
 
-        assert shape(actual_geojson).almost_equals(shape(expected_geojson))
+        assert shape(actual_geojson).equals(shape(expected_geojson))
 
     def test_get_bounding_box_area(self):
         path = str(get_path("geojson/FeatureCollection06.json"))
