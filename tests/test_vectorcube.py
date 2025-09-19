@@ -7,12 +7,12 @@ import pyproj
 import pytest
 import xarray
 from shapely.geometry import MultiPolygon, Point, Polygon, shape
-
+import dirty_equals
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.testing import ApproxGeometry, DictSubSet, IsNan, ApproxGeoJSONByBounds
 from openeo_driver.util.geometry import as_geojson_feature_collection
-from openeo_driver.utils import EvalEnv
+from openeo_driver.utils import EvalEnv, read_json
 
 from .data import get_path
 
@@ -1024,3 +1024,70 @@ class TestDriverVectorCube:
                 "attrs": {},
             },
         }
+
+    def test_write_assets_simple_geojson(self, gdf, tmp_path):
+        vc = DriverVectorCube(geometries=gdf)
+        res = vc.write_assets(directory=tmp_path / "silly-design", format="GeoJSON")
+        expected_path = tmp_path / "vectorcube.geojson"
+        assert res == {
+            "vectorcube.geojson": {
+                "href": expected_path,
+                "roles": ["data"],
+                "title": "Vector cube",
+                "type": "application/geo+json",
+            }
+        }
+
+        raw_data = read_json(expected_path)
+        assert raw_data == dirty_equals.IsPartialDict(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
+                        "properties": {"id": "first", "pop": 1234},
+                        "type": "Feature",
+                    },
+                    {
+                        "geometry": {"type": "Polygon", "coordinates": [[[4, 2], [5, 4], [3, 4], [4, 2]]]},
+                        "properties": {"id": "second", "pop": 5678},
+                        "type": "Feature",
+                    },
+                ],
+            }
+        )
+
+    def test_write_assets_reproject_geojson(self, gdf, tmp_path):
+        assert gdf.crs.to_epsg() == 4326
+        gdf = gdf.to_crs(epsg=32631)
+        assert gdf.crs.to_epsg() == 32631
+        vc = DriverVectorCube(geometries=gdf)
+        res = vc.write_assets(directory=tmp_path / "silly-design", format="GeoJSON")
+        expected_path = tmp_path / "vectorcube.geojson"
+        assert res == {
+            "vectorcube.geojson": {
+                "href": expected_path,
+                "roles": ["data"],
+                "title": "Vector cube",
+                "type": "application/geo+json",
+            }
+        }
+
+        raw_data = read_json(expected_path)
+        assert raw_data == dirty_equals.IsPartialDict(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "geometry": ApproxGeoJSONByBounds(277438, 110530, 500000, 331643, abs=10),
+                        "properties": {"id": "first", "pop": 1234},
+                        "type": "Feature",
+                    },
+                    {
+                        "geometry": ApproxGeoJSONByBounds(500000, 221094, 722056, 442397, abs=10),
+                        "properties": {"id": "second", "pop": 5678},
+                        "type": "Feature",
+                    },
+                ],
+            }
+        )
