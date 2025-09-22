@@ -617,7 +617,7 @@ class DriverVectorCube:
         elif format_info.format.lower() == "csv":
             gdf.to_csv(path)
         else:
-            gdf.to_file(str(path), driver=format_info.fiona_driver, crs=self.get_crs())
+            gdf.to_file(str(path), driver=format_info.fiona_driver)
 
         if not format_info.multi_file:
             # single file format

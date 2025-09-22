@@ -173,7 +173,7 @@ def test_execute_filter_temporal_extent_reversed(api):
                               " end '2021-12-06' is before start '2021-12-07'")
 
 
-def test_execute_filter_temporal_extent_reversed(api):
+def test_execute_filter_temporal_extent_double_null(api):
     resp = api.result({
         'loadcollection1': {
             'process_id': 'load_collection',
@@ -189,9 +189,30 @@ def test_execute_filter_temporal_extent_reversed(api):
         },
     })
 
-    resp.assert_error(400, "ProcessParameterInvalid",
-                      message="The value passed for parameter 'extent' in process 'filter_temporal' is invalid:"
-                              " both start and end are null")
+    resp.assert_error(
+        400,
+        "ProcessParameterInvalid",
+        message="The value passed for parameter 'extent' in process 'filter_temporal' is invalid:"
+        " both start and end are null",
+    )
+
+
+def test_execute_filter_temporal_extent_equal_start_and_end(api, caplog):
+    resp = api.result(
+        {
+            "loadcollection1": {"process_id": "load_collection", "arguments": {"id": "S2_FAPAR_CLOUDCOVER"}},
+            "filtertemporal1": {
+                "process_id": "filter_temporal",
+                "arguments": {"data": {"from_node": "loadcollection1"}, "extent": ["2021-12-07", "2021-12-07"]},
+                "result": True,
+            },
+        }
+    )
+
+    # TODO: This should trigger a TemporalExtentEmpty error instead of success with warning
+    resp.assert_status_code(200)
+    expected_warning = "filter_temporal extent with same start and end (['2021-12-07', '2021-12-07']) is invalid/deprecated and will trigger a TemporalExtentEmpty error in the future."
+    assert expected_warning in caplog.text
 
 
 def test_execute_filter_bbox(api):

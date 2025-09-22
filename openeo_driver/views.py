@@ -1319,7 +1319,7 @@ def register_views_batch_jobs(
 
         bucket, key = s3_url[5:].split("/", 1)
         details = BucketDetails.from_name(bucket)
-        if details.type is not "UNKNOWN":
+        if details.type != "UNKNOWN":
             s3_instance = S3ClientBuilder.from_region(details.region)
         else:
             s3_instance = S3ClientBuilder.from_region(None)
