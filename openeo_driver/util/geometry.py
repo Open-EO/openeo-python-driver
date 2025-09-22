@@ -500,6 +500,11 @@ class BoundingBox:
     def from_wsen_tuple(
         cls, wsen: Sequence[float], crs: Optional[Union[str, int]] = None
     ):
+        # wsen means
+        if crs:
+            crs = cls.normalize_crs(crs)
+            # TODO: This assumes Y/X, but Webmercator and UTM are X/Y
+            assert crs == "EPSG:4326", "Only EPSG:4326 is supported in from_wsen_tuple"
         """Build bounding box from tuple of west, south, east and north bounds (and optional crs"""
         assert len(wsen) == 4
         return cls(*wsen, crs=crs)
