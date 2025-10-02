@@ -818,7 +818,6 @@ class DummyBatchJobs(BatchJobs):
         else:
             result_md = super().get_result_metadata(job_id=job_id, user_id=user_id)
             result_md = BatchJobResultMetadata(
-                items=result_md.items,
                 assets=result_md.assets,
                 links=result_md.links,
                 providers=self._get_providers(job_id=job_id, user_id=user_id),

@@ -1365,14 +1365,6 @@ class TestBatchJobs:
                     start_datetime=None,
                     end_datetime=None,
                 ),
-                (TEST_USER, "07024ee9-7847-4b8a-b260-6c879a2b3cdd"): BatchJobMetadata(
-                    id="07024ee9-7847-4b8a-b260-6c879a2b3cdc",
-                    status="finished",
-                    created=datetime(2024, 6, 30, 12, 4, 34),
-                    bbox=[34.456156, -0.910085, 34.796396, -0.345477],
-                    start_datetime=None,
-                    end_datetime=None,
-                ),
             }
             dummy_backend.DummyBatchJobs._job_result_registry = {}
 
@@ -2942,6 +2934,73 @@ class TestBatchJobs:
         job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdd"
         item_id = "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z"
         with self._fresh_job_registry():
+            dummy_backend.DummyBatchJobs.set_result_metadata(
+                job_id=job_id,
+                user_id=TEST_USER,
+                metadata=BatchJobResultMetadata(
+                    items={
+                        "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z": {
+                            "geometry": {
+                                "coordinates": [
+                                    [
+                                        [3.359808992021044, 51.08284561357965],
+                                        [3.359808992021044, 51.88641704215104],
+                                        [4.690166134878123, 51.88641704215104],
+                                        [4.690166134878123, 51.08284561357965],
+                                        [3.359808992021044, 51.08284561357965],
+                                    ]
+                                ],
+                                "type": "Polygon",
+                            },
+                            "assets": {
+                                "openEO": {
+                                    "datetime": "2023-12-31T21:41:00Z",
+                                    "roles": ["data"],
+                                    "bbox": [
+                                        3.359808992021044,
+                                        51.08284561357965,
+                                        4.690166134878123,
+                                        51.88641704215104,
+                                    ],
+                                    "geometry": {
+                                        "coordinates": [
+                                            [
+                                                [3.359808992021044, 51.08284561357965],
+                                                [3.359808992021044, 51.88641704215104],
+                                                [4.690166134878123, 51.88641704215104],
+                                                [4.690166134878123, 51.08284561357965],
+                                                [3.359808992021044, 51.08284561357965],
+                                            ]
+                                        ],
+                                        "type": "Polygon",
+                                    },
+                                    "href": "s3://openeo-data-staging-waw4-1/batch_jobs/j-250605095828442799fdde3c29b5b047/openEO_20231231T214100Z.tif",
+                                    "nodata": "nan",
+                                    "type": "image/tiff; application=geotiff",
+                                    "bands": [
+                                        {"name": "LST", "common_name": "surface_temperature", "aliases": ["LST_in:LST"]}
+                                    ],
+                                    "raster:bands": [
+                                        {
+                                            "name": "LST",
+                                            "statistics": {
+                                                "valid_percent": 66.88,
+                                                "maximum": 281.04800415039,
+                                                "stddev": 19.598456945276,
+                                                "minimum": 224.46798706055,
+                                                "mean": 259.57087672984,
+                                            },
+                                        }
+                                    ],
+                                }
+                            },
+                            "id": "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z",
+                            "properties": {"datetime": "2023-12-31T21:41:00Z"},
+                            "bbox": [3.359808992021044, 51.08284561357965, 4.690166134878123, 51.88641704215104],
+                        }
+                    }
+                ),
+            )
             res = backend_implementation.batch_jobs.get_result_metadata(job_id=job_id, user_id=TEST_USER)
             resp = api110.get(
                 f"/jobs/{job_id}/results/items11/{item_id}", headers=self.AUTH_HEADER
@@ -2980,7 +3039,6 @@ class TestBatchJobs:
                 ]],
                 'type': 'Polygon'
             },
-            'href': '/data/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdd/5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z',
             'id': '5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z',
             'properties': {'datetime': '2023-12-31T21:41:00Z'}
         }
