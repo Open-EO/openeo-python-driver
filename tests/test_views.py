@@ -2924,7 +2924,7 @@ class TestBatchJobs:
             resp = api110.get(f"/jobs/{job_id}/results", headers=self.AUTH_HEADER).assert_status_code(200)
 
             item_links = [link for link in resp.json["links"] if link["rel"] == "item"]
-            assert len(item_links) == 1, "expected exactly one item link in STAC Collection"
+            assert len(item_links) == 2, "expected exactly two item links in STAC Collection (one item and one asset)"
 
             item_link = item_links[0]
             assert item_link["href"] == f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/items11/TXIuVGVzdA==/6dfcff9f3d3d760f1cfca269ccc245fb/5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z"

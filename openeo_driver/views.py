@@ -1188,6 +1188,11 @@ def register_views_batch_jobs(
                     links.append(
                         {"rel": "item", "href": job_result_item_url(item_id=item_id, is11=True), "type": stac_item_media_type}
                     )
+                    for asset_key, asset in metadata.get("assets").items():
+                        links.append(
+                            {"rel": "item", "href": job_result_item_url(item_id=asset.get("href")),
+                             "type": stac_item_media_type}
+                        )
             else:
 
                 for filename, metadata in result_assets.items():
