@@ -2893,7 +2893,7 @@ class TestBatchJobs:
                                         ],
                                         "type": "Polygon",
                                     },
-                                    "href": "s3://openeo-data-staging-waw4-1/batch_jobs/j-250605095828442799fdde3c29b5b047/openEO_20231231T214100Z.tif",
+                                    "href": "openEO_20231231T214100Z.tif",
                                     "nodata": "nan",
                                     "type": "image/tiff; application=geotiff",
                                     "bands": [

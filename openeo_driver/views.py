@@ -1398,7 +1398,7 @@ def register_views_batch_jobs(
         )
 
         if item_id not in metadata.items:
-            raise OpenEOApiException("Item with id {item_id!r} not found in job {job_id!r}".format(item_id=item_id, job_id=job_id))
+            raise OpenEOApiException("Item with id {item_id!r} not found in job {job_id!r}".format(item_id=item_id, job_id=job_id), status_code=404)
         item_metadata = metadata.items.get(item_id,None)
 
         resp = jsonify(item_metadata)
