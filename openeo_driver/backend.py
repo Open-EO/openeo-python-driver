@@ -548,6 +548,7 @@ class BatchJobs(MicroService):
         """
         # Default implementation, based on existing components
         return BatchJobResultMetadata(
+            items=self.get_result_assets(job_id=job_id, user_id=user_id),
             assets=self.get_result_assets(job_id=job_id, user_id=user_id),
             links=[],
             providers=self._get_providers(job_id=job_id, user_id=user_id),

@@ -1365,6 +1365,14 @@ class TestBatchJobs:
                     start_datetime=None,
                     end_datetime=None,
                 ),
+                (TEST_USER, "07024ee9-7847-4b8a-b260-6c879a2b3cdd"): BatchJobMetadata(
+                    id="07024ee9-7847-4b8a-b260-6c879a2b3cdc",
+                    status="finished",
+                    created=datetime(2024, 6, 30, 12, 4, 34),
+                    bbox=[34.456156, -0.910085, 34.796396, -0.345477],
+                    start_datetime=None,
+                    end_datetime=None,
+                ),
             }
             dummy_backend.DummyBatchJobs._job_result_registry = {}
 
@@ -2847,8 +2855,8 @@ class TestBatchJobs:
                 }
             )
 
-    def test_get_job_results_from_stac_1_1_items(self, api110):
-        # TODO: use UrlSigner
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
+    def test_get_job_results_from_stac_1_1_items(self, api110, backend_config_overrides):
         job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
 
         with self._fresh_job_registry():
@@ -2927,16 +2935,56 @@ class TestBatchJobs:
             assert len(item_links) == 1, "expected exactly one item link in STAC Collection"
 
             item_link = item_links[0]
-            # TODO: check whether href points to expected URL /jobs/{job_id}/results/items11/{item_id} endpoint (or preferably, just .../items/{item_id})
-            assert item_link["href"] == ...
+            assert item_link["href"] == f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/items11/TXIuVGVzdA==/6dfcff9f3d3d760f1cfca269ccc245fb/5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z"
 
-    def test_get_stac_1_1_item(self):
-        # TODO: use UrlSigner
-        # TODO: make test job return BatchJobResultMetadata with item
-        # TODO: call /jobs/{job_id}/results/items11/{item_id} endpoint (or preferably, just .../items/{item_id})
-        # TODO: check whether item matches the expected item
-        # TODO: check whether assets have expected (signed) hrefs
-        raise NotImplementedError
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
+    def test_get_stac_1_1_item(self, api110, backend_implementation, backend_config_overrides):
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdd"
+        item_id = "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z"
+        with self._fresh_job_registry():
+            res = backend_implementation.batch_jobs.get_result_metadata(job_id=job_id, user_id=TEST_USER)
+            resp = api110.get(
+                f"/jobs/{job_id}/results/items11/{item_id}", headers=self.AUTH_HEADER
+            )
+
+        resp_data = resp.assert_status_code(200).json
+        assert resp_data == {
+            'assets': {
+                'openEO': {
+                    'bands': [{'aliases': ['LST_in:LST'], 'common_name': 'surface_temperature', 'name': 'LST'}],
+                    'bbox': [3.359808992021044, 51.08284561357965, 4.690166134878123, 51.88641704215104],
+                    'datetime': '2023-12-31T21:41:00Z',
+                    'geometry': {
+                        'coordinates':[[
+                            [3.359808992021044, 51.08284561357965],
+                            [3.359808992021044, 51.88641704215104],
+                            [4.690166134878123, 51.88641704215104],
+                            [4.690166134878123, 51.08284561357965],
+                            [3.359808992021044, 51.08284561357965]
+                        ]],
+                        'type': 'Polygon'},
+                    'href': 's3://openeo-data-staging-waw4-1/batch_jobs/j-250605095828442799fdde3c29b5b047/openEO_20231231T214100Z.tif',
+                    'nodata': 'nan',
+                    'raster:bands': [{'name': 'LST', 'statistics': {'maximum': 281.04800415039, 'mean': 259.57087672984, 'minimum': 224.46798706055, 'stddev': 19.598456945276, 'valid_percent': 66.88}}],
+                    'roles': ['data'], 'type': 'image/tiff; application=geotiff'
+                }
+            },
+            'bbox': [3.359808992021044, 51.08284561357965, 4.690166134878123, 51.88641704215104],
+            'geometry': {
+                'coordinates': [[
+                    [3.359808992021044, 51.08284561357965],
+                    [3.359808992021044, 51.88641704215104],
+                    [4.690166134878123, 51.88641704215104],
+                    [4.690166134878123, 51.08284561357965],
+                    [3.359808992021044, 51.08284561357965]
+                ]],
+                'type': 'Polygon'
+            },
+            'href': '/data/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdd/5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z',
+            'id': '5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z',
+            'properties': {'datetime': '2023-12-31T21:41:00Z'}
+        }
+        assert res.items.get(item_id) == resp_data
 
     def test_get_job_results_invalid_job(self, api):
         api.get("/jobs/deadbeef-f00/results", headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
