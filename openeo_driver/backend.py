@@ -772,7 +772,15 @@ class ErrorSummary(Exception):
 
 
 class UdfRuntimes(MicroService):
-    # TODO: this implementation is highly openeo-geopyspark-driver-specific: move it to there and make this base implementation more abstract/simple
+    def get_udf_runtimes(self) -> Dict[str, dict]:
+        return {}
+
+
+class LegacyUdfRuntimes(UdfRuntimes):
+    # TODO #415 this is a temporary adapter for backwards compatibility,
+    #       to allow migration of these implementation details to openeo-geopyspark-driver
+    #       (and openeo-aggregator).
+    #       To be removed when migration is done.
 
     # Python libraries to list
     # TODO: move listing of non-generic libs to openeo-geopyspark-driver
@@ -795,7 +803,7 @@ class UdfRuntimes(MicroService):
     def __init__(self):
         pass
 
-    def get_python_versions(self):
+    def _get_python_versions(self):
         # TODO: this assumes UDF runtime is equal to web app runtime, which is not true anymore.
         major, minor, patch = (str(v) for v in sys.version_info[:3])
         aliases = [
@@ -807,7 +815,7 @@ class UdfRuntimes(MicroService):
         return major, aliases, default_version
 
     def _get_python_udf_runtime_metadata(self):
-        major, aliases, default_version = self.get_python_versions()
+        major, aliases, default_version = self._get_python_versions()
         # TODO: get actual library version (instead of version of current environment).
         libraries = {
             p: {"version": v.split(" ", 1)[-1]}
@@ -875,7 +883,7 @@ class OpenEoBackendImplementation:
         self.user_defined_processes = user_defined_processes
         self.user_files = None  # TODO: implement user file storage microservice
         self.processing = processing
-        self.udf_runtimes = udf_runtimes or UdfRuntimes()
+        self.udf_runtimes = udf_runtimes or LegacyUdfRuntimes()
         self._conformance_classes = conformance_classes or self.DEFAULT_CONFORMANCE_CLASSES
 
         # Overridable cache control header injecting decorator for static, public view functions
