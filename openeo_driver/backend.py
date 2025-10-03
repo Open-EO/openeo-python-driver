@@ -772,6 +772,8 @@ class ErrorSummary(Exception):
 
 
 class UdfRuntimes(MicroService):
+    # TODO: this implementation is highly openeo-geopyspark-driver-specific: move it to there and make this base implementation more abstract/simple
+
     # Python libraries to list
     # TODO: move listing of non-generic libs to openeo-geopyspark-driver
     python_libraries = [
@@ -794,6 +796,7 @@ class UdfRuntimes(MicroService):
         pass
 
     def get_python_versions(self):
+        # TODO: this assumes UDF runtime is equal to web app runtime, which is not true anymore.
         major, minor, patch = (str(v) for v in sys.version_info[:3])
         aliases = [
             f"{major}",
@@ -824,6 +827,7 @@ class UdfRuntimes(MicroService):
         }
 
     def get_udf_runtimes(self) -> dict:
+        # TODO: this is highly geopyspark-driver specific: return a simpler listing by default
         # TODO add caching of this result
         return {
             # TODO: toggle these runtimes through dependency injection or config?
@@ -862,6 +866,7 @@ class OpenEoBackendImplementation:
         processing: Optional[Processing] = None,
         config: Optional[OpenEoBackendConfig] = None,
         conformance_classes: Optional[List[str]] = None,
+        udf_runtimes: Optional[UdfRuntimes] = None,
     ):
         self.config: OpenEoBackendConfig = config or get_backend_config()
         self.secondary_services = secondary_services
@@ -870,7 +875,7 @@ class OpenEoBackendImplementation:
         self.user_defined_processes = user_defined_processes
         self.user_files = None  # TODO: implement user file storage microservice
         self.processing = processing
-        self.udf_runtimes = UdfRuntimes()
+        self.udf_runtimes = udf_runtimes or UdfRuntimes()
         self._conformance_classes = conformance_classes or self.DEFAULT_CONFORMANCE_CLASSES
 
         # Overridable cache control header injecting decorator for static, public view functions
