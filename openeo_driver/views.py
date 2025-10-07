@@ -1184,7 +1184,7 @@ def register_views_batch_jobs(
 
 
             if len(result_metadata.items) > 0 :
-                for item_id, metadata in result_metadata.items.items():
+                for item_id in result_metadata.items.keys():
                     links.append(
                         {"rel": "item", "href": job_result_item_url(item_id=item_id, is11=True), "type": stac_item_media_type}
                     )
