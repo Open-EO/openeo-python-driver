@@ -1188,11 +1188,6 @@ def register_views_batch_jobs(
                     links.append(
                         {"rel": "item", "href": job_result_item_url(item_id=item_id, is11=True), "type": stac_item_media_type}
                     )
-                    for asset_key, asset in metadata.get("assets").items():
-                        links.append(
-                            {"rel": "item", "href": job_result_item_url(item_id=asset.get("href")),
-                             "type": stac_item_media_type}
-                        )
             else:
 
                 for filename, metadata in result_assets.items():
@@ -1406,15 +1401,82 @@ def register_views_batch_jobs(
             raise OpenEOApiException("Item with id {item_id!r} not found in job {job_id!r}".format(item_id=item_id, job_id=job_id), status_code=404)
         item_metadata = metadata.items.get(item_id,None)
 
-        for asset_key, asset in item_metadata.get("assets", {}).items():
-            asset["href"] = (
-                backend_implementation.config.asset_url.build_url(  # translates internal URIs to external URLs
-                    asset_metadata=asset, asset_name=asset_key, job_id=job_id, user_id=user_id
-                )
-            )
-        # TODO: mimic _get_job_result_item
+        job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
 
-        resp = jsonify(item_metadata)
+        assets = {}
+        for asset_key, asset in item_metadata.get("assets", {}).items():
+            assets[asset_key] = _asset_object(job_id, user_id, asset_key, asset, job_info)
+
+        geometry = item_metadata.get("geometry", job_info.geometry)
+        bbox = item_metadata.get("bbox", job_info.bbox)
+
+        properties = item_metadata.get("properties", {"datetime": item_metadata.get("datetime")})
+        if properties["datetime"] is None:
+            to_datetime = Rfc3339(propagate_none=True).datetime
+
+            start_datetime = item_metadata.get("start_datetime") or to_datetime(job_info.start_datetime)
+            end_datetime = item_metadata.get("end_datetime") or to_datetime(job_info.end_datetime)
+
+            if start_datetime == end_datetime:
+                properties["datetime"] = start_datetime
+            else:
+                if start_datetime:
+                    properties["start_datetime"] = start_datetime
+                if end_datetime:
+                    properties["end_datetime"] = end_datetime
+
+        if job_info.proj_shape:
+            properties["proj:shape"] = job_info.proj_shape
+        if job_info.proj_bbox:
+            properties["proj:bbox"] = job_info.proj_bbox
+        if job_info.epsg:
+            properties["proj:epsg"] = job_info.epsg
+
+        if job_info.proj_bbox and job_info.epsg:
+            if not bbox:
+                bbox = BoundingBox.from_wsen_tuple(job_info.proj_bbox, job_info.epsg).reproject(4326).as_wsen_tuple()
+            if not geometry:
+                geometry = BoundingBox.from_wsen_tuple(job_info.proj_bbox, job_info.epsg).as_polygon()
+                geometry = mapping(reproject_geometry(geometry, CRS.from_epsg(job_info.epsg), CRS.from_epsg(4326)))
+
+        stac_item = {
+            "type": "Feature",
+            "stac_version": "1.0.0",
+            "stac_extensions": [
+                STAC_EXTENSION.EO_V110,
+                STAC_EXTENSION.FILEINFO,
+                STAC_EXTENSION.PROJECTION,
+            ],
+            "id": item_id,
+            "geometry": geometry,
+            "bbox": bbox,
+            "properties": properties,
+            "links": [
+                {
+                    "rel": "self",
+                    # MUST be absolute
+                    "href": url_for(".get_job_result_item", job_id=job_id, item_id=item_id, _external=True),
+                    "type": stac_item_media_type,
+                },
+                {
+                    "rel": "collection",
+                    "href": url_for(".list_job_results", job_id=job_id, _external=True),  # SHOULD be absolute
+                    "type": "application/json",
+                },
+            ],
+            "assets": assets,
+            "collection": job_id,
+        }
+        # Add optional items, if they are present.
+        stac_item.update(
+            **dict_no_none(
+                {
+                    "epsg": job_info.epsg,
+                }
+            )
+        )
+
+        resp = jsonify(stac_item)
         resp.mimetype = stac_item_media_type
         return resp
 

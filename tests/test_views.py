@@ -2931,7 +2931,7 @@ class TestBatchJobs:
 
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
     def test_get_stac_1_1_item(self, api110, backend_implementation, backend_config_overrides):
-        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdd"
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
         item_id = "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z"
         with self._fresh_job_registry():
             dummy_backend.DummyBatchJobs.set_result_metadata(
@@ -3001,35 +3001,22 @@ class TestBatchJobs:
                     }
                 ),
             )
-            res = backend_implementation.batch_jobs.get_result_metadata(job_id=job_id, user_id=TEST_USER)
             resp = api110.get(
                 f"/jobs/{job_id}/results/items11/{item_id}", headers=self.AUTH_HEADER
             )
 
         resp_data = resp.assert_status_code(200).json
         assert resp_data == {
-            # TODO: check mandatory properties e.g. "type" etc.
             'assets': {
-                'openEO': {
-                    'bands': [{'aliases': ['LST_in:LST'], 'common_name': 'surface_temperature', 'name': 'LST'}],
-                    'bbox': [3.359808992021044, 51.08284561357965, 4.690166134878123, 51.88641704215104],
-                    'datetime': '2023-12-31T21:41:00Z',
-                    'geometry': {
-                        'coordinates':[[
-                            [3.359808992021044, 51.08284561357965],
-                            [3.359808992021044, 51.88641704215104],
-                            [4.690166134878123, 51.88641704215104],
-                            [4.690166134878123, 51.08284561357965],
-                            [3.359808992021044, 51.08284561357965]
-                        ]],
-                        'type': 'Polygon'},
-                    'href': 'http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdd/results/assets/TXIuVGVzdA==/b486126c8f3d99c3ce9208400afd81b6/openEO',
-                    'nodata': 'nan',
-                    'raster:bands': [{'name': 'LST', 'statistics': {'maximum': 281.04800415039, 'mean': 259.57087672984, 'minimum': 224.46798706055, 'stddev': 19.598456945276, 'valid_percent': 66.88}}],
-                    'roles': ['data'], 'type': 'image/tiff; application=geotiff'
-                }
+                'openEO': DictSubSet({
+                    'href': 'http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/0a577c1d63aed6a562c29a5bd4f535fe/openEO',
+                    'roles': ['data'],
+                    'type': 'image/tiff; application=geotiff',
+                    'title': 'openEO',
+                })
             },
             'bbox': [3.359808992021044, 51.08284561357965, 4.690166134878123, 51.88641704215104],
+            'collection': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
             'geometry': {
                 'coordinates': [[
                     [3.359808992021044, 51.08284561357965],
@@ -3041,9 +3028,25 @@ class TestBatchJobs:
                 'type': 'Polygon'
             },
             'id': '5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z',
-            'properties': {'datetime': '2023-12-31T21:41:00Z'}
+            'links': [
+                {
+                    'href': 'http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z',
+                    'rel': 'self',
+                    'type': 'application/geo+json'
+                },
+                {
+                    'href': 'http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results',
+                    'rel': 'collection',
+                    'type': 'application/json'
+                 }
+            ],
+            'properties': {'datetime': '2023-12-31T21:41:00Z'},
+            'stac_extensions': ['https://stac-extensions.github.io/eo/v1.1.0/schema.json',
+                     'https://stac-extensions.github.io/file/v2.1.0/schema.json',
+                     'https://stac-extensions.github.io/projection/v1.1.0/schema.json'],
+            'stac_version': '1.0.0',
+            'type': 'Feature'
         }
-        assert res.items.get(item_id) == resp_data
 
     def test_get_job_results_invalid_job(self, api):
         api.get("/jobs/deadbeef-f00/results", headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
