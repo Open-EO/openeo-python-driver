@@ -2924,7 +2924,7 @@ class TestBatchJobs:
             resp = api110.get(f"/jobs/{job_id}/results", headers=self.AUTH_HEADER).assert_status_code(200)
 
             item_links = [link for link in resp.json["links"] if link["rel"] == "item"]
-            assert len(item_links) == 2, "expected exactly two item links in STAC Collection (one item and one asset)"
+            assert len(item_links) == 1, "expected exactly one item link in STAC Collection"
 
             item_link = item_links[0]
             assert item_link["href"] == f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/items11/TXIuVGVzdA==/6dfcff9f3d3d760f1cfca269ccc245fb/5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z"
@@ -3008,6 +3008,7 @@ class TestBatchJobs:
 
         resp_data = resp.assert_status_code(200).json
         assert resp_data == {
+            # TODO: check mandatory properties e.g. "type" etc.
             'assets': {
                 'openEO': {
                     'bands': [{'aliases': ['LST_in:LST'], 'common_name': 'surface_temperature', 'name': 'LST'}],
@@ -3022,7 +3023,7 @@ class TestBatchJobs:
                             [3.359808992021044, 51.08284561357965]
                         ]],
                         'type': 'Polygon'},
-                    'href': 's3://openeo-data-staging-waw4-1/batch_jobs/j-250605095828442799fdde3c29b5b047/openEO_20231231T214100Z.tif',
+                    'href': 'http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdd/results/assets/TXIuVGVzdA==/b486126c8f3d99c3ce9208400afd81b6/openEO',
                     'nodata': 'nan',
                     'raster:bands': [{'name': 'LST', 'statistics': {'maximum': 281.04800415039, 'mean': 259.57087672984, 'minimum': 224.46798706055, 'stddev': 19.598456945276, 'valid_percent': 66.88}}],
                     'roles': ['data'], 'type': 'image/tiff; application=geotiff'

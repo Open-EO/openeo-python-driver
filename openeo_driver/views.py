@@ -1406,6 +1406,14 @@ def register_views_batch_jobs(
             raise OpenEOApiException("Item with id {item_id!r} not found in job {job_id!r}".format(item_id=item_id, job_id=job_id), status_code=404)
         item_metadata = metadata.items.get(item_id,None)
 
+        for asset_key, asset in item_metadata.get("assets", {}).items():
+            asset["href"] = (
+                backend_implementation.config.asset_url.build_url(  # translates internal URIs to external URLs
+                    asset_metadata=asset, asset_name=asset_key, job_id=job_id, user_id=user_id
+                )
+            )
+        # TODO: mimic _get_job_result_item
+
         resp = jsonify(item_metadata)
         resp.mimetype = stac_item_media_type
         return resp
