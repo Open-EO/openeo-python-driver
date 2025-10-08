@@ -22,7 +22,7 @@ and start a new "In Progress" section above it.
 ## In progress: 0.136.0
 
 - Start supporting custom `UdfRuntimes` implementation in `OpenEoBackendImplementation` ([#415](https://github.com/Open-EO/openeo-python-driver/issues/415))
-
+- Process graph parsing (dry-run) for very large graphs got faster. ([#426](https://github.com/Open-EO/openeo-python-driver/issues/426))
 
 ## 0.135.0
 
