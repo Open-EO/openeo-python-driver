@@ -376,10 +376,8 @@ class DryRunDataTracer:
                 [tree] if len(tree.children) == 0 else [leaf for child in tree.children for leaf in get_leaves(child)]
             )
 
-        for trace in self._traces:
-            for leaf in get_leaves(trace):
-                if leaf not in leaves:
-                    leaves.append(leaf)
+        leaves = [ leaf  for trace in self._traces for leaf in get_leaves(trace)]
+        leaves = list(set(leaves))
 
         return leaves
 
