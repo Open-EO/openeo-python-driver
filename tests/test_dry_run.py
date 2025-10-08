@@ -2951,7 +2951,7 @@ def test_resample_cube_spatial_preserve_non_spatial(dry_run_env, dimension, expe
     assert result.metadata.dimension_names() == expected
 
 
-@pytest.skip("test taking too long (27 minutes)")
+@pytest.mark.skip("test taking too long (27 minutes)")
 def test_very_large_graph(dry_run_env, dry_run_tracer):
     pg = load_json("pg/1.0/large_eugw_graph.json")["process_graph"]
     save_result = evaluate(pg, env=dry_run_env)
