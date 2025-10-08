@@ -600,9 +600,9 @@ class DriverVectorCube:
         filename = str(directory)
         directory_parent = Path(filename).parent
 
-        format_info = IOFORMATS.get(format, None)
-        if format_info is None:
+        if format not in IOFORMATS:
             raise ProcessParameterInvalidException(parameter="format", process="save_result", reason=f"Received unknown format: {format}, supported formats: {list(IOFORMATS.keys())}")
+        format_info = IOFORMATS.get(format)
         # TODO: check if format can be used for vector data?
         path = directory_parent / f"vectorcube.{format_info.extension}"
 
