@@ -337,15 +337,19 @@ def extract_namedtuple_fields_from_dict(
     return result
 
 
+def get_package_version(package: str) -> Union[str, None]:
+    """
+    Get (installed) version of provided package or None (when not installed).
+    """
+    try:
+        return importlib.metadata.version(distribution_name=package)
+    except importlib.metadata.PackageNotFoundError:
+        return None
+
+
 def get_package_versions(packages: List[str], na_value="n/a") -> dict:
-    """Get (installed) version number of each Python package (where possible)."""
-    version_info = {}
-    for package in packages:
-        try:
-            version_info[package] = importlib.metadata.version(distribution_name=package)
-        except importlib.metadata.PackageNotFoundError:
-            version_info[package] = na_value
-    return version_info
+    """Get (installed) version of each Python package (where possible)."""
+    return {p: get_package_version(p) or na_value for p in packages}
 
 
 def generate_unique_id(prefix: Optional[str] = None, *, date_prefix: Union[bool, str] = True) -> str:
