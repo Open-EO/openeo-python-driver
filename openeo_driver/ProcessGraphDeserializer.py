@@ -1970,7 +1970,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         detail = f"{e!r}"
         if isinstance(errorsummary,ErrorSummary):
             detail = errorsummary.summary
-        raise OpenEOApiException(f"Unexpected error during {process_id!r} with {args!r}: {detail}") from e
+        raise OpenEOApiException(f"Unexpected error during {process_id!r}: {detail}. The process had these arguments: {args!r} ") from e
 
     if namespace in ["user", None]:
         user = env.get("user")
