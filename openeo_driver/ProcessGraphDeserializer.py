@@ -1914,14 +1914,13 @@ def check_subgraph_for_data_mask_optimization(args: dict) -> bool:
 
 
 def apply_process(process_id: str, args: dict, namespace: Union[str, None], env: EvalEnv) -> DriverDataCube:
-    _log.debug(f"apply_process {process_id} with {args}")
+    _log.debug(f"apply_process {process_id} ")
     parameters = env.collect_parameters()
 
     if process_id == "mask" and args.get("replacement", None) is None \
             and smart_bool(env.get("data_mask_optimization", True)):
         mask_node = args.get("mask", None)
         # evaluate the mask
-        _log.debug(f"data_mask: convert_node(mask_node): {mask_node}")
         the_mask = convert_node(mask_node, env=env)
         dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
         if not dry_run_tracer and check_subgraph_for_data_mask_optimization(args):
@@ -1958,7 +1957,6 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
 
     try:
         process_function = process_registry.get_function(process_id, namespace=(namespace or "backend"))
-        _log.debug(f"Applying process {process_id} to arguments {args}")
         #TODO: for API compliance, we would actually first need to check if a UDP with same name exists.
         # we would however prefer to avoid overriding predefined functions with UDP's.
         # if we want to do this, we require caching in UDP registry to avoid expensive UDP lookups. We only need to cache the list of UDP names for a given user.
@@ -1972,7 +1970,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         detail = f"{e!r}"
         if isinstance(errorsummary,ErrorSummary):
             detail = errorsummary.summary
-        raise OpenEOApiException(f"Unexpected error during {process_id!r} with {args!r}: {detail}") from e
+        raise OpenEOApiException(f"Unexpected error during {process_id!r}: {detail}. The process had these arguments: {args!r} ") from e
 
     if namespace in ["user", None]:
         user = env.get("user")

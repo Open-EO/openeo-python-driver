@@ -4,7 +4,6 @@ import typing
 import logging
 import functools
 import inspect
-import warnings
 from pathlib import Path
 from typing import Any, Callable, Collection, Dict, List, Optional, Tuple, Union, Iterable
 
@@ -65,7 +64,7 @@ class ProcessSpec:
         """Generate process spec as (JSON-able) dictionary (API 0.4.0 style)."""
         # TODO #47 drop this
         if len(self._parameters) == 0:
-            warnings.warn("Process with no parameters")
+            _log.warning("Process with no parameters")
         assert self._returns is not None
         return {**self.extra, **{
             "id": self.id,
@@ -81,7 +80,7 @@ class ProcessSpec:
     def to_dict_100(self) -> dict:
         """Generate process spec as (JSON-able) dictionary (API 1.0.0 style)."""
         if len(self._parameters) == 0:
-            warnings.warn(f"Process with no parameters: '{self.id}'")
+            _log.warning(f"Process with no parameters: {self.id!r}")
         assert self._returns is not None
         return {**self.extra, **{
             "id": self.id,
@@ -335,7 +334,7 @@ class ProcessRegistry:
 
         @functools.wraps(f)
         def wrapped(*args, **kwargs):
-            warnings.warn("Calling deprecated process function {f}".format(f=f.__name__))
+            _log.warning(f"Calling deprecated process function {f.__name__!r}")
             return f(*args, **kwargs)
 
         return self.add_hidden(wrapped, name=f.__name__, namespace=namespace)

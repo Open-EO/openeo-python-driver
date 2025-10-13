@@ -18,6 +18,7 @@ from openeo_driver.utils import (
     generate_unique_id,
     WhiteListEvalEnv,
     filter_supported_kwargs,
+    get_package_version,
 )
 
 
@@ -258,6 +259,11 @@ def test_extract_namedtuple_fields_from_dict():
     assert extract_namedtuple_fields_from_dict(
         {"id": "bar", "size": 3, "height": 666}, Foo
     ) == {"id": "bar", "size": 3}
+
+
+def test_get_package_version_basic():
+    assert get_package_version("flask") == RegexMatcher(r"\d+\.\d+\.\d+")
+    assert get_package_version("foobarmeh") is None
 
 
 def test_get_package_versions_basic():

@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import logging
 from enum import Enum
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, Iterator
 
 import numpy
 import shapely.geometry.base
@@ -100,8 +100,10 @@ source_constraint_blockers = {
 class DataTraceBase:
     """Base class for data traces."""
 
+    __slots__ = ["children"]
+
     def __init__(self):
-        self.children = []
+        self.children: List[DataTraceBase] = []
 
     def __hash__(self):
         # Identity hash (e.g. memory address)
@@ -369,19 +371,19 @@ class DryRunDataTracer:
         Get all nodes in the tree of traces that are not parent of another trace.
         In openEO this could be for instance a save_result process that ends the workflow.
         """
-        leaves = []
+        visited = set()
 
-        def get_leaves(tree: DataTraceBase) -> List[DataTraceBase]:
-            return (
-                [tree] if len(tree.children) == 0 else [leaf for child in tree.children for leaf in get_leaves(child)]
-            )
+        def get_leaves(trace: DataTraceBase) -> Iterator[DataTraceBase]:
+            nonlocal visited
+            if trace not in visited:
+                visited.add(trace)
+                if trace.children:
+                    for child in trace.children:
+                        yield from get_leaves(child)
+                else:
+                    yield trace
 
-        for trace in self._traces:
-            for leaf in get_leaves(trace):
-                if leaf not in leaves:
-                    leaves.append(leaf)
-
-        return leaves
+        return [leave for trace in self._traces for leave in get_leaves(trace)]
 
     def get_metadata_links(self):
         result = {}
