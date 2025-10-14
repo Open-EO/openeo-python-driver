@@ -1441,7 +1441,7 @@ def register_views_batch_jobs(
 
         stac_item = {
             "type": "Feature",
-            "stac_version": "1.0.0",
+            "stac_version": "1.1.0",
             "stac_extensions": [
                 STAC_EXTENSION.EO_V110,
                 STAC_EXTENSION.FILEINFO,

@@ -3044,7 +3044,7 @@ class TestBatchJobs:
             'stac_extensions': ['https://stac-extensions.github.io/eo/v1.1.0/schema.json',
                      'https://stac-extensions.github.io/file/v2.1.0/schema.json',
                      'https://stac-extensions.github.io/projection/v1.1.0/schema.json'],
-            'stac_version': '1.0.0',
+            'stac_version': '1.1.0',
             'type': 'Feature'
         }
 
