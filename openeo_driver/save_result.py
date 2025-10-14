@@ -3,7 +3,6 @@ import glob
 import os
 import re
 import tempfile
-import warnings
 import logging
 from dataclasses import dataclass
 from datetime import datetime, date
@@ -303,7 +302,9 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         super().__init__(data=timeseries)
         if not isinstance(regions, (GeometryCollection, DriverVectorCube)):
             # TODO: raise exception instead of warning?
-            warnings.warn("AggregatePolygonResult: GeometryCollection or DriverVectorCube expected but got {t}".format(t=type(regions)))
+            _log.warning(
+                f"AggregatePolygonResult: GeometryCollection or DriverVectorCube expected but got {type(regions)}"
+            )
         self._regions = regions
         self._metadata = metadata
         # TODO #298 this "raster:bands" helper is old-style
@@ -528,7 +529,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         for ts in timestamps:
             ts_data = self.data[ts]
             if len(ts_data) != len(polygons):
-                warnings.warn("Expected {e} polygon results, but got {g}".format(e=len(polygons), g=len(ts_data)))
+                _log.warning("Expected {e} polygon results, but got {g}".format(e=len(polygons), g=len(ts_data)))
                 continue
             if all(len(polygon_data) != band_count for polygon_data in ts_data):
                 # Skip timestamps without any complete data

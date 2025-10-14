@@ -1,0 +1,4816 @@
+{
+  "process_graph": {
+    "adddimension1": {
+      "arguments": {
+        "data": {
+          "from_node": "applydimension1"
+        },
+        "label": "NDVIs",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension10": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension10"
+        },
+        "label": "eos1_final",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension11": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension11"
+        },
+        "label": "seg2_mask",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension12": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension12"
+        },
+        "label": "seg2_dominance",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension13": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension13"
+        },
+        "label": "main_segment_dominance",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension14": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension14"
+        },
+        "label": "segs_dominance_ratio",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension15": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension15"
+        },
+        "label": "seg2_mask",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension16": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension16"
+        },
+        "label": "sos2_final",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension17": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension17"
+        },
+        "label": "seg2_maxndvi_idx",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension18": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension18"
+        },
+        "label": "seg2_maxndvi_doy",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension19": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension19"
+        },
+        "label": "seg2_maxndvi_doy_mask",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension2": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension1"
+        },
+        "label": "sos1",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension20": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension20"
+        },
+        "label": "eos2",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension21": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension21"
+        },
+        "label": "eos2_masked",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension22": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension22"
+        },
+        "label": "eos_global",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension3": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension2"
+        },
+        "label": "2nd_half_year_min_idx",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension4": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension3"
+        },
+        "label": "second_half_minndvi_doy",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension5": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension4"
+        },
+        "label": "2nd_half_year_minndvi_doy_mask",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension6": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension5"
+        },
+        "label": "eos1",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension7": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension7"
+        },
+        "label": "year_last_ndvi_index",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension8": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension8"
+        },
+        "label": "year_last_ndvi_doy",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "adddimension9": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension9"
+        },
+        "label": "year_max_doy_masked",
+        "name": "bands",
+        "type": "bands"
+      },
+      "process_id": "add_dimension"
+    },
+    "aggregatetemporal1": {
+      "arguments": {
+        "data": {
+          "from_node": "filterbands1"
+        },
+        "intervals": [
+          [
+            "2023-01-01",
+            "2023-12-31"
+          ]
+        ],
+        "reducer": {
+          "process_graph": {
+            "min1": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "ignore_nodata": true
+              },
+              "process_id": "min",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "aggregate_temporal"
+    },
+    "aggregatetemporal2": {
+      "arguments": {
+        "data": {
+          "from_node": "filterbands1"
+        },
+        "intervals": [
+          [
+            "2023-01-01",
+            "2023-12-31"
+          ]
+        ],
+        "reducer": {
+          "process_graph": {
+            "max1": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "ignore_nodata": true
+              },
+              "process_id": "max",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "aggregate_temporal"
+    },
+    "aggregatetemporal3": {
+      "arguments": {
+        "data": {
+          "from_node": "filterbands2"
+        },
+        "intervals": [
+          [
+            "2023-01-01",
+            "2023-12-31"
+          ]
+        ],
+        "reducer": {
+          "process_graph": {
+            "min2": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                }
+              },
+              "process_id": "min",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "aggregate_temporal"
+    },
+    "aggregatetemporal4": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels7"
+        },
+        "intervals": [
+          [
+            "2023-06-30",
+            "2023-12-31"
+          ]
+        ],
+        "reducer": {
+          "process_graph": {
+            "min3": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                }
+              },
+              "process_id": "min",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "aggregate_temporal"
+    },
+    "aggregatetemporal5": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels11"
+        },
+        "intervals": [
+          [
+            "2023-06-30",
+            "2023-12-31"
+          ]
+        ],
+        "reducer": {
+          "process_graph": {
+            "min4": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                }
+              },
+              "process_id": "min",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "aggregate_temporal"
+    },
+    "aggregatetemporal6": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels16"
+        },
+        "intervals": [
+          [
+            "2023-01-01",
+            "2023-12-31"
+          ]
+        ],
+        "reducer": {
+          "process_graph": {
+            "max3": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "ignore_nodata": true
+              },
+              "process_id": "max",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "aggregate_temporal"
+    },
+    "aggregatetemporalperiod1": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels30"
+        },
+        "period": "month",
+        "reducer": {
+          "process_graph": {
+            "sum2": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "ignore_nodata": true
+              },
+              "process_id": "sum",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "aggregate_temporal_period"
+    },
+    "apply1": {
+      "arguments": {
+        "data": {
+          "from_node": "resamplespatial2"
+        },
+        "process": {
+          "process_graph": {
+            "runudf1": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "x"
+                },
+                "runtime": "Python",
+                "udf": "from openeo.udf import XarrayDataCube\nfrom skimage.morphology import remove_small_holes\nfrom scipy.ndimage import binary_erosion\nimport numpy as np\n\ndef apply_datacube(cube: XarrayDataCube, context: dict) -\u003e XarrayDataCube:\n    \"\"\"\n    Reflassify values in the datacube.\n    \"\"\"\n\n    # create binary mask from SCL\n    valid_values = [2, 4, 5, 6, 7]\n    array = cube.get_array()\n    array_tmp = np.copy(array)\n\n    array_tmp[array_tmp == 0] = 1\n    for valid_value in valid_values:\n        array_tmp[array_tmp == valid_value] = 0\n    array_tmp[array_tmp != 0] = 1\n\n    # apply sieve filter\n    array_tmp = remove_small_holes(array_tmp.astype(bool), area_threshold=10, connectivity=2)\n\n    # dilate cloudy areas\n    array_tmp = binary_erosion(array_tmp, iterations=3, border_value=1).astype(array_tmp.dtype)\n\n    # write final cloudmask array\n    array[:, :] = array_tmp\n    return cube\n"
+              },
+              "process_id": "run_udf",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply10": {
+      "arguments": {
+        "data": {
+          "from_node": "adddimension5"
+        },
+        "process": {
+          "process_graph": {
+            "eq5": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": 1
+              },
+              "process_id": "eq",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply11": {
+      "arguments": {
+        "data": {
+          "from_node": "adddimension6"
+        },
+        "process": {
+          "process_graph": {
+            "between3": {
+              "arguments": {
+                "max": 366,
+                "min": 1,
+                "x": {
+                  "from_parameter": "x"
+                }
+              },
+              "process_id": "between"
+            },
+            "if3": {
+              "arguments": {
+                "accept": {
+                  "from_parameter": "x"
+                },
+                "value": {
+                  "from_node": "between3"
+                }
+              },
+              "process_id": "if",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply12": {
+      "arguments": {
+        "data": {
+          "from_node": "dropdimension8"
+        },
+        "process": {
+          "process_graph": {
+            "between4": {
+              "arguments": {
+                "max": 366,
+                "min": 1,
+                "x": {
+                  "from_parameter": "x"
+                }
+              },
+              "process_id": "between"
+            },
+            "if4": {
+              "arguments": {
+                "accept": 0,
+                "reject": 1,
+                "value": {
+                  "from_node": "between4"
+                }
+              },
+              "process_id": "if",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply13": {
+      "arguments": {
+        "data": {
+          "from_node": "adddimension12"
+        },
+        "process": {
+          "process_graph": {
+            "gt1": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": 0
+              },
+              "process_id": "gt"
+            },
+            "if5": {
+              "arguments": {
+                "accept": 1,
+                "reject": 0,
+                "value": {
+                  "from_node": "gt1"
+                }
+              },
+              "process_id": "if",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply14": {
+      "arguments": {
+        "data": {
+          "from_node": "adddimension14"
+        },
+        "process": {
+          "process_graph": {
+            "gt2": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": 0.5
+              },
+              "process_id": "gt"
+            },
+            "if6": {
+              "arguments": {
+                "accept": 1,
+                "reject": 0,
+                "value": {
+                  "from_node": "gt2"
+                }
+              },
+              "process_id": "if",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply15": {
+      "arguments": {
+        "data": {
+          "from_node": "adddimension15"
+        },
+        "process": {
+          "process_graph": {
+            "if7": {
+              "arguments": {
+                "accept": 0,
+                "reject": 1,
+                "value": {
+                  "from_parameter": "x"
+                }
+              },
+              "process_id": "if",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply16": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels18"
+        },
+        "process": {
+          "process_graph": {
+            "eq7": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": 2
+              },
+              "process_id": "eq",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply17": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels19"
+        },
+        "process": {
+          "process_graph": {
+            "eq8": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": 1
+              },
+              "process_id": "eq",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply18": {
+      "arguments": {
+        "data": {
+          "from_node": "adddimension16"
+        },
+        "process": {
+          "process_graph": {
+            "between5": {
+              "arguments": {
+                "max": 366,
+                "min": 1,
+                "x": {
+                  "from_parameter": "x"
+                }
+              },
+              "process_id": "between"
+            },
+            "if8": {
+              "arguments": {
+                "accept": {
+                  "from_parameter": "x"
+                },
+                "value": {
+                  "from_node": "between5"
+                }
+              },
+              "process_id": "if",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply19": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels18"
+        },
+        "process": {
+          "process_graph": {
+            "eq9": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": 1
+              },
+              "process_id": "eq",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply2": {
+      "arguments": {
+        "data": {
+          "from_node": "ndvi1"
+        },
+        "process": {
+          "process_graph": {
+            "between1": {
+              "arguments": {
+                "max": 1,
+                "min": 0,
+                "x": {
+                  "from_parameter": "x"
+                }
+              },
+              "process_id": "between"
+            },
+            "if1": {
+              "arguments": {
+                "accept": {
+                  "from_parameter": "x"
+                },
+                "value": {
+                  "from_node": "between1"
+                }
+              },
+              "process_id": "if",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply20": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels19"
+        },
+        "process": {
+          "process_graph": {
+            "eq10": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": 2
+              },
+              "process_id": "eq",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply21": {
+      "arguments": {
+        "data": {
+          "from_node": "adddimension19"
+        },
+        "process": {
+          "process_graph": {
+            "eq11": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": 1
+              },
+              "process_id": "eq",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply22": {
+      "arguments": {
+        "data": {
+          "from_node": "adddimension16"
+        },
+        "process": {
+          "process_graph": {
+            "between6": {
+              "arguments": {
+                "max": 366,
+                "min": 1,
+                "x": {
+                  "from_parameter": "x"
+                }
+              },
+              "process_id": "between"
+            },
+            "if9": {
+              "arguments": {
+                "accept": {
+                  "from_parameter": "x"
+                },
+                "reject": 999,
+                "value": {
+                  "from_node": "between6"
+                }
+              },
+              "process_id": "if",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply23": {
+      "arguments": {
+        "data": {
+          "from_node": "apply22"
+        },
+        "process": {
+          "process_graph": {
+            "eq12": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": 999
+              },
+              "process_id": "eq"
+            },
+            "if10": {
+              "arguments": {
+                "accept": {
+                  "from_parameter": "x"
+                },
+                "reject": 0,
+                "value": {
+                  "from_node": "eq12"
+                }
+              },
+              "process_id": "if",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply24": {
+      "arguments": {
+        "data": {
+          "from_node": "adddimension21"
+        },
+        "process": {
+          "process_graph": {
+            "between7": {
+              "arguments": {
+                "max": 366,
+                "min": 1,
+                "x": {
+                  "from_parameter": "x"
+                }
+              },
+              "process_id": "between"
+            },
+            "if11": {
+              "arguments": {
+                "accept": {
+                  "from_parameter": "x"
+                },
+                "value": {
+                  "from_node": "between7"
+                }
+              },
+              "process_id": "if",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply25": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels23"
+        },
+        "process": {
+          "process_graph": {
+            "linearscalerange1": {
+              "arguments": {
+                "inputMax": 1,
+                "inputMin": 0,
+                "outputMax": 1,
+                "outputMin": 0,
+                "x": {
+                  "from_parameter": "x"
+                }
+              },
+              "process_id": "linear_scale_range",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply26": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels24"
+        },
+        "process": {
+          "process_graph": {
+            "linearscalerange2": {
+              "arguments": {
+                "inputMax": 1,
+                "inputMin": 0,
+                "outputMax": 1,
+                "outputMin": 0,
+                "x": {
+                  "from_parameter": "x"
+                }
+              },
+              "process_id": "linear_scale_range",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply27": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels25"
+        },
+        "process": {
+          "process_graph": {
+            "linearscalerange3": {
+              "arguments": {
+                "inputMax": 1,
+                "inputMin": 0,
+                "outputMax": 1,
+                "outputMin": 0,
+                "x": {
+                  "from_parameter": "x"
+                }
+              },
+              "process_id": "linear_scale_range",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply28": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels26"
+        },
+        "process": {
+          "process_graph": {
+            "linearscalerange4": {
+              "arguments": {
+                "inputMax": 1,
+                "inputMin": 0,
+                "outputMax": 1,
+                "outputMin": 0,
+                "x": {
+                  "from_parameter": "x"
+                }
+              },
+              "process_id": "linear_scale_range",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply29": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels27"
+        },
+        "process": {
+          "process_graph": {
+            "gt3": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": 0
+              },
+              "process_id": "gt"
+            },
+            "if16": {
+              "arguments": {
+                "accept": {
+                  "from_parameter": "x"
+                },
+                "value": {
+                  "from_node": "gt3"
+                }
+              },
+              "process_id": "if",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply3": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes1"
+        },
+        "process": {
+          "process_graph": {
+            "multiply1": {
+              "arguments": {
+                "x": 0.25,
+                "y": {
+                  "from_parameter": "x"
+                }
+              },
+              "process_id": "multiply",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply30": {
+      "arguments": {
+        "data": {
+          "from_node": "filterbands3"
+        },
+        "process": {
+          "process_graph": {
+            "linearscalerange5": {
+              "arguments": {
+                "inputMax": 366,
+                "inputMin": 0,
+                "outputMax": 366,
+                "outputMin": 0,
+                "x": {
+                  "from_parameter": "x"
+                }
+              },
+              "process_id": "linear_scale_range",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply31": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension25"
+        },
+        "process": {
+          "process_graph": {
+            "linearscalerange6": {
+              "arguments": {
+                "inputMax": 3.4,
+                "inputMin": 1.0,
+                "outputMax": 3.4,
+                "outputMin": 1.0,
+                "x": {
+                  "from_parameter": "x"
+                }
+              },
+              "process_id": "linear_scale_range",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply32": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension26"
+        },
+        "process": {
+          "process_graph": {
+            "linearscalerange7": {
+              "arguments": {
+                "inputMax": 1.0,
+                "inputMin": 0.0,
+                "outputMax": 1.0,
+                "outputMin": 0.0,
+                "x": {
+                  "from_parameter": "x"
+                }
+              },
+              "process_id": "linear_scale_range",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply33": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension27"
+        },
+        "process": {
+          "process_graph": {
+            "linearscalerange8": {
+              "arguments": {
+                "inputMax": 1.0,
+                "inputMin": 0.0,
+                "outputMax": 1.0,
+                "outputMin": 0.0,
+                "x": {
+                  "from_parameter": "x"
+                }
+              },
+              "process_id": "linear_scale_range",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply34": {
+      "arguments": {
+        "data": {
+          "from_node": "apply29"
+        },
+        "process": {
+          "process_graph": {
+            "gt4": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": 0
+              },
+              "process_id": "gt"
+            },
+            "if17": {
+              "arguments": {
+                "accept": 1,
+                "value": {
+                  "from_node": "gt4"
+                }
+              },
+              "process_id": "if",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply4": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels4"
+        },
+        "process": {
+          "process_graph": {
+            "add2": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": 1
+              },
+              "process_id": "add",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply5": {
+      "arguments": {
+        "data": {
+          "from_node": "filtertemporal1"
+        },
+        "process": {
+          "process_graph": {
+            "eq1": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": 2
+              },
+              "process_id": "eq",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply6": {
+      "arguments": {
+        "data": {
+          "from_node": "filtertemporal2"
+        },
+        "process": {
+          "process_graph": {
+            "eq2": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": 1
+              },
+              "process_id": "eq",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply7": {
+      "arguments": {
+        "data": {
+          "from_node": "adddimension2"
+        },
+        "process": {
+          "process_graph": {
+            "between2": {
+              "arguments": {
+                "max": 366,
+                "min": 1,
+                "x": {
+                  "from_parameter": "x"
+                }
+              },
+              "process_id": "between"
+            },
+            "if2": {
+              "arguments": {
+                "accept": {
+                  "from_parameter": "x"
+                },
+                "value": {
+                  "from_node": "between2"
+                }
+              },
+              "process_id": "if",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply8": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels9"
+        },
+        "process": {
+          "process_graph": {
+            "eq3": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": 1
+              },
+              "process_id": "eq",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "apply9": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels10"
+        },
+        "process": {
+          "process_graph": {
+            "eq4": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": 2
+              },
+              "process_id": "eq",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply"
+    },
+    "applydimension1": {
+      "arguments": {
+        "context": {
+          "year": 2023
+        },
+        "data": {
+          "from_node": "apply2"
+        },
+        "dimension": "t",
+        "process": {
+          "process_graph": {
+            "runudf2": {
+              "arguments": {
+                "context": {
+                  "from_parameter": "context"
+                },
+                "data": {
+                  "from_parameter": "data"
+                },
+                "runtime": "Python",
+                "udf": "from openeo.udf import XarrayDataCube\nfrom skimage.morphology import remove_small_holes\nfrom scipy.ndimage import binary_erosion\nimport numpy as np\nfrom openeo.udf.debug import inspect\nimport datetime\nfrom scipy.interpolate import Rbf\nimport xarray as xr\n\n\ndef run_rbf(src_ndvis, doys):\n\n    # set season start doy, end doy and number of doys in between\n    start_doy = min(doys)\n    end_doy = max(doys)\n    step_doy = (end_doy - start_doy) + 1\n\n    # create series of target doys and \u0027nan array\u0027 of the same length for further store of interpolated NDVIs\n    t_doys = np.linspace(start_doy, end_doy, step_doy)\n    t_ndvis = np.full(t_doys.shape, np.nan)\n\n    if not np.any(~np.isnan(src_ndvis)):\n        return [t_doys, t_ndvis]\n\n    try:\n        # smoothing parameter has fixe value based on the previous internal optimalization\n        sm = 1.0  # smoothing parameter\n\n        # filter-out doys with NDVI NoData values\n        array_nans = ~np.isnan(src_ndvis)\n        src_ndvis_filt = src_ndvis[array_nans]\n        doys_filt = doys[array_nans]\n\n        # set filtered start doy, end doy and number of doys in between\n        start_doy_filt = min(doys_filt)\n        end_doy_filt = max(doys_filt)\n        step_doy_filt = (end_doy_filt - start_doy_filt) + 1\n\n        # create series of doys for interpolation\n        t_doys_filt = np.linspace(start_doy_filt, end_doy_filt, step_doy_filt)\n\n        # Get index of the first valid doy (doy with first occurence of valid NDVI data)\n        first_valid_doy_index = np.where(t_doys == doys_filt[0])[0][0]\n\n        # train and apply RBF function to create interpolated NDVI series\n        rbf = Rbf(doys_filt, src_ndvis_filt, smooth=sm)\n\n        # predict NDVIs...\n        t_ndvis_filt = rbf(t_doys_filt)\n\n        # save the predictions into the full-scaled time-series array\n        t_ndvis[first_valid_doy_index:first_valid_doy_index+t_doys_filt.shape[0]] = t_ndvis_filt\n        return [t_doys,  t_ndvis]\n    except:\n        return [t_doys, t_ndvis]\n\ndef apply_datacube(cube: XarrayDataCube, context: dict) -\u003e XarrayDataCube:\n    \"\"\"\n    Fit and apply RBF interpolation.\n    \"\"\"\n\n    # get target year from the UDF context\n    target_year = context[\"year\"]\n\n    # load cube xarray and it\u0027s coordinates # TODO: add transpose of the dimensions\n    data = cube.get_array()\n    # data = data.transpose(\u0027t\u0027, \u0027bands\u0027, \u0027y\u0027, \u0027x\u0027)\n    coords_x = data.coords[\u0027x\u0027]\n    coords_y = data.coords[\u0027y\u0027]\n    coords_t = data.coords[\u0027t\u0027]\n\n    # get array of doys based on labels in the temporal dimension\n    doys = np.array([dt.astype(\u0027M8[D]\u0027).astype(datetime.date).timetuple().tm_yday for dt in coords_t.values])\n\n    # apply RBF interpolation\n    t_doys, t_ndvis = np.apply_along_axis(run_rbf, 0, data, doys=doys)\n    output_array = np.concatenate((t_ndvis, t_doys), axis=1)\n\n    # convert series of target doys back to numpy datetime objects\n    t_datetimes = np.array([np.datetime64(f\u0027{target_year}-01-01T00:00:00.000000000\u0027) + np.timedelta64(int(doy) - 1, \u0027D\u0027) for doy in t_doys[:, 0, 0, 0]])\n\n    # create new output xarray\n    output_cube = xr.DataArray(\n        output_array,\n        dims=[\"t\", \"bands\", \"y\", \"x\"],\n        coords={\n            \u0027y\u0027: coords_y,\n            \u0027x\u0027: coords_x,\n            \u0027bands\u0027: np.array([\"int_ndvis\", \"int_doys\"]),\n            \"t\": t_datetimes\n        }\n    )\n    return XarrayDataCube(output_cube)"
+              },
+              "process_id": "run_udf",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply_dimension"
+    },
+    "applydimension10": {
+      "arguments": {
+        "data": {
+          "from_node": "adddimension17"
+        },
+        "dimension": "t",
+        "process": {
+          "process_graph": {
+            "arrayfind6": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "value": 1
+              },
+              "process_id": "array_find",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply_dimension"
+    },
+    "applydimension11": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels21"
+        },
+        "dimension": "t",
+        "process": {
+          "process_graph": {
+            "arrayfind7": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "value": 1
+              },
+              "process_id": "array_find",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply_dimension"
+    },
+    "applydimension12": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes36"
+        },
+        "dimension": "bands",
+        "process": {
+          "process_graph": {
+            "all1": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "gte4"
+                  },
+                  {
+                    "from_node": "lte5"
+                  }
+                ]
+              },
+              "process_id": "all"
+            },
+            "arraycreate25": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "if12"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement43": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement44": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 2
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement45": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 6
+              },
+              "process_id": "array_element"
+            },
+            "gte4": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement43"
+                },
+                "y": {
+                  "from_node": "arrayelement44"
+                }
+              },
+              "process_id": "gte"
+            },
+            "if12": {
+              "arguments": {
+                "accept": 1,
+                "reject": 0,
+                "value": {
+                  "from_node": "all1"
+                }
+              },
+              "process_id": "if"
+            },
+            "lte5": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement43"
+                },
+                "y": {
+                  "from_node": "arrayelement45"
+                }
+              },
+              "process_id": "lte"
+            }
+          }
+        }
+      },
+      "process_id": "apply_dimension"
+    },
+    "applydimension13": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes36"
+        },
+        "dimension": "bands",
+        "process": {
+          "process_graph": {
+            "all2": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "gte5"
+                  },
+                  {
+                    "from_node": "lte6"
+                  }
+                ]
+              },
+              "process_id": "all"
+            },
+            "arraycreate26": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "if13"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement46": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement47": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 2
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement48": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 3
+              },
+              "process_id": "array_element"
+            },
+            "gte5": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement46"
+                },
+                "y": {
+                  "from_node": "arrayelement47"
+                }
+              },
+              "process_id": "gte"
+            },
+            "if13": {
+              "arguments": {
+                "accept": 1,
+                "reject": 0,
+                "value": {
+                  "from_node": "all2"
+                }
+              },
+              "process_id": "if"
+            },
+            "lte6": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement46"
+                },
+                "y": {
+                  "from_node": "arrayelement48"
+                }
+              },
+              "process_id": "lte"
+            }
+          }
+        }
+      },
+      "process_id": "apply_dimension"
+    },
+    "applydimension14": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes36"
+        },
+        "dimension": "bands",
+        "process": {
+          "process_graph": {
+            "all3": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "gte6"
+                  },
+                  {
+                    "from_node": "lte7"
+                  }
+                ]
+              },
+              "process_id": "all"
+            },
+            "arraycreate27": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "if14"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement49": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement50": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 4
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement51": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 5
+              },
+              "process_id": "array_element"
+            },
+            "gte6": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement49"
+                },
+                "y": {
+                  "from_node": "arrayelement50"
+                }
+              },
+              "process_id": "gte"
+            },
+            "if14": {
+              "arguments": {
+                "accept": 1,
+                "reject": 0,
+                "value": {
+                  "from_node": "all3"
+                }
+              },
+              "process_id": "if"
+            },
+            "lte7": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement49"
+                },
+                "y": {
+                  "from_node": "arrayelement51"
+                }
+              },
+              "process_id": "lte"
+            }
+          }
+        }
+      },
+      "process_id": "apply_dimension"
+    },
+    "applydimension15": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes36"
+        },
+        "dimension": "bands",
+        "process": {
+          "process_graph": {
+            "all4": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "gte7"
+                  },
+                  {
+                    "from_node": "lte8"
+                  }
+                ]
+              },
+              "process_id": "all"
+            },
+            "arraycreate28": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "if15"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement52": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement53": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 3
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement54": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 4
+              },
+              "process_id": "array_element"
+            },
+            "gte7": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement52"
+                },
+                "y": {
+                  "from_node": "arrayelement53"
+                }
+              },
+              "process_id": "gte"
+            },
+            "if15": {
+              "arguments": {
+                "accept": 1,
+                "reject": 0,
+                "value": {
+                  "from_node": "all4"
+                }
+              },
+              "process_id": "if"
+            },
+            "lte8": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement52"
+                },
+                "y": {
+                  "from_node": "arrayelement54"
+                }
+              },
+              "process_id": "lte"
+            }
+          }
+        }
+      },
+      "process_id": "apply_dimension"
+    },
+    "applydimension2": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes4"
+        },
+        "dimension": "bands",
+        "process": {
+          "process_graph": {
+            "arraycreate1": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "gte1"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement1": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement2": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            },
+            "gte1": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement1"
+                },
+                "y": {
+                  "from_node": "arrayelement2"
+                }
+              },
+              "process_id": "gte"
+            }
+          }
+        }
+      },
+      "process_id": "apply_dimension"
+    },
+    "applydimension3": {
+      "arguments": {
+        "data": {
+          "from_node": "apply4"
+        },
+        "dimension": "t",
+        "process": {
+          "process_graph": {
+            "runudf3": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "runtime": "Python",
+                "udf": "from openeo.udf import XarrayDataCube\nimport numpy as np\nfrom openeo.udf.debug import inspect\nimport xarray as xr\n\n\ndef do_roll(src_array):\n    rolled = np.roll(src_array, 1)\n    rolled[0] = 2\n    return rolled\n\n\ndef apply_datacube(cube: XarrayDataCube, context: dict) -\u003e XarrayDataCube:\n    \"\"\"\n    Fit and apply RBF interpolation.\n    \"\"\"\n\n    # load cube xarray\n    data = cube.get_array()\n    # data = data.transpose(\u0027t\u0027, \u0027bands\u0027, \u0027y\u0027, \u0027x\u0027)\n    coords_x = data.coords[\u0027x\u0027]\n    coords_y = data.coords[\u0027y\u0027]\n    coords_t = data.coords[\u0027t\u0027]\n\n    array_copy = np.copy(data)\n    array_rolled = np.apply_along_axis(do_roll, 0, array_copy)\n\n    # create new output xarray\n    output_cube = xr.DataArray(\n        array_rolled,\n        dims=[\"t\", \"bands\", \"y\", \"x\"],\n        coords={\n            \u0027y\u0027: coords_y,\n            \u0027x\u0027: coords_x,\n            \u0027bands\u0027: np.array([\"rolled\"]),\n            \"t\": coords_t\n        }\n    )\n    return XarrayDataCube(output_cube)"
+              },
+              "process_id": "run_udf",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply_dimension"
+    },
+    "applydimension4": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels6"
+        },
+        "dimension": "t",
+        "process": {
+          "process_graph": {
+            "arrayfind1": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "value": 1
+              },
+              "process_id": "array_find",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply_dimension"
+    },
+    "applydimension5": {
+      "arguments": {
+        "data": {
+          "from_node": "adddimension3"
+        },
+        "dimension": "t",
+        "process": {
+          "process_graph": {
+            "arrayfind2": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "value": 1
+              },
+              "process_id": "array_find",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply_dimension"
+    },
+    "applydimension6": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels13"
+        },
+        "dimension": "t",
+        "process": {
+          "process_graph": {
+            "arrayfind3": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "reverse": true,
+                "value": 1
+              },
+              "process_id": "array_find",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply_dimension"
+    },
+    "applydimension7": {
+      "arguments": {
+        "data": {
+          "from_node": "adddimension7"
+        },
+        "dimension": "t",
+        "process": {
+          "process_graph": {
+            "arrayfind4": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "reverse": true,
+                "value": 1
+              },
+              "process_id": "array_find",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply_dimension"
+    },
+    "applydimension8": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels15"
+        },
+        "dimension": "t",
+        "process": {
+          "process_graph": {
+            "runudf4": {
+              "arguments": {
+                "context": {
+                  "from_parameter": "context"
+                },
+                "data": {
+                  "from_parameter": "data"
+                },
+                "runtime": "Python",
+                "udf": "from openeo.udf import XarrayDataCube\nimport numpy as np\nfrom openeo.udf.debug import inspect\nimport xarray as xr\n\n\ndef apply_datacube(cube: XarrayDataCube, context: dict) -\u003e XarrayDataCube:\n    \"\"\"\n    Fit and apply RBF interpolation.\n    \"\"\"\n\n    # load cube xarray\n    data = cube.get_array()\n    # data = data.transpose(\u0027t\u0027, \u0027bands\u0027, \u0027y\u0027, \u0027x\u0027)\n    coords_x = data.coords[\u0027x\u0027]\n    coords_y = data.coords[\u0027y\u0027]\n    coords_t = data.coords[\u0027t\u0027]\n\n    int_ndvis = data.sel(bands=\"int_ndvis\").values\n\n    lower_index = (data.sel(bands=\"eos1\")[0, :, :]).values\n\n    lower_index = np.tile(lower_index[None, :, :], (1, 1, 1))\n    t = np.arange(int_ndvis.shape[0])[:, None, None]  # shape (time, 1, 1)\n\n    mask = (t \u003c lower_index).astype(int)\n    mask = mask[:, np.newaxis, :, :]\n\n    # create new output xarray\n    output_cube = xr.DataArray(\n        mask,\n        dims=[\"t\", \"bands\", \"y\", \"x\"],\n        coords={\n            \u0027y\u0027: coords_y,\n            \u0027x\u0027: coords_x,\n            \u0027bands\u0027: np.array([\"seg2_mask\"]),\n            \"t\": coords_t\n        }\n    )\n    return XarrayDataCube(output_cube)\n"
+              },
+              "process_id": "run_udf",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply_dimension"
+    },
+    "applydimension9": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels20"
+        },
+        "dimension": "t",
+        "process": {
+          "process_graph": {
+            "arrayfind5": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "value": 1
+              },
+              "process_id": "array_find",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "apply_dimension"
+    },
+    "applyneighborhood1": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes40"
+        },
+        "process": {
+          "process_graph": {
+            "runudf5": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "runtime": "Python",
+                "udf": "from openeo.udf import XarrayDataCube\nimport numpy as np\nimport xarray as xr\nfrom scipy.interpolate import interp1d\nfrom scipy.spatial import ConvexHull\nfrom scipy.integrate import simps\n\nfrom scipy.signal import argrelmax\nfrom scipy.signal import argrelmin\n\nimport time\nstart = time.time()\n\nLOCAL_RUN = False\n\nCONFIG = {\n    \"season_threshold\": 0.25,\n    \"minimum_absolute_ndvi_drop\": 0.12,\n    \"minimum_ema_amplitude\": 0.09,\n    \"macd_threshold\": 0.005,\n    \"minimum_continuum_depth\": 0.85,\n    \"maximum_drop_distance\": 14,\n    \"regrowth_level\": 0.50,\n    \"maximum_regrowth_distance\": 28,\n    \"minimum_bare_length\": 60,\n    \"min_temporal_distance\": 28\n}\n\ndef find_minima_indices(src_array, size):\n    minimas = argrelmin(src_array)[0]\n    result = np.full(size, 0, dtype=float)\n    result[minimas] = 1\n    return result\n\ndef find_maxima_indices(src_array, size):\n    maximas = argrelmax(src_array)[0]\n    result = np.full(size, 0, dtype=float)\n    result[maximas] = 1\n    return result\n\ndef calculate_ema(season_ndvis, period):\n\n    weighting_factor = 2/float(period + 1)\n\n    ema_result = np.zeros_like(season_ndvis)\n    try:\n\n        ndvis_nan2zeros = np.nan_to_num(season_ndvis, nan=0)\n        nonzero_indices = np.nonzero(ndvis_nan2zeros)\n        if len(nonzero_indices[0]) == 0:\n            return ema_result\n        start, end = nonzero_indices[0][0], nonzero_indices[0][-1] + 1\n        season_ndvis_subset = season_ndvis[start:end]\n\n        ema = np.zeros_like(season_ndvis_subset)\n        sma = np.mean(season_ndvis_subset[:period])\n        ema[period - 1] = sma\n\n        ema_values = []\n        for i in range(period, len(season_ndvis_subset)):\n            ema[i] = (season_ndvis_subset[i] * weighting_factor) + (ema[i - 1] * (1 - weighting_factor))\n            ema_values.append(ema[i])\n        ema_result[start+period:end] = ema_values\n\n\n        # TODO: export also EMA doys!!!!!\n        return ema_result\n    except:\n        return ema_result\n\ndef calculate_senescence_doys_mask(macds):\n\n    \"\"\"\n    Find senescence doys (when MACD values trun from positive to negative values\n    \"\"\"\n    # Find indices where the MACD values turn from positive to negative values\n    crossings = (macds[:-1] \u003e 0) \u0026 (macds[1:] \u003c 0)\n    crossings = np.roll(crossings, 1) # we need position of the first negative macd value after crossing\n    crossings[0] = False\n\n    # Create an output array of zeros\n    senescence_doys_positions = np.zeros_like(macds, dtype=int)\n\n    # Mark the position where the crossing occurs (mark the first index of the crossing)\n    senescence_doys_positions[:-1][crossings] = 1\n    return senescence_doys_positions\n\ndef continuum_calculation(src_array, t_size):\n\n    # get doys and ndvis array\n    season_doys = src_array[:t_size]\n    season_ndvis = src_array[t_size:2*t_size]\n\n    continuum_profile_result = np.zeros_like(season_ndvis)\n    continuum_removal_result = np.zeros_like(season_ndvis)\n\n    try:\n        season_ndvis_nan2zeros = np.nan_to_num(season_ndvis, nan=0)\n        nonzero_indices = np.nonzero(season_ndvis_nan2zeros)\n        if len(nonzero_indices[0]) == 0:\n            return np.concatenate([season_doys, continuum_profile_result, continuum_removal_result], axis=0)\n\n        start, end = nonzero_indices[0][0], nonzero_indices[0][-1] + 1\n        doys_subset = season_doys[start:end]\n        ndvis_subset = season_ndvis[start:end]\n        points = np.c_[doys_subset, ndvis_subset]\n        doys, ndvis = points.T\n        augmented = np.concatenate([points, [(doys[0], np.min(ndvis) - 1), (doys[-1], np.min(ndvis) - 1)]], axis=0)\n        hull = ConvexHull(augmented)\n        continuum_points = points[np.sort([v for v in hull.vertices if v \u003c len(points)])]\n        continuum_function = interp1d(*continuum_points.T)\n        continuum_profile = continuum_function(doys)\n        continuum_removal_values = ndvis / continuum_function(doys)\n\n        continuum_profile = np.array(continuum_profile)\n        continuum_removal_values = np.array(continuum_removal_values)\n\n        continuum_removal_result[start:end] = continuum_removal_values\n        continuum_profile_result[start:end] = continuum_profile\n        return np.concatenate([season_doys, continuum_profile_result, continuum_removal_result], axis=0)\n    except:\n        return np.concatenate([season_doys, continuum_profile_result, continuum_removal_result], axis=0)\n\ndef fix_start_end_event_parameters(min_sen_max, t_size):\n\n    # get minima_doys, senescence_doys and maxima_doys\n    minimas = min_sen_max[:t_size]\n    senescences = min_sen_max[t_size:2*t_size]\n    maximas = min_sen_max[2*t_size:]\n\n    minimas_result = np.zeros_like(minimas)\n    senescences_result = np.zeros_like(senescences)\n    maximas_result = np.zeros_like(maximas)\n\n    try:\n        minima_idxs = np.where(minimas == 1)[0]\n        maxima_idxs = np.where(maximas == 1)[0]\n        senescence_idxs = np.where(senescences == 1)[0]\n\n        # Rule 1: First maximum before first minimum\n        if minima_idxs.size \u003e 0 and maxima_idxs.size \u003e 0:\n            if maxima_idxs[0] \u003e= minima_idxs[0]:\n                minimas[minima_idxs[minima_idxs \u003c= maxima_idxs[0]]] = 0\n                minima_idxs = np.where(minimas == 1)[0]\n\n            # Rule 2: Last minimum after last maximum\n            if minima_idxs.size \u003e 0 and maxima_idxs.size \u003e 0:\n                if minima_idxs[-1] \u003c= maxima_idxs[-1]:\n                    maximas[maxima_idxs[maxima_idxs \u003e= minima_idxs[-1]]] = 0\n\n            # Rule 3: First senescence after first maximum\n            if senescence_idxs.size \u003e 0 and maxima_idxs.size \u003e 0:\n                if maxima_idxs[0] \u003e= senescence_idxs[0]:\n                    senescences[senescence_idxs[senescence_idxs \u003c= maxima_idxs[0]]] = 0\n                    senescence_idxs = np.where(senescences == 1)[0]\n\n            # Rule 4: Last minimum after last senescence\n            if minima_idxs.size \u003e 0 and senescence_idxs.size \u003e 0:\n                if minima_idxs[-1] \u003c= senescence_idxs[-1]:\n                    senescences[senescence_idxs[senescence_idxs \u003e= minima_idxs[-1]]] = 0\n\n            # Remove redundant and add missing senescences\n            local_maxima_doys_tmp = maximas * 2\n            maximas_senescences = np.stack([local_maxima_doys_tmp, senescences])\n            maximas_senescences = np.max(maximas_senescences, axis=0)\n            ones_twos_zeros = np.where((maximas_senescences == 1) | (maximas_senescences == 2))[0]\n            onestwos = maximas_senescences[maximas_senescences != 0]\n            onestwos_rolled = np.roll(onestwos, -1)\n            consecutive_senescences = np.where(np.logical_and(onestwos == onestwos_rolled, onestwos == 1))[0] + 1\n            redundant_senescences = ones_twos_zeros[consecutive_senescences]\n            consecutive_maximas = np.where(np.logical_and(onestwos == onestwos_rolled, onestwos == 2))[0]\n            missing_senescences = ones_twos_zeros[consecutive_maximas]\n            senescences[redundant_senescences] = 0\n            senescences[missing_senescences] = 1\n\n            minimas_result = minimas\n            senescences_result = senescences\n            maximas_result = maximas\n        return np.concatenate([minimas_result, senescences_result, maximas_result], axis=0)\n    except:\n        return np.concatenate([minimas_result, senescences, maximas_result], axis=0)\n\ndef calculate_difference(arr, t_size, results_in_first_array_positions=True):\n    # TODO: implement try-except block and check how frequently except occurs\n\n    # get minima_doys, senescence_doys and maxima_doys\n\n    arrA = arr[:t_size]\n    arrB = arr[t_size:]\n\n    arrA_nonzero = arrA[arrA != 0]\n    arrB_nonzero = arrB[arrB != 0]\n\n    if arrA_nonzero.shape != arrB_nonzero.shape:\n        return np.full(arr.shape, 999)\n    else:\n        diff = arrA_nonzero - arrB_nonzero\n\n    result = np.zeros_like(arr)\n    if results_in_first_array_positions:\n        arrA_idxs = np.nonzero(arrA)[0]\n        result[arrA_idxs] = diff\n    else:\n        arrB_idxs = np.nonzero(arrB)[0]\n        result[arrB_idxs] = diff\n\n    return result\n\ndef calculate_macd_momentum(arr, t_size):\n\n\n    try:\n        # get senescence doys, minima doys and macd values\n        sen_doys = arr[:t_size]\n        min_doys = arr[t_size:2 * t_size]\n        macd_values = arr[2 * t_size:]\n\n        # Indices where senescence doys and minima doys are non-zero\n        sen_doys_idxs = np.nonzero(sen_doys)[0]\n        min_doys_idxs = np.nonzero(min_doys)[0]\n\n        momentum_values = list()\n        for i in range(len(sen_doys_idxs)):\n            sen_doy_idx = sen_doys_idxs[i]\n            min_doys_idx = min_doys_idxs[i]\n            momentum_values.append(np.sum(np.abs(macd_values[sen_doy_idx:min_doys_idx]))/float(min_doys_idx-sen_doy_idx))\n        momentum_values = np.array(momentum_values)\n\n        result = np.zeros_like(arr)\n        result[min_doys_idxs] = momentum_values\n        return result\n    except:\n        return np.full(arr.shape, 999)\n\ndef calculate_bare_length(arr, t_size):\n\n    # get doys with NDVI below \u0027bare-soil\u0027 threshold and season local minima positions\n    bare_doys = arr[:t_size]\n    slmin_positions = arr[t_size:]\n    bare_length = np.zeros_like(arr).astype(np.uint16)\n\n    try:\n        position_idxs = np.where(slmin_positions == 1)[0]\n\n        counts = []\n        for i in range(len(position_idxs)):\n            start = position_idxs[i]\n            if bare_doys[start] == 0:\n                counts.append(0)\n                continue\n            if i + 1 == len(position_idxs):\n                bare_doys_subset = bare_doys[start:]\n            else:\n                end = position_idxs[i + 1]\n                bare_doys_subset = bare_doys[start:end]\n            end_of_bare = np.where(np.diff(bare_doys_subset) == -1)[0]\n            if len(end_of_bare) \u003e= 1:\n                counts.append(end_of_bare[0] + 1)\n            else:\n                counts.append(bare_doys_subset.shape[0])\n        if position_idxs.size \u003e 0:\n            bare_length[position_idxs] = counts\n        return bare_length\n    except:\n        return bare_length\n\ndef calculate_regrowth_distance(arr, t_size):\n\n    # get minima positions, regrowth levels and NDVI values\n    minima_positions = arr[:t_size]\n    maxima_positions = arr[t_size:2*t_size]\n    regrowth_levels = arr[2*t_size:3*t_size]\n    season_ndvis = arr[3 * t_size:]\n\n    pixel_result = np.zeros_like(arr).astype(np.byte)\n\n    try:\n        # Find marker indices in A\n        minima_idxs = np.where(minima_positions == 1)[0]\n        maxima_idxs = np.where(maxima_positions == 1)[0]\n\n        results = []\n        for i in range(len(minima_idxs) - 1):\n            start = minima_idxs[i]\n            end = maxima_idxs[i + 1]\n            level = regrowth_levels[start]\n            segment = season_ndvis[start:end]\n            # Find positions in this segment where value \u003e= level\n            regrowth_distance = np.where(segment \u003e= level)[0]\n            if len(regrowth_distance) \u003e 0:\n                regrowth_distance = regrowth_distance[0]\n            else:\n                regrowth_distance = len(segment)\n\n            results.append(regrowth_distance)\n\n        # From last marker to end of array:\n        if len(minima_idxs) \u003e 0:\n            start = minima_idxs[-1]\n            end = len(season_ndvis)\n            level = regrowth_levels[start]\n            segment = season_ndvis[start:end]\n            # regrowth_position = np.where(segment \u003e= level)[0] + start\n            regrowth_distance = np.where(segment \u003e= level)[0]\n            if len(regrowth_distance) \u003e 0:\n                regrowth_distance = regrowth_distance[0]\n            else:\n                segment = np.nan_to_num(segment, nan=0)\n                regrowth_distance = np.argmax(segment)\n            results.append(regrowth_distance)\n        pixel_result[minima_idxs] = results\n        return pixel_result\n    except:\n        return pixel_result\n\n\ndef calculate_annual_productivity(arr, t_size):\n    # get minima_doys, senescence_doys and maxima_doys\n    int_ndvis = arr[:t_size]\n    int_doys = arr[t_size:2*t_size]\n    continuum_profile = arr[2*t_size:3*t_size]\n    season_level = arr[3*t_size:][0]\n\n    productivity_results = np.zeros_like(arr)\n\n    try:\n        start, end = np.where(~np.isnan(int_ndvis))[0][[0, -1]]\n        int_ndvis_subset = int_ndvis[start:end]\n        int_doys_subset = int_doys[start:end]\n        continuum_profile_subset = continuum_profile[start:end]\n\n        # Gross productivity indicators\n        real_gp = simps(int_ndvis_subset, int_doys_subset)\n        theoretical_gp = simps(continuum_profile_subset, int_doys_subset)\n        relative_gp = real_gp / float(theoretical_gp)\n\n        # Net productivity indicators\n        int_ndvis_subset_net = int_ndvis_subset - season_level\n        continuum_profile_subset_net = continuum_profile_subset - season_level\n        real_np = simps(int_ndvis_subset_net, int_doys_subset)\n        theoretical_np = simps(continuum_profile_subset_net, int_doys_subset)\n        relative_np = real_np / float(theoretical_np)\n\n\n        productivity_results[0] = real_gp\n        productivity_results[1] = theoretical_gp\n        productivity_results[2] = relative_gp\n        productivity_results[3] = real_np\n        productivity_results[4] = theoretical_np\n        productivity_results[5] = relative_np\n        return productivity_results\n    except:\n        return productivity_results\n\n\n\ndef apply_datacube(cube: XarrayDataCube, context: dict, local_run=False, config=CONFIG) -\u003e XarrayDataCube:\n    \"\"\"\n    Fit and apply RBF interpolation.\n    \"\"\"\n\n    if local_run:\n        pass\n        # coords_x = cube.coords[\u0027x\u0027]\n        # coords_y = cube.coords[\u0027y\u0027]\n        # coords_t = cube.coords[\u0027t\u0027]\n        #\n        # int_ndvis = cube.variables[\u0027int_ndvis\u0027].values\n        # int_doys = cube.variables[\u0027int_doys\u0027].values\n        # season_mask = cube.variables[\u0027season_mask\u0027].values\n        # segment1_mask = cube.variables[\u0027segment1_mask\u0027].values\n        # segment2_mask = cube.variables[\u0027segment2_mask\u0027].values\n        # intersegment_mask = cube.variables[\u0027intersegment_mask\u0027].values\n        # season_level = cube.variables[\u0027season_level\u0027].values\n\n    else:\n        # load cube xarray\n        data = cube.get_array()\n        # data = data.transpose(\u0027t\u0027, \u0027bands\u0027, \u0027y\u0027, \u0027x\u0027)\n        coords_x = data.coords[\u0027x\u0027]\n        coords_y = data.coords[\u0027y\u0027]\n        coords_t = data.coords[\u0027t\u0027]\n\n        int_ndvis = data.sel(bands=\"int_ndvis\").values\n        int_doys = data.sel(bands=\"int_doys\").values\n        season_mask = data.sel(bands=\"season_mask\").values\n        segment1_mask = data.sel(bands=\"segment1_mask\").values\n        segment2_mask = data.sel(bands=\"segment2_mask\").values\n        intersegment_mask = data.sel(bands=\"intersegment_mask\").values\n        season_level = data.sel(bands=\"season_level\").values\n\n    int_ndvi_season = int_ndvis * season_mask\n    int_ndvi_segment1 = int_ndvis * segment1_mask\n    int_ndvi_segment2 = int_ndvis * segment2_mask\n    int_ndvi_intersegment = int_ndvis * intersegment_mask\n\n    int_ndvi_season[int_ndvi_season == 0.] = np.nan\n    int_ndvi_segment1[int_ndvi_segment1 == 0.] = np.nan\n    int_ndvi_segment2[int_ndvi_segment2 == 0.] = np.nan\n    int_ndvi_intersegment[int_ndvi_intersegment == 0.] = np.nan\n\n    # get size of temporal dimension\n    t_size = len(coords_t.values)\n    x_size = len(coords_x.values)\n    y_size = len(coords_y.values)\n\n    # ============= LOCAL EXTREMES ===================\n\n    # Calculate local NDVI minima and maxima\n    local_maxima_indices = np.apply_along_axis(find_maxima_indices, 0, int_ndvi_season, t_size)\n    local_maxima_indices = local_maxima_indices[:, :, :]\n\n    local_minima_indices = np.apply_along_axis(find_minima_indices, 0, int_ndvi_season, t_size)\n    local_minima_indices = local_minima_indices[:, :, :]\n\n    # ============= EMA ===================\n\n    # Calculate EMAs for 5-days and 10-days periods\n    ema5_values = np.apply_along_axis(calculate_ema, 0, int_ndvi_season, 5)\n    ema10_values = np.apply_along_axis(calculate_ema, 0, int_ndvi_season, 10)\n\n    # Get EMA5 and EMA10 corresponding doys\n    ema10_mask = np.copy(ema10_values)\n    ema10_mask[ema10_mask != 0] = 1\n    # ema10_doys = int_doys * ema10_mask\n\n    # ema5_mask = np.copy(ema5_values)\n    # ema5_mask[ema5_mask != 0] = 1\n    # ema5_doys = int_doys * ema5_mask\n\n    # Calculate MACD values\n    macd_values = np.subtract(ema5_values*ema10_mask, ema10_values)\n\n    # Get senescence doys and values\n    senescence_doys_positions = np.apply_along_axis(calculate_senescence_doys_mask, 0, macd_values)\n    # senescence_values = int_ndvi_season * senescence_doys_positions\n    # senescence_values[senescence_values == 0] = np.nan\n    senescence_doys = int_doys * senescence_doys_positions\n\n    # ============= CONTINUUM ===================\n\n    # Get Global NDVI minimum and Intersegment NDVI minimum\n    min_ndvi_intersegment = np.nanmin(int_ndvi_intersegment, axis=0)\n    min_ndvi_season = np.nanmin(int_ndvi_season, axis=0)\n\n    # determine mask of pixels where intersegment_min == season_min\n    intersegment_equals_global_min_mask = (min_ndvi_intersegment == min_ndvi_season).astype(np.uint8)\n    intersegment_equals_global_min_mask = np.tile(intersegment_equals_global_min_mask, (t_size, 1, 1))\n\n    # Case where global NDVI minimum IS NOT in intersegment\n    int_ndvis_singlecont = int_ndvi_season * (1 - intersegment_equals_global_min_mask)\n    profile_singlecont = np.concatenate([int_doys, int_ndvis_singlecont, np.zeros_like(int_doys)], axis=0)\n    continuum_stack_singlecont = np.apply_along_axis(continuum_calculation, 0, profile_singlecont, t_size)\n    del profile_singlecont\n\n    continuum_doys_singlecont = continuum_stack_singlecont[:t_size]\n    continuum_profile_singlecont = continuum_stack_singlecont[t_size:2*t_size]\n    continuum_removal_singlecont = continuum_stack_singlecont[2*t_size:]\n\n    # Case where global NDVI minimum IS in intersegment\n    # Segment 1 (between SOS1 and EOS1)\n    int_ndvis_seg1 = int_ndvi_segment1 * intersegment_equals_global_min_mask\n    profile_seg1 = np.concatenate([int_doys, int_ndvis_seg1, np.zeros_like(int_doys)], axis=0)\n    continuum_stack_seg1 = np.apply_along_axis(continuum_calculation, 0, profile_seg1, t_size)\n    del profile_seg1\n\n    continuum_doys_seg1 = continuum_stack_seg1[:t_size]\n    continuum_profile_seg1 = continuum_stack_seg1[t_size:2*t_size]\n    continuum_removal_seg1 = continuum_stack_seg1[2*t_size:]\n\n    # Segment 2 (between SOS2 and EOS2)\n    int_ndvis_seg2 = int_ndvi_segment2 * intersegment_equals_global_min_mask\n    profile_seg2 = np.concatenate([int_doys, int_ndvis_seg2, np.zeros_like(int_doys)], axis=0)\n    continuum_stack_seg2 = np.apply_along_axis(continuum_calculation, 0, profile_seg2, t_size)\n    del profile_seg2\n\n    continuum_doys_seg2 = continuum_stack_seg2[:t_size]\n    continuum_profile_seg2 = continuum_stack_seg2[t_size:2*t_size]\n    continuum_removal_seg2 = continuum_stack_seg2[2*t_size:]\n\n    # merge continuum variables for segment1 and segment2\n    continuum_doys_doublecont = np.fmax(continuum_doys_seg1, continuum_doys_seg2)\n    continuum_profile_doublecont = np.fmax(continuum_profile_seg1, continuum_profile_seg2)\n    continuum_removal_doublecont = np.fmax(continuum_removal_seg1, continuum_removal_seg2)\n\n    # add values for continuum profile and continuum removal for the intersegment\n    intersegment_equals_global_min_mask *= intersegment_mask.astype(np.uint8)\n    continuum_profile_singlecont[intersegment_equals_global_min_mask == 1] = int_ndvi_intersegment[intersegment_equals_global_min_mask == 1]\n    continuum_removal_doublecont[intersegment_equals_global_min_mask == 1] = 1\n\n    # merge continuum variables for the singlecont and doublecont case\n    continuum_doys = np.fmax(continuum_doys_singlecont, continuum_doys_doublecont)\n    continuum_profile = np.fmax(continuum_profile_singlecont, continuum_profile_doublecont)\n    continuum_removal = np.fmax(continuum_removal_singlecont, continuum_removal_doublecont)\n\n    # ============= EVENT DETECTION ===================\n\n    senescence_doys[senescence_doys \u003e 0] = 1\n    min_sen_max = np.concatenate([local_minima_indices, senescence_doys, local_maxima_indices], axis=0)\n    min_sen_max = np.apply_along_axis(fix_start_end_event_parameters, 0, min_sen_max, t_size)\n    season_local_minimas = min_sen_max[:t_size]\n    season_senescences = min_sen_max[t_size:2 * t_size]\n    season_local_maximas = min_sen_max[2 * t_size:]\n    del min_sen_max\n\n    # get season local minima doys and values\n    slmin_doys = int_doys * season_local_minimas\n    slmin_values = int_ndvis * season_local_minimas\n\n    # get season local maxima doys and values\n    slmax_doys = int_doys * season_local_maximas\n    slmax_values = int_ndvis * season_local_maximas\n\n    # get senescence doys and values\n    sen_doys = int_doys * season_senescences\n    sen_values = int_ndvis * season_senescences\n\n    # get continuum removal values corresponding to local minimas\n    slmin_cr_values = continuum_removal * season_local_minimas\n\n    # get mask of pixels with at least one event\n    mask_maximas_exist = np.max(season_local_maximas, axis=0)\n    mask_minimas_exist = np.max(season_local_minimas, axis=0)\n    mask_senescences_exist = np.max(season_senescences, axis=0)\n    mask_event_exist = (mask_maximas_exist * mask_minimas_exist * mask_senescences_exist)\n    mask_event_exist = np.tile(mask_event_exist[None, :, :], (t_size, 1, 1))\n\n    slmax_doys *= mask_event_exist\n    slmin_doys *= mask_event_exist\n    sen_doys *= mask_event_exist\n    slmax_values *= mask_event_exist\n    slmin_values *= mask_event_exist\n    sen_values *= mask_event_exist\n    macd_values *= mask_event_exist\n\n    # Get temporal distances between local maxima and local minima doys\n    slmax_slmin_doys = np.concatenate([slmin_doys, slmax_doys], axis=0)\n    max2min_distance = np.apply_along_axis(calculate_difference, 0, slmax_slmin_doys, t_size)[:t_size]\n\n    # Get temporal distances between senescence and local minima doys\n    sen_slmin_doys = np.concatenate([slmin_doys, sen_doys], axis=0)\n    sen2min_distance = np.apply_along_axis(calculate_difference, 0, sen_slmin_doys, t_size)[\n        :t_size]  # TODO: this will not be used any more, just for test\n\n    # Get amplitude between local maxima and local minima values\n    slmax_slmin_values = np.concatenate([slmax_values, slmin_values], axis=0)\n    max2min_amplitude = np.apply_along_axis(calculate_difference, 0, slmax_slmin_values, t_size, False)[:t_size]\n\n    # Get amplitude between senescence and local minima values\n    sen_slmin_values = np.concatenate([sen_values, slmin_values], axis=0)\n    sen2min_amplitude = np.apply_along_axis(calculate_difference, 0, sen_slmin_values, t_size, False)[:t_size]\n\n    # Calculate MACD momentum between senescence doys and local minima doys\n    sen_slmin_doys_macd = np.concatenate([sen_doys, slmin_doys, macd_values], axis=0)\n    macd_momentum = np.apply_along_axis(calculate_macd_momentum, 0, sen_slmin_doys_macd, t_size)[:t_size]\n\n    slmin_positions = np.copy(slmin_doys)\n    slmin_positions[slmin_positions \u003e 0] = 1\n    slmax_positions = np.copy(slmax_doys)\n    slmax_positions[slmax_positions \u003e 0] = 1\n\n    # get values under the \"bare-soil\" threshold\n    bare_doys = np.copy(int_ndvi_season)\n    bare_doys[bare_doys \u003e 0.25] = 0  # TODO: this threshold is correct!!!!!\n    # bare_doys[bare_doys \u003e= 0.6] = 0\n    bare_doys[bare_doys != 0] = 1\n\n    # Calculate bare length values\n    baredoys_slmin_positions = np.concatenate([bare_doys, slmin_positions], axis=0)\n    bare_length = np.apply_along_axis(calculate_bare_length, 0, baredoys_slmin_positions, t_size)\n    bare_length = bare_length[:t_size]\n\n    # Calculate regrowth distance (number of days between local minima and the achievement of regrowth of at least 50% of the local amplitude - the difference between the last local maximum and the current local minimum).\n    absolute_regrowth_level = (0.5 * max2min_amplitude) + slmin_values\n    minpos_reglev_ndvis = np.concatenate([\n        slmin_positions,\n        slmax_positions,\n        # (0.5 * max2min_amplitude) + slmin_values,\n        absolute_regrowth_level,\n        int_ndvi_season], axis=0)\n    regrowth_distance = np.apply_along_axis(calculate_regrowth_distance, 0, minpos_reglev_ndvis, t_size)[:t_size]\n\n    # filter significant events (= minimas)\n    sen2min_mask = sen2min_amplitude \u003e= config[\"minimum_ema_amplitude\"]\n    macd_momentum_mask = macd_momentum \u003e= config[\"macd_threshold\"]\n    max2min_amplitude_mask = max2min_amplitude \u003e= config[\"minimum_absolute_ndvi_drop\"]\n\n    sig_con1 = (sen2min_mask \u0026 macd_momentum_mask) | max2min_amplitude_mask\n    sig_con2 = (slmin_cr_values \u003c= config[\"minimum_continuum_depth\"]) \u0026 (slmin_cr_values \u003e 0)\n    sig_con3 = (slmin_positions * intersegment_mask) == 1\n\n    significant_events = ((sig_con1 \u0026 sig_con2) | (sig_con1 \u0026 sig_con3)).astype(int) * slmin_doys\n\n    # Filter Mowing events\n    mowing_mask = ((max2min_distance \u003c= config[\"maximum_drop_distance\"]) \u0026\n                   (regrowth_distance \u003c= config[\"maximum_regrowth_distance\"]) \u0026\n                   (slmin_values \u003e 0.25)).astype(int)\n    mowing_events = significant_events * mowing_mask\n\n    # Filter Ploughing events\n    ploughing_mask = ((max2min_distance \u003c= config[\"maximum_drop_distance\"]) \u0026\n                      (bare_length \u003e= config[\"minimum_bare_length\"]) \u0026\n                      (slmin_values \u003c= 0.25)).astype(int)\n    ploughing_events = significant_events * ploughing_mask\n\n    # Filter Grazing events\n    grazing_mask = (((max2min_distance \u003e config[\"maximum_drop_distance\"]) |\n                     (regrowth_distance \u003e config[\"maximum_regrowth_distance\"])) \u0026\n                    (bare_length \u003c config[\"minimum_bare_length\"])).astype(int)\n    grazing_events = significant_events * grazing_mask\n\n    other_events_mask = ~mowing_mask * ~ploughing_mask * ~grazing_mask\n    other_events = significant_events * other_events_mask\n\n    # ============= ANNUAL DYNAMICS ===================\n\n    season_length = np.count_nonzero(~np.isnan(int_ndvi_season), axis=0)\n    int_ndvi_diff = np.abs(np.diff(int_ndvi_season, axis=0))\n    real_dynamics = np.nansum(int_ndvi_diff, axis=0) / (season_length - 1)\n\n    # continuum_profile *= mask_season\n    continuum_profile[continuum_profile == 0] = np.nan\n\n    continuum_profile_length = np.count_nonzero(~np.isnan(continuum_profile), axis=0)\n    continuum_profile_diff = np.abs(np.diff(continuum_profile, axis=0))\n    theoretical_dynamics = np.nansum(continuum_profile_diff, axis=0) / (continuum_profile_length - 1)\n    mgdi = real_dynamics / theoretical_dynamics\n\n    # ============= ANNUAL PRODUCTIVITY ===================\n\n    ndvis_doys_contprof_sl = np.concatenate([int_ndvi_season, int_doys, continuum_profile, season_level], axis=0)\n    annual_productivity = np.apply_along_axis(calculate_annual_productivity, 0, ndvis_doys_contprof_sl, t_size)\n    mgpi = annual_productivity[2]\n    mnpi = annual_productivity[5]\n\n    gmi_results = np.stack([\n        np.broadcast_to(mgdi, (t_size, y_size, x_size)),\n        np.broadcast_to(mgpi, (t_size, y_size, x_size)),\n        np.broadcast_to(mnpi, (t_size, y_size, x_size)),\n        significant_events,\n        mowing_events,\n        ploughing_events,\n        grazing_events,\n        other_events,\n    ], axis=1)\n\n    output_cube = xr.DataArray(\n        gmi_results,\n        dims=[\"t\", \"bands\", \"y\", \"x\"],\n        coords={\n            \u0027y\u0027: coords_y,\n            \u0027x\u0027: coords_x,\n            \u0027bands\u0027: np.array([\"mgdi\", \"mgpi\", \"mnpi\", \"significant_events\", \"mowing_events\", \"ploughing_events\", \"grazing_events\", \"other_events\"]),\n            \u0027t\u0027: coords_t\n        }\n    )\n    return XarrayDataCube(output_cube)\n\nif LOCAL_RUN:\n    test_nc_file = \"/home/jtomicek/GISAT/GitHub/EUGW/GRASSLAND_MANAGEMENT/INTENSITY/gmi_inputs_for_udf/gmi_inputs.nc\"\n    # test_nc_file =   \u0027/home/jtomicek/GISAT/GitHub/EUGW/GRASSLAND_MANAGEMENT/GMI/testing_nc_files/5km_test_tile/int_ndvis_pheno.nc\u0027\n    ds = xr.open_dataset(test_nc_file)\n    ds = ds.isel(y=slice(421, 435), x=slice(422, 436))\n    apply_datacube(ds, None, local_run=True)\n\nend = time.time()\nprint(end-start)"
+              },
+              "process_id": "run_udf",
+              "result": true
+            }
+          }
+        },
+        "size": [
+          {
+            "dimension": "x",
+            "unit": "px",
+            "value": 50
+          },
+          {
+            "dimension": "y",
+            "unit": "px",
+            "value": 50
+          }
+        ]
+      },
+      "process_id": "apply_neighborhood"
+    },
+    "dropdimension1": {
+      "arguments": {
+        "data": {
+          "from_node": "aggregatetemporal1"
+        },
+        "name": "t"
+      },
+      "process_id": "drop_dimension"
+    },
+    "dropdimension10": {
+      "arguments": {
+        "data": {
+          "from_node": "aggregatetemporal6"
+        },
+        "name": "t"
+      },
+      "process_id": "drop_dimension"
+    },
+    "dropdimension11": {
+      "arguments": {
+        "data": {
+          "from_node": "applydimension9"
+        },
+        "name": "t"
+      },
+      "process_id": "drop_dimension"
+    },
+    "dropdimension12": {
+      "arguments": {
+        "data": {
+          "from_node": "applydimension10"
+        },
+        "name": "t"
+      },
+      "process_id": "drop_dimension"
+    },
+    "dropdimension13": {
+      "arguments": {
+        "data": {
+          "from_node": "applydimension11"
+        },
+        "name": "t"
+      },
+      "process_id": "drop_dimension"
+    },
+    "dropdimension2": {
+      "arguments": {
+        "data": {
+          "from_node": "aggregatetemporal2"
+        },
+        "name": "t"
+      },
+      "process_id": "drop_dimension"
+    },
+    "dropdimension3": {
+      "arguments": {
+        "data": {
+          "from_node": "aggregatetemporal3"
+        },
+        "name": "t"
+      },
+      "process_id": "drop_dimension"
+    },
+    "dropdimension4": {
+      "arguments": {
+        "data": {
+          "from_node": "applydimension4"
+        },
+        "name": "t"
+      },
+      "process_id": "drop_dimension"
+    },
+    "dropdimension5": {
+      "arguments": {
+        "data": {
+          "from_node": "aggregatetemporal4"
+        },
+        "name": "t"
+      },
+      "process_id": "drop_dimension"
+    },
+    "dropdimension6": {
+      "arguments": {
+        "data": {
+          "from_node": "aggregatetemporal5"
+        },
+        "name": "t"
+      },
+      "process_id": "drop_dimension"
+    },
+    "dropdimension7": {
+      "arguments": {
+        "data": {
+          "from_node": "applydimension5"
+        },
+        "name": "t"
+      },
+      "process_id": "drop_dimension"
+    },
+    "dropdimension8": {
+      "arguments": {
+        "data": {
+          "from_node": "applydimension6"
+        },
+        "name": "t"
+      },
+      "process_id": "drop_dimension"
+    },
+    "dropdimension9": {
+      "arguments": {
+        "data": {
+          "from_node": "applydimension7"
+        },
+        "name": "t"
+      },
+      "process_id": "drop_dimension"
+    },
+    "filterbands1": {
+      "arguments": {
+        "bands": [
+          "int_ndvis"
+        ],
+        "data": {
+          "from_node": "renamelabels2"
+        }
+      },
+      "process_id": "filter_bands"
+    },
+    "filterbands2": {
+      "arguments": {
+        "bands": [
+          "int_doys"
+        ],
+        "data": {
+          "from_node": "renamelabels2"
+        }
+      },
+      "process_id": "filter_bands"
+    },
+    "filterbands3": {
+      "arguments": {
+        "bands": [
+          "significant_events"
+        ],
+        "data": {
+          "from_node": "apply29"
+        }
+      },
+      "process_id": "filter_bands"
+    },
+    "filterbands4": {
+      "arguments": {
+        "bands": [
+          "mgdi"
+        ],
+        "data": {
+          "from_node": "apply29"
+        }
+      },
+      "process_id": "filter_bands"
+    },
+    "filterbands5": {
+      "arguments": {
+        "bands": [
+          "mgpi"
+        ],
+        "data": {
+          "from_node": "apply29"
+        }
+      },
+      "process_id": "filter_bands"
+    },
+    "filterbands6": {
+      "arguments": {
+        "bands": [
+          "mnpi"
+        ],
+        "data": {
+          "from_node": "apply29"
+        }
+      },
+      "process_id": "filter_bands"
+    },
+    "filterbands7": {
+      "arguments": {
+        "bands": [
+          "significant_events",
+          "mowing_events",
+          "ploughing_events",
+          "grazing_events",
+          "other_events"
+        ],
+        "data": {
+          "from_node": "apply34"
+        }
+      },
+      "process_id": "filter_bands"
+    },
+    "filtertemporal1": {
+      "arguments": {
+        "data": {
+          "from_node": "apply4"
+        },
+        "extent": [
+          "2023-01-01",
+          "2023-06-30"
+        ]
+      },
+      "process_id": "filter_temporal"
+    },
+    "filtertemporal2": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels5"
+        },
+        "extent": [
+          "2023-01-01",
+          "2023-06-30"
+        ]
+      },
+      "process_id": "filter_temporal"
+    },
+    "filtertemporal3": {
+      "arguments": {
+        "data": {
+          "from_node": "filterbands2"
+        },
+        "extent": [
+          "2023-06-30",
+          "2023-12-31"
+        ]
+      },
+      "process_id": "filter_temporal"
+    },
+    "filtertemporal4": {
+      "arguments": {
+        "data": {
+          "from_node": "apply4"
+        },
+        "extent": [
+          "2023-06-30",
+          "2023-12-31"
+        ]
+      },
+      "process_id": "filter_temporal"
+    },
+    "filtertemporal5": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels5"
+        },
+        "extent": [
+          "2023-06-30",
+          "2023-12-31"
+        ]
+      },
+      "process_id": "filter_temporal"
+    },
+    "filtertemporal6": {
+      "arguments": {
+        "data": {
+          "from_node": "filterbands1"
+        },
+        "extent": [
+          "2023-06-30",
+          "2023-12-31"
+        ]
+      },
+      "process_id": "filter_temporal"
+    },
+    "loadcollection1": {
+      "arguments": {
+        "bands": [
+          "B04",
+          "B08"
+        ],
+        "id": "S2_FOOBAR",
+        "properties": {
+          "eo:cloud_cover": {
+            "process_graph": {
+              "lte1": {
+                "arguments": {
+                  "x": {
+                    "from_parameter": "value"
+                  },
+                  "y": 100
+                },
+                "process_id": "lte",
+                "result": true
+              }
+            }
+          }
+        },
+        "spatial_extent": {
+          "crs": "epsg:4326",
+          "east": 20.196922049512388,
+          "north": 48.97969569426072,
+          "south": 48.92902416542918,
+          "west": 20.119989734210684
+        },
+        "temporal_extent": [
+          "2023-01-01",
+          "2023-12-31"
+        ]
+      },
+      "process_id": "load_collection"
+    },
+    "loadcollection2": {
+      "arguments": {
+        "bands": [
+          "SCL"
+        ],
+        "id": "S2_FOOBAR",
+        "properties": {
+          "eo:cloud_cover": {
+            "process_graph": {
+              "lte2": {
+                "arguments": {
+                  "x": {
+                    "from_parameter": "value"
+                  },
+                  "y": 100
+                },
+                "process_id": "lte",
+                "result": true
+              }
+            }
+          }
+        },
+        "spatial_extent": {
+          "crs": "epsg:4326",
+          "east": 20.196922049512388,
+          "north": 48.97969569426072,
+          "south": 48.92902416542918,
+          "west": 20.119989734210684
+        },
+        "temporal_extent": [
+          "2023-01-01",
+          "2023-12-31"
+        ]
+      },
+      "process_id": "load_collection"
+    },
+    "mask1": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels1"
+        },
+        "mask": {
+          "from_node": "apply1"
+        }
+      },
+      "process_id": "mask"
+    },
+    "mask2": {
+      "arguments": {
+        "data": {
+          "from_node": "apply4"
+        },
+        "mask": {
+          "from_node": "adddimension11"
+        }
+      },
+      "process_id": "mask"
+    },
+    "mask3": {
+      "arguments": {
+        "data": {
+          "from_node": "filterbands1"
+        },
+        "mask": {
+          "from_node": "adddimension11"
+        }
+      },
+      "process_id": "mask"
+    },
+    "mask4": {
+      "arguments": {
+        "data": {
+          "from_node": "mask2"
+        },
+        "mask": {
+          "from_node": "apply15"
+        }
+      },
+      "process_id": "mask"
+    },
+    "mask5": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels5"
+        },
+        "mask": {
+          "from_node": "adddimension11"
+        }
+      },
+      "process_id": "mask"
+    },
+    "mask6": {
+      "arguments": {
+        "data": {
+          "from_node": "mask5"
+        },
+        "mask": {
+          "from_node": "apply15"
+        }
+      },
+      "process_id": "mask"
+    },
+    "mergecubes1": {
+      "arguments": {
+        "cube1": {
+          "from_node": "dropdimension2"
+        },
+        "cube2": {
+          "from_node": "dropdimension1"
+        },
+        "overlap_resolver": {
+          "process_graph": {
+            "subtract1": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": {
+                  "from_parameter": "y"
+                }
+              },
+              "process_id": "subtract",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes10": {
+      "arguments": {
+        "cube1": {
+          "from_node": "renamelabels7"
+        },
+        "cube2": {
+          "from_node": "adddimension4"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes11": {
+      "arguments": {
+        "cube1": {
+          "from_node": "mergecubes7"
+        },
+        "cube2": {
+          "from_node": "apply10"
+        },
+        "overlap_resolver": {
+          "process_graph": {
+            "and3": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": {
+                  "from_parameter": "y"
+                }
+              },
+              "process_id": "and",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes12": {
+      "arguments": {
+        "cube1": {
+          "from_node": "renamelabels8"
+        },
+        "cube2": {
+          "from_node": "dropdimension8"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes13": {
+      "arguments": {
+        "cube1": {
+          "from_node": "apply7"
+        },
+        "cube2": {
+          "from_node": "apply11"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes14": {
+      "arguments": {
+        "cube1": {
+          "from_node": "filterbands1"
+        },
+        "cube2": {
+          "from_node": "renamelabels14"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes15": {
+      "arguments": {
+        "cube1": {
+          "from_node": "dropdimension3"
+        },
+        "cube2": {
+          "from_node": "dropdimension9"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes16": {
+      "arguments": {
+        "cube1": {
+          "from_node": "adddimension8"
+        },
+        "cube2": {
+          "from_node": "apply12"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes17": {
+      "arguments": {
+        "cube1": {
+          "from_node": "adddimension6"
+        },
+        "cube2": {
+          "from_node": "adddimension9"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes18": {
+      "arguments": {
+        "cube1": {
+          "from_node": "filterbands1"
+        },
+        "cube2": {
+          "from_node": "adddimension10"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes19": {
+      "arguments": {
+        "cube1": {
+          "from_node": "renamelabels17"
+        },
+        "cube2": {
+          "from_node": "renamelabels3"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes2": {
+      "arguments": {
+        "cube1": {
+          "from_node": "dropdimension1"
+        },
+        "cube2": {
+          "from_node": "apply3"
+        },
+        "overlap_resolver": {
+          "process_graph": {
+            "add1": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": {
+                  "from_parameter": "y"
+                }
+              },
+              "process_id": "add",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes20": {
+      "arguments": {
+        "cube1": {
+          "from_node": "dropdimension2"
+        },
+        "cube2": {
+          "from_node": "renamelabels3"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes21": {
+      "arguments": {
+        "cube1": {
+          "from_node": "adddimension12"
+        },
+        "cube2": {
+          "from_node": "adddimension13"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes22": {
+      "arguments": {
+        "cube1": {
+          "from_node": "apply13"
+        },
+        "cube2": {
+          "from_node": "apply14"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes23": {
+      "arguments": {
+        "cube1": {
+          "from_node": "apply16"
+        },
+        "cube2": {
+          "from_node": "apply17"
+        },
+        "overlap_resolver": {
+          "process_graph": {
+            "and5": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": {
+                  "from_parameter": "y"
+                }
+              },
+              "process_id": "and",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes24": {
+      "arguments": {
+        "cube1": {
+          "from_node": "dropdimension3"
+        },
+        "cube2": {
+          "from_node": "dropdimension11"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes25": {
+      "arguments": {
+        "cube1": {
+          "from_node": "mergecubes13"
+        },
+        "cube2": {
+          "from_node": "apply18"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes26": {
+      "arguments": {
+        "cube1": {
+          "from_node": "apply19"
+        },
+        "cube2": {
+          "from_node": "apply20"
+        },
+        "overlap_resolver": {
+          "process_graph": {
+            "and6": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": {
+                  "from_parameter": "y"
+                }
+              },
+              "process_id": "and",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes27": {
+      "arguments": {
+        "cube1": {
+          "from_node": "renamelabels16"
+        },
+        "cube2": {
+          "from_node": "renamelabels17"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes28": {
+      "arguments": {
+        "cube1": {
+          "from_node": "dropdimension3"
+        },
+        "cube2": {
+          "from_node": "dropdimension12"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes29": {
+      "arguments": {
+        "cube1": {
+          "from_node": "filterbands2"
+        },
+        "cube2": {
+          "from_node": "adddimension18"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes3": {
+      "arguments": {
+        "cube1": {
+          "from_node": "renamelabels2"
+        },
+        "cube2": {
+          "from_node": "renamelabels3"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes30": {
+      "arguments": {
+        "cube1": {
+          "from_node": "mergecubes26"
+        },
+        "cube2": {
+          "from_node": "apply21"
+        },
+        "overlap_resolver": {
+          "process_graph": {
+            "and7": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": {
+                  "from_parameter": "y"
+                }
+              },
+              "process_id": "and",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes31": {
+      "arguments": {
+        "cube1": {
+          "from_node": "dropdimension3"
+        },
+        "cube2": {
+          "from_node": "dropdimension13"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes32": {
+      "arguments": {
+        "cube1": {
+          "from_node": "adddimension20"
+        },
+        "cube2": {
+          "from_node": "renamelabels22"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes33": {
+      "arguments": {
+        "cube1": {
+          "from_node": "mergecubes25"
+        },
+        "cube2": {
+          "from_node": "apply24"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes34": {
+      "arguments": {
+        "cube1": {
+          "from_node": "apply11"
+        },
+        "cube2": {
+          "from_node": "apply24"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes35": {
+      "arguments": {
+        "cube1": {
+          "from_node": "mergecubes33"
+        },
+        "cube2": {
+          "from_node": "adddimension22"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes36": {
+      "arguments": {
+        "cube1": {
+          "from_node": "renamelabels2"
+        },
+        "cube2": {
+          "from_node": "mergecubes35"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes37": {
+      "arguments": {
+        "cube1": {
+          "from_node": "mergecubes3"
+        },
+        "cube2": {
+          "from_node": "apply25"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes38": {
+      "arguments": {
+        "cube1": {
+          "from_node": "mergecubes37"
+        },
+        "cube2": {
+          "from_node": "apply26"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes39": {
+      "arguments": {
+        "cube1": {
+          "from_node": "mergecubes38"
+        },
+        "cube2": {
+          "from_node": "apply27"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes4": {
+      "arguments": {
+        "cube1": {
+          "from_node": "filterbands1"
+        },
+        "cube2": {
+          "from_node": "renamelabels3"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes40": {
+      "arguments": {
+        "cube1": {
+          "from_node": "mergecubes39"
+        },
+        "cube2": {
+          "from_node": "apply28"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes5": {
+      "arguments": {
+        "cube1": {
+          "from_node": "apply5"
+        },
+        "cube2": {
+          "from_node": "apply6"
+        },
+        "overlap_resolver": {
+          "process_graph": {
+            "and1": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": {
+                  "from_parameter": "y"
+                }
+              },
+              "process_id": "and",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes6": {
+      "arguments": {
+        "cube1": {
+          "from_node": "dropdimension3"
+        },
+        "cube2": {
+          "from_node": "dropdimension4"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes7": {
+      "arguments": {
+        "cube1": {
+          "from_node": "apply8"
+        },
+        "cube2": {
+          "from_node": "apply9"
+        },
+        "overlap_resolver": {
+          "process_graph": {
+            "and2": {
+              "arguments": {
+                "x": {
+                  "from_parameter": "x"
+                },
+                "y": {
+                  "from_parameter": "y"
+                }
+              },
+              "process_id": "and",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes8": {
+      "arguments": {
+        "cube1": {
+          "from_node": "renamelabels11"
+        },
+        "cube2": {
+          "from_node": "renamelabels12"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "mergecubes9": {
+      "arguments": {
+        "cube1": {
+          "from_node": "renamelabels8"
+        },
+        "cube2": {
+          "from_node": "dropdimension7"
+        }
+      },
+      "process_id": "merge_cubes"
+    },
+    "ndvi1": {
+      "arguments": {
+        "data": {
+          "from_node": "mask1"
+        },
+        "nir": "nir",
+        "red": "red"
+      },
+      "process_id": "ndvi"
+    },
+    "reducedimension1": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes6"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "add3": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement3"
+                },
+                "y": {
+                  "from_node": "arrayelement4"
+                }
+              },
+              "process_id": "add"
+            },
+            "arraycreate2": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "add3"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement3": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement4": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension10": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes17"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "arraycreate10": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "arrayelement19"
+                  },
+                  {
+                    "from_node": "arrayelement20"
+                  }
+                ]
+              },
+              "process_id": "array_create"
+            },
+            "arraycreate11": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "max2"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement19": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement20": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            },
+            "max2": {
+              "arguments": {
+                "data": {
+                  "from_node": "arraycreate10"
+                },
+                "ignore_nodata": true
+              },
+              "process_id": "max"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension11": {
+      "arguments": {
+        "data": {
+          "from_node": "applydimension8"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "first1": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                }
+              },
+              "process_id": "first",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension12": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes19"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "arraycreate12": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "subtract2"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement21": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement22": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            },
+            "subtract2": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement21"
+                },
+                "y": {
+                  "from_node": "arrayelement22"
+                }
+              },
+              "process_id": "subtract"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension13": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes20"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "arraycreate13": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "subtract3"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement23": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement24": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            },
+            "subtract3": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement23"
+                },
+                "y": {
+                  "from_node": "arrayelement24"
+                }
+              },
+              "process_id": "subtract"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension14": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes21"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "arraycreate14": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "divide1"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement25": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement26": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            },
+            "divide1": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement25"
+                },
+                "y": {
+                  "from_node": "arrayelement26"
+                }
+              },
+              "process_id": "divide"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension15": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes22"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "and4": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement27"
+                },
+                "y": {
+                  "from_node": "arrayelement28"
+                }
+              },
+              "process_id": "and"
+            },
+            "arraycreate15": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "and4"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement27": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement28": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension16": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes24"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "add7": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement29"
+                },
+                "y": {
+                  "from_node": "arrayelement30"
+                }
+              },
+              "process_id": "add"
+            },
+            "arraycreate16": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "add7"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement29": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement30": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension17": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes27"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "arraycreate17": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "gte2"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement31": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement32": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            },
+            "gte2": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement31"
+                },
+                "y": {
+                  "from_node": "arrayelement32"
+                }
+              },
+              "process_id": "gte"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension18": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes28"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "add8": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement33"
+                },
+                "y": {
+                  "from_node": "arrayelement34"
+                }
+              },
+              "process_id": "add"
+            },
+            "arraycreate18": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "add8"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement33": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement34": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension19": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes29"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "arraycreate19": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "gte3"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement35": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement36": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            },
+            "gte3": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement35"
+                },
+                "y": {
+                  "from_node": "arrayelement36"
+                }
+              },
+              "process_id": "gte"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension2": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes8"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "arraycreate3": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "lte3"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement5": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement6": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            },
+            "lte3": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement5"
+                },
+                "y": {
+                  "from_node": "arrayelement6"
+                }
+              },
+              "process_id": "lte"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension20": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes31"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "add9": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement37"
+                },
+                "y": {
+                  "from_node": "arrayelement38"
+                }
+              },
+              "process_id": "add"
+            },
+            "arraycreate20": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "add9"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement37": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement38": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension21": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes32"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "arraycreate21": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "arrayelement39"
+                  },
+                  {
+                    "from_node": "arrayelement40"
+                  }
+                ]
+              },
+              "process_id": "array_create"
+            },
+            "arraycreate22": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "max4"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement39": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement40": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            },
+            "max4": {
+              "arguments": {
+                "data": {
+                  "from_node": "arraycreate21"
+                },
+                "ignore_nodata": true
+              },
+              "process_id": "max"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension22": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes34"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "arraycreate23": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "arrayelement41"
+                  },
+                  {
+                    "from_node": "arrayelement42"
+                  }
+                ]
+              },
+              "process_id": "array_create"
+            },
+            "arraycreate24": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "max5"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement41": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement42": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            },
+            "max5": {
+              "arguments": {
+                "data": {
+                  "from_node": "arraycreate23"
+                },
+                "ignore_nodata": true
+              },
+              "process_id": "max"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension23": {
+      "arguments": {
+        "data": {
+          "from_node": "apply30"
+        },
+        "dimension": "t",
+        "reducer": {
+          "process_graph": {
+            "first2": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                }
+              },
+              "process_id": "first",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension24": {
+      "arguments": {
+        "data": {
+          "from_node": "apply30"
+        },
+        "dimension": "t",
+        "reducer": {
+          "process_graph": {
+            "last2": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                }
+              },
+              "process_id": "last",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension25": {
+      "arguments": {
+        "data": {
+          "from_node": "filterbands4"
+        },
+        "dimension": "t",
+        "reducer": {
+          "process_graph": {
+            "first3": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                }
+              },
+              "process_id": "first",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension26": {
+      "arguments": {
+        "data": {
+          "from_node": "filterbands5"
+        },
+        "dimension": "t",
+        "reducer": {
+          "process_graph": {
+            "first4": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                }
+              },
+              "process_id": "first",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension27": {
+      "arguments": {
+        "data": {
+          "from_node": "filterbands6"
+        },
+        "dimension": "t",
+        "reducer": {
+          "process_graph": {
+            "first5": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                }
+              },
+              "process_id": "first",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension28": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels30"
+        },
+        "dimension": "t",
+        "reducer": {
+          "process_graph": {
+            "sum1": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "ignore_nodata": true
+              },
+              "process_id": "sum",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension3": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes9"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "add4": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement7"
+                },
+                "y": {
+                  "from_node": "arrayelement8"
+                }
+              },
+              "process_id": "add"
+            },
+            "arraycreate4": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "add4"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement7": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement8": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension4": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes10"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "arraycreate5": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "lte4"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement10": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement9": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "lte4": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement9"
+                },
+                "y": {
+                  "from_node": "arrayelement10"
+                }
+              },
+              "process_id": "lte"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension5": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes12"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "add5": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement11"
+                },
+                "y": {
+                  "from_node": "arrayelement12"
+                }
+              },
+              "process_id": "add"
+            },
+            "arraycreate6": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "add5"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement11": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement12": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension6": {
+      "arguments": {
+        "data": {
+          "from_node": "filterbands1"
+        },
+        "dimension": "t",
+        "reducer": {
+          "process_graph": {
+            "last1": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                }
+              },
+              "process_id": "last",
+              "result": true
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension7": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes14"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "arraycreate7": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "eq6"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement13": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement14": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            },
+            "eq6": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement13"
+                },
+                "y": {
+                  "from_node": "arrayelement14"
+                }
+              },
+              "process_id": "eq"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension8": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes15"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "add6": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement15"
+                },
+                "y": {
+                  "from_node": "arrayelement16"
+                }
+              },
+              "process_id": "add"
+            },
+            "arraycreate8": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "add6"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement15": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement16": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "reducedimension9": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes16"
+        },
+        "dimension": "bands",
+        "reducer": {
+          "process_graph": {
+            "arraycreate9": {
+              "arguments": {
+                "data": [
+                  {
+                    "from_node": "multiply2"
+                  }
+                ]
+              },
+              "process_id": "array_create",
+              "result": true
+            },
+            "arrayelement17": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 0
+              },
+              "process_id": "array_element"
+            },
+            "arrayelement18": {
+              "arguments": {
+                "data": {
+                  "from_parameter": "data"
+                },
+                "index": 1
+              },
+              "process_id": "array_element"
+            },
+            "multiply2": {
+              "arguments": {
+                "x": {
+                  "from_node": "arrayelement17"
+                },
+                "y": {
+                  "from_node": "arrayelement18"
+                }
+              },
+              "process_id": "multiply"
+            }
+          }
+        }
+      },
+      "process_id": "reduce_dimension"
+    },
+    "renamelabels1": {
+      "arguments": {
+        "data": {
+          "from_node": "resamplespatial1"
+        },
+        "dimension": "bands",
+        "source": [
+          "B04",
+          "B08"
+        ],
+        "target": [
+          "red",
+          "nir"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels10": {
+      "arguments": {
+        "data": {
+          "from_node": "filtertemporal5"
+        },
+        "dimension": "bands",
+        "target": [
+          "ndvis_asl_rolled_jultodec"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels11": {
+      "arguments": {
+        "data": {
+          "from_node": "filtertemporal6"
+        },
+        "dimension": "bands",
+        "target": [
+          "int_ndvis_2nd_half"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels12": {
+      "arguments": {
+        "data": {
+          "from_node": "dropdimension6"
+        },
+        "dimension": "bands",
+        "target": [
+          "int_ndvis_2nd_half_min"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels13": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes11"
+        },
+        "dimension": "bands",
+        "target": [
+          "condition_eos1"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels14": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension6"
+        },
+        "dimension": "bands",
+        "target": [
+          "year_last_ndvi"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels15": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes18"
+        },
+        "dimension": "bands",
+        "target": [
+          "int_ndvis",
+          "eos1"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels16": {
+      "arguments": {
+        "data": {
+          "from_node": "mask3"
+        },
+        "dimension": "bands",
+        "target": [
+          "int_ndvis_seg2"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels17": {
+      "arguments": {
+        "data": {
+          "from_node": "dropdimension10"
+        },
+        "dimension": "bands",
+        "target": [
+          "seg2_maxndvi"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels18": {
+      "arguments": {
+        "data": {
+          "from_node": "mask4"
+        },
+        "dimension": "bands",
+        "target": [
+          "ndvis_asl_seg2"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels19": {
+      "arguments": {
+        "data": {
+          "from_node": "mask6"
+        },
+        "dimension": "bands",
+        "target": [
+          "ndvis_asl_rolled_seg2"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels2": {
+      "arguments": {
+        "data": {
+          "from_node": "adddimension1"
+        },
+        "dimension": "bands",
+        "target": [
+          "int_ndvis",
+          "int_doys"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels20": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes23"
+        },
+        "dimension": "bands",
+        "target": [
+          "condition_sos2"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels21": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes30"
+        },
+        "dimension": "bands",
+        "target": [
+          "condition_eos2"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels22": {
+      "arguments": {
+        "data": {
+          "from_node": "apply23"
+        },
+        "dimension": "bands",
+        "target": [
+          "eos2_999mask"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels23": {
+      "arguments": {
+        "data": {
+          "from_node": "applydimension12"
+        },
+        "dimension": "bands",
+        "target": [
+          "season_mask"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels24": {
+      "arguments": {
+        "data": {
+          "from_node": "applydimension13"
+        },
+        "dimension": "bands",
+        "target": [
+          "segment1_mask"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels25": {
+      "arguments": {
+        "data": {
+          "from_node": "applydimension14"
+        },
+        "dimension": "bands",
+        "target": [
+          "segment2_mask"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels26": {
+      "arguments": {
+        "data": {
+          "from_node": "applydimension15"
+        },
+        "dimension": "bands",
+        "target": [
+          "intersegment_mask"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels27": {
+      "arguments": {
+        "data": {
+          "from_node": "applyneighborhood1"
+        },
+        "dimension": "bands",
+        "target": [
+          "mgdi",
+          "mgpi",
+          "mnpi",
+          "significant_events",
+          "mowing_events",
+          "ploughing_events",
+          "grazing_events",
+          "other_events"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels28": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension23"
+        },
+        "dimension": "bands",
+        "target": [
+          "MFED"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels29": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension24"
+        },
+        "dimension": "bands",
+        "target": [
+          "MLED"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels3": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes2"
+        },
+        "dimension": "bands",
+        "source": [
+          "int_ndvis"
+        ],
+        "target": [
+          "season_level"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels30": {
+      "arguments": {
+        "data": {
+          "from_node": "filterbands7"
+        },
+        "dimension": "bands",
+        "source": [
+          "significant_events",
+          "mowing_events",
+          "ploughing_events",
+          "grazing_events",
+          "other_events"
+        ],
+        "target": [
+          "MNEV",
+          "MMOW",
+          "MGRA",
+          "MPLG",
+          "MOTH"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels4": {
+      "arguments": {
+        "data": {
+          "from_node": "applydimension2"
+        },
+        "dimension": "bands",
+        "target": [
+          "ndvis_asl"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels5": {
+      "arguments": {
+        "data": {
+          "from_node": "applydimension3"
+        },
+        "dimension": "bands",
+        "target": [
+          "ndvis_asl_rolled"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels6": {
+      "arguments": {
+        "data": {
+          "from_node": "mergecubes5"
+        },
+        "dimension": "bands",
+        "target": [
+          "condition_sos1"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels7": {
+      "arguments": {
+        "data": {
+          "from_node": "filtertemporal3"
+        },
+        "dimension": "bands",
+        "target": [
+          "int_doys_2nd_half"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels8": {
+      "arguments": {
+        "data": {
+          "from_node": "dropdimension5"
+        },
+        "dimension": "bands",
+        "target": [
+          "int_doys_2nd_half_min"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "renamelabels9": {
+      "arguments": {
+        "data": {
+          "from_node": "filtertemporal4"
+        },
+        "dimension": "bands",
+        "target": [
+          "ndvis_asl_jultodec"
+        ]
+      },
+      "process_id": "rename_labels"
+    },
+    "resamplespatial1": {
+      "arguments": {
+        "align": "upper-left",
+        "data": {
+          "from_node": "loadcollection1"
+        },
+        "method": "near",
+        "projection": 3035,
+        "resolution": 10
+      },
+      "process_id": "resample_spatial"
+    },
+    "resamplespatial2": {
+      "arguments": {
+        "align": "upper-left",
+        "data": {
+          "from_node": "loadcollection2"
+        },
+        "method": "near",
+        "projection": 3035,
+        "resolution": 10
+      },
+      "process_id": "resample_spatial"
+    },
+    "saveresult1": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels28"
+        },
+        "format": "GTIFF",
+        "options": {
+          "filename_prefix": "BLOCKIDXYZ_20230101_20231231_MFED"
+        }
+      },
+      "process_id": "save_result"
+    },
+    "saveresult2": {
+      "arguments": {
+        "data": {
+          "from_node": "renamelabels29"
+        },
+        "format": "GTIFF",
+        "options": {
+          "filename_prefix": "BLOCKIDXYZ_20230101_20231231_MLED"
+        }
+      },
+      "process_id": "save_result"
+    },
+    "saveresult3": {
+      "arguments": {
+        "data": {
+          "from_node": "apply31"
+        },
+        "format": "GTIFF",
+        "options": {
+          "filename_prefix": "BLOCKIDXYZ_20230101_20231231_MGDI"
+        }
+      },
+      "process_id": "save_result"
+    },
+    "saveresult4": {
+      "arguments": {
+        "data": {
+          "from_node": "apply32"
+        },
+        "format": "GTIFF",
+        "options": {
+          "filename_prefix": "BLOCKIDXYZ_20230101_20231231_MGPI"
+        }
+      },
+      "process_id": "save_result"
+    },
+    "saveresult5": {
+      "arguments": {
+        "data": {
+          "from_node": "apply33"
+        },
+        "format": "GTIFF",
+        "options": {
+          "filename_prefix": "BLOCKIDXYZ_20230101_20231231_MNPI"
+        }
+      },
+      "process_id": "save_result"
+    },
+    "saveresult6": {
+      "arguments": {
+        "data": {
+          "from_node": "reducedimension28"
+        },
+        "format": "GTIFF",
+        "options": {
+          "filename_prefix": "BLOCKIDXYZ",
+          "separate_asset_per_band": true
+        }
+      },
+      "process_id": "save_result"
+    },
+    "saveresult7": {
+      "arguments": {
+        "data": {
+          "from_node": "aggregatetemporalperiod1"
+        },
+        "format": "GTIFF",
+        "options": {
+          "filename_prefix": "BLOCKIDXYZ",
+          "separate_asset_per_band": true
+        }
+      },
+      "process_id": "save_result",
+      "result": true
+    }
+  }
+}

@@ -1,3 +1,5 @@
+import logging
+
 import re
 
 import pytest
@@ -68,22 +70,27 @@ def test_process_spec_basic_100():
     }
 
 
-def test_process_spec_no_params_040():
+def test_process_spec_no_params_040(caplog):
     spec = ProcessSpec("foo", "bar").returns("output", schema={"type": "number"})
-    with pytest.warns(UserWarning):
-        assert spec.to_dict_040() == {
-            "id": "foo", "description": "bar", "parameters": {}, "parameter_order": [],
-            "returns": {"description": "output", "schema": {"type": "number"}}
-        }
+    assert spec.to_dict_040() == {
+        "id": "foo",
+        "description": "bar",
+        "parameters": {},
+        "parameter_order": [],
+        "returns": {"description": "output", "schema": {"type": "number"}},
+    }
+    assert caplog.record_tuples == [("openeo_driver.processes", logging.WARN, "Process with no parameters")]
 
 
-def test_process_spec_no_params_100():
+def test_process_spec_no_params_100(caplog):
     spec = ProcessSpec("foo", "bar").returns("output", schema={"type": "number"})
-    with pytest.warns(UserWarning):
-        assert spec.to_dict_100() == {
-            "id": "foo", "description": "bar", "parameters": [],
-            "returns": {"description": "output", "schema": {"type": "number"}}
-        }
+    assert spec.to_dict_100() == {
+        "id": "foo",
+        "description": "bar",
+        "parameters": [],
+        "returns": {"description": "output", "schema": {"type": "number"}},
+    }
+    assert caplog.record_tuples == [("openeo_driver.processes", logging.WARN, "Process with no parameters: 'foo'")]
 
 
 def test_process_spec_no_returns():
@@ -364,7 +371,7 @@ def test_process_registry_add_hidden_with_namespace():
         reg.get_spec('boz', namespace="secret")
 
 
-def test_process_registry_add_deprecated():
+def test_process_registry_add_deprecated(caplog):
     reg = ProcessRegistry()
 
     @reg.add_deprecated
@@ -372,13 +379,17 @@ def test_process_registry_add_deprecated():
         return 42
 
     new_foo = reg.get_function('foo')
-    with pytest.warns(UserWarning, match="deprecated process"):
-        assert new_foo() == 42
+
+    assert new_foo() == 42
+    assert caplog.record_tuples == [
+        ("openeo_driver.processes", logging.WARN, "Calling deprecated process function 'foo'")
+    ]
+
     with pytest.raises(ProcessUnsupportedException):
         reg.get_spec('foo')
 
 
-def test_process_registry_add_deprecated_namespace():
+def test_process_registry_add_deprecated_namespace(caplog):
     reg = ProcessRegistry()
 
     @reg.add_deprecated(namespace="old")
@@ -386,10 +397,14 @@ def test_process_registry_add_deprecated_namespace():
         return 42
 
     with pytest.raises(ProcessUnsupportedException):
-        reg.get_function('foo')
-    new_foo = reg.get_function('foo', namespace="old")
-    with pytest.warns(UserWarning, match="deprecated process"):
-        assert new_foo() == 42
+        reg.get_function("foo")
+    new_foo = reg.get_function("foo", namespace="old")
+
+    assert new_foo() == 42
+    assert caplog.record_tuples == [
+        ("openeo_driver.processes", logging.WARN, "Calling deprecated process function 'foo'")
+    ]
+
     with pytest.raises(ProcessUnsupportedException):
         reg.get_spec('foo', namespace="old")
 

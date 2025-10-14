@@ -3,7 +3,7 @@
 "name": "points",
 "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
 "xy_coordinate_resolution": 1e-09,
-"bbox": [ 3.091833765, 50.919789774, 10.975876619, 51.630646097 ],                                                                 
+"bbox": [ 3.091833765, 50.919789774, 10.975876619, 51.630646097 ],
 "features": [
 { "type": "Feature", "properties": { }, "bbox": [ 10.975876619, 51.557944882, 10.975876619, 51.557944882 ], "geometry": { "type": "Point", "coordinates": [ 10.975876619, 51.557944882 ] } },
 { "type": "Feature", "properties": { }, "bbox": [ 3.576508531, 50.919789774, 3.576508531, 50.919789774 ], "geometry": { "type": "Point", "coordinates": [ 3.576508531, 50.919789774 ] } },

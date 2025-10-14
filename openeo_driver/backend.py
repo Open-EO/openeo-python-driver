@@ -772,6 +772,16 @@ class ErrorSummary(Exception):
 
 
 class UdfRuntimes(MicroService):
+    def get_udf_runtimes(self) -> Dict[str, dict]:
+        return {}
+
+
+class LegacyUdfRuntimes(UdfRuntimes):
+    # TODO #415 this is a temporary adapter for backwards compatibility,
+    #       to allow migration of these implementation details to openeo-geopyspark-driver
+    #       (and openeo-aggregator).
+    #       To be removed when migration is done.
+
     # Python libraries to list
     # TODO: move listing of non-generic libs to openeo-geopyspark-driver
     python_libraries = [
@@ -793,7 +803,8 @@ class UdfRuntimes(MicroService):
     def __init__(self):
         pass
 
-    def get_python_versions(self):
+    def _get_python_versions(self):
+        # TODO: this assumes UDF runtime is equal to web app runtime, which is not true anymore.
         major, minor, patch = (str(v) for v in sys.version_info[:3])
         aliases = [
             f"{major}",
@@ -804,7 +815,7 @@ class UdfRuntimes(MicroService):
         return major, aliases, default_version
 
     def _get_python_udf_runtime_metadata(self):
-        major, aliases, default_version = self.get_python_versions()
+        major, aliases, default_version = self._get_python_versions()
         # TODO: get actual library version (instead of version of current environment).
         libraries = {
             p: {"version": v.split(" ", 1)[-1]}
@@ -824,6 +835,7 @@ class UdfRuntimes(MicroService):
         }
 
     def get_udf_runtimes(self) -> dict:
+        # TODO: this is highly geopyspark-driver specific: return a simpler listing by default
         # TODO add caching of this result
         return {
             # TODO: toggle these runtimes through dependency injection or config?
@@ -862,6 +874,7 @@ class OpenEoBackendImplementation:
         processing: Optional[Processing] = None,
         config: Optional[OpenEoBackendConfig] = None,
         conformance_classes: Optional[List[str]] = None,
+        udf_runtimes: Optional[UdfRuntimes] = None,
     ):
         self.config: OpenEoBackendConfig = config or get_backend_config()
         self.secondary_services = secondary_services
@@ -870,7 +883,7 @@ class OpenEoBackendImplementation:
         self.user_defined_processes = user_defined_processes
         self.user_files = None  # TODO: implement user file storage microservice
         self.processing = processing
-        self.udf_runtimes = UdfRuntimes()
+        self.udf_runtimes = udf_runtimes or LegacyUdfRuntimes()
         self._conformance_classes = conformance_classes or self.DEFAULT_CONFORMANCE_CLASSES
 
         # Overridable cache control header injecting decorator for static, public view functions

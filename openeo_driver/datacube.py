@@ -24,7 +24,7 @@ from pyproj import CRS
 
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs, StacAsset
 from openeo_driver.errors import FeatureUnsupportedException, InternalException, ProcessGraphInvalidException, \
-    OpenEOApiException
+    OpenEOApiException, ProcessParameterInvalidException
 from openeo_driver.util.geometry import GeometryBufferer, reproject_geometry, validate_geojson_coordinates
 from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.util.pgparsing import SingleRunUDFProcessGraph
@@ -600,6 +600,8 @@ class DriverVectorCube:
         filename = str(directory)
         directory_parent = Path(filename).parent
 
+        if format not in IOFORMATS:
+            raise ProcessParameterInvalidException(parameter="format", process="save_result", reason=f"Received unknown format: {format}, supported formats: {list(IOFORMATS.keys())}")
         format_info = IOFORMATS.get(format)
         # TODO: check if format can be used for vector data?
         path = directory_parent / f"vectorcube.{format_info.extension}"
@@ -617,7 +619,7 @@ class DriverVectorCube:
         elif format_info.format.lower() == "csv":
             gdf.to_csv(path)
         else:
-            gdf.to_file(str(path), driver=format_info.fiona_driver, crs=self.get_crs())
+            gdf.to_file(str(path), driver=format_info.fiona_driver)
 
         if not format_info.multi_file:
             # single file format

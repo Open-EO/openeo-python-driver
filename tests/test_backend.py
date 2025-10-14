@@ -2,6 +2,7 @@ import datetime
 import urllib.parse
 
 import pytest
+import dirty_equals
 from openeo.utils.version import ComparableVersion
 
 from openeo_driver.backend import (
@@ -14,6 +15,7 @@ from openeo_driver.backend import (
     UserDefinedProcessMetadata,
     is_not_implemented,
     not_implemented,
+    LegacyUdfRuntimes,
 )
 from openeo_driver.errors import CollectionNotFoundException
 from openeo_driver.users import User
@@ -307,3 +309,28 @@ class TestJobListing:
             ],
             "links": [{"href": "https://oeo.test/jobs?offset=1234&state=foo", "rel": "next"}],
         }
+
+
+class TestLegacyUdfRuntimes:
+    def test_get_udf_runtimes(self):
+        runtimes = LegacyUdfRuntimes()
+        assert runtimes.get_udf_runtimes() == dirty_equals.IsPartialDict(
+            {
+                "Python": dirty_equals.IsPartialDict(
+                    {
+                        "title": dirty_equals.IsStr(regex=".*Python.*"),
+                        "type": "language",
+                        "default": "3",
+                        "versions": dirty_equals.IsPartialDict(
+                            {
+                                "3": {
+                                    "libraries": dirty_equals.IsPartialDict(
+                                        {"numpy": {"version": dirty_equals.IsStr(regex=r"\d+\.\d+\.\d+")}}
+                                    )
+                                },
+                            }
+                        ),
+                    }
+                )
+            }
+        )

@@ -1544,6 +1544,11 @@ def _extract_temporal_extent(args: dict, field="extent", process_id="filter_temp
             process=process_id, parameter=field, reason="end '{e}' is before start '{s}'".format(e=end, s=start)
         )
 
+    if start and end and start == end:
+        _log.warning(
+            f"{process_id} {field} with same start and end ({args.get('extent')!r}) is invalid/deprecated and will trigger a TemporalExtentEmpty error in the future. Use a proper left-closed temporal interval."
+        )
+
     # TODO: convert to datetime? or at least normalize?
     return tuple(extent)
 
@@ -1556,8 +1561,8 @@ def filter_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
             parameter="data", process="filter_temporal",
             reason=f"Invalid data type {type(cube)!r} expected raster-cube."
         )
-    extent = _extract_temporal_extent(args, field="extent", process_id="filter_temporal")
-    return cube.filter_temporal(start=extent[0], end=extent[1])
+    start, end = _extract_temporal_extent(args, field="extent", process_id="filter_temporal")
+    return cube.filter_temporal(start=start, end=end)
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/filter_labels.json"))
@@ -1909,14 +1914,13 @@ def check_subgraph_for_data_mask_optimization(args: dict) -> bool:
 
 
 def apply_process(process_id: str, args: dict, namespace: Union[str, None], env: EvalEnv) -> DriverDataCube:
-    _log.debug(f"apply_process {process_id} with {args}")
+    _log.debug(f"apply_process {process_id} ")
     parameters = env.collect_parameters()
 
     if process_id == "mask" and args.get("replacement", None) is None \
             and smart_bool(env.get("data_mask_optimization", True)):
         mask_node = args.get("mask", None)
         # evaluate the mask
-        _log.debug(f"data_mask: convert_node(mask_node): {mask_node}")
         the_mask = convert_node(mask_node, env=env)
         dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
         if not dry_run_tracer and check_subgraph_for_data_mask_optimization(args):
@@ -1953,7 +1957,6 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
 
     try:
         process_function = process_registry.get_function(process_id, namespace=(namespace or "backend"))
-        _log.debug(f"Applying process {process_id} to arguments {args}")
         #TODO: for API compliance, we would actually first need to check if a UDP with same name exists.
         # we would however prefer to avoid overriding predefined functions with UDP's.
         # if we want to do this, we require caching in UDP registry to avoid expensive UDP lookups. We only need to cache the list of UDP names for a given user.
@@ -1967,7 +1970,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         detail = f"{e!r}"
         if isinstance(errorsummary,ErrorSummary):
             detail = errorsummary.summary
-        raise OpenEOApiException(f"Unexpected error during {process_id!r} with {args!r}: {detail}") from e
+        raise OpenEOApiException(f"Unexpected error during {process_id!r}: {detail}. The process had these arguments: {args!r} ") from e
 
     if namespace in ["user", None]:
         user = env.get("user")

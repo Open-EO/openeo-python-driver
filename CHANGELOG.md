@@ -19,14 +19,20 @@ and start a new "In Progress" section above it.
 
 <!-- start-of-changelog -->
 
-## In progress: 0.135.0
+## In progress: 0.136.0
+
+- Start supporting custom `UdfRuntimes` implementation in `OpenEoBackendImplementation` ([#415](https://github.com/Open-EO/openeo-python-driver/issues/415))
+- Process graph parsing (dry-run) for very large graphs got faster. ([#426](https://github.com/Open-EO/openeo-python-driver/issues/426))
+- `get_result_metadata` can return items ([Open-EO/openeo-geopyspark-driver#1111](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1111))
+
+## 0.135.0
 
 - Have `integrations.s3` for interaction with Object Storage that follows the S3 API.
 - `ElasticJobRegistry`: add support for pre-serialization of process graph ([Open-EO/openeo-geopyspark-driver#1232](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1232))
 - `DiskWorkspace`: support unified asset keys ([Open-EO/openeo-geopyspark-driver#1111](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1111))
 - Support persisting results metadata URI in job registry ([Open-EO/openeo-geopyspark-driver#1255](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1255))
 - More fine-grained `convert_node` cache control ([Open-EO/openeo-geopyspark-driver#1331](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1331)/[#422](https://github.com/Open-EO/openeo-python-driver/pull/422))
-- `get_result_metadata` can return items ([Open-EO/openeo-geopyspark-driver#1111](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1111))
+- `DriverVectorCube.write_assets`: improve compatibility with recent versions of geopandas ([#424](https://github.com/Open-EO/openeo-python-driver/issues/424))
 
 
 ## 0.134.0
