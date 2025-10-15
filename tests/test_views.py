@@ -191,7 +191,14 @@ class TestGeneral:
         assert resp.headers["Cache-Control"] == "max-age=900, public"
 
     def test_versioned_well_known_openeo(self, api):
-        api.get("/.well-known/openeo").assert_error(404, "NotFound")
+        resp = api.get("/.well-known/openeo")
+        resp.assert_http_status_code(404)
+        short_api_version = api.api_version.replace(".", "")
+        assert resp.json == {
+            "code": "NotFound",
+            "id": f"r-openeo{short_api_version}wellknownopeneo",
+            "message": "Not a well-known openEO URI",
+        }
 
     @pytest.mark.parametrize(
         ["headers", "expected"],

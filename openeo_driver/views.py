@@ -524,7 +524,10 @@ def register_views_general(
     @blueprint.route('/.well-known/openeo')
     def versioned_well_known_openeo():
         # Clients might request this for version discovery. Avoid polluting (error) logs by explicitly handling this.
-        error = NotFoundException(message="Not a well-known openEO URI")
+        error = NotFoundException(
+            message="Not a well-known openEO URI",
+            id="r-" + re.sub("[^a-z0-9]+", "", flask.request.path, flags=re.I),
+        )
         return make_response(jsonify(error.to_dict()), error.status_code)
 
     @blueprint.route('/CHANGELOG', methods=['GET'])
