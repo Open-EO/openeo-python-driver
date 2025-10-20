@@ -2854,6 +2854,207 @@ class TestBatchJobs:
                 }
             )
 
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
+    def test_get_job_results_from_stac_1_1_items(self, api110, backend_config_overrides):
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
+
+        with self._fresh_job_registry():
+            dummy_backend.DummyBatchJobs._update_status(job_id=job_id, user_id=TEST_USER, status="finished")
+            dummy_backend.DummyBatchJobs.set_result_metadata(
+                job_id=job_id,
+                user_id=TEST_USER,
+                metadata=BatchJobResultMetadata(
+                    items={
+                        "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z": {
+                            "geometry": {
+                                "coordinates": [
+                                    [
+                                        [3.359808992021044, 51.08284561357965],
+                                        [3.359808992021044, 51.88641704215104],
+                                        [4.690166134878123, 51.88641704215104],
+                                        [4.690166134878123, 51.08284561357965],
+                                        [3.359808992021044, 51.08284561357965],
+                                    ]
+                                ],
+                                "type": "Polygon",
+                            },
+                            "assets": {
+                                "openEO": {
+                                    "datetime": "2023-12-31T21:41:00Z",
+                                    "roles": ["data"],
+                                    "bbox": [
+                                        3.359808992021044,
+                                        51.08284561357965,
+                                        4.690166134878123,
+                                        51.88641704215104,
+                                    ],
+                                    "geometry": {
+                                        "coordinates": [
+                                            [
+                                                [3.359808992021044, 51.08284561357965],
+                                                [3.359808992021044, 51.88641704215104],
+                                                [4.690166134878123, 51.88641704215104],
+                                                [4.690166134878123, 51.08284561357965],
+                                                [3.359808992021044, 51.08284561357965],
+                                            ]
+                                        ],
+                                        "type": "Polygon",
+                                    },
+                                    "href": "openEO_20231231T214100Z.tif",
+                                    "nodata": "nan",
+                                    "type": "image/tiff; application=geotiff",
+                                    "bands": [
+                                        {"name": "LST", "common_name": "surface_temperature", "aliases": ["LST_in:LST"]}
+                                    ],
+                                    "raster:bands": [
+                                        {
+                                            "name": "LST",
+                                            "statistics": {
+                                                "valid_percent": 66.88,
+                                                "maximum": 281.04800415039,
+                                                "stddev": 19.598456945276,
+                                                "minimum": 224.46798706055,
+                                                "mean": 259.57087672984,
+                                            },
+                                        }
+                                    ],
+                                }
+                            },
+                            "id": "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z",
+                            "properties": {"datetime": "2023-12-31T21:41:00Z"},
+                            "bbox": [3.359808992021044, 51.08284561357965, 4.690166134878123, 51.88641704215104],
+                        }
+                    }
+                ),
+            )
+
+            resp = api110.get(f"/jobs/{job_id}/results", headers=self.AUTH_HEADER).assert_status_code(200)
+
+            item_links = [link for link in resp.json["links"] if link["rel"] == "item"]
+            assert len(item_links) == 1, "expected exactly one item link in STAC Collection"
+
+            item_link = item_links[0]
+            assert item_link["href"] == f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/items11/TXIuVGVzdA==/6dfcff9f3d3d760f1cfca269ccc245fb/5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z"
+
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
+    def test_get_stac_1_1_item(self, api110, backend_implementation, backend_config_overrides):
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
+        item_id = "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z"
+        with self._fresh_job_registry():
+            dummy_backend.DummyBatchJobs.set_result_metadata(
+                job_id=job_id,
+                user_id=TEST_USER,
+                metadata=BatchJobResultMetadata(
+                    items={
+                        "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z": {
+                            "geometry": {
+                                "coordinates": [
+                                    [
+                                        [3.359808992021044, 51.08284561357965],
+                                        [3.359808992021044, 51.88641704215104],
+                                        [4.690166134878123, 51.88641704215104],
+                                        [4.690166134878123, 51.08284561357965],
+                                        [3.359808992021044, 51.08284561357965],
+                                    ]
+                                ],
+                                "type": "Polygon",
+                            },
+                            "assets": {
+                                "openEO": {
+                                    "datetime": "2023-12-31T21:41:00Z",
+                                    "roles": ["data"],
+                                    "bbox": [
+                                        3.359808992021044,
+                                        51.08284561357965,
+                                        4.690166134878123,
+                                        51.88641704215104,
+                                    ],
+                                    "geometry": {
+                                        "coordinates": [
+                                            [
+                                                [3.359808992021044, 51.08284561357965],
+                                                [3.359808992021044, 51.88641704215104],
+                                                [4.690166134878123, 51.88641704215104],
+                                                [4.690166134878123, 51.08284561357965],
+                                                [3.359808992021044, 51.08284561357965],
+                                            ]
+                                        ],
+                                        "type": "Polygon",
+                                    },
+                                    "href": "s3://openeo-data-staging-waw4-1/batch_jobs/j-250605095828442799fdde3c29b5b047/openEO_20231231T214100Z.tif",
+                                    "nodata": "nan",
+                                    "type": "image/tiff; application=geotiff",
+                                    "bands": [
+                                        {"name": "LST", "common_name": "surface_temperature", "aliases": ["LST_in:LST"]}
+                                    ],
+                                    "raster:bands": [
+                                        {
+                                            "name": "LST",
+                                            "statistics": {
+                                                "valid_percent": 66.88,
+                                                "maximum": 281.04800415039,
+                                                "stddev": 19.598456945276,
+                                                "minimum": 224.46798706055,
+                                                "mean": 259.57087672984,
+                                            },
+                                        }
+                                    ],
+                                }
+                            },
+                            "id": "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z",
+                            "properties": {"datetime": "2023-12-31T21:41:00Z"},
+                            "bbox": [3.359808992021044, 51.08284561357965, 4.690166134878123, 51.88641704215104],
+                        }
+                    }
+                ),
+            )
+            resp = api110.get(
+                f"/jobs/{job_id}/results/items11/{item_id}", headers=self.AUTH_HEADER
+            )
+
+        resp_data = resp.assert_status_code(200).json
+        assert resp_data == {
+            'assets': {
+                'openEO': DictSubSet({
+                    'href': 'http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/0a577c1d63aed6a562c29a5bd4f535fe/openEO',
+                    'roles': ['data'],
+                    'type': 'image/tiff; application=geotiff',
+                    'title': 'openEO',
+                })
+            },
+            'bbox': [3.359808992021044, 51.08284561357965, 4.690166134878123, 51.88641704215104],
+            'collection': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
+            'geometry': {
+                'coordinates': [[
+                    [3.359808992021044, 51.08284561357965],
+                    [3.359808992021044, 51.88641704215104],
+                    [4.690166134878123, 51.88641704215104],
+                    [4.690166134878123, 51.08284561357965],
+                    [3.359808992021044, 51.08284561357965]
+                ]],
+                'type': 'Polygon'
+            },
+            'id': '5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z',
+            'links': [
+                {
+                    'href': 'http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/items/5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z',
+                    'rel': 'self',
+                    'type': 'application/geo+json'
+                },
+                {
+                    'href': 'http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results',
+                    'rel': 'collection',
+                    'type': 'application/json'
+                 }
+            ],
+            'properties': {'datetime': '2023-12-31T21:41:00Z'},
+            'stac_extensions': ['https://stac-extensions.github.io/eo/v1.1.0/schema.json',
+                     'https://stac-extensions.github.io/file/v2.1.0/schema.json',
+                     'https://stac-extensions.github.io/projection/v1.1.0/schema.json'],
+            'stac_version': '1.1.0',
+            'type': 'Feature'
+        }
+
     def test_get_job_results_invalid_job(self, api):
         api.get("/jobs/deadbeef-f00/results", headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
 

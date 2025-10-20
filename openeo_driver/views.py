@@ -1163,16 +1163,20 @@ def register_views_batch_jobs(
         if TREAT_JOB_RESULTS_V100_LIKE_V110 or requested_api_version().at_least("1.1.0"):
             ml_model_metadata = None
 
-            def job_result_item_url(item_id) -> str:
+            def job_result_item_url(item_id, is11 = False) -> str:
                 signer = get_backend_config().url_signer
+
+                method_start = ".get_job_result_item"
+                if is11:
+                    method_start = method_start + "11"
                 if not signer:
-                    return url_for(".get_job_result_item", job_id=job_id, item_id=item_id, _external=True)
+                    return url_for(method_start, job_id=job_id, item_id=item_id, _external=True)
 
                 expires = signer.get_expires()
                 secure_key = signer.sign_job_item(job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
                 user_base64 = user_id_b64_encode(user_id)
                 return url_for(
-                    ".get_job_result_item_signed",
+                    method_start + "_signed",
                     job_id=job_id,
                     user_base64=user_base64,
                     secure_key=secure_key,
@@ -1181,19 +1185,27 @@ def register_views_batch_jobs(
                     _external=True,
                 )
 
-            for filename, metadata in result_assets.items():
-                if ("data" in metadata.get("roles", []) and
-                        any(media_type in metadata.get("type", "") for media_type in
-                            ["geotiff", "netcdf", "text/csv", "application/parquet"])):
+
+            if len(result_metadata.items) > 0 :
+                for item_id in result_metadata.items.keys():
                     links.append(
-                        {"rel": "item", "href": job_result_item_url(item_id=filename), "type": stac_item_media_type}
+                        {"rel": "item", "href": job_result_item_url(item_id=item_id, is11=True), "type": stac_item_media_type}
                     )
-                elif metadata.get("ml_model_metadata", False):
-                    # TODO: Currently we only support one ml_model per batch job.
-                    ml_model_metadata = metadata
-                    links.append(
-                        {"rel": "item", "href": job_result_item_url(item_id=filename), "type": "application/json"}
-                    )
+            else:
+
+                for filename, metadata in result_assets.items():
+                    if ("data" in metadata.get("roles", []) and
+                            any(media_type in metadata.get("type", "") for media_type in
+                                ["geotiff", "netcdf", "text/csv", "application/parquet"])):
+                        links.append(
+                            {"rel": "item", "href": job_result_item_url(item_id=filename), "type": stac_item_media_type}
+                        )
+                    elif metadata.get("ml_model_metadata", False):
+                        # TODO: Currently we only support one ml_model per batch job.
+                        ml_model_metadata = metadata
+                        links.append(
+                            {"rel": "item", "href": job_result_item_url(item_id=filename), "type": "application/json"}
+                        )
 
             result = dict_no_none(
                 {
@@ -1360,10 +1372,117 @@ def register_views_batch_jobs(
         signer.verify_job_item(signature=secure_key, job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
         return _get_job_result_item(job_id, item_id, user_id)
 
+    @api_endpoint
+    @blueprint.route('/jobs/<job_id>/results/items11/<user_base64>/<secure_key>/<item_id>', methods=['GET'])
+    def get_job_result_item11_signed(job_id, user_base64, secure_key, item_id):
+        expires = request.args.get('expires')
+        signer = get_backend_config().url_signer
+        user_id = user_id_b64_decode(user_base64)
+        signer.verify_job_item(signature=secure_key, job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
+        return _get_job_result_item11(job_id, item_id, user_id)
+
     @blueprint.route('/jobs/<job_id>/results/items/<item_id>', methods=['GET'])
     @auth_handler.requires_bearer_auth
     def get_job_result_item(job_id: str, item_id: str, user: User) -> flask.Response:
         return _get_job_result_item(job_id, item_id, user.user_id)
+
+    @api_endpoint(version=ComparableVersion("1.1.0").or_higher)
+    @blueprint.route('/jobs/<job_id>/results/items11/<item_id>', methods=['GET'])
+    @auth_handler.requires_bearer_auth
+    def get_job_result_item11(job_id: str, item_id: str, user: User) -> flask.Response:
+        return _get_job_result_item11(job_id, item_id, user.user_id)
+
+    def _get_job_result_item11(job_id, item_id, user_id):
+        if item_id == DriverMlModel.METADATA_FILE_NAME:
+            return _download_ml_model_metadata(job_id, item_id, user_id)
+
+        metadata = backend_implementation.batch_jobs.get_result_metadata(
+            job_id=job_id, user_id=user_id
+        )
+
+        if item_id not in metadata.items:
+            raise OpenEOApiException("Item with id {item_id!r} not found in job {job_id!r}".format(item_id=item_id, job_id=job_id), status_code=404)
+        item_metadata = metadata.items.get(item_id,None)
+
+        job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
+
+        assets = {}
+        for asset_key, asset in item_metadata.get("assets", {}).items():
+            assets[asset_key] = _asset_object(job_id, user_id, asset_key, asset, job_info)
+
+        geometry = item_metadata.get("geometry", job_info.geometry)
+        bbox = item_metadata.get("bbox", job_info.bbox)
+
+        properties = item_metadata.get("properties", {"datetime": item_metadata.get("datetime")})
+        if properties["datetime"] is None:
+            to_datetime = Rfc3339(propagate_none=True).datetime
+
+            start_datetime = item_metadata.get("start_datetime") or to_datetime(job_info.start_datetime)
+            end_datetime = item_metadata.get("end_datetime") or to_datetime(job_info.end_datetime)
+
+            if start_datetime == end_datetime:
+                properties["datetime"] = start_datetime
+            else:
+                if start_datetime:
+                    properties["start_datetime"] = start_datetime
+                if end_datetime:
+                    properties["end_datetime"] = end_datetime
+
+        if job_info.proj_shape:
+            properties["proj:shape"] = job_info.proj_shape
+        if job_info.proj_bbox:
+            properties["proj:bbox"] = job_info.proj_bbox
+        if job_info.epsg:
+            properties["proj:epsg"] = job_info.epsg
+
+        if job_info.proj_bbox and job_info.epsg:
+            if not bbox:
+                bbox = BoundingBox.from_wsen_tuple(job_info.proj_bbox, job_info.epsg).reproject(4326).as_wsen_tuple()
+            if not geometry:
+                geometry = BoundingBox.from_wsen_tuple(job_info.proj_bbox, job_info.epsg).as_polygon()
+                geometry = mapping(reproject_geometry(geometry, CRS.from_epsg(job_info.epsg), CRS.from_epsg(4326)))
+
+        stac_item = {
+            "type": "Feature",
+            "stac_version": "1.1.0",
+            "stac_extensions": [
+                STAC_EXTENSION.EO_V110,
+                STAC_EXTENSION.FILEINFO,
+                STAC_EXTENSION.PROJECTION,
+            ],
+            "id": item_id,
+            "geometry": geometry,
+            "bbox": bbox,
+            "properties": properties,
+            "links": [
+                {
+                    "rel": "self",
+                    # MUST be absolute
+                    "href": url_for(".get_job_result_item", job_id=job_id, item_id=item_id, _external=True),
+                    "type": stac_item_media_type,
+                },
+                {
+                    "rel": "collection",
+                    "href": url_for(".list_job_results", job_id=job_id, _external=True),  # SHOULD be absolute
+                    "type": "application/json",
+                },
+            ],
+            "assets": assets,
+            "collection": job_id,
+        }
+        # Add optional items, if they are present.
+        stac_item.update(
+            **dict_no_none(
+                {
+                    "epsg": job_info.epsg,
+                }
+            )
+        )
+
+        resp = jsonify(stac_item)
+        resp.mimetype = stac_item_media_type
+        return resp
+
 
     def _get_job_result_item(job_id, item_id, user_id):
         if item_id == DriverMlModel.METADATA_FILE_NAME:
