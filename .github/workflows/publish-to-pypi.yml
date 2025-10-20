@@ -12,6 +12,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
+        submodules: 'recursive'
         persist-credentials: false
     - name: Set up Python
       uses: actions/setup-python@v5
