@@ -2930,6 +2930,9 @@ class TestBatchJobs:
 
             resp = api110.get(f"/jobs/{job_id}/results", headers=self.AUTH_HEADER).assert_status_code(200)
 
+            assert "items" in resp.json
+            assert resp.json.get("stac_version") == "1.1.0"
+
             item_links = [link for link in resp.json["links"] if link["rel"] == "item"]
             assert len(item_links) == 1, "expected exactly one item link in STAC Collection"
 
