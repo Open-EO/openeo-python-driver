@@ -23,6 +23,7 @@ and start a new "In Progress" section above it.
 
 - Start supporting custom `UdfRuntimes` implementation in `OpenEoBackendImplementation` ([#415](https://github.com/Open-EO/openeo-python-driver/issues/415))
 - Process graph parsing (dry-run) for very large graphs got faster. ([#426](https://github.com/Open-EO/openeo-python-driver/issues/426))
+- `get_result_metadata` can return items ([Open-EO/openeo-geopyspark-driver#1111](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1111))
 
 ## 0.135.0
 

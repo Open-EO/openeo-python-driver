@@ -18,6 +18,5 @@ class TestDriverDatacCube:
             ]
         )
         cube = DriverDataCube(metadata=metadata)
-        assert repr(cube) == dirty_equals.IsStr(
-            regex=r"DriverDataCube\(metadata=CubeMetadata\(dimensions=\[SpatialDimension\(.*BandDimension\(.*B02.*B03.*"
-        )
+        expected = "DriverDataCube(metadata=CubeMetadata(dimension_names=['x', 'bands'], band_names=['B02', 'B03']))"
+        assert repr(cube) == expected

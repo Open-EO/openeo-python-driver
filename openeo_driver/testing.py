@@ -123,7 +123,7 @@ class ApiResponse:
     def headers(self) -> Headers:
         return self.response.headers
 
-    def assert_status_code(self, status_code: int) -> 'ApiResponse':
+    def assert_http_status_code(self, status_code: int) -> "ApiResponse":
         """Check HTTP status code"""
         if self.status_code != status_code:
             message = f"Expected response with status code {status_code} but got {self.status_code}."
@@ -131,6 +131,8 @@ class ApiResponse:
                 message += f" Error: {self.json}"
             raise ApiException(message)
         return self
+
+    assert_status_code = assert_http_status_code
 
     def assert_content(self) -> 'ApiResponse':
         """Assert that the response body is not empty"""
