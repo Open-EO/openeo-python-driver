@@ -2616,6 +2616,51 @@ def collect(args: ProcessArgs, env: EvalEnv):
     return env[ENV_FINAL_RESULT][0]
 
 
+@non_standard_process(
+    ProcessSpec(
+        id="aspect",
+        description="Computes the aspect from elevation data. Aspect is the direction component of a gradient vector. It is the direction in degrees of which direction the maximum change in direction is pointing at a given point. Horn's method is used to compute the aspect based on estimates of the partial derivatives dz/dx and dz/dy.",
+        extra={
+            "summary": "Compute aspect on elevation data",
+            "categories": ["cubes", "elevation"],
+            "experimental": True
+        }
+    )
+    .param('data',
+           description="Data cube containing elevation data.",
+           schema={"type": "object", "subtype": "raster-cube"})
+    .returns(
+        description="A data cube with calculated aspects for each band, the band names are the original band names with a '_aspect' suffix.",
+        schema={"type": "object", "subtype": "raster-cube"})
+
+)
+def aspect(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    return cube.aspect()
+
+@non_standard_process(
+    ProcessSpec(
+        id="slope",
+        description="Computes the slope from elevation data. Slope is the magnitude portion of the gradient vector. It is the maximum change of elevation from a raster cell to any immediate neighbor. Horn's method is used to compute the slope based on estimates of the partial derivatives dz/dx and dz/dy.",
+        extra={
+            "summary": "Compute slope on elevation data",
+            "categories": ["cubes", "elevation"],
+            "experimental": True
+        }
+    )
+    .param('data',
+           description="Data cube containing elevation data.",
+           schema={"type": "object", "subtype": "raster-cube"})
+    .returns(
+        description="A data cube with calculated slopes for each band, the band names are the original band names with a '_slope' suffix.",
+        schema={"type": "object", "subtype": "raster-cube"})
+
+)
+def slope(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    return cube.slope()
+
+
 # Finally: register some fallback implementation if possible
 _register_fallback_implementations_by_process_graph(process_registry_100)
 _register_fallback_implementations_by_process_graph(process_registry_2xx)
