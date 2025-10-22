@@ -209,9 +209,6 @@ class DummyDataCube(DriverDataCube):
     def __init__(self, metadata: Optional[CubeMetadata] = None):
         super(DummyDataCube, self).__init__(metadata=metadata)
 
-        # TODO #47: remove this non-standard process?
-        self.timeseries = Mock(name="timeseries", return_value={})
-
         # TODO can we get rid of these non-standard "apply_tiles" processes?
         self.apply_tiles = Mock(name="apply_tiles", return_value=self)
         self.apply_tiles_spatiotemporal = Mock(name="apply_tiles_spatiotemporal", return_value=self)
