@@ -15,31 +15,6 @@ from openeo_driver.errors import (
 from openeo_driver.processes import ProcessArgs, ProcessRegistry, ProcessRegistryException, ProcessSpec
 
 
-def test_process_spec_basic_040():
-    spec = (
-        ProcessSpec("mean", "Mean value")
-            .param("input", "Input data", schema={"type": "array", "items": {"type": "number"}})
-            .param("mask", "The mask", schema=ProcessSpec.RASTERCUBE, required=False)
-            .returns("Mean value of data", schema={"type": "number"})
-    )
-    assert spec.to_dict_040() == {
-        "id": "mean",
-        "description": "Mean value",
-        "parameters": {
-            "input": {
-                "description": "Input data",
-                "required": True,
-                "schema": {"type": "array", "items": {"type": "number"}}
-            },
-            "mask": {
-                "description": "The mask",
-                "required": False,
-                "schema": {"type": "object", "format": "raster-cube"}
-            }
-        },
-        "parameter_order": ["input", "mask"],
-        "returns": {"description": "Mean value of data", "schema": {"type": "number"}},
-    }
 
 
 def test_process_spec_basic_100():
@@ -68,19 +43,6 @@ def test_process_spec_basic_100():
         ],
         "returns": {"description": "Mean value of data", "schema": {"type": "number"}},
     }
-
-
-def test_process_spec_no_params_040(caplog):
-    caplog.set_level(logging.DEBUG)
-    spec = ProcessSpec("foo", "bar").returns("output", schema={"type": "number"})
-    assert spec.to_dict_040() == {
-        "id": "foo",
-        "description": "bar",
-        "parameters": {},
-        "parameter_order": [],
-        "returns": {"description": "output", "schema": {"type": "number"}},
-    }
-    assert caplog.messages == ["Process with no parameters"]
 
 
 def test_process_spec_no_params_100(caplog):
@@ -269,34 +231,6 @@ def test_process_registry_add_function_allow_override():
     }
 
 
-def test_process_registry_with_spec_040():
-    reg = ProcessRegistry()
-
-    def add_function_with_spec(spec: ProcessSpec):
-        def decorator(f):
-            reg.add_function(f=f, spec=spec.to_dict_040())
-            return f
-
-        return decorator
-
-    @add_function_with_spec(
-        ProcessSpec("foo", "bar")
-            .param("input", "Input", schema=ProcessSpec.RASTERCUBE)
-            .returns(description="Output", schema=ProcessSpec.RASTERCUBE)
-    )
-    def foo(*args):
-        return 42
-
-    assert reg.get_spec('foo') == {
-        "id": "foo",
-        "description": "bar",
-        "parameters": {
-            "input": {"description": "Input", "schema": {"type": "object", "format": "raster-cube"},
-                      "required": True},
-        },
-        "parameter_order": ["input"],
-        "returns": {"description": "Output", "schema": {"type": "object", "format": "raster-cube"}}
-    }
 
 
 def test_process_registry_with_spec_100():
