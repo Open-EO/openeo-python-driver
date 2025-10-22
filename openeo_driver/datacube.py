@@ -176,10 +176,6 @@ class DriverDataCube:
     def rename_labels(self, dimension: str, target: list, source: list = None) -> 'DriverDataCube':
         self._not_implemented()
 
-    def reduce_bands(self, process) -> 'DriverDataCube':
-        # TODO #47: remove this non-standard process
-        self._not_implemented()
-
     def mask(self, mask: 'DriverDataCube', replacement=None) -> 'DriverDataCube':
         self._not_implemented()
 

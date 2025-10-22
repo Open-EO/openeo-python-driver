@@ -1,3 +1,4 @@
+import dirty_equals
 import logging
 import shutil
 import dataclasses
@@ -677,15 +678,18 @@ def test_execute_merge_cubes_and_reduce(api):
 def test_reduce_bands(api):
     api.check_result("reduce_bands.json")
     dummy = dummy_backend.get_collection("S2_FOOBAR")
-    if api.api_version_compare.at_least("1.0.0"):
-        reduce_bands = dummy.reduce_dimension
-    else:
-        reduce_bands = dummy.reduce_bands
-    reduce_bands.assert_called_once()
-    if api.api_version_compare.below("1.0.0"):
-        visitor = reduce_bands.call_args_list[0][0][0]
-        assert isinstance(visitor, dummy_backend.DummyVisitor)
-        assert set(p[0] for p in visitor.processes) == {"sum", "subtract", "divide"}
+    dummy.reduce_dimension.assert_called_once()
+    assert dummy.reduce_dimension.call_args.kwargs == dirty_equals.IsPartialDict(
+        {
+            "reducer": {
+                "sum": dirty_equals.IsPartialDict(),
+                "subtract": dirty_equals.IsPartialDict(),
+                "divide": dirty_equals.IsPartialDict(),
+            },
+            "dimension": "bands",
+            "context": None,
+        }
+    )
 
 
 def test_reduce_bands_invalid_dimension(api):

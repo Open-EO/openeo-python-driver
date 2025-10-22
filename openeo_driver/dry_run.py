@@ -931,7 +931,6 @@ class DryRunDataCube(DriverDataCube):
     apply_tiles = _nop
 
     reduce = _nop
-    reduce_bands = _nop
     aggregate_temporal = _nop
     aggregate_temporal_period = _nop
     rename_labels = _nop
