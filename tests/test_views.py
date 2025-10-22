@@ -3004,6 +3004,14 @@ class TestBatchJobs:
                             "id": "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z",
                             "properties": {"datetime": "2023-12-31T21:41:00Z"},
                             "bbox": [3.359808992021044, 51.08284561357965, 4.690166134878123, 51.88641704215104],
+                            "links": [
+                                {
+                                    "rel": "custom",
+                                    "href": "/data/projects/OpenEO/07024ee9-7847-4b8a-b260-6c879a2b3cdc/07024ee9-7847-4b8a-b260-6c879a2b3cdc_input_items_9569134155392213115.json",
+                                    "type": "application/json",
+                                    "_expose_internal": True,
+                                },
+                            ],
                         }
                     }
                 ),
@@ -3042,10 +3050,16 @@ class TestBatchJobs:
                     'type': 'application/geo+json'
                 },
                 {
-                    'href': 'http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results',
-                    'rel': 'collection',
-                    'type': 'application/json'
-                 }
+                    "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results",
+                    "rel": "collection",
+                    "type": "application/json",
+                },
+                {
+                    "rel": "custom",
+                    # TODO: what does the URL look like? Currently /aux instead of /assets; should /items be in there?
+                    "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/aux/07024ee9-7847-4b8a-b260-6c879a2b3cdc_input_items_9569134155392213115.json",
+                    "type": "application/json",
+                },
             ],
             'properties': {'datetime': '2023-12-31T21:41:00Z'},
             'stac_extensions': ['https://stac-extensions.github.io/eo/v1.1.0/schema.json',

@@ -1442,6 +1442,15 @@ def register_views_batch_jobs(
                 geometry = BoundingBox.from_wsen_tuple(job_info.proj_bbox, job_info.epsg).as_polygon()
                 geometry = mapping(reproject_geometry(geometry, CRS.from_epsg(job_info.epsg), CRS.from_epsg(4326)))
 
+        exposable_links = [link for link in item_metadata.get("links", []) if link.get("_expose_internal", False)]
+        for link in exposable_links:
+            link.pop("_expose_internal")
+            filename = pathlib.Path(link["href"]).name  # TODO: assumes href is an absolute file path; prepare for S3 URI and put it in asset_metadata's href?
+            link["href"] = flask.url_for(
+                ".download_job_auxiliary_file", job_id=job_id, filename=filename, _external=True
+            )
+            # TODO: support signed URLs
+
         stac_item = {
             "type": "Feature",
             "stac_version": "1.1.0",
@@ -1466,7 +1475,8 @@ def register_views_batch_jobs(
                     "href": url_for(".list_job_results", job_id=job_id, _external=True),  # SHOULD be absolute
                     "type": "application/json",
                 },
-            ],
+            ]
+            + exposable_links,
             "assets": assets,
             "collection": job_id,
         }
@@ -1483,6 +1493,22 @@ def register_views_batch_jobs(
         resp.mimetype = stac_item_media_type
         return resp
 
+    @blueprint.route("/jobs/<job_id>/results/aux/<path:filename>", methods=["GET"])
+    @auth_handler.requires_bearer_auth
+    def download_job_auxiliary_file(job_id, filename, user: User):
+        metadata = backend_implementation.batch_jobs.get_result_metadata(job_id=job_id, user_id=user.user_id)
+
+        auxiliary_filenames = [
+            pathlib.Path(link["href"]).name  # TODO: assumes href is an absolute file path
+            for item in metadata.items.values()
+            for link in item.get("links", [])
+            if link.get("_expose_internal", False)
+        ]
+
+        if filename not in auxiliary_filenames:
+            raise FilePathInvalidException(f"{filename!r} not in {auxiliary_filenames}")
+
+        raise NotImplementedError(f"TODO: serve auxiliary file {filename}")
 
     def _get_job_result_item(job_id, item_id, user_id):
         if item_id == DriverMlModel.METADATA_FILE_NAME:
