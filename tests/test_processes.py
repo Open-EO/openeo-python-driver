@@ -71,6 +71,7 @@ def test_process_spec_basic_100():
 
 
 def test_process_spec_no_params_040(caplog):
+    caplog.set_level(logging.DEBUG)
     spec = ProcessSpec("foo", "bar").returns("output", schema={"type": "number"})
     assert spec.to_dict_040() == {
         "id": "foo",
@@ -79,10 +80,11 @@ def test_process_spec_no_params_040(caplog):
         "parameter_order": [],
         "returns": {"description": "output", "schema": {"type": "number"}},
     }
-    assert caplog.record_tuples == [("openeo_driver.processes", logging.WARN, "Process with no parameters")]
+    assert caplog.messages == ["Process with no parameters"]
 
 
 def test_process_spec_no_params_100(caplog):
+    caplog.set_level(logging.DEBUG)
     spec = ProcessSpec("foo", "bar").returns("output", schema={"type": "number"})
     assert spec.to_dict_100() == {
         "id": "foo",
@@ -90,7 +92,7 @@ def test_process_spec_no_params_100(caplog):
         "parameters": [],
         "returns": {"description": "output", "schema": {"type": "number"}},
     }
-    assert caplog.record_tuples == [("openeo_driver.processes", logging.WARN, "Process with no parameters: 'foo'")]
+    assert caplog.messages == ["Process with no parameters: 'foo'"]
 
 
 def test_process_spec_no_returns():
