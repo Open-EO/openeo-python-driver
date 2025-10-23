@@ -1160,12 +1160,6 @@ def register_views_batch_jobs(
             for filename, asset_metadata in result_assets.items()
             if asset_metadata.get("asset", True)
         }
-        for item_key, item_metadata in result_items.items():
-            item_assets = item_metadata.get("assets")
-            for asset_key, asset_metadata in item_assets.items():
-                item_assets[asset_key] = _asset_object(
-                        job_id=job_id, user_id=user_id, filename=asset_metadata.get("href"), asset_metadata=asset_metadata, job_info=job_info
-                    )
 
         if TREAT_JOB_RESULTS_V100_LIKE_V110 or requested_api_version().at_least("1.1.0"):
             ml_model_metadata = None
@@ -1194,37 +1188,16 @@ def register_views_batch_jobs(
 
 
             if len(result_metadata.items) > 0 :
+                assets = {
+                    item_key + "_" + asset_key: asset_metadata
+                    for item_key, item_metadata in result_items.items()
+                    for asset_key, asset_metadata in item_metadata.get("assets").items()
+                }
                 for item_id in result_metadata.items.keys():
                     links.append(
                         {"rel": "item", "href": job_result_item_url(item_id=item_id, is11=True), "type": stac_item_media_type}
                     )
-                result = dict_no_none(
-                    {
-                        "type": "Collection",
-                        "stac_version": "1.1.0",
-                        "stac_extensions": [
-                            STAC_EXTENSION.EO_V110,
-                            STAC_EXTENSION.FILEINFO,
-                            STAC_EXTENSION.PROCESSING,
-                            STAC_EXTENSION.PROJECTION,
-                        ],
-                        "id": job_id,
-                        "title": job_info.title,
-                        "description": job_info.description or f"Results for batch job {job_id}",
-                        "license": "proprietary",  # TODO?
-                        "extent": {
-                            "spatial": {"bbox": [job_info.bbox] if job_info.bbox else [[-180, -90, 180, 90]]},
-                            "temporal": {
-                                "interval": [[to_datetime(job_info.start_datetime), to_datetime(job_info.end_datetime)]]
-                            },
-                        },
-                        "summaries": {"instruments": job_info.instruments} if job_info.instruments else {},
-                        "providers": providers or None,
-                        "links": links,
-                        "items": result_items,
-                        "openeo:status": PARTIAL_JOB_STATUS.FINISHED,
-                    }
-                )
+                stac_version = "1.1.0"
             else:
 
                 for filename, metadata in result_assets.items():
@@ -1240,34 +1213,35 @@ def register_views_batch_jobs(
                         links.append(
                             {"rel": "item", "href": job_result_item_url(item_id=filename), "type": "application/json"}
                         )
+                stac_version = "1.0.0"
 
-                result = dict_no_none(
-                    {
-                        "type": "Collection",
-                        "stac_version": "1.0.0",
-                        "stac_extensions": [
-                            STAC_EXTENSION.EO_V110,
-                            STAC_EXTENSION.FILEINFO,
-                            STAC_EXTENSION.PROCESSING,
-                            STAC_EXTENSION.PROJECTION,
-                        ],
-                        "id": job_id,
-                        "title": job_info.title,
-                        "description": job_info.description or f"Results for batch job {job_id}",
-                        "license": "proprietary",  # TODO?
-                        "extent": {
-                            "spatial":  {"bbox": [job_info.bbox] if job_info.bbox else [[-180, -90, 180, 90]]},
-                            "temporal": {
-                                "interval": [[to_datetime(job_info.start_datetime), to_datetime(job_info.end_datetime)]]
-                            },
+            result = dict_no_none(
+                {
+                    "type": "Collection",
+                    "stac_version": stac_version,
+                    "stac_extensions": [
+                        STAC_EXTENSION.EO_V110,
+                        STAC_EXTENSION.FILEINFO,
+                        STAC_EXTENSION.PROCESSING,
+                        STAC_EXTENSION.PROJECTION,
+                    ],
+                    "id": job_id,
+                    "title": job_info.title,
+                    "description": job_info.description or f"Results for batch job {job_id}",
+                    "license": "proprietary",  # TODO?
+                    "extent": {
+                        "spatial":  {"bbox": [job_info.bbox] if job_info.bbox else [[-180, -90, 180, 90]]},
+                        "temporal": {
+                            "interval": [[to_datetime(job_info.start_datetime), to_datetime(job_info.end_datetime)]]
                         },
-                        "summaries": {"instruments": job_info.instruments } if job_info.instruments else {},
-                        "providers": providers or None,
-                        "links": links,
-                        "assets": assets,
-                        "openeo:status": PARTIAL_JOB_STATUS.FINISHED,
-                    }
-                )
+                    },
+                    "summaries": {"instruments": job_info.instruments } if job_info.instruments else {},
+                    "providers": providers or None,
+                    "links": links,
+                    "assets": assets,
+                    "openeo:status": PARTIAL_JOB_STATUS.FINISHED,
+                }
+            )
 
             if ml_model_metadata is not None:
                 result["stac_extensions"].extend(ml_model_metadata.get("stac_extensions", []))
