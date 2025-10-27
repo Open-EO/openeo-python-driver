@@ -1493,22 +1493,26 @@ def register_views_batch_jobs(
         resp.mimetype = stac_item_media_type
         return resp
 
-    @blueprint.route("/jobs/<job_id>/results/aux/<path:filename>", methods=["GET"])
+    @blueprint.route("/jobs/<job_id>/results/aux/<filename>", methods=["GET"])
     @auth_handler.requires_bearer_auth
     def download_job_auxiliary_file(job_id, filename, user: User):
         metadata = backend_implementation.batch_jobs.get_result_metadata(job_id=job_id, user_id=user.user_id)
 
-        auxiliary_filenames = [
-            pathlib.Path(link["href"]).name  # TODO: assumes href is an absolute file path
+        # TODO: assumes href is an absolute file path
+        auxiliary_links = [
+            link
             for item in metadata.items.values()
             for link in item.get("links", [])
-            if link.get("_expose_internal", False)
+            if link.get("_expose_internal", False) and link["href"].endswith(f"/{filename}")
         ]
 
-        if filename not in auxiliary_filenames:
-            raise FilePathInvalidException(f"{filename!r} not in {auxiliary_filenames}")
+        if not auxiliary_links:
+            raise FilePathInvalidException(f"invalid file {filename!r}")
 
-        raise NotImplementedError(f"TODO: serve auxiliary file {filename}")
+        auxiliary_link = auxiliary_links[0]
+        auxiliary_path = pathlib.Path(auxiliary_link["href"])
+
+        return send_from_directory(auxiliary_path.parent, filename, mimetype=auxiliary_link.get("type"))
 
     def _get_job_result_item(job_id, item_id, user_id):
         if item_id == DriverMlModel.METADATA_FILE_NAME:

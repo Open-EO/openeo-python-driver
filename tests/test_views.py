@@ -3069,6 +3069,101 @@ class TestBatchJobs:
             'type': 'Feature'
         }
 
+    def test_download_job_auxiliary_file(self, api110, tmp_path):
+        # TODO: set up job with item that has a link with _expose_internal
+        # TODO: download /jobs/$job_id/results/aux/$link.href.name
+
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
+        job_dir = tmp_path
+        auxiliary_file = job_dir / "07024ee9-7847-4b8a-b260-6c879a2b3cdc_input_items_9569134155392213115.json"
+
+        with open(auxiliary_file, "w") as f:
+            f.write("aux")
+
+        with self._fresh_job_registry():
+            dummy_backend.DummyBatchJobs.set_result_metadata(
+                job_id=job_id,
+                user_id=TEST_USER,
+                metadata=BatchJobResultMetadata(
+                    items={
+                        "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z": {
+                            "geometry": {
+                                "coordinates": [
+                                    [
+                                        [3.359808992021044, 51.08284561357965],
+                                        [3.359808992021044, 51.88641704215104],
+                                        [4.690166134878123, 51.88641704215104],
+                                        [4.690166134878123, 51.08284561357965],
+                                        [3.359808992021044, 51.08284561357965],
+                                    ]
+                                ],
+                                "type": "Polygon",
+                            },
+                            "assets": {
+                                "openEO": {
+                                    "datetime": "2023-12-31T21:41:00Z",
+                                    "roles": ["data"],
+                                    "bbox": [
+                                        3.359808992021044,
+                                        51.08284561357965,
+                                        4.690166134878123,
+                                        51.88641704215104,
+                                    ],
+                                    "geometry": {
+                                        "coordinates": [
+                                            [
+                                                [3.359808992021044, 51.08284561357965],
+                                                [3.359808992021044, 51.88641704215104],
+                                                [4.690166134878123, 51.88641704215104],
+                                                [4.690166134878123, 51.08284561357965],
+                                                [3.359808992021044, 51.08284561357965],
+                                            ]
+                                        ],
+                                        "type": "Polygon",
+                                    },
+                                    "href": "s3://openeo-data-staging-waw4-1/batch_jobs/j-250605095828442799fdde3c29b5b047/openEO_20231231T214100Z.tif",
+                                    "nodata": "nan",
+                                    "type": "image/tiff; application=geotiff",
+                                    "bands": [
+                                        {"name": "LST", "common_name": "surface_temperature", "aliases": ["LST_in:LST"]}
+                                    ],
+                                    "raster:bands": [
+                                        {
+                                            "name": "LST",
+                                            "statistics": {
+                                                "valid_percent": 66.88,
+                                                "maximum": 281.04800415039,
+                                                "stddev": 19.598456945276,
+                                                "minimum": 224.46798706055,
+                                                "mean": 259.57087672984,
+                                            },
+                                        }
+                                    ],
+                                }
+                            },
+                            "id": "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z",
+                            "properties": {"datetime": "2023-12-31T21:41:00Z"},
+                            "bbox": [3.359808992021044, 51.08284561357965, 4.690166134878123, 51.88641704215104],
+                            "links": [
+                                {
+                                    "rel": "custom",
+                                    "href": str(auxiliary_file),
+                                    "type": "application/json",
+                                    "_expose_internal": True,
+                                },
+                            ],
+                        }
+                    }
+                ),
+            )
+
+        resp = api110.get(
+            f"/jobs/{job_id}/results/aux/07024ee9-7847-4b8a-b260-6c879a2b3cdc_input_items_9569134155392213115.json",
+            headers=self.AUTH_HEADER,
+        )
+
+        assert resp.text == "aux"
+
     def test_get_job_results_invalid_job(self, api):
         api.get("/jobs/deadbeef-f00/results", headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
 
