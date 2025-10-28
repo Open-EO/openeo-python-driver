@@ -1445,11 +1445,28 @@ def register_views_batch_jobs(
         exposable_links = [link for link in item_metadata.get("links", []) if link.get("_expose_internal", False)]
         for link in exposable_links:
             link.pop("_expose_internal")
-            filename = pathlib.Path(link["href"]).name  # TODO: assumes href is an absolute file path; prepare for S3 URI and put it in asset_metadata's href?
-            link["href"] = flask.url_for(
-                ".download_job_auxiliary_file", job_id=job_id, filename=filename, _external=True
-            )
-            # TODO: support signed URLs
+            auxiliary_filename = pathlib.Path(link["href"]).name  # TODO: assumes href is an absolute file path; prepare for S3 URI and put it in asset_metadata's href?
+
+            signer = get_backend_config().url_signer
+            if signer:
+                expires = signer.get_expires()
+                secure_key = signer.sign_job_asset(
+                    job_id=job_id, user_id=user_id, filename=auxiliary_filename, expires=expires
+                )
+                user_base64 = user_id_b64_encode(user_id)
+                link["href"] = flask.url_for(
+                    ".download_job_auxiliary_file_signed",
+                    job_id=job_id,
+                    user_base64=user_base64,
+                    filename=auxiliary_filename,
+                    expires=expires,
+                    secure_key=secure_key,
+                    _external=True,
+                )
+            else:
+                link["href"] = flask.url_for(
+                    ".download_job_auxiliary_file", job_id=job_id, filename=auxiliary_filename, _external=True
+                )
 
         stac_item = {
             "type": "Feature",
@@ -1493,10 +1510,23 @@ def register_views_batch_jobs(
         resp.mimetype = stac_item_media_type
         return resp
 
+    @blueprint.route("/jobs/<job_id>/results/aux/<user_base64>/<secure_key>/<filename>", methods=["GET"])
+    def download_job_auxiliary_file_signed(job_id, user_base64, secure_key, filename):
+        expires = request.args.get("expires")
+        signer = get_backend_config().url_signer
+        user_id = user_id_b64_decode(user_base64)
+        signer.verify_job_asset(
+            signature=secure_key, job_id=job_id, user_id=user_id, filename=filename, expires=expires
+        )
+        return _download_job_auxiliary_file(job_id=job_id, filename=filename, user_id=user_id)
+
     @blueprint.route("/jobs/<job_id>/results/aux/<filename>", methods=["GET"])
     @auth_handler.requires_bearer_auth
     def download_job_auxiliary_file(job_id, filename, user: User):
-        metadata = backend_implementation.batch_jobs.get_result_metadata(job_id=job_id, user_id=user.user_id)
+        return _download_job_auxiliary_file(job_id, filename, user.user_id)
+
+    def _download_job_auxiliary_file(job_id, filename, user_id):
+        metadata = backend_implementation.batch_jobs.get_result_metadata(job_id=job_id, user_id=user_id)
 
         # TODO: assumes href is an absolute file path
         auxiliary_links = [

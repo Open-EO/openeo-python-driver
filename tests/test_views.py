@@ -3057,7 +3057,7 @@ class TestBatchJobs:
                 {
                     "rel": "custom",
                     # TODO: what does the URL look like? Currently /aux instead of /assets; should /items be in there?
-                    "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/aux/07024ee9-7847-4b8a-b260-6c879a2b3cdc_input_items_9569134155392213115.json",
+                    "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/aux/TXIuVGVzdA==/a0274432f627ca9cf9b4ff79d57c61bd/07024ee9-7847-4b8a-b260-6c879a2b3cdc_input_items_9569134155392213115.json",
                     "type": "application/json",
                 },
             ],
@@ -3069,10 +3069,9 @@ class TestBatchJobs:
             'type': 'Feature'
         }
 
-    def test_download_job_auxiliary_file(self, api110, tmp_path):
-        # TODO: set up job with item that has a link with _expose_internal
-        # TODO: download /jobs/$job_id/results/aux/$link.href.name
-
+    @mock.patch("time.time", mock.MagicMock(return_value=1234))
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
+    def test_download_job_auxiliary_file_signed_with_expiration(self, api110, tmp_path, backend_config_overrides):
         job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
         job_dir = tmp_path
         auxiliary_file = job_dir / "07024ee9-7847-4b8a-b260-6c879a2b3cdc_input_items_9569134155392213115.json"
@@ -3158,8 +3157,7 @@ class TestBatchJobs:
             )
 
         resp = api110.get(
-            f"/jobs/{job_id}/results/aux/07024ee9-7847-4b8a-b260-6c879a2b3cdc_input_items_9569134155392213115.json",
-            headers=self.AUTH_HEADER,
+            "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/aux/TXIuVGVzdA==/5b3d0f30d2ad8ef3146dc0785821aac3/07024ee9-7847-4b8a-b260-6c879a2b3cdc_input_items_9569134155392213115.json?expires=2234",
         )
 
         assert resp.text == "aux"
