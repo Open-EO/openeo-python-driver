@@ -547,18 +547,11 @@ class BatchJobs(MicroService):
         https://openeo.org/documentation/1.0/developers/api/reference.html#tag/Batch-Jobs/operation/list-results
         """
         # Default implementation, based on existing components
-        items = self.get_result_items(job_id=job_id, user_id=user_id)
         return BatchJobResultMetadata(
-            assets=self.get_result_assets(job_id=job_id, user_id=user_id) if items is None else {},
-            items=items or {},
+            assets=self.get_result_assets(job_id=job_id, user_id=user_id),
             links=[],
             providers=self._get_providers(job_id=job_id, user_id=user_id),
         )
-
-    def get_result_items(
-        self, job_id: str, user_id: str
-    ) -> Optional[Dict[str, dict]]:  # optional because older batch jobs don't have this yet
-        raise NotImplementedError
 
     def _get_providers(self, job_id: str, user_id: str):
         """Creates a standard value for the STAC providers object.
