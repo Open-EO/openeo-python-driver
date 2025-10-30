@@ -3009,7 +3009,7 @@ class TestBatchJobs:
                                     "rel": "custom",
                                     "href": "/data/projects/OpenEO/07024ee9-7847-4b8a-b260-6c879a2b3cdc/07024ee9-7847-4b8a-b260-6c879a2b3cdc_input_items_9569134155392213115.json",
                                     "type": "application/json",
-                                    "_expose_internal": True,
+                                    "_expose_auxiliary": True,
                                 },
                             ],
                         }
@@ -3148,7 +3148,7 @@ class TestBatchJobs:
                                     "rel": "custom",
                                     "href": str(auxiliary_file),
                                     "type": "application/json",
-                                    "_expose_internal": True,
+                                    "_expose_auxiliary": True,
                                 },
                             ],
                         }
