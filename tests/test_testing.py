@@ -10,6 +10,7 @@ import flask
 import numpy
 import pytest
 import requests
+import requests.exceptions
 
 from openeo_driver.config import get_backend_config
 from openeo_driver.testing import (
@@ -25,6 +26,7 @@ from openeo_driver.testing import (
     caplog_with_custom_formatter,
     config_overrides,
     ephemeral_fileserver,
+    ephemeral_flask_server,
     preprocess_check_and_replace,
 )
 
@@ -256,6 +258,51 @@ def test_ephemeral_fileserver_failure(tmp_path, caplog):
             raise RuntimeError("Something's up")
 
     assert "terminated with exitcode" in caplog.text
+
+
+def test_ephemeral_flask_server_basic():
+    app = flask.Flask(__name__)
+
+    @app.route("/hello")
+    def hello():
+        return "Hello, World!"
+
+    with ephemeral_flask_server(app) as root_url:
+        resp = requests.get(f"{root_url}/hello")
+        assert resp.status_code == 200
+        assert resp.text == "Hello, World!"
+
+
+def test_ephemeral_flask_server_shutdown():
+    app = flask.Flask(__name__)
+
+    @app.route("/hello")
+    def hello():
+        return "Hello, World!"
+
+    with ephemeral_flask_server(app) as root_url:
+        resp = requests.get(f"{root_url}/hello")
+        assert resp.text == "Hello, World!"
+
+    with pytest.raises(requests.exceptions.ConnectionError, match="Connection refused"):
+        requests.get(f"{root_url}/hello")
+
+
+def test_ephemeral_flask_server_dynamic():
+    app = flask.Flask(__name__)
+
+    @app.route("/hello/<name>")
+    def hello(name):
+        return flask.jsonify({"hello": name})
+
+    with ephemeral_flask_server(app) as root_url:
+        resp = requests.get(f"{root_url}/hello/alice")
+        assert resp.status_code == 200
+        assert resp.json() == {"hello": "alice"}
+
+        resp = requests.get(f"{root_url}/hello/bob")
+        assert resp.status_code == 200
+        assert resp.json() == {"hello": "bob"}
 
 
 def test_approxify_basic():

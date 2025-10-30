@@ -60,27 +60,10 @@ class ProcessSpec:
         self._returns = {"description": description, "schema": schema}
         return self
 
-    def to_dict_040(self) -> dict:
-        """Generate process spec as (JSON-able) dictionary (API 0.4.0 style)."""
-        # TODO #47 drop this
-        if len(self._parameters) == 0:
-            _log.warning("Process with no parameters")
-        assert self._returns is not None
-        return {**self.extra, **{
-            "id": self.id,
-            "description": self.description,
-            "parameters": {
-                p.name: {"description": p.description, "schema": p.schema, "required": p.required}
-                for p in self._parameters
-            },
-            "parameter_order": [p.name for p in self._parameters],
-            "returns": self._returns
-        }}
-
     def to_dict_100(self) -> dict:
         """Generate process spec as (JSON-able) dictionary (API 1.0.0 style)."""
         if len(self._parameters) == 0:
-            _log.warning(f"Process with no parameters: {self.id!r}")
+            _log.debug(f"Process with no parameters: {self.id!r}")
         assert self._returns is not None
         return {**self.extra, **{
             "id": self.id,

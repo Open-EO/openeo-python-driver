@@ -19,7 +19,12 @@ and start a new "In Progress" section above it.
 
 <!-- start-of-changelog -->
 
-## In progress: 0.136.0
+## In progress: 0.137.0
+
+- Add `ephemeral_flask_server` testing utility (`openeo_driver.testing`) for request mocking based on a Flask app. Allows to do request/response mocking independently from actual request library (`requests`, `urllib`, `urllib3`, etc.) through a well-documented API (Flask).
+
+
+## 0.136.0
 
 - Start supporting custom `UdfRuntimes` implementation in `OpenEoBackendImplementation` ([#415](https://github.com/Open-EO/openeo-python-driver/issues/415))
 - Process graph parsing (dry-run) for very large graphs got faster. ([#426](https://github.com/Open-EO/openeo-python-driver/issues/426))
