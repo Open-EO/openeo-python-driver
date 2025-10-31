@@ -61,3 +61,7 @@ RESAMPLE_SPATIAL_ALIGNS = [
 DEFAULT_LOG_LEVEL_PROCESSING = "info"
 # Default value for `level in `GET /jobs/{job_id}/logs`, `GET /services/{service_id}/logs` requests
 DEFAULT_LOG_LEVEL_RETRIEVAL = "debug"
+
+
+class ITEM_LINK_PROPERTY:
+    EXPOSE_AUXILIARY = "_expose_auxiliary"

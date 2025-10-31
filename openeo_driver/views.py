@@ -49,6 +49,7 @@ from openeo_driver.config import OpenEoBackendConfig, get_backend_config
 from openeo_driver.constants import (
     DEFAULT_LOG_LEVEL_PROCESSING,
     DEFAULT_LOG_LEVEL_RETRIEVAL,
+    ITEM_LINK_PROPERTY,
     JOB_STATUS,
     STAC_EXTENSION,
 )
@@ -1443,9 +1444,11 @@ def register_views_batch_jobs(
                 geometry = BoundingBox.from_wsen_tuple(job_info.proj_bbox, job_info.epsg).as_polygon()
                 geometry = mapping(reproject_geometry(geometry, CRS.from_epsg(job_info.epsg), CRS.from_epsg(4326)))
 
-        exposable_links = [link for link in item_metadata.get("links", []) if link.get("_expose_auxiliary", False)]
+        exposable_links = [
+            link for link in item_metadata.get("links", []) if link.get(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY, False)
+        ]
         for link in exposable_links:
-            link.pop("_expose_auxiliary")
+            link.pop(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY)
             auxiliary_filename = urlparse(link["href"]).path.split("/")[-1]  # TODO: assumes file is not nested
 
             if link["href"].startswith("s3://"):
@@ -1541,7 +1544,7 @@ def register_views_batch_jobs(
             link
             for item in metadata.items.values()
             for link in item.get("links", [])
-            if link.get("_expose_auxiliary", False) and link["href"].endswith(f"/{filename}")
+            if link.get(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY, False) and link["href"].endswith(f"/{filename}")
         ]
 
         if not auxiliary_links:

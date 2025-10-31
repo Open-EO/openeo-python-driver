@@ -31,6 +31,7 @@ from openeo_driver.backend import (
     not_implemented,
 )
 from openeo_driver.config import OpenEoBackendConfig
+from openeo_driver.constants import ITEM_LINK_PROPERTY
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.dummy import dummy_backend, dummy_config
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation, DummyProcessing, DummyProcessRegistry
@@ -3009,7 +3010,7 @@ class TestBatchJobs:
                                     "rel": "custom",
                                     "href": "/data/projects/OpenEO/07024ee9-7847-4b8a-b260-6c879a2b3cdc/07024ee9-7847-4b8a-b260-6c879a2b3cdc_input_items_9569134155392213115.json",
                                     "type": "application/json",
-                                    "_expose_auxiliary": True,
+                                    ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY: True,
                                 },
                             ],
                         }
@@ -3148,7 +3149,7 @@ class TestBatchJobs:
                                     "rel": "custom",
                                     "href": str(auxiliary_file),
                                     "type": "application/json",
-                                    "_expose_auxiliary": True,
+                                    ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY: True,
                                 },
                             ],
                         }
