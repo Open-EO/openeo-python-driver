@@ -9,6 +9,7 @@ import textwrap
 import typing
 from collections import defaultdict, namedtuple
 from typing import Callable, List, Optional, Tuple, Union
+from urllib.parse import urlparse
 
 import flask
 import flask_cors
@@ -1445,28 +1446,36 @@ def register_views_batch_jobs(
         exposable_links = [link for link in item_metadata.get("links", []) if link.get("_expose_auxiliary", False)]
         for link in exposable_links:
             link.pop("_expose_auxiliary")
-            auxiliary_filename = pathlib.Path(link["href"]).name  # TODO: assumes href is an absolute file path; prepare for S3 URI and put it in asset_metadata's href?
+            auxiliary_filename = urlparse(link["href"]).path.split("/")[-1]  # TODO: assumes file is not nested
 
-            signer = get_backend_config().url_signer
-            if signer:
-                expires = signer.get_expires()
-                secure_key = signer.sign_job_asset(
-                    job_id=job_id, user_id=user_id, filename=auxiliary_filename, expires=expires
-                )
-                user_base64 = user_id_b64_encode(user_id)
-                link["href"] = flask.url_for(
-                    ".download_job_auxiliary_file_signed",
+            if link["href"].startswith("s3://"):
+                link["href"] = backend_implementation.config.asset_url.build_url(
+                    asset_metadata={"href": link["href"]},  # TODO: clean up this hack to support s3proxy
+                    asset_name=auxiliary_filename,
                     job_id=job_id,
-                    user_base64=user_base64,
-                    filename=auxiliary_filename,
-                    expires=expires,
-                    secure_key=secure_key,
-                    _external=True,
+                    user_id=user_id,
                 )
             else:
-                link["href"] = flask.url_for(
-                    ".download_job_auxiliary_file", job_id=job_id, filename=auxiliary_filename, _external=True
-                )
+                signer = get_backend_config().url_signer
+                if signer:
+                    expires = signer.get_expires()
+                    secure_key = signer.sign_job_asset(
+                        job_id=job_id, user_id=user_id, filename=auxiliary_filename, expires=expires
+                    )
+                    user_base64 = user_id_b64_encode(user_id)
+                    link["href"] = flask.url_for(
+                        ".download_job_auxiliary_file_signed",
+                        job_id=job_id,
+                        user_base64=user_base64,
+                        filename=auxiliary_filename,
+                        expires=expires,
+                        secure_key=secure_key,
+                        _external=True,
+                    )
+                else:
+                    link["href"] = flask.url_for(
+                        ".download_job_auxiliary_file", job_id=job_id, filename=auxiliary_filename, _external=True
+                    )
 
         stac_item = {
             "type": "Feature",
@@ -1528,7 +1537,6 @@ def register_views_batch_jobs(
     def _download_job_auxiliary_file(job_id, filename, user_id):
         metadata = backend_implementation.batch_jobs.get_result_metadata(job_id=job_id, user_id=user_id)
 
-        # TODO: assumes href is an absolute file path
         auxiliary_links = [
             link
             for item in metadata.items.values()
@@ -1540,9 +1548,13 @@ def register_views_batch_jobs(
             raise FilePathInvalidException(f"invalid file {filename!r}")
 
         auxiliary_link = auxiliary_links[0]
-        auxiliary_path = pathlib.Path(auxiliary_link["href"])
+        uri_parts = urlparse(auxiliary_link["href"])
 
-        return send_from_directory(auxiliary_path.parent, filename, mimetype=auxiliary_link.get("type"))
+        # S3 URIs are handled by s3proxy
+        assert uri_parts.scheme in ["", "file"], f"unexpected scheme {uri_parts.scheme}"
+
+        auxiliary_file = pathlib.Path(uri_parts.path)
+        return send_from_directory(auxiliary_file.parent, auxiliary_file.name, mimetype=auxiliary_link.get("type"))
 
     def _get_job_result_item(job_id, item_id, user_id):
         if item_id == DriverMlModel.METADATA_FILE_NAME:
