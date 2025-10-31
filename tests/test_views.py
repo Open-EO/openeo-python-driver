@@ -31,6 +31,7 @@ from openeo_driver.backend import (
     not_implemented,
 )
 from openeo_driver.config import OpenEoBackendConfig
+from openeo_driver.constants import ITEM_LINK_PROPERTY
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.dummy import dummy_backend, dummy_config
 from openeo_driver.dummy.dummy_backend import DummyBackendImplementation, DummyProcessing, DummyProcessRegistry
@@ -3004,6 +3005,14 @@ class TestBatchJobs:
                             "id": "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z",
                             "properties": {"datetime": "2023-12-31T21:41:00Z"},
                             "bbox": [3.359808992021044, 51.08284561357965, 4.690166134878123, 51.88641704215104],
+                            "links": [
+                                {
+                                    "rel": "custom",
+                                    "href": "/data/projects/OpenEO/07024ee9-7847-4b8a-b260-6c879a2b3cdc/07024ee9-7847-4b8a-b260-6c879a2b3cdc_input_items_9569134155392213115.json",
+                                    "type": "application/json",
+                                    ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY: True,
+                                },
+                            ],
                         }
                     }
                 ),
@@ -3042,10 +3051,16 @@ class TestBatchJobs:
                     'type': 'application/geo+json'
                 },
                 {
-                    'href': 'http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results',
-                    'rel': 'collection',
-                    'type': 'application/json'
-                 }
+                    "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results",
+                    "rel": "collection",
+                    "type": "application/json",
+                },
+                {
+                    "rel": "custom",
+                    # TODO: what does the URL look like? Currently /aux instead of /assets; should /items be in there?
+                    "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/aux/TXIuVGVzdA==/a0274432f627ca9cf9b4ff79d57c61bd/07024ee9-7847-4b8a-b260-6c879a2b3cdc_input_items_9569134155392213115.json",
+                    "type": "application/json",
+                },
             ],
             'properties': {'datetime': '2023-12-31T21:41:00Z'},
             'stac_extensions': ['https://stac-extensions.github.io/eo/v1.1.0/schema.json',
@@ -3054,6 +3069,99 @@ class TestBatchJobs:
             'stac_version': '1.1.0',
             'type': 'Feature'
         }
+
+    @mock.patch("time.time", mock.MagicMock(return_value=1234))
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
+    def test_download_job_auxiliary_file_signed_with_expiration(self, api110, tmp_path, backend_config_overrides):
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
+        job_dir = tmp_path
+        auxiliary_file = job_dir / "07024ee9-7847-4b8a-b260-6c879a2b3cdc_input_items_9569134155392213115.json"
+
+        with open(auxiliary_file, "w") as f:
+            f.write("aux")
+
+        with self._fresh_job_registry():
+            dummy_backend.DummyBatchJobs.set_result_metadata(
+                job_id=job_id,
+                user_id=TEST_USER,
+                metadata=BatchJobResultMetadata(
+                    items={
+                        "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z": {
+                            "geometry": {
+                                "coordinates": [
+                                    [
+                                        [3.359808992021044, 51.08284561357965],
+                                        [3.359808992021044, 51.88641704215104],
+                                        [4.690166134878123, 51.88641704215104],
+                                        [4.690166134878123, 51.08284561357965],
+                                        [3.359808992021044, 51.08284561357965],
+                                    ]
+                                ],
+                                "type": "Polygon",
+                            },
+                            "assets": {
+                                "openEO": {
+                                    "datetime": "2023-12-31T21:41:00Z",
+                                    "roles": ["data"],
+                                    "bbox": [
+                                        3.359808992021044,
+                                        51.08284561357965,
+                                        4.690166134878123,
+                                        51.88641704215104,
+                                    ],
+                                    "geometry": {
+                                        "coordinates": [
+                                            [
+                                                [3.359808992021044, 51.08284561357965],
+                                                [3.359808992021044, 51.88641704215104],
+                                                [4.690166134878123, 51.88641704215104],
+                                                [4.690166134878123, 51.08284561357965],
+                                                [3.359808992021044, 51.08284561357965],
+                                            ]
+                                        ],
+                                        "type": "Polygon",
+                                    },
+                                    "href": "s3://openeo-data-staging-waw4-1/batch_jobs/j-250605095828442799fdde3c29b5b047/openEO_20231231T214100Z.tif",
+                                    "nodata": "nan",
+                                    "type": "image/tiff; application=geotiff",
+                                    "bands": [
+                                        {"name": "LST", "common_name": "surface_temperature", "aliases": ["LST_in:LST"]}
+                                    ],
+                                    "raster:bands": [
+                                        {
+                                            "name": "LST",
+                                            "statistics": {
+                                                "valid_percent": 66.88,
+                                                "maximum": 281.04800415039,
+                                                "stddev": 19.598456945276,
+                                                "minimum": 224.46798706055,
+                                                "mean": 259.57087672984,
+                                            },
+                                        }
+                                    ],
+                                }
+                            },
+                            "id": "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z",
+                            "properties": {"datetime": "2023-12-31T21:41:00Z"},
+                            "bbox": [3.359808992021044, 51.08284561357965, 4.690166134878123, 51.88641704215104],
+                            "links": [
+                                {
+                                    "rel": "custom",
+                                    "href": str(auxiliary_file),
+                                    "type": "application/json",
+                                    ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY: True,
+                                },
+                            ],
+                        }
+                    }
+                ),
+            )
+
+        resp = api110.get(
+            "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/aux/TXIuVGVzdA==/5b3d0f30d2ad8ef3146dc0785821aac3/07024ee9-7847-4b8a-b260-6c879a2b3cdc_input_items_9569134155392213115.json?expires=2234",
+        )
+
+        assert resp.text == "aux"
 
     def test_get_job_results_invalid_job(self, api):
         api.get("/jobs/deadbeef-f00/results", headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")

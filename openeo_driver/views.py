@@ -9,6 +9,7 @@ import textwrap
 import typing
 from collections import defaultdict, namedtuple
 from typing import Callable, List, Optional, Tuple, Union
+from urllib.parse import urlparse
 
 import flask
 import flask_cors
@@ -48,6 +49,7 @@ from openeo_driver.config import OpenEoBackendConfig, get_backend_config
 from openeo_driver.constants import (
     DEFAULT_LOG_LEVEL_PROCESSING,
     DEFAULT_LOG_LEVEL_RETRIEVAL,
+    ITEM_LINK_PROPERTY,
     JOB_STATUS,
     STAC_EXTENSION,
 )
@@ -1442,6 +1444,42 @@ def register_views_batch_jobs(
                 geometry = BoundingBox.from_wsen_tuple(job_info.proj_bbox, job_info.epsg).as_polygon()
                 geometry = mapping(reproject_geometry(geometry, CRS.from_epsg(job_info.epsg), CRS.from_epsg(4326)))
 
+        exposable_links = [
+            link for link in item_metadata.get("links", []) if link.get(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY, False)
+        ]
+        for link in exposable_links:
+            link.pop(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY)
+            auxiliary_filename = urlparse(link["href"]).path.split("/")[-1]  # TODO: assumes file is not nested
+
+            if link["href"].startswith("s3://"):
+                link["href"] = backend_implementation.config.asset_url.build_url(
+                    asset_metadata={"href": link["href"]},  # TODO: clean up this hack to support s3proxy
+                    asset_name=auxiliary_filename,
+                    job_id=job_id,
+                    user_id=user_id,
+                )
+            else:
+                signer = get_backend_config().url_signer
+                if signer:
+                    expires = signer.get_expires()
+                    secure_key = signer.sign_job_asset(
+                        job_id=job_id, user_id=user_id, filename=auxiliary_filename, expires=expires
+                    )
+                    user_base64 = user_id_b64_encode(user_id)
+                    link["href"] = flask.url_for(
+                        ".download_job_auxiliary_file_signed",
+                        job_id=job_id,
+                        user_base64=user_base64,
+                        filename=auxiliary_filename,
+                        expires=expires,
+                        secure_key=secure_key,
+                        _external=True,
+                    )
+                else:
+                    link["href"] = flask.url_for(
+                        ".download_job_auxiliary_file", job_id=job_id, filename=auxiliary_filename, _external=True
+                    )
+
         stac_item = {
             "type": "Feature",
             "stac_version": "1.1.0",
@@ -1466,7 +1504,8 @@ def register_views_batch_jobs(
                     "href": url_for(".list_job_results", job_id=job_id, _external=True),  # SHOULD be absolute
                     "type": "application/json",
                 },
-            ],
+            ]
+            + exposable_links,
             "assets": assets,
             "collection": job_id,
         }
@@ -1483,6 +1522,42 @@ def register_views_batch_jobs(
         resp.mimetype = stac_item_media_type
         return resp
 
+    @blueprint.route("/jobs/<job_id>/results/aux/<user_base64>/<secure_key>/<filename>", methods=["GET"])
+    def download_job_auxiliary_file_signed(job_id, user_base64, secure_key, filename):
+        expires = request.args.get("expires")
+        signer = get_backend_config().url_signer
+        user_id = user_id_b64_decode(user_base64)
+        signer.verify_job_asset(
+            signature=secure_key, job_id=job_id, user_id=user_id, filename=filename, expires=expires
+        )
+        return _download_job_auxiliary_file(job_id=job_id, filename=filename, user_id=user_id)
+
+    @blueprint.route("/jobs/<job_id>/results/aux/<filename>", methods=["GET"])
+    @auth_handler.requires_bearer_auth
+    def download_job_auxiliary_file(job_id, filename, user: User):
+        return _download_job_auxiliary_file(job_id, filename, user.user_id)
+
+    def _download_job_auxiliary_file(job_id, filename, user_id):
+        metadata = backend_implementation.batch_jobs.get_result_metadata(job_id=job_id, user_id=user_id)
+
+        auxiliary_links = [
+            link
+            for item in metadata.items.values()
+            for link in item.get("links", [])
+            if link.get(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY, False) and link["href"].endswith(f"/{filename}")
+        ]
+
+        if not auxiliary_links:
+            raise FilePathInvalidException(f"invalid file {filename!r}")
+
+        auxiliary_link = auxiliary_links[0]
+        uri_parts = urlparse(auxiliary_link["href"])
+
+        # S3 URIs are handled by s3proxy
+        assert uri_parts.scheme in ["", "file"], f"unexpected scheme {uri_parts.scheme}"
+
+        auxiliary_file = pathlib.Path(uri_parts.path)
+        return send_from_directory(auxiliary_file.parent, auxiliary_file.name, mimetype=auxiliary_link.get("type"))
 
     def _get_job_result_item(job_id, item_id, user_id):
         if item_id == DriverMlModel.METADATA_FILE_NAME:
