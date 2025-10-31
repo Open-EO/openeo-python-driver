@@ -22,6 +22,7 @@ and start a new "In Progress" section above it.
 ## In progress: 0.137.0
 
 - Add `ephemeral_flask_server` testing utility (`openeo_driver.testing`) for request mocking based on a Flask app. Allows to do request/response mocking independently from actual request library (`requests`, `urllib`, `urllib3`, etc.) through a well-documented API (Flask).
+- Support exposing auxiliary (non-asset) files as links ([Open-EO/openeo-geopyspark-driver#1278](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1278))
 
 
 ## 0.136.0
