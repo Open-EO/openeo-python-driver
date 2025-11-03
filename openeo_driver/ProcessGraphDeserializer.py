@@ -1727,12 +1727,12 @@ def merge_cubes(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
 
 @process
-def run_udf(args: dict, env: EvalEnv):
+def run_udf(args: ProcessArgs, env: EvalEnv):
     # TODO: note: this implements a non-standard usage of `run_udf`: processing "vector" cube (direct JSON or from aggregate_spatial, ...)
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
-    data = extract_arg(args, 'data')
+    data = args.get_required(name="data")
     udf, runtime = _get_udf(args, env=env)
-    context = args.get('context',{})
+    context = args.get_optional(name="context", default={})
 
     # TODO: this is simple heuristic about skipping `run_udf` in dry-run mode. Does this have to be more advanced?
     # TODO: would it be useful to let user hook into dry-run phase of run_udf (e.g. hint about result type/structure)?
@@ -2165,10 +2165,10 @@ def vector_to_raster(args: dict, env: EvalEnv) -> DriverDataCube:
     return env.backend_implementation.vector_to_raster(input_vector_cube, target)
 
 
-def _get_udf(args, env: EvalEnv) -> Tuple[str, str]:
-    udf = extract_arg(args, "udf")
-    runtime = extract_arg(args, "runtime")
-    version = args.get("version", None)
+def _get_udf(args: ProcessArgs, env: EvalEnv) -> Tuple[str, str]:
+    udf_code = args.get_required(name="udf", expected_type=str)
+    runtime = args.get_required(name="runtime", expected_type=str)
+    version = args.get_optional(name="version", expected_type=str)
 
     available_runtimes = env.backend_implementation.udf_runtimes.get_udf_runtimes()
     available_runtime_names = list(available_runtimes.keys())
@@ -2187,7 +2187,7 @@ def _get_udf(args, env: EvalEnv) -> Tuple[str, str]:
             message=f"Unsupported UDF runtime version {runtime} {version!r}. Should be one of {available_versions} or null"
         )
 
-    return udf, runtime
+    return udf_code, runtime
 
 
 def _evaluate_process_graph_process(
