@@ -1554,13 +1554,8 @@ def _extract_temporal_extent(args: dict, field="extent", process_id="filter_temp
 
 
 @process
-def filter_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
-    cube = extract_arg(args, 'data')
-    if not isinstance(cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="filter_temporal",
-            reason=f"Invalid data type {type(cube)!r} expected raster-cube."
-        )
+def filter_temporal(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
     start, end = _extract_temporal_extent(args, field="extent", process_id="filter_temporal")
     return cube.filter_temporal(start=start, end=end)
 
