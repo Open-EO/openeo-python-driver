@@ -2463,16 +2463,16 @@ def load_result(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     user = env.get("user")
 
     arguments = {}
-    if args.get("temporal_extent"):
+    if args.contains("temporal_extent"):
         arguments["temporal_extent"] = _extract_temporal_extent(
             args, field="temporal_extent", process_id="load_result"
         )
-    if args.get("spatial_extent"):
+    if args.contains("spatial_extent"):
         arguments["spatial_extent"] = _extract_bbox_extent(
             args, field="spatial_extent", process_id="load_result", handle_geojson=True
         )
-    if args.get("bands"):
-        arguments["bands"] = extract_arg(args, "bands", process_id="load_result")
+    if args.contains("bands"):
+        arguments["bands"] = args.get_optional(name="bands", expected_type=list)
 
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
@@ -2551,24 +2551,24 @@ def text_concat(
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/load_stac.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/2.x/proposals/load_stac.json"))
-def load_stac(args: Dict, env: EvalEnv) -> DriverDataCube:
-    url = extract_arg(args, "url", process_id="load_stac")
+def load_stac(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    url: str = args.get_required(name="url", expected_type=str)
 
     arguments = {}
-    if args.get("temporal_extent"):
+    if args.contains("temporal_extent"):
         arguments["temporal_extent"] = _extract_temporal_extent(
             args, field="temporal_extent", process_id="load_stac"
         )
-    if args.get("spatial_extent"):
+    if args.contains("spatial_extent"):
         arguments["spatial_extent"] = _extract_bbox_extent(
             args, field="spatial_extent", process_id="load_stac", handle_geojson=True
         )
-    if args.get("bands"):
-        arguments["bands"] = extract_arg(args, "bands", process_id="load_stac")
-    if args.get("properties"):
-        arguments["properties"] = extract_arg(args, "properties", process_id="load_stac")
-    if args.get("featureflags"):
-        arguments["featureflags"] = extract_arg(args, "featureflags", process_id="load_stac")
+    if args.contains("bands"):
+        arguments["bands"] = args.get_optional(name="bands", expected_type=list)
+    if args.contains("properties"):
+        arguments["properties"] = args.get_optional(name="properties")
+    if args.contains("featureflags"):
+        arguments["featureflags"] = args.get_optional(name="featureflags")
 
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:

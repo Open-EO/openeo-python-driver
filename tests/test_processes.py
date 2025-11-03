@@ -431,6 +431,11 @@ class TestProcessArgs:
         args = ProcessArgs({"foo": "bar"}, process_id="wibble")
         assert isinstance(args, dict)
 
+    def test_contains(self):
+        args = ProcessArgs({"foo": "bar"}, process_id="wibble")
+        assert args.contains("foo") == True
+        assert args.contains("color") == False
+
     def test_get_required(self):
         args = ProcessArgs({"foo": "bar"}, process_id="wibble")
         assert args.get_required("foo") == "bar"

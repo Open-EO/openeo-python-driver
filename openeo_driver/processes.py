@@ -402,6 +402,9 @@ class ProcessArgs(dict):
             args = ProcessArgs(args=args, process_id=process_id)
         return args
 
+    def contains(self, name: str) -> bool:
+        return name in self
+
     def get_required(
         self,
         name: str,
