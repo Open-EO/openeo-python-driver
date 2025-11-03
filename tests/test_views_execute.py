@@ -1753,25 +1753,48 @@ def test_run_udf_on_aggregate_spatial(api, udf_code):
     assert resp.json["features"][0]["geometry"]["coordinates"] == [0.0, 0.1]
 
 
-@pytest.mark.parametrize(["runtime", "version", "failure"], [
-    ("Python", None, None),
-    ("pYthOn", None, None),
-    ("Python", "3", None),
-    ("Python", CURRENT_PY3x, None),
-    ("Python", "2", (
-            "InvalidVersion",
-            re.compile(r"Unsupported UDF runtime version Python '2'. Should be one of \['3', '3\.\d+'.* or null")
-    )),
-    ("Python", "1.2.3", (
-            "InvalidVersion",
-            re.compile(r"Unsupported UDF runtime version Python '1.2.3'. Should be one of \['3', '3\.\d+'.* or null"),
-    )),
-    ("Python-Jep", None, None),
-    ("Python-Jep", "3", None),
-    ("meh", CURRENT_PY3x, ("InvalidRuntime", "Unsupported UDF runtime 'meh'. Should be one of ['Python', 'Python-Jep']")),
-    (None, CURRENT_PY3x, ("InvalidRuntime", "Unsupported UDF runtime None. Should be one of ['Python', 'Python-Jep']"),
-     ),
-])
+@pytest.mark.parametrize(
+    ["runtime", "version", "failure"],
+    [
+        ("Python", None, None),
+        ("pYthOn", None, None),
+        ("Python", "3", None),
+        ("Python", CURRENT_PY3x, None),
+        (
+            "Python",
+            "2",
+            (
+                "InvalidVersion",
+                re.compile(r"Unsupported UDF runtime version Python '2'. Should be one of \['3', '3\.\d+'.* or null"),
+            ),
+        ),
+        (
+            "Python",
+            "1.2.3",
+            (
+                "InvalidVersion",
+                re.compile(
+                    r"Unsupported UDF runtime version Python '1.2.3'. Should be one of \['3', '3\.\d+'.* or null"
+                ),
+            ),
+        ),
+        ("Python-Jep", None, None),
+        ("Python-Jep", "3", None),
+        (
+            "meh",
+            CURRENT_PY3x,
+            ("InvalidRuntime", "Unsupported UDF runtime 'meh'. Should be one of ['Python', 'Python-Jep']"),
+        ),
+        (
+            None,
+            CURRENT_PY3x,
+            (
+                "ProcessParameterInvalid",
+                "The value passed for parameter 'runtime' in process 'run_udf' is invalid: Expected <class 'str'> but got <class 'NoneType'>.",
+            ),
+        ),
+    ],
+)
 def test_run_udf_on_list_runtimes(api, runtime, version, failure):
     udf_code = textwrap.dedent("""
         from openeo.udf import UdfData, StructuredData
