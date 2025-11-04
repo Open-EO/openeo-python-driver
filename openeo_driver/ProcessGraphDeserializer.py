@@ -1199,40 +1199,40 @@ def fit_class_random_forest(args: ProcessArgs, env: EvalEnv) -> DriverMlModel:
     if env.get(ENV_DRY_RUN_TRACER):
         return DriverMlModel()
 
-    predictors = extract_arg(args, 'predictors')
-    if not isinstance(predictors, (AggregatePolygonSpatialResult, DriverVectorCube)):
-        # TODO #114 EP-3981 drop AggregatePolygonSpatialResult support.
-        raise ProcessParameterInvalidException(
-            parameter="predictors",
-            process="fit_class_random_forest",
-            reason=f"should be non-temporal vector-cube, but got {type(predictors)}.",
-        )
+    # TODO #114 EP-3981 drop AggregatePolygonSpatialResult support.
+    predictors = args.get_required(
+        name="predictors",
+        expected_type=(AggregatePolygonSpatialResult, DriverVectorCube),
+        expected_type_name="non-temporal vector cube",
+    )
 
-    target: Union[dict, DriverVectorCube] = extract_arg(args, "target")
+    target = args.get_required(
+        name="target", expected_type=(dict, DriverVectorCube), expected_type_name="feature collection or vector cube"
+    )
     if isinstance(target, DriverVectorCube):
         # Convert target to geojson feature collection.
         target: dict = shapely.geometry.mapping(target.get_geometries())
     if not (isinstance(target, dict) and target.get("type") == "FeatureCollection"):
         raise ProcessParameterInvalidException(
             parameter="target",
-            process="fit_class_random_forest",
+            process=args.process_id,
             reason=f"expected feature collection or vector-cube value, but got {type(target)}.",
         )
 
     # TODO: get defaults from process spec?
     # TODO: do parameter checks automatically based on process spec?
-    num_trees = args.get("num_trees", 100)
+    num_trees = args.get_optional(name="num_trees", expected_type=int, default=100)
     if not isinstance(num_trees, int) or num_trees < 0:
         raise ProcessParameterInvalidException(
-            parameter="num_trees", process="fit_class_random_forest",
-            reason="should be an integer larger than 0."
+            parameter="num_trees", process=args.process_id, reason="should be an integer larger than 0."
         )
-    max_variables = args.get("max_variables") or args.get('mtry')
-    seed = args.get("seed")
-    if not (seed is None or isinstance(seed, int)):
-        raise ProcessParameterInvalidException(
-            parameter="seed", process="fit_class_random_forest", reason="should be an integer"
-        )
+    max_variables = args.get_optional(name="max_variables", expected_type=(int, str))
+    mtry = args.get_optional(name="max_variables", expected_type=(int, str))
+    if max_variables is None and mtry:
+        _log.warning(f"{args.process_id}: usage of deprecated argument 'mtry'. Use 'max_variables' instead.")
+        max_variables = mtry
+
+    seed = args.get_optional(name="seed", expected_type=int)
 
     return predictors.fit_class_random_forest(
         target=target, num_trees=num_trees, max_variables=max_variables, seed=seed,
