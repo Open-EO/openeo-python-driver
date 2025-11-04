@@ -31,7 +31,8 @@ from openeo.util import load_json, rfc3339, str_truncate
 from openeo.utils.version import ComparableVersion
 from pyproj import CRS
 from pyproj.exceptions import CRSError
-from shapely.geometry import GeometryCollection, MultiPolygon, mapping, shape
+from shapely.geometry import GeometryCollection, MultiPolygon
+import shapely.geometry
 
 from openeo_driver import dry_run
 from openeo_driver.backend import (
@@ -962,13 +963,13 @@ def vector_buffer(args: ProcessArgs, env: EvalEnv) -> dict:
     elif isinstance(geometry, dict) and "type" in geometry:
         geometry_type = geometry["type"]
         if geometry_type == "FeatureCollection":
-            geoms = [shape(feat["geometry"]) for feat in geometry["features"]]
+            geoms = [shapely.geometry.shape(feat["geometry"]) for feat in geometry["features"]]
         elif geometry_type == "GeometryCollection":
-            geoms = [shape(geom) for geom in geometry["geometries"]]
+            geoms = [shapely.geometry.shape(geom) for geom in geometry["geometries"]]
         elif geometry_type in {"Polygon", "MultiPolygon", "Point", "MultiPoint", "LineString"}:
-            geoms = [shape(geometry)]
+            geoms = [shapely.geometry.shape(geometry)]
         elif geometry_type == "Feature":
-            geoms = [shape(geometry["geometry"])]
+            geoms = [shapely.geometry.shape(geometry["geometry"])]
         else:
             raise ProcessParameterInvalidException(
                 parameter="geometry", process="vector_buffer", reason=f"Invalid geometry type {geometry_type}."
@@ -1011,7 +1012,11 @@ def vector_buffer(args: ProcessArgs, env: EvalEnv) -> dict:
                    f"at position(s) {empty_result_indices}"
         )
 
-    return mapping(poly_buff_latlon[0]) if len(poly_buff_latlon) == 1 else mapping(poly_buff_latlon)
+    return (
+        shapely.geometry.mapping(poly_buff_latlon[0])
+        if len(poly_buff_latlon) == 1
+        else shapely.geometry.mapping(poly_buff_latlon)
+    )
 
 
 @process

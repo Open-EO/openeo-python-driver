@@ -19,7 +19,8 @@ import typing
 
 from deprecated import deprecated
 from flask import send_from_directory, jsonify, Response
-from shapely.geometry import GeometryCollection, mapping
+import shapely.geometry
+from shapely.geometry import GeometryCollection
 from shapely.geometry.base import BaseGeometry
 import geopandas as gpd
 import xarray
@@ -508,9 +509,9 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
 
         if isinstance(self._regions, GeometryCollection):
             # Convert GeometryCollection to list of GeoJSON Polygon coordinate arrays
-            polygons = [p["coordinates"] for p in mapping(self._regions)["geometries"]]
+            polygons = [p["coordinates"] for p in shapely.geometry.mapping(self._regions)["geometries"]]
         else:
-            polygons = [mapping(g)["coordinates"] for g in self._regions.get_geometries()]
+            polygons = [shapely.geometry.mapping(g)["coordinates"] for g in self._regions.get_geometries()]
 
         # TODO make sure timestamps are ISO8601 (https://covjson.org/spec/#temporal-reference-systems)
         timestamps = sorted(self.data.keys())
@@ -989,7 +990,7 @@ def to_save_result(data: Any, format: Optional[str] = None, options: Optional[di
     elif isinstance(data, DelayedVector):
         if format is None or format.lower() == "json":
             # TODO #114 EP-3981 add vector cube support: keep features from feature collection
-            geojsons = [mapping(geometry) for geometry in data.geometries_wgs84]
+            geojsons = [shapely.geometry.mapping(geometry) for geometry in data.geometries_wgs84]
             return JSONResult(geojsons, format=format, options=options)
         if format.lower() == "geojson":
             return JSONResult(data.geojson, format="geojson", options=options)

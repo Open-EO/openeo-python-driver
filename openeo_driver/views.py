@@ -30,7 +30,7 @@ import openeo.metadata
 from openeo.util import Rfc3339, TimingLogger, deep_get, dict_no_none, rfc3339
 from openeo.utils.version import ComparableVersion
 from pyproj import CRS
-from shapely.geometry import mapping
+import shapely.geometry
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -1442,7 +1442,9 @@ def register_views_batch_jobs(
                 bbox = BoundingBox.from_wsen_tuple(job_info.proj_bbox, job_info.epsg).reproject(4326).as_wsen_tuple()
             if not geometry:
                 geometry = BoundingBox.from_wsen_tuple(job_info.proj_bbox, job_info.epsg).as_polygon()
-                geometry = mapping(reproject_geometry(geometry, CRS.from_epsg(job_info.epsg), CRS.from_epsg(4326)))
+                geometry = shapely.geometry.mapping(
+                    reproject_geometry(geometry, CRS.from_epsg(job_info.epsg), CRS.from_epsg(4326))
+                )
 
         exposable_links = [
             link for link in item_metadata.get("links", []) if link.get(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY, False)
@@ -1608,8 +1610,10 @@ def register_views_batch_jobs(
             if not bbox:
                 bbox = BoundingBox.from_wsen_tuple(job_info.proj_bbox,job_info.epsg).reproject(4326).as_wsen_tuple()
             if not geometry:
-                geometry = BoundingBox.from_wsen_tuple(job_info.proj_bbox,job_info.epsg).as_polygon()
-                geometry = mapping(reproject_geometry(geometry, CRS.from_epsg( job_info.epsg ) , CRS.from_epsg(4326) ))
+                geometry = BoundingBox.from_wsen_tuple(job_info.proj_bbox, job_info.epsg).as_polygon()
+                geometry = shapely.geometry.mapping(
+                    reproject_geometry(geometry, CRS.from_epsg(job_info.epsg), CRS.from_epsg(4326))
+                )
 
         stac_item = {
             "type": "Feature",
