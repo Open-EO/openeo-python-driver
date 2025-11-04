@@ -5,7 +5,7 @@ import re
 import pytest
 import dirty_equals
 
-from openeo_driver.datacube import DriverDataCube
+from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.errors import (
     OpenEOApiException,
     ProcessParameterInvalidException,
@@ -451,10 +451,30 @@ class TestProcessArgs:
         with pytest.raises(
             ProcessParameterInvalidException,
             match=re.escape(
-                "The value passed for parameter 'color' in process 'wibble' is invalid: Expected raster cube but got <class 'str'>."
+                "The value passed for parameter 'color' in process 'wibble' is invalid: Expected raster cube but got string."
             ),
         ):
             _ = args.get_required("color", expected_type=DriverDataCube)
+
+    @pytest.mark.parametrize(
+        ["expected_type", "expected_type_name", "expected_message"],
+        [
+            (DriverDataCube, None, "Expected raster cube but got string"),
+            (DriverDataCube, "bitmap", "Expected bitmap but got string"),
+            (DriverVectorCube, None, "Expected vector cube but got string"),
+            (int, None, "Expected integer but got string"),
+            (int, "natural number", "Expected natural number but got string"),
+            ((int, float), None, r"Expected integer or float but got string"),
+            ((int, float), "number", "Expected number but got string"),
+            (dict, None, "Expected dictionary/mapping but got string"),
+            (dict, "mapping", "Expected mapping but got string"),
+            ((DriverVectorCube, dict), None, "Expected vector cube or dictionary/mapping but got string"),
+        ],
+    )
+    def test_get_required_expected_type_name(self, expected_type, expected_type_name, expected_message):
+        args = ProcessArgs({"color": "red", "size": 5}, process_id="wibble")
+        with pytest.raises(ProcessParameterInvalidException, match=expected_message):
+            _ = args.get_required("color", expected_type=expected_type, expected_type_name=expected_type_name)
 
     def test_get_required_with_validator(self):
         args = ProcessArgs({"color": "red", "size": 5}, process_id="wibble")
@@ -514,10 +534,27 @@ class TestProcessArgs:
         with pytest.raises(
             ProcessParameterInvalidException,
             match=re.escape(
-                "The value passed for parameter 'foo' in process 'wibble' is invalid: Expected raster cube but got <class 'str'>."
+                "The value passed for parameter 'foo' in process 'wibble' is invalid: Expected raster cube but got string."
             ),
         ):
             _ = args.get_optional("foo", expected_type=DriverDataCube)
+
+    @pytest.mark.parametrize(
+        ["expected_type", "expected_type_name", "expected_message"],
+        [
+            (DriverDataCube, None, "Expected raster cube but got string"),
+            (DriverDataCube, "bitmap", "Expected bitmap but got string"),
+            (int, None, "Expected integer but got string"),
+            (int, "integer", "Expected integer but got string"),
+            ((int, float), None, "Expected integer or float but got string"),
+            ((int, float), "number", "Expected number but got string"),
+        ],
+    )
+    def test_get_optional_expected_type_name(self, expected_type, expected_type_name, expected_message):
+        args = ProcessArgs({"color": "red", "size": 5}, process_id="wibble")
+        with pytest.raises(ProcessParameterInvalidException, match=expected_message):
+            _ = args.get_optional("color", expected_type=expected_type, expected_type_name=expected_type_name)
+
 
     def test_get_optional_with_validator(self):
         args = ProcessArgs({"foo": "bar"}, process_id="wibble")
@@ -557,7 +594,7 @@ class TestProcessArgs:
         with pytest.raises(
             ProcessParameterInvalidException,
             match=re.escape(
-                "The value passed for parameter 'foo' in process 'wibble' is invalid: Expected (<class 'openeo_driver.datacube.DriverDataCube'>, <class 'str'>) but got <class 'int'>."
+                "The value passed for parameter 'foo' in process 'wibble' is invalid: Expected raster cube or string but got integer."
             ),
         ):
             _ = args.get_deep("foo", "bar", "size", "x", expected_type=(DriverDataCube, str))
