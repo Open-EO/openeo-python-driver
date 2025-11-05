@@ -2555,11 +2555,11 @@ def load_stac(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     url: str = args.get_required(name="url", expected_type=str)
 
     arguments = {}
-    if args.contains("temporal_extent"):
+    if args.get("temporal_extent"):
         arguments["temporal_extent"] = _extract_temporal_extent(
             args, field="temporal_extent", process_id="load_stac"
         )
-    if args.contains("spatial_extent"):
+    if args.get("spatial_extent"):
         arguments["spatial_extent"] = _extract_bbox_extent(
             args, field="spatial_extent", process_id="load_stac", handle_geojson=True
         )
