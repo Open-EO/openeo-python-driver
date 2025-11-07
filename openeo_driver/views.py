@@ -1412,8 +1412,6 @@ def register_views_batch_jobs(
         for asset_key, asset in item_metadata.get("assets", {}).items():
             assets[asset_key] = _asset_object(job_id, user_id, asset_key, asset, job_info)
 
-        geometry = item_metadata.get("geometry", job_info.geometry)
-        bbox = item_metadata.get("bbox", job_info.bbox)
 
         properties = item_metadata.get("properties", {"datetime": item_metadata.get("datetime")})
         if properties["datetime"] is None:
@@ -1437,14 +1435,12 @@ def register_views_batch_jobs(
         if job_info.epsg:
             properties["proj:epsg"] = job_info.epsg
 
-        if job_info.proj_bbox and job_info.epsg:
-            if not bbox:
-                bbox = BoundingBox.from_wsen_tuple(job_info.proj_bbox, job_info.epsg).reproject(4326).as_wsen_tuple()
-            if not geometry:
-                geometry = BoundingBox.from_wsen_tuple(job_info.proj_bbox, job_info.epsg).as_polygon()
-                geometry = shapely.geometry.mapping(
-                    reproject_geometry(geometry, CRS.from_epsg(job_info.epsg), CRS.from_epsg(4326))
-                )
+        bbox = item_metadata.get("bbox", job_info.bbox)
+        if not bbox and job_info.proj_bbox and job_info.epsg:
+            bbox = BoundingBox.from_wsen_tuple(job_info.proj_bbox, crs=job_info.epsg).reproject(4326).as_wsen_tuple()
+        geometry = item_metadata.get("geometry", job_info.geometry)
+        if not geometry and job_info.proj_bbox and job_info.epsg:
+            geometry = BoundingBox.from_wsen_tuple(job_info.proj_bbox, crs=job_info.epsg).as_geojson()
 
         exposable_links = [
             link for link in item_metadata.get("links", []) if link.get(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY, False)
@@ -1581,8 +1577,6 @@ def register_views_batch_jobs(
 
         job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
 
-        geometry = asset_metadata.get("geometry", job_info.geometry)
-        bbox = asset_metadata.get("bbox", job_info.bbox)
 
         properties = {"datetime": asset_metadata.get("datetime")}
         if properties["datetime"] is None:
@@ -1606,14 +1600,12 @@ def register_views_batch_jobs(
         if job_info.epsg:
             properties["proj:epsg"] = job_info.epsg
 
-        if job_info.proj_bbox and job_info.epsg:
-            if not bbox:
-                bbox = BoundingBox.from_wsen_tuple(job_info.proj_bbox,job_info.epsg).reproject(4326).as_wsen_tuple()
-            if not geometry:
-                geometry = BoundingBox.from_wsen_tuple(job_info.proj_bbox, job_info.epsg).as_polygon()
-                geometry = shapely.geometry.mapping(
-                    reproject_geometry(geometry, CRS.from_epsg(job_info.epsg), CRS.from_epsg(4326))
-                )
+        bbox = asset_metadata.get("bbox", job_info.bbox)
+        if not bbox and job_info.proj_bbox and job_info.epsg:
+            bbox = BoundingBox.from_wsen_tuple(job_info.proj_bbox, crs=job_info.epsg).reproject(4326).as_wsen_tuple()
+        geometry = asset_metadata.get("geometry", job_info.geometry)
+        if not geometry and job_info.proj_bbox and job_info.epsg:
+            geometry = BoundingBox.from_wsen_tuple(wsen=job_info.proj_bbox, crs=job_info.epsg).as_geojson()
 
         stac_item = {
             "type": "Feature",

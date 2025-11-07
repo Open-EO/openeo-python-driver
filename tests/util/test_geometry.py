@@ -10,7 +10,7 @@ from pyproj.exceptions import CRSError
 from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseGeometry
 
-
+from openeo_driver.testing import approxify
 from openeo_driver.util.geometry import (
     BoundingBox,
     BoundingBoxException,
@@ -730,6 +730,32 @@ class TestBoundingBox:
     def test_as_wsen_tuple(self):
         assert BoundingBox(1, 2, 3, 4).as_wsen_tuple() == (1, 2, 3, 4)
         assert BoundingBox(1, 2, 3, 4, crs="epsg:4326").as_wsen_tuple() == (1, 2, 3, 4)
+
+    def test_as_polygon(self):
+        bbox = BoundingBox(1, 2, 3, 4)
+        polygon = bbox.as_polygon()
+        assert isinstance(polygon, shapely.geometry.Polygon)
+        assert shapely.geometry.mapping(polygon) == {
+            "type": "Polygon",
+            "coordinates": (((3, 2), (3, 4), (1, 4), (1, 2), (3, 2)),),
+        }
+
+    def test_as_geojson(self):
+        bbox = BoundingBox(1, 2, 3, 4)
+        assert bbox.as_geojson() == {
+            "type": "Polygon",
+            "coordinates": (((3, 2), (3, 4), (1, 4), (1, 2), (3, 2)),),
+        }
+
+    def test_as_geojson_from_utm(self):
+        bbox = BoundingBox(500000, 5649824, 507016, 5660950, crs="EPSG:32631")
+        assert bbox.as_geojson() == {
+            "type": "Polygon",
+            "coordinates": approxify(
+                (((3.1, 51.0), (3.1, 51.1), (3.0, 51.1), (3.0, 51.0), (3.1, 51.0)),),
+                abs=0.001,
+            ),
+        }
 
     def test_reproject(self):
         bbox = BoundingBox(3, 51, 3.1, 51.1, crs="epsg:4326")

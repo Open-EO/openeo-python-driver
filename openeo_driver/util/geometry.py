@@ -532,11 +532,18 @@ class BoundingBox:
             minx=self.west, miny=self.south, maxx=self.east, maxy=self.north
         )
 
+    def as_geojson(self) -> dict:
+        """Represent as a GeoJSON Polygon dictionary (in lon-lat)"""
+        polygon = self.as_polygon()
+        if self.crs not in {None, "EPSG:4326"}:
+            polygon = reproject_geometry(geometry=polygon, from_crs=self.crs, to_crs="EPSG:4326")
+        return shapely.geometry.mapping(polygon)
+
     def contains(self, x: float, y: float) -> bool:
         """Check if given point is inside the bounding box"""
         return (self.west <= x <= self.east) and (self.south <= y <= self.north)
 
-    def reproject(self, crs) -> "BoundingBox":
+    def reproject(self, crs: Union[str, int]) -> "BoundingBox":
         """
         Reproject bounding box to given CRS to a new bounding box.
 
