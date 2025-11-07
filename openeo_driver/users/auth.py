@@ -83,7 +83,6 @@ class HttpAuthHandler:
         def decorated(*args, **kwargs):
             # Try to load user info from request (failure will raise appropriate exception).
             user = self.get_user_from_bearer_token(flask.request)
-            # TODO: is first 8 chars of user id enough?
             # TODO: use events/signals instead of hardcoded coupling (e.g. https://flask.palletsprojects.com/en/2.1.x/signals/)
             FlaskUserIdLogging.set_user_id(user.user_id)
             if self._user_access_validation:
