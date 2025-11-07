@@ -781,6 +781,21 @@ class TestBoundingBox:
         bbox = BoundingBox(-72, -13, -71, -12, crs="EPSG:4326")
         assert bbox.best_utm() == 32719
 
+    def test_round_to_resolution_small(self):
+        bbox = BoundingBox(4.12345, 50.12345, 4.6789, 51.6789)
+        rounded = bbox.round_to_resolution(0.01, 0.1)
+        assert rounded.as_tuple() == (4.12, 50.1, 4.68, 51.7, None)
+
+    def test_round_to_resolution_large(self):
+        bbox = BoundingBox(500435.6, 5649834.7, 507678.1, 5667864.1)
+        rounded = bbox.round_to_resolution(10, 20)
+        assert rounded.as_tuple() == (500430, 5649820, 507680, 5667880, None)
+
+    def test_round_to_resolution_nodata(self):
+        bbox = BoundingBox(500435.6, 5649834.7, 507678.1, float("inf"))
+        rounded = bbox.round_to_resolution(10, 20)
+        assert rounded.as_tuple() == (500430, 5649820, 507680, float("inf"), None)
+
 
 class TestValidateGeoJSON:
     @staticmethod
