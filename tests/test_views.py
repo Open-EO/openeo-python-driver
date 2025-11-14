@@ -3007,7 +3007,7 @@ class TestBatchJobs:
                             "bbox": [3.359808992021044, 51.08284561357965, 4.690166134878123, 51.88641704215104],
                             "links": [
                                 {
-                                    "rel": "custom",
+                                    "rel": "aux",
                                     "href": "/data/projects/OpenEO/07024ee9-7847-4b8a-b260-6c879a2b3cdc/07024ee9-7847-4b8a-b260-6c879a2b3cdc_input_items_9569134155392213115.json",
                                     "type": "application/json",
                                     ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY: True,
