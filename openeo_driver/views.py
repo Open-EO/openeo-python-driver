@@ -1118,6 +1118,7 @@ def register_views_batch_jobs(
                 job_id=job_id, user_id=user_id
             )
         result_assets = result_metadata.assets
+        result_items = result_metadata.items
         providers = result_metadata.providers
 
         # TODO: remove feature toggle, during refactoring for openeo-geopyspark-driver#440
@@ -1189,10 +1190,16 @@ def register_views_batch_jobs(
 
 
             if len(result_metadata.items) > 0 :
+                assets = {
+                    item_key + "_" + asset_key: asset_metadata
+                    for item_key, item_metadata in result_items.items()
+                    for asset_key, asset_metadata in item_metadata.get("assets").items()
+                }
                 for item_id in result_metadata.items.keys():
                     links.append(
                         {"rel": "item", "href": job_result_item_url(item_id=item_id, is11=True), "type": stac_item_media_type}
                     )
+                stac_version = "1.1.0"
             else:
 
                 for filename, metadata in result_assets.items():
@@ -1208,11 +1215,12 @@ def register_views_batch_jobs(
                         links.append(
                             {"rel": "item", "href": job_result_item_url(item_id=filename), "type": "application/json"}
                         )
+                stac_version = "1.0.0"
 
             result = dict_no_none(
                 {
                     "type": "Collection",
-                    "stac_version": "1.0.0",
+                    "stac_version": stac_version,
                     "stac_extensions": [
                         STAC_EXTENSION.EO_V110,
                         STAC_EXTENSION.FILEINFO,
