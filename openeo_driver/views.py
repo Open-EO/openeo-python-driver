@@ -1442,41 +1442,11 @@ def register_views_batch_jobs(
         if not geometry and job_info.proj_bbox and job_info.epsg:
             geometry = BoundingBox.from_wsen_tuple(job_info.proj_bbox, crs=job_info.epsg).as_geojson()
 
-        exposable_links = [
-            link for link in item_metadata.get("links", []) if link.get(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY, False)
+        auxiliary_links = [
+            _auxiliary_link(link, job_id=job_id, user_id=user_id)
+            for link in item_metadata.get("links", [])
+            if link.get(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY, False)
         ]
-        for link in exposable_links:
-            link.pop(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY)
-            auxiliary_filename = urlparse(link["href"]).path.split("/")[-1]  # TODO: assumes file is not nested
-
-            if link["href"].startswith("s3://"):
-                link["href"] = backend_implementation.config.asset_url.build_url(
-                    asset_metadata={"href": link["href"]},  # TODO: clean up this hack to support s3proxy
-                    asset_name=auxiliary_filename,
-                    job_id=job_id,
-                    user_id=user_id,
-                )
-            else:
-                signer = get_backend_config().url_signer
-                if signer:
-                    expires = signer.get_expires()
-                    secure_key = signer.sign_job_asset(
-                        job_id=job_id, user_id=user_id, filename=auxiliary_filename, expires=expires
-                    )
-                    user_base64 = user_id_b64_encode(user_id)
-                    link["href"] = flask.url_for(
-                        ".download_job_auxiliary_file_signed",
-                        job_id=job_id,
-                        user_base64=user_base64,
-                        filename=auxiliary_filename,
-                        expires=expires,
-                        secure_key=secure_key,
-                        _external=True,
-                    )
-                else:
-                    link["href"] = flask.url_for(
-                        ".download_job_auxiliary_file", job_id=job_id, filename=auxiliary_filename, _external=True
-                    )
 
         stac_item = {
             "type": "Feature",
@@ -1503,7 +1473,7 @@ def register_views_batch_jobs(
                     "type": "application/json",
                 },
             ]
-            + exposable_links,
+            + auxiliary_links,
             "assets": assets,
             "collection": job_id,
         }
@@ -1519,6 +1489,44 @@ def register_views_batch_jobs(
         resp = jsonify(stac_item)
         resp.mimetype = stac_item_media_type
         return resp
+
+    def _auxiliary_link(exposable_link: dict, job_id: str, user_id: str) -> dict:
+        auxiliary_filename = urlparse(exposable_link["href"]).path.split("/")[-1]  # TODO: assumes file is not nested
+
+        if exposable_link["href"].startswith("s3://"):
+            href = backend_implementation.config.asset_url.build_url(
+                asset_metadata={"href": exposable_link["href"]},  # TODO: clean up this hack to support s3proxy
+                asset_name=auxiliary_filename,
+                job_id=job_id,
+                user_id=user_id,
+            )
+        else:
+            signer = get_backend_config().url_signer
+            if signer:
+                expires = signer.get_expires()
+                secure_key = signer.sign_job_asset(
+                    job_id=job_id, user_id=user_id, filename=auxiliary_filename, expires=expires
+                )
+                user_base64 = user_id_b64_encode(user_id)
+                href = flask.url_for(
+                    ".download_job_auxiliary_file_signed",
+                    job_id=job_id,
+                    user_base64=user_base64,
+                    filename=auxiliary_filename,
+                    expires=expires,
+                    secure_key=secure_key,
+                    _external=True,
+                )
+            else:
+                href = flask.url_for(
+                    ".download_job_auxiliary_file", job_id=job_id, filename=auxiliary_filename, _external=True
+                )
+
+        return dict_no_none(
+            href=href,
+            rel=exposable_link.get("rel"),
+            type=exposable_link.get("type"),
+        )
 
     @blueprint.route("/jobs/<job_id>/results/aux/<user_base64>/<secure_key>/<filename>", methods=["GET"])
     def download_job_auxiliary_file_signed(job_id, user_base64, secure_key, filename):
