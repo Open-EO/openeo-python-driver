@@ -31,6 +31,7 @@ from openeo_driver.backend import (
     not_implemented,
 )
 from openeo_driver.config import OpenEoBackendConfig
+from openeo_driver.config.util import Exclude
 from openeo_driver.constants import ITEM_LINK_PROPERTY
 from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.dummy import dummy_backend, dummy_config
@@ -1285,6 +1286,21 @@ class TestCollections:
                 {"collection_exclusion_list": {"1.2.0": ["S2_FOOBAR"]}},
                 {"S2_FAPAR_CLOUDCOVER", "SENTINEL1_GRD"},
                 {"S2_FOOBAR"},
+            ),
+            (
+                {"collection_exclusion_list": {None: ["S2_FOOBAR"]}},
+                {"S2_FAPAR_CLOUDCOVER", "SENTINEL1_GRD"},
+                {"S2_FOOBAR"},
+            ),
+            (
+                {"collection_exclusion_list": ["S2_FOOBAR"]},
+                {"S2_FAPAR_CLOUDCOVER", "SENTINEL1_GRD"},
+                {"S2_FOOBAR"},
+            ),
+            (
+                {"collection_exclusion_list": Exclude.by_prefix("S2")},
+                {"SENTINEL1_GRD"},
+                {"S2_FOOBAR", "S2_FAPAR_CLOUDCOVER"},
             ),
         ],
     )

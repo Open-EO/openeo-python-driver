@@ -2155,7 +2155,10 @@ def register_views_catalog(
         collections_listing = backend_implementation.catalog.get_collections_listing()
 
         api_version = requested_api_version()
-        exclusion_list = get_backend_config().collection_exclusion_list.get(api_version.to_string())
+        exclusion_list = get_backend_config().collection_exclusion_list
+        if isinstance(exclusion_list, dict):
+            # Get by api version (if available),  fallback on key None
+            exclusion_list = exclusion_list.get(api_version.to_string(), exclusion_list.get(None, None))
         if exclusion_list:
             collections_listing = collections_listing.filter_by_id(exclusion_list=exclusion_list)
 

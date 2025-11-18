@@ -16,7 +16,7 @@ import inspect
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Union, NamedTuple, Dict, Optional, Callable, Iterable
+from typing import List, Union, NamedTuple, Dict, Optional, Callable, Iterable, Container
 
 import flask
 
@@ -228,7 +228,7 @@ class CollectionsListing:
         """
         self.collections = collections
 
-    def filter_by_id(self, exclusion_list: Iterable[str]) -> CollectionsListing:
+    def filter_by_id(self, exclusion_list: Container[str]) -> CollectionsListing:
         return CollectionsListing(collections=[c for c in self.collections if c["id"] not in exclusion_list])
 
     def to_response_dict(self, normalize: Callable[[dict], dict]) -> dict:
