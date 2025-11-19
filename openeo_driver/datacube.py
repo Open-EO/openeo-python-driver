@@ -407,7 +407,7 @@ class DriverVectorCube:
             if driver and "parquet" == driver.lower():
                 return cls.from_parquet(paths=paths, columns_for_cube=columns_for_cube)
             else:
-                gdf = gpd.read_file(paths[0], driver=driver)
+                gdf = gpd.read_file(paths[0], driver=driver, on_invalid="fix")
                 return cls.from_geodataframe(gdf, columns_for_cube=columns_for_cube)
         except Exception as e:
             if not isinstance(e, OpenEOApiException):

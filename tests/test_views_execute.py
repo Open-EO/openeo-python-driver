@@ -2332,6 +2332,16 @@ class TestVectorCubeLoading:
                     },
                 ],
             ),
+            (
+                    {"type": "Polygon", "coordinates": [[(1, 1), (3, 1), (2, 3)]]},
+                    [
+                        {
+                            "type": "Feature",
+                            "geometry": {"type": "Polygon", "coordinates": [[[1, 1], [3, 1], [2, 3], [1, 1]]]},
+                            "properties": {},
+                        },
+                    ],
+            ),
         ],
     )
     def test_load_url_geojson(self, api, geometry, expected, tmp_path):

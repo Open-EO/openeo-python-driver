@@ -25,6 +25,7 @@ and start a new "In Progress" section above it.
 - Support exposing auxiliary (non-asset) files as links ([Open-EO/openeo-geopyspark-driver#1278](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1278))
 - More user-friendly type descriptions in `ProcessParameterInvalid` errors ([#346](https://github.com/Open-EO/openeo-python-driver/issues/346))
 - `collection_exclusion_list` config: more flexible and exclude collection ids starting with underscore by default
+- `load_url`: specific types of invalid geometries will be automatically fixed rather than raising an error. ([#433](https://github.com/Open-EO/openeo-python-driver/issues/433))
 
 
 ## 0.136.0
