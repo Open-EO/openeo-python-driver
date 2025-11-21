@@ -618,17 +618,26 @@ def extract_arg(args: ProcessArgs, name: str, process_id="n/a"):
     # TODO: eliminate this function, use `ProcessArgs.get_required()` directly
     return _as_process_args(args, process_id=process_id).get_required(name=name)
 
-def _collection_crs(collection_id, env) -> str:
-    metadata = None
+
+def _collection_crs(collection_id: str, env: EvalEnv) -> Union[None, str, int]:
+    """
+    Get spatial reference system from of the data in openEO collection metadata (based on datacube STAC extension)
+    """
+    # TODO: this only works for predefined openEO collections,
+    #       so this is source of inconsistency with direct `load_stac` usage
     try:
         metadata = env.backend_implementation.catalog.get_collection_metadata(collection_id)
     except CollectionNotFoundException:
         return None
+    # TODO: the default reference_system according to the datacube spec is 4326 (EPSG code as integer)
+    #       but changing that here might have unintended side-effects.
     crs = metadata.get("cube:dimensions", {}).get("x", {}).get("reference_system", None)
     return crs
 
 
-def _collection_resolution(collection_id, env) -> Optional[List[int]]:
+def _collection_resolution(collection_id: str, env: EvalEnv) -> Optional[List[int]]:
+    # TODO: this only works for predefined openEO collections,
+    #       so this is source of inconsistency with direct `load_stac` usage
     try:
         metadata = env.backend_implementation.catalog.get_collection_metadata(collection_id)
     except CollectionNotFoundException:
@@ -641,25 +650,24 @@ def _collection_resolution(collection_id, env) -> Optional[List[int]]:
         return None
 
 
-def _align_extent(extent,collection_id,env,target_resolution=None):
-    metadata = None
+def _align_extent(extent: dict, collection_id: str, env: EvalEnv, target_resolution=None) -> dict:
     try:
         metadata = env.backend_implementation.catalog.get_collection_metadata(collection_id)
     except CollectionNotFoundException:
-        pass
+        metadata = None
 
     # TODO #275 eliminate this VITO specific handling?
     if metadata is None or not metadata.get("_vito",{}).get("data_source", {}).get("realign", True):
         return extent
 
-    crs = _collection_crs(collection_id, env)
+    crs = _collection_crs(collection_id=collection_id, env=env)
     collection_resolution = _collection_resolution(collection_id, env)
     isUTM = crs == "AUTO:42001" or "Auto42001" in str(crs)
 
     x = metadata.get('cube:dimensions', {}).get('x', {})
     y = metadata.get('cube:dimensions', {}).get('y', {})
 
-    if (target_resolution == None and collection_resolution == None):
+    if target_resolution is None and collection_resolution is None:
         return extent
 
     if (
@@ -722,29 +730,42 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
 
     """
     source_constraints: List[SourceConstraint] = env[ENV_SOURCE_CONSTRAINTS]
-    global_extent = None
-    process_types = set()
 
     filtered_constraints = [c for c in source_constraints if c[0] == source_id]
 
     if len(filtered_constraints) == 0:
         raise Exception(f"Could not find source constraints for source {source_id}, available constraints are: {set([id for id,_ in source_constraints])}")
 
+    # Note: As optimization, global_extent is calculated from and stored in all source constraints,
+    #       not just the filtered ones. Calculation is done on first _extract_load_parameters call and reused afterwards.
+    # Note: global_extent is also a geopyspark-driver specific internal
     if "global_extent" not in source_constraints[0][1]:
+        global_extent = None
 
-        for collection_id, constraint in source_constraints:
+        for sid, constraint in source_constraints:
+            if sid[0] == "load_collection":
+                collection_id = sid[1][0]
+            elif sid[0] == "load_stac":
+                # TODO: cover this case better?
+                collection_id = "_load_stac_no_collection_id"
+            else:
+                # TODO: cover this as well?
+                collection_id = "_unknown_no_collection_id"
+
             extent = None
             if "spatial_extent" in constraint:
                 extent = constraint["spatial_extent"]
             elif "weak_spatial_extent" in constraint:
                 extent = constraint["weak_spatial_extent"]
+
             if extent is not None:
-                collection_crs = _collection_crs(collection_id[1][0], env)
+                collection_crs = _collection_crs(collection_id=collection_id, env=env)
                 crs = constraint.get("resample", {}).get("target_crs", collection_crs) or collection_crs
-                target_resolution = constraint.get("resample", {}).get("resolution", None) or _collection_resolution(collection_id[1][0], env)
+                target_resolution = constraint.get("resample", {}).get("resolution", None) or _collection_resolution(
+                    collection_id=collection_id, env=env
+                )
 
                 if "pixel_buffer" in constraint:
-
                     buffer = constraint["pixel_buffer"]["buffer_size"]
 
                     if (crs is not None) and target_resolution:
@@ -769,27 +790,25 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
                     except CRSError as e:
                         pass
 
-
                 if  load_collection_in_native_grid:
                     # Ensure that the extent that the user provided is aligned with the collection's native grid.
-
-                    extent = _align_extent(extent, collection_id[1][0], env,target_resolution)
+                    extent = _align_extent(
+                        extent=extent, collection_id=collection_id, env=env, target_resolution=target_resolution
+                    )
 
                 global_extent = spatial_extent_union(global_extent, extent) if global_extent else extent
 
         #store global extent in all constraints, too ensure the same extent everywhere
-        for collection_id, constraint in source_constraints:
+        for _, constraint in source_constraints:
             constraint["global_extent"] = global_extent
 
-    process_types = filtered_constraints[0][1].get("process_types", None)
-    if not process_types:
-        process_types = set()
-        for _, constraint in filtered_constraints:
-            if "process_type" in constraint:
-                process_types |= set(constraint["process_type"])
+    # Note: As optimization, process_types is calculated from, stored in and reused
+    #       for multiple source constraints here, not just the current `source_id`.
+    if "process_types" not in filtered_constraints[0][1]:
+        # Take union of all process types and store in all filtered constraints
+        process_types = set(c["process_type"] for _, c in filtered_constraints if "process_type" in c)
         for _, constraint in filtered_constraints:
             constraint["process_types"] = process_types
-
 
     max_buffer_cache = env[ENV_MAX_BUFFER]
 

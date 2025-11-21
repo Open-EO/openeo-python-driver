@@ -249,7 +249,7 @@ class DataTrace(DataTraceBase):
         return self.parent.describe() + "<-" + self._operation
 
 
-# Type hint for source constaints
+# Type hint for source constraints
 # TODO make this a real class?
 SourceConstraint = Tuple[Tuple[str, tuple], dict]
 
