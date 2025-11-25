@@ -804,9 +804,12 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
 
     # Note: As optimization, process_types is calculated from, stored in and reused
     #       for multiple source constraints here, not just the current `source_id`.
-    if "process_types" not in filtered_constraints[0][1]:
-        # Take union of all process types and store in all filtered constraints
-        process_types = set(c["process_type"] for _, c in filtered_constraints if "process_type" in c)
+    process_types = filtered_constraints[0][1].get("process_types", None)
+    if not process_types:
+        process_types = set()
+        for _, constraint in filtered_constraints:
+            if "process_type" in constraint:
+                process_types |= set(constraint["process_type"])
         for _, constraint in filtered_constraints:
             constraint["process_types"] = process_types
 
