@@ -4367,7 +4367,7 @@ def test_load_stac_default_temporal_extent(api, backend_implementation):
     assert load_stac.call_count == 1
     _, kwargs = load_stac.call_args
 
-    assert kwargs["load_params"]["temporal_extent"] is None
+    assert kwargs["load_params"].temporal_extent == (None, None)
 
 
 class TestVectorCubeRunUDF:
