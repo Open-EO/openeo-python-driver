@@ -1,7 +1,14 @@
+import pyproj
 import pytest
 import shapely.geometry
 
-from openeo_driver.util.utm import auto_utm_epsg, auto_utm_epsg_for_geometry, utm_zone_from_epsg
+from openeo_driver.util.utm import (
+    auto_utm_epsg,
+    auto_utm_epsg_for_geometry,
+    utm_zone_from_epsg,
+    is_auto_utm_crs,
+    is_utm_crs,
+)
 
 
 @pytest.mark.parametrize(["lon", "lat", "epsg"], [
@@ -16,6 +23,30 @@ from openeo_driver.util.utm import auto_utm_epsg, auto_utm_epsg_for_geometry, ut
 ])
 def test_auto_utm_epsg(lon, lat, epsg):
     assert auto_utm_epsg(lon, lat) == epsg
+
+
+def test_is_auto_utm_crs():
+    assert is_auto_utm_crs(None) is False
+    assert is_auto_utm_crs(123) is False
+    assert is_auto_utm_crs(42001) is False
+    assert is_auto_utm_crs("EPSG:42001") is False
+    assert is_auto_utm_crs("AUTO:42001") is True
+    # TODO: test with other constructs/objects that represent AUTO:42001 in some way?
+
+
+def test_is_utm_crs():
+    assert is_utm_crs(None) is False
+    assert is_utm_crs(0) is False
+    assert is_utm_crs(4326) is False
+
+    assert is_utm_crs(32632) == 32632
+    assert is_utm_crs("EPSG:32632") == 32632
+    assert is_utm_crs("epsg:32632") == 32632
+    assert is_utm_crs(32714) == 32714
+    assert is_utm_crs("epsg:32714") == 32714
+
+    assert is_utm_crs(crs=pyproj.CRS.from_epsg(4326)) is False
+    assert is_utm_crs(crs=pyproj.CRS.from_epsg(32633)) == 32633
 
 
 @pytest.mark.parametrize(["geom", "crs", "epsg"], [

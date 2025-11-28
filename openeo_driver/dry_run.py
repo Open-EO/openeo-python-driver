@@ -12,10 +12,10 @@ The goal is to use as much of the real process graph processing mechanisms,
 but pushing around dummy data cubes.
 
 The architecture consists of these classes:
-- DataTrace: starts from a `load_collection` (or other source) process and records what happens to this
-    single data source (filter_temporal, filter_bbox, ...)
+- DataTrace: starts from a `load_collection`, `load_stac` or other source process
+    and records what happens to this single data source (filter_temporal, filter_bbox, ...)
 - DryRunDataTracer: observer that keeps track of all data traces during a dry run
-- DryRunDataCube: dummy data cube that is passed around in processed
+- DryRunDataCube: dummy data cube that is passed around durin (dry-run) processing
 
 Their relationship is as follows:
 - There is a single DryRunDataTracer for a dry-run, keeping track of all relevant operations on all sources
@@ -23,11 +23,11 @@ Their relationship is as follows:
     on the sources that lead to the state of the DryRunDataCube. Often there is just one DataTrace
     in a DryRunDataCube, but when the DryRunDataCube is result of mask or merge_cubes operations,
     there will be multiple DataTraces.
-    A DryRunDataCube also has a reference to the DryRunDataTracer in play, so that it can be informed
-    when processes are applied to the DryRunDataCube.
+    A DryRunDataCube also has a reference to the DryRunDataTracer in play,
+    so that this tracer can be informed when processes are applied to the DryRunDataCube.
 
 When the dry-run phase is done, the DryRunDataTracer knows about all relevant operations
-on each data source. It provides methods for example to extract source constraints (bbox/bands/date ranges)
+on each data source. It provides methods to extract source constraints (bbox/bands/date ranges)
 which are used to bootstrap the EvalEnv that is used for the real process graph processing phase.
 These source constraints can then be fetched from the EvalEnv at `load_collection` time.
 
@@ -205,7 +205,9 @@ class DataSource(DataTraceBase):
 
 class DataTrace(DataTraceBase):
     """
-    Processed data: linked list of processes, ending at a data source node.
+    Processed data: chain of processes/operations (with arguments),
+    linked together through parent-child relations,
+    originating from a source node `DataSource` (final parent in the chain).
 
     Note: this is not the same as a data cube, as a data cube can be combination of multiple data
     traces (e.g. after mask or merge process).
