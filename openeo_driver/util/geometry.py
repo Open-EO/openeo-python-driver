@@ -585,3 +585,13 @@ class BoundingBox:
             north=res_y * math.ceil(self.north / res_y) if math.isfinite(self.north) else self.north,
             crs=self.crs,
         )
+
+    def buffer(self, dx: float, dy: Union[float, None] = None) -> "BoundingBox":
+        """Buffer the bounding box by given distance (in units of the bounding box CRS)"""
+        # TODO: what to do with negative buffering that overshoots the bbox width or height? Assert here or in main constructor?
+        # TODO: also support 4-component buffering (left, bottom, right, top)?
+        if dy is None:
+            dy = dx
+        return BoundingBox(
+            west=self.west - dx, south=self.south - dy, east=self.east + dx, north=self.north + dy, crs=self.crs
+        )

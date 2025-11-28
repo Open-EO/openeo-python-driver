@@ -796,6 +796,19 @@ class TestBoundingBox:
         rounded = bbox.round_to_resolution(10, 20)
         assert rounded.as_tuple() == (500430, 5649820, 507680, float("inf"), None)
 
+    def test_buffer(self):
+        bbox = BoundingBox(1, 2, 3, 4, crs=4326)
+
+        assert bbox.buffer(1).as_tuple() == (0, 1, 4, 5, "EPSG:4326")
+        assert bbox.buffer(0.1).as_tuple() == (0.9, 1.9, 3.1, 4.1, "EPSG:4326")
+        assert bbox.buffer(-0.1).as_tuple() == (1.1, 2.1, 2.9, 3.9, "EPSG:4326")
+
+        assert bbox.buffer(0.5, 0.1).as_tuple() == (0.5, 1.9, 3.5, 4.1, "EPSG:4326")
+        assert bbox.buffer(0.5, -0.1).as_tuple() == (0.5, 2.1, 3.5, 3.9, "EPSG:4326")
+
+        # TODO: instead of this nonsense result, should this fail, or result in some special empty case?
+        assert bbox.buffer(-10).as_tuple() == (11, 12, -7, -6, "EPSG:4326")
+
 
 class TestValidateGeoJSON:
     @staticmethod
