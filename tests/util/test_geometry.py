@@ -3,10 +3,10 @@ import math
 from typing import List, Union
 
 import pyproj
+import pyproj.exceptions
 import pytest
 import shapely.geometry
 from numpy.testing import assert_allclose
-from pyproj.exceptions import CRSError
 from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseGeometry
 
@@ -23,6 +23,7 @@ from openeo_driver.util.geometry import (
     reproject_geometry,
     spatial_extent_union,
     validate_geojson_basic,
+    epsg_code_or_none,
 )
 
 from ..data import get_path
@@ -619,6 +620,17 @@ class TestAsGeoJsonFeatureCollection:
         }
 
 
+def test_epsg_code_or_none():
+    assert epsg_code_or_none(None) is None
+    assert epsg_code_or_none(0) is None
+    assert epsg_code_or_none("nope") is None
+
+    assert epsg_code_or_none(4326) == 4326
+    assert epsg_code_or_none("EPSG:4326") == 4326
+    assert epsg_code_or_none(32631) == 32631
+    assert epsg_code_or_none(pyproj.CRS.from_epsg(32631)) == 32631
+
+
 class TestBoundingBox:
     def test_basic(self):
         bbox = BoundingBox(1, 2, 3, 4)
@@ -662,7 +674,7 @@ class TestBoundingBox:
             _ = BoundingBox(1, None, 3, 4)
 
     def test_missing_invalid_crs(self):
-        with pytest.raises(CRSError):
+        with pytest.raises(BoundingBoxException, match="Invalid CRS 'foobar:42'"):
             _ = BoundingBox(1, 2, 3, 4, crs="foobar:42")
 
     @pytest.mark.parametrize(
@@ -795,6 +807,11 @@ class TestBoundingBox:
         bbox = BoundingBox(500435.6, 5649834.7, 507678.1, float("inf"))
         rounded = bbox.round_to_resolution(10, 20)
         assert rounded.as_tuple() == (500430, 5649820, 507680, float("inf"), None)
+
+    def test_round_to_resolution_single(self):
+        bbox = BoundingBox(500435.6, 5649834.7, 507678.1, 5667864.1)
+        rounded = bbox.round_to_resolution(10)
+        assert rounded.as_tuple() == (500430, 5649830, 507680, 5667870, None)
 
     def test_buffer(self):
         bbox = BoundingBox(1, 2, 3, 4, crs=4326)
