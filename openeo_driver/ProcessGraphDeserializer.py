@@ -469,15 +469,29 @@ def evaluate(
     if do_dry_run:
         dry_run_tracer = do_dry_run if isinstance(do_dry_run, DryRunDataTracer) else DryRunDataTracer()
         _log.info("Doing dry run")
-        convert_node(top_level_node, env=env.push({
-            ENV_DRY_RUN_TRACER: dry_run_tracer,
-            ENV_SAVE_RESULT: [],  # otherwise dry run and real run append to the same mutable result list
-            "node_caching": False
-        }))
+        dry_run_env = env.push(
+            {
+                ENV_DRY_RUN_TRACER: dry_run_tracer,
+                ENV_SAVE_RESULT: [],  # otherwise dry run and real run append to the same mutable result list
+                # TODO: why to disable node caching in dry run? E.g. ideally "full" caching ("reuse" actually) should be the default.
+                "node_caching": False
+            }
+        )
+        dry_run_result = convert_node(top_level_node, env=dry_run_env)
         # TODO: work with a dedicated DryRunEvalEnv?
         source_constraints = dry_run_tracer.get_source_constraints()
         _log.info("Dry run extracted these source constraints: {s}".format(s=source_constraints))
+
+        # TODO: Given the post-dry-run hook concept: is it still necessary to push source_constraints into env?
         env = env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
+
+        post_dry_run_data = env.backend_implementation.post_dry_run(
+            dry_run_result=dry_run_result,
+            dry_run_tracer=dry_run_tracer,
+            source_constraints=source_constraints,
+        )
+        if post_dry_run_data:
+            env = env.push(post_dry_run_data)
 
     result = convert_node(top_level_node, env=env)
     if len(env[ENV_SAVE_RESULT]) > 0:
@@ -763,7 +777,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
 
             if extent is not None:
                 collection_crs = _collection_crs(collection_id=collection_id, env=env)
-                crs = constraint.get("resample", {}).get("target_crs", collection_crs) or collection_crs
+                target_crs = constraint.get("resample", {}).get("target_crs", collection_crs) or collection_crs
                 target_resolution = constraint.get("resample", {}).get("resolution", None) or _collection_resolution(
                     collection_id=collection_id, env=env
                 )
@@ -771,9 +785,9 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
                 if "pixel_buffer" in constraint:
                     buffer = constraint["pixel_buffer"]["buffer_size"]
 
-                    if (crs is not None) and target_resolution:
+                    if (target_crs is not None) and target_resolution:
                         bbox = BoundingBox.from_dict(extent, default_crs=4326)
-                        extent = bbox.reproject(crs).as_dict()
+                        extent = bbox.reproject(target_crs).as_dict()
 
                         extent = {
                             "west": extent["west"] - target_resolution[0] * math.ceil(buffer[0]),
@@ -785,11 +799,11 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
                     else:
                         _log.warning("Not applying buffer to extent because the target CRS is not known.")
 
-                load_collection_in_native_grid = "resample" not in constraint or crs == collection_crs
+                load_collection_in_native_grid = "resample" not in constraint or target_crs == collection_crs
                 if (not load_collection_in_native_grid) and collection_crs is not None and ("42001" in str(collection_crs)):
                     #resampling auto utm to utm means we are loading in native grid
                     try:
-                        load_collection_in_native_grid = "UTM zone" in CRS.from_user_input(crs).to_wkt()
+                        load_collection_in_native_grid = "UTM zone" in CRS.from_user_input(target_crs).to_wkt()
                     except CRSError as e:
                         pass
 
@@ -2608,7 +2622,7 @@ def load_stac(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
-        return dry_run_tracer.load_stac(url, arguments, env)
+        return dry_run_tracer.load_stac(url=url, arguments=arguments, env=env)
     else:
         source_id = dry_run.DataSource.load_stac(
             url, properties=arguments.get("properties", {}), bands=arguments.get("bands", []), env=env

@@ -9,13 +9,12 @@ import fiona.model
 import pyproj
 import shapely.geometry
 import shapely.ops
-from pyproj import CRS
 from shapely.geometry import MultiPolygon, Polygon
 from shapely.geometry.base import BaseGeometry
 
 from openeo.util import repr_truncate
 from openeo_driver.errors import OpenEOApiException
-from openeo_driver.util.utm import auto_utm_epsg, auto_utm_epsg_for_geometry
+from openeo_driver.util.utm import auto_utm_epsg, auto_utm_epsg_for_geometry, is_auto_utm_crs
 
 _log = logging.getLogger(__name__)
 
@@ -409,6 +408,15 @@ def as_geojson_feature_collection(
     }
 
 
+def epsg_code_or_none(crs: Any) -> Union[int, None]:
+    """Find EPSG code for given CRS, or return None when not possible."""
+    try:
+        epsg = pyproj.CRS.from_user_input(crs).to_epsg()
+        return epsg
+    except pyproj.exceptions.CRSError:
+        return None
+
+
 class BoundingBoxException(ValueError):
     pass
 
@@ -423,6 +431,9 @@ class BoundingBox:
     Bounding box with west, south, east, north coordinates
     optionally (geo)referenced.
     """
+
+    # TODO: using frozen dataclasss, but with custom __init__ (for CRS normalization) makes things a bit messy.
+    #       It might be just easier to implement the "frozen dataclass" behavior manually
 
     west: float
     south: float
@@ -457,12 +468,10 @@ class BoundingBox:
 
     @staticmethod
     def normalize_crs(crs: Union[str, int]) -> str:
-        if crs == "Auto42001" or crs == "AUTO:42001" or "Auto42001" in str(crs) :
-            return crs
-        proj_crs = CRS.from_user_input(crs)
-        maybeEPSG = proj_crs.to_epsg()
-        if maybeEPSG:
-            return f"EPSG:{maybeEPSG}"
+        if is_auto_utm_crs(crs):
+            return "AUTO:42001"
+        if epsg := epsg_code_or_none(crs):
+            return f"EPSG:{epsg}"
         else:
             raise BoundingBoxException(f"Invalid CRS {crs!r}")
 
@@ -553,12 +562,13 @@ class BoundingBox:
         """
         self.assert_crs()
         crs = self.normalize_crs(crs)
-        isUTM = crs == "AUTO:42001" or "Auto42001" in str(crs)
-        if isUTM:
+
+        if is_auto_utm_crs(crs):
             return self.reproject_to_best_utm()
 
         if crs == self.crs:
             return self
+
         transform = pyproj.Transformer.from_crs(
             crs_from=self.crs, crs_to=crs, always_xy=True
         ).transform
@@ -577,11 +587,23 @@ class BoundingBox:
     def reproject_to_best_utm(self):
         return self.reproject(crs=self.best_utm())
 
-    def round_to_resolution(self, res_x: float, res_y: float) -> "BoundingBox":
+    def round_to_resolution(self, res_x: float, res_y: Optional[float] = None) -> "BoundingBox":
+        if res_y is None:
+            res_y = res_x
         return BoundingBox(
             west=res_x * math.floor(self.west / res_x) if math.isfinite(self.west) else self.west,
             east=res_x * math.ceil(self.east / res_x) if math.isfinite(self.east) else self.east,
             south=res_y * math.floor(self.south / res_y) if math.isfinite(self.south) else self.south,
             north=res_y * math.ceil(self.north / res_y) if math.isfinite(self.north) else self.north,
             crs=self.crs,
+        )
+
+    def buffer(self, dx: float, dy: Union[float, None] = None) -> "BoundingBox":
+        """Buffer the bounding box by given distance (in units of the bounding box CRS)"""
+        # TODO: what to do with negative buffering that overshoots the bbox width or height? Assert here or in main constructor?
+        # TODO: also support 4-component buffering (left, bottom, right, top)?
+        if dy is None:
+            dy = dx
+        return BoundingBox(
+            west=self.west - dx, south=self.south - dy, east=self.east + dx, north=self.north + dy, crs=self.crs
         )

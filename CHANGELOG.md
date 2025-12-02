@@ -21,6 +21,8 @@ and start a new "In Progress" section above it.
 
 ## In progress: 0.138.0
 
+- Introduce experimental "post_dry_run" hook (related to [#406](https://github.com/Open-EO/openeo-python-driver/issues/406), [Open-EO/openeo-geopyspark-driver#1299](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1299))
+
 
 ## 0.137.0
 

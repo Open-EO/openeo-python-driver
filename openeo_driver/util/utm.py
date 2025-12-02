@@ -1,5 +1,5 @@
 import logging
-from typing import Tuple, Union
+from typing import Tuple, Union, Any
 
 import math
 import pyproj
@@ -26,6 +26,31 @@ def auto_utm_epsg(lon: float, lat: float) -> int:
     return epsg
 
 
+def is_auto_utm_crs(crs: Any) -> bool:
+    """
+    Is given CRS identifier the special Auto-UTM CRS ("AUTO:42001")?
+    """
+    return crs == "AUTO:42001" or "Auto42001" in str(crs)
+
+
+def _is_utm_epsg(epsg: int) -> bool:
+    return (32601 <= epsg <= 32660) or (32701 <= epsg <= 32760)
+
+
+def is_utm_crs(crs: Any) -> int:
+    """
+    Is given CRS identifier a UTM CRS?
+
+    Returns corresponding EPSG code (as int) if it is a UTM CRS.
+    Returns False (which is technically also an int) otherwise.
+    """
+    try:
+        epsg = pyproj.CRS.from_user_input(crs).to_epsg() or 0
+    except pyproj.exceptions.CRSError:
+        epsg = 0
+    return epsg if _is_utm_epsg(epsg) else False
+
+
 def utm_zone_from_epsg(epsg: int) -> Tuple[int, bool]:
     """Get `(utm_zone, is_northern_hemisphere)` from given EPSG code."""
     if not (32601 <= epsg <= 32660 or 32701 <= epsg <= 32760):
@@ -43,9 +68,8 @@ def auto_utm_epsg_for_geometry(geometry: BaseGeometry, crs: str = "EPSG:4326") -
     y = p.y
 
     # If needed, convert it to lon/lat (WGS84)
-    crs_wgs = 'epsg:4326'
     if CRS.from_user_input(crs).to_epsg() != 4326:
-        transformer = pyproj.Transformer.from_crs(crs, crs_wgs, always_xy=True)
+        transformer = pyproj.Transformer.from_crs(crs_from=crs, crs_to="EPSG:4326", always_xy=True)
         x, y = transformer.transform(x, y)
 
     # And derive the EPSG code
