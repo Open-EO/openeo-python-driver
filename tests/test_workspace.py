@@ -35,6 +35,23 @@ def test_disk_workspace(tmp_path, merge):
     assert source_file.exists()
 
 
+def test_disk_workspace_relative(tmp_path):
+    merge = "subdirectory"
+    source_directory = tmp_path / "src"
+    source_directory.mkdir()
+    source_file = Path("file")
+    (source_directory / "file").touch()
+
+    subdirectory = merge[1:] if merge.startswith("/") else merge
+    target_directory = tmp_path / subdirectory
+
+    workspace = DiskWorkspace(root_directory=tmp_path)
+    workspace.import_file(common_path=source_directory, file=source_file, merge=merge)
+
+    assert (target_directory / source_file.name).exists()
+    assert source_file.exists()
+
+
 @pytest.mark.parametrize("remove_original", [False, True])
 def test_disk_workspace_remove_original(tmp_path, remove_original):
     source_directory = tmp_path / "src"
