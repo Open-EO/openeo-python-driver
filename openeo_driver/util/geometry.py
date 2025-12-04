@@ -448,7 +448,7 @@ class BoundingBox:
         east: float,
         north: float,
         *,
-        crs: Optional[Union[str, int]] = None,
+        crs: Union[str, int, None] = None,
     ):
         missing = [
             k
@@ -474,7 +474,6 @@ class BoundingBox:
             return f"EPSG:{epsg}"
         else:
             raise BoundingBoxException(f"Invalid CRS {crs!r}")
-
 
     @classmethod
     def from_dict(
@@ -514,6 +513,10 @@ class BoundingBox:
         return cls(*wsen, crs=crs)
 
     def is_georeferenced(self) -> bool:
+        # TODO: deprecate: "is georeferenced" is bad name for "has CRS" check
+        return self.crs is not None
+
+    def has_crs(self) -> bool:
         return self.crs is not None
 
     def assert_crs(self):
@@ -547,6 +550,19 @@ class BoundingBox:
         if self.crs not in {None, "EPSG:4326"}:
             polygon = reproject_geometry(geometry=polygon, from_crs=self.crs, to_crs="EPSG:4326")
         return shapely.geometry.mapping(polygon)
+
+    def approx(self, rel: Optional[float] = 0, abs: Optional[float] = None) -> "BoundingBox":
+        """Pytest helper to construct an expected bounding box with tolerance"""
+        # Local import as pytest is not a required dependency in general
+        import pytest
+
+        return BoundingBox(
+            west=pytest.approx(self.west, rel=rel, abs=abs),
+            south=pytest.approx(self.south, rel=rel, abs=abs),
+            east=pytest.approx(self.east, rel=rel, abs=abs),
+            north=pytest.approx(self.north, rel=rel, abs=abs),
+            crs=self.crs,
+        )
 
     def contains(self, x: float, y: float) -> bool:
         """Check if given point is inside the bounding box"""
@@ -607,3 +623,63 @@ class BoundingBox:
         return BoundingBox(
             west=self.west - dx, south=self.south - dy, east=self.east + dx, north=self.north + dy, crs=self.crs
         )
+
+    def align_to(self, target: Union[None, str, int, "BoundingBox"]) -> "BoundingBox":
+        """
+        Align the projection of this bounding box to another CRS "source"
+        (None for "unspecified", a CRS code or the CRS of another bounding box):
+
+        - if current and target CRS are None ("unspecified"): do nothing
+        - if current and target CRS are both specified, reproject appropriately
+        - fail otherwise (as it's unclear how to handle alignment)
+        """
+        if isinstance(target, BoundingBox):
+            target_crs = target.crs
+        elif target is None:
+            target_crs = None
+        else:
+            target_crs = self.normalize_crs(target)
+
+        if self.crs is None:
+            if target_crs is None:
+                return self
+            else:
+                raise CrsRequired(f"Can not reproject bounding box with unspecified CRS to {target_crs!r}.")
+        else:
+            if target_crs is None:
+                # TODO: option to just erase the CRS field instead of failing?
+                raise BoundingBoxException(f"Can not reproject bounding box with CRS {self.crs!r} to unspecified CRS.")
+            else:
+                if self.crs != target_crs:
+                    return self.reproject(crs=target_crs)
+                else:
+                    return self
+
+    def union(self, other: "BoundingBox") -> "BoundingBox":
+        """
+        Get bounding box covering both this and the other bounding box.
+        When other bounding box is in another projection, it is first reprojected to this bounding box's CRS.
+        """
+        other = other.align_to(self)
+        return BoundingBox(
+            west=min(self.west, other.west),
+            south=min(self.south, other.south),
+            east=max(self.east, other.east),
+            north=max(self.north, other.north),
+            crs=self.crs,
+        )
+
+    def intersection(self, other: "BoundingBox") -> Union["BoundingBox", None]:
+        """
+        Get bounding box representing the intersection of this and the other bounding box.
+        When other bounding box is in another projection, it is first reprojected to this bounding box's CRS.
+        returns None when there is no intersection.
+        """
+        other = other.align_to(self)
+        west = max(self.west, other.west)
+        south = max(self.south, other.south)
+        east = min(self.east, other.east)
+        north = min(self.north, other.north)
+        if west >= east or south >= north:
+            return None
+        return BoundingBox(west=west, south=south, east=east, north=north, crs=self.crs)
