@@ -10,7 +10,7 @@ from pathlib import Path
 import shutil
 from tempfile import mkstemp
 from typing import Union, Dict, List, Optional, Any, Iterable
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 from zipfile import ZipFile
 
 import numpy as np
@@ -88,7 +88,13 @@ class SaveResult:
                 # TODO support zipping multiple assets
                 raise FeatureUnsupportedException("Multi-file responses not yet supported")
             asset = assets.popitem()[1]
+            if "assets" in asset:
+                _log.info("Got item instead of asset.")
+                if len(asset["assets"]) > 1:
+                    raise FeatureUnsupportedException("Multi-file responses not yet supported")
+                asset = asset["assets"].popitem()[1]
             path = Path(asset["href"])
+            path = Path(urljoin(tmp_dir + "/", asset["href"])) if not path.is_absolute() else path
             mimetype = asset.get("type")
             return send_from_directory(path.parent, path.name, mimetype=mimetype)
 
