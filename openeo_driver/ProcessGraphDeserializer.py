@@ -1318,8 +1318,10 @@ def fit_class_catboost(args: ProcessArgs, env: EvalEnv) -> DriverMlModel:
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/predict_onnx.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/predict_onnx.json"))
-def predict_onnx(args: ProcessArgs, env: EvalEnv):
-    raise NoPythonImplementationError
+def predict_onnx(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    data_cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    model = args.get_required("model", expected_type = str)
+    return data_cube.predict_onnx(model=model)
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/predict_random_forest.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/predict_random_forest.json"))
