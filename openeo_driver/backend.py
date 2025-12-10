@@ -170,7 +170,7 @@ class LoadParameters(dict):
     # TODO: use a more standard solution like dataclassses from stdlib or attrs?
     temporal_extent = dict_item(default=(None, None))
     spatial_extent = dict_item(default={})
-    global_extent = dict_item(default={})
+    global_extent = dict_item(default={})  # TODO #441 to be removed
     filter_temporal_labels = dict_item(default=None)
     bands = dict_item(default=None)
     properties = dict_item(default={})

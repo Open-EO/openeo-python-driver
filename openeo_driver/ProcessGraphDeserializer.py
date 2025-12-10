@@ -756,6 +756,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     # Note: As optimization, global_extent is calculated from and stored in all source constraints,
     #       not just the filtered ones. Calculation is done on first _extract_load_parameters call and reused afterwards.
     # Note: global_extent is also a geopyspark-driver specific internal
+    # TODO #441 remove this legacy global_extent logic
     if "global_extent" not in source_constraints[0][1]:
         global_extent = None
 
