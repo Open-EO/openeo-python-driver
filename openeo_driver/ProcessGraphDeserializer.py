@@ -923,32 +923,6 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
         load_params.update(arguments)
         return env.backend_implementation.catalog.load_collection(collection_id, load_params=load_params, env=env)
 
-@non_standard_process(
-    ProcessSpec(id='load_disk_data', description="Loads arbitrary from disk. This process is deprecated, considering using load_uploaded_files or load_stac.")
-        .param(name='format', description="the file format, e.g. 'GTiff'", schema={"type": "string"}, required=True)
-        .param(name='glob_pattern', description="a glob pattern that matches the files to load from disk",
-               schema={"type": "string"}, required=True)
-        .param(name='options', description="options specific to the file format", schema={"type": "object"})
-        .returns(description="the data as a data cube", schema={})
-)
-def load_disk_data(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
-    """
-    Deprecated, use load_uploaded_files or load_stac
-    """
-    _log.warning("DEPRECATED: load_disk_data usage")
-    kwargs = dict(
-        glob_pattern=args.get_required("glob_pattern", expected_type=str),
-        format=args.get_required("format", expected_type=str),
-        options=args.get_optional("options", default={}, expected_type=dict),
-    )
-    dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
-    if dry_run_tracer:
-        return dry_run_tracer.load_disk_data(**kwargs)
-    else:
-        source_id = dry_run.DataSource.load_disk_data(**kwargs).get_source_id()
-        load_params = _extract_load_parameters(env, source_id=source_id)
-        return env.backend_implementation.load_disk_data(**kwargs, load_params=load_params, env=env)
-
 
 def _check_geometry_path_assumption(path: str, process: str, parameter: str):
     if isinstance(path, str) and path.lstrip().startswith("{"):
@@ -2077,22 +2051,18 @@ def load_uploaded_files(args: ProcessArgs, env: EvalEnv) -> Union[DriverVectorCu
 
     if DriverVectorCube.from_fiona_supports(format):
         return DriverVectorCube.from_fiona(paths, driver=format, options=options)
-    elif format.lower() in {"GTiff"}:
-        if len(paths) != 1:
-            raise FeatureUnsupportedException(
-                f"load_uploaded_files only supports a single raster of format {format!r}, you provided {paths}"
-            )
-        kwargs = dict(glob_pattern=paths[0], format=format, options=options)
+    else:
         dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
         if dry_run_tracer:
-            return dry_run_tracer.load_disk_data(**kwargs)
+            return dry_run_tracer.load_uploaded_files(paths=paths, format=format, options=options)
         else:
-            source_id = dry_run.DataSource.load_disk_data(**kwargs).get_source_id()
+            source_id = dry_run.DataSource.load_uploaded_files(
+                paths=paths, format=format, options=options
+            ).get_source_id()
             load_params = _extract_load_parameters(env, source_id=source_id)
-            return env.backend_implementation.load_disk_data(**kwargs, load_params=load_params, env=env)
-
-    else:
-        raise FeatureUnsupportedException(f"Loading format {format!r} is not supported")
+            return env.backend_implementation.load_uploaded_files(
+                paths=paths, format=format, options=options, load_params=load_params, env=env
+            )
 
 
 @non_standard_process(

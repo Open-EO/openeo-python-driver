@@ -1,12 +1,9 @@
 {
   "loaddiskdata": {
-    "process_id": "load_disk_data",
+    "process_id": "load_uploaded_files",
     "arguments": {
-      "format": "GTiff",
-      "glob_pattern": "/data/MTDA/CGS_S2/CGS_S2_FAPAR/2019/04/24/*/*/10M/*_FAPAR_10M_V102.tif",
-      "options": {
-        "date_regex": ".*_(\\d{4})(\\d{2})(\\d{2})T.*"
-      }
+      "paths": ["/data/MTDA/CGS_S2/CGS_S2_FAPAR/2019/04/24/10M/FAPAR_10M_V102.tif"],
+      "format": "GTiff"
     }
   },
   "filterbbox": {

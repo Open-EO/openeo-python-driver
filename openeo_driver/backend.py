@@ -930,11 +930,10 @@ class OpenEoBackendImplementation:
         """
         return {}
 
-    def load_disk_data(
-            self, format: str, glob_pattern: str, options: dict, load_params: LoadParameters, env: EvalEnv
+    def load_uploaded_files(
+        self, paths: List[str], *, format: str, options: dict, load_params: LoadParameters, env: EvalEnv
     ) -> DriverDataCube:
         # TODO: move this to catalog "microservice"
-        # TODO: rename this to "load_uploaded_files" like in official openeo processes
         raise NotImplementedError
 
     def load_result(self, job_id: str, user_id: Optional[str], load_params: LoadParameters,

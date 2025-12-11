@@ -137,7 +137,7 @@ class DataTraceBase:
 
 
 class DataSource(DataTraceBase):
-    """Data source: a data (cube) generating process like `load_collection`, `load_disk_data`, ..."""
+    """Data source: a data (cube) generating process like `load_collection`, `load_stac`, ..."""
 
     __slots__ = ["_process", "_arguments"]
 
@@ -183,9 +183,9 @@ class DataSource(DataTraceBase):
         return cls(process="load_collection", arguments=args)
 
     @classmethod
-    def load_disk_data(cls, glob_pattern: str, format: str, options: dict) -> "DataSource":
-        """Factory for a `load_disk_data` DataSource."""
-        return cls(process="load_disk_data", arguments=(glob_pattern, format, options))
+    def load_uploaded_files(cls, paths: List[str], format: str, options: dict) -> "DataSource":
+        """Factory for a `load_uploaded_files` DataSource."""
+        return cls(process="load_uploaded_files", arguments=(paths, format, options))
 
     @classmethod
     def load_result(cls, job_id: str) -> "DataSource":
@@ -305,9 +305,9 @@ class DryRunDataTracer:
 
         return cube
 
-    def load_disk_data(self, glob_pattern: str, format: str, options: dict) -> "DryRunDataCube":
-        """Create a DryRunDataCube from a `load_disk_data` process."""
-        trace = DataSource.load_disk_data(glob_pattern=glob_pattern, format=format, options=options)
+    def load_uploaded_files(self, paths: List[str], format: str, options: dict) -> "DryRunDataCube":
+        """Create a DryRunDataCube from a `load_uploaded_files` process."""
+        trace = DataSource.load_uploaded_files(paths=paths, format=format, options=options)
         self.add_trace(trace)
         # Note: naive assumptions about the actual data cube dimensions here.
         metadata = CollectionMetadata(

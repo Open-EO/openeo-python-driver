@@ -2368,29 +2368,28 @@ def test_no_nested_JSONResult(api):
     ).assert_status_code(200).assert_content()
 
 
-def test_load_disk_data(api):
-    api.check_result("load_disk_data.json")
+def test_load_uploaded_files(api):
+    api.check_result("load_uploaded_files.json")
     params = dummy_backend.last_load_collection_call(
-        "/data/MTDA/CGS_S2/CGS_S2_FAPAR/2019/04/24/*/*/10M/*_FAPAR_10M_V102.tif"
+        "load_uploaded_files:/data/MTDA/CGS_S2/CGS_S2_FAPAR/2019/04/24/10M/FAPAR_10M_V102.tif"
     )
     assert params["spatial_extent"] == {"west": 3, "south": 50, "east": 6, "north": 51, "crs": "EPSG:4326"}
 
 
-def test_load_disk_data_and_reduce_dimension(api):
+def test_load_uploaded_files_and_reduce_dimension(api):
     """https://github.com/Open-EO/openeo-geopyspark-driver/issues/500"""
     pg = {
-        "loaddiskdata": {
-            "process_id": "load_disk_data",
+        "load_uploaded_files": {
+            "process_id": "load_uploaded_files",
             "arguments": {
                 "format": "GTiff",
-                "glob_pattern": "/data/MTDA/CGS_S2/CGS_S2_FAPAR/2019/04/24/*/*/10M/*_FAPAR_10M_V102.tif",
-                "options": {"date_regex": ".*_(\\d{4})(\\d{2})(\\d{2})T.*"},
+                "paths": ["/data/MTDA/CGS_S2/CGS_S2_FAPAR/2019/04/24/10M/FAPAR_10M_V102.tif"],
             },
         },
         "reducedimension": {
             "process_id": "reduce_dimension",
             "arguments": {
-                "data": {"from_node": "loaddiskdata"},
+                "data": {"from_node": "load_uploaded_files"},
                 "dimension": "t",
                 "reducer": {
                     "process_graph": {

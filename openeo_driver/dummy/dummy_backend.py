@@ -100,6 +100,8 @@ def all_load_collection_calls(collection_id: str) -> List[LoadParameters]:
 
 
 def last_load_collection_call(collection_id: str) -> LoadParameters:
+    if collection_id not in _load_collection_calls:
+        raise KeyError(f"{collection_id!r} not in {_load_collection_calls.keys()}")
     return _load_collection_calls[collection_id][-1]
 
 
@@ -1086,6 +1088,11 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
                     "gis_data_types": ["vector"],
                     "parameters": {},
                 },
+                "GTiff": {
+                    "title": "GeoTiff",
+                    "gis_data_types": ["raster"],
+                    "parameters": {},
+                },
             },
             "output": {
                 "GTiff": {
@@ -1096,10 +1103,11 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
             },
         }
 
-    def load_disk_data(
-            self, format: str, glob_pattern: str, options: dict, load_params: LoadParameters, env: EvalEnv
+    def load_uploaded_files(
+        self, paths: List[str], *, format: str, options: dict, load_params: LoadParameters, env: EvalEnv
     ) -> DummyDataCube:
-        _register_load_collection_call(glob_pattern, load_params)
+        # TODO: cleaner generalization than these fake "load_collection" call registration
+        _register_load_collection_call(f"load_uploaded_files:{','.join(paths)}", load_params)
         metadata = CubeMetadata(
             dimensions=[
                 SpatialDimension(name="x", extent=[]),

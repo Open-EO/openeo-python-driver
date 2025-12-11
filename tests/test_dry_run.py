@@ -90,10 +90,10 @@ def test_source_load_collection():
     assert s1.get_source_id() != s3.get_source_id()
 
 
-def test_source_load_disk_data():
-    s1 = DataSource.load_disk_data(glob_pattern="foo*.tiff", format="GTiff", options={})
-    s2 = DataSource.load_disk_data(glob_pattern="foo*.tiff", format="GTiff", options={})
-    s3 = DataSource.load_disk_data(glob_pattern="foo*.tiff", format="GTiff", options={"meh": "xev"})
+def test_source_load_uploaded_files():
+    s1 = DataSource.load_uploaded_files(paths=["foo.tiff"], format="GTiff", options={})
+    s2 = DataSource.load_uploaded_files(paths=["foo.tiff"], format="GTiff", options={})
+    s3 = DataSource.load_uploaded_files(paths=["foo.tiff"], format="GTiff", options={"meh": "xev"})
     assert s1.get_source_id() == s2.get_source_id()
     assert s1.get_source_id() != s3.get_source_id()
 
