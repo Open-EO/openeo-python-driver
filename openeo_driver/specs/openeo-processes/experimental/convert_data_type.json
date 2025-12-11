@@ -1,0 +1,37 @@
+
+{
+    "id": "convert_data_type",
+    "summary": "Convert all data of a data cube to the given data type.",
+    "description": "The convert_data_type process converts all data to the requested data type.  Basic types (and their no-data value) are: bool, int8 (-128), int16 (-32768), int32 (-2147483648), float32 (Float.NaN), float64 (Double.NaN).\nFor unsigned data types, use the \"u\" prefix, e.g. uint8, uint16\nFor raw data types (when you do not want a \"no-data\" value), use the \"raw\" suffix, e.g. int8raw, uint8raw, float32raw, ...\nIf you need to specify a custom \"no-data\" value, suffix with \"ud\" and append the integer representation of the no-data value, e.g. int8ud-1 (no-data value of -1), int16ud1234 (no-data value of 1234).\n\nIf the data type is not supported, an error is reported (Data type _ is not supported).",
+    "categories": [
+        "cubes"
+    ],
+    "experimental": true,
+    "parameters": [
+        {
+            "name": "data",
+            "description": "A data cube.",
+            "schema": {
+                "type": "object",
+                "subtype": "raster-cube"
+            }
+        },
+        {
+            "name": "data_type",
+            "description": "A string representation of the data type to convert to.",
+            "schema": {
+                "type": [
+                    "string",
+                    "null"
+                ]
+            }
+        }
+    ],
+    "returns": {
+        "description": "A data cube with the converted values and the same dimensions. The dimension properties (name, type, labels, reference system and resolution) remain unchanged.",
+        "schema": {
+            "type": "object",
+            "subtype": "raster-cube"
+        }
+    }
+}

@@ -19,7 +19,22 @@ and start a new "In Progress" section above it.
 
 <!-- start-of-changelog -->
 
-## In progress: 0.136.0
+## In progress: 0.138.0
+
+- Introduce experimental "post_dry_run" hook (related to [#406](https://github.com/Open-EO/openeo-python-driver/issues/406), [Open-EO/openeo-geopyspark-driver#1299](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1299))
+- `BoundingBox` utility: added union/intersection/reprojection functionality and other CRS handling related improvements (related to [#406](https://github.com/Open-EO/openeo-python-driver/issues/406), [Open-EO/openeo-geopyspark-driver#1299](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1299)))
+
+
+## 0.137.0
+
+- Add `ephemeral_flask_server` testing utility (`openeo_driver.testing`) for request mocking based on a Flask app. Allows to do request/response mocking independently from actual request library (`requests`, `urllib`, `urllib3`, etc.) through a well-documented API (Flask).
+- Support exposing auxiliary (non-asset) files as links ([Open-EO/openeo-geopyspark-driver#1278](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1278))
+- More user-friendly type descriptions in `ProcessParameterInvalid` errors ([#346](https://github.com/Open-EO/openeo-python-driver/issues/346))
+- `collection_exclusion_list` config: more flexible and exclude collection ids starting with underscore by default
+- `load_url`: specific types of invalid geometries will be automatically fixed rather than raising an error. ([#433](https://github.com/Open-EO/openeo-python-driver/issues/433))
+
+
+## 0.136.0
 
 - Start supporting custom `UdfRuntimes` implementation in `OpenEoBackendImplementation` ([#415](https://github.com/Open-EO/openeo-python-driver/issues/415))
 - Process graph parsing (dry-run) for very large graphs got faster. ([#426](https://github.com/Open-EO/openeo-python-driver/issues/426))

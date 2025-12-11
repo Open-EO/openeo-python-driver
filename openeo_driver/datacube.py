@@ -176,10 +176,6 @@ class DriverDataCube:
     def rename_labels(self, dimension: str, target: list, source: list = None) -> 'DriverDataCube':
         self._not_implemented()
 
-    def reduce_bands(self, process) -> 'DriverDataCube':
-        # TODO #47: remove this non-standard process
-        self._not_implemented()
-
     def mask(self, mask: 'DriverDataCube', replacement=None) -> 'DriverDataCube':
         self._not_implemented()
 
@@ -204,11 +200,6 @@ class DriverDataCube:
         target_dimension: Optional[str] = None,
     ) -> Union["AggregatePolygonResult", "AggregatePolygonSpatialResult", "DriverVectorCube"]:
         # TODO: drop `target_dimension`? see https://github.com/Open-EO/openeo-processes/issues/366
-        self._not_implemented()
-
-
-    def timeseries(self, x, y, srs="EPSG:4326") -> dict:
-        # TODO #47: remove this non-standard process
         self._not_implemented()
 
     def ndvi(self, nir: str = "nir", red: str = "red", target_band: Optional[str] = None) -> "DriverDataCube":
@@ -416,7 +407,7 @@ class DriverVectorCube:
             if driver and "parquet" == driver.lower():
                 return cls.from_parquet(paths=paths, columns_for_cube=columns_for_cube)
             else:
-                gdf = gpd.read_file(paths[0], driver=driver)
+                gdf = gpd.read_file(paths[0], driver=driver, on_invalid="fix")
                 return cls.from_geodataframe(gdf, columns_for_cube=columns_for_cube)
         except Exception as e:
             if not isinstance(e, OpenEOApiException):

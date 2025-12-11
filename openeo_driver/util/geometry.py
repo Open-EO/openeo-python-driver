@@ -9,13 +9,12 @@ import fiona.model
 import pyproj
 import shapely.geometry
 import shapely.ops
-from pyproj import CRS
 from shapely.geometry import MultiPolygon, Polygon
 from shapely.geometry.base import BaseGeometry
 
 from openeo.util import repr_truncate
 from openeo_driver.errors import OpenEOApiException
-from openeo_driver.util.utm import auto_utm_epsg, auto_utm_epsg_for_geometry
+from openeo_driver.util.utm import auto_utm_epsg, auto_utm_epsg_for_geometry, is_auto_utm_crs
 
 _log = logging.getLogger(__name__)
 
@@ -409,6 +408,15 @@ def as_geojson_feature_collection(
     }
 
 
+def epsg_code_or_none(crs: Any) -> Union[int, None]:
+    """Find EPSG code for given CRS, or return None when not possible."""
+    try:
+        epsg = pyproj.CRS.from_user_input(crs).to_epsg()
+        return epsg
+    except pyproj.exceptions.CRSError:
+        return None
+
+
 class BoundingBoxException(ValueError):
     pass
 
@@ -424,6 +432,9 @@ class BoundingBox:
     optionally (geo)referenced.
     """
 
+    # TODO: using frozen dataclasss, but with custom __init__ (for CRS normalization) makes things a bit messy.
+    #       It might be just easier to implement the "frozen dataclass" behavior manually
+
     west: float
     south: float
     east: float
@@ -437,7 +448,7 @@ class BoundingBox:
         east: float,
         north: float,
         *,
-        crs: Optional[Union[str, int]] = None,
+        crs: Union[str, int, None] = None,
     ):
         missing = [
             k
@@ -457,15 +468,12 @@ class BoundingBox:
 
     @staticmethod
     def normalize_crs(crs: Union[str, int]) -> str:
-        if crs == "Auto42001" or crs == "AUTO:42001" or "Auto42001" in str(crs) :
-            return crs
-        proj_crs = CRS.from_user_input(crs)
-        maybeEPSG = proj_crs.to_epsg()
-        if maybeEPSG:
-            return f"EPSG:{maybeEPSG}"
+        if is_auto_utm_crs(crs):
+            return "AUTO:42001"
+        if epsg := epsg_code_or_none(crs):
+            return f"EPSG:{epsg}"
         else:
             raise BoundingBoxException(f"Invalid CRS {crs!r}")
-
 
     @classmethod
     def from_dict(
@@ -505,6 +513,10 @@ class BoundingBox:
         return cls(*wsen, crs=crs)
 
     def is_georeferenced(self) -> bool:
+        # TODO: deprecate: "is georeferenced" is bad name for "has CRS" check
+        return self.crs is not None
+
+    def has_crs(self) -> bool:
         return self.crs is not None
 
     def assert_crs(self):
@@ -532,11 +544,31 @@ class BoundingBox:
             minx=self.west, miny=self.south, maxx=self.east, maxy=self.north
         )
 
+    def as_geojson(self) -> dict:
+        """Represent as a GeoJSON Polygon dictionary (in lon-lat)"""
+        polygon = self.as_polygon()
+        if self.crs not in {None, "EPSG:4326"}:
+            polygon = reproject_geometry(geometry=polygon, from_crs=self.crs, to_crs="EPSG:4326")
+        return shapely.geometry.mapping(polygon)
+
+    def approx(self, rel: Optional[float] = 0, abs: Optional[float] = None) -> "BoundingBox":
+        """Pytest helper to construct an expected bounding box with tolerance"""
+        # Local import as pytest is not a required dependency in general
+        import pytest
+
+        return BoundingBox(
+            west=pytest.approx(self.west, rel=rel, abs=abs),
+            south=pytest.approx(self.south, rel=rel, abs=abs),
+            east=pytest.approx(self.east, rel=rel, abs=abs),
+            north=pytest.approx(self.north, rel=rel, abs=abs),
+            crs=self.crs,
+        )
+
     def contains(self, x: float, y: float) -> bool:
         """Check if given point is inside the bounding box"""
         return (self.west <= x <= self.east) and (self.south <= y <= self.north)
 
-    def reproject(self, crs) -> "BoundingBox":
+    def reproject(self, crs: Union[str, int]) -> "BoundingBox":
         """
         Reproject bounding box to given CRS to a new bounding box.
 
@@ -546,12 +578,13 @@ class BoundingBox:
         """
         self.assert_crs()
         crs = self.normalize_crs(crs)
-        isUTM = crs == "AUTO:42001" or "Auto42001" in str(crs)
-        if isUTM:
+
+        if is_auto_utm_crs(crs):
             return self.reproject_to_best_utm()
 
         if crs == self.crs:
             return self
+
         transform = pyproj.Transformer.from_crs(
             crs_from=self.crs, crs_to=crs, always_xy=True
         ).transform
@@ -570,20 +603,83 @@ class BoundingBox:
     def reproject_to_best_utm(self):
         return self.reproject(crs=self.best_utm())
 
-    def _is_valid(self):
-        for v in self.as_wsen_tuple():
-            if not math.isfinite(v):
-                return False
-        return True
-
-    def round_to_resolution(self,resX,resY):
-        if(not self._is_valid()):
-            return self
-
+    def round_to_resolution(self, res_x: float, res_y: Optional[float] = None) -> "BoundingBox":
+        if res_y is None:
+            res_y = res_x
         return BoundingBox(
-        west = resX * math.floor(self.west / resX),
-        east = resX * math.ceil(self.east / resX),
-        south = resY * math.floor(self.south / resY),
-        north = resY * math.ceil(self.north / resY),
-        crs = self.crs
+            west=res_x * math.floor(self.west / res_x) if math.isfinite(self.west) else self.west,
+            east=res_x * math.ceil(self.east / res_x) if math.isfinite(self.east) else self.east,
+            south=res_y * math.floor(self.south / res_y) if math.isfinite(self.south) else self.south,
+            north=res_y * math.ceil(self.north / res_y) if math.isfinite(self.north) else self.north,
+            crs=self.crs,
         )
+
+    def buffer(self, dx: float, dy: Union[float, None] = None) -> "BoundingBox":
+        """Buffer the bounding box by given distance (in units of the bounding box CRS)"""
+        # TODO: what to do with negative buffering that overshoots the bbox width or height? Assert here or in main constructor?
+        # TODO: also support 4-component buffering (left, bottom, right, top)?
+        if dy is None:
+            dy = dx
+        return BoundingBox(
+            west=self.west - dx, south=self.south - dy, east=self.east + dx, north=self.north + dy, crs=self.crs
+        )
+
+    def align_to(self, target: Union[None, str, int, "BoundingBox"]) -> "BoundingBox":
+        """
+        Align the projection of this bounding box to another CRS "source"
+        (None for "unspecified", a CRS code or the CRS of another bounding box):
+
+        - if current and target CRS are None ("unspecified"): do nothing
+        - if current and target CRS are both specified, reproject appropriately
+        - fail otherwise (as it's unclear how to handle alignment)
+        """
+        if isinstance(target, BoundingBox):
+            target_crs = target.crs
+        elif target is None:
+            target_crs = None
+        else:
+            target_crs = self.normalize_crs(target)
+
+        if self.crs is None:
+            if target_crs is None:
+                return self
+            else:
+                raise CrsRequired(f"Can not reproject bounding box with unspecified CRS to {target_crs!r}.")
+        else:
+            if target_crs is None:
+                # TODO: option to just erase the CRS field instead of failing?
+                raise BoundingBoxException(f"Can not reproject bounding box with CRS {self.crs!r} to unspecified CRS.")
+            else:
+                if self.crs != target_crs:
+                    return self.reproject(crs=target_crs)
+                else:
+                    return self
+
+    def union(self, other: "BoundingBox") -> "BoundingBox":
+        """
+        Get bounding box covering both this and the other bounding box.
+        When other bounding box is in another projection, it is first reprojected to this bounding box's CRS.
+        """
+        other = other.align_to(self)
+        return BoundingBox(
+            west=min(self.west, other.west),
+            south=min(self.south, other.south),
+            east=max(self.east, other.east),
+            north=max(self.north, other.north),
+            crs=self.crs,
+        )
+
+    def intersection(self, other: "BoundingBox") -> Union["BoundingBox", None]:
+        """
+        Get bounding box representing the intersection of this and the other bounding box.
+        When other bounding box is in another projection, it is first reprojected to this bounding box's CRS.
+        returns None when there is no intersection.
+        """
+        other = other.align_to(self)
+        west = max(self.west, other.west)
+        south = max(self.south, other.south)
+        east = min(self.east, other.east)
+        north = min(self.north, other.north)
+        if west >= east or south >= north:
+            return None
+        return BoundingBox(west=west, south=south, east=east, north=north, crs=self.crs)

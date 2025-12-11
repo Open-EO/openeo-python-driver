@@ -7,7 +7,6 @@ import inspect
 from pathlib import Path
 from typing import Any, Callable, Collection, Dict, List, Optional, Tuple, Union, Iterable
 
-from openeo_driver.datacube import DriverDataCube
 from openeo_driver.errors import (
     OpenEOApiException,
     ProcessParameterInvalidException,
@@ -60,27 +59,10 @@ class ProcessSpec:
         self._returns = {"description": description, "schema": schema}
         return self
 
-    def to_dict_040(self) -> dict:
-        """Generate process spec as (JSON-able) dictionary (API 0.4.0 style)."""
-        # TODO #47 drop this
-        if len(self._parameters) == 0:
-            _log.warning("Process with no parameters")
-        assert self._returns is not None
-        return {**self.extra, **{
-            "id": self.id,
-            "description": self.description,
-            "parameters": {
-                p.name: {"description": p.description, "schema": p.schema, "required": p.required}
-                for p in self._parameters
-            },
-            "parameter_order": [p.name for p in self._parameters],
-            "returns": self._returns
-        }}
-
     def to_dict_100(self) -> dict:
         """Generate process spec as (JSON-able) dictionary (API 1.0.0 style)."""
         if len(self._parameters) == 0:
-            _log.warning(f"Process with no parameters: {self.id!r}")
+            _log.debug(f"Process with no parameters: {self.id!r}")
         assert self._returns is not None
         return {**self.extra, **{
             "id": self.id,
@@ -399,6 +381,36 @@ ArgumentValue = Any
 Validator = Callable[[Any], bool]
 
 
+@functools.lru_cache
+def _describe_type(type_: Union[type, Tuple[type, ...]]) -> str:
+    """
+    Map Python type (or tuple of types) to more user-friendly,
+    and less Python-specific name or description,
+    to be used in `ProcessParameterInvalid` errors.
+    """
+
+    # Local import to avoid import cycles
+    from openeo_driver.datacube import DriverDataCube
+    from openeo_driver.datacube import DriverVectorCube
+
+    type_map = {
+        int: "integer",
+        float: "float",
+        str: "string",
+        dict: "dictionary/mapping",
+        type(None): "null/None",
+        DriverDataCube: "raster cube",
+        DriverVectorCube: "vector cube",
+    }
+
+    if type_ in type_map:
+        return type_map[type_]
+    elif isinstance(type_, tuple):
+        return " or ".join(_describe_type(t) for t in type_)
+    else:
+        return str(type_)
+
+
 class ProcessArgs(dict):
     """
     Wrapper for process argument extraction with proper exception throwing.
@@ -409,6 +421,7 @@ class ProcessArgs(dict):
 
     def __init__(self, args: dict, process_id: Optional[str] = None):
         super().__init__(args)
+        # Current process id
         self.process_id = process_id
 
     @classmethod
@@ -419,24 +432,39 @@ class ProcessArgs(dict):
             args = ProcessArgs(args=args, process_id=process_id)
         return args
 
+    def contains(self, name: str) -> bool:
+        return name in self
+
     def get_required(
         self,
         name: str,
         *,
         expected_type: Optional[Union[type, Tuple[type, ...]]] = None,
+        expected_type_name: Optional[str] = None,
         validator: Optional[Validator] = None,
     ) -> ArgumentValue:
         """
         Get a required argument by name.
 
         Originally: `extract_arg`.
+
+        :param name: argument name
+        :param default: default value or a function/factory to generate the default value
+        :param expected_type: expected class (or list of multiple options) the value should be (unless it's None)
+        :param expected_type_name: user friendly description of expected type(s)
+        :param validator: optional validation callable
         """
-        # TODO: add option for type check too
         try:
             value = self[name]
         except KeyError:
             raise ProcessParameterRequiredException(process=self.process_id, parameter=name) from None
-        self._check_value(name=name, value=value, expected_type=expected_type, validator=validator)
+        self._check_value(
+            name=name,
+            value=value,
+            expected_type=expected_type,
+            expected_type_name=expected_type_name,
+            validator=validator,
+        )
         return value
 
     def _check_value(
@@ -445,14 +473,17 @@ class ProcessArgs(dict):
         name: str,
         value: Any,
         expected_type: Optional[Union[type, Tuple[type, ...]]] = None,
+        expected_type_name: Optional[str] = None,
         validator: Optional[Validator] = None,
     ):
         if expected_type:
             if not isinstance(value, expected_type):
-                if expected_type is DriverDataCube:
-                    expected_type = "raster cube"
+                expected_type_name = expected_type_name or _describe_type(expected_type)
+                actual_type_name = _describe_type(type(value))
                 raise ProcessParameterInvalidException(
-                    parameter=name, process=self.process_id, reason=f"Expected {expected_type} but got {type(value)}."
+                    parameter=name,
+                    process=self.process_id,
+                    reason=f"Expected {expected_type_name} but got {actual_type_name}.",
                 )
         if validator:
             reason = None
@@ -475,6 +506,7 @@ class ProcessArgs(dict):
         default: Union[Any, Callable[[], Any]] = None,
         *,
         expected_type: Optional[Union[type, Tuple[type, ...]]] = None,
+        expected_type_name: Optional[str] = None,
         validator: Optional[Validator] = None,
     ) -> ArgumentValue:
         """
@@ -483,6 +515,7 @@ class ProcessArgs(dict):
         :param name: argument name
         :param default: default value or a function/factory to generate the default value
         :param expected_type: expected class (or list of multiple options) the value should be (unless it's None)
+        :param expected_type_name: user friendly description of expected type(s)
         :param validator: optional validation callable
         """
         if name in self:
@@ -490,7 +523,13 @@ class ProcessArgs(dict):
         else:
             value = default() if callable(default) else default
         if value is not None:
-            self._check_value(name=name, value=value, expected_type=expected_type, validator=validator)
+            self._check_value(
+                name=name,
+                value=value,
+                expected_type=expected_type,
+                expected_type_name=expected_type_name,
+                validator=validator,
+            )
 
         return value
 

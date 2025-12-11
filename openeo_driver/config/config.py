@@ -1,5 +1,5 @@
 import os
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Container, Union
 
 import attrs
 
@@ -11,6 +11,7 @@ from openeo_driver.config.base import (
     check_config_definition,
     openeo_backend_config_class,
 )
+from openeo_driver.config.util import Exclude
 from openeo_driver.server import build_backend_deploy_metadata
 from openeo_driver.urlsigning import UrlSigner
 from openeo_driver.users.oidc import OidcProvider
@@ -72,10 +73,18 @@ class OpenEoBackendConfig(_ConfigBase):
     asset_url: AssetUrl = attrs.Factory(AssetUrl)
 
     """
-    Collection exclusion list: mapping of API version to collections to exclude
-    e.g. {"1.1.0": ["my_collection_id"]}
+    Collection exclusion list: what collections to hide from the `GET /collections` listing.
+    To be provided as one of
+    - an object that implements the `Container[str]` interface
+      such as a simple `List[str]` or `Set[str]`
+      or a custom implementation (e.g. see `openeo_driver.config.util.Exclude`)
+    - a mapping of such objects keyed on API version to make the exclusion list version dependent
+      key `None` can be used for a fallback exclusion list for all versions not explicitly listed.
+      e.g. {"1.2.0": ["private_collection"], None: Exclude.by_prefix("_")}`
+
+    By default, collection ids starting with underscore are excluded.
     """
-    collection_exclusion_list: Dict[str, List[str]] = attrs.Factory(dict)
+    collection_exclusion_list: Union[Container[str], Dict[str, Container[str]]] = Exclude.by_prefix("_")
 
     """
     Process exclusion list: mapping of API version to processes to exclude

@@ -2673,7 +2673,6 @@ def test_normalize_geometries(dry_run_env, dry_run_tracer):
     params = [_extract_load_parameters(dry_run_env, source_id) for source_id, _ in source_constraints]
     # extents = [BoundingBox.from_dict(param.spatial_extent).as_polygon() for param in params]
 
-    # from shapely.geometry import mapping
     # from shapely.ops import transform
     # import json
     # import pyproj

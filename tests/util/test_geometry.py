@@ -3,14 +3,14 @@ import math
 from typing import List, Union
 
 import pyproj
+import pyproj.exceptions
 import pytest
 import shapely.geometry
 from numpy.testing import assert_allclose
-from pyproj.exceptions import CRSError
 from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseGeometry
 
-
+from openeo_driver.testing import approxify
 from openeo_driver.util.geometry import (
     BoundingBox,
     BoundingBoxException,
@@ -23,6 +23,7 @@ from openeo_driver.util.geometry import (
     reproject_geometry,
     spatial_extent_union,
     validate_geojson_basic,
+    epsg_code_or_none,
 )
 
 from ..data import get_path
@@ -619,6 +620,17 @@ class TestAsGeoJsonFeatureCollection:
         }
 
 
+def test_epsg_code_or_none():
+    assert epsg_code_or_none(None) is None
+    assert epsg_code_or_none(0) is None
+    assert epsg_code_or_none("nope") is None
+
+    assert epsg_code_or_none(4326) == 4326
+    assert epsg_code_or_none("EPSG:4326") == 4326
+    assert epsg_code_or_none(32631) == 32631
+    assert epsg_code_or_none(pyproj.CRS.from_epsg(32631)) == 32631
+
+
 class TestBoundingBox:
     def test_basic(self):
         bbox = BoundingBox(1, 2, 3, 4)
@@ -662,7 +674,7 @@ class TestBoundingBox:
             _ = BoundingBox(1, None, 3, 4)
 
     def test_missing_invalid_crs(self):
-        with pytest.raises(CRSError):
+        with pytest.raises(BoundingBoxException, match="Invalid CRS 'foobar:42'"):
             _ = BoundingBox(1, 2, 3, 4, crs="foobar:42")
 
     @pytest.mark.parametrize(
@@ -721,6 +733,10 @@ class TestBoundingBox:
         assert BoundingBox(1, 2, 3, 4).is_georeferenced() is False
         assert BoundingBox(1, 2, 3, 4, crs=4326).is_georeferenced() is True
 
+    def test_has_crs(self):
+        assert BoundingBox(1, 2, 3, 4).has_crs() is False
+        assert BoundingBox(1, 2, 3, 4, crs=4326).has_crs() is True
+
     def test_as_tuple(self):
         bbox = BoundingBox(1, 2, 3, 4)
         assert bbox.as_tuple() == (1, 2, 3, 4, None)
@@ -730,6 +746,41 @@ class TestBoundingBox:
     def test_as_wsen_tuple(self):
         assert BoundingBox(1, 2, 3, 4).as_wsen_tuple() == (1, 2, 3, 4)
         assert BoundingBox(1, 2, 3, 4, crs="epsg:4326").as_wsen_tuple() == (1, 2, 3, 4)
+
+    def test_as_polygon(self):
+        bbox = BoundingBox(1, 2, 3, 4)
+        polygon = bbox.as_polygon()
+        assert isinstance(polygon, shapely.geometry.Polygon)
+        assert shapely.geometry.mapping(polygon) == {
+            "type": "Polygon",
+            "coordinates": (((3, 2), (3, 4), (1, 4), (1, 2), (3, 2)),),
+        }
+
+    def test_as_geojson(self):
+        bbox = BoundingBox(1, 2, 3, 4)
+        assert bbox.as_geojson() == {
+            "type": "Polygon",
+            "coordinates": (((3, 2), (3, 4), (1, 4), (1, 2), (3, 2)),),
+        }
+
+    def test_approx(self):
+        expected = BoundingBox(100, 200, 300, 400)
+        bbox = BoundingBox(100.01, 200.01, 300.01, 400.01)
+        assert bbox == expected.approx(abs=0.1)
+        assert bbox != expected.approx(abs=0.001)
+
+        assert bbox == expected.approx(rel=0.001)
+        assert bbox != expected.approx(rel=0.0001)
+
+    def test_as_geojson_from_utm(self):
+        bbox = BoundingBox(500000, 5649824, 507016, 5660950, crs="EPSG:32631")
+        assert bbox.as_geojson() == {
+            "type": "Polygon",
+            "coordinates": approxify(
+                (((3.1, 51.0), (3.1, 51.1), (3.0, 51.1), (3.0, 51.0), (3.1, 51.0)),),
+                abs=0.001,
+            ),
+        }
 
     def test_reproject(self):
         bbox = BoundingBox(3, 51, 3.1, 51.1, crs="epsg:4326")
@@ -754,6 +805,165 @@ class TestBoundingBox:
 
         bbox = BoundingBox(-72, -13, -71, -12, crs="EPSG:4326")
         assert bbox.best_utm() == 32719
+
+    def test_round_to_resolution_small(self):
+        bbox = BoundingBox(4.12345, 50.12345, 4.6789, 51.6789)
+        rounded = bbox.round_to_resolution(0.01, 0.1)
+        assert rounded.as_tuple() == (4.12, 50.1, 4.68, 51.7, None)
+
+    def test_round_to_resolution_large(self):
+        bbox = BoundingBox(500435.6, 5649834.7, 507678.1, 5667864.1)
+        rounded = bbox.round_to_resolution(10, 20)
+        assert rounded.as_tuple() == (500430, 5649820, 507680, 5667880, None)
+
+    def test_round_to_resolution_nodata(self):
+        bbox = BoundingBox(500435.6, 5649834.7, 507678.1, float("inf"))
+        rounded = bbox.round_to_resolution(10, 20)
+        assert rounded.as_tuple() == (500430, 5649820, 507680, float("inf"), None)
+
+    def test_round_to_resolution_single(self):
+        bbox = BoundingBox(500435.6, 5649834.7, 507678.1, 5667864.1)
+        rounded = bbox.round_to_resolution(10)
+        assert rounded.as_tuple() == (500430, 5649830, 507680, 5667870, None)
+
+    def test_buffer(self):
+        bbox = BoundingBox(1, 2, 3, 4, crs=4326)
+
+        assert bbox.buffer(1).as_tuple() == (0, 1, 4, 5, "EPSG:4326")
+        assert bbox.buffer(0.1).as_tuple() == (0.9, 1.9, 3.1, 4.1, "EPSG:4326")
+        assert bbox.buffer(-0.1).as_tuple() == (1.1, 2.1, 2.9, 3.9, "EPSG:4326")
+
+        assert bbox.buffer(0.5, 0.1).as_tuple() == (0.5, 1.9, 3.5, 4.1, "EPSG:4326")
+        assert bbox.buffer(0.5, -0.1).as_tuple() == (0.5, 2.1, 3.5, 3.9, "EPSG:4326")
+
+        # TODO: instead of this nonsense result, should this fail, or result in some special empty case?
+        assert bbox.buffer(-10).as_tuple() == (11, 12, -7, -6, "EPSG:4326")
+
+    @pytest.mark.parametrize(
+        ["bbox", "target", "expected"],
+        [
+            (BoundingBox(11, 12, 13, 14), None, BoundingBox(11, 12, 13, 14, crs=None)),
+            (BoundingBox(11, 12, 13, 14, crs=4326), 4326, BoundingBox(11, 12, 13, 14, crs=4326)),
+            (BoundingBox(11, 12, 13, 14, crs=4326), "EPSG:4326", BoundingBox(11, 12, 13, 14, crs=4326)),
+            (
+                BoundingBox(11, 12, 13, 14, crs=4326),
+                None,
+                BoundingBoxException("Can not reproject bounding box with CRS 'EPSG:4326' to unspecified CRS."),
+            ),
+            (
+                BoundingBox(11, 12, 13, 14, crs=None),
+                "EPSG:4326",
+                CrsRequired("Can not reproject bounding box with unspecified CRS to 'EPSG:4326'."),
+            ),
+            (
+                BoundingBox(11, 12, 13, 14, crs=4326),
+                BoundingBox(5, 6, 7, 8, crs=4326),
+                BoundingBox(11, 12, 13, 14, crs=4326),
+            ),
+            (
+                BoundingBox(3.1, 51.1, 3.2, 51.2, crs=4326),
+                32631,
+                BoundingBox(west=506986, south=5660950, east=514003, north=5672085, crs="EPSG:32631").approx(abs=1),
+            ),
+        ],
+    )
+    def test_align_to(self, bbox, target, expected):
+        if isinstance(expected, BoundingBox):
+            aligned = bbox.align_to(target)
+            assert aligned == expected
+        elif isinstance(expected, Exception):
+            with pytest.raises(type(expected), match=str(expected)):
+                _ = bbox.align_to(target)
+        else:
+            raise ValueError(expected)
+
+    @pytest.mark.parametrize(
+        ["bbox1", "bbox2", "expected"],
+        [
+            (
+                BoundingBox(11, 12, 13, 14),
+                BoundingBox(16, 15, 17, 18),
+                BoundingBox(11, 12, 17, 18),
+            ),
+            (
+                BoundingBox(11, 12, 13, 14, crs=4326),
+                BoundingBox(16, 15, 17, 18, crs=4326),
+                BoundingBox(11, 12, 17, 18, crs=4326),
+            ),
+            (
+                BoundingBox(3.1, 51.1, 3.11, 51.11, crs="epsg:4326"),
+                BoundingBox(500000, 5649824, 507016, 5660950, crs="EPSG:32631"),
+                BoundingBox(3, 51, 3.11, 51.11, crs="EPSG:4326").approx(abs=1e-4),
+            ),
+            (
+                BoundingBox(500000, 5649824, 507016, 5660950, crs="EPSG:32631"),
+                BoundingBox(3.1, 51.1, 3.11, 51.11, crs="epsg:4326"),
+                BoundingBox(500000, 5649824, 507702, 5662063, crs="EPSG:32631").approx(abs=1),
+            ),
+        ],
+    )
+    def test_union(self, bbox1, bbox2, expected):
+        result = bbox1.union(bbox2)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ["bbox1", "bbox2", "expected"],
+        [
+            (
+                # Simple overlap
+                BoundingBox(1, 2, 5, 6),
+                BoundingBox(3, 4, 8, 9),
+                BoundingBox(3, 4, 5, 6),
+            ),
+            (
+                # large x-shift
+                BoundingBox(1, 2, 5, 6),
+                BoundingBox(13, 4, 18, 9),
+                None,
+            ),
+            (
+                # Large y-shift
+                BoundingBox(1, 2, 5, 6),
+                BoundingBox(3, 14, 8, 19),
+                None,
+            ),
+            (
+                # One larger containing the other
+                BoundingBox(10, 20, 30, 40),
+                BoundingBox(12, 22, 14, 24),
+                BoundingBox(12, 22, 14, 24),
+            ),
+            (
+                # explicit CRS
+                BoundingBox(1, 2, 5, 6, crs=4326),
+                BoundingBox(3, 4, 8, 9, crs="EPSG:4326"),
+                BoundingBox(3, 4, 5, 6, crs="EPSG:4326"),
+            ),
+            (
+                BoundingBox(3.1, 51.1, 3.3, 51.3, crs="epsg:4326"),
+                # Roughly (3.2, 51.2, 3.4, 51.4) in lot-lan:
+                BoundingBox(513912, 5672085, 527946, 5694383, crs="EPSG:32631"),
+                BoundingBox(3.2, 51.2, 3.3, 51.3, crs="EPSG:4326").approx(abs=0.001),
+            ),
+            (
+                # Roughly (3.2, 51.2, 3.4, 51.4) in lot-lan:
+                BoundingBox(513912, 5672085, 527946, 5694383, crs="EPSG:32631"),
+                BoundingBox(3.1, 51.1, 3.3, 51.3, crs="epsg:4326"),
+                BoundingBox(513912, 5672085, 521005, 5683229, crs="EPSG:32631").approx(abs=1),
+            ),
+            (
+                BoundingBox(13.1, 51.1, 13.3, 51.3, crs="epsg:4326"),
+                BoundingBox(513912, 5672085, 527946, 5694383, crs="EPSG:32631"),
+                None,
+            ),
+        ],
+    )
+    def test_intersection(self, bbox1, bbox2, expected):
+        assert bbox1.intersection(bbox2) == expected
+
+        # When there is no reprojection in play we can easily verify the reverse case too
+        if bbox1.crs == bbox2.crs:
+            assert bbox2.intersection(bbox1) == expected
 
 
 class TestValidateGeoJSON:

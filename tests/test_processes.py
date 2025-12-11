@@ -5,7 +5,7 @@ import re
 import pytest
 import dirty_equals
 
-from openeo_driver.datacube import DriverDataCube
+from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.errors import (
     OpenEOApiException,
     ProcessParameterInvalidException,
@@ -15,31 +15,6 @@ from openeo_driver.errors import (
 from openeo_driver.processes import ProcessArgs, ProcessRegistry, ProcessRegistryException, ProcessSpec
 
 
-def test_process_spec_basic_040():
-    spec = (
-        ProcessSpec("mean", "Mean value")
-            .param("input", "Input data", schema={"type": "array", "items": {"type": "number"}})
-            .param("mask", "The mask", schema=ProcessSpec.RASTERCUBE, required=False)
-            .returns("Mean value of data", schema={"type": "number"})
-    )
-    assert spec.to_dict_040() == {
-        "id": "mean",
-        "description": "Mean value",
-        "parameters": {
-            "input": {
-                "description": "Input data",
-                "required": True,
-                "schema": {"type": "array", "items": {"type": "number"}}
-            },
-            "mask": {
-                "description": "The mask",
-                "required": False,
-                "schema": {"type": "object", "format": "raster-cube"}
-            }
-        },
-        "parameter_order": ["input", "mask"],
-        "returns": {"description": "Mean value of data", "schema": {"type": "number"}},
-    }
 
 
 def test_process_spec_basic_100():
@@ -70,19 +45,8 @@ def test_process_spec_basic_100():
     }
 
 
-def test_process_spec_no_params_040(caplog):
-    spec = ProcessSpec("foo", "bar").returns("output", schema={"type": "number"})
-    assert spec.to_dict_040() == {
-        "id": "foo",
-        "description": "bar",
-        "parameters": {},
-        "parameter_order": [],
-        "returns": {"description": "output", "schema": {"type": "number"}},
-    }
-    assert caplog.record_tuples == [("openeo_driver.processes", logging.WARN, "Process with no parameters")]
-
-
 def test_process_spec_no_params_100(caplog):
+    caplog.set_level(logging.DEBUG)
     spec = ProcessSpec("foo", "bar").returns("output", schema={"type": "number"})
     assert spec.to_dict_100() == {
         "id": "foo",
@@ -90,7 +54,7 @@ def test_process_spec_no_params_100(caplog):
         "parameters": [],
         "returns": {"description": "output", "schema": {"type": "number"}},
     }
-    assert caplog.record_tuples == [("openeo_driver.processes", logging.WARN, "Process with no parameters: 'foo'")]
+    assert caplog.messages == ["Process with no parameters: 'foo'"]
 
 
 def test_process_spec_no_returns():
@@ -267,34 +231,6 @@ def test_process_registry_add_function_allow_override():
     }
 
 
-def test_process_registry_with_spec_040():
-    reg = ProcessRegistry()
-
-    def add_function_with_spec(spec: ProcessSpec):
-        def decorator(f):
-            reg.add_function(f=f, spec=spec.to_dict_040())
-            return f
-
-        return decorator
-
-    @add_function_with_spec(
-        ProcessSpec("foo", "bar")
-            .param("input", "Input", schema=ProcessSpec.RASTERCUBE)
-            .returns(description="Output", schema=ProcessSpec.RASTERCUBE)
-    )
-    def foo(*args):
-        return 42
-
-    assert reg.get_spec('foo') == {
-        "id": "foo",
-        "description": "bar",
-        "parameters": {
-            "input": {"description": "Input", "schema": {"type": "object", "format": "raster-cube"},
-                      "required": True},
-        },
-        "parameter_order": ["input"],
-        "returns": {"description": "Output", "schema": {"type": "object", "format": "raster-cube"}}
-    }
 
 
 def test_process_registry_with_spec_100():
@@ -495,6 +431,11 @@ class TestProcessArgs:
         args = ProcessArgs({"foo": "bar"}, process_id="wibble")
         assert isinstance(args, dict)
 
+    def test_contains(self):
+        args = ProcessArgs({"foo": "bar"}, process_id="wibble")
+        assert args.contains("foo") == True
+        assert args.contains("color") == False
+
     def test_get_required(self):
         args = ProcessArgs({"foo": "bar"}, process_id="wibble")
         assert args.get_required("foo") == "bar"
@@ -510,10 +451,30 @@ class TestProcessArgs:
         with pytest.raises(
             ProcessParameterInvalidException,
             match=re.escape(
-                "The value passed for parameter 'color' in process 'wibble' is invalid: Expected raster cube but got <class 'str'>."
+                "The value passed for parameter 'color' in process 'wibble' is invalid: Expected raster cube but got string."
             ),
         ):
             _ = args.get_required("color", expected_type=DriverDataCube)
+
+    @pytest.mark.parametrize(
+        ["expected_type", "expected_type_name", "expected_message"],
+        [
+            (DriverDataCube, None, "Expected raster cube but got string"),
+            (DriverDataCube, "bitmap", "Expected bitmap but got string"),
+            (DriverVectorCube, None, "Expected vector cube but got string"),
+            (int, None, "Expected integer but got string"),
+            (int, "natural number", "Expected natural number but got string"),
+            ((int, float), None, r"Expected integer or float but got string"),
+            ((int, float), "number", "Expected number but got string"),
+            (dict, None, "Expected dictionary/mapping but got string"),
+            (dict, "mapping", "Expected mapping but got string"),
+            ((DriverVectorCube, dict), None, "Expected vector cube or dictionary/mapping but got string"),
+        ],
+    )
+    def test_get_required_expected_type_name(self, expected_type, expected_type_name, expected_message):
+        args = ProcessArgs({"color": "red", "size": 5}, process_id="wibble")
+        with pytest.raises(ProcessParameterInvalidException, match=expected_message):
+            _ = args.get_required("color", expected_type=expected_type, expected_type_name=expected_type_name)
 
     def test_get_required_with_validator(self):
         args = ProcessArgs({"color": "red", "size": 5}, process_id="wibble")
@@ -573,10 +534,27 @@ class TestProcessArgs:
         with pytest.raises(
             ProcessParameterInvalidException,
             match=re.escape(
-                "The value passed for parameter 'foo' in process 'wibble' is invalid: Expected raster cube but got <class 'str'>."
+                "The value passed for parameter 'foo' in process 'wibble' is invalid: Expected raster cube but got string."
             ),
         ):
             _ = args.get_optional("foo", expected_type=DriverDataCube)
+
+    @pytest.mark.parametrize(
+        ["expected_type", "expected_type_name", "expected_message"],
+        [
+            (DriverDataCube, None, "Expected raster cube but got string"),
+            (DriverDataCube, "bitmap", "Expected bitmap but got string"),
+            (int, None, "Expected integer but got string"),
+            (int, "integer", "Expected integer but got string"),
+            ((int, float), None, "Expected integer or float but got string"),
+            ((int, float), "number", "Expected number but got string"),
+        ],
+    )
+    def test_get_optional_expected_type_name(self, expected_type, expected_type_name, expected_message):
+        args = ProcessArgs({"color": "red", "size": 5}, process_id="wibble")
+        with pytest.raises(ProcessParameterInvalidException, match=expected_message):
+            _ = args.get_optional("color", expected_type=expected_type, expected_type_name=expected_type_name)
+
 
     def test_get_optional_with_validator(self):
         args = ProcessArgs({"foo": "bar"}, process_id="wibble")
@@ -616,7 +594,7 @@ class TestProcessArgs:
         with pytest.raises(
             ProcessParameterInvalidException,
             match=re.escape(
-                "The value passed for parameter 'foo' in process 'wibble' is invalid: Expected (<class 'openeo_driver.datacube.DriverDataCube'>, <class 'str'>) but got <class 'int'>."
+                "The value passed for parameter 'foo' in process 'wibble' is invalid: Expected raster cube or string but got integer."
             ),
         ):
             _ = args.get_deep("foo", "bar", "size", "x", expected_type=(DriverDataCube, str))

@@ -31,7 +31,8 @@ from openeo.util import load_json, rfc3339, str_truncate
 from openeo.utils.version import ComparableVersion
 from pyproj import CRS
 from pyproj.exceptions import CRSError
-from shapely.geometry import GeometryCollection, MultiPolygon, mapping, shape
+from shapely.geometry import GeometryCollection, MultiPolygon
+import shapely.geometry
 
 from openeo_driver import dry_run
 from openeo_driver.backend import (
@@ -78,7 +79,10 @@ from openeo_driver.util.utm import auto_utm_epsg_for_geometry
 from openeo_driver.utils import EvalEnv, smart_bool
 from openeo_driver.views import OPENEO_API_VERSION_DEFAULT
 
-DEFAULT_TEMPORAL_EXTENT = ["1970-01-01", "2070-01-01"]  # also a sentinel value for load_stac
+
+# TODO: Eliminate usage and definition of DEFAULT_TEMPORAL_EXTENT
+#       (openeo-python-driver should stick to `None` to signal "unspecified", not prescribe some arbitrary value).
+DEFAULT_TEMPORAL_EXTENT = ["1970-01-01", "2070-01-01"]
 
 _log = logging.getLogger(__name__)
 
@@ -465,15 +469,29 @@ def evaluate(
     if do_dry_run:
         dry_run_tracer = do_dry_run if isinstance(do_dry_run, DryRunDataTracer) else DryRunDataTracer()
         _log.info("Doing dry run")
-        convert_node(top_level_node, env=env.push({
-            ENV_DRY_RUN_TRACER: dry_run_tracer,
-            ENV_SAVE_RESULT: [],  # otherwise dry run and real run append to the same mutable result list
-            "node_caching": False
-        }))
+        dry_run_env = env.push(
+            {
+                ENV_DRY_RUN_TRACER: dry_run_tracer,
+                ENV_SAVE_RESULT: [],  # otherwise dry run and real run append to the same mutable result list
+                # TODO: why to disable node caching in dry run? E.g. ideally "full" caching ("reuse" actually) should be the default.
+                "node_caching": False
+            }
+        )
+        dry_run_result = convert_node(top_level_node, env=dry_run_env)
         # TODO: work with a dedicated DryRunEvalEnv?
         source_constraints = dry_run_tracer.get_source_constraints()
         _log.info("Dry run extracted these source constraints: {s}".format(s=source_constraints))
+
+        # TODO: Given the post-dry-run hook concept: is it still necessary to push source_constraints into env?
         env = env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
+
+        post_dry_run_data = env.backend_implementation.post_dry_run(
+            dry_run_result=dry_run_result,
+            dry_run_tracer=dry_run_tracer,
+            source_constraints=source_constraints,
+        )
+        if post_dry_run_data:
+            env = env.push(post_dry_run_data)
 
     result = convert_node(top_level_node, env=env)
     if len(env[ENV_SAVE_RESULT]) > 0:
@@ -617,17 +635,26 @@ def extract_arg(args: ProcessArgs, name: str, process_id="n/a"):
     # TODO: eliminate this function, use `ProcessArgs.get_required()` directly
     return _as_process_args(args, process_id=process_id).get_required(name=name)
 
-def _collection_crs(collection_id, env) -> str:
-    metadata = None
+
+def _collection_crs(collection_id: str, env: EvalEnv) -> Union[None, str, int]:
+    """
+    Get spatial reference system from of the data in openEO collection metadata (based on datacube STAC extension)
+    """
+    # TODO: this only works for predefined openEO collections,
+    #       so this is source of inconsistency with direct `load_stac` usage
     try:
         metadata = env.backend_implementation.catalog.get_collection_metadata(collection_id)
     except CollectionNotFoundException:
         return None
+    # TODO: the default reference_system according to the datacube spec is 4326 (EPSG code as integer)
+    #       but changing that here might have unintended side-effects.
     crs = metadata.get("cube:dimensions", {}).get("x", {}).get("reference_system", None)
     return crs
 
 
-def _collection_resolution(collection_id, env) -> Optional[List[int]]:
+def _collection_resolution(collection_id: str, env: EvalEnv) -> Optional[List[int]]:
+    # TODO: this only works for predefined openEO collections,
+    #       so this is source of inconsistency with direct `load_stac` usage
     try:
         metadata = env.backend_implementation.catalog.get_collection_metadata(collection_id)
     except CollectionNotFoundException:
@@ -640,25 +667,24 @@ def _collection_resolution(collection_id, env) -> Optional[List[int]]:
         return None
 
 
-def _align_extent(extent,collection_id,env,target_resolution=None):
-    metadata = None
+def _align_extent(extent: dict, collection_id: str, env: EvalEnv, target_resolution=None) -> dict:
     try:
         metadata = env.backend_implementation.catalog.get_collection_metadata(collection_id)
     except CollectionNotFoundException:
-        pass
+        metadata = None
 
     # TODO #275 eliminate this VITO specific handling?
     if metadata is None or not metadata.get("_vito",{}).get("data_source", {}).get("realign", True):
         return extent
 
-    crs = _collection_crs(collection_id, env)
+    crs = _collection_crs(collection_id=collection_id, env=env)
     collection_resolution = _collection_resolution(collection_id, env)
     isUTM = crs == "AUTO:42001" or "Auto42001" in str(crs)
 
     x = metadata.get('cube:dimensions', {}).get('x', {})
     y = metadata.get('cube:dimensions', {}).get('y', {})
 
-    if (target_resolution == None and collection_resolution == None):
+    if target_resolution is None and collection_resolution is None:
         return extent
 
     if (
@@ -721,34 +747,48 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
 
     """
     source_constraints: List[SourceConstraint] = env[ENV_SOURCE_CONSTRAINTS]
-    global_extent = None
-    process_types = set()
 
     filtered_constraints = [c for c in source_constraints if c[0] == source_id]
 
     if len(filtered_constraints) == 0:
         raise Exception(f"Could not find source constraints for source {source_id}, available constraints are: {set([id for id,_ in source_constraints])}")
 
+    # Note: As optimization, global_extent is calculated from and stored in all source constraints,
+    #       not just the filtered ones. Calculation is done on first _extract_load_parameters call and reused afterwards.
+    # Note: global_extent is also a geopyspark-driver specific internal
+    # TODO #441 remove this legacy global_extent logic
     if "global_extent" not in source_constraints[0][1]:
+        global_extent = None
 
-        for collection_id, constraint in source_constraints:
+        for sid, constraint in source_constraints:
+            if sid[0] == "load_collection":
+                collection_id = sid[1][0]
+            elif sid[0] == "load_stac":
+                # TODO: cover this case better?
+                collection_id = "_load_stac_no_collection_id"
+            else:
+                # TODO: cover this as well?
+                collection_id = "_unknown_no_collection_id"
+
             extent = None
             if "spatial_extent" in constraint:
                 extent = constraint["spatial_extent"]
             elif "weak_spatial_extent" in constraint:
                 extent = constraint["weak_spatial_extent"]
+
             if extent is not None:
-                collection_crs = _collection_crs(collection_id[1][0], env)
-                crs = constraint.get("resample", {}).get("target_crs", collection_crs) or collection_crs
-                target_resolution = constraint.get("resample", {}).get("resolution", None) or _collection_resolution(collection_id[1][0], env)
+                collection_crs = _collection_crs(collection_id=collection_id, env=env)
+                target_crs = constraint.get("resample", {}).get("target_crs", collection_crs) or collection_crs
+                target_resolution = constraint.get("resample", {}).get("resolution", None) or _collection_resolution(
+                    collection_id=collection_id, env=env
+                )
 
                 if "pixel_buffer" in constraint:
-
                     buffer = constraint["pixel_buffer"]["buffer_size"]
 
-                    if (crs is not None) and target_resolution:
+                    if (target_crs is not None) and target_resolution:
                         bbox = BoundingBox.from_dict(extent, default_crs=4326)
-                        extent = bbox.reproject(crs).as_dict()
+                        extent = bbox.reproject(target_crs).as_dict()
 
                         extent = {
                             "west": extent["west"] - target_resolution[0] * math.ceil(buffer[0]),
@@ -760,26 +800,28 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
                     else:
                         _log.warning("Not applying buffer to extent because the target CRS is not known.")
 
-                load_collection_in_native_grid = "resample" not in constraint or crs == collection_crs
+                load_collection_in_native_grid = "resample" not in constraint or target_crs == collection_crs
                 if (not load_collection_in_native_grid) and collection_crs is not None and ("42001" in str(collection_crs)):
                     #resampling auto utm to utm means we are loading in native grid
                     try:
-                        load_collection_in_native_grid = "UTM zone" in CRS.from_user_input(crs).to_wkt()
+                        load_collection_in_native_grid = "UTM zone" in CRS.from_user_input(target_crs).to_wkt()
                     except CRSError as e:
                         pass
 
-
                 if  load_collection_in_native_grid:
                     # Ensure that the extent that the user provided is aligned with the collection's native grid.
-
-                    extent = _align_extent(extent, collection_id[1][0], env,target_resolution)
+                    extent = _align_extent(
+                        extent=extent, collection_id=collection_id, env=env, target_resolution=target_resolution
+                    )
 
                 global_extent = spatial_extent_union(global_extent, extent) if global_extent else extent
 
         #store global extent in all constraints, too ensure the same extent everywhere
-        for collection_id, constraint in source_constraints:
+        for _, constraint in source_constraints:
             constraint["global_extent"] = global_extent
 
+    # Note: As optimization, process_types is calculated from, stored in and reused
+    #       for multiple source constraints here, not just the current `source_id`.
     process_types = filtered_constraints[0][1].get("process_types", None)
     if not process_types:
         process_types = set()
@@ -788,7 +830,6 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
                 process_types |= set(constraint["process_type"])
         for _, constraint in filtered_constraints:
             constraint["process_types"] = process_types
-
 
     max_buffer_cache = env[ENV_MAX_BUFFER]
 
@@ -812,7 +853,9 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
     source_constraints.remove((source_id,constraints))  # Side effect!
 
     params = LoadParameters()
-    params.temporal_extent = constraints.get("temporal_extent", DEFAULT_TEMPORAL_EXTENT)
+    if temporal_extent := constraints.get("temporal_extent"):
+        params.temporal_extent = temporal_extent
+    # TODO: avoid duplication of default values used here and in LoadParameters definition
     labels_args = constraints.get("filter_labels", {})
     if("dimension" in labels_args and labels_args["dimension"] == "t"):
         params.filter_temporal_labels = labels_args.get("condition")
@@ -962,13 +1005,13 @@ def vector_buffer(args: ProcessArgs, env: EvalEnv) -> dict:
     elif isinstance(geometry, dict) and "type" in geometry:
         geometry_type = geometry["type"]
         if geometry_type == "FeatureCollection":
-            geoms = [shape(feat["geometry"]) for feat in geometry["features"]]
+            geoms = [shapely.geometry.shape(feat["geometry"]) for feat in geometry["features"]]
         elif geometry_type == "GeometryCollection":
-            geoms = [shape(geom) for geom in geometry["geometries"]]
+            geoms = [shapely.geometry.shape(geom) for geom in geometry["geometries"]]
         elif geometry_type in {"Polygon", "MultiPolygon", "Point", "MultiPoint", "LineString"}:
-            geoms = [shape(geometry)]
+            geoms = [shapely.geometry.shape(geometry)]
         elif geometry_type == "Feature":
-            geoms = [shape(geometry["geometry"])]
+            geoms = [shapely.geometry.shape(geometry["geometry"])]
         else:
             raise ProcessParameterInvalidException(
                 parameter="geometry", process="vector_buffer", reason=f"Invalid geometry type {geometry_type}."
@@ -1011,7 +1054,11 @@ def vector_buffer(args: ProcessArgs, env: EvalEnv) -> dict:
                    f"at position(s) {empty_result_indices}"
         )
 
-    return mapping(poly_buff_latlon[0]) if len(poly_buff_latlon) == 1 else mapping(poly_buff_latlon)
+    return (
+        shapely.geometry.mapping(poly_buff_latlon[0])
+        if len(poly_buff_latlon) == 1
+        else shapely.geometry.mapping(poly_buff_latlon)
+    )
 
 
 @process
@@ -1199,40 +1246,40 @@ def fit_class_random_forest(args: ProcessArgs, env: EvalEnv) -> DriverMlModel:
     if env.get(ENV_DRY_RUN_TRACER):
         return DriverMlModel()
 
-    predictors = extract_arg(args, 'predictors')
-    if not isinstance(predictors, (AggregatePolygonSpatialResult, DriverVectorCube)):
-        # TODO #114 EP-3981 drop AggregatePolygonSpatialResult support.
-        raise ProcessParameterInvalidException(
-            parameter="predictors",
-            process="fit_class_random_forest",
-            reason=f"should be non-temporal vector-cube, but got {type(predictors)}.",
-        )
+    # TODO #114 EP-3981 drop AggregatePolygonSpatialResult support.
+    predictors = args.get_required(
+        name="predictors",
+        expected_type=(AggregatePolygonSpatialResult, DriverVectorCube),
+        expected_type_name="non-temporal vector cube",
+    )
 
-    target: Union[dict, DriverVectorCube] = extract_arg(args, "target")
+    target = args.get_required(
+        name="target", expected_type=(dict, DriverVectorCube), expected_type_name="feature collection or vector cube"
+    )
     if isinstance(target, DriverVectorCube):
         # Convert target to geojson feature collection.
         target: dict = shapely.geometry.mapping(target.get_geometries())
     if not (isinstance(target, dict) and target.get("type") == "FeatureCollection"):
         raise ProcessParameterInvalidException(
             parameter="target",
-            process="fit_class_random_forest",
+            process=args.process_id,
             reason=f"expected feature collection or vector-cube value, but got {type(target)}.",
         )
 
     # TODO: get defaults from process spec?
     # TODO: do parameter checks automatically based on process spec?
-    num_trees = args.get("num_trees", 100)
+    num_trees = args.get_optional(name="num_trees", expected_type=int, default=100)
     if not isinstance(num_trees, int) or num_trees < 0:
         raise ProcessParameterInvalidException(
-            parameter="num_trees", process="fit_class_random_forest",
-            reason="should be an integer larger than 0."
+            parameter="num_trees", process=args.process_id, reason="should be an integer larger than 0."
         )
-    max_variables = args.get("max_variables") or args.get('mtry')
-    seed = args.get("seed")
-    if not (seed is None or isinstance(seed, int)):
-        raise ProcessParameterInvalidException(
-            parameter="seed", process="fit_class_random_forest", reason="should be an integer"
-        )
+    max_variables = args.get_optional(name="max_variables", expected_type=(int, str))
+    mtry = args.get_optional(name="max_variables", expected_type=(int, str))
+    if max_variables is None and mtry:
+        _log.warning(f"{args.process_id}: usage of deprecated argument 'mtry'. Use 'max_variables' instead.")
+        max_variables = mtry
+
+    seed = args.get_optional(name="seed", expected_type=int)
 
     return predictors.fit_class_random_forest(
         target=target, num_trees=num_trees, max_variables=max_variables, seed=seed,
@@ -1284,6 +1331,10 @@ def fit_class_catboost(args: ProcessArgs, env: EvalEnv) -> DriverMlModel:
 
     return predictors.fit_class_catboost(target=target, iterations=iterations, depth=depth, seed=seed)
 
+@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/predict_onnx.json"))
+@process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/predict_onnx.json"))
+def predict_onnx(args: ProcessArgs, env: EvalEnv):
+    raise NoPythonImplementationError
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/predict_random_forest.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/predict_random_forest.json"))
@@ -1554,13 +1605,8 @@ def _extract_temporal_extent(args: dict, field="extent", process_id="filter_temp
 
 
 @process
-def filter_temporal(args: dict, env: EvalEnv) -> DriverDataCube:
-    cube = extract_arg(args, 'data')
-    if not isinstance(cube, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="data", process="filter_temporal",
-            reason=f"Invalid data type {type(cube)!r} expected raster-cube."
-        )
+def filter_temporal(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
     start, end = _extract_temporal_extent(args, field="extent", process_id="filter_temporal")
     return cube.filter_temporal(start=start, end=end)
 
@@ -1732,12 +1778,12 @@ def merge_cubes(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
 
 @process
-def run_udf(args: dict, env: EvalEnv):
+def run_udf(args: ProcessArgs, env: EvalEnv):
     # TODO: note: this implements a non-standard usage of `run_udf`: processing "vector" cube (direct JSON or from aggregate_spatial, ...)
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
-    data = extract_arg(args, 'data')
+    data = args.get_required(name="data")
     udf, runtime = _get_udf(args, env=env)
-    context = args.get('context',{})
+    context = args.get_optional(name="context", default={})
 
     # TODO: this is simple heuristic about skipping `run_udf` in dry-run mode. Does this have to be more advanced?
     # TODO: would it be useful to let user hook into dry-run phase of run_udf (e.g. hint about result type/structure)?
@@ -2170,10 +2216,10 @@ def vector_to_raster(args: dict, env: EvalEnv) -> DriverDataCube:
     return env.backend_implementation.vector_to_raster(input_vector_cube, target)
 
 
-def _get_udf(args, env: EvalEnv) -> Tuple[str, str]:
-    udf = extract_arg(args, "udf")
-    runtime = extract_arg(args, "runtime")
-    version = args.get("version", None)
+def _get_udf(args: ProcessArgs, env: EvalEnv) -> Tuple[str, str]:
+    udf_code = args.get_required(name="udf", expected_type=str)
+    runtime = args.get_required(name="runtime", expected_type=str)
+    version = args.get_optional(name="version", expected_type=str)
 
     available_runtimes = env.backend_implementation.udf_runtimes.get_udf_runtimes()
     available_runtime_names = list(available_runtimes.keys())
@@ -2192,7 +2238,7 @@ def _get_udf(args, env: EvalEnv) -> Tuple[str, str]:
             message=f"Unsupported UDF runtime version {runtime} {version!r}. Should be one of {available_versions} or null"
         )
 
-    return udf, runtime
+    return udf_code, runtime
 
 
 def _evaluate_process_graph_process(
@@ -2468,16 +2514,16 @@ def load_result(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     user = env.get("user")
 
     arguments = {}
-    if args.get("temporal_extent"):
+    if args.contains("temporal_extent"):
         arguments["temporal_extent"] = _extract_temporal_extent(
             args, field="temporal_extent", process_id="load_result"
         )
-    if args.get("spatial_extent"):
+    if args.contains("spatial_extent"):
         arguments["spatial_extent"] = _extract_bbox_extent(
             args, field="spatial_extent", process_id="load_result", handle_geojson=True
         )
-    if args.get("bands"):
-        arguments["bands"] = extract_arg(args, "bands", process_id="load_result")
+    if args.contains("bands"):
+        arguments["bands"] = args.get_optional(name="bands", expected_type=list)
 
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
@@ -2556,8 +2602,8 @@ def text_concat(
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/load_stac.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/2.x/proposals/load_stac.json"))
-def load_stac(args: Dict, env: EvalEnv) -> DriverDataCube:
-    url = extract_arg(args, "url", process_id="load_stac")
+def load_stac(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    url: str = args.get_required(name="url", expected_type=str)
 
     arguments = {}
     if args.get("temporal_extent"):
@@ -2568,16 +2614,16 @@ def load_stac(args: Dict, env: EvalEnv) -> DriverDataCube:
         arguments["spatial_extent"] = _extract_bbox_extent(
             args, field="spatial_extent", process_id="load_stac", handle_geojson=True
         )
-    if args.get("bands"):
-        arguments["bands"] = extract_arg(args, "bands", process_id="load_stac")
-    if args.get("properties"):
-        arguments["properties"] = extract_arg(args, "properties", process_id="load_stac")
-    if args.get("featureflags"):
-        arguments["featureflags"] = extract_arg(args, "featureflags", process_id="load_stac")
+    if args.contains("bands"):
+        arguments["bands"] = args.get_optional(name="bands", expected_type=list)
+    if args.contains("properties"):
+        arguments["properties"] = args.get_optional(name="properties")
+    if args.contains("featureflags"):
+        arguments["featureflags"] = args.get_optional(name="featureflags")
 
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
-        return dry_run_tracer.load_stac(url, arguments, env)
+        return dry_run_tracer.load_stac(url=url, arguments=arguments, env=env)
     else:
         source_id = dry_run.DataSource.load_stac(
             url, properties=arguments.get("properties", {}), bands=arguments.get("bands", []), env=env
@@ -2614,6 +2660,51 @@ def export_workspace(args: ProcessArgs, env: EvalEnv) -> SaveResult:
 @custom_process
 def collect(args: ProcessArgs, env: EvalEnv):
     return env[ENV_FINAL_RESULT][0]
+
+
+@non_standard_process(
+    ProcessSpec(
+        id="aspect",
+        description="Computes the aspect from elevation data. Aspect is the direction component of a gradient vector. It is the direction in degrees of which direction the maximum change in direction is pointing at a given point. Horn's method is used to compute the aspect based on estimates of the partial derivatives dz/dx and dz/dy.",
+        extra={
+            "summary": "Compute aspect on elevation data",
+            "categories": ["cubes", "elevation"],
+            "experimental": True
+        }
+    )
+    .param('data',
+           description="Data cube containing elevation data.",
+           schema={"type": "object", "subtype": "raster-cube"})
+    .returns(
+        description="A data cube with calculated aspects for each band, the band names are the original band names with a '_aspect' suffix.",
+        schema={"type": "object", "subtype": "raster-cube"})
+
+)
+def aspect(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    return cube.aspect()
+
+@non_standard_process(
+    ProcessSpec(
+        id="slope",
+        description="Computes the slope from elevation data. Slope is the magnitude portion of the gradient vector. It is the maximum change of elevation from a raster cell to any immediate neighbor. Horn's method is used to compute the slope based on estimates of the partial derivatives dz/dx and dz/dy.",
+        extra={
+            "summary": "Compute slope on elevation data",
+            "categories": ["cubes", "elevation"],
+            "experimental": True
+        }
+    )
+    .param('data',
+           description="Data cube containing elevation data.",
+           schema={"type": "object", "subtype": "raster-cube"})
+    .returns(
+        description="A data cube with calculated slopes for each band, the band names are the original band names with a '_slope' suffix.",
+        schema={"type": "object", "subtype": "raster-cube"})
+
+)
+def slope(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    return cube.slope()
 
 
 # Finally: register some fallback implementation if possible

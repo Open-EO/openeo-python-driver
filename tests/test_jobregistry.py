@@ -1018,10 +1018,12 @@ class TestElasticJobRegistry:
             oidc_mock=oidc_mock, expected_data={
                 "costs": 22,
                 "usage": {
+                    "input_pixel": {"value": 2.5, "unit": "mega-pixel"},
                     "cpu": {"value": 3283, "unit": "cpu-seconds"},
                     "memory": {"value": 8040202, "unit": "mb-seconds"},
                     "sentinelhub": {"value": 108.33333656191826, "unit": "sentinelhub_processing_unit"}
                 },
+                "input_pixel": 2.5,
                 "results_metadata": {
                     "unique_process_ids": ["load_stac"]
                 },
@@ -1033,6 +1035,7 @@ class TestElasticJobRegistry:
 
         ejr.set_results_metadata(job_id="job-123", costs=22,
                                  usage={
+                                     "input_pixel": {"value": 2.5, "unit": "mega-pixel"},
                                      "cpu": {"value": 3283, "unit": "cpu-seconds"},
                                      "memory": {"value": 8040202, "unit": "mb-seconds"},
                                      "sentinelhub": {"value": 108.33333656191826, "unit": "sentinelhub_processing_unit"}

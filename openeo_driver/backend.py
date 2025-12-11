@@ -16,7 +16,7 @@ import inspect
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Union, NamedTuple, Dict, Optional, Callable, Iterable
+from typing import List, Union, NamedTuple, Dict, Optional, Callable, Iterable, Container, Any
 
 import flask
 
@@ -28,6 +28,7 @@ from openeo.util import rfc3339, dict_no_none
 from openeo_driver.config import OpenEoBackendConfig, get_backend_config
 from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCube
 from openeo_driver.datastructs import SarBackscatterArgs
+from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint, DryRunDataCube
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException, FeatureUnsupportedException
 from openeo_driver.constants import JOB_STATUS, DEFAULT_LOG_LEVEL_RETRIEVAL
 from openeo_driver.processes import ProcessRegistry
@@ -169,7 +170,7 @@ class LoadParameters(dict):
     # TODO: use a more standard solution like dataclassses from stdlib or attrs?
     temporal_extent = dict_item(default=(None, None))
     spatial_extent = dict_item(default={})
-    global_extent = dict_item(default={})
+    global_extent = dict_item(default={})  # TODO #441 to be removed
     filter_temporal_labels = dict_item(default=None)
     bands = dict_item(default=None)
     properties = dict_item(default={})
@@ -228,7 +229,7 @@ class CollectionsListing:
         """
         self.collections = collections
 
-    def filter_by_id(self, exclusion_list: Iterable[str]) -> CollectionsListing:
+    def filter_by_id(self, exclusion_list: Container[str]) -> CollectionsListing:
         return CollectionsListing(collections=[c for c in self.collections if c["id"] not in exclusion_list])
 
     def to_response_dict(self, normalize: Callable[[dict], dict]) -> dict:
@@ -1001,6 +1002,31 @@ class OpenEoBackendImplementation:
 
         :param user: user object
         :param job_options: job options (if any provided in the sync processing request)
+        """
+        return None
+
+    def post_dry_run(
+        self,
+        *,
+        dry_run_result: Union[DryRunDataCube, Any],
+        dry_run_tracer: DryRunDataTracer,
+        source_constraints: List[SourceConstraint],
+    ) -> Union[None, dict]:
+        """
+        Hook to analyse the outcome of a full dry-run evaluation
+        and set some additional "global" EvalEnv state for the wet run evaluation.
+        For example, to set process-graph-wide, preferred processing hints/directives
+        about CRS, projection, resolution, alignment, partitioning, ...
+
+        This is an experimental API, the set of available arguments is still in flux.
+
+        :param dry_run_result: result of dry-run evaluation of process graph (typically a DryRunDataCube)
+        :param dry_run_tracer: tracer used in dry-run evaluation
+        :param env: EvalEnv as used in dry-run evaluation
+        :param source_constraints:
+
+        :return: dict with extra state to push to the EvalEnv before triggering the wet run,
+            or None (to push nothing).
         """
         return None
 

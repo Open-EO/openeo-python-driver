@@ -1,0 +1,51 @@
+{
+    "id": "predict_onnx",
+    "summary": "Predict class probabilities from an onnx machine learning model",
+    "description": "Applies an onnx machine learning model to an datacube.",
+    "categories": [
+        "machine learning"
+    ],
+    "experimental": true,
+    "parameters": [
+        {
+            "name": "data",
+            "description": "A raster data cube.",
+            "schema": {
+                "type": "object",
+                "subtype": "datacube",
+                "dimensions": [
+                    {
+                        "type": "spatial",
+                        "axis": [
+                            "x",
+                            "y"
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "name": "model",
+            "description": "A url to an onnx model.",
+            "schema": {
+                "type": "string"
+            }
+        }
+    ],
+    "returns": {
+        "description": "A raster data cube with the newly computed values",
+        "schema": {
+            "type": "object",
+            "subtype": "datacube",
+            "dimensions": [
+                {
+                    "type": "spatial",
+                    "axis": [
+                        "x",
+                        "y"
+                    ]
+                }
+            ]
+        }
+    }
+}

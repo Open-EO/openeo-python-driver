@@ -1,3 +1,5 @@
+import typing
+
 import datetime
 import urllib.parse
 
@@ -16,6 +18,7 @@ from openeo_driver.backend import (
     is_not_implemented,
     not_implemented,
     LegacyUdfRuntimes,
+    CollectionsListing,
 )
 from openeo_driver.errors import CollectionNotFoundException
 from openeo_driver.users import User
@@ -334,3 +337,39 @@ class TestLegacyUdfRuntimes:
                 )
             }
         )
+
+
+class TestCollectionsListing:
+    def test_filter_by_id_basic(self):
+        orig = CollectionsListing(
+            collections=[
+                {"id": "Sentinel-2"},
+                {"id": "Landsat-8"},
+                {"id": "Landsat-888"},
+                {"id": "NDVI"},
+            ]
+        )
+        filtered = orig.filter_by_id(exclusion_list=["Landsat-8", "NDVI", "BlaBlaBla"])
+        assert filtered.collections == [
+            {"id": "Sentinel-2"},
+            {"id": "Landsat-888"},
+        ]
+
+    def test_filter_by_id_custom_container(self):
+        orig = CollectionsListing(
+            collections=[
+                {"id": "Sentinel-2"},
+                {"id": "Fo-Osat-9"},
+                {"id": "NDVI"},
+            ]
+        )
+
+        class Excludor:
+            def __contains__(self, item: str) -> bool:
+                return "foo" in item.lower().replace("-", "")
+
+        filtered = orig.filter_by_id(exclusion_list=Excludor())
+        assert filtered.collections == [
+            {"id": "Sentinel-2"},
+            {"id": "NDVI"},
+        ]

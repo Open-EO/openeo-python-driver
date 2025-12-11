@@ -760,12 +760,14 @@ class ElasticJobRegistry(JobRegistryInterface):
         usage: dict,
         results_metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
+        input_pixel = usage.get("input_pixel", {}).get("value", 0.0)
         self._update(
             job_id=job_id,
             data=dict_no_none(
                 {
                     "costs": costs,
                     "usage": usage,
+                    "input_pixel": input_pixel,
                     "results_metadata": results_metadata,
                 }
             ),

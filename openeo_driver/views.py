@@ -9,6 +9,7 @@ import textwrap
 import typing
 from collections import defaultdict, namedtuple
 from typing import Callable, List, Optional, Tuple, Union
+from urllib.parse import urlparse
 
 import flask
 import flask_cors
@@ -29,7 +30,7 @@ import openeo.metadata
 from openeo.util import Rfc3339, TimingLogger, deep_get, dict_no_none, rfc3339
 from openeo.utils.version import ComparableVersion
 from pyproj import CRS
-from shapely.geometry import mapping
+import shapely.geometry
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -48,6 +49,7 @@ from openeo_driver.config import OpenEoBackendConfig, get_backend_config
 from openeo_driver.constants import (
     DEFAULT_LOG_LEVEL_PROCESSING,
     DEFAULT_LOG_LEVEL_RETRIEVAL,
+    ITEM_LINK_PROPERTY,
     JOB_STATUS,
     STAC_EXTENSION,
 )
@@ -1420,8 +1422,6 @@ def register_views_batch_jobs(
         for asset_key, asset in item_metadata.get("assets", {}).items():
             assets[asset_key] = _asset_object(job_id, user_id, asset_key, asset, job_info)
 
-        geometry = item_metadata.get("geometry", job_info.geometry)
-        bbox = item_metadata.get("bbox", job_info.bbox)
 
         properties = item_metadata.get("properties", {"datetime": item_metadata.get("datetime")})
         if properties["datetime"] is None:
@@ -1445,12 +1445,18 @@ def register_views_batch_jobs(
         if job_info.epsg:
             properties["proj:epsg"] = job_info.epsg
 
-        if job_info.proj_bbox and job_info.epsg:
-            if not bbox:
-                bbox = BoundingBox.from_wsen_tuple(job_info.proj_bbox, job_info.epsg).reproject(4326).as_wsen_tuple()
-            if not geometry:
-                geometry = BoundingBox.from_wsen_tuple(job_info.proj_bbox, job_info.epsg).as_polygon()
-                geometry = mapping(reproject_geometry(geometry, CRS.from_epsg(job_info.epsg), CRS.from_epsg(4326)))
+        bbox = item_metadata.get("bbox", job_info.bbox)
+        if not bbox and job_info.proj_bbox and job_info.epsg:
+            bbox = BoundingBox.from_wsen_tuple(job_info.proj_bbox, crs=job_info.epsg).reproject(4326).as_wsen_tuple()
+        geometry = item_metadata.get("geometry", job_info.geometry)
+        if not geometry and job_info.proj_bbox and job_info.epsg:
+            geometry = BoundingBox.from_wsen_tuple(job_info.proj_bbox, crs=job_info.epsg).as_geojson()
+
+        auxiliary_links = [
+            _auxiliary_link(link, job_id=job_id, user_id=user_id)
+            for link in item_metadata.get("links", [])
+            if link.get(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY, False)
+        ]
 
         stac_item = {
             "type": "Feature",
@@ -1476,7 +1482,8 @@ def register_views_batch_jobs(
                     "href": url_for(".list_job_results", job_id=job_id, _external=True),  # SHOULD be absolute
                     "type": "application/json",
                 },
-            ],
+            ]
+            + auxiliary_links,
             "assets": assets,
             "collection": job_id,
         }
@@ -1493,6 +1500,81 @@ def register_views_batch_jobs(
         resp.mimetype = stac_item_media_type
         return resp
 
+    def _auxiliary_link(exposable_link: dict, job_id: str, user_id: str) -> dict:
+        auxiliary_filename = urlparse(exposable_link["href"]).path.split("/")[-1]  # TODO: assumes file is not nested
+
+        if exposable_link["href"].startswith("s3://"):
+            href = backend_implementation.config.asset_url.build_url(
+                asset_metadata={"href": exposable_link["href"]},  # TODO: clean up this hack to support s3proxy
+                asset_name=auxiliary_filename,
+                job_id=job_id,
+                user_id=user_id,
+            )
+        else:
+            signer = get_backend_config().url_signer
+            if signer:
+                expires = signer.get_expires()
+                secure_key = signer.sign_job_asset(
+                    job_id=job_id, user_id=user_id, filename=auxiliary_filename, expires=expires
+                )
+                user_base64 = user_id_b64_encode(user_id)
+                href = flask.url_for(
+                    ".download_job_auxiliary_file_signed",
+                    job_id=job_id,
+                    user_base64=user_base64,
+                    filename=auxiliary_filename,
+                    expires=expires,
+                    secure_key=secure_key,
+                    _external=True,
+                )
+            else:
+                href = flask.url_for(
+                    ".download_job_auxiliary_file", job_id=job_id, filename=auxiliary_filename, _external=True
+                )
+
+        return dict_no_none(
+            href=href,
+            rel=exposable_link.get("rel"),
+            type=exposable_link.get("type"),
+        )
+
+    @blueprint.route("/jobs/<job_id>/results/aux/<user_base64>/<secure_key>/<filename>", methods=["GET"])
+    def download_job_auxiliary_file_signed(job_id, user_base64, secure_key, filename):
+        expires = request.args.get("expires")
+        signer = get_backend_config().url_signer
+        user_id = user_id_b64_decode(user_base64)
+        signer.verify_job_asset(
+            signature=secure_key, job_id=job_id, user_id=user_id, filename=filename, expires=expires
+        )
+        return _download_job_auxiliary_file(job_id=job_id, filename=filename, user_id=user_id)
+
+    @blueprint.route("/jobs/<job_id>/results/aux/<filename>", methods=["GET"])
+    @auth_handler.requires_bearer_auth
+    def download_job_auxiliary_file(job_id, filename, user: User):
+        return _download_job_auxiliary_file(job_id, filename, user.user_id)
+
+    def _download_job_auxiliary_file(job_id, filename, user_id):
+        result_metadata = backend_implementation.batch_jobs.get_result_metadata(job_id=job_id, user_id=user_id)
+
+        auxiliary_links = [
+            link
+            for item in result_metadata.items.values()
+            for link in item.get("links", [])
+            if link.get(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY, False) and link["href"].endswith(f"/{filename}")
+        ]
+
+        if not auxiliary_links:
+            _log.debug(f"could not find auxiliary links in {result_metadata}")
+            raise FilePathInvalidException(f"invalid file {filename!r}")
+
+        auxiliary_link = auxiliary_links[0]
+        uri_parts = urlparse(auxiliary_link["href"])
+
+        # S3 URIs are handled by s3proxy
+        assert uri_parts.scheme in ["", "file"], f"unexpected scheme {uri_parts.scheme}"
+
+        auxiliary_file = pathlib.Path(uri_parts.path)
+        return send_from_directory(auxiliary_file.parent, auxiliary_file.name, mimetype=auxiliary_link.get("type"))
 
     def _get_job_result_item(job_id, item_id, user_id):
         if item_id == DriverMlModel.METADATA_FILE_NAME:
@@ -1514,8 +1596,6 @@ def register_views_batch_jobs(
 
         job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
 
-        geometry = asset_metadata.get("geometry", job_info.geometry)
-        bbox = asset_metadata.get("bbox", job_info.bbox)
 
         properties = {"datetime": asset_metadata.get("datetime")}
         if properties["datetime"] is None:
@@ -1539,12 +1619,12 @@ def register_views_batch_jobs(
         if job_info.epsg:
             properties["proj:epsg"] = job_info.epsg
 
-        if job_info.proj_bbox and job_info.epsg:
-            if not bbox:
-                bbox = BoundingBox.from_wsen_tuple(job_info.proj_bbox,job_info.epsg).reproject(4326).as_wsen_tuple()
-            if not geometry:
-                geometry = BoundingBox.from_wsen_tuple(job_info.proj_bbox,job_info.epsg).as_polygon()
-                geometry = mapping(reproject_geometry(geometry, CRS.from_epsg( job_info.epsg ) , CRS.from_epsg(4326) ))
+        bbox = asset_metadata.get("bbox", job_info.bbox)
+        if not bbox and job_info.proj_bbox and job_info.epsg:
+            bbox = BoundingBox.from_wsen_tuple(job_info.proj_bbox, crs=job_info.epsg).reproject(4326).as_wsen_tuple()
+        geometry = asset_metadata.get("geometry", job_info.geometry)
+        if not geometry and job_info.proj_bbox and job_info.epsg:
+            geometry = BoundingBox.from_wsen_tuple(wsen=job_info.proj_bbox, crs=job_info.epsg).as_geojson()
 
         stac_item = {
             "type": "Feature",
@@ -2085,7 +2165,10 @@ def register_views_catalog(
         collections_listing = backend_implementation.catalog.get_collections_listing()
 
         api_version = requested_api_version()
-        exclusion_list = get_backend_config().collection_exclusion_list.get(api_version.to_string())
+        exclusion_list = get_backend_config().collection_exclusion_list
+        if isinstance(exclusion_list, dict):
+            # Get by api version (if available),  fallback on key None
+            exclusion_list = exclusion_list.get(api_version.to_string(), exclusion_list.get(None, None))
         if exclusion_list:
             collections_listing = collections_listing.filter_by_id(exclusion_list=exclusion_list)
 

@@ -8,18 +8,23 @@ import json
 import logging
 import math
 import multiprocessing
+import queue
 import re
+import threading
+import typing
 import urllib.request
 from pathlib import Path
 from typing import Any, Callable, Collection, Dict, Optional, Pattern, Tuple, Union
 from unittest import mock
 
 import attrs
+import flask
 import openeo
 import openeo.processes
 import pytest
 import shapely.geometry.base
 import shapely.wkt
+import werkzeug.serving
 from flask import Response
 from flask.testing import FlaskClient
 from openeo.utils.version import ComparableVersion
@@ -648,7 +653,7 @@ def caplog_with_custom_formatter(caplog: pytest.LogCaptureFixture, format: Union
 
 
 @contextlib.contextmanager
-def ephemeral_fileserver(path: Union[Path, str], host: str = "localhost", port: int = 0) -> str:
+def ephemeral_fileserver(path: Union[Path, str], host: str = "localhost", port: int = 0) -> typing.Iterator[str]:
     """
     Context manager to run a short-lived (static) file HTTP server, serving files from a given local test data folder.
 
@@ -694,6 +699,63 @@ def ephemeral_fileserver(path: Union[Path, str], host: str = "localhost", port: 
         server_process.join(timeout=2)
         _log.info(f"ephemeral_fileserver: terminated with exitcode={server_process.exitcode}")
         server_process.close()
+
+
+@contextlib.contextmanager
+def ephemeral_flask_server(app: flask.Flask) -> typing.Iterator[str]:
+    """
+    Context manager to run a Flask app in a separate thread for testing purposes.
+
+    Usage example:
+
+        def test_hello():
+
+            app = flask.Flask(__name__)
+            @app.route("/hello")
+            def hello():
+                return "Hello, World!"
+
+            with ephemeral_flask_server(app) as root_url:
+                resp = requests.get(f"{root_url}/hello")
+                assert resp.status_code == 200
+                assert resp.text == "Hello, World!"
+    """
+
+    class FlaskServerThread(threading.Thread):
+        def __init__(self, app: flask.Flask, root_url_queue: queue.Queue, *, host: str = "127.0.0.1", port: int = 0):
+            super().__init__()
+            self.daemon = True
+
+            self._server = werkzeug.serving.make_server(host, port, app)
+            self._ctx = app.app_context()
+            self._ctx.push()
+            self._root_url_queue = root_url_queue
+
+        def run(self):
+            root_url = f"http://{self._server.server_address[0]}:{self._server.server_port}"
+            self._root_url_queue.put(root_url)
+            _log.debug(f"FlaskServerThread: start serving at {root_url=}")
+            self._server.serve_forever()
+
+        def shutdown(self):
+            self._ctx.pop()
+            self._server.shutdown()
+            _log.debug("FlaskServerThread: is shut down")
+
+    # Use queue to communicate the root URL back to the main thread
+    root_url_queue = queue.Queue()
+    _log.debug(f"ephemeral_flask_server: starting server thread with {app=}")
+    server_thread = FlaskServerThread(app=app, root_url_queue=root_url_queue)
+
+    server_thread.start()
+    root_url = root_url_queue.get(timeout=2)
+    _log.debug(f"ephemeral_flask_server: {server_thread=} is serving at {root_url=}")
+
+    try:
+        yield root_url
+    finally:
+        _log.debug(f"ephemeral_flask_server: shutting down {server_thread=}")
+        server_thread.shutdown()
 
 
 def config_overrides(config_getter: ConfigGetter = _backend_config_getter, **kwargs):

@@ -17,11 +17,13 @@ class S3ClientBuilder:
     @classmethod
     def from_region(cls, region_name: Optional[str]) -> S3Client:
         if region_name is None:
-            _log.warning(
-                "Building S3 client without region. This should be avoided as much as possible because these operations"
-                "will be limited to a single endpoint for which the platform is configured."
-            )
             region_name = os.environ.get("AWS_REGION", "UNKNOWN")
+            _log.warning(
+                "Building S3 client without explicit region."
+                f" Falling back to {region_name!r}."
+                " Avoid depending on this brittle fallback mechanism and explicitly specify the region.",
+                exc_info=True,
+            )
         s3_config = get_backend_config().s3_provider_config
         provider_name = s3_config.get_provider(region_name)
         endpoint = s3_config.get_endpoint(region_name)

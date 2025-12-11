@@ -11,7 +11,7 @@ import geopandas as gpd
 import pyproj
 import requests
 import shapely
-from shapely.geometry import shape
+import shapely.geometry
 from shapely.geometry.base import BaseGeometry
 
 from openeo_driver.datacube import DriverVectorCube
@@ -150,7 +150,7 @@ class DelayedVector:
         if self.crs != wgs84:
             # Reproject the geometries in the geojson but keep the properties.
             geometries = [
-                reproject_geometry(shape(feature["geometry"]), from_crs=self.crs, to_crs=wgs84)
+                reproject_geometry(shapely.geometry.shape(feature["geometry"]), from_crs=self.crs, to_crs=wgs84)
                 for feature in geojson["features"]
             ]
             features = []
@@ -263,7 +263,7 @@ class DelayedVector:
         # FIXME: returned as a list for safety but possible to return as an iterable?
         with fiona.open(shp_path) as collection:
             [validate_geojson_coordinates(record["geometry"]) for record in collection]
-            return [shape(record["geometry"]) for record in collection]
+            return [shapely.geometry.shape(record["geometry"]) for record in collection]
 
     @staticmethod
     def _read_shapefile_bounds(shp_path: str) -> List[BaseGeometry]:
@@ -295,10 +295,10 @@ class DelayedVector:
         if geojson['type'] == 'FeatureCollection':
             geojson = DelayedVector._as_geometry_collection(geojson)
 
-        if geojson['type'] == 'GeometryCollection':
-            geometries = (shape(geometry) for geometry in geojson['geometries'])
+        if geojson["type"] == "GeometryCollection":
+            geometries = (shapely.geometry.shape(geometry) for geometry in geojson["geometries"])
         else:
-            geometry = shape(geojson)
+            geometry = shapely.geometry.shape(geojson)
             geometries = [geometry]
 
         return geometries
@@ -306,11 +306,11 @@ class DelayedVector:
     @staticmethod
     def _read_geojson_bounds(geojson: Dict) -> (float, float, float, float):
         if geojson['type'] == 'FeatureCollection':
-            bounds = gpd.GeoSeries(shape(f["geometry"]) for f in geojson["features"]).total_bounds
-        elif geojson['type'] == 'GeometryCollection':
-            bounds = gpd.GeoSeries(shape(g) for g in geojson['geometries']).total_bounds
+            bounds = gpd.GeoSeries(shapely.geometry.shape(f["geometry"]) for f in geojson["features"]).total_bounds
+        elif geojson["type"] == "GeometryCollection":
+            bounds = gpd.GeoSeries(shapely.geometry.shape(g) for g in geojson["geometries"]).total_bounds
         else:
-            geometry = shape(geojson)
+            geometry = shapely.geometry.shape(geojson)
             bounds = geometry.bounds
 
         return tuple(bounds)
