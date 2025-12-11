@@ -1187,9 +1187,11 @@ def register_views_batch_jobs(
                 )
 
 
-            if len(result_metadata.items) > 0 :
+            if result_metadata.items :
                 assets = {
-                    item_key + "_" + asset_key: asset_metadata
+                    item_key + "_" + asset_key: _asset_object(
+                        job_id=job_id, user_id=user_id, filename=asset_metadata.get("href"), asset_metadata=asset_metadata, job_info=job_info
+                    )
                     for item_key, item_metadata in result_items.items()
                     for asset_key, asset_metadata in item_metadata.get("assets").items()
                 }
