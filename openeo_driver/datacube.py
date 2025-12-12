@@ -242,6 +242,8 @@ class DriverDataCube:
         # Note: this is a non-standard process
         self._not_implemented()
 
+    def predict_onnx(self,model:str) -> 'DriverDataCube':
+        self._not_implemented()
 
 class VectorCubeError(InternalException):
     code = "VectorCubeError"
