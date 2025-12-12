@@ -781,7 +781,7 @@ def config_overrides(config_getter: ConfigGetter = _backend_config_getter, **kwa
         >>> @config_overrides(id="foobar")
         ... def test_stuff():
     """
-    orig_config = config_getter.get()
+    orig_config = config_getter.get(show_stack=False)
     config_kwargs = {
         **attrs.asdict(orig_config, recurse=False),
         **kwargs,
