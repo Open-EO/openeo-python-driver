@@ -500,7 +500,7 @@ class BoundingBox:
         """
         try:
             return cls.from_dict(d=d, default_crs=default_crs)
-        except BoundingBoxException:
+        except Exception:
             # TODO: option to log something?
             return None
 

@@ -714,8 +714,16 @@ class TestBoundingBox:
         ):
             _ = BoundingBox.from_dict(data)
 
-    def test_from_dict_or_none(self):
-        data = {"west": 1, "south": 2, "east": None, "northhhhhh": 4}
+    @pytest.mark.parametrize(
+        ["data"],
+        [
+            ({"west": 1, "south": 2, "east": None, "northhhhhh": 4},),
+            ({},),
+            (None,),
+            ([],),
+        ],
+    )
+    def test_from_dict_or_none(self, data):
         bbox = BoundingBox.from_dict_or_none(data)
         assert bbox is None
 
