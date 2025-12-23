@@ -428,6 +428,7 @@ class DryRunDataTracer:
                     "mask",
                     "to_scl_dilation_mask",
                     "corsa_compress",
+                    "predict_onnx",
                 ]:
                     args = resampling_op.get_arguments_by_operation(op)
                     if args:
@@ -468,7 +469,6 @@ class DryRunDataTracer:
                 "properties",
                 "filter_spatial",
                 "filter_labels",
-                "predict_onnx",
             ]:
                 # 1 some processes can not be skipped when pushing filters down,
                 # so find the subgraph that no longer contains these blockers
