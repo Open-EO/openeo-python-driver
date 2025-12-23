@@ -1769,7 +1769,7 @@ def merge_cubes(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def run_udf(args: ProcessArgs, env: EvalEnv):
     # TODO: note: this implements a non-standard usage of `run_udf`: processing "vector" cube (direct JSON or from aggregate_spatial, ...)
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
-    data = args.get_required(name="data")
+    data = args.get_optional(name="data")
     udf, runtime = _get_udf(args, env=env)
     context = args.get_optional(name="context", default={})
 
@@ -1811,6 +1811,12 @@ def run_udf(args: ProcessArgs, env: EvalEnv):
         data = openeo.udf.UdfData(
             structured_data_list=[openeo.udf.StructuredData(description="Data list", data=data, type="list")],
             user_context=context
+        )
+    elif runtime.lower() == "CWL-Calrissian".lower():
+        return env.backend_implementation.run_cwl(
+            env,
+            udf,
+            context,
         )
     else:
         raise ProcessParameterInvalidException(
