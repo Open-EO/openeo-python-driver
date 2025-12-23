@@ -949,6 +949,16 @@ class OpenEoBackendImplementation:
     def vector_to_raster(self, input_vector_cube: DriverVectorCube, target: DriverDataCube) -> DriverDataCube:
         raise NotImplementedError
 
+    def run_cwl(
+        self,
+        env: EvalEnv,
+        cwl_url: str,
+        context: dict,
+        stac_root: Optional[str] = None,
+        direct_s3_mode: Optional[bool] = False,
+    ) -> DriverDataCube:
+        raise NotImplementedError
+
     def visit_process_graph(self, process_graph: dict) -> ProcessGraphVisitor:
         """Create a process graph visitor and accept given process graph"""
         return ProcessGraphVisitor().accept_process_graph(process_graph)
