@@ -1656,6 +1656,18 @@ def filter_bbox(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     return cube.filter_bbox(**spatial_extent)
 
 
+@custom_process
+def corsa_compress(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    return cube.corsa_compress()
+
+
+@custom_process
+def corsa_decompress(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    return cube.corsa_decompress()
+
+
 @process
 def filter_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)

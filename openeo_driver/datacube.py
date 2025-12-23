@@ -245,6 +245,13 @@ class DriverDataCube:
     def predict_onnx(self,model:str) -> 'DriverDataCube':
         self._not_implemented()
 
+    def corsa_compress(self):
+        self._not_implemented()
+
+    def corsa_decompress(self):
+        self._not_implemented()
+
+
 class VectorCubeError(InternalException):
     code = "VectorCubeError"
 

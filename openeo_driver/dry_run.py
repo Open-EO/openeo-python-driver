@@ -427,6 +427,7 @@ class DryRunDataTracer:
                     "reduce_dimension_binary",
                     "mask",
                     "to_scl_dilation_mask",
+                    "corsa_compress",
                 ]:
                     args = resampling_op.get_arguments_by_operation(op)
                     if args:
@@ -920,6 +921,14 @@ class DryRunDataCube(DriverDataCube):
         cube = cube._process("pixel_buffer", arguments={"buffer_size": [size / 2.0, size / 2.0]})
         cube = cube._process("to_scl_dilation_mask", arguments={})
         return cube
+
+    def corsa_compress(self):
+        # TODO: adapt metadata (bands level_0 and level_1) ?
+        return self._process("corsa_compress", {})
+
+    def corsa_decompress(self):
+        # TODO: adapt metadata (bands B02 etc) ?
+        return self._process("corsa_decompress", {})
 
     def mask_l1c(self) -> "DriverDataCube":
         return self._process("custom_cloud_mask", arguments={"method": "mask_l1c"})
