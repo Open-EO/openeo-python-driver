@@ -923,10 +923,12 @@ class DryRunDataCube(DriverDataCube):
         return cube
 
     def corsa_compress(self):
-        return self._process("corsa_compress", {})  # TODO: adapt metadata (bands level_0 and level_1) ?
+        # TODO: adapt metadata (bands level_0 and level_1) ?
+        return self._process("corsa_compress", {})
 
     def corsa_decompress(self):
-        return self._process("corsa_decompress", {})  # TODO: adapt metadata (bands)?
+        # TODO: adapt metadata (bands B02 etc) ?
+        return self._process("corsa_decompress", {})
 
     def mask_l1c(self) -> "DriverDataCube":
         return self._process("custom_cloud_mask", arguments={"method": "mask_l1c"})
