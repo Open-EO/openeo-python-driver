@@ -467,6 +467,7 @@ class DryRunDataTracer:
                 "properties",
                 "filter_spatial",
                 "filter_labels",
+                "predict_onnx",
             ]:
                 # 1 some processes can not be skipped when pushing filters down,
                 # so find the subgraph that no longer contains these blockers
@@ -927,6 +928,9 @@ class DryRunDataCube(DriverDataCube):
     def _nop(self, *args, **kwargs) -> "DryRunDataCube":
         """No Operation: do nothing"""
         return self
+
+    def predict_onnx(self, model):
+        return self._process("predict_onnx",arguments={"model":model})
 
     # TODO: some methods need metadata manipulation?
 
