@@ -428,6 +428,7 @@ class DryRunDataTracer:
                     "mask",
                     "to_scl_dilation_mask",
                     "corsa_compress",
+                    "predict_onnx",
                 ]:
                     args = resampling_op.get_arguments_by_operation(op)
                     if args:
@@ -936,6 +937,9 @@ class DryRunDataCube(DriverDataCube):
     def _nop(self, *args, **kwargs) -> "DryRunDataCube":
         """No Operation: do nothing"""
         return self
+
+    def predict_onnx(self, model):
+        return self._process("predict_onnx",arguments={"model":model})
 
     # TODO: some methods need metadata manipulation?
 
