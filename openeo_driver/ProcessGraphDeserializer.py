@@ -1785,7 +1785,7 @@ def run_udf(args: ProcessArgs, env: EvalEnv):
         return env.backend_implementation.run_cwl(
             data=data,
             env=env,
-            udf=udf,
+            cwl=udf,
             context=context,
         )
 
