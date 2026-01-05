@@ -1781,6 +1781,14 @@ def run_udf(args: ProcessArgs, env: EvalEnv):
         # This way a weak_spatial_extent can be calculated from the UDF's output.
         return data.run_udf()
 
+    if runtime.lower() == "EOAP-CWL".lower():
+        return env.backend_implementation.run_cwl(
+            data=data,
+            env=env,
+            udf=udf,
+            context=context,
+        )
+
     if env.get("validation", False):
         raise FeatureUnsupportedException("run_udf is not supported in validation mode.")
 
@@ -1811,12 +1819,6 @@ def run_udf(args: ProcessArgs, env: EvalEnv):
         data = openeo.udf.UdfData(
             structured_data_list=[openeo.udf.StructuredData(description="Data list", data=data, type="list")],
             user_context=context
-        )
-    elif runtime.lower() == "CWL-Calrissian".lower():
-        return env.backend_implementation.run_cwl(
-            env,
-            udf,
-            context,
         )
     else:
         raise ProcessParameterInvalidException(

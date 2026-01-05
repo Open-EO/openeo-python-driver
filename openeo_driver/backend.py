@@ -951,11 +951,11 @@ class OpenEoBackendImplementation:
 
     def run_cwl(
         self,
+        *,
+        data,  # Will be None at atm
         env: EvalEnv,
-        cwl_url: str,
+        cwl: str,
         context: dict,
-        stac_root: Optional[str] = None,
-        direct_s3_mode: Optional[bool] = False,
     ) -> DriverDataCube:
         raise NotImplementedError
 
