@@ -1769,7 +1769,7 @@ def merge_cubes(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def run_udf(args: ProcessArgs, env: EvalEnv):
     # TODO: note: this implements a non-standard usage of `run_udf`: processing "vector" cube (direct JSON or from aggregate_spatial, ...)
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
-    data = args.get_required(name="data")
+    data = args.get_optional(name="data")
     udf, runtime = _get_udf(args, env=env)
     context = args.get_optional(name="context", default={})
 
@@ -1780,6 +1780,14 @@ def run_udf(args: ProcessArgs, env: EvalEnv):
         # E.g. A DelayedVector (when the user directly provides geometries as input).
         # This way a weak_spatial_extent can be calculated from the UDF's output.
         return data.run_udf()
+
+    if runtime.lower() == "EOAP-CWL".lower():
+        return env.backend_implementation.run_cwl(
+            data=data,
+            env=env,
+            cwl=udf,
+            context=context,
+        )
 
     if env.get("validation", False):
         raise FeatureUnsupportedException("run_udf is not supported in validation mode.")
