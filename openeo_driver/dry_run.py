@@ -336,8 +336,9 @@ class DryRunDataTracer:
 
         return cube
 
-    @lru_cache(20)
+
     @staticmethod
+    @lru_cache(maxsize=20)
     def _stac_metadata(stac_ref):
         try:
             return openeo_driver.stac.datacube.stac_to_cube_metadata(stac_ref=stac_ref)
