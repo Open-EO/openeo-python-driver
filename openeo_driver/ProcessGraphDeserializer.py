@@ -474,7 +474,7 @@ def evaluate(
                 ENV_DRY_RUN_TRACER: dry_run_tracer,
                 ENV_SAVE_RESULT: [],  # otherwise dry run and real run append to the same mutable result list
                 # TODO: why to disable node caching in dry run? E.g. ideally "full" caching ("reuse" actually) should be the default.
-                "node_caching": False
+                "node_caching": "geopyspark-progressive"
             }
         )
         dry_run_result = convert_node(top_level_node, env=dry_run_env)
