@@ -336,7 +336,7 @@ class DryRunDataTracer:
 
         return cube
 
-    @lru_cache
+    @lru_cache(20)
     @staticmethod
     def _stac_metadata(stac_ref):
         try:
