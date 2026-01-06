@@ -76,7 +76,7 @@ setup(
         "reretry~=0.11.8",
         "markdown>3.4",
         "traceback-with-variables==2.0.4",
-        "pystac~=1.8.0",  # TODO #370/#396 bump to more recent pystac version
+        "pystac>=1.8.0",  # TODO #370/#396 require more recent pystac version once py3.8 support is dropped
     ],
     extras_require={
         "dev": tests_require + typing_require,
