@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import logging
 from enum import Enum
+from functools import lru_cache
 from typing import List, Optional, Tuple, Union, Iterator
 
 import numpy
@@ -335,19 +336,16 @@ class DryRunDataTracer:
 
         return cube
 
-    def load_stac(self, url: str, arguments: dict, env: EvalEnv = EvalEnv()) -> "DryRunDataCube":
-        properties = arguments.get("properties", {})
-
-        trace = DataSource.load_stac(url=url, properties=properties, bands=arguments.get("bands", []), env=env)
-        self.add_trace(trace)
-
+    @lru_cache
+    @staticmethod
+    def _stac_metadata(stac_ref):
         try:
-            metadata = openeo_driver.stac.datacube.stac_to_cube_metadata(stac_ref=url)
+            return openeo_driver.stac.datacube.stac_to_cube_metadata(stac_ref=stac_ref)
         except Exception as e:
             _log.warning(
-                f"Dry-run load_stac: failed to parse cube metadata from {url!r} ({e!r}). Falling back on generic metadata."
+                f"Dry-run load_stac: failed to parse cube metadata from {stac_ref!r} ({e!r}). Falling back on generic metadata."
             )
-            metadata = CubeMetadata(
+            return CubeMetadata(
                 dimensions=[
                     SpatialDimension(name="x", extent=[]),
                     SpatialDimension(name="y", extent=[]),
@@ -355,6 +353,15 @@ class DryRunDataTracer:
                     BandDimension(name="bands", bands=[Band("unknown")]),
                 ]
             )
+
+
+    def load_stac(self, url: str, arguments: dict, env: EvalEnv = EvalEnv()) -> "DryRunDataCube":
+        properties = arguments.get("properties", {})
+
+        trace = DataSource.load_stac(url=url, properties=properties, bands=arguments.get("bands", []), env=env)
+        self.add_trace(trace)
+
+        metadata = DryRunDataTracer._stac_metadata(stac_ref=url)
 
         cube = DryRunDataCube(traces=[trace], data_tracer=self, metadata=metadata)
         if "temporal_extent" in arguments:
