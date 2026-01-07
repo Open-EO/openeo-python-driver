@@ -7,7 +7,6 @@ between available pystac version and actual STAC metadata.
 # TODO: move this functionality to the openeo-python-client for better reuse and client-server consistency?
 
 import logging
-from functools import lru_cache
 from typing import Dict, Union
 from pathlib import Path
 
@@ -20,7 +19,6 @@ _log = logging.getLogger(__name__)
 
 StacRef = Union[pystac.STACObject, str, Path]
 
-@lru_cache(maxsize=20)
 def as_stac_object(stac_ref: StacRef) -> pystac.STACObject:
     if isinstance(stac_ref, pystac.STACObject):
         return stac_ref
