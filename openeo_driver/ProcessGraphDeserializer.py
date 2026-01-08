@@ -1512,7 +1512,7 @@ def aggregate_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
         )
     return cube.aggregate_spatial(geometries=geoms, reducer=reduce_pg, target_dimension=target_dimension)
 
-@process_registry_2xx.add_function(spec=read_spec("openeo-processes/proposals/aggregate_spatial_window.json"))
+@process_registry_2xx.add_function(spec=read_spec("openeo-processes/2.x/proposals/aggregate_spatial_window.json"))
 @process
 def aggregate_spatial_window(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     cube = args.get_required("data", expected_type=DriverDataCube)
