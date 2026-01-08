@@ -1512,6 +1512,15 @@ def aggregate_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
         )
     return cube.aggregate_spatial(geometries=geoms, reducer=reduce_pg, target_dimension=target_dimension)
 
+@process_registry_2xx.add_function(spec=read_spec("openeo-processes/2.x/proposals/aggregate_spatial_window.json"))
+def aggregate_spatial_window(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube = args.get_required("data", expected_type=DriverDataCube)
+    reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
+    window_size = args.get_required("size")
+    align = args.get_optional("align", default="upper-left")
+    pad = args.get_optional("pad", default="pad")
+    context = args.get_optional("context", default=None)
+    return cube.aggregate_spatial_window(reducer=reduce_pg, size=window_size, align=align, pad=pad, context=context)
 
 @process
 def mask(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
@@ -2697,6 +2706,32 @@ def aspect(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def slope(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
     return cube.slope()
+
+@non_standard_process(
+    ProcessSpec(
+        id="convert_data_type",
+        description="Converts the data type of the cube to the desired data type.",
+        extra={
+            "summary": "Converts the data type of the cube",
+            "categories": ["cubes"],
+            "experimental": True
+        }
+    )
+    .param('data',
+           description="The data cube.",
+           schema={"type": "object", "subtype": "raster-cube"})
+    .param('data_type',
+           description="The desired data type, represented as a string.",
+           schema={"type": "string"}, required=True)
+    .returns(
+        description="A data cube with desired data type.",
+        schema={"type": "object", "subtype": "raster-cube"})
+
+)
+def convert_data_type(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    data_type = args.get_required("data_type", expected_type=str)
+    return cube.convert_data_type(data_type=data_type)
 
 
 # Finally: register some fallback implementation if possible
