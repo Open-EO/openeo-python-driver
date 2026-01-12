@@ -1157,7 +1157,12 @@ def register_views_batch_jobs(
 
         assets = {
             filename: _asset_object(
-                job_id=job_id, user_id=user_id, filename=filename, asset_metadata=asset_metadata, job_info=job_info
+                job_id=job_id,
+                user_id=user_id,
+                filename=filename,
+                asset_metadata=asset_metadata,
+                job_info=job_info,
+                stac11=False,
             )
             for filename, asset_metadata in result_assets.items()
             if asset_metadata.get("asset", True)
@@ -1191,8 +1196,15 @@ def register_views_batch_jobs(
 
             if result_metadata.items :
                 assets = {
-                    item_key + "_" + asset_key: _asset_object(
-                        job_id=job_id, user_id=user_id, filename=asset_metadata.get("href"), asset_metadata=asset_metadata, job_info=job_info
+                    item_key
+                    + "_"
+                    + asset_key: _asset_object(
+                        job_id=job_id,
+                        user_id=user_id,
+                        filename=asset_metadata.get("href"),
+                        asset_metadata=asset_metadata,
+                        job_info=job_info,
+                        stac11=True,
                     )
                     for item_key, item_metadata in result_items.items()
                     for asset_key, asset_metadata in item_metadata.get("assets").items()
@@ -1420,7 +1432,7 @@ def register_views_batch_jobs(
 
         assets = {}
         for asset_key, asset in item_metadata.get("assets", {}).items():
-            assets[asset_key] = _asset_object(job_id, user_id, asset_key, asset, job_info)
+            assets[asset_key] = _asset_object(job_id, user_id, asset_key, asset, job_info, stac11=True)
 
 
         properties = item_metadata.get("properties", {"datetime": item_metadata.get("datetime")})
@@ -1474,7 +1486,7 @@ def register_views_batch_jobs(
                 {
                     "rel": "self",
                     # MUST be absolute
-                    "href": url_for(".get_job_result_item", job_id=job_id, item_id=item_id, _external=True),
+                    "href": url_for(".get_job_result_item11", job_id=job_id, item_id=item_id, _external=True),
                     "type": stac_item_media_type,
                 },
                 {
@@ -1651,7 +1663,9 @@ def register_views_batch_jobs(
                     "type": "application/json",
                 },
             ],
-            "assets": {asset_filename: _asset_object(job_id, user_id, asset_filename, asset_metadata, job_info)},
+            "assets": {
+                asset_filename: _asset_object(job_id, user_id, asset_filename, asset_metadata, job_info, stac11=False)
+            },
             "collection": job_id,
         }
         # Add optional items, if they are present.
@@ -1695,7 +1709,9 @@ def register_views_batch_jobs(
         resp.mimetype = stac_item_media_type
         return resp
 
-    def _asset_object(job_id, user_id, filename: str, asset_metadata: dict, job_info: BatchJobMetadata) -> dict:
+    def _asset_object(
+        job_id, user_id, filename: str, asset_metadata: dict, job_info: BatchJobMetadata, stac11: bool
+    ) -> dict:
         result_dict = dict_no_none(
             {
                 "title": asset_metadata.get("title", filename),
@@ -1706,7 +1722,7 @@ def register_views_batch_jobs(
                 "type": asset_metadata.get("type", asset_metadata.get("media_type", "application/octet-stream")),
                 "roles": asset_metadata.get("roles", ["data"]),
                 # TODO: eliminate this legacy "raster:bands" construct at some point?
-                "raster:bands": asset_metadata.get("raster:bands"),
+                "raster:bands": None if stac11 else asset_metadata.get("raster:bands"),
                 "file:size": asset_metadata.get("file:size"),
                 "alternate": asset_metadata.get("alternate"),
             }
@@ -1734,27 +1750,35 @@ def register_views_batch_jobs(
             ]
 
             # TODO: eliminate this legacy "eo:bands" construct at some point?
-            result_dict["eo:bands"] = [
-                dict_no_none(
-                    {
-                        "name": band.name,
-                        "common_name": band.common_name,
-                        "center_wavelength": band.wavelength_um,
-                    }
-                )
-                for band in bands
-            ]
-            # TODO: "bands" is a STAC>=1.1 feature, but here we don't know what version we are in.
-            result_dict["bands"] = [
-                dict_no_none(
-                    {
-                        "name": band.name,
-                        "eo:common_name": band.common_name,
-                        "eo:center_wavelength": band.wavelength_um,
-                    }
-                )
-                for band in bands
-            ]
+            if not stac11:
+                result_dict["eo:bands"] = [
+                    dict_no_none(
+                        {
+                            "name": band.name,
+                            "common_name": band.common_name,
+                            "center_wavelength": band.wavelength_um,
+                        }
+                    )
+                    for band in bands
+                ]
+            else:
+                def raster_bands(band_index) -> dict:
+                    rb = asset_metadata.get("raster:bands", [])
+                    return rb[band_index] if band_index < len(rb) else {}
+
+                result_dict["bands"] = [
+                    dict_no_none(
+                        {
+                            **{
+                                "name": band.name,
+                                "eo:common_name": band.common_name,
+                                "eo:center_wavelength": band.wavelength_um,
+                            },
+                            **raster_bands(i),
+                        }
+                    )
+                    for (i, band) in enumerate(bands)
+                ]
 
         result_dict.update(
             dict_no_none(
