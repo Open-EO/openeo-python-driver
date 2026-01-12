@@ -1762,7 +1762,6 @@ def register_views_batch_jobs(
                     for band in bands
                 ]
             else:
-
                 def raster_bands(band_index) -> dict:
                     rb = asset_metadata.get("raster:bands", [])
                     return rb[band_index] if band_index < len(rb) else {}
