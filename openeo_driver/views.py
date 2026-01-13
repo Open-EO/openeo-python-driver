@@ -1442,6 +1442,7 @@ def register_views_batch_jobs(
                 common = os.path.commonpath([asset.get('href'), out_dir])
                 href = os.path.relpath(asset.get('href'), common)
             else:
+                _log.info(f"asset has no output dir and href {asset.get('href')}")
                 href = asset.get("href")
             assets[asset_key] = _asset_object(job_id, user_id, href, asset, job_info, stac11=True) # asset key as filename is not correct
 
