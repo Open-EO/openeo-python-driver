@@ -76,6 +76,7 @@ class OpenEoBackendConfig(_ConfigBase):
     Collection exclusion list: what collections to hide from the `GET /collections` listing.
     To be provided as one of
     - an object that implements the `Container[str]` interface
+      (basically just the menthod `__contains__(item: str) -> bool`),
       such as a simple `List[str]` or `Set[str]`
       or a custom implementation (e.g. see `openeo_driver.config.util.Exclude`)
     - a mapping of such objects keyed on API version to make the exclusion list version dependent
