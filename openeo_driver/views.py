@@ -1195,20 +1195,24 @@ def register_views_batch_jobs(
 
 
             if result_metadata.items :
-                assets = {
-                    item_key
-                    + "_"
-                    + asset_key: _asset_object(
-                        job_id=job_id,
-                        user_id=user_id,
-                        filename=asset_metadata.get("href"),
-                        asset_metadata=asset_metadata,
-                        job_info=job_info,
-                        stac11=True,
-                    )
-                    for item_key, item_metadata in result_items.items()
-                    for asset_key, asset_metadata in item_metadata.get("assets").items()
-                }
+                assets = {}
+                for item_key, item_metadata in result_items.items():
+                    for asset_key, asset_metadata in item_metadata.get("assets").items():
+                        if "output_dir" in asset_metadata:
+                            out_dir = asset_metadata.get("output_dir")
+                            _log.info(f"asset has output dir {out_dir} and href {asset_metadata.get('href')}")
+                            common = os.path.commonpath([asset_metadata.get('href'), out_dir])
+                            href = os.path.relpath(asset_metadata.get('href'),common)
+                        else:
+                            href = asset_metadata.get("href")
+                        assets[item_key + "_" + asset_key] = _asset_object(
+                         job_id=job_id,
+                         user_id=user_id,
+                         filename= href,
+                         asset_metadata=asset_metadata,
+                         job_info=job_info,
+                         stac11=True,
+                     )
                 for item_id in result_metadata.items.keys():
                     links.append(
                         {"rel": "item", "href": job_result_item_url(item_id=item_id, is11=True), "type": stac_item_media_type}
@@ -1432,7 +1436,14 @@ def register_views_batch_jobs(
 
         assets = {}
         for asset_key, asset in item_metadata.get("assets", {}).items():
-            assets[asset_key] = _asset_object(job_id, user_id, asset_key, asset, job_info, stac11=True)
+            if "output_dir" in asset:
+                out_dir = asset.get("output_dir")
+                _log.info(f"asset has output dir {out_dir} and href {asset.get('href')}")
+                common = os.path.commonpath([asset.get('href'), out_dir])
+                href = os.path.relpath(asset.get('href'), common)
+            else:
+                href = asset.get("href")
+            assets[asset_key] = _asset_object(job_id, user_id, href, asset, job_info, stac11=True) # asset key as filename is not correct
 
 
         properties = item_metadata.get("properties", {"datetime": item_metadata.get("datetime")})
