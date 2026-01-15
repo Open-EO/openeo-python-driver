@@ -718,7 +718,7 @@ def _align_extent(extent: dict, collection_id: str, env: EvalEnv, target_resolut
         _log.info(f"Realigned input extent {extent} into {new_extent}")
 
         return new_extent
-    elif isUTM:
+    elif isUTM and collection_resolution:
         if collection_resolution[0] <= 20 and target_resolution[0] <= 20:
             bbox = BoundingBox.from_dict(extent, default_crs=4326)
             bbox_utm = bbox.reproject_to_best_utm()
