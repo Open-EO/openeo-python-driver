@@ -36,6 +36,10 @@ class Workspace(abc.ABC):
         """
         raise NotImplementedError
 
+    @property
+    def merges_by_default(self) -> bool:
+        return False
+
 
 class DiskWorkspace(Workspace):
 
