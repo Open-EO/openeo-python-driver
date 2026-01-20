@@ -1324,12 +1324,25 @@ def register_views_batch_jobs(
                 message=f"Unsupported Range unit {request.range.units}; supported is: bytes"
             )
 
-        results = backend_implementation.batch_jobs.get_result_assets(
+        result_metadata = backend_implementation.batch_jobs.get_result_metadata(
             job_id=job_id, user_id=user_id
         )
-        if filename not in results.keys():
-            raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
-        result = results[filename]
+        if result_metadata.items:
+            result = None
+            for asset_key, asset in result_metadata.items["assets"]:
+                out_dir = asset.get("output_dir","")
+                common = os.path.commonpath([asset.get("href",""),out_dir])
+                href =  os.path.relpath(asset.get("href",""),common)
+                if href == filename:
+                    if result == None:
+                        result = asset
+                    else:
+                        raise OpenEOApiException("multiple assets with filename {n!r}".format(n=filename))
+        else:
+            results = result_metadata.assets
+            if filename not in results.keys():
+                raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
+            result = results[filename]
         if result.get("href", "").startswith("s3://"):
             return _stream_from_s3(
                 result["href"], filename=filename, mimetype=result.get("type"), bytes_range=request.headers.get("Range")
@@ -1444,7 +1457,7 @@ def register_views_batch_jobs(
             else:
                 _log.info(f"asset has no output dir and href {asset.get('href')}")
                 href = asset.get("href")
-            assets[asset_key] = _asset_object(job_id, user_id, href, asset, job_info, stac11=True) # asset key as filename is not correct
+            assets[asset_key] = _asset_object(job_id, user_id, href, asset, job_info, stac11=True)
 
 
         properties = item_metadata.get("properties", {"datetime": item_metadata.get("datetime")})
