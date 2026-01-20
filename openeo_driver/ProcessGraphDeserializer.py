@@ -1510,6 +1510,11 @@ def aggregate_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
         raise ProcessParameterInvalidException(
             parameter="geometries", process="aggregate_spatial", reason=f"Invalid type: {type(geoms)} ({geoms!r})"
         )
+
+    if not isinstance(geoms, DriverVectorCube):
+        # TODO #114 make this a hard assert instead of a warning
+        _log.warning(f"DriverVectorCube requirement failed in aggregate_spatial: got {type(geoms)=}")
+
     return cube.aggregate_spatial(geometries=geoms, reducer=reduce_pg, target_dimension=target_dimension)
 
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/2.x/proposals/aggregate_spatial_window.json"))
@@ -1705,7 +1710,12 @@ def filter_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
         raise NotImplementedError(
             "filter_spatial does not support {g!r}".format(g=geometries)
         )
-    return cube.filter_spatial(geometries)
+
+    if not isinstance(geometries, DriverVectorCube):
+        # TODO #114 make this a hard assert instead of a warning
+        _log.warning(f"DriverVectorCube requirement failed in filter_spatial: got {type(geometries)=}")
+
+    return cube.filter_spatial(geometries=geometries)
 
 
 @process

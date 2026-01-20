@@ -264,7 +264,7 @@ class DummyDataCube(DriverDataCube):
 
     def aggregate_spatial(
         self,
-        geometries: Union[BaseGeometry, str, DriverVectorCube],
+        geometries: DriverVectorCube,
         reducer: dict,
         target_dimension: Optional[str] = None,
     ) -> Union[AggregatePolygonResult, AggregatePolygonSpatialResult, DriverVectorCube]:

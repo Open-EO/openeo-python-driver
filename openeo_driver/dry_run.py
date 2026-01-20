@@ -580,7 +580,7 @@ class DryRunDataCube(DriverDataCube):
             operation, {"west": west, "south": south, "east": east, "north": north, "crs": (crs or "EPSG:4326")}
         )
 
-    def filter_spatial(self, geometries):
+    def filter_spatial(self, geometries: DriverVectorCube):
         crs = None
         resolution = None
         if len(self.metadata.spatial_dimensions) > 0:
@@ -632,7 +632,7 @@ class DryRunDataCube(DriverDataCube):
 
     def aggregate_spatial(
         self,
-        geometries: Union[BaseGeometry, str, DriverVectorCube],
+        geometries: DriverVectorCube,
         reducer: dict,
         target_dimension: Optional[str] = None,
     ) -> "DryRunDataCube":

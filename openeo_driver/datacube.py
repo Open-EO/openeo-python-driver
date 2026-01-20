@@ -85,7 +85,7 @@ class DriverDataCube:
     def filter_bbox(self, west, south, east, north, crs=None, base=None, height=None) -> 'DriverDataCube':
         self._not_implemented()
 
-    def filter_spatial(self, geometries) -> 'DriverDataCube':
+    def filter_spatial(self, geometries: "DriverVectorCube") -> "DriverDataCube":
         self._not_implemented()
 
     def filter_bands(self, bands) -> 'DriverDataCube':
@@ -195,7 +195,7 @@ class DriverDataCube:
 
     def aggregate_spatial(
         self,
-        geometries: Union[shapely.geometry.base.BaseGeometry, str, "DriverVectorCube"],
+        geometries: "DriverVectorCube",
         reducer: dict,
         target_dimension: Optional[str] = None,
     ) -> Union["AggregatePolygonResult", "AggregatePolygonSpatialResult", "DriverVectorCube"]:

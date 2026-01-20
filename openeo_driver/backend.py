@@ -174,8 +174,11 @@ class LoadParameters(dict):
     filter_temporal_labels = dict_item(default=None)
     bands = dict_item(default=None)
     properties = dict_item(default={})
-    # TODO: rename this to filter_spatial_geometries (because it is used for load_collection-time filtering)?
-    aggregate_spatial_geometries = dict_item(default=None)
+    # TODO: aggregate_spatial_geometries is not a good name anymore for this parameter:
+    #       it's being used as geometry based "spatial extent", possibly based on any of:
+    #       aggregate_spatial, filter_spatial, mask_polygon, apply_polygon
+    #       Rename this to something like spatial_filtering_geometries?
+    aggregate_spatial_geometries: Union[DriverVectorCube, None] = dict_item(default=None)
     sar_backscatter: Union[SarBackscatterArgs, None] = dict_item(default=None)
     process_types = dict_item(default=set())
     custom_mask = dict_item(default={})
