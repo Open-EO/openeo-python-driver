@@ -242,6 +242,15 @@ class DriverDataCube:
         # Note: this is a non-standard process
         self._not_implemented()
 
+    def convert_data_type(self, data_type:str) -> "DriverDataCube":
+        self._not_implemented()
+
+    def aspect(self) -> "DriverDataCube":
+        self._not_implemented()
+
+    def slope(self) -> "DriverDataCube":
+        self._not_implemented()
+
     def predict_onnx(self,model:str) -> 'DriverDataCube':
         self._not_implemented()
 
