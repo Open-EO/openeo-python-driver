@@ -19,7 +19,6 @@ _log = logging.getLogger(__name__)
 
 StacRef = Union[pystac.STACObject, str, Path]
 
-
 def as_stac_object(stac_ref: StacRef) -> pystac.STACObject:
     if isinstance(stac_ref, pystac.STACObject):
         return stac_ref

@@ -718,7 +718,7 @@ def _align_extent(extent: dict, collection_id: str, env: EvalEnv, target_resolut
         _log.info(f"Realigned input extent {extent} into {new_extent}")
 
         return new_extent
-    elif isUTM:
+    elif isUTM and collection_resolution:
         if collection_resolution[0] <= 20 and target_resolution[0] <= 20:
             bbox = BoundingBox.from_dict(extent, default_crs=4326)
             bbox_utm = bbox.reproject_to_best_utm()
@@ -1665,6 +1665,18 @@ def filter_bbox(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     return cube.filter_bbox(**spatial_extent)
 
 
+@custom_process
+def corsa_compress(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    return cube.corsa_compress()
+
+
+@custom_process
+def corsa_decompress(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    return cube.corsa_decompress()
+
+
 @process
 def filter_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
@@ -1766,7 +1778,7 @@ def merge_cubes(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def run_udf(args: ProcessArgs, env: EvalEnv):
     # TODO: note: this implements a non-standard usage of `run_udf`: processing "vector" cube (direct JSON or from aggregate_spatial, ...)
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
-    data = args.get_required(name="data")
+    data = args.get_optional(name="data")
     udf, runtime = _get_udf(args, env=env)
     context = args.get_optional(name="context", default={})
 
@@ -1777,6 +1789,14 @@ def run_udf(args: ProcessArgs, env: EvalEnv):
         # E.g. A DelayedVector (when the user directly provides geometries as input).
         # This way a weak_spatial_extent can be calculated from the UDF's output.
         return data.run_udf()
+
+    if runtime.lower() == "EOAP-CWL".lower():
+        return env.backend_implementation.run_cwl(
+            data=data,
+            env=env,
+            cwl=udf,
+            context=context,
+        )
 
     if env.get("validation", False):
         raise FeatureUnsupportedException("run_udf is not supported in validation mode.")

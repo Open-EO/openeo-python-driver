@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import logging
 from enum import Enum
+from functools import lru_cache
 from typing import List, Optional, Tuple, Union, Iterator
 
 import numpy
@@ -335,19 +336,17 @@ class DryRunDataTracer:
 
         return cube
 
-    def load_stac(self, url: str, arguments: dict, env: EvalEnv = EvalEnv()) -> "DryRunDataCube":
-        properties = arguments.get("properties", {})
 
-        trace = DataSource.load_stac(url=url, properties=properties, bands=arguments.get("bands", []), env=env)
-        self.add_trace(trace)
-
+    @staticmethod
+    @lru_cache(maxsize=20)
+    def _stac_metadata(stac_ref):
         try:
-            metadata = openeo_driver.stac.datacube.stac_to_cube_metadata(stac_ref=url)
+            return openeo_driver.stac.datacube.stac_to_cube_metadata(stac_ref=stac_ref)
         except Exception as e:
             _log.warning(
-                f"Dry-run load_stac: failed to parse cube metadata from {url!r} ({e!r}). Falling back on generic metadata."
+                f"Dry-run load_stac: failed to parse cube metadata from {stac_ref!r} ({e!r}). Falling back on generic metadata."
             )
-            metadata = CubeMetadata(
+            return CubeMetadata(
                 dimensions=[
                     SpatialDimension(name="x", extent=[]),
                     SpatialDimension(name="y", extent=[]),
@@ -355,6 +354,15 @@ class DryRunDataTracer:
                     BandDimension(name="bands", bands=[Band("unknown")]),
                 ]
             )
+
+
+    def load_stac(self, url: str, arguments: dict, env: EvalEnv = EvalEnv()) -> "DryRunDataCube":
+        properties = arguments.get("properties", {})
+
+        trace = DataSource.load_stac(url=url, properties=properties, bands=arguments.get("bands", []), env=env)
+        self.add_trace(trace)
+
+        metadata = DryRunDataTracer._stac_metadata(stac_ref=url)
 
         cube = DryRunDataCube(traces=[trace], data_tracer=self, metadata=metadata)
         if "temporal_extent" in arguments:
@@ -427,6 +435,8 @@ class DryRunDataTracer:
                     "reduce_dimension_binary",
                     "mask",
                     "to_scl_dilation_mask",
+                    "corsa_compress",
+                    "predict_onnx",
                 ]:
                     args = resampling_op.get_arguments_by_operation(op)
                     if args:
@@ -921,12 +931,23 @@ class DryRunDataCube(DriverDataCube):
         cube = cube._process("to_scl_dilation_mask", arguments={})
         return cube
 
+    def corsa_compress(self):
+        # TODO: adapt metadata (bands level_0 and level_1) ?
+        return self._process("corsa_compress", {})
+
+    def corsa_decompress(self):
+        # TODO: adapt metadata (bands B02 etc) ?
+        return self._process("corsa_decompress", {})
+
     def mask_l1c(self) -> "DriverDataCube":
         return self._process("custom_cloud_mask", arguments={"method": "mask_l1c"})
 
     def _nop(self, *args, **kwargs) -> "DryRunDataCube":
         """No Operation: do nothing"""
         return self
+
+    def predict_onnx(self, model):
+        return self._process("predict_onnx",arguments={"model":model})
 
     # TODO: some methods need metadata manipulation?
 
