@@ -97,7 +97,7 @@ class JobRegistryInterface:
     def get_job(self, job_id: str, *, user_id: Optional[str] = None) -> JobDict:
         raise NotImplementedError
 
-    def delete_job(self, job_id: str, *, user_id: Optional[str] = None) -> None:
+    def delete_job(self, job_id: str, *, user_id: Optional[str] = None, verify_deletion: bool = True) -> None:
         raise NotImplementedError
 
     def set_status(
@@ -530,7 +530,7 @@ class ElasticJobRegistry(JobRegistryInterface):
                 )
                 raise InternalException(message=f"Found {len(jobs)} jobs for {job_id=} {user_id=}")
 
-    def delete_job(self, job_id: str, *, user_id: Optional[str] = None) -> None:
+    def delete_job(self, job_id: str, *, user_id: Optional[str] = None, verify_deletion: bool = True) -> None:
         with ExtraLoggingFilter.with_extra_logging(job_id=job_id, user_id=user_id):
             try:
                 self._get_job(job_id=job_id, user_id=user_id, fields=["job_id"])  # assert own job
@@ -540,7 +540,8 @@ class ElasticJobRegistry(JobRegistryInterface):
                 if e.status_code == 404:
                     raise JobNotFoundException(job_id=job_id) from e
                 raise e
-            self._verify_job_existence(job_id=job_id, user_id=user_id, exists=False)
+            if verify_deletion:
+                self._verify_job_existence(job_id=job_id, user_id=user_id, exists=False)
 
     def _verify_job_existence(self, job_id: str, user_id: Optional[str] = None, exists: bool = True,
                               backoffs: Sequence[float] = (0, 0.1, 1.0, 5.0)):
@@ -772,6 +773,45 @@ class ElasticJobRegistry(JobRegistryInterface):
                 }
             ),
         )
+
+    def get_all_started_jobs_before(
+        self,
+        upper: datetime.datetime,
+        user_ids: Optional[List[str]] = None,
+        field_whitelist: Optional[List[str]] = None,
+        max_count: int = 1000,
+    ) -> List[Dict]:
+        # Note: this method retrieves all the 'non-deleted' jobs before given upper datetime.
+        page_size = min(max_count, 1000)
+        query = {
+            "bool": {
+                "filter": [
+                    {"term": {"backend_id": self.backend_id}},
+                    {"terms": {"status": [JOB_STATUS.FINISHED, JOB_STATUS.ERROR, JOB_STATUS.CANCELED, JOB_STATUS.RUNNING, JOB_STATUS.QUEUED]}},
+                    {
+                        "bool": {
+                            "must_not": [
+                                {"term": {"deleted": True}}
+                            ]
+                        }
+                    },
+                ]
+            },
+        }
+        query["bool"]["filter"].append({"range": {"updated": {"lte": f"{rfc3339._format_datetime(upper)}"}}})
+        if user_ids:
+            query["bool"]["filter"].append({"terms": {"user_id": user_ids}})
+        all_jobs: List[Dict] = []
+        page_number = 0
+        while len(all_jobs) < max_count:
+            page_result: _PaginatedSearchResult = self._search_paginated(
+                query=query, fields=field_whitelist, page_size=page_size, page_number=page_number
+            )
+            all_jobs.extend(page_result.jobs)
+            page_number = page_result.next_page
+            if not page_number:
+                break
+        return all_jobs[:max_count]
 
 
 class CliApp:
