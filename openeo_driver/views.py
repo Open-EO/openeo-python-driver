@@ -1329,15 +1329,16 @@ def register_views_batch_jobs(
         )
         if result_metadata.items:
             result = None
-            for asset_key, asset in result_metadata.items["assets"]:
-                out_dir = asset.get("output_dir","")
-                common = os.path.commonpath([asset.get("href",""),out_dir])
-                href =  os.path.relpath(asset.get("href",""),common)
-                if href == filename:
-                    if result == None:
-                        result = asset
-                    else:
-                        raise OpenEOApiException("multiple assets with filename {n!r}".format(n=filename))
+            for item_key, item in result_metadata.items.items():
+                for asset_key, asset in item.get("assets").items():
+                    out_dir = asset.get("output_dir","")
+                    common = os.path.commonpath([asset.get("href",""),out_dir])
+                    href =  os.path.relpath(asset.get("href",""),common)
+                    if href == filename:
+                        if result == None:
+                            result = asset
+                        else:
+                            raise OpenEOApiException("multiple assets with filename {n!r}".format(n=filename))
         else:
             results = result_metadata.assets
             if filename not in results.keys():
