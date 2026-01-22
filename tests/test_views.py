@@ -3491,6 +3491,101 @@ class TestBatchJobs:
             )
         assert resp.assert_error(410, "ResultLinkExpired")
 
+
+    @mock.patch("time.time", mock.MagicMock(return_value=1234))
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
+    def test_download_result_stac_1_1_item(self, api110, tmp_path, backend_config_overrides):
+        output_root = Path(tmp_path)
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
+        item_id = "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z"
+        with self._fresh_job_registry():
+            filename = "openEO_20231231T214100Z.tif"
+            output = output_root / job_id / filename
+            output.parent.mkdir(parents=True)
+            with output.open("wb") as f:
+                f.write(b"tiffdata")
+            dummy_backend.DummyBatchJobs.set_result_metadata(
+                job_id=job_id,
+                user_id=TEST_USER,
+                metadata=BatchJobResultMetadata(
+                    items={
+                        "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z": {
+                            "geometry": {
+                                "coordinates": [
+                                    [
+                                        [3.359808992021044, 51.08284561357965],
+                                        [3.359808992021044, 51.88641704215104],
+                                        [4.690166134878123, 51.88641704215104],
+                                        [4.690166134878123, 51.08284561357965],
+                                        [3.359808992021044, 51.08284561357965],
+                                    ]
+                                ],
+                                "type": "Polygon",
+                            },
+                            "assets": {
+                                "openEO": {
+                                    "datetime": "2023-12-31T21:41:00Z",
+                                    "roles": ["data"],
+                                    "bbox": [
+                                        3.359808992021044,
+                                        51.08284561357965,
+                                        4.690166134878123,
+                                        51.88641704215104,
+                                    ],
+                                    "geometry": {
+                                        "coordinates": [
+                                            [
+                                                [3.359808992021044, 51.08284561357965],
+                                                [3.359808992021044, 51.88641704215104],
+                                                [4.690166134878123, 51.88641704215104],
+                                                [4.690166134878123, 51.08284561357965],
+                                                [3.359808992021044, 51.08284561357965],
+                                            ]
+                                        ],
+                                        "type": "Polygon",
+                                    },
+                                    "href": f"{output_root}/{job_id}/{filename}",
+                                    "output_dir": f"{output_root}/{job_id}",
+                                    "nodata": "nan",
+                                    "type": "image/tiff; application=geotiff",
+                                    "bands": [
+                                        {"name": "LST", "common_name": "surface_temperature", "aliases": ["LST_in:LST"]}
+                                    ],
+                                    "raster:bands": [
+                                        {
+                                            "name": "LST",
+                                            "statistics": {
+                                                "valid_percent": 66.88,
+                                                "maximum": 281.04800415039,
+                                                "stddev": 19.598456945276,
+                                                "minimum": 224.46798706055,
+                                                "mean": 259.57087672984,
+                                            },
+                                        }
+                                    ],
+                                }
+                            },
+                            "id": "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z",
+                            "properties": {"datetime": "2023-12-31T21:41:00Z"},
+                            "bbox": [3.359808992021044, 51.08284561357965, 4.690166134878123, 51.88641704215104],
+                            "links": [
+                                {
+                                    "rel": "aux",
+                                    "href": "/data/projects/OpenEO/07024ee9-7847-4b8a-b260-6c879a2b3cdc/07024ee9-7847-4b8a-b260-6c879a2b3cdc_input_items_9569134155392213115.json",
+                                    "type": "application/json",
+                                    ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY: True,
+                                },
+                            ],
+                        }
+                    }
+                ),
+            )
+            resp = api110.get(
+                f"/jobs/{job_id}/results/assets/TXIuVGVzdA==/dec8e6bb06c8f0cdaa6f62188b3e022f/{filename}?expires=2234"
+            )
+        assert resp.assert_status_code(200).data == b"tiffdata"
+        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
+
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
     def test_get_job_result_item(self, flask_app, api110, backend_config_overrides):
