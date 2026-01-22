@@ -950,7 +950,7 @@ class DryRunDataCube(DriverDataCube):
         return self._process("predict_onnx",arguments={"model":model})
 
     def convert_data_type(self, data_type:str):
-        return self._process("aspect", arguments={"data_type":data_type})
+        return self._process("convert_data_type", arguments={"data_type":data_type})
 
     def aspect(self):
         return self._process("aspect", arguments={})
