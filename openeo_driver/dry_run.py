@@ -949,6 +949,14 @@ class DryRunDataCube(DriverDataCube):
     def predict_onnx(self, model):
         return self._process("predict_onnx",arguments={"model":model})
 
+    def convert_data_type(self, data_type:str):
+        return self._process("aspect", arguments={"data_type":data_type})
+
+    def aspect(self):
+        return self._process("aspect", arguments={})
+
+    def slope(self):
+        return self._process("slope", arguments={})
     # TODO: some methods need metadata manipulation?
 
     apply_tiles = _nop
