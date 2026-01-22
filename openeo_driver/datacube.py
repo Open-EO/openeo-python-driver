@@ -354,7 +354,11 @@ class DriverVectorCube:
             columns_for_cube = cls.COLUMN_SELECTION_NUMERICAL
 
         if columns_for_cube == cls.COLUMN_SELECTION_NUMERICAL:
-            columns_for_cube = [c for c in available_columns if numpy.issubdtype(data[c].dtype, numpy.number)]
+            columns_for_cube = [
+                c
+                for c in available_columns
+                if isinstance(data[c].dtype, numpy.dtype) and numpy.issubdtype(data[c].dtype, numpy.number)
+            ]
         elif columns_for_cube == cls.COLUMN_SELECTION_ALL:
             columns_for_cube = available_columns
         elif isinstance(columns_for_cube, list):
