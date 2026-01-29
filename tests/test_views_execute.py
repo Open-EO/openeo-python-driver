@@ -198,6 +198,22 @@ def test_execute_filter_temporal_extent_double_null(api):
     )
 
 
+def test_execute_load_collection_temporal_extent_equal_start_and_end(api, caplog):
+    resp = api.result(
+        {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {"id": "S2_FAPAR_CLOUDCOVER", "temporal_extent": ["2021-12-07", "2021-12-07"]},
+                "result": True,
+            }
+        }
+    )
+    # TODO: This should trigger a TemporalExtentEmpty error instead of success with warning
+    resp.assert_status_code(200)
+    expected_message = r"load_collection temporal_extent with same start and end.*2021-12-07.*is invalid.*will trigger a TemporalExtentEmpty error.*"
+    assert (dirty_equals.AnyThing, logging.ERROR, dirty_equals.IsStr(regex=expected_message)) in caplog.record_tuples
+
+
 def test_execute_filter_temporal_extent_equal_start_and_end(api, caplog):
     resp = api.result(
         {
@@ -209,11 +225,10 @@ def test_execute_filter_temporal_extent_equal_start_and_end(api, caplog):
             },
         }
     )
-
     # TODO: This should trigger a TemporalExtentEmpty error instead of success with warning
     resp.assert_status_code(200)
-    expected_warning = "filter_temporal extent with same start and end (['2021-12-07', '2021-12-07']) is invalid/deprecated and will trigger a TemporalExtentEmpty error in the future."
-    assert expected_warning in caplog.text
+    expected_message = r"filter_temporal extent with same start and end.*2021-12-07.*is invalid.*will trigger a TemporalExtentEmpty error.*"
+    assert (dirty_equals.AnyThing, logging.ERROR, dirty_equals.IsStr(regex=expected_message)) in caplog.record_tuples
 
 
 def test_execute_filter_bbox(api):
