@@ -1581,8 +1581,10 @@ def _extract_temporal_extent(args: dict, field="extent", process_id="filter_temp
         )
 
     if start and end and start == end:
-        _log.warning(
-            f"{process_id} {field} with same start and end ({args.get('extent')!r}) is invalid/deprecated and will trigger a TemporalExtentEmpty error in the future. Use a proper left-closed temporal interval."
+        _log.error(
+            f"{process_id} {field} with same start and end ({args.get(field)!r}) is invalid and may cause unintended behavior."
+            f" This will trigger a TemporalExtentEmpty error in the future."
+            f" Instead, use a proper left-closed (end-exclusive) temporal interval."
         )
 
     # TODO: convert to datetime? or at least normalize?
