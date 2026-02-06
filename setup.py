@@ -28,7 +28,6 @@ tests_require = [
     "netCDF4>=1.5.4",
     "re-assert",  # TODO: drop this dependency in favor of dirty-equals
     "pyarrow>=10.0.0",
-    "pystac",
     "jsonschema",
     "dirty-equals>=0.6",
 ]
