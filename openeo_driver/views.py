@@ -1064,25 +1064,17 @@ def register_views_batch_jobs(
             # TODO: also encrypt user id?
             # TODO: encode all stuff (signature, userid, expiry) in a single blob in the URL
 
-            if partial:
-                return url_for(
-                    ".list_job_results_signed",
-                    job_id=job_id,
-                    user_base64=user_base64,
-                    expires=expires,
-                    secure_key=secure_key,
-                    _external=True,
-                    partial="true",
-                )
-            else:
-                return url_for(
-                    ".list_job_results_signed",
-                    job_id=job_id,
-                    user_base64=user_base64,
-                    expires=expires,
-                    secure_key=secure_key,
-                    _external=True,
-                )
+            extra_values = {"partial": "true"} if partial else {}
+
+            return url_for(
+                ".list_job_results_signed",
+                job_id=job_id,
+                user_base64=user_base64,
+                expires=expires,
+                secure_key=secure_key,
+                _external=True,
+                **extra_values,
+            )
 
         with TimingLogger(f"backend_implementation.batch_jobs.get_job_info({job_id=}, {user_id=})", _log):
             job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
