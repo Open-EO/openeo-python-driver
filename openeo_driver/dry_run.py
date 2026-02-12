@@ -654,6 +654,17 @@ class DryRunDataCube(DriverDataCube):
             cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
         return cube._process(operation="aggregate_spatial", arguments={"geometries": geometries})
 
+    def aggregate_spatial_window(
+        self,
+        size,
+        reducer: dict,
+        align: str="upper-left",
+        boundary: str = "pad"
+    )  -> "DriverDataCube":
+        cube = self
+        return cube._process(operation="aggregate_spatial_window", arguments={"size": size, "reducer": reducer, "align": align, "boundary": boundary})
+
+
     def _normalize_geometry(
         self, geometries, target_crs=None, target_resolution = None
     ) -> Tuple[Union[DriverVectorCube, DelayedVector, BaseGeometry], dict]:
