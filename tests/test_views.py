@@ -2886,36 +2886,17 @@ class TestBatchJobs:
                                 "type": "Polygon",
                             },
                             "assets": {
-                                "openEO_rel": {
-                                    "datetime": "2023-12-31T21:41:00Z",
+                                "openEO": {
                                     "roles": ["data"],
-                                    "bbox": [
-                                        3.359808992021044,
-                                        51.08284561357965,
-                                        4.690166134878123,
-                                        51.88641704215104,
-                                    ],
-                                    "geometry": {
-                                        "coordinates": [
-                                            [
-                                                [3.359808992021044, 51.08284561357965],
-                                                [3.359808992021044, 51.88641704215104],
-                                                [4.690166134878123, 51.88641704215104],
-                                                [4.690166134878123, 51.08284561357965],
-                                                [3.359808992021044, 51.08284561357965],
-                                            ]
-                                        ],
-                                        "type": "Polygon",
-                                    },
-                                    "href": "openEO_20231231T214100Z.tif",
+                                    "href": "/data/projects/OpenEO/j-250605095828442799fdde3c29b5b047/openEO_20231231T214100Z.tif",
+                                    "output_dir": "/data/projects/OpenEO/j-250605095828442799fdde3c29b5b047",
+                                    "title": "openEO_20231231T214100Z.tif",
                                     "nodata": "nan",
                                     "type": "image/tiff; application=geotiff",
                                     "bands": [
-                                        {"name": "LST", "common_name": "surface_temperature", "aliases": ["LST_in:LST"]}
-                                    ],
-                                    "raster:bands": [
                                         {
                                             "name": "LST",
+                                            "eo:common_name": "surface_temperature",
                                             "statistics": {
                                                 "valid_percent": 66.88,
                                                 "maximum": 281.04800415039,
@@ -2926,47 +2907,6 @@ class TestBatchJobs:
                                         }
                                     ],
                                 },
-                                "openEO_abs": {
-                                    "datetime": "2023-12-31T21:41:00Z",
-                                    "roles": ["data"],
-                                    "bbox": [
-                                        3.359808992021044,
-                                        51.08284561357965,
-                                        4.690166134878123,
-                                        51.88641704215104,
-                                    ],
-                                    "geometry": {
-                                        "coordinates": [
-                                            [
-                                                [3.359808992021044, 51.08284561357965],
-                                                [3.359808992021044, 51.88641704215104],
-                                                [4.690166134878123, 51.88641704215104],
-                                                [4.690166134878123, 51.08284561357965],
-                                                [3.359808992021044, 51.08284561357965],
-                                            ]
-                                        ],
-                                        "type": "Polygon",
-                                    },
-                                    "href": "s3://openeo-data-staging-waw4-1/batch_jobs/j-250605095828442799fdde3c29b5b047/openEO_20231231T214100Z_abs.tif",
-                                    "output_dir" : "s3://openeo-data-staging-waw4-1/batch_jobs/j-250605095828442799fdde3c29b5b047",
-                                    "nodata": "nan",
-                                    "type": "image/tiff; application=geotiff",
-                                    "bands": [
-                                        {"name": "LST", "common_name": "surface_temperature", "aliases": ["LST_in:LST"]}
-                                    ],
-                                    "raster:bands": [
-                                        {
-                                            "name": "LST",
-                                            "statistics": {
-                                                "valid_percent": 66.88,
-                                                "maximum": 281.04800415039,
-                                                "stddev": 19.598456945276,
-                                                "minimum": 224.46798706055,
-                                                "mean": 259.57087672984,
-                                            },
-                                        }
-                                    ],
-                                }
                             },
                             "id": "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z",
                             "properties": {"datetime": "2023-12-31T21:41:00Z"},
@@ -2979,38 +2919,26 @@ class TestBatchJobs:
             resp = api110.get(f"/jobs/{job_id}/results", headers=self.AUTH_HEADER).assert_status_code(200)
 
             assert resp.json.get("assets") == {
-                '5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z_openEO_rel':{
-                    'href': 'http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/d58330c450ed1695361301efe130faf2/openEO_20231231T214100Z.tif',
-                    'bands': [{
-                        'name': 'LST',
-                        'eo:common_name': 'surface_temperature',
-                        'statistics': {
-                            'maximum': 281.04800415039,
-                            'mean': 259.57087672984,
-                            'minimum': 224.46798706055,
-                            'stddev': 19.598456945276,
-                            'valid_percent': 66.88}
-                    }],
-                    'roles': ['data'],
-                    'title': 'openEO_20231231T214100Z.tif',
-                    'type': 'image/tiff; application=geotiff'
+                "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z_openEO": {
+                    "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/d58330c450ed1695361301efe130faf2/openEO_20231231T214100Z.tif",
+                    "bands": [
+                        {
+                            "name": "LST",
+                            "eo:common_name": "surface_temperature",
+                            "statistics": {
+                                "maximum": 281.04800415039,
+                                "mean": 259.57087672984,
+                                "minimum": 224.46798706055,
+                                "stddev": 19.598456945276,
+                                "valid_percent": 66.88,
+                            },
+                        }
+                    ],
+                    "nodata": "nan",
+                    "roles": ["data"],
+                    "title": "openEO_20231231T214100Z.tif",
+                    "type": "image/tiff; application=geotiff",
                 },
-                '5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z_openEO_abs': {
-                    'href': 'http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/43241f3f756544ac5eb004268c3aa56a/openEO_20231231T214100Z_abs.tif',
-                    'bands': [{
-                        'name': 'LST',
-                        'eo:common_name': 'surface_temperature',
-                        'statistics': {
-                            'maximum': 281.04800415039,
-                            'mean': 259.57087672984,
-                            'minimum': 224.46798706055,
-                            'stddev': 19.598456945276,
-                            'valid_percent': 66.88}
-                    }],
-                    'roles': ['data'],
-                    'title': 'openEO_20231231T214100Z_abs.tif',
-                    'type': 'image/tiff; application=geotiff'
-                }
             }
             assert resp.json.get("stac_version") == "1.1.0"
 
@@ -3018,12 +2946,15 @@ class TestBatchJobs:
             assert len(item_links) == 1, "expected exactly one item link in STAC Collection"
 
             item_link = item_links[0]
-            assert item_link["href"] == f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/items11/TXIuVGVzdA==/6dfcff9f3d3d760f1cfca269ccc245fb/5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z"
+            assert (
+                item_link["href"]
+                == f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/items11/TXIuVGVzdA==/6dfcff9f3d3d760f1cfca269ccc245fb/5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z"
+            )
 
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
     def test_get_stac_1_1_item(self, api110, backend_implementation, backend_config_overrides):
         job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
-        item_id = "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z"
+
         with self._fresh_job_registry():
             dummy_backend.DummyBatchJobs.set_result_metadata(
                 job_id=job_id,
@@ -3045,36 +2976,15 @@ class TestBatchJobs:
                             },
                             "assets": {
                                 "openEO": {
-                                    "datetime": "2023-12-31T21:41:00Z",
                                     "roles": ["data"],
-                                    "bbox": [
-                                        3.359808992021044,
-                                        51.08284561357965,
-                                        4.690166134878123,
-                                        51.88641704215104,
-                                    ],
-                                    "geometry": {
-                                        "coordinates": [
-                                            [
-                                                [3.359808992021044, 51.08284561357965],
-                                                [3.359808992021044, 51.88641704215104],
-                                                [4.690166134878123, 51.88641704215104],
-                                                [4.690166134878123, 51.08284561357965],
-                                                [3.359808992021044, 51.08284561357965],
-                                            ]
-                                        ],
-                                        "type": "Polygon",
-                                    },
                                     "href": "s3://openeo-data-staging-waw4-1/batch_jobs/j-250605095828442799fdde3c29b5b047/openEO_20231231T214100Z.tif",
-                                    "output_dir":"s3://openeo-data-staging-waw4-1/batch_jobs/j-250605095828442799fdde3c29b5b047",
+                                    "title": "openEO_20231231T214100Z.tif",
                                     "nodata": "nan",
                                     "type": "image/tiff; application=geotiff",
                                     "bands": [
-                                        {"name": "LST", "common_name": "surface_temperature", "aliases": ["LST_in:LST"]}
-                                    ],
-                                    "raster:bands": [
                                         {
                                             "name": "LST",
+                                            "eo:common_name": "surface_temperature",
                                             "statistics": {
                                                 "valid_percent": 66.88,
                                                 "maximum": 281.04800415039,
@@ -3102,31 +3012,34 @@ class TestBatchJobs:
                 ),
             )
             resp = api110.get(
-                f"/jobs/{job_id}/results/items11/{item_id}", headers=self.AUTH_HEADER
+                f"/jobs/{job_id}/results/items11/5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z",
+                headers=self.AUTH_HEADER,
             )
 
         resp_data = resp.assert_status_code(200).json
         assert resp_data == {
-            'assets': {
-                'openEO': DictSubSet({
-                    'href': 'http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/d58330c450ed1695361301efe130faf2/openEO_20231231T214100Z.tif',
-                    'roles': ['data'],
-                    'type': 'image/tiff; application=geotiff',
-                    'title': 'openEO_20231231T214100Z.tif',
-                    "bands": [
-                        {
-                            "name": "LST",
-                            "eo:common_name": "surface_temperature",
-                            "statistics": {
-                                "valid_percent": 66.88,
-                                "maximum": 281.04800415039,
-                                "stddev": 19.598456945276,
-                                "minimum": 224.46798706055,
-                                "mean": 259.57087672984,
+            "assets": {
+                "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z_openEO": DictSubSet(
+                    {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/d58330c450ed1695361301efe130faf2/openEO_20231231T214100Z.tif",
+                        "roles": ["data"],
+                        "type": "image/tiff; application=geotiff",
+                        "title": "openEO_20231231T214100Z.tif",
+                        "bands": [
+                            {
+                                "name": "LST",
+                                "eo:common_name": "surface_temperature",
+                                "statistics": {
+                                    "valid_percent": 66.88,
+                                    "maximum": 281.04800415039,
+                                    "stddev": 19.598456945276,
+                                    "minimum": 224.46798706055,
+                                    "mean": 259.57087672984,
+                                },
                             },
-                        },
-                    ],
-                })
+                        ],
+                    }
+                )
             },
             'bbox': [3.359808992021044, 51.08284561357965, 4.690166134878123, 51.88641704215104],
             'collection': '07024ee9-7847-4b8a-b260-6c879a2b3cdc',
@@ -3159,16 +3072,21 @@ class TestBatchJobs:
                     "type": "application/json",
                 },
             ],
-            'properties': {'datetime': '2023-12-31T21:41:00Z'},
-            'stac_extensions': ['https://stac-extensions.github.io/eo/v1.1.0/schema.json',
-                     'https://stac-extensions.github.io/file/v2.1.0/schema.json',
-                     'https://stac-extensions.github.io/projection/v1.1.0/schema.json'],
-            'stac_version': '1.1.0',
-            'type': 'Feature'
+            "properties": {"datetime": "2023-12-31T21:41:00Z"},
+            "stac_extensions": [
+                "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+                "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+                "https://stac-extensions.github.io/projection/v1.1.0/schema.json",
+            ],
+            "stac_version": "1.1.0",
+            "type": "Feature",
         }
 
-        assert "eo:bands" not in resp_data["assets"]["openEO"]
-        assert "raster:bands" not in resp_data["assets"]["openEO"]
+        assert "eo:bands" not in resp_data["assets"]["5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z_openEO"]
+        assert (
+            "raster:bands"
+            not in resp_data["assets"]["5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z_openEO"]
+        )
 
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
