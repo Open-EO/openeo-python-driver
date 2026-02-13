@@ -1445,16 +1445,17 @@ def register_views_batch_jobs(
         return _get_job_result_item11(job_id, item_id, user.user_id)
 
     def _get_job_result_item11(job_id, item_id, user_id):
-        if item_id == DriverMlModel.METADATA_FILE_NAME:
-            return _download_ml_model_metadata(job_id, item_id, user_id)
-
         metadata = backend_implementation.batch_jobs.get_result_metadata(
             job_id=job_id, user_id=user_id
         )
 
-        if item_id not in metadata.items:
-            raise OpenEOApiException("Item with id {item_id!r} not found in job {job_id!r}".format(item_id=item_id, job_id=job_id), status_code=404)
-        item_metadata = metadata.items.get(item_id,None)
+        item_metadata = metadata.items.get(item_id)
+
+        if not item_metadata:
+            raise OpenEOApiException(
+                "Item with id {item_id!r} not found in job {job_id!r}".format(item_id=item_id, job_id=job_id),
+                status_code=404,
+            )
 
         job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
 
