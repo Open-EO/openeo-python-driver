@@ -2620,6 +2620,7 @@ def load_stac(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
             url, properties=arguments.get("properties", {}), bands=arguments.get("bands", []), env=env
         ).get_source_id()
         load_params = _extract_load_parameters(env, source_id=source_id)
+        load_params.resolve_tile_overlap = False
         load_params.update(arguments)
 
         return env.backend_implementation.load_stac(url=url, load_params=load_params, env=env)
