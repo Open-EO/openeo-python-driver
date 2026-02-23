@@ -503,6 +503,7 @@ class TestGeneral:
                 ),
             ),
         ]
+        assert [getattr(r, "openeo_error_code") for r in caplog.records] == [error_code]
 
     def test_health_basic(self, api):
         resp = api.get("/health").assert_status_code(200).json
@@ -997,6 +998,14 @@ class TestLogging:
 
         assert error["user_id"] == "b0b1b08571101437a2"
         assert error["req_id"] == "123-456"
+
+    def test_openeo_error_code_logging(self, api):
+        with enhanced_logging(json=True) as logs:
+            _ = api.get("/_debug/error/api/404/CollectionNotFound")
+
+        logs = [l for l in logs.getvalue().strip().split("\n")]
+        logs = [json.loads(l) for l in logs]
+        assert dirty_equals.IsPartialDict({"openeo_error_code": "CollectionNotFound"}) in logs
 
 
 class TestCollections:

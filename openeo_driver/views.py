@@ -315,7 +315,7 @@ def register_error_handlers(app: flask.Flask, backend_implementation: OpenEoBack
     @app.errorhandler(OpenEOApiException)
     def handle_openeoapi_exception(error: OpenEOApiException, log_message: Optional[str] = None):
         """Error handler for OpenEOApiException"""
-        _log.error(log_message or repr(error), exc_info=True)
+        _log.error(log_message or repr(error), extra={"openeo_error_code": error.code}, exc_info=True)
         # most_recent_exception = sys.exc_info()[1]
         # fmt = Format(max_value_str_len=1000)
         # _log.error(
