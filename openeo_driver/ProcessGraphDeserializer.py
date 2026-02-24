@@ -2402,6 +2402,9 @@ def discard_result(args: ProcessArgs, env: EvalEnv):
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/mask_scl_dilation.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/mask_scl_dilation.json"))
 def mask_scl_dilation(args: ProcessArgs, env: EvalEnv):
+    _log.warning(
+        "mask_scl_dilation is an experimental process and deprecated (in favor of to_scl_dilation_mask). Support will be removed soon."
+    )
     cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
     if hasattr(cube, "mask_scl_dilation"):
         the_args = args.copy()
