@@ -190,6 +190,11 @@ class LoadParameters(dict):
     resolve_tile_overlap = dict_item(default=True)
 
     """
+    Whether to look up band assets by matching link title (one file per band) or by band info/index.
+    """
+    set_bands_by_link_title = dict_item(default=True)
+
+    """
     A buffer provided in the units of the target CRS. If target CRS is not provided, then it is assumed to be the native CRS
     of the collection.
 
