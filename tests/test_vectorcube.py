@@ -1092,3 +1092,19 @@ class TestDriverVectorCube:
                 ],
             }
         )
+
+    def test_comparison_eq(self, gdf):
+        vc1 = DriverVectorCube(gdf)
+        vc2 = DriverVectorCube(gdf)
+
+        assert vc1 == vc1
+        assert vc1 == vc2
+
+        assert vc1 != "foobar"
+        assert "foobar" != vc1
+
+        assert vc1 == dirty_equals.IsInstance(DriverVectorCube)
+        assert dirty_equals.IsInstance(DriverVectorCube) == vc1
+
+        assert vc1 != dirty_equals.IsInstance(list)
+        assert dirty_equals.IsInstance(list) != vc1
