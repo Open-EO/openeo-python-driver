@@ -38,7 +38,7 @@ from __future__ import annotations
 import logging
 from enum import Enum
 from functools import lru_cache
-from typing import List, Optional, Tuple, Union, Iterator
+from typing import List, Optional, Tuple, Union, Iterator, Dict
 
 import numpy
 import shapely.geometry.base
@@ -98,6 +98,12 @@ source_constraint_blockers = {
 }
 
 
+# Type annotations for source constraints
+# TODO encapsulate in real classes?
+SourceId = Tuple[str, tuple]
+SourceConstraint = Tuple[SourceId, dict]
+
+
 class DataTraceBase:
     """Base class for data traces."""
 
@@ -150,7 +156,7 @@ class DataSource(DataTraceBase):
     def get_source(self) -> "DataSource":
         return self
 
-    def get_source_id(self) -> tuple:
+    def get_source_id(self) -> SourceId:
         """Identifier for source (hashable tuple, to be used as dict key for example)."""
         return to_hashable((self._process, self._arguments))
 
@@ -250,11 +256,6 @@ class DataTrace(DataTraceBase):
 
     def describe(self) -> str:
         return self.parent.describe() + "<-" + self._operation
-
-
-# Type hint for source constraints
-# TODO make this a real class?
-SourceConstraint = Tuple[Tuple[str, tuple], dict]
 
 
 class DryRunDataTracer:
@@ -411,7 +412,7 @@ class DryRunDataTracer:
         consist of a source id (e.g. `("load_collection", "Sentinel2") and a dictionary with "temporal_extent",
         "spatial_extent", "bands" fields.
         """
-        source_constraints = []
+        source_constraints_by_id: Dict[SourceId, List[dict]] = {}
         for leaf in self.get_trace_leaves():
             constraints = {}
             pixel_buffer_op = leaf.get_operation_closest_to_source(["pixel_buffer"])
@@ -505,7 +506,13 @@ class DryRunDataTracer:
                     constraints["spatial_extent"] = constraints["weak_spatial_extent"]
 
             source_id = leaf.get_source().get_source_id()
-            source_constraints.append((source_id, constraints))
+
+            if source_id not in source_constraints_by_id:
+                source_constraints_by_id[source_id] = []
+            if constraints not in source_constraints_by_id[source_id]:
+                source_constraints_by_id[source_id].append(constraints)
+
+        source_constraints = [(sid, c) for sid, cs in source_constraints_by_id.items() for c in cs]
         return source_constraints
 
     def get_geometries(

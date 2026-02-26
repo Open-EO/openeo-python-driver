@@ -1966,6 +1966,7 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
                 "temporal_extent": ("2019-03-01", "2019-04-01"),
             },
         ),
+        (("load_collection", ("S2_FOOBAR", (), ("B04", "B08"))), {"bands": ["B04", "B08"]}),
         (
             ("load_collection", ("PROBAV_L3_S10_TOC_NDVI_333M_V2", (), ("ndvi",))),
             {
@@ -1989,7 +1990,6 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
                 },
             },
         ),
-        (("load_collection", ("S2_FOOBAR", (), ("B04", "B08"))), {"bands": ["B04", "B08"]}),
     ]
 
 
@@ -2022,13 +2022,86 @@ def test_CropSAR_aggregate_spatial_constraint(dry_run_env, dry_run_tracer):
         evaluate(pg, env=dry_run_env, do_dry_run=False)
         source_constraints = dry_run_tracer.get_source_constraints(merge=True)
 
-        assert len(source_constraints) > 0
-
-        constraints_with_geometry = [c for c in source_constraints if "aggregate_spatial" in c[1]]
-        assert len(constraints_with_geometry) == 3
-
-        for _, constraints in constraints_with_geometry:
-            assert isinstance(constraints["aggregate_spatial"]["geometries"], DriverVectorCube)
+        expected_bbox = {
+            "west": 435467.96993271075,
+            "south": 1009236.6773494796,
+            "east": 954698.263298054,
+            "north": 2204985.1094280044,
+            "crs": "EPSG:32647",
+        }
+        assert source_constraints == [
+            (
+                ("load_collection", ("S2_FOOBAR", (), ("VH", "VV"))),
+                {
+                    "aggregate_spatial": {"geometries": dirty_equals.IsInstance(DriverVectorCube)},
+                    "bands": ["VH", "VV"],
+                    "sar_backscatter": SarBackscatterArgs(coefficient="gamma0-terrain"),
+                    "spatial_extent": expected_bbox,
+                    "temporal_extent": ("2019-07-01", "2019-08-31"),
+                    "weak_spatial_extent": expected_bbox,
+                },
+            ),
+            (
+                ("load_collection", ("S2_FOOBAR", (), ("VH", "VV"))),
+                {
+                    "bands": ["VH", "VV"],
+                    "sar_backscatter": SarBackscatterArgs(coefficient="gamma0-terrain"),
+                },
+            ),
+            (
+                (
+                    "load_collection",
+                    (
+                        "TERRASCOPE_S2_FAPAR_V2",
+                        (("resolution", (("eq", "10"),)),),
+                        (
+                            "B03",
+                            "B04",
+                            "B08",
+                            "sunAzimuthAngles",
+                            "sunZenithAngles",
+                            "viewAzimuthMean",
+                            "viewZenithMean",
+                            "SCL",
+                        ),
+                    ),
+                ),
+                {
+                    "aggregate_spatial": {"geometries": dirty_equals.IsInstance(DriverVectorCube)},
+                    "bands": [
+                        "B03",
+                        "B04",
+                        "B08",
+                        "sunAzimuthAngles",
+                        "sunZenithAngles",
+                        "viewAzimuthMean",
+                        "viewZenithMean",
+                        "SCL",
+                    ],
+                    "custom_cloud_mask": {"method": "mask_scl_dilation", "scl_band_name": "SCL"},
+                    "process_type": [ProcessType.FOCAL_SPACE],
+                    "properties": {
+                        "resolution": {
+                            "process_graph": {
+                                "res": {
+                                    "arguments": {"x": {"from_parameter": "value"}, "y": "10"},
+                                    "process_id": "eq",
+                                    "result": True,
+                                }
+                            }
+                        }
+                    },
+                    "resample": {
+                        "method": "near",
+                        "resolution": (10, 10),
+                        "target_crs": dirty_equals.IsPartialDict(name="AUTO 42001 (Universal Transverse Mercator)"),
+                    },
+                    "spatial_extent": expected_bbox,
+                    "temporal_extent": ("2019-07-01", "2019-08-31"),
+                    "weak_spatial_extent": expected_bbox,
+                },
+            ),
+        ]
     finally:
         del process_registry_100._processes["test", "CropSAR"]
 
@@ -3105,3 +3178,40 @@ def test_very_large_graph(dry_run_env, dry_run_tracer):
     save_result = evaluate(pg, env=dry_run_env)
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     print(source_constraints)
+
+
+def test_mask_chain(dry_run_env, dry_run_tracer):
+    """
+    A lot of mask operations (or other processes that combine two or more cubes)
+    used to cause an explosion of source constraint duplicates.
+
+    Related to https://github.com/Open-EO/openeo-python-driver/issues/429
+    """
+    pg = {
+        "loadstac1": {
+            "process_id": "load_stac",
+            "arguments": {"url": "https://stac.test/collection1"},
+        },
+        "loadstac2": {
+            "process_id": "load_stac",
+            "arguments": {"url": "https://stac.test/collection2"},
+        },
+    }
+    masks = 5
+    for i in range(masks):
+        pg[f"mask{i}"] = {
+            "process_id": "mask",
+            "arguments": {
+                "data": {"from_node": f"mask{i-1}" if i > 0 else "loadstac1"},
+                "mask": {"from_node": f"mask{i-1}" if i > 0 else "loadstac2"},
+            },
+            "result": (i == masks - 1),
+        }
+
+    _ = evaluate(pg, env=dry_run_env)
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    # FYI: the original implementation produced 160 duplicates here
+    assert source_constraints == [
+        (("load_stac", ("https://stac.test/collection2", (), ())), {}),
+        (("load_stac", ("https://stac.test/collection1", (), ())), {}),
+    ]
