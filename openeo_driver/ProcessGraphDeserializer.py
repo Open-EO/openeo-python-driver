@@ -485,10 +485,18 @@ def evaluate(
         # TODO: Given the post-dry-run hook concept: is it still necessary to push source_constraints into env?
         env = env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
 
+        # Deduplicate source constraints before passing to post_dry_run.
+        seen_keys = set()
+        unique_source_constraints = []
+        for c in source_constraints:
+            key = str(c)
+            if key not in seen_keys:
+                seen_keys.add(key)
+                unique_source_constraints.append(c)
         post_dry_run_data = env.backend_implementation.post_dry_run(
             dry_run_result=dry_run_result,
             dry_run_tracer=dry_run_tracer,
-            source_constraints=source_constraints,
+            source_constraints=unique_source_constraints,
         )
         if post_dry_run_data:
             env = env.push(post_dry_run_data)
