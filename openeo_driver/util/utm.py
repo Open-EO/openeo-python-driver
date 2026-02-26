@@ -33,8 +33,9 @@ def is_auto_utm_crs(crs: Any) -> bool:
     return crs == "AUTO:42001" or "Auto42001" in str(crs)
 
 
-def _is_utm_epsg(epsg: int) -> bool:
-    return (32601 <= epsg <= 32660) or (32701 <= epsg <= 32760)
+def is_utm_epsg_code(epsg: int) -> bool:
+    """Is given EPSG code (integer) a valid UTM CRS?"""
+    return isinstance(epsg, int) and ((32601 <= epsg <= 32660) or (32701 <= epsg <= 32760))
 
 
 def is_utm_crs(crs: Any) -> int:
@@ -48,7 +49,7 @@ def is_utm_crs(crs: Any) -> int:
         epsg = pyproj.CRS.from_user_input(crs).to_epsg() or 0
     except pyproj.exceptions.CRSError:
         epsg = 0
-    return epsg if _is_utm_epsg(epsg) else False
+    return epsg if is_utm_epsg_code(epsg) else False
 
 
 def utm_zone_from_epsg(epsg: int) -> Tuple[int, bool]:
