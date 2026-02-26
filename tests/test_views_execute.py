@@ -747,16 +747,12 @@ def test_execute_mask(api):
 
 def test_execute_diy_mask(api):
     api.check_result("scl_mask_custom.json")
-    # assert dummy_backend.get_collection("TERRASCOPE_S2_FAPAR_V2").mask.call_count == 1  # Optimized away now
-
     load_collections = dummy_backend.all_load_collection_calls("TERRASCOPE_S2_FAPAR_V2")
-    assert len(load_collections) == 3
-    assert load_collections[0].pixel_buffer == [100.5,100.5]
-    assert load_collections[0].bands == ['SCENECLASSIFICATION_20M']
-    assert load_collections[1].pixel_buffer == [100.5, 100.5]
-    assert load_collections[1].bands == ['SCENECLASSIFICATION_20M']
-    assert load_collections[2].bands == ['FAPAR_10M']
-
+    assert [(p.bands, p.temporal_extent, p.pixel_buffer) for p in load_collections] == [
+        (["SCENECLASSIFICATION_20M"], ("2018-08-14", "2018-08-14"), [100.5, 100.5]),
+        (["SCENECLASSIFICATION_20M"], (None, None), [100.5, 100.5]),
+        (["FAPAR_10M"], ("2018-08-14", "2018-08-14"), None),
+    ]
 
 
 def test_execute_mask_optimized_loading(api):
