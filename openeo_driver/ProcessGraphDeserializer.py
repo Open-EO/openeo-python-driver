@@ -363,7 +363,7 @@ class ConcreteProcessing(Processing):
             }))
             # TODO: work with a dedicated DryRunEvalEnv?
             source_constraints = dry_run_tracer.get_source_constraints()
-            _log.info("Dry run extracted these source constraints: {s}".format(s=source_constraints))
+            _log.info(f"Dry run extracted {len(source_constraints)} source constraints: {source_constraints}")
             env = env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
         except OpenEOApiException as e:
             _log.error(f"dry run phase of validation failed: {e!r}", exc_info=True)
@@ -480,7 +480,7 @@ def evaluate(
         dry_run_result = convert_node(top_level_node, env=dry_run_env)
         # TODO: work with a dedicated DryRunEvalEnv?
         source_constraints = dry_run_tracer.get_source_constraints()
-        _log.info("Dry run extracted these source constraints: {s}".format(s=source_constraints))
+        _log.info(f"Dry run extracted {len(source_constraints)} source constraints: {source_constraints}")
 
         # TODO: Given the post-dry-run hook concept: is it still necessary to push source_constraints into env?
         env = env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
@@ -1963,7 +1963,7 @@ def check_subgraph_for_data_mask_optimization(args: dict) -> bool:
 
 
 def apply_process(process_id: str, args: dict, namespace: Union[str, None], env: EvalEnv) -> DriverDataCube:
-    _log.debug(f"apply_process {process_id} ")
+    _log.debug(f"apply_process {process_id=}")
     parameters = env.collect_parameters()
 
     if process_id == "mask" and args.get("replacement", None) is None \
