@@ -749,9 +749,9 @@ def test_execute_diy_mask(api):
     api.check_result("scl_mask_custom.json")
     load_collections = dummy_backend.all_load_collection_calls("TERRASCOPE_S2_FAPAR_V2")
     assert [(p.bands, p.temporal_extent, p.pixel_buffer) for p in load_collections] == [
-        (["SCENECLASSIFICATION_20M"], ("2018-08-14", "2018-08-14"), [100.5, 100.5]),
+        (["SCENECLASSIFICATION_20M"], ("2018-08-14", "2018-08-15"), [100.5, 100.5]),
         (["SCENECLASSIFICATION_20M"], (None, None), [100.5, 100.5]),
-        (["FAPAR_10M"], ("2018-08-14", "2018-08-14"), None),
+        (["FAPAR_10M"], ("2018-08-14", "2018-08-15"), None),
     ]
 
 
