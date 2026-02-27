@@ -27,7 +27,7 @@ import shapely.ops
 from dateutil.relativedelta import relativedelta
 from openeo.internal.process_graph_visitor import ProcessGraphVisitException, ProcessGraphVisitor
 from openeo.metadata import CollectionMetadata
-from openeo.util import load_json, rfc3339, str_truncate
+from openeo.util import load_json, rfc3339, str_truncate, TimingLogger
 from openeo.utils.version import ComparableVersion
 from pyproj import CRS
 from pyproj.exceptions import CRSError
@@ -50,7 +50,7 @@ from openeo_driver.datacube import (
 )
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.dry_run import DryRunDataCube, DryRunDataTracer, SourceConstraint
+from openeo_driver.dry_run import DryRunDataCube, DryRunDataTracer, SourceConstraint, deduplicate_source_constraints
 from openeo_driver.errors import (
     CollectionNotFoundException,
     FeatureUnsupportedException,
@@ -485,21 +485,14 @@ def evaluate(
         # TODO: Given the post-dry-run hook concept: is it still necessary to push source_constraints into env?
         env = env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
 
-        # Deduplicate source constraints before passing to post_dry_run.
-        seen_keys = set()
-        unique_source_constraints = []
-        for c in source_constraints:
-            key = str(c)
-            if key not in seen_keys:
-                seen_keys.add(key)
-                unique_source_constraints.append(c)
-        post_dry_run_data = env.backend_implementation.post_dry_run(
-            dry_run_result=dry_run_result,
-            dry_run_tracer=dry_run_tracer,
-            source_constraints=unique_source_constraints,
-        )
-        if post_dry_run_data:
-            env = env.push(post_dry_run_data)
+        with TimingLogger("evaluate:post_dry_run", logger=_log):
+            post_dry_run_data = env.backend_implementation.post_dry_run(
+                dry_run_result=dry_run_result,
+                dry_run_tracer=dry_run_tracer,
+                source_constraints=deduplicate_source_constraints(source_constraints),
+            )
+            if post_dry_run_data:
+                env = env.push(post_dry_run_data)
 
     result = convert_node(top_level_node, env=env)
     if len(env[ENV_SAVE_RESULT]) > 0:
