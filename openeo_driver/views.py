@@ -919,7 +919,7 @@ def register_views_batch_jobs(
         process = {"process_graph": process_graph}
 
         job_options = _extract_job_options(
-            post_data, to_ignore=["process", "process_graph", "title", "description", "plan", "budget"]
+            post_data, to_ignore=["process", "process_graph", "title", "description", "plan", "budget", "log_level"]
         )
         job_option_defaults = extract_default_job_options_from_process_graph(
             process_graph=process_graph, processing_mode="batch_job"
