@@ -1,3 +1,4 @@
+import functools
 import dataclasses
 import json
 import logging
@@ -467,6 +468,7 @@ class BoundingBox:
         super().__setattr__("crs", self.normalize_crs(crs) if crs is not None else None)
 
     @staticmethod
+    @functools.lru_cache(maxsize=1000)
     def normalize_crs(crs: Union[str, int]) -> str:
         if is_auto_utm_crs(crs):
             return "AUTO:42001"
