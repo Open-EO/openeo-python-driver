@@ -27,7 +27,7 @@ import shapely.ops
 from dateutil.relativedelta import relativedelta
 from openeo.internal.process_graph_visitor import ProcessGraphVisitException, ProcessGraphVisitor
 from openeo.metadata import CollectionMetadata
-from openeo.util import load_json, rfc3339, str_truncate
+from openeo.util import load_json, rfc3339, str_truncate, TimingLogger
 from openeo.utils.version import ComparableVersion
 from pyproj import CRS
 from pyproj.exceptions import CRSError
@@ -50,7 +50,7 @@ from openeo_driver.datacube import (
 )
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.dry_run import DryRunDataCube, DryRunDataTracer, SourceConstraint
+from openeo_driver.dry_run import DryRunDataCube, DryRunDataTracer, SourceConstraint, deduplicate_source_constraints
 from openeo_driver.errors import (
     CollectionNotFoundException,
     FeatureUnsupportedException,
@@ -363,7 +363,7 @@ class ConcreteProcessing(Processing):
             }))
             # TODO: work with a dedicated DryRunEvalEnv?
             source_constraints = dry_run_tracer.get_source_constraints()
-            _log.info("Dry run extracted these source constraints: {s}".format(s=source_constraints))
+            _log.info(f"Dry run extracted {len(source_constraints)} source constraints: {source_constraints}")
             env = env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
         except OpenEOApiException as e:
             _log.error(f"dry run phase of validation failed: {e!r}", exc_info=True)
@@ -480,18 +480,19 @@ def evaluate(
         dry_run_result = convert_node(top_level_node, env=dry_run_env)
         # TODO: work with a dedicated DryRunEvalEnv?
         source_constraints = dry_run_tracer.get_source_constraints()
-        _log.info("Dry run extracted these source constraints: {s}".format(s=source_constraints))
+        _log.info(f"Dry run extracted {len(source_constraints)} source constraints: {source_constraints}")
 
         # TODO: Given the post-dry-run hook concept: is it still necessary to push source_constraints into env?
         env = env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
 
-        post_dry_run_data = env.backend_implementation.post_dry_run(
-            dry_run_result=dry_run_result,
-            dry_run_tracer=dry_run_tracer,
-            source_constraints=source_constraints,
-        )
-        if post_dry_run_data:
-            env = env.push(post_dry_run_data)
+        with TimingLogger("evaluate:post_dry_run", logger=_log):
+            post_dry_run_data = env.backend_implementation.post_dry_run(
+                dry_run_result=dry_run_result,
+                dry_run_tracer=dry_run_tracer,
+                source_constraints=deduplicate_source_constraints(source_constraints),
+            )
+            if post_dry_run_data:
+                env = env.push(post_dry_run_data)
 
     result = convert_node(top_level_node, env=env)
     if len(env[ENV_SAVE_RESULT]) > 0:
@@ -1955,7 +1956,7 @@ def check_subgraph_for_data_mask_optimization(args: dict) -> bool:
 
 
 def apply_process(process_id: str, args: dict, namespace: Union[str, None], env: EvalEnv) -> DriverDataCube:
-    _log.debug(f"apply_process {process_id} ")
+    _log.debug(f"apply_process {process_id=}")
     parameters = env.collect_parameters()
 
     if process_id == "mask" and args.get("replacement", None) is None \
@@ -2624,7 +2625,6 @@ def load_stac(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
         ).get_source_id()
         load_params = _extract_load_parameters(env, source_id=source_id)
         load_params.resolve_tile_overlap = False
-        load_params.set_bands_by_link_title = False
         load_params.update(arguments)
 
         return env.backend_implementation.load_stac(url=url, load_params=load_params, env=env)

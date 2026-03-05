@@ -98,6 +98,12 @@ source_constraint_blockers = {
 }
 
 
+# Type annotations for source constraints
+# TODO encapsulate in real classes?
+SourceId = Tuple[str, tuple]
+SourceConstraint = Tuple[SourceId, dict]
+
+
 class DataTraceBase:
     """Base class for data traces."""
 
@@ -150,7 +156,7 @@ class DataSource(DataTraceBase):
     def get_source(self) -> "DataSource":
         return self
 
-    def get_source_id(self) -> tuple:
+    def get_source_id(self) -> SourceId:
         """Identifier for source (hashable tuple, to be used as dict key for example)."""
         return to_hashable((self._process, self._arguments))
 
@@ -250,11 +256,6 @@ class DataTrace(DataTraceBase):
 
     def describe(self) -> str:
         return self.parent.describe() + "<-" + self._operation
-
-
-# Type hint for source constraints
-# TODO make this a real class?
-SourceConstraint = Tuple[Tuple[str, tuple], dict]
 
 
 class DryRunDataTracer:
@@ -969,3 +970,20 @@ class DryRunDataCube(DriverDataCube):
     water_vapor = _nop
     linear_scale_range = _nop
     dimension_labels = _nop
+
+
+def deduplicate_source_constraints(source_constraints: List[SourceConstraint]) -> List[SourceConstraint]:
+    # TODO: not only deduplicate, but also merge constraints for the same source_id?
+    deduped = []
+    seen_sids = set()
+    seen_keys = set()
+    for source_constraint in source_constraints:
+        sid, c = source_constraint
+        # TODO: better way to compare constraints iso str hack?
+        key = (sid, str(c))
+        if key not in seen_keys:
+            seen_sids.add(sid)
+            seen_keys.add(key)
+            deduped.append(source_constraint)
+    _log.debug(f"Deduplicated {len(source_constraints)=} to {len(deduped)=} ({len(seen_sids)=})")
+    return deduped

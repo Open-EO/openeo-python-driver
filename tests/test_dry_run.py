@@ -23,6 +23,7 @@ from openeo_driver.dry_run import (
     DryRunDataCube,
     DryRunDataTracer,
     ProcessType,
+    deduplicate_source_constraints,
 )
 from openeo_driver.dummy.dummy_backend import DummyVectorCube
 from openeo_driver.errors import OpenEOApiException, ProcessParameterInvalidException
@@ -3105,3 +3106,50 @@ def test_very_large_graph(dry_run_env, dry_run_tracer):
     save_result = evaluate(pg, env=dry_run_env)
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     print(source_constraints)
+
+
+def test_deduplicate_source_constraints(dry_run_env, dry_run_tracer):
+    dry_run_env = dry_run_env.push({"openeo_api_version": "1.0.0"})
+    pg = {
+        "loadstac1": {
+            "process_id": "load_stac",
+            "arguments": {
+                "url": "https://stac.test/collection1",
+                "temporal_extent": ["2026-01-01", "2026-02-02"],
+            },
+        },
+        "mask1": {
+            "process_id": "mask",
+            "arguments": {
+                "data": {"from_node": "loadstac1"},
+                "mask": {"from_node": "loadstac1"},
+            },
+            "result": True,
+        },
+    }
+    evaluate(pg, env=dry_run_env)
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+
+    # load_stac + mask apparently produces 3 duplicates at the moment
+    assert source_constraints == [
+        (
+            ("load_stac", ("https://stac.test/collection1", (), ())),
+            {"temporal_extent": ("2026-01-01", "2026-02-02")},
+        ),
+        (
+            ("load_stac", ("https://stac.test/collection1", (), ())),
+            {"temporal_extent": ("2026-01-01", "2026-02-02")},
+        ),
+        (
+            ("load_stac", ("https://stac.test/collection1", (), ())),
+            {"temporal_extent": ("2026-01-01", "2026-02-02")},
+        ),
+    ]
+
+    deduped = deduplicate_source_constraints(source_constraints)
+    assert deduped == [
+        (
+            ("load_stac", ("https://stac.test/collection1", (), ())),
+            {"temporal_extent": ("2026-01-01", "2026-02-02")},
+        ),
+    ]

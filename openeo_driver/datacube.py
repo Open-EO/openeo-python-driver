@@ -755,9 +755,9 @@ class DriverVectorCube:
         return dims, coords
 
     def __eq__(self, other):
-        return isinstance(other, DriverVectorCube) and numpy.array_equal(
-            self._as_geopandas_df().values, other._as_geopandas_df().values
-        )
+        if isinstance(other, DriverVectorCube):
+            return numpy.array_equal(self._as_geopandas_df().values, other._as_geopandas_df().values)
+        return NotImplemented
 
     def fit_class_random_forest(
         self,
