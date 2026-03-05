@@ -837,7 +837,7 @@ class AggregatePolygonSpatialResult(SaveResult):
 
         (gdf
          .join(stats.set_index('feature_index'), on='feature_index')
-         .rename(columns=lambda col_name: re.sub(r"\W", "_", col_name))  # adhere to naming restriction [A-Za-z0-9_]
+         # .rename(columns=lambda col_name: re.sub(r"\W", "_", col_name))  # adhere to naming restriction [A-Za-z0-9_]
          .to_parquet(filename))
         # TODO: Is naming restriction required for parquet files?
 
