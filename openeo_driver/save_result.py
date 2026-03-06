@@ -144,6 +144,12 @@ class SaveResult:
         merge: Optional[str]
 
 
+def clean_parquet_column_name(name: str):
+    # Could not find official SPEC for this, but cleaning just for consistency
+    # https://geoparquet.org/releases/v1.0.0/#column-metadata
+    return re.sub(r"[()/\\]", "_", name)
+
+
 def get_temp_file(suffix="", prefix="openeo-pydrvr-"):
     # TODO: make sure temp files are cleaned up when read
     _, filename = tempfile.mkstemp(suffix=suffix, prefix=prefix)
@@ -631,7 +637,9 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         # TODO: avoid accessing _geometries to combine _regions and CSV
         gdf = self._regions._geometries
 
-        gpd.GeoDataFrame(stats.join(gdf, on='feature_index')).to_parquet(filename)
+        (gpd.GeoDataFrame(stats.join(gdf, on='feature_index'))
+         .rename(columns=clean_parquet_column_name)
+         .to_parquet(filename))
         return filename
 
     def to_driver_vector_cube(self) -> DriverVectorCube:
@@ -837,7 +845,7 @@ class AggregatePolygonSpatialResult(SaveResult):
 
         (gdf
          .join(stats.set_index('feature_index'), on='feature_index')
-         # .rename(columns=lambda col_name: re.sub(r"\W", "_", col_name))  # adhere to naming restriction [A-Za-z0-9_]
+         .rename(columns=clean_parquet_column_name)
          .to_parquet(filename))
         # TODO: Is naming restriction required for parquet files?
 
