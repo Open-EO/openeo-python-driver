@@ -12,6 +12,7 @@ import shapely.geometry
 import shapely.ops
 from shapely.geometry import MultiPolygon, Polygon
 from shapely.geometry.base import BaseGeometry
+import antimeridian
 
 from openeo.util import repr_truncate
 from openeo_driver.errors import OpenEOApiException
@@ -431,6 +432,21 @@ class BoundingBox:
     """
     Bounding box with west, south, east, north coordinates
     optionally (geo)referenced.
+
+    .. note::
+        About anti-meridian handling:
+        when working in a cyclic CRS like EPSG:4326 with a bounding box that crosses the anti-meridian,
+        the "west" coordinate will be larger than the "east" coordinate.
+        For example::
+
+            # Bounding box of 10 degrees wide across the anti-meridian
+            bbox_a = BoundingBox(west=175, east=-175, crs="EPSG:4326", ...)
+
+            # bounding box of 350 degrees wide, starting in the west
+            # and going all the way to the east, but not crossing the anti-meridian.
+            bbox_b = BoundingBox(west=-175, east=175, crs="EPSG:4326", ...)
+
+        also see https://datatracker.ietf.org/doc/html/rfc7946#section-5.2
     """
 
     # TODO: using frozen dataclasss, but with custom __init__ (for CRS normalization) makes things a bit messy.
@@ -468,7 +484,6 @@ class BoundingBox:
         super().__setattr__("crs", self.normalize_crs(crs) if crs is not None else None)
 
     @staticmethod
-    @functools.lru_cache(maxsize=1000)
     def normalize_crs(crs: Union[str, int]) -> str:
         if is_auto_utm_crs(crs):
             return "AUTO:42001"
@@ -525,6 +540,19 @@ class BoundingBox:
         if self.crs is None:
             raise CrsRequired(f"A CRS is required, but not available in {self}.")
 
+    @staticmethod
+    def _crs_with_cyclic_x(crs: Union[None, str]) -> bool:
+        """
+        Whether the x coordinate is cyclic (e.g. longitude in EPSG:4326)
+        which requires some special handling like coordinate normalization and anti-meridian crossing handling.
+        """
+        return crs == "EPSG:4326"
+
+    @staticmethod
+    def _normalize_longitude(x: float) -> float:
+        """Normalize an EPSG:4326 longitude coordinate to the range [-180, 180)"""
+        return (x + 180) % 360 - 180
+
     def as_dict(self) -> dict:
         return {
             "west": self.west,
@@ -541,17 +569,64 @@ class BoundingBox:
         return (self.west, self.south, self.east, self.north)
 
     def as_polygon(self) -> shapely.geometry.Polygon:
-        """Get bounding box as a shapely Polygon"""
-        return shapely.geometry.box(
-            minx=self.west, miny=self.south, maxx=self.east, maxy=self.north
-        )
+        """
+        Get bounding box as a shapely Polygon.
+        Simple single polygon, but not ideal for proper handling of anti-meridian crossing in EPSG:4326,
+        which require to split the geometry in two parts: use `as_geometry` instead for that.
+        """
+        west, east = self.west, self.east
+        if self._crs_with_cyclic_x(self.crs):
+            west = self._normalize_longitude(west)
+            east = self._normalize_longitude(east)
+            if east < west:
+                east += 360
+
+        return shapely.geometry.box(minx=west, miny=self.south, maxx=east, maxy=self.north)
+
+    def as_geometry(self) -> Union[shapely.geometry.Polygon, shapely.geometry.MultiPolygon]:
+        """Get bounding box as a shapely geometry (Polygon or MultiPolygon when crossing anti-meridian)"""
+        west, east = self.west, self.east
+        if self._crs_with_cyclic_x(self.crs):
+            east = self._normalize_longitude(east)
+            west = self._normalize_longitude(west)
+            if east < west:
+                return shapely.geometry.MultiPolygon(
+                    [
+                        shapely.geometry.box(west, self.south, 180, self.north),
+                        shapely.geometry.box(-180, self.south, east, self.north),
+                    ]
+                )
+
+        return shapely.geometry.box(minx=west, miny=self.south, maxx=east, maxy=self.north)
 
     def as_geojson(self) -> dict:
         """Represent as a GeoJSON Polygon dictionary (in lon-lat)"""
-        polygon = self.as_polygon()
-        if self.crs not in {None, "EPSG:4326"}:
-            polygon = reproject_geometry(geometry=polygon, from_crs=self.crs, to_crs="EPSG:4326")
-        return shapely.geometry.mapping(polygon)
+        if self.crs is None:
+            geometry = self.as_polygon()
+            return shapely.geometry.mapping(geometry)
+        elif self.crs == "EPSG:4326":
+            geometry = self.as_geometry()
+            return shapely.geometry.mapping(geometry)
+        else:
+            geometry = self.as_polygon()
+            geometry = reproject_geometry(geometry=geometry, from_crs=self.crs, to_crs="EPSG:4326")
+            return antimeridian.fix_shape(geometry)
+
+    def centroid(self) -> Tuple[float, float]:
+        if self._crs_with_cyclic_x(self.crs):
+            # Properly handle cyclic longitude coordinates, and anti-meridian crossing
+            west = self._normalize_longitude(self.west)
+            east = self._normalize_longitude(self.east)
+            if west <= east:
+                x = 0.5 * (west + east)
+            else:
+                x = self._normalize_longitude(0.5 * (west + east + 360))
+        else:
+            x = 0.5 * (self.west + self.east)
+
+        y = 0.5 * (self.south + self.north)
+
+        return x, y
 
     def approx(self, rel: Optional[float] = 0, abs: Optional[float] = None) -> "BoundingBox":
         """Pytest helper to construct an expected bounding box with tolerance"""
@@ -568,7 +643,21 @@ class BoundingBox:
 
     def contains(self, x: float, y: float) -> bool:
         """Check if given point is inside the bounding box"""
-        return (self.west <= x <= self.east) and (self.south <= y <= self.north)
+        # Start with easy y coordinate (north-south) check for quick exit
+        if not (self.south <= y <= self.north):
+            return False
+
+        if self._crs_with_cyclic_x(self.crs):
+            x = x % 360
+            west = self.west % 360
+            east = self.east % 360
+            if west <= east:
+                return west <= x <= east
+            else:
+                # Handle anti-meridian crossing
+                return not (east < x < west)
+        else:
+            return self.west <= x <= self.east
 
     def reproject(self, crs: Union[str, int]) -> "BoundingBox":
         """
@@ -587,11 +676,18 @@ class BoundingBox:
         if crs == self.crs:
             return self
 
-        transform = pyproj.Transformer.from_crs(
-            crs_from=self.crs, crs_to=crs, always_xy=True
-        ).transform
-        reprojected = shapely.ops.transform(transform, self.as_polygon())
-        return BoundingBox(*reprojected.bounds, crs=crs)
+        transformer = pyproj.Transformer.from_crs(crs_from=self.crs, crs_to=crs, always_xy=True)
+        reprojected = shapely.ops.transform(transformer.transform, self.as_polygon())
+        west, south, east, north = reprojected.bounds
+
+        if self._crs_with_cyclic_x(crs):
+            # Handle bounding boxes in EPSG:4326 around the anti-meridian
+            # use the projection of the centroid to detect coordinate wrapping, and adjust bounds properly
+            cx, cy = transformer.transform(*self.centroid())
+            if not (west <= cx <= east):
+                west, east = east, west
+
+        return BoundingBox(west=west, south=south, east=east, north=north, crs=crs)
 
     def best_utm(self) -> int:
         """
@@ -662,7 +758,8 @@ class BoundingBox:
         Get bounding box covering both this and the other bounding box.
         When other bounding box is in another projection, it is first reprojected to this bounding box's CRS.
         """
-        other = other.align_to(self)
+        if self.crs != other.crs:
+            other = other.align_to(self)
         return BoundingBox(
             west=min(self.west, other.west),
             south=min(self.south, other.south),
