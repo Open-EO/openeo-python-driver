@@ -759,7 +759,8 @@ class BoundingBox:
         Get bounding box covering both this and the other bounding box.
         When other bounding box is in another projection, it is first reprojected to this bounding box's CRS.
         """
-        other = other.align_to(self)
+        if self.crs != other.crs:
+            other = other.align_to(self)
         return BoundingBox(
             west=min(self.west, other.west),
             south=min(self.south, other.south),
