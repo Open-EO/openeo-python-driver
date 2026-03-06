@@ -28,6 +28,7 @@ and start a new "In Progress" section above it.
 - Relax hard pin on `pystac~=1.8.0` to `pystac>=1.8.0` to unlock more modern PySTAC on Python 3.11 environments ([#396](https://github.com/Open-EO/openeo-python-driver/issues/396), [Open-EO/openeo-geopyspark-driver#1449](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1449))
 - Add `bands` property to assets if and only if STAC 1.1 metadata is requested ([#451](https://github.com/Open-EO/openeo-python-driver/issues/451))
 - `StacApiWorkspace`: support omitting "export-workspace-enable-merge" flag ([Open-EO/openeo-geopyspark-driver#1030](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1030))
+- `BoundingBox`: better handling of cases that cross the anti-meridian ([Open-EO/openeo-geopyspark-driver#1568](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1568))
 
 
 ## 0.137.0

@@ -764,21 +764,59 @@ class TestBoundingBox:
             "coordinates": (((3, 2), (3, 4), (1, 4), (1, 2), (3, 2)),),
         }
 
-    def test_as_geojson(self):
+    def test_as_polygon_across_anti_meridian(self):
+        bbox = BoundingBox(170, 50, -170, 51, crs=4326)
+        polygon = bbox.as_polygon()
+        assert isinstance(polygon, shapely.geometry.Polygon)
+        assert shapely.geometry.mapping(polygon) == {
+            "type": "Polygon",
+            "coordinates": (((190, 50), (190, 51), (170, 51), (170, 50), (190, 50)),),
+        }
+
+    def test_as_geometry_basic(self):
+        bbox = BoundingBox(1, 2, 3, 4)
+        polygon = bbox.as_geometry()
+        assert isinstance(polygon, shapely.geometry.Polygon)
+        assert shapely.geometry.mapping(polygon) == {
+            "type": "Polygon",
+            "coordinates": (((3, 2), (3, 4), (1, 4), (1, 2), (3, 2)),),
+        }
+
+    def test_as_geometry_across_anti_meridian(self):
+        bbox = BoundingBox(170, 50, -170, 51, crs=4326)
+        polygon = bbox.as_geometry()
+        assert isinstance(polygon, shapely.geometry.MultiPolygon)
+        assert shapely.geometry.mapping(polygon) == {
+            "type": "MultiPolygon",
+            "coordinates": [
+                (((180, 50), (180, 51), (170, 51), (170, 50), (180, 50)),),
+                (((-170, 50), (-170, 51), (-180, 51), (-180, 50), (-170, 50)),),
+            ],
+        }
+
+    def test_as_geojson_basic(self):
         bbox = BoundingBox(1, 2, 3, 4)
         assert bbox.as_geojson() == {
             "type": "Polygon",
             "coordinates": (((3, 2), (3, 4), (1, 4), (1, 2), (3, 2)),),
         }
 
-    def test_approx(self):
-        expected = BoundingBox(100, 200, 300, 400)
-        bbox = BoundingBox(100.01, 200.01, 300.01, 400.01)
-        assert bbox == expected.approx(abs=0.1)
-        assert bbox != expected.approx(abs=0.001)
+    def test_as_geojson_epsg4326(self):
+        bbox = BoundingBox(3, 50, 4, 51, crs=4326)
+        assert bbox.as_geojson() == {
+            "type": "Polygon",
+            "coordinates": (((4, 50), (4, 51), (3, 51), (3, 50), (4, 50)),),
+        }
 
-        assert bbox == expected.approx(rel=0.001)
-        assert bbox != expected.approx(rel=0.0001)
+    def test_as_geojson_epsg4326_across_anti_meridian(self):
+        bbox = BoundingBox(179, 50, -179, 51, crs=4326)
+        assert bbox.as_geojson() == {
+            "type": "MultiPolygon",
+            "coordinates": [
+                (((180, 50), (180, 51), (179, 51), (179, 50), (180, 50)),),
+                (((-179, 50), (-179, 51), (-180, 51), (-180, 50), (-179, 50)),),
+            ],
+        }
 
     def test_as_geojson_from_utm(self):
         bbox = BoundingBox(500000, 5649824, 507016, 5660950, crs="EPSG:32631")
@@ -789,6 +827,86 @@ class TestBoundingBox:
                 abs=0.001,
             ),
         }
+
+    def test_as_geojson_from_utm_across_anti_meridian(self):
+        bbox = BoundingBox(west=300000, south=7690200, east=409800, north=7800000, crs="EPSG:32601")
+        assert bbox.as_geojson() == {
+            "type": "MultiPolygon",
+            "coordinates": approxify(
+                [
+                    (((-180, 69.295), (-179.287, 69.306), (-179.397, 70.290), (-180, 70.281), (-180, 69.295)),),
+                    (((180, 70.281), (177.697, 70.228), (177.937, 69.247), (180, 69.295), (180, 70.281)),),
+                ],
+                abs=0.001,
+            ),
+        }
+
+    def test_centroid(self):
+        bbox = BoundingBox(2, 3, 5, 8)
+        assert bbox.centroid() == (3.5, 5.5)
+
+    @pytest.mark.parametrize(
+        ["west", "east", "expected"],
+        [
+            (10, -170, 100),
+            (-170, 160, -5),
+            (-160, 170, 5),
+            (160, -170, 175),
+            (160 - 360, -170, 175),
+            (170, -160, -175),
+            (170 + 360, -160 + 5 * 360, -175),
+            (170, -170, -180),
+        ],
+    )
+    def test_centroid_epsg4326_wrap_around(self, west, east, expected):
+        bbox = BoundingBox(west, 50, east, 52, crs=4326)
+        assert bbox.centroid() == (expected, 51)
+
+    def test_approx(self):
+        expected = BoundingBox(100, 200, 300, 400)
+        bbox = BoundingBox(100.01, 200.01, 300.01, 400.01)
+        assert bbox == expected.approx(abs=0.1)
+        assert bbox != expected.approx(abs=0.001)
+
+        assert bbox == expected.approx(rel=0.001)
+        assert bbox != expected.approx(rel=0.0001)
+
+    def test_contains_generic(self):
+        bbox = BoundingBox(2, 3, 5, 8)
+        assert bbox.contains(2, 3) is True
+        assert bbox.contains(5, 8) is True
+        assert bbox.contains(2.5, 3.5) is True
+        assert bbox.contains(1.9, 5) is False
+        assert bbox.contains(3, 2.9) is False
+        assert bbox.contains(5.1, 4) is False
+        assert bbox.contains(4, 8.1) is False
+
+    @pytest.mark.parametrize(
+        ["bbox", "inside", "outside"],
+        [
+            (
+                # Basic 1 degree bbox
+                BoundingBox(3, 51, 4, 52, crs=4326),
+                [(3.1, 51.1), (3.2 + 360, 51.1), (3.5 - 360, 52)],
+                [(2, 51), (4.1, 51.5), (2, 52.1), (4, 52.01)],
+            ),
+            (
+                # Anti-meridian crossing bbox
+                BoundingBox(179, 51, -179, 52, crs=4326),
+                [(179, 51.1), (179.2 + 360, 51.1), (-179.2 - 360, 52)],
+                [(178.5, 51.5), (4.1, 51.5), (179.1, 52.1), (-179.1, 52.1)],
+            ),
+            (
+                # Wide, but non-anti-meridian crossing bbox
+                BoundingBox(-170, 51, 170, 52, crs=4326),
+                [(-167.1, 51.5), (-167.1 - 360, 51.5), (0, 51), (360, 51.5), (169.9, 52), (169.9 + 360, 52)],
+                [(-189, 51.5), (-171, 51.5), (171, 51.5), (189, 51.5), (0, 50.9), (0, 52.1)],
+            ),
+        ],
+    )
+    def test_contains_epsg4326_wrap_around(self, bbox, inside, outside):
+        assert all([bbox.contains(*point) is True for point in inside])
+        assert all([bbox.contains(*point) is False for point in outside])
 
     def test_reproject(self):
         bbox = BoundingBox(3, 51, 3.1, 51.1, crs="epsg:4326")
@@ -801,6 +919,21 @@ class TestBoundingBox:
             pytest.approx(5660950, abs=10),
             "EPSG:32631",
         )
+
+    def test_reproject_anti_meridian(self):
+        # Use case accross anti-meridian
+        # from https://github.com/Open-EO/openeo-geopyspark-driver/issues/1568
+        bbox = BoundingBox(west=300000, south=7690200, east=409800, north=7800000, crs="EPSG:32601")
+        reprojected = bbox.reproject(4326)
+        assert isinstance(reprojected, BoundingBox)
+        # Anti-meridian crossing bbox, so west > east.
+        assert reprojected == BoundingBox(
+            west=177.9,
+            south=69.2,
+            east=-179.4,
+            north=70.3,
+            crs="EPSG:4326",
+        ).approx(abs=0.1)
 
     def test_best_utm_no_crs(self):
         bbox = BoundingBox(1, 2, 3, 4)
