@@ -1219,6 +1219,11 @@ class TestCollections:
             {"rel": "root", "href": f"http://oeo.net/openeo/{api_version}/collections"},
             {"rel": "parent", "href": f"http://oeo.net/openeo/{api_version}/collections"},
             {"rel": "self", "href": f"http://oeo.net/openeo/{api_version}/collections/S2_FOOBAR"},
+            {
+                "rel": "http://www.opengis.net/def/rel/ogc/1.0/queryables",
+                "href": f"http://oeo.net/openeo/{api_version}/collections/S2_FOOBAR/queryables",
+                "type": "application/schema+json",
+            },
         ]
 
     @pytest.mark.parametrize(
@@ -1230,6 +1235,11 @@ class TestCollections:
                     {"rel": "root", "href": f"http://oeo.net/openeo/{api_version}/collections"},
                     {"rel": "parent", "href": f"http://oeo.net/openeo/{api_version}/collections"},
                     {"rel": "self", "href": f"http://oeo.net/openeo/{api_version}/collections/S2_WITH_LINKS"},
+                    {
+                        "rel": "http://www.opengis.net/def/rel/ogc/1.0/queryables",
+                        "href": f"http://oeo.net/openeo/{api_version}/collections/S2_WITH_LINKS/queryables",
+                        "type": "application/schema+json",
+                    },
                 ],
             ),
             (
@@ -1242,6 +1252,11 @@ class TestCollections:
                     {"rel": "about", "href": "https://s2.test/about"},
                     {"rel": "parent", "href": f"http://oeo.net/openeo/{api_version}/collections"},
                     {"rel": "self", "href": f"http://oeo.net/openeo/{api_version}/collections/S2_WITH_LINKS"},
+                    {
+                        "rel": "http://www.opengis.net/def/rel/ogc/1.0/queryables",
+                        "href": f"http://oeo.net/openeo/{api_version}/collections/S2_WITH_LINKS/queryables",
+                        "type": "application/schema+json",
+                    },
                 ],
             ),
             (
@@ -1254,6 +1269,11 @@ class TestCollections:
                     {"rel": "root", "href": "https://s2.test/foobar"},
                     {"rel": "parent", "href": "https://s2.test/about"},
                     {"rel": "self", "href": "https://s2.test/s2"},
+                    {
+                        "rel": "http://www.opengis.net/def/rel/ogc/1.0/queryables",
+                        "href": f"http://oeo.net/openeo/{api_version}/collections/S2_WITH_LINKS/queryables",
+                        "type": "application/schema+json",
+                    },
                 ],
             ),
         ],
@@ -1318,6 +1338,18 @@ class TestCollections:
         collection_ids = set(c["id"] for c in resp.json["collections"])
         assert expected_present.issubset(collection_ids)
         assert not expected_absent.intersection(collection_ids)
+
+    def test_collections_queryables(self, api120):
+        resp = api120.get("/collections/S2_FOOBAR/queryables").assert_status_code(200)
+        assert resp.json == {
+            "$schema": dirty_equals.IsStr(regex="https://json-schema.org/.*"),
+            "$id": "http://oeo.net/openeo/1.2/collections/S2_FOOBAR/queryables",
+            "type": "object",
+            "title": dirty_equals.IsStr(regex="Queryables.*S2_FOOBAR.*"),
+            "description": dirty_equals.IsStr(regex="Queryable names.*S2_FOOBAR.*"),
+            "properties": {},
+            "additionalProperties": True,
+        }
 
 
 class TestBatchJobs:

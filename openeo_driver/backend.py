@@ -244,6 +244,36 @@ class CollectionsListing:
             "links": [],
         }
 
+
+@dataclasses.dataclass(frozen=True)
+class QueryablesListing:
+    """
+    Container for `/queryables` data and aspects to build response from.
+
+    Based on https://github.com/stac-api-extensions/filter#queryables
+    """
+
+    queryables: dict
+    additional_properties: bool = False
+
+    def to_response_dict(self, *, collection_id: Optional[str] = None, self_url: str) -> dict:
+        if collection_id:
+            title = f"Queryables for collection {collection_id!r}"
+            description = f"Queryable names for item filtering on collection {collection_id!r}"
+        else:
+            title = "Queryables"
+            description = "Queryable names for item filtering"
+        return {
+            "$schema": "https://json-schema.org/draft/2019-09/schema",
+            "$id": self_url,
+            "type": "object",
+            "title": title,
+            "description": description,
+            "properties": self.queryables,
+            "additionalProperties": self.additional_properties,
+        }
+
+
 class AbstractCollectionCatalog(MicroService, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
@@ -271,6 +301,13 @@ class AbstractCollectionCatalog(MicroService, metaclass=abc.ABCMeta):
         Optional STAC API endpoint `GET /collections/{collectionId}/items`
         """
         raise FeatureUnsupportedException
+
+    def get_collection_queryables(self, collection_id: Union[str, None]) -> Union[QueryablesListing, flask.Response]:
+        # By default, return with `additionalProperties=true` to allow any queryable
+        return QueryablesListing(
+            queryables={},
+            additional_properties=True,
+        )
 
 
 class CollectionCatalog(AbstractCollectionCatalog):

@@ -19,7 +19,12 @@ and start a new "In Progress" section above it.
 
 <!-- start-of-changelog -->
 
-## In progress: 0.138.0
+## In progress: 0.139.0
+
+- Initial support for `/collections/<collection_id>/queryables` ([Open-EO/openeo-geopyspark-driver#536](https://github.com/Open-EO/openeo-geopyspark-driver/issues/536))
+
+
+## 0.138.0
 
 - Introduce experimental "post_dry_run" hook (related to [#406](https://github.com/Open-EO/openeo-python-driver/issues/406), [Open-EO/openeo-geopyspark-driver#1299](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1299))
 - `BoundingBox` utility: added union/intersection/reprojection functionality and other CRS handling related improvements (related to [#406](https://github.com/Open-EO/openeo-python-driver/issues/406), [Open-EO/openeo-geopyspark-driver#1299](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1299)))

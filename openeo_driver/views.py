@@ -44,6 +44,7 @@ from openeo_driver.backend import (
     UserDefinedProcessMetadata,
     function_has_argument,
     is_not_implemented,
+    QueryablesListing,
 )
 from openeo_driver.config import OpenEoBackendConfig, get_backend_config
 from openeo_driver.constants import (
@@ -52,6 +53,7 @@ from openeo_driver.constants import (
     ITEM_LINK_PROPERTY,
     JOB_STATUS,
     STAC_EXTENSION,
+    LINK_REL,
 )
 from openeo_driver.datacube import DriverMlModel
 from openeo_driver.errors import (
@@ -2177,6 +2179,14 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
         links.append(
             {"rel": "self", "href": url_for("openeo.collection_by_id", collection_id=collection_id, _external=True)}
         )
+    if LINK_REL.OGC_QUERYABLES not in link_rels and flask.current_app:
+        links.append(
+            {
+                "rel": LINK_REL.OGC_QUERYABLES,
+                "href": url_for(".collection_queryables", collection_id=collection_id, _external=True),
+                "type": "application/schema+json",
+            }
+        )
     metadata["links"] = links
 
     metadata.setdefault("description", collection_id)
@@ -2248,6 +2258,22 @@ def register_views_catalog(
             return res
         else:
             raise ValueError(f"Invalid get_collection_items result: {type(res)}")
+
+    @api_endpoint
+    @blueprint.route("/collections/<collection_id>/queryables", methods=["GET"])
+    def collection_queryables(collection_id):
+        res = backend_implementation.catalog.get_collection_queryables(collection_id=collection_id)
+        if isinstance(res, QueryablesListing):
+            data = res.to_response_dict(
+                self_url=flask.url_for(".collection_queryables", collection_id=collection_id, _external=True),
+                collection_id=collection_id,
+            )
+            return jsonify(data)
+        elif isinstance(res, flask.Response):
+            return res
+        else:
+            raise ValueError(f"Invalid get_collection_queryables result {res=}")
+
 
 
 def register_views_user_files(

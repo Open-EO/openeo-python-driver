@@ -65,3 +65,8 @@ DEFAULT_LOG_LEVEL_RETRIEVAL = "debug"
 
 class ITEM_LINK_PROPERTY:
     EXPOSE_AUXILIARY = "_expose_auxiliary"
+
+
+class LINK_REL:
+    # Custom openEO link relation for OGC queryables, per https://github.com/Open-EO/openeo-api/pull/487
+    OGC_QUERYABLES = "http://www.opengis.net/def/rel/ogc/1.0/queryables"
