@@ -434,16 +434,16 @@ class BoundingBox:
     optionally (geo)referenced.
 
     .. note::
-        About anti-meridian handling:
-        when working in a cyclic CRS like EPSG:4326 with a bounding box that crosses the anti-meridian,
+        About antimeridian handling:
+        when working in a cyclic CRS like EPSG:4326 with a bounding box that crosses the antimeridian,
         the "west" coordinate will be larger than the "east" coordinate.
         For example::
 
-            # Bounding box of 10 degrees wide across the anti-meridian
+            # Bounding box of 10 degrees wide across the antimeridian
             bbox_a = BoundingBox(west=175, east=-175, crs="EPSG:4326", ...)
 
             # bounding box of 350 degrees wide, starting in the west
-            # and going all the way to the east, but not crossing the anti-meridian.
+            # and going all the way to the east, but not crossing the antimeridian.
             bbox_b = BoundingBox(west=-175, east=175, crs="EPSG:4326", ...)
 
         also see https://datatracker.ietf.org/doc/html/rfc7946#section-5.2
@@ -544,14 +544,24 @@ class BoundingBox:
     def _crs_with_cyclic_x(crs: Union[None, str]) -> bool:
         """
         Whether the x coordinate is cyclic (e.g. longitude in EPSG:4326)
-        which requires some special handling like coordinate normalization and anti-meridian crossing handling.
+        which requires some special handling like coordinate normalization and antimeridian crossing handling.
         """
         return crs == "EPSG:4326"
 
     @staticmethod
     def _normalize_longitude(x: float) -> float:
         """Normalize an EPSG:4326 longitude coordinate to the range [-180, 180)"""
+        # TODO: do this normalization in constructor, instead of each time on the fly?
         return (x + 180) % 360 - 180
+
+    def cyclic_antimeridian_crossing(self) -> bool:
+        """
+        Whether this bounding box uses cyclic longitude coordinates
+        and crosses the antimeridian (so that west > east).
+        """
+        return self._crs_with_cyclic_x(self.crs) and (
+            self._normalize_longitude(self.west) > self._normalize_longitude(self.east)
+        )
 
     def as_dict(self) -> dict:
         return {
@@ -571,7 +581,7 @@ class BoundingBox:
     def as_polygon(self) -> shapely.geometry.Polygon:
         """
         Get bounding box as a shapely Polygon.
-        Simple single polygon, but not ideal for proper handling of anti-meridian crossing in EPSG:4326,
+        Simple single polygon, but not ideal for proper handling of antimeridian crossing in EPSG:4326,
         which require to split the geometry in two parts: use `as_geometry` instead for that.
         """
         west, east = self.west, self.east
@@ -584,7 +594,7 @@ class BoundingBox:
         return shapely.geometry.box(minx=west, miny=self.south, maxx=east, maxy=self.north)
 
     def as_geometry(self) -> Union[shapely.geometry.Polygon, shapely.geometry.MultiPolygon]:
-        """Get bounding box as a shapely geometry (Polygon or MultiPolygon when crossing anti-meridian)"""
+        """Get bounding box as a shapely geometry (Polygon or MultiPolygon when crossing antimeridian)"""
         west, east = self.west, self.east
         if self._crs_with_cyclic_x(self.crs):
             east = self._normalize_longitude(east)
@@ -614,7 +624,7 @@ class BoundingBox:
 
     def centroid(self) -> Tuple[float, float]:
         if self._crs_with_cyclic_x(self.crs):
-            # Properly handle cyclic longitude coordinates, and anti-meridian crossing
+            # Properly handle cyclic longitude coordinates, and antimeridian crossing
             west = self._normalize_longitude(self.west)
             east = self._normalize_longitude(self.east)
             if west <= east:
@@ -654,7 +664,7 @@ class BoundingBox:
             if west <= east:
                 return west <= x <= east
             else:
-                # Handle anti-meridian crossing
+                # Handle antimeridian crossing
                 return not (east < x < west)
         else:
             return self.west <= x <= self.east
@@ -681,7 +691,7 @@ class BoundingBox:
         west, south, east, north = reprojected.bounds
 
         if self._crs_with_cyclic_x(crs):
-            # Handle bounding boxes in EPSG:4326 around the anti-meridian
+            # Handle bounding boxes in EPSG:4326 around the antimeridian
             # use the projection of the centroid to detect coordinate wrapping, and adjust bounds properly
             cx, cy = transformer.transform(*self.centroid())
             if not (west <= cx <= east):

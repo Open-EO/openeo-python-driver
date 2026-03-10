@@ -741,6 +741,15 @@ class TestBoundingBox:
         assert BoundingBox(1, 2, 3, 4).is_georeferenced() is False
         assert BoundingBox(1, 2, 3, 4, crs=4326).is_georeferenced() is True
 
+    def test_cyclic_antimeridian_crossing(self):
+        assert BoundingBox(1, 2, 3, 4).cyclic_antimeridian_crossing() is False
+        assert BoundingBox(-170, 2, 170, 4).cyclic_antimeridian_crossing() is False
+        assert BoundingBox(-170, 2, 170, 4, crs=4326).cyclic_antimeridian_crossing() is False
+        assert BoundingBox(170, 2, -170, 4).cyclic_antimeridian_crossing() is False
+        assert BoundingBox(170, 2, -170, 4, crs=4326).cyclic_antimeridian_crossing() is True
+        assert BoundingBox(-190, 2, -170, 4, crs=4326).cyclic_antimeridian_crossing() is True
+        assert BoundingBox(170, 2, 190, 4, crs=4326).cyclic_antimeridian_crossing() is True
+
     def test_has_crs(self):
         assert BoundingBox(1, 2, 3, 4).has_crs() is False
         assert BoundingBox(1, 2, 3, 4, crs=4326).has_crs() is True
