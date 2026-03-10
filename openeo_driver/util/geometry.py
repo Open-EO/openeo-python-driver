@@ -802,15 +802,16 @@ class BoundingBox:
 
     def cyclic_antimeridian_split(self) -> List["BoundingBox"]:
         """
-        Split this bounding box into two bounding boxes
-        when it uses cyclic longitude coordinates and crosses the antimeridian.
+        When this bounding box uses cyclic longitude coordinates and crosses the antimeridian:
+        split it into two bounding boxes for each side of the antimeridian.
         Otherwise, just return this bounding box as is.
         """
         if self.cyclic_antimeridian_crossing():
             # TODO: this assumes "cyclic" implies longitude in degrees (EPSG:4326), and split is at +/-180
+            west, east = normalize_west_east_longitude(west=self.west, east=self.east)
             return [
-                BoundingBox(west=self.west, south=self.south, east=180, north=self.north, crs=self.crs),
-                BoundingBox(west=-180, south=self.south, east=self.east, north=self.north, crs=self.crs),
+                BoundingBox(west=west, south=self.south, east=180, north=self.north, crs=self.crs),
+                BoundingBox(west=-180, south=self.south, east=east, north=self.north, crs=self.crs),
             ]
         else:
             return [self]
