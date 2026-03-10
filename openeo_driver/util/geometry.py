@@ -427,6 +427,17 @@ class CrsRequired(BoundingBoxException):
     pass
 
 
+def normalize_west_east_longitude(west: float, east: float) -> Tuple[float, float]:
+    """
+    Assuming longitude in degrees (e.g. EPSG:4326):
+    normalize west to range [-180, 180) and east to range (-180, 180]
+    which is useful in bounding box contexts.
+    """
+    west = ((west + 180) % 360) - 180
+    east = 180 - ((180 - east) % 360)
+    return west, east
+
+
 @dataclasses.dataclass(frozen=True)
 class BoundingBox:
     """
@@ -451,6 +462,8 @@ class BoundingBox:
 
     # TODO: using frozen dataclasss, but with custom __init__ (for CRS normalization) makes things a bit messy.
     #       It might be just easier to implement the "frozen dataclass" behavior manually
+
+    # TODO: do longitude normalization (for EPSG:4326) in constructor instead of on the fly in various places?
 
     west: float
     south: float
@@ -548,20 +561,15 @@ class BoundingBox:
         """
         return crs == "EPSG:4326"
 
-    @staticmethod
-    def _normalize_longitude(x: float) -> float:
-        """Normalize an EPSG:4326 longitude coordinate to the range [-180, 180)"""
-        # TODO: do this normalization in constructor, instead of each time on the fly?
-        return (x + 180) % 360 - 180
-
     def cyclic_antimeridian_crossing(self) -> bool:
         """
         Whether this bounding box uses cyclic longitude coordinates
         and crosses the antimeridian (so that west > east).
         """
-        return self._crs_with_cyclic_x(self.crs) and (
-            self._normalize_longitude(self.west) > self._normalize_longitude(self.east)
-        )
+        if self._crs_with_cyclic_x(self.crs):
+            west, east = normalize_west_east_longitude(west=self.west, east=self.east)
+            return west > east
+        return False
 
     def as_dict(self) -> dict:
         return {
@@ -586,9 +594,9 @@ class BoundingBox:
         """
         west, east = self.west, self.east
         if self._crs_with_cyclic_x(self.crs):
-            west = self._normalize_longitude(west)
-            east = self._normalize_longitude(east)
+            west, east = normalize_west_east_longitude(west=west, east=east)
             if east < west:
+                # TODO: this assumes "cyclic" implies longitude in degrees (EPSG:4326)
                 east += 360
 
         return shapely.geometry.box(minx=west, miny=self.south, maxx=east, maxy=self.north)
@@ -597,9 +605,9 @@ class BoundingBox:
         """Get bounding box as a shapely geometry (Polygon or MultiPolygon when crossing antimeridian)"""
         west, east = self.west, self.east
         if self._crs_with_cyclic_x(self.crs):
-            east = self._normalize_longitude(east)
-            west = self._normalize_longitude(west)
+            west, east = normalize_west_east_longitude(west=west, east=east)
             if east < west:
+                # TODO: this assumes "cyclic" implies longitude in degrees (EPSG:4326), and split is at +/-180
                 return shapely.geometry.MultiPolygon(
                     [
                         shapely.geometry.box(west, self.south, 180, self.north),
@@ -625,12 +633,11 @@ class BoundingBox:
     def centroid(self) -> Tuple[float, float]:
         if self._crs_with_cyclic_x(self.crs):
             # Properly handle cyclic longitude coordinates, and antimeridian crossing
-            west = self._normalize_longitude(self.west)
-            east = self._normalize_longitude(self.east)
+            west, east = normalize_west_east_longitude(west=self.west, east=self.east)
             if west <= east:
                 x = 0.5 * (west + east)
             else:
-                x = self._normalize_longitude(0.5 * (west + east + 360))
+                x, _ = normalize_west_east_longitude(west=0.5 * (west + east + 360), east=0)
         else:
             x = 0.5 * (self.west + self.east)
 
@@ -792,3 +799,18 @@ class BoundingBox:
         if west >= east or south >= north:
             return None
         return BoundingBox(west=west, south=south, east=east, north=north, crs=self.crs)
+
+    def cyclic_antimeridian_split(self) -> List["BoundingBox"]:
+        """
+        Split this bounding box into two bounding boxes
+        when it uses cyclic longitude coordinates and crosses the antimeridian.
+        Otherwise, just return this bounding box as is.
+        """
+        if self.cyclic_antimeridian_crossing():
+            # TODO: this assumes "cyclic" implies longitude in degrees (EPSG:4326), and split is at +/-180
+            return [
+                BoundingBox(west=self.west, south=self.south, east=180, north=self.north, crs=self.crs),
+                BoundingBox(west=-180, south=self.south, east=self.east, north=self.north, crs=self.crs),
+            ]
+        else:
+            return [self]

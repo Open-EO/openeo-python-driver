@@ -24,6 +24,7 @@ from openeo_driver.util.geometry import (
     spatial_extent_union,
     validate_geojson_basic,
     epsg_code_or_none,
+    normalize_west_east_longitude,
 )
 
 from ..data import get_path
@@ -865,6 +866,10 @@ class TestBoundingBox:
             (170, -160, -175),
             (170 + 360, -160 + 5 * 360, -175),
             (170, -170, -180),
+            (-180, -170, -175),
+            (-190, -180, 175),
+            (170, 180, 175),
+            (180, 190, -175),
         ],
     )
     def test_centroid_epsg4326_wrap_around(self, west, east, expected):
@@ -910,6 +915,18 @@ class TestBoundingBox:
                 BoundingBox(-170, 51, 170, 52, crs=4326),
                 [(-167.1, 51.5), (-167.1 - 360, 51.5), (0, 51), (360, 51.5), (169.9, 52), (169.9 + 360, 52)],
                 [(-189, 51.5), (-171, 51.5), (171, 51.5), (189, 51.5), (0, 50.9), (0, 52.1)],
+            ),
+            (
+                # Bounding box with west bound at  -180
+                BoundingBox(-180, 51, -170, 52, crs=4326),
+                [(-180, 51.5), (-175, 51.5), (180, 51.5), (185, 51.5)],
+                [(-180.5, 51.5), (179.5, 51.5)],
+            ),
+            (
+                # Bounding box with east bound at 180
+                BoundingBox(170, 51, 180, 52, crs=4326),
+                [(180, 51.5), (175, 51.5), (-180, 51.5), (-185, 51.5)],
+                [(180.5, 51.5), (-179.5, 51.5)],
             ),
         ],
     )
@@ -1114,6 +1131,60 @@ class TestBoundingBox:
         # When there is no reprojection in play we can easily verify the reverse case too
         if bbox1.crs == bbox2.crs:
             assert bbox2.intersection(bbox1) == expected
+
+    @pytest.mark.parametrize(
+        ["bbox", "expected"],
+        [
+            (
+                BoundingBox(1, 2, 3, 4),
+                [BoundingBox(1, 2, 3, 4)],
+            ),
+            (
+                BoundingBox(-170, 2, 170, 4, crs=4326),
+                [BoundingBox(-170, 2, 170, 4, crs=4326)],
+            ),
+            (
+                BoundingBox(175, 2, -170, 4, crs=4326),
+                [
+                    BoundingBox(175, 2, 180, 4, crs=4326),
+                    BoundingBox(-180, 2, -170, 4, crs=4326),
+                ],
+            ),
+            (
+                BoundingBox(175, 2, 180, 4, crs=4326),
+                [BoundingBox(175, 2, 180, 4, crs=4326)],
+            ),
+            (
+                BoundingBox(-180, 2, -170, 4, crs=4326),
+                [BoundingBox(-180, 2, -170, 4, crs=4326)],
+            ),
+        ],
+    )
+    def test_cyclic_antimeridian_split(self, bbox, expected):
+        assert bbox.cyclic_antimeridian_split() == expected
+
+
+def test_normalize_west_east_longitude():
+    assert normalize_west_east_longitude(0, 0) == (0, 0)
+    assert normalize_west_east_longitude(10, 20) == (10, 20)
+    assert normalize_west_east_longitude(10.5, 20.5) == (10.5, 20.5)
+    assert normalize_west_east_longitude(190, 200) == (-170, -160)
+    assert normalize_west_east_longitude(190.5, 200.5) == (-169.5, -159.5)
+
+    assert normalize_west_east_longitude(-10, -20) == (-10, -20)
+    assert normalize_west_east_longitude(-10.5, -20.5) == (-10.5, -20.5)
+    assert normalize_west_east_longitude(-200, -190) == (160, 170)
+    assert normalize_west_east_longitude(-200.5, -190.5) == (159.5, 169.5)
+
+    assert normalize_west_east_longitude(-180, -170) == (-180, -170)
+    assert normalize_west_east_longitude(-190, -180) == (170, 180)
+    assert normalize_west_east_longitude(-180.5, -170.5) == (179.5, -170.5)
+    assert normalize_west_east_longitude(-190.5, -180.5) == (169.5, 179.5)
+
+    assert normalize_west_east_longitude(170, 180) == (170, 180)
+    assert normalize_west_east_longitude(180, 190) == (-180, -170)
+    assert normalize_west_east_longitude(170.5, 180.5) == (170.5, -179.5)
+    assert normalize_west_east_longitude(180.5, 190.5) == (-179.5, -169.5)
 
 
 class TestValidateGeoJSON:
