@@ -268,7 +268,7 @@ def _merge_item_assets(existing_collection: Collection, new_collection: Collecti
 
     existing_item_assets = existing_collection.extra_fields.get("item_assets")
     new_item_assets = new_collection.extra_fields.get("item_assets")
-    if existing_item_assets != new_collection:
+    if existing_item_assets != new_item_assets:
         if existing_item_assets is None:
             existing_collection.extra_fields["item_assets"] = new_item_assets
         else:
