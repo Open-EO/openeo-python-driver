@@ -22,6 +22,7 @@ and start a new "In Progress" section above it.
 ## In progress: 0.139.0
 
 - Initial support for `/collections/<collection_id>/queryables` ([Open-EO/openeo-geopyspark-driver#536](https://github.com/Open-EO/openeo-geopyspark-driver/issues/536))
+- Added `/openeo/1.3` endpoint root (non-production-ready for now) to `/.well-known/openeo` ([#454](https://github.com/Open-EO/openeo-python-driver/issues/454), [Open-EO/openeo-api#574](https://github.com/Open-EO/openeo-api/issues/574)
 
 
 ## 0.138.0

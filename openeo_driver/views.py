@@ -94,6 +94,7 @@ OPENEO_API_VERSIONS = API_VERSIONS = {
     "1.1.0": ApiVersionInfo(version="1.1.0", supported=True, wellknown=False, production=False),
     "1.1": ApiVersionInfo(version="1.1.0", supported=True, wellknown=True, production=True),
     "1.2": ApiVersionInfo(version="1.2.0", supported=True, wellknown=True, production=True),
+    "1.3": ApiVersionInfo(version="1.3.0", supported=True, wellknown=True, production=False),
     "1": ApiVersionInfo(version="1.2.0", supported=True, wellknown=False, production=True),
 }
 # TODO #382 deprecate API_VERSION_DEFAULT in favor of OPENEO_API_VERSION_DEFAULT
