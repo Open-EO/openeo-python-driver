@@ -1519,9 +1519,9 @@ def aggregate_spatial_window(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
     window_size = args.get_required("size")
     align = args.get_optional("align", default="upper-left")
-    pad = args.get_optional("pad", default="pad")
+    boundary = args.get_optional("boundary", default="pad")
     context = args.get_optional("context", default=None)
-    return cube.aggregate_spatial_window(reducer=reduce_pg, size=window_size, align=align, pad=pad, context=context)
+    return cube.aggregate_spatial_window(reducer=reduce_pg, size=window_size, align=align, boundary=boundary, context=context)
 
 @process
 def mask(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:

@@ -202,6 +202,15 @@ class DriverDataCube:
         # TODO: drop `target_dimension`? see https://github.com/Open-EO/openeo-processes/issues/366
         self._not_implemented()
 
+    def aggregate_spatial_window(
+        self,
+        size,
+        reducer: dict,
+        align: str="upper-left",
+        boundary: str = "pad"
+    )  -> "DriverDataCube":
+        self._not_implemented()
+
     def ndvi(self, nir: str = "nir", red: str = "red", target_band: Optional[str] = None) -> "DriverDataCube":
         self._not_implemented()
 
