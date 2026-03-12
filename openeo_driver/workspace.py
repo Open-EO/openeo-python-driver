@@ -176,6 +176,15 @@ def _merge_collection_metadata(existing_collection: Collection, new_collection: 
 
     _merge_derived_from_links(existing_collection, new_collection)
 
+    _merge_item_assets(existing_collection, new_collection)
+
+    if existing_collection.extra_fields.get("stac_version") != new_collection.extra_fields.get("stac_version"):
+        raise NotImplementedError(
+            f"export_workspace: only a merge with collections with the same stac_version are supported, "
+            f"found: {existing_collection.extra_fields.get('stac_version')} "
+            f"and new {new_collection.extra_fields.get('stac_version')}"
+        )
+
     # TODO: retains existing collection ID and description; is this right?
     # TODO: merge additional metadata?
 
@@ -239,3 +248,34 @@ def _merge_derived_from_links(existing_collection: Collection, new_collection: C
             for existing_link in existing_collection.get_links(rel=RelType.DERIVED_FROM)
         ):
             existing_collection.add_link(new_link)
+
+
+def _merge_item_assets(existing_collection: Collection, new_collection: Collection):
+
+    def intersect_dicts(dict1, dict2):
+        result = {}
+        for key in dict1:
+            if key in dict2:
+                if isinstance(dict1[key], dict) and isinstance(dict2[key], dict):
+                    # Recursively intersect nested dictionaries
+                    nested_result = intersect_dicts(dict1[key], dict2[key])
+                    if nested_result:  # Only add if the nested result is not empty
+                        result[key] = nested_result
+                elif dict1[key] == dict2[key]:
+                    # Retain the key-value pair if values are equal
+                    result[key] = dict1[key]
+        return result
+
+    existing_item_assets = existing_collection.extra_fields.get("item_assets")
+    new_item_assets = new_collection.extra_fields.get("item_assets")
+    if existing_item_assets != new_collection:
+        if existing_item_assets is None:
+            existing_collection.extra_fields["item_assets"] = new_item_assets
+        else:
+            for asset_key in new_item_assets:
+                if asset_key in existing_item_assets:
+                    existing_collection.extra_fields["item_assets"][asset_key] = intersect_dicts(
+                        existing_item_assets[asset_key], new_item_assets[asset_key]
+                    )
+                else:
+                    existing_collection.extra_fields["item_assets"][asset_key] = new_item_assets[asset_key]

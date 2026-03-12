@@ -117,16 +117,56 @@ def test_merge_from_disk_into_existing(tmp_path):
         collection_id="existing_collection",
         asset_filename="asset1.tif",
         spatial_extent=SpatialExtent([[0, 50, 2, 52]]),
-        temporal_extent=TemporalExtent([[dt.datetime.fromisoformat("2024-11-01T00:00:00+00:00"),
-                                         dt.datetime.fromisoformat("2024-11-03T00:00:00+00:00")]])
+        temporal_extent=TemporalExtent(
+            [
+                [
+                    dt.datetime.fromisoformat("2024-11-01T00:00:00+00:00"),
+                    dt.datetime.fromisoformat("2024-11-03T00:00:00+00:00"),
+                ]
+            ]
+        ),
+        extra_fields={
+            "item_assets": {
+                "B02": {
+                    "type": "image/tiff; application=geotiff",
+                    "roles": ["data"],
+                    "bbox": [0, 50, 2, 52],
+                },
+                "B03": {
+                    "type": "image/tiff; application=geotiff",
+                    "roles": ["data"],
+                    "bbox": [0, 50, 2, 52],
+                },
+            }
+        },
     )
     new_collection = _collection(
         root_path=tmp_path / "src" / "new_collection",
         collection_id="new_collection",
         asset_filename="asset2.tif",
         spatial_extent=SpatialExtent([[1, 51, 3, 53]]),
-        temporal_extent=TemporalExtent([[dt.datetime.fromisoformat("2024-11-02T00:00:00+00:00"),
-                                         dt.datetime.fromisoformat("2024-11-04T00:00:00+00:00")]])
+        temporal_extent=TemporalExtent(
+            [
+                [
+                    dt.datetime.fromisoformat("2024-11-02T00:00:00+00:00"),
+                    dt.datetime.fromisoformat("2024-11-04T00:00:00+00:00"),
+                ]
+            ]
+        ),
+        extra_fields={
+            "item_assets": {
+                "B02": {
+                    "type": "image/tiff; application=geotiff",
+                    "roles": ["data"],
+                    "bbox": [1, 51, 3, 53],
+                },
+                "B08": {
+                    "type": "image/tiff; application=geotiff",
+                    "roles": ["data"],
+                    "bbox": [1, 51, 3, 53],
+                },
+            }
+        },
     )
 
     target = Path("path") / "to" / "collection.json"
@@ -156,6 +196,12 @@ def test_merge_from_disk_into_existing(tmp_path):
 
     # load it again
     exported_collection = Collection.from_file(str(workspace_dir / "collection.json"))
+    item_assets = exported_collection.extra_fields.get("item_assets")
+    assert item_assets == {
+        "B02": {"roles": ["data"], "type": "image/tiff; application=geotiff"},
+        "B03": {"bbox": [0, 50, 2, 52], "roles": ["data"], "type": "image/tiff; application=geotiff"},
+        "B08": {"bbox": [1, 51, 3, 53], "roles": ["data"], "type": "image/tiff; application=geotiff"},
+    }
     assert exported_collection.validate_all() == 2
     assert _downloadable_assets(exported_collection) == 2
 
@@ -229,11 +275,13 @@ def _collection(
     asset_filename: str,
     spatial_extent: SpatialExtent = SpatialExtent([[-180, -90, 180, 90]]),
     temporal_extent: TemporalExtent = TemporalExtent([[None, None]]),
+    extra_fields=None,
 ) -> Collection:
     collection = Collection(
         id=collection_id,
         description=collection_id,
         extent=Extent(spatial_extent, temporal_extent),
+        extra_fields=extra_fields,
     )
 
     # note: filepath_per_band behavior is tested in e.g. openeo-geopyspark-driver's
