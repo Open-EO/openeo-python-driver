@@ -27,6 +27,7 @@ and start a new "In Progress" section above it.
 
 ## 0.138.0
 
+- Less strict parquet column name normalisation. ([#469](https://github.com/Open-EO/openeo-python-driver/issues/469))
 - Introduce experimental "post_dry_run" hook (related to [#406](https://github.com/Open-EO/openeo-python-driver/issues/406), [Open-EO/openeo-geopyspark-driver#1299](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1299))
 - `BoundingBox` utility: added union/intersection/reprojection functionality and other CRS handling related improvements (related to [#406](https://github.com/Open-EO/openeo-python-driver/issues/406), [Open-EO/openeo-geopyspark-driver#1299](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1299)))
 - Drop (long) deprecated and unused custom `load_disk_data` process and replace with more standard `load_uploaded_files` where applicable ([Open-EO/openeo-geopyspark-driver#1457](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1457))
