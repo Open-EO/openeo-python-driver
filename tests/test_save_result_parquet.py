@@ -29,7 +29,7 @@ def test_save_aggregate_polygon_spatial_result(tmp_path):
     }
 
 
-def test_save_column_name(tmp_path):
+def test_duplicate_column_names_error(tmp_path):
     csv_dir = get_path("aggregate_spatial_spatial_cube_name_collision")
 
     vector_cube = DriverVectorCube(gpd.read_file(str(get_path("geojson/FeatureCollection02.json"))))
