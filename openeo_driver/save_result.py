@@ -147,7 +147,7 @@ class SaveResult:
 def clean_parquet_column_name(name: str):
     # Could not find official SPEC for this, but cleaning just for consistency
     # https://geoparquet.org/releases/v1.0.0/#column-metadata
-    return re.sub(r"[()/\\]", "_", name)
+    return re.sub(r"[()/\\:]", "_", name)
 
 
 def get_temp_file(suffix="", prefix="openeo-pydrvr-"):
