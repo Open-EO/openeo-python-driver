@@ -130,12 +130,12 @@ def test_merge_from_disk_into_existing(tmp_path):
                 "B02": {
                     "type": "image/tiff; application=geotiff",
                     "roles": ["data"],
-                    "bbox": [0, 50, 2, 52],
+                    "bands": [{"name": "B02", "statistics": {"min": 0, "max": 5}}],
                 },
                 "B03": {
                     "type": "image/tiff; application=geotiff",
                     "roles": ["data"],
-                    "bbox": [0, 50, 2, 52],
+                    "bands": [{"name": "B03"}],
                 },
             }
         },
@@ -158,12 +158,12 @@ def test_merge_from_disk_into_existing(tmp_path):
                 "B02": {
                     "type": "image/tiff; application=geotiff",
                     "roles": ["data"],
-                    "bbox": [1, 51, 3, 53],
+                    "bands": [{"name": "B02"}],
                 },
                 "B08": {
                     "type": "image/tiff; application=geotiff",
                     "roles": ["data"],
-                    "bbox": [1, 51, 3, 53],
+                    "bands": [{"name": "B08"}],
                 },
             }
         },
@@ -199,8 +199,8 @@ def test_merge_from_disk_into_existing(tmp_path):
     item_assets = exported_collection.extra_fields.get("item_assets")
     assert item_assets == {
         "B02": {"roles": ["data"], "type": "image/tiff; application=geotiff"},
-        "B03": {"bbox": [0, 50, 2, 52], "roles": ["data"], "type": "image/tiff; application=geotiff"},
-        "B08": {"bbox": [1, 51, 3, 53], "roles": ["data"], "type": "image/tiff; application=geotiff"},
+        "B03": {"roles": ["data"], "type": "image/tiff; application=geotiff", "bands": [{"name": "B03"}]},
+        "B08": {"roles": ["data"], "type": "image/tiff; application=geotiff", "bands": [{"name": "B08"}]},
     }
     assert exported_collection.validate_all() == 2
     assert _downloadable_assets(exported_collection) == 2
