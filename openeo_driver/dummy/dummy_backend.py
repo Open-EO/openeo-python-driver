@@ -816,9 +816,20 @@ class DummyBatchJobs(BatchJobs):
             return self._job_result_registry[(job_id, user_id)]
         else:
             result_md = super().get_result_metadata(job_id=job_id, user_id=user_id)
+            links = result_md.links
+            if job_id == "j-25032411111111111111111111111111":
+                links.append(
+                    {
+                        "href": f"{self._output_root()}/{job_id}/collection.json",
+                        # https://github.com/radiantearth/stac-spec/blob/master/commons/links.md#relation-types
+                        "rel": "child",
+                        "title": f"Link to original STAC catalog.",
+                        "type": "application/json",
+                    }
+                )
             result_md = BatchJobResultMetadata(
                 assets=result_md.assets,
-                links=result_md.links,
+                links=links,
                 providers=self._get_providers(job_id=job_id, user_id=user_id),
             )
             return result_md
@@ -882,7 +893,7 @@ class DummyBatchJobs(BatchJobs):
                 },
             }
 
-        elif job_id == "j-24111211111111111111111111111111":
+        elif job_id == "j-24111211111111111111111111111111" or job_id == "j-25032411111111111111111111111111":
             return {
                 "subfolder/output.tiff": {
                     "output_dir": f"{self._output_root()}/{job_id}",

@@ -1,6 +1,8 @@
 import json
 import logging
+import os
 import re
+import shutil
 import urllib.parse
 from contextlib import ExitStack, contextmanager
 from datetime import datetime, timedelta, timezone
@@ -3339,6 +3341,40 @@ class TestBatchJobs:
                 "/jobs/j-24111211111111111111111111111111/results/assets/subfolder/output.tiff",
                 headers=self.AUTH_HEADER,
             )
+        assert resp.assert_status_code(200).data == b"tiffdata"
+        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
+
+    def test_download_result_including_raw_stac(self, api110, tmp_path):
+        output_root = Path(tmp_path)
+        jobs = {"j-25032411111111111111111111111111": {"status": "finished"}}
+        with self._fresh_job_registry(output_root=output_root, jobs=jobs):
+            output = output_root / "j-25032411111111111111111111111111/subfolder/output.tiff"
+            output.parent.mkdir(parents=True)
+            with output.open("wb") as f:
+                f.write(b"tiffdata")
+            source_folder = get_path("simple_stac_collection")
+            for p in os.listdir(source_folder):
+                shutil.copy(os.path.join(source_folder, p), output_root / "j-25032411111111111111111111111111" / p)
+
+            resp: ApiResponse = api110.get(
+                "/jobs/j-25032411111111111111111111111111/results/assets/subfolder/output.tiff",
+                headers=self.AUTH_HEADER,
+            )
+            assert resp.data == b"tiffdata"
+
+            api110.get(
+                "/jobs/j-25032411111111111111111111111111/results/assets/collection.json",
+                headers=self.AUTH_HEADER,
+            ).assert_status_code(200)
+            api110.get(
+                "/jobs/j-25032411111111111111111111111111/results/assets/openEO_2023-06-01Z.tif.json",
+                headers=self.AUTH_HEADER,
+            ).assert_status_code(200)
+            api110.get(
+                "/jobs/j-25032411111111111111111111111111/results/assets/openEO_2023-06-01Z.tif",
+                headers=self.AUTH_HEADER,
+            ).assert_status_code(200)
+
         assert resp.assert_status_code(200).data == b"tiffdata"
         assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
 

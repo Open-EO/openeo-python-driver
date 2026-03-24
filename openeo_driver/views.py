@@ -1344,9 +1344,20 @@ def register_views_batch_jobs(
                             raise OpenEOApiException("multiple assets with filename {n!r}".format(n=filename))
         else:
             results = result_metadata.assets
-            if filename not in results.keys():
-                raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
-            result = results[filename]
+            if filename in results.keys():
+                result = results[filename]
+            else:
+                result = None
+                for link in result_metadata.links:
+                    if link["rel"] != "child":
+                        continue
+                    # TODO: get_files_from_stac_catalog(result.stac_root_local, include_metadata=True)
+                    if link["href"].endswith(filename):
+                        result = {
+                            "output_dir": link["href"][: -len(filename)],
+                        }
+                if not result:
+                    raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
         if result.get("href", "").startswith("s3://"):
             return _stream_from_s3(
                 result["href"], filename=filename, mimetype=result.get("type"), bytes_range=request.headers.get("Range")
