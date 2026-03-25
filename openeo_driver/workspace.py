@@ -252,6 +252,15 @@ def _merge_derived_from_links(existing_collection: Collection, new_collection: C
 
 def _merge_item_assets(existing_collection: Collection, new_collection: Collection):
 
+    def intersect_band_array(list1, list2):
+        band_result = []
+        for item1 in list1:
+            if isinstance(item1, dict) and "name" in item1:
+                for item2 in list2:
+                    if isinstance(item1, dict) and "name" in item1 and item1["name"] == item2["name"]:
+                        band_result.append(intersect_dicts(item1, item2))
+        return band_result
+
     def intersect_dicts(dict1, dict2):
         result = {}
         for key in dict1:
@@ -261,6 +270,8 @@ def _merge_item_assets(existing_collection: Collection, new_collection: Collecti
                     nested_result = intersect_dicts(dict1[key], dict2[key])
                     if nested_result:  # Only add if the nested result is not empty
                         result[key] = nested_result
+                elif isinstance(dict1[key], list) and isinstance(dict2[key], list) and key == "bands":
+                    result[key] = intersect_band_array(dict1[key], dict2[key])
                 elif dict1[key] == dict2[key]:
                     # Retain the key-value pair if values are equal
                     result[key] = dict1[key]

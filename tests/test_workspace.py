@@ -198,7 +198,7 @@ def test_merge_from_disk_into_existing(tmp_path):
     exported_collection = Collection.from_file(str(workspace_dir / "collection.json"))
     item_assets = exported_collection.extra_fields.get("item_assets")
     assert item_assets == {
-        "B02": {"roles": ["data"], "type": "image/tiff; application=geotiff"},
+        "B02": {"roles": ["data"], "type": "image/tiff; application=geotiff", "bands": [{"name": "B02"}]},
         "B03": {"roles": ["data"], "type": "image/tiff; application=geotiff", "bands": [{"name": "B03"}]},
         "B08": {"roles": ["data"], "type": "image/tiff; application=geotiff", "bands": [{"name": "B08"}]},
     }
