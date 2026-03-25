@@ -817,7 +817,7 @@ class DummyBatchJobs(BatchJobs):
         else:
             result_md = super().get_result_metadata(job_id=job_id, user_id=user_id)
             links = result_md.links
-            if job_id == "j-25032411111111111111111111111111":
+            if job_id == "j-26032411111111111111111111111111":
                 links.append(
                     {
                         "href": f"{self._output_root()}/{job_id}/collection.json",
@@ -893,7 +893,7 @@ class DummyBatchJobs(BatchJobs):
                 },
             }
 
-        elif job_id == "j-24111211111111111111111111111111" or job_id == "j-25032411111111111111111111111111":
+        elif job_id == "j-24111211111111111111111111111111":
             return {
                 "subfolder/output.tiff": {
                     "output_dir": f"{self._output_root()}/{job_id}",
@@ -907,6 +907,28 @@ class DummyBatchJobs(BatchJobs):
                     "geometry": {
                         "type": "Polygon",
                         "coordinates": [[[0.0, 50.0], [0.0, 55.0], [5.0, 55.0], [5.0, 50.0], [0.0, 50.0]]],
+                    },
+                },
+            }
+        elif job_id == "j-26032411111111111111111111111111":
+            default_json = {
+                "output_dir": f"{self._output_root()}/{job_id}",
+                "type": "image/tiff; application=geotiff",
+                "roles": ["data"],
+                "bands": [Band(name="NDVI", wavelength_um=1.23)],
+                "nodata": 123,
+                "instruments": "MSI",
+                "bbox": [0.0, 50.0, 5.0, 55.0],
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[[0.0, 50.0], [0.0, 55.0], [5.0, 55.0], [5.0, 50.0], [0.0, 50.0]]],
+                },
+            }
+            return {
+                "sub-folder/openEO_2023-06-04Z.tif": {
+                    **default_json,
+                    **{
+                        "href": f"{self._output_root()}/{job_id}/sub-folder/openEO_2023-06-04Z.tif",
                     },
                 },
             }
