@@ -1,9 +1,12 @@
 import json
 import logging
+import os
 import re
+import shutil
 import urllib.parse
 from contextlib import ExitStack, contextmanager
 from datetime import datetime, timedelta, timezone
+from distutils.dir_util import copy_tree
 from pathlib import Path
 from typing import Optional
 from unittest import mock
@@ -3446,6 +3449,32 @@ class TestBatchJobs:
             )
         assert resp.assert_status_code(200).data == b"tiffdata"
         assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
+
+    def test_download_result_including_raw_stac(self, api110, tmp_path):
+        output_root = Path(tmp_path)
+        jobs = {"j-26032411111111111111111111111111": {"status": "finished"}}
+        with self._fresh_job_registry(output_root=output_root, jobs=jobs):
+            source_folder = get_path("recursive-stac-example")
+            copy_tree(
+                source_folder,
+                str(output_root / "j-26032411111111111111111111111111") + "/",
+            )
+            api110.get(
+                "/jobs/j-26032411111111111111111111111111/results/assets/sub-folder/openEO_2023-06-04Z.tif",
+                headers=self.AUTH_HEADER,
+            ).assert_status_code(200)
+            api110.get(
+                "/jobs/j-26032411111111111111111111111111/results/assets/collection.json",
+                headers=self.AUTH_HEADER,
+            ).assert_status_code(200)
+            api110.get(
+                "/jobs/j-26032411111111111111111111111111/results/assets/openEO_2023-06-01Z.tif.json",
+                headers=self.AUTH_HEADER,
+            ).assert_status_code(200)
+            api110.get(
+                "/jobs/j-26032411111111111111111111111111/results/assets/openEO_2023-06-01Z.tif",
+                headers=self.AUTH_HEADER,
+            ).assert_status_code(200)
 
     def test_download_result_vectorcube(self, api, tmp_path):
         output_root = Path(tmp_path)

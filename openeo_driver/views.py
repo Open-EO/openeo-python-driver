@@ -78,6 +78,7 @@ from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.util.geometry import BoundingBox, reproject_geometry
 from openeo_driver.util.logging import ExtraLoggingFilter, FlaskRequestCorrelationIdLogging
 from openeo_driver.util.stac import sniff_stac_extension_prefix
+from openeo_driver.util.stac_utils import get_files_from_stac_catalog
 from openeo_driver.utils import EvalEnv, filter_supported_kwargs, smart_bool
 
 _log = logging.getLogger(__name__)
@@ -1384,9 +1385,27 @@ def register_views_batch_jobs(
                             raise OpenEOApiException("multiple assets with filename {n!r}".format(n=filename))
         else:
             results = result_metadata.assets
-            if filename not in results.keys():
-                raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
-            result = results[filename]
+            if filename in results.keys():
+                result = results[filename]
+            else:
+                result = None
+                for link in result_metadata.links:
+                    if link["rel"] != "child":
+                        continue
+                    try:
+                        # Some things might break with s3 links, try-catch to be sure.
+                        file_paths = get_files_from_stac_catalog(link["href"], include_metadata=True)
+                        for file_path in file_paths:
+                            if file_path.endswith(filename):
+                                result = {
+                                    "output_dir": file_path[: -len(filename)],
+                                    "href": file_path,
+                                }
+                                break
+                    except Exception as e:
+                        _log.warning(f"Could not get file paths from {link['href']}: {e}")
+                if not result:
+                    raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
         if result.get("href", "").startswith("s3://"):
             return _stream_from_s3(
                 result["href"], filename=filename, mimetype=result.get("type"), bytes_range=request.headers.get("Range")

@@ -13,16 +13,6 @@
       "href": "./openEO_2023-06-01Z.tif.json",
       "rel": "item",
       "type": "application/geo+json"
-    },
-    {
-      "href": "./sub-folder/openEO_2023-06-04Z.tif.json",
-      "rel": "item",
-      "type": "application/geo+json"
-    },
-    {
-      "href": "./sub-folder/openEO_2023-06-06Z.tif.json",
-      "rel": "item",
-      "type": "application/geo+json"
     }
   ]
 }
