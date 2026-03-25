@@ -1198,6 +1198,32 @@ def register_views_batch_jobs(
 
 
             if result_metadata.items :
+                def intersect_band_array(list1, list2):
+                    band_result = []
+                    for item1 in list1:
+                        if isinstance(item1, dict) and "name" in item1:
+                            for item2 in list2:
+                                if isinstance(item1, dict) and "name" in item1 and item1["name"] == item2["name"]:
+                                    band_result.append(intersect_dicts(item1, item2))
+                    return band_result
+
+                def intersect_dicts(dict1, dict2):
+                    result = {}
+                    for key in dict1:
+                        if key in dict2:
+                            if isinstance(dict1[key], dict) and isinstance(dict2[key], dict):
+                                # Recursively intersect nested dictionaries
+                                nested_result = intersect_dicts(dict1[key], dict2[key])
+                                if nested_result:  # Only add if the nested result is not empty
+                                    result[key] = nested_result
+                            elif isinstance(dict1[key], list) and isinstance(dict2[key], list) and key == "bands":
+                                result[key] = intersect_band_array(dict1[key], dict2[key])
+                            elif dict1[key] == dict2[key]:
+                                # Retain the key-value pair if values are equal
+                                result[key] = dict1[key]
+                    return result
+
+                item_assets = {}
                 assets = {}
                 for item_key, item_metadata in result_items.items():
                     for asset_key, asset_metadata in item_metadata.get("assets").items():
@@ -1208,7 +1234,7 @@ def register_views_batch_jobs(
                             href = os.path.relpath(asset_metadata.get('href'),common)
                         else:
                             href = asset_metadata.get("href")
-                        assets[item_key + "_" + asset_key] = _asset_object(
+                        asset_object = _asset_object(
                          job_id=job_id,
                          user_id=user_id,
                          filename= href,
@@ -1216,6 +1242,18 @@ def register_views_batch_jobs(
                          job_info=job_info,
                          stac11=True,
                      )
+                        assets[item_key + "_" + asset_key] = asset_object
+                        item_asset = dict_no_none(
+                            {
+                                "type": asset_object.get("type"),
+                                "roles": asset_object.get("roles"),
+                                "bands": asset_object.get("bands"),
+                            }
+                        )
+                        if asset_key not in item_assets:
+                            item_assets[asset_key] = item_asset
+                        else:
+                            item_assets[asset_key] = intersect_dicts(item_assets[asset_key], item_asset)
                 for item_id in result_metadata.items.keys():
                     links.append(
                         {"rel": "item", "href": job_result_item_url(item_id=item_id, is11=True), "type": stac_item_media_type}
@@ -1223,6 +1261,7 @@ def register_views_batch_jobs(
                 stac_version = "1.1.0"
             else:
 
+                item_assets = None
                 for filename, metadata in result_assets.items():
                     if ("data" in metadata.get("roles", []) and
                             any(media_type in metadata.get("type", "") for media_type in
@@ -1262,6 +1301,7 @@ def register_views_batch_jobs(
                     "providers": providers or None,
                     "links": links,
                     "assets": assets,
+                    "item_assets": item_assets,
                     "openeo:status": PARTIAL_JOB_STATUS.FINISHED,
                 }
             )
