@@ -206,6 +206,7 @@ def reproject_bounding_box(bbox: dict, from_crs: Optional[str], to_crs: str) -> 
     :param to_crs: target CRS
     :return: bbox dict (fields "west", "south", "east", "north", "crs")
     """
+    # TODO: replace usage of this function with more thoroughly tested`BoundingBox` helper
     box = shapely.geometry.box(bbox["west"], bbox["south"], bbox["east"], bbox["north"])
     if from_crs is None:
         from_crs = bbox["crs"]
@@ -617,7 +618,7 @@ class BoundingBox:
 
         return shapely.geometry.box(minx=west, miny=self.south, maxx=east, maxy=self.north)
 
-    def as_geojson(self) -> dict:
+    def as_geojson_dict(self) -> dict:
         """Represent as a GeoJSON Polygon dictionary (in lon-lat)"""
         if self.crs is None:
             geometry = self.as_polygon()
@@ -629,6 +630,12 @@ class BoundingBox:
             geometry = self.as_polygon()
             geometry = reproject_geometry(geometry=geometry, from_crs=self.crs, to_crs="EPSG:4326")
             return antimeridian.fix_shape(geometry)
+
+    # Legacy alias
+    as_geojson = as_geojson_dict
+
+    def as_geojson_str(self, indent=None) -> str:
+        return json.dumps(self.as_geojson_dict(), indent=indent)
 
     def centroid(self) -> Tuple[float, float]:
         if self._crs_with_cyclic_x(self.crs):
@@ -792,6 +799,7 @@ class BoundingBox:
         returns None when there is no intersection.
         """
         other = other.align_to(self)
+        # TODO: antimeridian correctness?
         west = max(self.west, other.west)
         south = max(self.south, other.south)
         east = min(self.east, other.east)

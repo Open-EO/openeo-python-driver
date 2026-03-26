@@ -806,21 +806,25 @@ class TestBoundingBox:
 
     def test_as_geojson_basic(self):
         bbox = BoundingBox(1, 2, 3, 4)
-        assert bbox.as_geojson() == {
+        assert bbox.as_geojson_dict() == {
             "type": "Polygon",
             "coordinates": (((3, 2), (3, 4), (1, 4), (1, 2), (3, 2)),),
         }
+        assert (
+            bbox.as_geojson_str()
+            == '{"type": "Polygon", "coordinates": [[[3.0, 2.0], [3.0, 4.0], [1.0, 4.0], [1.0, 2.0], [3.0, 2.0]]]}'
+        )
 
     def test_as_geojson_epsg4326(self):
         bbox = BoundingBox(3, 50, 4, 51, crs=4326)
-        assert bbox.as_geojson() == {
+        assert bbox.as_geojson_dict() == {
             "type": "Polygon",
             "coordinates": (((4, 50), (4, 51), (3, 51), (3, 50), (4, 50)),),
         }
 
     def test_as_geojson_epsg4326_across_anti_meridian(self):
         bbox = BoundingBox(179, 50, -179, 51, crs=4326)
-        assert bbox.as_geojson() == {
+        assert bbox.as_geojson_dict() == {
             "type": "MultiPolygon",
             "coordinates": [
                 (((180, 50), (180, 51), (179, 51), (179, 50), (180, 50)),),
@@ -830,7 +834,7 @@ class TestBoundingBox:
 
     def test_as_geojson_from_utm(self):
         bbox = BoundingBox(500000, 5649824, 507016, 5660950, crs="EPSG:32631")
-        assert bbox.as_geojson() == {
+        assert bbox.as_geojson_dict() == {
             "type": "Polygon",
             "coordinates": approxify(
                 (((3.1, 51.0), (3.1, 51.1), (3.0, 51.1), (3.0, 51.0), (3.1, 51.0)),),
@@ -840,7 +844,7 @@ class TestBoundingBox:
 
     def test_as_geojson_from_utm_across_anti_meridian(self):
         bbox = BoundingBox(west=300000, south=7690200, east=409800, north=7800000, crs="EPSG:32601")
-        assert bbox.as_geojson() == {
+        assert bbox.as_geojson_dict() == {
             "type": "MultiPolygon",
             "coordinates": approxify(
                 [
