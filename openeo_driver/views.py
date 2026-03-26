@@ -1393,15 +1393,23 @@ def register_views_batch_jobs(
                     if link["rel"] != "child":
                         continue
                     try:
+                        if (".." in filename) or ("%" in filename) or ("$" in filename) or ("|" in filename):
+                            # Should not be a problem, but just in case.
+                            raise FilePathInvalidException(f"Invalid file path: {filename}")
                         # Some things might break with s3 links, try-catch to be sure.
                         file_paths = get_files_from_stac_catalog(link["href"], include_metadata=True)
                         for file_path in file_paths:
+                            # TODO: Clean up this logic
                             if file_path.endswith(filename):
                                 result = {
                                     "output_dir": file_path[: -len(filename)],
                                     "href": file_path,
                                 }
                                 break
+                            if not result:
+                                raise FilePathInvalidException(
+                                    f"{filename!r} not in {list(results.keys())}, nor in {file_path}"
+                                )
                     except Exception as e:
                         _log.warning(f"Could not get file paths from {link['href']}: {e}")
                 if not result:
