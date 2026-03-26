@@ -1406,10 +1406,10 @@ def register_views_batch_jobs(
                                     "href": file_path,
                                 }
                                 break
-                            if not result:
-                                raise FilePathInvalidException(
-                                    f"{filename!r} not in {list(results.keys())}, nor in {file_path}"
-                                )
+                        if not result:
+                            raise FilePathInvalidException(
+                                f"{filename!r} not in {list(results.keys())}, nor in {file_paths}"
+                            )
                     except Exception as e:
                         _log.warning(f"Could not get file paths from {link['href']}: {e}")
                 if not result:
