@@ -258,8 +258,9 @@ class TestElasticJobRegistry:
 
         def post_token(request, context):
             # Very simple handler here (compared to OidcMock implementation)
+            # Only provide required fields https://openid.net/specs/openid-connect-core-1_0.html#ImplicitAuthResponse
             assert "grant_type=client_credentials" in request.text
-            return {"access_token": "6cce5-t0k3n"}
+            return {"access_token": "6cce5-t0k3n", "token_type": "Bearer"}
 
         adapter.register_uri("POST", f"{oidc_issuer}/token", json=post_token)
         adapter.register_uri(
