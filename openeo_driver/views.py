@@ -1243,13 +1243,17 @@ def register_views_batch_jobs(
                          asset_metadata=asset_metadata,
                          job_info=job_info,
                          stac11=True,
-                     )
+                        )
                         assets[item_key + "_" + asset_key] = asset_object
                         item_asset = dict_no_none(
                             {
                                 "type": asset_object.get("type"),
                                 "roles": asset_object.get("roles"),
                                 "bands": asset_object.get("bands"),
+                                "proj:bbox": asset_object.get("proj:bbox"),
+                                "proj:epsg": asset_object.get("proj:epsg"),
+                                "proj:shape": asset_object.get("proj:shape"),
+                                "file:size": asset_object.get("file:size"),
                             }
                         )
                         if asset_key not in item_assets:
