@@ -6,7 +6,12 @@ import time
 from typing import Mapping, NamedTuple, Optional, Union
 
 import requests
-from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcClientInfo, OidcProviderInfo
+from openeo.rest.auth.oidc import (
+    OidcClientCredentialsAuthenticator,
+    OidcClientInfo,
+    OidcProviderInfo,
+    AccessTokenResult,
+)
 from openeo.util import str_truncate
 
 _log = logging.getLogger(__name__)
@@ -77,7 +82,7 @@ class ClientCredentialsAccessTokenHelper:
     - call `get_access_token()` to get an access token where necessary
     """
 
-    __slots__ = ("_authenticator", "_session", "_cache", "_default_ttl")
+    __slots__ = ("_authenticator", "_session", "_cache", "_default_ttl", "_expiration_threshold")
 
     def __init__(
         self,
@@ -85,11 +90,13 @@ class ClientCredentialsAccessTokenHelper:
         credentials: Optional[ClientCredentials] = None,
         session: Optional[requests.Session] = None,
         default_ttl: float = 5 * 60,
+        expiration_threshold: float = 300,
     ):
         self._session = session
         self._authenticator: Optional[OidcClientCredentialsAuthenticator] = None
         self._cache = _AccessTokenCache("", 0)
         self._default_ttl = default_ttl
+        self._expiration_threshold = expiration_threshold
 
         if credentials:
             self.setup_credentials(credentials)
@@ -116,18 +123,25 @@ class ClientCredentialsAccessTokenHelper:
             client_info=client_info, requests_session=self._session
         )
 
-    def _get_access_token(self) -> str:
+    def _get_access_token(self) -> AccessTokenResult:
         """Get an access token using the configured authenticator."""
         if not self._authenticator:
             raise RuntimeError("No authentication set up")
         _log.debug(f"{self.__class__.__name__} getting access token")
-        tokens = self._authenticator.get_tokens()
-        return tokens.access_token
+        access_token_response = self._authenticator.get_tokens()
+        return access_token_response
 
     def get_access_token(self) -> str:
         """Get an access token using the configured authenticator."""
         if time.time() > self._cache.expires_at:
-            access_token = self._get_access_token()
-            # TODO: get expiry from access token itself?
-            self._cache = _AccessTokenCache(access_token, time.time() + self._default_ttl)
+            access_token_response = self._get_access_token()
+            access_token = access_token_response.access_token
+            self._cache = _AccessTokenCache(access_token, self._get_access_token_expiry_time(access_token_response))
         return self._cache.access_token
+
+    def _get_access_token_expiry_time(self, access_token_response: AccessTokenResult) -> float:
+        if access_token_response.expires_in is None:
+            return time.time() + self._default_ttl
+        else:
+            # Expire the cache entry before the entry actually expires
+            return time.time() + (access_token_response.expires_in - self._expiration_threshold)
