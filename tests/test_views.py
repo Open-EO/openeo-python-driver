@@ -1,9 +1,12 @@
 import json
 import logging
+import os
 import re
+import shutil
 import urllib.parse
 from contextlib import ExitStack, contextmanager
 from datetime import datetime, timedelta, timezone
+from distutils.dir_util import copy_tree
 from pathlib import Path
 from typing import Optional
 from unittest import mock
@@ -1954,6 +1957,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.tiff",
                         "type": "image/tiff; application=geotiff",
                         "proj:epsg": 4326,
+                        "proj:code": "EPSG:4326",
                         "proj:shape": [300, 600],
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
                     },
@@ -1963,6 +1967,7 @@ class TestBatchJobs:
                         "title": "output.nc",
                         "type": "application/x-netcdf",
                         "proj:epsg": 4326,
+                        "proj:code": "EPSG:4326",
                         "proj:shape": [300, 600],
                     },
                     "randomforest.model": {
@@ -1977,6 +1982,7 @@ class TestBatchJobs:
                         "title": "vectorcube.geojson",
                         "type": "application/geo+json",
                         "proj:epsg": 4326,
+                        "proj:code": "EPSG:4326",
                         "proj:shape": [300, 600],
                     },
                 },
@@ -2011,6 +2017,7 @@ class TestBatchJobs:
                     "description": "Your description here.",
                     "instruments": ["MSI"],
                     "proj:epsg": 4326,
+                    "proj:code": "EPSG:4326",
                     "proj:shape": [300, 600],
                     "card4l:processing_chain": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
                     "card4l:specification": "SR",
@@ -2024,7 +2031,7 @@ class TestBatchJobs:
                     "https://stac-extensions.github.io/card4l/v0.1.0/optical/schema.json",
                     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
                     "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
-                    "https://stac-extensions.github.io/projection/v1.1.0/schema.json",
+                    "https://stac-extensions.github.io/projection/v1.2.0/schema.json",
                 ],
                 "stac_version": "0.9.0",
                 "type": "Feature",
@@ -2112,7 +2119,7 @@ class TestBatchJobs:
                     "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
-                    "https://stac-extensions.github.io/projection/v1.1.0/schema.json",
+                    "https://stac-extensions.github.io/projection/v1.2.0/schema.json",
                     "https://stac-extensions.github.io/ml-model/v1.0.0/schema.json",
                 ],
                 "stac_version": "1.0.0",
@@ -2136,6 +2143,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.tiff",
                         "type": "image/tiff; application=geotiff",
                         "proj:epsg": 4326,
+                        "proj:code": "EPSG:4326",
                         "proj:shape": [300, 600],
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
                     },
@@ -2145,6 +2153,7 @@ class TestBatchJobs:
                         "title": "output.nc",
                         "type": "application/x-netcdf",
                         "proj:epsg": 4326,
+                        "proj:code": "EPSG:4326",
                         "proj:shape": [300, 600],
                     },
                     "randomforest.model": {
@@ -2156,6 +2165,7 @@ class TestBatchJobs:
                     "vectorcube.geojson": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/vectorcube.geojson",
                         "proj:epsg": 4326,
+                        "proj:code": "EPSG:4326",
                         "proj:shape": [300, 600],
                         "roles": ["data"],
                         "title": "vectorcube.geojson",
@@ -2200,7 +2210,7 @@ class TestBatchJobs:
                     "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
-                    "https://stac-extensions.github.io/projection/v1.1.0/schema.json",
+                    "https://stac-extensions.github.io/projection/v1.2.0/schema.json",
                     "https://stac-extensions.github.io/ml-model/v1.0.0/schema.json",
                 ],
                 "summaries": {
@@ -2522,7 +2532,7 @@ class TestBatchJobs:
                     "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
-                    "https://stac-extensions.github.io/projection/v1.1.0/schema.json",
+                    "https://stac-extensions.github.io/projection/v1.2.0/schema.json",
                     "https://stac-extensions.github.io/ml-model/v1.0.0/schema.json",
                 ],
                 "stac_version": "1.0.0",
@@ -2736,7 +2746,7 @@ class TestBatchJobs:
                     "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
-                    "https://stac-extensions.github.io/projection/v1.1.0/schema.json",
+                    "https://stac-extensions.github.io/projection/v1.2.0/schema.json",
                     "https://stac-extensions.github.io/ml-model/v1.0.0/schema.json",
                 ],
                 "id": "53c71345-09b4-46b4-b6b0-03fd6fe1f199",
@@ -2792,6 +2802,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234",
                         "type": "image/tiff; application=geotiff",
                         "proj:epsg": 4326,
+                        "proj:code": "EPSG:4326",
                         "proj:shape": [300, 600],
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
                         "roles": ["data"],
@@ -2802,6 +2813,7 @@ class TestBatchJobs:
                         "title": "output.nc",
                         "type": "application/x-netcdf",
                         "proj:epsg": 4326,
+                        "proj:code": "EPSG:4326",
                         "proj:shape": [300, 600],
                     },
                     "randomforest.model": {
@@ -2816,6 +2828,7 @@ class TestBatchJobs:
                         "title": "vectorcube.geojson",
                         "type": "application/geo+json",
                         "proj:epsg": 4326,
+                        "proj:code": "EPSG:4326",
                         "proj:shape": [300, 600],
                     },
                 },
@@ -3306,12 +3319,14 @@ class TestBatchJobs:
                     "type": "application/json",
                 },
             ],
-            'properties': {'datetime': '2023-12-31T21:41:00Z'},
-            'stac_extensions': ['https://stac-extensions.github.io/eo/v1.1.0/schema.json',
-                     'https://stac-extensions.github.io/file/v2.1.0/schema.json',
-                     'https://stac-extensions.github.io/projection/v1.1.0/schema.json'],
-            'stac_version': '1.1.0',
-            'type': 'Feature'
+            "properties": {"datetime": "2023-12-31T21:41:00Z"},
+            "stac_extensions": [
+                "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+                "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+                "https://stac-extensions.github.io/projection/v1.2.0/schema.json",
+            ],
+            "stac_version": "1.1.0",
+            "type": "Feature",
         }
 
         assert "eo:bands" not in resp_data["assets"]["openEO"]
@@ -3446,6 +3461,32 @@ class TestBatchJobs:
             )
         assert resp.assert_status_code(200).data == b"tiffdata"
         assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
+
+    def test_download_result_including_raw_stac(self, api110, tmp_path):
+        output_root = Path(tmp_path)
+        jobs = {"j-26032411111111111111111111111111": {"status": "finished"}}
+        with self._fresh_job_registry(output_root=output_root, jobs=jobs):
+            source_folder = get_path("recursive-stac-example")
+            copy_tree(
+                source_folder,
+                str(output_root / "j-26032411111111111111111111111111") + "/",
+            )
+            api110.get(
+                "/jobs/j-26032411111111111111111111111111/results/assets/sub-folder/openEO_2023-06-04Z.tif",
+                headers=self.AUTH_HEADER,
+            ).assert_status_code(200)
+            api110.get(
+                "/jobs/j-26032411111111111111111111111111/results/assets/collection.json",
+                headers=self.AUTH_HEADER,
+            ).assert_status_code(200)
+            api110.get(
+                "/jobs/j-26032411111111111111111111111111/results/assets/openEO_2023-06-01Z.tif.json",
+                headers=self.AUTH_HEADER,
+            ).assert_status_code(200)
+            api110.get(
+                "/jobs/j-26032411111111111111111111111111/results/assets/openEO_2023-06-01Z.tif",
+                headers=self.AUTH_HEADER,
+            ).assert_status_code(200)
 
     def test_download_result_vectorcube(self, api, tmp_path):
         output_root = Path(tmp_path)
@@ -3749,7 +3790,7 @@ class TestBatchJobs:
             "stac_extensions": [
                 "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                 "https://stac-extensions.github.io/file/v2.1.0/schema.json",
-                "https://stac-extensions.github.io/projection/v1.1.0/schema.json",
+                "https://stac-extensions.github.io/projection/v1.2.0/schema.json",
             ],
             "id": "output.tiff",
             "geometry": {
@@ -3758,7 +3799,12 @@ class TestBatchJobs:
             },
             "bbox": [0.0, 50.0, 5.0, 55.0],
             "epsg": 4326,
-            "properties": {"datetime": "1981-04-24T03:00:00Z", "proj:shape": [300, 600], "proj:epsg": 4326},
+            "properties": {
+                "datetime": "1981-04-24T03:00:00Z",
+                "proj:shape": [300, 600],
+                "proj:epsg": 4326,
+                "proj:code": "EPSG:4326",
+            },
             "links": [
                 {
                     "rel": "self",
@@ -3777,6 +3823,7 @@ class TestBatchJobs:
                     "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234",
                     "type": "image/tiff; application=geotiff",
                     "proj:epsg": 4326,
+                    "proj:code": "EPSG:4326",
                     "proj:shape": [300, 600],
                     "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
                     "roles": ["data"],

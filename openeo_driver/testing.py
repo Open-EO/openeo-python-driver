@@ -390,6 +390,7 @@ class DictSubSet:
     __slots__ = ["items", "_missing", "_differing"]
 
     # TODO rename/alias to `a_dict_with()` to be more self-explanatory
+    # TODO: replace usage with dirty_equals.IsPartialDict
 
     def __init__(self, items: dict = None, **kwargs):
         self.items = {**(items or {}), **kwargs}

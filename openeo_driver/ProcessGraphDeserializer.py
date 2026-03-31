@@ -2661,7 +2661,7 @@ def collect(args: ProcessArgs, env: EvalEnv):
 @non_standard_process(
     ProcessSpec(
         id="aspect",
-        description="Computes the aspect from elevation data. Aspect is the direction component of a gradient vector. It is the direction in degrees of which direction the maximum change in direction is pointing at a given point. Horn's method is used to compute the aspect based on estimates of the partial derivatives dz/dx and dz/dy.",
+        description="Computes the aspect (in radians, from due North) from elevation data. Aspect is the direction component of a gradient vector. It is the direction in degrees of which direction the maximum change in direction is pointing at a given point. Horn's method is used to compute the aspect based on estimates of the partial derivatives dz/dx and dz/dy. When the surface is flat, the value is NaN.",
         extra={
             "summary": "Compute aspect on elevation data",
             "categories": ["cubes", "elevation"],
@@ -2683,10 +2683,10 @@ def aspect(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 @non_standard_process(
     ProcessSpec(
         id="slope",
-        description="Computes the slope from elevation data. Slope is the magnitude portion of the gradient vector. It is the maximum change of elevation from a raster cell to any immediate neighbor. Horn's method is used to compute the slope based on estimates of the partial derivatives dz/dx and dz/dy.",
+        description="Computes the slope (in radians, relative to the horizontal plane) from elevation data. Slope is the magnitude portion of the gradient vector. It is the maximum change of elevation from a raster cell to any immediate neighbor. Horn's method is used to compute the slope based on estimates of the partial derivatives dz/dx and dz/dy.",
         extra={
             "summary": "Compute slope on elevation data",
-            "categories": ["cubes", "elevation"],
+            "categories": ["cubes", "math", "elevation"],
             "experimental": True
         }
     )

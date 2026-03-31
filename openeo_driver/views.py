@@ -78,6 +78,7 @@ from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.util.geometry import BoundingBox, reproject_geometry
 from openeo_driver.util.logging import ExtraLoggingFilter, FlaskRequestCorrelationIdLogging
 from openeo_driver.util.stac import sniff_stac_extension_prefix
+from openeo_driver.util.stac_utils import get_files_from_stac_catalog
 from openeo_driver.utils import EvalEnv, filter_supported_kwargs, smart_bool
 
 _log = logging.getLogger(__name__)
@@ -882,6 +883,7 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
 
     if job_info.epsg:
         properties["proj:epsg"] = job_info.epsg
+        properties["proj:code"] = f"EPSG:{job_info.epsg}"
 
     if job_info.proj_bbox:
         properties["proj:bbox"] = job_info.proj_bbox
@@ -1289,7 +1291,7 @@ def register_views_batch_jobs(
                         STAC_EXTENSION.EO_V110,
                         STAC_EXTENSION.FILEINFO,
                         STAC_EXTENSION.PROCESSING,
-                        STAC_EXTENSION.PROJECTION,
+                        STAC_EXTENSION.PROJECTION_V120,
                     ],
                     "id": job_id,
                     "title": job_info.title,
@@ -1356,7 +1358,7 @@ def register_views_batch_jobs(
             if any(key.startswith("proj:") for key in result["properties"]) or any(
                 key.startswith("proj:") for key in result["assets"]
             ):
-                result["stac_extensions"].append(STAC_EXTENSION.PROJECTION)
+                result["stac_extensions"].append(STAC_EXTENSION.PROJECTION_V120)
 
         # TODO "OpenEO-Costs" header?
         return jsonify(result)
@@ -1388,9 +1390,35 @@ def register_views_batch_jobs(
                             raise OpenEOApiException("multiple assets with filename {n!r}".format(n=filename))
         else:
             results = result_metadata.assets
-            if filename not in results.keys():
-                raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
-            result = results[filename]
+            if filename in results.keys():
+                result = results[filename]
+            else:
+                result = None
+                for link in result_metadata.links:
+                    if link["rel"] != "child":
+                        continue
+                    try:
+                        if (".." in filename) or ("%" in filename) or ("$" in filename) or ("|" in filename):
+                            # Should not be a problem, but just in case.
+                            raise FilePathInvalidException(f"Invalid file path: {filename}")
+                        # Some things might break with s3 links, try-catch to be sure.
+                        file_paths = get_files_from_stac_catalog(link["href"], include_metadata=True)
+                        for file_path in file_paths:
+                            # TODO: Clean up this logic
+                            if file_path.endswith(filename):
+                                result = {
+                                    "output_dir": file_path[: -len(filename)],
+                                    "href": file_path,
+                                }
+                                break
+                        if not result:
+                            raise FilePathInvalidException(
+                                f"{filename!r} not in {list(results.keys())}, nor in {file_paths}"
+                            )
+                    except Exception as e:
+                        _log.warning(f"Could not get file paths from {link['href']}: {e}")
+                if not result:
+                    raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
         if result.get("href", "").startswith("s3://"):
             return _stream_from_s3(
                 result["href"], filename=filename, mimetype=result.get("type"), bytes_range=request.headers.get("Range")
@@ -1529,6 +1557,7 @@ def register_views_batch_jobs(
             properties["proj:bbox"] = job_info.proj_bbox
         if job_info.epsg:
             properties["proj:epsg"] = job_info.epsg
+            properties["proj:code"] = f"EPSG:{job_info.epsg}"
 
         bbox = item_metadata.get("bbox", job_info.bbox)
         if not bbox and job_info.proj_bbox and job_info.epsg:
@@ -1549,7 +1578,7 @@ def register_views_batch_jobs(
             "stac_extensions": [
                 STAC_EXTENSION.EO_V110,
                 STAC_EXTENSION.FILEINFO,
-                STAC_EXTENSION.PROJECTION,
+                STAC_EXTENSION.PROJECTION_V120,
             ],
             "id": item_id,
             "geometry": geometry,
@@ -1703,6 +1732,7 @@ def register_views_batch_jobs(
             properties["proj:bbox"] = job_info.proj_bbox
         if job_info.epsg:
             properties["proj:epsg"] = job_info.epsg
+            properties["proj:code"] = f"EPSG:{job_info.epsg}"
 
         bbox = asset_metadata.get("bbox", job_info.bbox)
         if not bbox and job_info.proj_bbox and job_info.epsg:
@@ -1717,7 +1747,7 @@ def register_views_batch_jobs(
             "stac_extensions": [
                 STAC_EXTENSION.EO_V110,
                 STAC_EXTENSION.FILEINFO,
-                STAC_EXTENSION.PROJECTION,
+                STAC_EXTENSION.PROJECTION_V120,
             ],
             "id": item_id,
             "geometry": geometry,
@@ -1853,11 +1883,13 @@ def register_views_batch_jobs(
                     for (i, band) in enumerate(bands)
                 ]
 
+        asset_proj_epsg = asset_metadata.get("proj:epsg", job_info.epsg)
         result_dict.update(
             dict_no_none(
-                **{
+                {
                     "proj:bbox": asset_metadata.get("proj:bbox", job_info.proj_bbox),
-                    "proj:epsg": asset_metadata.get("proj:epsg", job_info.epsg),
+                    "proj:epsg": asset_proj_epsg,
+                    "proj:code": f"EPSG:{asset_proj_epsg}" if asset_proj_epsg else None,
                     "proj:shape": asset_metadata.get("proj:shape", job_info.proj_shape),
                 }
             )
