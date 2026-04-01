@@ -74,7 +74,6 @@ setup(
         "fiona<1.10.0; python_version<'3.9'",  # Avoid fiona>=1.10.0 on Python 3.8 and lower (conflict with geopandas<0.14.0). Also see https://github.com/Open-EO/openeo-python-driver/issues/308
         "reretry~=0.11.8",
         "markdown>3.4",
-        "traceback-with-variables==2.0.4",
         "pystac>=1.8.0",  # TODO #370/#396 require more recent pystac version once py3.8 support is dropped
         "antimeridian>=0.3.8",  # 0.3.8 is the highest version that still supports Python 3.8
     ],
