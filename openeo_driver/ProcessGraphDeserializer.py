@@ -477,7 +477,7 @@ def evaluate(
                 "node_caching": False
             }
         )
-        dry_run_result = convert_node(top_level_node, env=dry_run_env)
+        dry_run_result = convert_node(top_level_node, env=dry_run_env, node_id=top_level_node_id)
         # TODO: work with a dedicated DryRunEvalEnv?
         source_constraints = dry_run_tracer.get_source_constraints()
         _log.info(f"Dry run extracted {len(source_constraints)} source constraints: {source_constraints}")
@@ -494,7 +494,7 @@ def evaluate(
             if post_dry_run_data:
                 env = env.push(post_dry_run_data)
 
-    result = convert_node(top_level_node, env=env)
+    result = convert_node(top_level_node, env=env, node_id=top_level_node_id)
     if len(env[ENV_SAVE_RESULT]) > 0:
         if len(env[ENV_SAVE_RESULT]) == 1:
             return env[ENV_SAVE_RESULT][0]
@@ -560,7 +560,13 @@ class _ResultCachingMode:
         # lru_cache-based trick to avoid spamming the log with the same warning
         _log.warning(message)
 
-def convert_node(processGraph: Union[dict, list], env: EvalEnv):
+
+def convert_node(
+    processGraph: Union[dict, list],
+    *,
+    env: EvalEnv,
+    node_id: Optional[str] = None,
+):
     """
 
     :param processGraph: process graph in nested representation
@@ -583,6 +589,7 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv):
                     args=processGraph.get("arguments", {}),
                     namespace=processGraph.get("namespace", None),
                     env=env,
+                    node_id=node_id,
                 )
             else:
                 process_result = cached
@@ -604,9 +611,9 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv):
                 env[ENV_FINAL_RESULT][0] = process_result
 
             return process_result
-        elif 'node' in processGraph:
-            return convert_node(processGraph['node'], env=env)
-        elif 'callback' in processGraph or 'process_graph' in processGraph:
+        elif "node" in processGraph:
+            return convert_node(processGraph["node"], env=env, node_id=processGraph.get("from_node"))
+        elif "callback" in processGraph or "process_graph" in processGraph:
             # a "process_graph" object is a new process graph, don't evaluate it in the parent graph
             return processGraph
         elif 'from_parameter' in processGraph:
@@ -1955,7 +1962,14 @@ def check_subgraph_for_data_mask_optimization(args: dict) -> bool:
     return True
 
 
-def apply_process(process_id: str, args: dict, namespace: Union[str, None], env: EvalEnv) -> DriverDataCube:
+def apply_process(
+    process_id: str,
+    args: dict,
+    *,
+    namespace: Union[str, None],
+    env: EvalEnv,
+    node_id: Optional[str] = None,
+) -> DriverDataCube:
     _log.debug(f"apply_process {process_id=}")
     parameters = env.collect_parameters()
 
@@ -2002,7 +2016,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         #TODO: for API compliance, we would actually first need to check if a UDP with same name exists.
         # we would however prefer to avoid overriding predefined functions with UDP's.
         # if we want to do this, we require caching in UDP registry to avoid expensive UDP lookups. We only need to cache the list of UDP names for a given user.
-        return process_function(args=ProcessArgs(args, process_id=process_id), env=env)
+        return process_function(args=ProcessArgs(args, process_id=process_id, node_id=node_id), env=env)
     except ProcessUnsupportedException as e:
         pass
     except OpenEOApiException:

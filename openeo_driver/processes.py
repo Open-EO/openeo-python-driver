@@ -419,10 +419,18 @@ class ProcessArgs(dict):
     but with additional methods for compact extraction
     """
 
-    def __init__(self, args: dict, process_id: Optional[str] = None):
+    def __init__(
+        self,
+        args: dict,
+        *,
+        process_id: Optional[str] = None,
+        node_id: Optional[str] = None,
+    ):
         super().__init__(args)
         # Current process id
         self.process_id = process_id
+        # Current node id
+        self.node_id = node_id
 
     @classmethod
     def cast(cls, args: Union[dict, "ProcessArgs"], process_id: Optional[str] = None):
