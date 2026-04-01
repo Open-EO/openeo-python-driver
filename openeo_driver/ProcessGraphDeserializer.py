@@ -25,7 +25,7 @@ import pyproj
 import shapely.geometry
 import shapely.ops
 from dateutil.relativedelta import relativedelta
-from openeo.internal.process_graph_visitor import ProcessGraphVisitException, ProcessGraphVisitor
+from openeo.internal.process_graph_visitor import ProcessGraphVisitException, ProcessGraphVisitor, ORIG_NODE_ID_KEY
 from openeo.metadata import CollectionMetadata
 from openeo.util import load_json, rfc3339, str_truncate, TimingLogger
 from openeo.utils.version import ComparableVersion
@@ -560,7 +560,8 @@ class _ResultCachingMode:
         # lru_cache-based trick to avoid spamming the log with the same warning
         _log.warning(message)
 
-def convert_node(processGraph: Union[dict, list], env: EvalEnv):
+
+def convert_node(processGraph: Union[dict, list], *, env: EvalEnv):
     """
 
     :param processGraph: process graph in nested representation
@@ -583,6 +584,7 @@ def convert_node(processGraph: Union[dict, list], env: EvalEnv):
                     args=processGraph.get("arguments", {}),
                     namespace=processGraph.get("namespace", None),
                     env=env,
+                    pg_node_id=processGraph.get(ORIG_NODE_ID_KEY),
                 )
             else:
                 process_result = cached
@@ -1985,7 +1987,14 @@ def check_subgraph_for_data_mask_optimization(args: dict) -> bool:
     return True
 
 
-def apply_process(process_id: str, args: dict, namespace: Union[str, None], env: EvalEnv) -> DriverDataCube:
+def apply_process(
+    process_id: str,
+    args: dict,
+    *,
+    namespace: Union[str, None],
+    env: EvalEnv,
+    pg_node_id: Optional[str] = None,
+) -> DriverDataCube:
     _log.debug(f"apply_process {process_id=}")
     parameters = env.collect_parameters()
 
@@ -2032,7 +2041,7 @@ def apply_process(process_id: str, args: dict, namespace: Union[str, None], env:
         #TODO: for API compliance, we would actually first need to check if a UDP with same name exists.
         # we would however prefer to avoid overriding predefined functions with UDP's.
         # if we want to do this, we require caching in UDP registry to avoid expensive UDP lookups. We only need to cache the list of UDP names for a given user.
-        return process_function(args=ProcessArgs(args, process_id=process_id), env=env)
+        return process_function(args=ProcessArgs(args, process_id=process_id, pg_node_id=pg_node_id), env=env)
     except ProcessUnsupportedException as e:
         pass
     except OpenEOApiException:
