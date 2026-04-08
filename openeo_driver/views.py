@@ -1394,6 +1394,7 @@ def register_views_batch_jobs(
                 result = results[filename]
             else:
                 result = None
+                _log.debug(f"{result_metadata=}")
                 for link in result_metadata.links:
                     if link["rel"] != "child":
                         continue
