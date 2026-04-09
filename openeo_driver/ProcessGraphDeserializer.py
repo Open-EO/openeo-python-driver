@@ -925,6 +925,36 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
         return env.backend_implementation.catalog.load_collection(collection_id, load_params=load_params, env=env)
 
 
+@process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/query_stac.json"))
+@process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/query_stac.json"))
+def query_stac(args: ProcessArgs, env: EvalEnv) -> Dict:
+    url = args.get_required(
+        "url",
+    )
+
+    temporal_extent = None
+    spatial_extent = None
+    if "temporal_extent" in args:
+        temporal_extent = _extract_temporal_extent(
+            args, field="temporal_extent", process_id="query_stac"
+        )
+    if "spatial_extent" in args:
+        spatial_extent = _extract_bbox_extent(
+            args, field="spatial_extent", process_id="query_stac"
+        )
+
+    dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
+    if dry_run_tracer:
+        _log.warning("Dry run tracer not supported for query_stac")
+        return {}
+    else:
+        return env.backend_implementation.query_stac(
+            url=url,
+            spatial_extent=spatial_extent,
+            temporal_extent=temporal_extent,
+            env=env
+        )
+
 def _check_geometry_path_assumption(path: str, process: str, parameter: str):
     if isinstance(path, str) and path.lstrip().startswith("{"):
         raise ProcessParameterInvalidException(

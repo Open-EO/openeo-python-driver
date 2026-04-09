@@ -16,7 +16,7 @@ import inspect
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Union, NamedTuple, Dict, Optional, Callable, Iterable, Container, Any
+from typing import List, Union, NamedTuple, Dict, Optional, Callable, Iterable, Container, Any, Tuple
 
 import flask
 
@@ -35,6 +35,7 @@ from openeo_driver.processes import ProcessRegistry
 from openeo_driver.users import User
 from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.util.date_math import simple_job_progress_estimation
+from openeo_driver.util.geometry import BoundingBox
 from openeo_driver.util.logging import just_log_exceptions
 from openeo_driver.utils import read_json, dict_item, EvalEnv, extract_namedtuple_fields_from_dict, \
     get_package_versions
@@ -983,6 +984,9 @@ class OpenEoBackendImplementation:
         raise NotImplementedError
 
     def load_stac(self, url: str, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
+        raise NotImplementedError
+
+    def query_stac(self, url: str, spatial_extent: Union[Dict, BoundingBox, None], temporal_extent: Tuple[Optional[str], Optional[str]], _env: EvalEnv) -> DriverDataCube:
         raise NotImplementedError
 
     def load_ml_model(self, job_id: str) -> DriverMlModel:
