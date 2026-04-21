@@ -1121,6 +1121,12 @@ class DummyBackendImplementation(OpenEoBackendImplementation):
                     "gis_data_types": ["vector"],
                     "parameters": {},
                 },
+                "FlatGeobuf": {
+                    "title": "FlatGeobuf",
+                    "description": "Cloud-native binary vector format with optional spatial index. Supports S3 access via /vsis3/.",
+                    "gis_data_types": ["vector"],
+                    "parameters": {},
+                },
                 "GTiff": {
                     "title": "GeoTiff",
                     "gis_data_types": ["raster"],

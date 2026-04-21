@@ -401,11 +401,37 @@ class DriverVectorCube:
             )
             return cls(geometries=data, cube=cube)
 
+    # Map of lowercase user-supplied driver names to the exact GDAL driver string.
+    _DRIVER_ALIASES: Dict[str, str] = {
+        "fgb": "FlatGeobuf",
+        "flatgeobuf": "FlatGeobuf",
+        "geojson": "GeoJSON",
+        "gpkg": "GPKG",
+        # "parquet" is handled by its own branch in from_fiona
+    }
+
+    @classmethod
+    def _resolve_s3_path(cls, path: str) -> str:
+        """Convert ``s3://eodata/`` URLs to the appropriate GDAL-readable path.
+
+        On workers with ``AWS_DIRECT=TRUE`` the path is rewritten to the GDAL
+        virtual filesystem prefix ``/vsis3/``.  On other machines (e.g. those
+        with a FUSE mount) the ``/eodata/`` mount point is used instead.
+        """
+        import os
+
+        if path.startswith("s3://eodata/"):
+            if os.environ.get("AWS_DIRECT") == "TRUE":
+                return path.replace("s3://eodata/", "/vsis3/eodata/", 1)
+            else:
+                return path.replace("s3://eodata/", "/eodata/", 1)
+        return path
+
     @classmethod
     def from_fiona_supports(cls, format: str) -> bool:
         """Does `from_fiona` supports given format?"""
         # TODO: also cover input format options?
-        return format.lower() in {"geojson", "esri shapefile", "gpkg", "parquet"}
+        return format.lower() in {"geojson", "esri shapefile", "gpkg", "parquet", "flatgeobuf", "fgb"}
 
     @classmethod
     def from_fiona(
@@ -425,7 +451,9 @@ class DriverVectorCube:
             if driver and "parquet" == driver.lower():
                 return cls.from_parquet(paths=paths, columns_for_cube=columns_for_cube)
             else:
-                gdf = gpd.read_file(paths[0], driver=driver, on_invalid="fix")
+                normalized_driver = cls._DRIVER_ALIASES.get(driver.lower(), driver) if driver else driver
+                resolved_path = cls._resolve_s3_path(str(paths[0]))
+                gdf = gpd.read_file(resolved_path, driver=normalized_driver, on_invalid="fix")
                 return cls.from_geodataframe(gdf, columns_for_cube=columns_for_cube)
         except Exception as e:
             if not isinstance(e, OpenEOApiException):

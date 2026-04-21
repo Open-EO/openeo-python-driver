@@ -1108,3 +1108,161 @@ class TestDriverVectorCube:
 
         assert vc1 != dirty_equals.IsInstance(list)
         assert dirty_equals.IsInstance(list) != vc1
+
+
+class TestDriverVectorCubeFromFiona:
+    """Tests for DriverVectorCube.from_fiona — format whitelist, driver normalization, S3 path resolution."""
+
+    # ------------------------------------------------------------------ #
+    # from_fiona_supports
+    # ------------------------------------------------------------------ #
+
+    @pytest.mark.parametrize(
+        "fmt",
+        [
+            "FlatGeobuf",
+            "flatgeobuf",
+            "FLATGEOBUF",
+            "fgb",
+            "FGB",
+            "geojson",
+            "GeoJSON",
+            "gpkg",
+            "GPKG",
+            "parquet",
+            "Parquet",
+            "esri shapefile",
+        ],
+    )
+    def test_from_fiona_supports_true(self, fmt):
+        assert DriverVectorCube.from_fiona_supports(fmt) is True
+
+    @pytest.mark.parametrize("fmt", ["csv", "kml", "unknown"])
+    def test_from_fiona_supports_false(self, fmt):
+        assert DriverVectorCube.from_fiona_supports(fmt) is False
+
+    # ------------------------------------------------------------------ #
+    # _DRIVER_ALIASES
+    # ------------------------------------------------------------------ #
+
+    @pytest.mark.parametrize(
+        "user_input, expected_gdal_driver",
+        [
+            ("fgb", "FlatGeobuf"),
+            ("FGB", "FlatGeobuf"),
+            ("flatgeobuf", "FlatGeobuf"),
+            ("FlatGeobuf", "FlatGeobuf"),
+            ("FLATGEOBUF", "FlatGeobuf"),
+            ("geojson", "GeoJSON"),
+            ("GeoJSON", "GeoJSON"),
+            ("gpkg", "GPKG"),
+            ("GPKG", "GPKG"),
+        ],
+    )
+    def test_driver_alias_normalization(self, user_input, expected_gdal_driver):
+        """_DRIVER_ALIASES normalises any casing to the exact GDAL driver name."""
+        aliases = DriverVectorCube._DRIVER_ALIASES
+        normalized = aliases.get(user_input.lower(), user_input)
+        assert normalized == expected_gdal_driver
+
+    # ------------------------------------------------------------------ #
+    # _resolve_s3_path
+    # ------------------------------------------------------------------ #
+
+    def test_resolve_s3_path_aws_direct(self, monkeypatch):
+        monkeypatch.setenv("AWS_DIRECT", "TRUE")
+        result = DriverVectorCube._resolve_s3_path("s3://eodata/some/path/file.fgb")
+        assert result == "/vsis3/eodata/some/path/file.fgb"
+
+    def test_resolve_s3_path_fuse_mount(self, monkeypatch):
+        monkeypatch.delenv("AWS_DIRECT", raising=False)
+        result = DriverVectorCube._resolve_s3_path("s3://eodata/some/path/file.fgb")
+        assert result == "/eodata/some/path/file.fgb"
+
+    def test_resolve_s3_path_non_eodata(self, monkeypatch):
+        monkeypatch.setenv("AWS_DIRECT", "TRUE")
+        url = "https://example.com/data/file.fgb"
+        assert DriverVectorCube._resolve_s3_path(url) == url
+
+    def test_resolve_s3_path_http_unchanged(self, monkeypatch):
+        monkeypatch.delenv("AWS_DIRECT", raising=False)
+        url = "http://example.com/data/file.geojson"
+        assert DriverVectorCube._resolve_s3_path(url) == url
+
+    # ------------------------------------------------------------------ #
+    # from_fiona — local FlatGeobuf round-trip (no network)
+    # ------------------------------------------------------------------ #
+
+    def test_from_fiona_flatgeobuf_local(self, tmp_path):
+        """Write a tiny FGB file then read it back via from_fiona with driver='FGB'."""
+        import warnings
+
+        gdf = gpd.GeoDataFrame(
+            {"value": [1, 2]},
+            geometry=[
+                shapely.geometry.Point(0, 0),
+                shapely.geometry.Point(1, 1),
+            ],
+            crs="EPSG:4326",
+        )
+        fgb_path = tmp_path / "test.fgb"
+        gdf.to_file(str(fgb_path), driver="FlatGeobuf")
+
+        with warnings.catch_warnings():
+            # pyogrio emits a cosmetic warning about the DRIVER open option for FlatGeobuf
+            warnings.simplefilter("ignore", RuntimeWarning)
+            vc = DriverVectorCube.from_fiona(paths=[str(fgb_path)], driver="FGB")
+
+        assert isinstance(vc, DriverVectorCube)
+        result_gdf = vc.get_geometries()
+        assert len(result_gdf) == 2
+
+    def test_from_fiona_flatgeobuf_driver_alias_applied(self, tmp_path, monkeypatch):
+        """from_fiona normalises 'fgb'/'FGB' to 'FlatGeobuf' before calling gpd.read_file."""
+        import warnings
+
+        gdf = gpd.GeoDataFrame(
+            {"value": [42]},
+            geometry=[shapely.geometry.Point(5, 52)],
+            crs="EPSG:4326",
+        )
+        fgb_path = tmp_path / "single.fgb"
+        gdf.to_file(str(fgb_path), driver="FlatGeobuf")
+
+        captured_drivers = []
+        real_read_file = gpd.read_file
+
+        def mock_read_file(path, driver=None, **kwargs):
+            captured_drivers.append(driver)
+            return real_read_file(path, driver=driver, **kwargs)
+
+        monkeypatch.setattr(gpd, "read_file", mock_read_file)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            DriverVectorCube.from_fiona(paths=[str(fgb_path)], driver="fgb")
+
+        assert captured_drivers == ["FlatGeobuf"]
+
+    def test_from_fiona_s3_path_rewritten(self, tmp_path, monkeypatch):
+        """from_fiona rewrites s3://eodata/ to /vsis3/eodata/ when AWS_DIRECT=TRUE."""
+        monkeypatch.setenv("AWS_DIRECT", "TRUE")
+
+        captured_paths = []
+        real_read_file = gpd.read_file
+
+        # We only want to intercept the call, not actually hit S3
+        def mock_read_file(path, **kwargs):
+            captured_paths.append(path)
+            # Return a minimal GeoDataFrame so from_fiona can finish
+            return gpd.GeoDataFrame(
+                geometry=[shapely.geometry.Point(0, 0)],
+                crs="EPSG:4326",
+            )
+
+        monkeypatch.setattr(gpd, "read_file", mock_read_file)
+
+        s3_url = "s3://eodata/some/path/file.fgb"
+        DriverVectorCube.from_fiona(paths=[s3_url], driver="FGB")
+
+        assert captured_paths == ["/vsis3/eodata/some/path/file.fgb"]
