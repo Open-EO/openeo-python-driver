@@ -3521,7 +3521,8 @@ def test_execute_load_collection_custom_properties(api):
                             "x": {"from_parameter": "value"},
                             "y": direction
                         },
-                        "result": True
+                        "result": True,
+                        "_node_id": "od",
                     }
                 }
             }

@@ -329,6 +329,7 @@ class TestConvertNode:
                 "arguments": {"x": 3, "y": 5},
                 "result": True,
                 "result_cache": 8,
+                "_node_id": "add35",
             }
         }
 
