@@ -39,6 +39,7 @@ import logging
 from enum import Enum
 from functools import lru_cache
 from typing import List, Optional, Tuple, Union, Iterator
+import typing
 
 import numpy
 import shapely.geometry.base
@@ -99,8 +100,13 @@ source_constraint_blockers = {
 
 
 # Type annotations for source constraints
+class SourceId(typing.NamedTuple):
+    process_id: str
+    arguments: tuple
+    pg_node_id: Union[str, None]
+
+
 # TODO encapsulate in real classes?
-SourceId = Tuple[str, tuple, Union[str, None]]
 SourceConstraint = Tuple[SourceId, dict]
 
 
@@ -153,6 +159,7 @@ class DataSource(DataTraceBase):
     ):
         super().__init__()
         self._process = process
+        # TODO: still necessary to track `arguments` now that we have pg_node_id?
         self._arguments = arguments
         self._pg_node_id = pg_node_id
 
@@ -161,8 +168,12 @@ class DataSource(DataTraceBase):
 
     def get_source_id(self) -> SourceId:
         """Identifier for source (hashable tuple, to be used as dict key for example)."""
-        # TODO: just use pg_node_id here?
-        return to_hashable((self._process, self._arguments, self._pg_node_id))
+        # TODO: still necessary to have `arguments` in source id now that we have pg_node_id?
+        return SourceId(
+            process_id=self._process,
+            arguments=to_hashable(self._arguments),
+            pg_node_id=self._pg_node_id,
+        )
 
     def get_operation_closest_to_source(self, operations: Union[str, List[str]]) -> Union["DataTraceBase", None]:
         if not isinstance(operations, list):

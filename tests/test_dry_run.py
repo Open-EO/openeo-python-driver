@@ -24,6 +24,7 @@ from openeo_driver.dry_run import (
     DryRunDataTracer,
     ProcessType,
     deduplicate_source_constraints,
+    SourceId,
 )
 from openeo_driver.dummy.dummy_backend import DummyVectorCube
 from openeo_driver.errors import OpenEOApiException, ProcessParameterInvalidException
@@ -85,12 +86,25 @@ def dry_run_env(dry_run_tracer, backend_implementation) -> EvalEnv:
     )
 
 
+def test_source_id():
+    source_id = SourceId(process_id="load_stac", arguments=("https://stac.example",), pg_node_id="loadstac1")
+    simple_tuple = ("load_stac", ("https://stac.example",), "loadstac1")
+
+    assert source_id == simple_tuple
+    assert {source_id: "ok"}[simple_tuple] == "ok"
+    assert {simple_tuple: "ok"}[source_id] == "ok"
+
+
 def test_source_load_collection():
     s1 = DataSource.load_collection(collection_id="FOOBAR")
     s2 = DataSource.load_collection(collection_id="FOOBAR")
     s3 = DataSource.load_collection(collection_id="FOOBARV2")
     assert s1.get_source_id() == s2.get_source_id()
     assert s1.get_source_id() != s3.get_source_id()
+
+    assert s1.get_source_id() == ("load_collection", ("FOOBAR", ()), None)
+    assert s2.get_source_id() == ("load_collection", ("FOOBAR", ()), None)
+    assert s3.get_source_id() == ("load_collection", ("FOOBARV2", ()), None)
 
 
 def test_source_load_uploaded_files():
