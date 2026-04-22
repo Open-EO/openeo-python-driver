@@ -2154,7 +2154,7 @@ def load_geojson(args: ProcessArgs, env: EvalEnv) -> DriverVectorCube:
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/2.x/proposals/load_url.json"))
 def load_url(args: ProcessArgs, env: EvalEnv) -> DriverVectorCube:
     # TODO: Follow up possible `load_url` changes https://github.com/Open-EO/openeo-processes/issues/450 ?
-    url = args.get_required("url", expected_type=str, validator=re.compile("^https?://").match)
+    url = args.get_required("url", expected_type=str, validator=re.compile("^(https?|s3)://").match)
     format = args.get_required(
         "format",
         expected_type=str,
