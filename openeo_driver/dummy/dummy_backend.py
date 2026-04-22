@@ -645,8 +645,10 @@ class DummyCatalog(CollectionCatalog):
     def __init__(self):
         super().__init__(all_metadata=self._COLLECTIONS)
 
-    def load_collection(self, collection_id: str, load_params: LoadParameters, env: EvalEnv) -> DummyDataCube:
-        return self._load_collection_cached(collection_id,load_params,WhiteListEvalEnv(env,[]))
+    def load_collection(
+        self, collection_id: str, load_params: LoadParameters, env: EvalEnv, pg_node_id: Optional[str] = None
+    ) -> DummyDataCube:
+        return self._load_collection_cached(collection_id, load_params, WhiteListEvalEnv(env, []))
 
     @lru_cache(maxsize=20)
     def _load_collection_cached(self, collection_id: str, load_params: LoadParameters, env:EvalEnv) -> DummyDataCube:

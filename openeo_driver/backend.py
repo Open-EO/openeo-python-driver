@@ -293,7 +293,9 @@ class AbstractCollectionCatalog(MicroService, metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    def load_collection(self, collection_id: str, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
+    def load_collection(
+        self, collection_id: str, load_params: LoadParameters, env: EvalEnv, pg_node_id: Optional[str] = None
+    ) -> DriverDataCube:
         """Load a collection as a DriverDataCube"""
         ...
 
@@ -341,7 +343,9 @@ class CollectionCatalog(AbstractCollectionCatalog):
         else:
             raise CollectionNotFoundException(collection_id)
 
-    def load_collection(self, collection_id: str, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
+    def load_collection(
+        self, collection_id: str, load_params: LoadParameters, env: EvalEnv, pg_node_id: Optional[str] = None
+    ) -> DriverDataCube:
         raise NotImplementedError
 
 
@@ -983,7 +987,9 @@ class OpenEoBackendImplementation:
                     env: EvalEnv) -> DriverDataCube:
         raise NotImplementedError
 
-    def load_stac(self, url: str, load_params: LoadParameters, env: EvalEnv) -> DriverDataCube:
+    def load_stac(
+        self, url: str, *, load_params: LoadParameters, env: EvalEnv, pg_node_id: Optional[str] = None
+    ) -> DriverDataCube:
         raise NotImplementedError
 
     def query_stac(self, url: str, spatial_extent: Union[Dict, BoundingBox, None], temporal_extent: Tuple[Optional[str], Optional[str]], env: EvalEnv) -> DriverDataCube:
@@ -1084,9 +1090,3 @@ class OpenEoBackendImplementation:
             or None (to push nothing).
         """
         return None
-
-
-def function_has_argument(function: Callable, argument: str) -> bool:
-    """Does function support given argument?"""
-    signature = inspect.signature(function)
-    return argument in signature.parameters

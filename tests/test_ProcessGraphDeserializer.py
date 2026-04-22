@@ -1,16 +1,18 @@
 import itertools
-
 import math
-import pytest
+from typing import Union
 
+import pytest
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.rest.datacube import DataCube, PGNode
+import openeo_driver.ProcessGraphDeserializer
 from openeo_driver.ProcessGraphDeserializer import (
     _period_to_intervals,
     SimpleProcessing,
     flatten_children_node_types,
     flatten_children_node_names,
     convert_node,
+    evaluate,
 )
 from openeo_driver.dummy.dummy_backend import DummyProcessing, DummyBackendImplementation, DummyProcessRegistry
 from openeo_driver.errors import ProcessParameterRequiredException
@@ -287,6 +289,13 @@ class TestConvertNode:
 
         # Register additional processes to play with and inspect caching behavior
         registry.add_process(name="fancy_add", function=fancy_add, spec={"id": "fancy_add"})
+
+        @registry.add_function(spec={"id": "get_node_id"})
+        def get_node_id(args: ProcessArgs, env: EvalEnv) -> Union[str, None]:
+            return args.pg_node_id
+
+        registry.add_hidden(openeo_driver.ProcessGraphDeserializer.collect)
+
         return registry
 
     @pytest.fixture
@@ -472,3 +481,14 @@ class TestConvertNode:
         result = convert_node(self._preprocess_process_graph(process_graph), env=env)
         assert result == 93
         assert len([m for m in caplog.messages if "node_caching" in m]) == 1
+
+    def test_evaluate_node_id_passing_basic(self, env):
+        process_graph = {
+            "getnodeid007": {
+                "process_id": "get_node_id",
+                "arguments": {"dummy": "foobar"},
+                "result": True,
+            },
+        }
+        result = evaluate(process_graph=process_graph, env=env)
+        assert result == "getnodeid007"
