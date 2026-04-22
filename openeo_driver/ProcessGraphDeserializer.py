@@ -883,11 +883,13 @@ def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
 
 
 @process
-def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
-    collection_id = extract_arg(args, 'id')
+def load_collection(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    collection_id = args.get_required("id", expected_type=str)
 
     # Sanitized arguments
     arguments = {}
+
+    # TODO: handle `temporal_extent` and `spatial_extent` through `get_optional` with a validator
     if args.get("temporal_extent"):
         arguments["temporal_extent"] = _extract_temporal_extent(
             args, field="temporal_extent", process_id="load_collection"
@@ -897,13 +899,13 @@ def load_collection(args: dict, env: EvalEnv) -> DriverDataCube:
             args, field="spatial_extent", process_id="load_collection", handle_geojson=True
         )
         # TODO when spatial_extent is geojson: additional mask_polygon operation? https://github.com/Open-EO/openeo-python-driver/issues/49
-    if args.get("bands"):
-        arguments["bands"] = extract_arg(args, "bands", process_id="load_collection")
-    if args.get("properties"):
-        arguments["properties"] = extract_arg(args, 'properties', process_id="load_collection")
+    if args.contains("bands"):
+        arguments["bands"] = args.get_optional(name="bands", expected_type=list)
+    if args.contains("properties"):
+        arguments["properties"] = args.get_optional(name="properties")
 
-    if args.get("featureflags"):
-        arguments["featureflags"] = extract_arg(args, 'featureflags', process_id="load_collection")
+    if args.contains("featureflags"):
+        arguments["featureflags"] = args.get_optional(name="featureflags")
 
     metadata = env.backend_implementation.catalog.get_collection_metadata(collection_id)
 
@@ -1593,8 +1595,9 @@ def mask_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     return cube
 
 
-def _extract_temporal_extent(args: dict, field="extent", process_id="filter_temporal") -> Tuple[str, str]:
-    extent = extract_arg(args, name=field, process_id=process_id)
+def _extract_temporal_extent(args: ProcessArgs, field="extent", process_id="filter_temporal") -> Tuple[str, str]:
+    # TODO: implement this as ProcessArgs validator
+    extent = args.get_required(name=field)
     if len(extent) != 2:
         raise ProcessParameterInvalidException(
             process=process_id, parameter=field, reason="should have length 2, but got {e!r}".format(e=extent)
@@ -1642,8 +1645,9 @@ def filter_labels(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     return cube.filter_labels(condition=condition, dimension=dimension, context=context, env=env)
 
 
-def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox", handle_geojson=False) -> dict:
-    extent = extract_arg(args, name=field, process_id=process_id)
+def _extract_bbox_extent(args: ProcessArgs, field="extent", process_id="filter_bbox", handle_geojson=False) -> dict:
+    # TODO: implement this as ProcessArgs validator
+    extent = args.get_required(name=field)
     # TODO #114: support vector cube
     if handle_geojson and extent.get("type") in [
         "Polygon",
@@ -1668,15 +1672,14 @@ def _extract_bbox_extent(args: dict, field="extent", process_id="filter_bbox", h
             )
         # TODO: support (non-standard) CRS field in GeoJSON?
         d = {"west": w, "south": s, "east": e, "north": n, "crs": "EPSG:4326"}
-    else:
-        d = {
-            k: extract_arg(extent, name=k, process_id=process_id)
-            for k in ["west", "south", "east", "north"]
-        }
+    elif all(k in extent for k in ["west", "south", "east", "north"]):
+        d = {k: extent[k] for k in ["west", "south", "east", "north"]}
         crs = extent.get("crs") or "EPSG:4326"
         if isinstance(crs, int):
             crs = "EPSG:{crs}".format(crs=crs)
         d["crs"] = crs
+    else:
+        raise ValueError(f"Failed to extract bounding box from {extent=}")
     return d
 
 
@@ -2640,6 +2643,7 @@ def load_stac(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     url: str = args.get_required(name="url", expected_type=str)
 
     arguments = {}
+    # TODO: handle `temporal_extent` and `spatial_extent` through `get_optional` with a validator
     if args.get("temporal_extent"):
         arguments["temporal_extent"] = _extract_temporal_extent(
             args, field="temporal_extent", process_id="load_stac"
