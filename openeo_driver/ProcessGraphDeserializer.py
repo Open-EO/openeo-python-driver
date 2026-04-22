@@ -72,6 +72,7 @@ from openeo_driver.save_result import (
 )
 from openeo_driver.specs import SPECS_ROOT, read_spec
 from openeo_driver.util import UNSET
+from openeo_driver.util.compat import function_has_argument
 from openeo_driver.util.date_math import month_shift
 from openeo_driver.util.geometry import BoundingBox, geojson_to_geometry, geojson_to_multipolygon, spatial_extent_union
 from openeo_driver.util.http import is_http_url
@@ -912,7 +913,7 @@ def load_collection(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
         return dry_run_tracer.load_collection(
-            collection_id=collection_id, arguments=arguments, metadata=metadata, env=env
+            collection_id=collection_id, arguments=arguments, metadata=metadata, env=env, pg_node_id=args.pg_node_id
         )
     else:
         # Extract basic source constraints.
@@ -921,12 +922,22 @@ def load_collection(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
                       **arguments.get("properties", {})}
 
         source_id = dry_run.DataSource.load_collection(
-            collection_id=collection_id, properties=properties, bands=arguments.get("bands", []), env=env
+            collection_id=collection_id,
+            properties=properties,
+            bands=arguments.get("bands", []),
+            env=env,
+            pg_node_id=args.pg_node_id,
         ).get_source_id()
         load_params = _extract_load_parameters(env, source_id=source_id)
         # Override with explicit arguments
         load_params.update(arguments)
-        return env.backend_implementation.catalog.load_collection(collection_id, load_params=load_params, env=env)
+        kwargs = {}
+        if function_has_argument(env.backend_implementation.catalog.load_collection, "pg_node_id"):
+            # TODO: clean up this conditional kwargs handling once all implementations are migrated
+            kwargs["pg_node_id"] = args.pg_node_id
+        return env.backend_implementation.catalog.load_collection(
+            collection_id=collection_id, load_params=load_params, env=env, **kwargs
+        )
 
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/query_stac.json"))
@@ -2661,16 +2672,25 @@ def load_stac(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
-        return dry_run_tracer.load_stac(url=url, arguments=arguments, env=env)
+        return dry_run_tracer.load_stac(url=url, arguments=arguments, env=env, pg_node_id=args.pg_node_id)
     else:
         source_id = dry_run.DataSource.load_stac(
-            url, properties=arguments.get("properties", {}), bands=arguments.get("bands", []), env=env
+            url,
+            properties=arguments.get("properties", {}),
+            bands=arguments.get("bands", []),
+            env=env,
+            pg_node_id=args.pg_node_id,
         ).get_source_id()
         load_params = _extract_load_parameters(env, source_id=source_id)
         load_params.resolve_tile_overlap = False
         load_params.update(arguments)
 
-        return env.backend_implementation.load_stac(url=url, load_params=load_params, env=env)
+        kwargs = {}
+        if function_has_argument(env.backend_implementation.load_stac, "pg_node_id"):
+            # TODO: clean up this conditional kwargs handling once all implementations are migrated
+            kwargs["pg_node_id"] = args.pg_node_id
+
+        return env.backend_implementation.load_stac(url=url, load_params=load_params, env=env, **kwargs)
 
 
 @process_registry_100.add_simple_function(name="if")

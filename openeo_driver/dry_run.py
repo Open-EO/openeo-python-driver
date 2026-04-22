@@ -100,7 +100,7 @@ source_constraint_blockers = {
 
 # Type annotations for source constraints
 # TODO encapsulate in real classes?
-SourceId = Tuple[str, tuple]
+SourceId = Tuple[str, tuple, Union[str, None]]
 SourceConstraint = Tuple[SourceId, dict]
 
 
@@ -146,19 +146,23 @@ class DataTraceBase:
 class DataSource(DataTraceBase):
     """Data source: a data (cube) generating process like `load_collection`, `load_stac`, ..."""
 
-    __slots__ = ["_process", "_arguments"]
+    __slots__ = ["_process", "_arguments", "_pg_node_id"]
 
-    def __init__(self, process: str = "load_collection", arguments: Union[dict, tuple] = ()):
+    def __init__(
+        self, process: str = "load_collection", arguments: Union[dict, tuple] = (), pg_node_id: Optional[str] = None
+    ):
         super().__init__()
         self._process = process
         self._arguments = arguments
+        self._pg_node_id = pg_node_id
 
     def get_source(self) -> "DataSource":
         return self
 
     def get_source_id(self) -> SourceId:
         """Identifier for source (hashable tuple, to be used as dict key for example)."""
-        return to_hashable((self._process, self._arguments))
+        # TODO: just use pg_node_id here?
+        return to_hashable((self._process, self._arguments, self._pg_node_id))
 
     def get_operation_closest_to_source(self, operations: Union[str, List[str]]) -> Union["DataTraceBase", None]:
         if not isinstance(operations, list):
@@ -167,27 +171,27 @@ class DataSource(DataTraceBase):
             return self
 
     def __repr__(self):
-        return "<{c}#{i}({p!r}, {a!r})>".format(
-            c=self.__class__.__name__, i=id(self), p=self._process, a=self._arguments
-        )
+        return f"<{self.__class__.__name__}#{self._pg_node_id}({self._process!r}, {self._arguments!r})>"
 
     def describe(self) -> str:
         return self._process
 
     @classmethod
-    def load_collection(cls, collection_id, properties={}, bands=[], env=EvalEnv()) -> "DataSource":
+    def load_collection(
+        cls, collection_id, *, properties={}, bands=[], env=EvalEnv(), pg_node_id: Optional[str] = None
+    ) -> "DataSource":
         """Factory for a `load_collection` DataSource."""
         exact_property_matches = {
             property_name: filter_properties.extract_literal_match(condition, env)
             for property_name, condition in properties.items()
         }
-
+        # TODO: still need for properties/bands hacks for caching reasons now that there is pg_node_id?
         args = (
             (collection_id, exact_property_matches, bands)
             if len(bands) > 0
             else (collection_id, exact_property_matches)
         )
-        return cls(process="load_collection", arguments=args)
+        return cls(process="load_collection", arguments=args, pg_node_id=pg_node_id)
 
     @classmethod
     def load_uploaded_files(cls, paths: List[str], format: str, options: dict) -> "DataSource":
@@ -200,14 +204,16 @@ class DataSource(DataTraceBase):
         return cls(process="load_result", arguments=(job_id,))
 
     @classmethod
-    def load_stac(cls, url: str, properties={}, bands=[], env=EvalEnv()) -> "DataSource":
+    def load_stac(
+        cls, url: str, *, properties={}, bands=[], env=EvalEnv(), pg_node_id: Optional[str] = None
+    ) -> "DataSource":
         """Factory for a `load_stac` DataSource."""
         exact_property_matches = {
             property_name: filter_properties.extract_literal_match(condition, env)
             for property_name, condition in properties.items()
         }
 
-        return cls(process="load_stac", arguments=(url, exact_property_matches, bands))
+        return cls(process="load_stac", arguments=(url, exact_property_matches, bands), pg_node_id=pg_node_id)
 
 
 class DataTrace(DataTraceBase):
@@ -279,7 +285,13 @@ class DryRunDataTracer:
         return [self.add_trace(DataTrace(parent=t, operation=operation, arguments=arguments)) for t in traces]
 
     def load_collection(
-        self, collection_id: str, arguments: dict, metadata: dict = None, env: EvalEnv = EvalEnv()
+        self,
+        collection_id: str,
+        *,
+        arguments: dict,
+        metadata: dict = None,
+        env: EvalEnv = EvalEnv(),
+        pg_node_id: Optional[str] = None,
     ) -> "DryRunDataCube":
         """Create a DryRunDataCube from a `load_collection` process."""
         metadata = CollectionMetadata(metadata=metadata)
@@ -290,7 +302,11 @@ class DryRunDataTracer:
         }
 
         trace = DataSource.load_collection(
-            collection_id=collection_id, properties=properties, bands=arguments.get("bands", []), env=env
+            collection_id=collection_id,
+            properties=properties,
+            bands=arguments.get("bands", []),
+            env=env,
+            pg_node_id=pg_node_id,
         )
         self.add_trace(trace)
 
@@ -356,11 +372,14 @@ class DryRunDataTracer:
                 ]
             )
 
-
-    def load_stac(self, url: str, arguments: dict, env: EvalEnv = EvalEnv()) -> "DryRunDataCube":
+    def load_stac(
+        self, url: str, *, arguments: dict, env: EvalEnv = EvalEnv(), pg_node_id: Optional[str] = None
+    ) -> "DryRunDataCube":
         properties = arguments.get("properties", {})
 
-        trace = DataSource.load_stac(url=url, properties=properties, bands=arguments.get("bands", []), env=env)
+        trace = DataSource.load_stac(
+            url=url, properties=properties, bands=arguments.get("bands", []), env=env, pg_node_id=pg_node_id
+        )
         self.add_trace(trace)
 
         metadata = DryRunDataTracer._stac_metadata(stac_ref=url)
