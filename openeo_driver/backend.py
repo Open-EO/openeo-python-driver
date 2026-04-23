@@ -992,7 +992,13 @@ class OpenEoBackendImplementation:
     ) -> DriverDataCube:
         raise NotImplementedError
 
-    def query_stac(self, url: str, spatial_extent: Union[Dict, BoundingBox, None], temporal_extent: Tuple[Optional[str], Optional[str]], env: EvalEnv) -> DriverDataCube:
+    def query_stac(
+        self,
+        url: str,
+        spatial_extent: Union[Dict, BoundingBox, None],
+        temporal_extent: Tuple[Optional[str], Optional[str]],
+        env: EvalEnv,
+    ) -> dict:
         raise NotImplementedError
 
     def load_ml_model(self, job_id: str) -> DriverMlModel:

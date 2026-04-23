@@ -942,18 +942,16 @@ def load_collection(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/query_stac.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/query_stac.json"))
-def query_stac(args: ProcessArgs, env: EvalEnv) -> Dict:
-    url = args.get_required(
-        "url",
-    )
+def query_stac(args: ProcessArgs, env: EvalEnv) -> dict:
+    url = args.get_required("url")
 
     temporal_extent = None
     spatial_extent = None
-    if "temporal_extent" in args:
+    if args.get("temporal_extent"):
         temporal_extent = _extract_temporal_extent(
             args, field="temporal_extent", process_id="query_stac"
         )
-    if "spatial_extent" in args:
+    if args.get("spatial_extent"):
         spatial_extent = _extract_bbox_extent(
             args, field="spatial_extent", process_id="query_stac"
         )
