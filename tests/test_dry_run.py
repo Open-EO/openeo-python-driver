@@ -86,13 +86,20 @@ def dry_run_env(dry_run_tracer, backend_implementation) -> EvalEnv:
     )
 
 
-def test_source_id():
-    source_id = SourceId(process_id="load_stac", arguments=("https://stac.example",), pg_node_id="loadstac1")
-    simple_tuple = ("load_stac", ("https://stac.example",), "loadstac1")
+class TestSourceId:
+    def test_minimal(self):
+        source_id = SourceId(process_id="load_stac", arguments=("https://stac.example",))
+        assert source_id.process_id == "load_stac"
+        assert source_id.arguments == ("https://stac.example",)
+        assert source_id.pg_node_id is None
 
-    assert source_id == simple_tuple
-    assert {source_id: "ok"}[simple_tuple] == "ok"
-    assert {simple_tuple: "ok"}[source_id] == "ok"
+    def test_tuple_behaviour(self):
+        source_id = SourceId(process_id="load_stac", arguments=("https://stac.example",), pg_node_id="loadstac1")
+        simple_tuple = ("load_stac", ("https://stac.example",), "loadstac1")
+
+        assert source_id == simple_tuple
+        assert {source_id: "ok"}[simple_tuple] == "ok"
+        assert {simple_tuple: "ok"}[source_id] == "ok"
 
 
 def test_source_load_collection():

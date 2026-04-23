@@ -50,7 +50,13 @@ from openeo_driver.datacube import (
 )
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
-from openeo_driver.dry_run import DryRunDataCube, DryRunDataTracer, SourceConstraint, deduplicate_source_constraints
+from openeo_driver.dry_run import (
+    DryRunDataCube,
+    DryRunDataTracer,
+    SourceConstraint,
+    deduplicate_source_constraints,
+    SourceId,
+)
 from openeo_driver.errors import (
     CollectionNotFoundException,
     FeatureUnsupportedException,
@@ -740,7 +746,8 @@ def _align_extent(extent: dict, collection_id: str, env: EvalEnv, target_resolut
         _log.info(f"Not realigning input extent {extent} (collection crs: {crs}, resolution: {collection_resolution})")
         return extent
 
-def _extract_load_parameters(env: EvalEnv, source_id: tuple) -> LoadParameters:
+
+def _extract_load_parameters(env: EvalEnv, source_id: SourceId) -> LoadParameters:
     """
     This is a side effect method that also removes source constraints from the list, which needs to happen in the right order!!
     Args:

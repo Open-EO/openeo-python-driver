@@ -103,7 +103,7 @@ source_constraint_blockers = {
 class SourceId(typing.NamedTuple):
     process_id: str
     arguments: tuple
-    pg_node_id: Union[str, None]
+    pg_node_id: Union[str, None] = None
 
 
 # TODO encapsulate in real classes?
