@@ -632,20 +632,6 @@ def convert_node(processGraph: Union[dict, list], *, env: EvalEnv):
     return processGraph
 
 
-def _as_process_args(args: Union[dict, ProcessArgs], process_id: str = "n/a") -> ProcessArgs:
-    """Adapter for legacy style args"""
-    if not isinstance(args, ProcessArgs):
-        args = ProcessArgs(args, process_id=process_id)
-    elif process_id not in {args.process_id, "n/a"}:
-        _log.warning(f"Inconsistent {process_id=} in extract_arg(): expected {args.process_id=}")
-    return args
-
-
-def extract_arg(args: ProcessArgs, name: str, process_id="n/a"):
-    # TODO: eliminate this function, use `ProcessArgs.get_required()` directly
-    return _as_process_args(args, process_id=process_id).get_required(name=name)
-
-
 def _collection_crs(collection_id: str, env: EvalEnv) -> Union[None, str, int]:
     """
     Get spatial reference system from of the data in openEO collection metadata (based on datacube STAC extension)
@@ -1314,26 +1300,19 @@ def fit_class_random_forest(args: ProcessArgs, env: EvalEnv) -> DriverMlModel:
 @process_registry_100.add_function(spec=read_spec("openeo-processes/experimental/fit_class_catboost.json"))
 @process_registry_2xx.add_function(spec=read_spec("openeo-processes/experimental/fit_class_catboost.json"))
 def fit_class_catboost(args: ProcessArgs, env: EvalEnv) -> DriverMlModel:
-    process = "fit_class_catboost"
     if env.get(ENV_DRY_RUN_TRACER):
         return DriverMlModel()
 
-    predictors = extract_arg(args, "predictors")
-    if not isinstance(predictors, (AggregatePolygonSpatialResult, DriverVectorCube)):
-        raise ProcessParameterInvalidException(
-            parameter="predictors",
-            process=process,
-            reason=f"should be non-temporal vector-cube, but got {type(predictors)}.",
-        )
+    predictors = args.get_required("predictors", expected_type=(AggregatePolygonSpatialResult, DriverVectorCube))
 
-    target: Union[dict, DriverVectorCube] = extract_arg(args, "target")
+    target: Union[dict, DriverVectorCube] = args.get_required("target")
     if isinstance(target, DriverVectorCube):
         # Convert target to geojson feature collection.
         target: dict = shapely.geometry.mapping(target.get_geometries())
     if not (isinstance(target, dict) and target.get("type") == "FeatureCollection"):
         raise ProcessParameterInvalidException(
             parameter="target",
-            process=process,
+            process=args.process_id,
             reason=f"expected feature collection or vector-cube value, but got {type(target)}.",
         )
 
@@ -2203,10 +2182,10 @@ def load_url(args: ProcessArgs, env: EvalEnv) -> DriverVectorCube:
         .param('feature_collection', description="feature collection", schema={"type": "object"}, required=False)
         .returns("TODO", schema={"type": "object", "subtype": "vector-cube"})
 )
-def get_geometries(args: Dict, env: EvalEnv) -> Union[DelayedVector, dict]:
+def get_geometries(args: ProcessArgs, env: EvalEnv) -> Union[DelayedVector, dict]:
     # TODO: standardize or deprecate this? #114 EP-3981 https://github.com/Open-EO/openeo-processes/issues/322
-    feature_collection = args.get('feature_collection', None)
-    path = args.get('filename', None)
+    feature_collection = args.get_optional("feature_collection")
+    path = args.get_optional("filename", None)
     if path is not None:
         _check_geometry_path_assumption(
             path=path, process="get_geometries", parameter="filename"
@@ -2234,8 +2213,8 @@ def raster_to_vector(args: ProcessArgs, env: EvalEnv):
         .param('target', description = "A raster data cube used as reference.", schema = {"type": "object", "subtype": "raster-cube"})
         .returns("raster-cube", schema={"type": "object", "subtype": "raster-cube"})
 )
-def vector_to_raster(args: dict, env: EvalEnv) -> DriverDataCube:
-    input_vector_cube = extract_arg(args, "data")
+def vector_to_raster(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    input_vector_cube = args.get_required("data")
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
         if not isinstance(input_vector_cube, DryRunDataCube):
@@ -2246,22 +2225,13 @@ def vector_to_raster(args: dict, env: EvalEnv) -> DriverDataCube:
             )
         return input_vector_cube
 
-    if "target_data_cube" in args:
-        target = extract_arg(args, "target_data_cube")  # TODO: remove after full migration to use of 'target'
-    else:
-        target = extract_arg(args, "target")
+    target = args.get_required("target", expected_type=DriverDataCube)
     # TODO: to_driver_vector_cube is temporary. Remove it when vector cube is fully supported.
     if not isinstance(input_vector_cube, DriverVectorCube) and not hasattr(input_vector_cube, "to_driver_vector_cube"):
         raise ProcessParameterInvalidException(
             parameter="data",
             process="vector_to_raster",
             reason=f"Invalid data type {type(input_vector_cube)!r} expected vector-cube.",
-        )
-    if not isinstance(target, DriverDataCube):
-        raise ProcessParameterInvalidException(
-            parameter="target",
-            process="vector_to_raster",
-            reason=f"Invalid data type {type(target)!r} expected raster-cube.",
         )
     return env.backend_implementation.vector_to_raster(input_vector_cube, target)
 
