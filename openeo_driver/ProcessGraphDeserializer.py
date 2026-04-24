@@ -125,10 +125,10 @@ def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List
     # TODO: make this a ProcessRegistry method?
 
     def wrap(process: Callable):
-        """Adapter to connect the kwargs style of openeo-processes-python with args/EvalEnv"""
+        """Adapter to connect the kwargs style of openeo-processes-python with ProcessArgs/EvalEnv"""
 
-        def wrapped(args: dict, env: EvalEnv):
-            return process(**args)
+        def wrapped(args: ProcessArgs, env: EvalEnv):
+            return process(**args.as_dict())
 
         return wrapped
 
@@ -264,10 +264,13 @@ def _process_function_from_process_graph(process_spec: dict) -> ProcessFunction:
     process_graph = process_spec["process_graph"]
     parameters = process_spec.get("parameters")
 
-    def process_function(args: dict, env: EvalEnv):
+    def process_function(args: ProcessArgs, env: EvalEnv):
         return _evaluate_process_graph_process(
-            process_id=process_id, process_graph=process_graph, parameters=parameters,
-            args=args, env=env
+            process_id=process_id,
+            process_graph=process_graph,
+            parameters=parameters,
+            args=args.as_dict(),
+            env=env,
         )
 
     return process_function

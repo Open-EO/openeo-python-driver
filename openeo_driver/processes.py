@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import typing
-import logging
 import functools
 import inspect
+import logging
+import typing
 from pathlib import Path
-from typing import Any, Callable, Collection, Dict, List, Optional, Tuple, Union, Iterable
+from typing import Any, Callable, Collection, Dict, Iterable, List, Optional, Tuple, Union
 
 from openeo_driver.errors import (
     OpenEOApiException,
@@ -390,8 +390,7 @@ def _describe_type(type_: Union[type, Tuple[type, ...]]) -> str:
     """
 
     # Local import to avoid import cycles
-    from openeo_driver.datacube import DriverDataCube
-    from openeo_driver.datacube import DriverVectorCube
+    from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 
     type_map = {
         int: "integer",
@@ -439,6 +438,9 @@ class ProcessArgs(dict):
         else:
             args = ProcessArgs(args=args, process_id=process_id)
         return args
+
+    def as_dict(self) -> dict:
+        return self
 
     def contains(self, name: str) -> bool:
         return name in self
