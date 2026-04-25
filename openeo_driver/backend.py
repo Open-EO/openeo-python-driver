@@ -473,6 +473,8 @@ class BatchJobMetadata(NamedTuple):
                 usage["memory"] = {"value": int(round(self.memory_time_megabyte.total_seconds())), "unit": "mb-seconds"}
             if usage:
                 result["usage"] = usage
+            if self.job_options:
+                result.update(self.job_options)
 
         if api_version and api_version.below("1.0.0"):
             result["process_graph"] = result.pop("process", {}).get("process_graph")

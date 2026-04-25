@@ -1663,6 +1663,26 @@ class TestBatchJobs:
             "process": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
         }
 
+    def test_get_job_info_with_job_options(self, api100):
+        with self._fresh_job_registry() as registry:
+            registry[TEST_USER, "job-123"] = BatchJobMetadata(
+                id="job-123",
+                status="created",
+                created=datetime(2024, 1, 2, 13, 14, 15),
+                process={"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
+                job_options={"driver-memory": "3g", "executor-memory": "5g"},
+            )
+            resp = api100.get("/jobs/job-123", headers=self.AUTH_HEADER)
+        assert resp.assert_status_code(200).json == {
+            "id": "job-123",
+            "status": "created",
+            "progress": 0,
+            "created": "2024-01-02T13:14:15Z",
+            "process": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
+            "driver-memory": "3g",
+            "executor-memory": "5g",
+        }
+
     def test_get_job_info_invalid(self, api):
         resp = api.get("/jobs/deadbeef-f00", headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
         assert resp.json["message"] == "The batch job 'deadbeef-f00' does not exist."
