@@ -641,7 +641,7 @@ class DryRunDataCube(DriverDataCube):
 
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
         # TODO: this method should be deprecated (limited to single asset) in favor of write_assets (supports multiple assets)
-        return self._process("save_result", {"format": format, "options": format_options})
+        return self
 
     def filter_labels(
         self, condition: dict, dimension: str, context: Optional[dict] = None, env: EvalEnv = None
@@ -670,7 +670,7 @@ class DryRunDataCube(DriverDataCube):
         if not inside and replacement is None:
             mask, bbox = cube._normalize_geometry(mask)
             cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
-        return cube._process(operation="mask_polygon", arguments={"mask": mask})
+        return cube
 
     def aggregate_spatial(
         self,
@@ -781,9 +781,6 @@ class DryRunDataCube(DriverDataCube):
             operation="raster_to_vector", arguments={}, metadata=CollectionMetadata(metadata={}, dimensions=dimensions)
         )
 
-    def run_udf(self):
-        return self._process(operation="run_udf", arguments={})
-
     def resample_spatial(
         self,
         resolution: Union[float, Tuple[float, float]],
@@ -853,7 +850,7 @@ class DryRunDataCube(DriverDataCube):
         # TODO #71 #114 Deprecate/avoid usage of GeometryCollection
         geometries, bbox = self._normalize_geometry(GeometryCollection(polygons))
         cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
-        return cube._process("chunk_polygon", arguments={"geometries": geometries})
+        return cube
 
     def add_dimension(self, name: str, label, type: str = "other") -> "DryRunDataCube":
         try:
@@ -977,10 +974,6 @@ class DryRunDataCube(DriverDataCube):
         # TODO: adapt metadata (bands level_0 and level_1) ?
         return self._process("corsa_compress", {})
 
-    def corsa_decompress(self):
-        # TODO: adapt metadata (bands B02 etc) ?
-        return self._process("corsa_decompress", {})
-
     def mask_l1c(self) -> "DriverDataCube":
         return self._process("custom_cloud_mask", arguments={"method": "mask_l1c"})
 
@@ -989,19 +982,16 @@ class DryRunDataCube(DriverDataCube):
         return self
 
     def predict_onnx(self, model):
-        return self._process("predict_onnx",arguments={"model":model})
+        return self._process("predict_onnx", arguments={"model": model})
 
-    def convert_data_type(self, data_type:str):
-        return self._process("convert_data_type", arguments={"data_type":data_type})
-
-    def aspect(self):
-        return self._process("aspect", arguments={})
-
-    def slope(self):
-        return self._process("slope", arguments={})
     # TODO: some methods need metadata manipulation?
 
     apply_tiles = _nop
+    run_udf = _nop
+    convert_data_type = _nop
+    aspect = _nop
+    slope = _nop
+    corsa_decompress = _nop
 
     reduce = _nop
     aggregate_temporal = _nop
