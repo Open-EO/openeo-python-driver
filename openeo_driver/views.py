@@ -2165,6 +2165,9 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
     # Make copy and remove all "private" fields
     metadata = copy.deepcopy(metadata)
     metadata = {k: v for (k, v) in metadata.items() if not k.startswith('_')}
+    # Remove fields that should not be exposed in the API
+    _exclude_fields = {"assets", "item_assets", "auth:schemes", "storage:schemes"}
+    metadata = {k: v for (k, v) in metadata.items() if k not in _exclude_fields}
     default_bbox = [0, 0, 0, 0]
     default_temporal_interval = [None, None]
 
