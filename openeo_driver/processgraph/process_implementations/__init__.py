@@ -1,8 +1,7 @@
 """
 Process implementations sub-package.
 
-Importing this package triggers registration of all process functions
-into the process registries via their decorators.
+Individual sub-modules register process functions via their decorators when imported.
+Sub-module imports are handled explicitly by ProcessGraphDeserializer.py to avoid
+circular import issues that arise from bulk-importing here.
 """
-# Import all sub-modules to trigger @process / @process_registry decorators
-from . import text, array, misc, terrain, ml, sar, geometry, temporal, udp, io, cubes  # noqa: F401
