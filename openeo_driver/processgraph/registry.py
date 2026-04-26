@@ -306,3 +306,10 @@ class ConcreteProcessing(Processing):
         return []
 
 
+# Import process implementations to trigger @process / @process_registry decorator registrations.
+# This must happen AFTER the registry objects are defined above.
+from openeo_driver.processgraph import process_implementations  # noqa: E402, F401
+
+# Register fallback implementations from process specs that have a process_graph
+_register_fallback_implementations_by_process_graph(process_registry_100)
+_register_fallback_implementations_by_process_graph(process_registry_2xx)

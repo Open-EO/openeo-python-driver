@@ -174,9 +174,3 @@ from openeo_driver.processgraph.process_implementations.text import (
     text_merge,
     text_concat,
 )
-
-# Register fallback implementations from process specs that have a process_graph.
-# This must happen after all process implementations above have been imported
-# (so that @process decorators have already registered their functions).
-_register_fallback_implementations_by_process_graph(process_registry_100)
-_register_fallback_implementations_by_process_graph(process_registry_2xx)
