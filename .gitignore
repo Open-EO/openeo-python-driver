@@ -111,6 +111,7 @@ venv*/
 openeo_driver/data
 tmp*
 temp*
+!**/temporal.py
 
 # pytest basetemp root (e.g. for tmp_path fixture).
 pytest-tmp
