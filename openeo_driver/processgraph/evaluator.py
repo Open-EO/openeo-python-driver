@@ -356,7 +356,9 @@ def apply_process(
         detail = f"{e!r}"
         if isinstance(errorsummary, ErrorSummary):
             detail = errorsummary.summary
-        raise OpenEOApiException(f"Unexpected error during {process_id!r}: {detail}. The process had these arguments: {args!r} ") from e
+        raise OpenEOApiException(
+            f"Unexpected error during {process_id!r} (node id {pg_node_id!r}): {detail}. The process had these arguments: {args!r} "
+        ) from e
 
     if namespace in ["user", None]:
         user = env.get("user")
