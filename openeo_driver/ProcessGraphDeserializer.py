@@ -38,6 +38,8 @@ from openeo_driver.processgraph.registry import (
     ConcreteProcessing,
 )
 
+from openeo_driver.processes import ProcessSpec
+
 from openeo_driver.processgraph.evaluator import (
     DEFAULT_TEMPORAL_EXTENT,
     _collect_end_nodes,
