@@ -1664,18 +1664,21 @@ def register_views_batch_jobs(
     def _download_job_auxiliary_file(job_id, filename, user_id):
         result_metadata = backend_implementation.batch_jobs.get_result_metadata(job_id=job_id, user_id=user_id)
 
-        auxiliary_links = [
+        links = [
+            link for item in result_metadata.items.values() for link in item.get("links", [])
+        ] + result_metadata.links
+
+        matching_auxiliary_links = [
             link
-            for item in result_metadata.items.values()
-            for link in item.get("links", [])
+            for link in links
             if link.get(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY, False) and link["href"].endswith(f"/{filename}")
         ]
 
-        if not auxiliary_links:
-            _log.debug(f"could not find auxiliary links in {result_metadata}")
+        if not len(matching_auxiliary_links) == 1:
+            _log.debug(f"Failed to match single auxiliary link: {matching_auxiliary_links=} from {result_metadata=}")
             raise FilePathInvalidException(f"invalid file {filename!r}")
 
-        auxiliary_link = auxiliary_links[0]
+        auxiliary_link = matching_auxiliary_links[0]
         uri_parts = urlparse(auxiliary_link["href"])
 
         # S3 URIs are handled by s3proxy

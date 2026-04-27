@@ -3425,6 +3425,32 @@ class TestBatchJobs:
 
         assert resp.text == "aux"
 
+    def test_download_job_auxiliary_file_from_toplevel_link(self, api110, tmp_path, backend_config_overrides):
+        """Auxiliary file linked at BatchJobResultMetadata toplevel instead of item/asset level."""
+        job_id = "job-123"
+        job_dir = tmp_path
+        auxiliary_file = job_dir / "aux456.json"
+        auxiliary_file.write_text("Hello aux")
+        link = {
+            "rel": "aux-hello",
+            "href": str(auxiliary_file),
+            "type": "application/json",
+            ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY: True,
+        }
+
+        with self._fresh_job_registry():
+            dummy_backend.DummyBatchJobs.set_result_metadata(
+                job_id=job_id,
+                user_id=TEST_USER,
+                metadata=BatchJobResultMetadata(links=[link]),
+            )
+
+        resp = api110.get(
+            "/jobs/job-123/results/aux/aux456.json",
+            headers=self.AUTH_HEADER,
+        )
+        assert resp.text == "Hello aux"
+
     def test_get_job_results_invalid_job(self, api):
         api.get("/jobs/deadbeef-f00/results", headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
 
