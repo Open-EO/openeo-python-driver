@@ -1388,7 +1388,9 @@ def register_views_batch_jobs(
                 result = results[filename]
             else:
                 result = None
-                for link in result_metadata.links:
+                job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
+                links: List[dict] = result_metadata.links or job_info.links or []
+                for link in links:
                     if link["rel"] != "child":
                         continue
                     try:
