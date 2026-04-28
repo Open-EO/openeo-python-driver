@@ -757,7 +757,6 @@ def register_views_processing(
             raise
 
         # Add request id as "OpenEO-Identifier" like we do for batch jobs.
-        # TODO: follow-up standardization at https://github.com/Open-EO/openeo-api/pull/533
         response.headers["OpenEO-Identifier"] = request_id
 
         return response
