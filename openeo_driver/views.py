@@ -1401,6 +1401,7 @@ def register_views_batch_jobs(
                             raise FilePathInvalidException(f"Invalid file path: {filename}")
                         # Some things might break with s3 links, try-catch to be sure.
                         file_paths = get_files_from_stac_catalog(link["href"], include_metadata=True)
+                        _log.info("file_paths: " + repr(file_paths))
                         for file_path in file_paths:
                             # TODO: Clean up this logic
                             if file_path.endswith(filename):
