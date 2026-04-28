@@ -3425,7 +3425,7 @@ class TestBatchJobs:
 
         assert resp.text == "aux"
 
-    def test_download_job_auxiliary_file_from_toplevel_link(self, api110, tmp_path, backend_config_overrides):
+    def test_download_job_auxiliary_file_from_toplevel_link(self, api110, tmp_path):
         """Auxiliary file linked at BatchJobResultMetadata toplevel instead of item/asset level."""
         job_id = "job-123"
         job_dir = tmp_path
@@ -3438,12 +3438,40 @@ class TestBatchJobs:
             ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY: True,
         }
 
-        with self._fresh_job_registry():
+        with self._fresh_job_registry() as job_registry:
+            # TODO: improve cumbersome setup of job (metadata) registry fixtures
+            job_registry[TEST_USER, "job-123"] = BatchJobMetadata(
+                id="job-123", status="finished", created=datetime(2026, 4, 28)
+            )
             dummy_backend.DummyBatchJobs.set_result_metadata(
                 job_id=job_id,
                 user_id=TEST_USER,
                 metadata=BatchJobResultMetadata(links=[link]),
             )
+
+        job_results = api110.get(
+            "/jobs/job-123/results",
+            headers=self.AUTH_HEADER,
+        )
+        assert job_results.json == dirty_equals.IsPartialDict(
+            {
+                "id": "job-123",
+                "links": dirty_equals.IsList(
+                    {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/job-123/results/aux/aux456.json",
+                        "rel": "aux-hello",
+                        "type": "application/json",
+                    },
+                    {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/job-123/results",
+                        "rel": "self",
+                        "type": "application/json",
+                    },
+                    length=...,
+                    check_order=False,
+                ),
+            }
+        )
 
         resp = api110.get(
             "/jobs/job-123/results/aux/aux456.json",

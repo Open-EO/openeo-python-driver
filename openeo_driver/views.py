@@ -1276,6 +1276,8 @@ def register_views_batch_jobs(
                         )
                 stac_version = "1.0.0"
 
+            links = [_normalize_job_result_link(link=k, job_id=job_id, user_id=user_id) for k in links]
+
             result = dict_no_none(
                 {
                     "type": "Collection",
@@ -1615,7 +1617,7 @@ def register_views_batch_jobs(
         resp.mimetype = stac_item_media_type
         return resp
 
-    def _auxiliary_link(exposable_link: dict, job_id: str, user_id: str) -> dict:
+    def _auxiliary_link(exposable_link: dict, *, job_id: str, user_id: str) -> dict:
         auxiliary_filename = urlparse(exposable_link["href"]).path.split("/")[-1]  # TODO: assumes file is not nested
 
         if exposable_link["href"].startswith("s3://"):
@@ -1652,6 +1654,12 @@ def register_views_batch_jobs(
             rel=exposable_link.get("rel"),
             type=exposable_link.get("type"),
         )
+
+    def _normalize_job_result_link(link: dict, *, job_id: str, user_id: str) -> dict:
+        if link.get(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY, False):
+            link = _auxiliary_link(exposable_link=link, job_id=job_id, user_id=user_id)
+
+        return link
 
     @blueprint.route("/jobs/<job_id>/results/aux/<user_base64>/<secure_key>/<filename>", methods=["GET"])
     def download_job_auxiliary_file_signed(job_id, user_base64, secure_key, filename):
