@@ -52,7 +52,7 @@ def get_files_from_stac_catalog(catalog_path: Union[str, Path], include_metadata
         catalog_json = response.json()
     else:
         catalog_path = str(catalog_path)
-        assert os.path.exists(catalog_path)
+        assert os.path.exists(catalog_path), f"catalog_path does not exist: {catalog_path}"
         catalog_json = json.loads(Path(catalog_path).read_text())
 
     all_files = []
@@ -84,7 +84,7 @@ def get_assets_from_stac_catalog(catalog_path: Union[str, Path]) -> Dict[str, St
         catalog_json = response.json()
     else:
         catalog_path = str(catalog_path)
-        assert os.path.exists(catalog_path)
+        assert os.path.exists(catalog_path), f"catalog_path does not exist: {catalog_path}"
         catalog_json = json.loads(Path(catalog_path).read_text())
 
     all_assets = {}
