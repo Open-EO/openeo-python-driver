@@ -55,6 +55,7 @@ from openeo_driver.constants import (
     LINK_REL,
 )
 from openeo_driver.datacube import DriverMlModel
+from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import (
     FeatureUnsupportedException,
     FilePathInvalidException,
@@ -725,8 +726,10 @@ def register_views_processing(
             }
         )
 
+        tracer = DryRunDataTracer()
+
         try:
-            result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)
+            result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env, do_dry_run=tracer)
             _log.info(f"`POST /result`: {type(result)}")
 
             if result is None:
@@ -743,7 +746,12 @@ def register_views_processing(
                 response = result.create_flask_response()
 
             costs = backend_implementation.request_costs(
-                success=True, user=user, request_id=request_id, job_options=job_options
+                success=True,
+                user=user,
+                process_graph=process_graph,
+                request_id=request_id,
+                job_options=job_options,
+                tracer=tracer,
             )
             if costs:
                 # TODO not all costs are accounted for so don't expose in "OpenEO-Costs" yet
@@ -752,7 +760,12 @@ def register_views_processing(
         except Exception:
             # TODO: also send "OpenEO-Costs" header on failure
             backend_implementation.request_costs(
-                success=False, user=user, request_id=request_id, job_options=job_options
+                success=False,
+                user=user,
+                process_graph=process_graph,
+                request_id=request_id,
+                job_options=job_options,
+                tracer=tracer,
             )
             raise
 

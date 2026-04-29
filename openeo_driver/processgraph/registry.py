@@ -13,6 +13,7 @@ from openeo.util import load_json
 from openeo.utils.version import ComparableVersion
 
 from openeo_driver.backend import OpenEoBackendImplementation, Processing
+from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.processes import DEFAULT_NAMESPACE, ProcessArgs, ProcessRegistry, ProcessSpec
 from openeo_driver.specs import SPECS_ROOT
@@ -238,7 +239,7 @@ class SimpleProcessing(Processing):
             }
         )
 
-    def evaluate(self, process_graph: dict, env: EvalEnv = None):
+    def evaluate(self, process_graph: dict, env: EvalEnv = None, do_dry_run: Union[bool, DryRunDataTracer] = True):
         from openeo_driver.processgraph.evaluator import evaluate
         return evaluate(process_graph=process_graph, env=env or self.get_basic_env(), do_dry_run=False)
 
@@ -257,9 +258,10 @@ class ConcreteProcessing(Processing):
         else:
             raise OpenEOApiException(message=f"No process support for openEO version {api_version}")
 
-    def evaluate(self, process_graph: dict, env: EvalEnv = None):
+    def evaluate(self, process_graph: dict, env: EvalEnv = None, do_dry_run: Union[bool, DryRunDataTracer] = True):
         from openeo_driver.processgraph.evaluator import evaluate
-        return evaluate(process_graph=process_graph, env=env)
+
+        return evaluate(process_graph=process_graph, env=env, do_dry_run=do_dry_run)
 
     def validate(self, process_graph: dict, env: EvalEnv = None):
         from openeo_driver.processgraph.evaluator import evaluate, _collect_end_nodes, convert_node
@@ -304,5 +306,3 @@ class ConcreteProcessing(Processing):
 
     def extra_validation(self, process_graph, env, result, source_constraints):
         return []
-
-

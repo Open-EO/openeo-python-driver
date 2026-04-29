@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import List, Union, NamedTuple, Dict, Optional, Callable, Iterable, Container, Any, Tuple
 
 import flask
+from openeo_driver.processgraph.definitions import ProcessGraphFlatDict
 
 import openeo_driver.util.view_helpers
 from openeo.utils.version import ComparableVersion
@@ -786,7 +787,7 @@ class Processing(MicroService):
     def get_process_registry(self, api_version: Union[str, ComparableVersion]) -> ProcessRegistry:
         raise NotImplementedError
 
-    def evaluate(self, process_graph: dict, env: EvalEnv = None):
+    def evaluate(self, process_graph: dict, env: EvalEnv = None, do_dry_run: Union[bool, DryRunDataTracer] = True):
         """Evaluate given process graph (flat dict format)."""
         raise NotImplementedError
 
@@ -1060,9 +1061,11 @@ class OpenEoBackendImplementation:
         self,
         *,
         user: User,
+        process_graph: ProcessGraphFlatDict,
         job_options: Union[dict, None] = None,
         request_id: str,
         success: bool,
+        tracer: DryRunDataTracer,
     ) -> Optional[float]:
         """
         Report resource usage of (current) synchronous processing request and get associated cost.
