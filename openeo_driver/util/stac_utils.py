@@ -15,6 +15,23 @@ _log = logging.getLogger(__name__)
 # TODO: Check if pystac can natively loop over items/assets/files.
 
 
+def _read_json(path: str) -> dict:
+    if path.startswith("s3://"):
+        from openeo_driver.integrations.s3.client import S3ClientBuilder
+
+        bucket, key = path[5:].split("/", 1)
+        s3 = S3ClientBuilder.from_region(None)
+        response = s3.get_object(Bucket=bucket, Key=key)
+        return json.loads(response["Body"].read())
+    elif path.startswith("http"):
+        response = requests.get(path)
+        response.raise_for_status()
+        return response.json()
+    else:
+        assert os.path.exists(path), f"path does not exist: {path}"
+        return json.loads(Path(path).read_text())
+
+
 def find_stac_root(paths: Union[set, list], stac_root_filename: Optional[str] = "catalog.json") -> Optional[str]:
     paths = [Path(p) for p in paths]
 
@@ -46,14 +63,8 @@ def get_files_from_stac_catalog(catalog_path: Union[str, Path], include_metadata
     """
     Goes through the stac catalog recursively to find all files.
     """
-    if isinstance(catalog_path, str) and catalog_path.startswith("http"):
-        response = requests.get(catalog_path)
-        response.raise_for_status()
-        catalog_json = response.json()
-    else:
-        catalog_path = str(catalog_path)
-        assert os.path.exists(catalog_path), f"catalog_path does not exist: {catalog_path}"
-        catalog_json = json.loads(Path(catalog_path).read_text())
+    catalog_path = str(catalog_path)
+    catalog_json = _read_json(catalog_path)
 
     all_files = []
     links = []
@@ -78,14 +89,8 @@ def get_files_from_stac_catalog(catalog_path: Union[str, Path], include_metadata
 
 
 def get_assets_from_stac_catalog(catalog_path: Union[str, Path]) -> Dict[str, StacAsset]:
-    if isinstance(catalog_path, str) and catalog_path.startswith("http"):
-        response = requests.get(catalog_path)
-        response.raise_for_status()
-        catalog_json = response.json()
-    else:
-        catalog_path = str(catalog_path)
-        assert os.path.exists(catalog_path), f"catalog_path does not exist: {catalog_path}"
-        catalog_json = json.loads(Path(catalog_path).read_text())
+    catalog_path = str(catalog_path)
+    catalog_json = _read_json(catalog_path)
 
     all_assets = {}
     links = []
@@ -108,14 +113,8 @@ def get_assets_from_stac_catalog(catalog_path: Union[str, Path]) -> Dict[str, St
 
 
 def get_items_from_stac_catalog(catalog_path: Union[str, Path], make_hrefs_absolute=False) -> dict:
-    if isinstance(catalog_path, str) and catalog_path.startswith("http"):
-        response = requests.get(catalog_path)
-        response.raise_for_status()
-        catalog_json = response.json()
-    else:
-        catalog_path = str(catalog_path)
-        assert os.path.exists(catalog_path), f"catalog_path does not exist: {catalog_path}"
-        catalog_json = json.loads(Path(catalog_path).read_text())
+    catalog_path = str(catalog_path)
+    catalog_json = _read_json(catalog_path)
 
     all_items = {}
     links = []
