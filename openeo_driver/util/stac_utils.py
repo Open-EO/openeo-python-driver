@@ -3,7 +3,11 @@ import logging
 import os
 from pathlib import Path
 from typing import Optional, Union, Dict
-from urllib.parse import urljoin
+from urllib.parse import urljoin, uses_netloc, uses_relative
+
+# Allow urljoin to resolve relative hrefs against s3:// base URLs.
+uses_netloc.append("s3")
+uses_relative.append("s3")
 
 import requests
 
