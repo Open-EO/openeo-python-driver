@@ -2,39 +2,43 @@ import json
 import logging
 import os
 from pathlib import Path
+from threading import Lock
 from typing import Optional, Union, Dict
 from urllib.parse import urljoin, uses_netloc, uses_relative, urlparse
-
-
-def robust_url_join(base: str, url: Optional[str], allow_fragments=True):
-    """
-    Overly-cautious wrapper around urljoin to allow joining s3-urls.
-    """
-    uses_netloc_had_s3 = "s3" in uses_netloc
-    uses_relative_had_s3 = "s3" in uses_relative
-
-    # Allow urljoin to resolve relative hrefs against s3:// base URLs.
-    uses_netloc.append("s3")
-    uses_relative.append("s3")
-
-    try:
-        return_value = urljoin(base, url, allow_fragments)
-    finally:
-        # remove again
-        if not uses_netloc_had_s3:
-            uses_netloc.remove("s3")
-        if not uses_relative_had_s3:
-            uses_relative.remove("s3")
-
-    return return_value
-
 
 import requests
 
 from openeo_driver.datastructs import StacAsset
 from openeo_driver.integrations.s3.client import S3ClientBuilder
 
+mutex = Lock()
 _log = logging.getLogger(__name__)
+
+
+def robust_urljoin(base: str, url: Optional[str], allow_fragments=True):
+    """
+    Overly-cautious wrapper around urljoin to allow joining s3-urls.
+    """
+    if not base.lower().startswith("s3://"):
+        return urljoin(base, url, allow_fragments)
+
+    with mutex:
+        uses_netloc_needs_s3_remove = "s3" in uses_netloc
+        uses_relative_needs_s3_remove = "s3" in uses_relative
+
+        # Allow urljoin to resolve relative hrefs against s3:// base URLs.
+        uses_netloc.append("s3")
+        uses_relative.append("s3")
+        try:
+            return_value = urljoin(base, url, allow_fragments)
+        finally:
+            # remove s3 again
+            if uses_netloc_needs_s3_remove:
+                uses_netloc.remove("s3")
+            if uses_relative_needs_s3_remove:
+                uses_relative.remove("s3")
+
+        return return_value
 
 
 # TODO: Check if pystac can natively loop over items/assets/files.
@@ -104,7 +108,7 @@ def get_files_from_stac_catalog(catalog_path: Union[str, Path], include_metadata
             href = link["href"]
             if href.startswith("file://"):
                 href = href[7:]
-            href = robust_url_join(catalog_path, href)
+            href = robust_urljoin(catalog_path, href)
 
             if "rel" in link and (link["rel"] == "child" or link["rel"] == "item"):
                 all_files.extend(get_files_from_stac_catalog(href, include_metadata))
@@ -130,7 +134,7 @@ def get_assets_from_stac_catalog(catalog_path: Union[str, Path]) -> Dict[str, St
             href = link["href"]
             if href.startswith("file://"):
                 href = href[7:]
-            href = robust_url_join(catalog_path, href)
+            href = robust_urljoin(catalog_path, href)
 
             if "rel" in link and (link["rel"] == "child" or link["rel"] == "item"):
                 all_assets.update(get_assets_from_stac_catalog(href))
@@ -153,13 +157,13 @@ def get_items_from_stac_catalog(catalog_path: Union[str, Path], make_hrefs_absol
             if "assets" in item:
                 for asset in item["assets"].values():
                     if "href" in asset:
-                        asset["href"] = robust_url_join(catalog_path, asset["href"])
+                        asset["href"] = robust_urljoin(catalog_path, asset["href"])
     for link in links:
         if "href" in link:
             href = link["href"]
             if href.startswith("file://"):
                 href = href[7:]
-            href = robust_url_join(catalog_path, href)
+            href = robust_urljoin(catalog_path, href)
 
             if "rel" in link and (link["rel"] == "child" or link["rel"] == "item"):
                 all_items.update(get_items_from_stac_catalog(href, make_hrefs_absolute))
