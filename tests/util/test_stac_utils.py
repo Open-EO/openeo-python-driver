@@ -26,6 +26,7 @@ def mock_s3():
     """Mock S3 client that serves files from the local example_stac_catalog directory."""
     s3_files = {f"output/{f.name}": f.read_bytes() for f in example_stac_catalog_dir.iterdir() if f.is_file()}
 
+    # noinspection PyPep8Naming
     def _get_object(Bucket, Key, **kwargs):
         assert Bucket == _TEST_BUCKET
         path = f"{Key}"

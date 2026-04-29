@@ -3,7 +3,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Optional, Union, Dict
-from urllib.parse import urljoin, uses_netloc, uses_relative
+from urllib.parse import urljoin, uses_netloc, uses_relative, urlparse
 
 # Allow urljoin to resolve relative hrefs against s3:// base URLs.
 uses_netloc.append("s3")
@@ -12,6 +12,7 @@ uses_relative.append("s3")
 import requests
 
 from openeo_driver.datastructs import StacAsset
+from openeo_driver.integrations.s3.client import S3ClientBuilder
 
 _log = logging.getLogger(__name__)
 
@@ -21,12 +22,12 @@ _log = logging.getLogger(__name__)
 
 def _read_json(path: str) -> dict:
     if path.startswith("s3://"):
-        from openeo_driver.integrations.s3.client import S3ClientBuilder
-
-        bucket, key = path[5:].split("/", 1)
+        parsed = urlparse(path)
+        bucket = parsed.netloc
+        key = parsed.path[1:]
         s3 = S3ClientBuilder.from_region(None)
-        response = s3.get_object(Bucket=bucket, Key=key)
-        return json.loads(response["Body"].read())
+        obj = s3.get_object(Bucket=bucket, Key=key)
+        return json.loads(obj["Body"].read().decode("utf-8"))
     elif path.startswith("http"):
         response = requests.get(path)
         response.raise_for_status()
