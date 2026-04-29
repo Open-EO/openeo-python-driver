@@ -25,7 +25,7 @@ def _read_json(path: str) -> dict:
         parsed = urlparse(path)
         bucket = parsed.netloc
         key = parsed.path[1:]
-        s3 = S3ClientBuilder.from_region(None)
+        s3 = S3ClientBuilder.from_region(region_name=None)  # TODO: Explicitly set region?
         obj = s3.get_object(Bucket=bucket, Key=key)
         return json.loads(obj["Body"].read().decode("utf-8"))
     elif path.startswith("http"):
