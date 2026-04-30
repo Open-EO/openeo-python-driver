@@ -1125,7 +1125,7 @@ def register_views_batch_jobs(
         #   This is a bit of an ugly temporary hack, to aid in testing and comparing.
         TREAT_JOB_RESULTS_V100_LIKE_V110 = smart_bool(os.environ.get("TREAT_JOB_RESULTS_V100_LIKE_V110", "0"))
 
-        links: List[dict] = result_metadata.links or job_info.links or []
+        links: List[dict] = list(result_metadata.links or job_info.links or [])
 
         if not any(l.get("rel") == "self" for l in links):
             links.append(
