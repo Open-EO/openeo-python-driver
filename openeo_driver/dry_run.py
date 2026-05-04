@@ -993,6 +993,7 @@ class DryRunDataCube(DriverDataCube):
     slope = _nop
     corsa_decompress = _nop
     corsa_compress_v2 = _nop  # TODO: see remark in corsa_compress
+    corsa_decompress_v2 = _nop  # TODO: see remark in corsa_compress
 
     reduce = _nop
     aggregate_temporal = _nop

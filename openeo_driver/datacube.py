@@ -263,6 +263,9 @@ class DriverDataCube:
     def corsa_compress_v2(self, patch_size: int) -> "DriverDataCube":
         return self._not_implemented()
 
+    def corsa_decompress_v2(self, patch_size: int) -> "DriverDataCube":
+        return self._not_implemented()
+
 
 class VectorCubeError(InternalException):
     code = "VectorCubeError"
