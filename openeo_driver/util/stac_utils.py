@@ -2,7 +2,6 @@ import json
 import logging
 import os
 from pathlib import Path
-from threading import Lock
 from typing import Optional, Union, Dict
 from urllib.parse import urljoin, uses_netloc, uses_relative, urlparse
 
@@ -11,7 +10,6 @@ import requests
 from openeo_driver.datastructs import StacAsset
 from openeo_driver.integrations.s3.client import S3ClientBuilder
 
-mutex = Lock()
 _log = logging.getLogger(__name__)
 
 
@@ -22,23 +20,9 @@ def robust_urljoin(base: str, url: Optional[str], allow_fragments=True):
     if not base.lower().startswith("s3://"):
         return urljoin(base, url, allow_fragments)
 
-    with mutex:
-        uses_netloc_needs_s3_remove = "s3" in uses_netloc
-        uses_relative_needs_s3_remove = "s3" in uses_relative
-
-        # Allow urljoin to resolve relative hrefs against s3:// base URLs.
-        uses_netloc.append("s3")
-        uses_relative.append("s3")
-        try:
-            return_value = urljoin(base, url, allow_fragments)
-        finally:
-            # remove s3 again
-            if uses_netloc_needs_s3_remove:
-                uses_netloc.remove("s3")
-            if uses_relative_needs_s3_remove:
-                uses_relative.remove("s3")
-
-        return return_value
+    base = base.replace("s3://", "file://")
+    return_value = urljoin(base, url, allow_fragments)
+    return return_value.replace("file://", "s3://")
 
 
 # TODO: Check if pystac can natively loop over items/assets/files.
