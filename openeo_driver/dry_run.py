@@ -79,7 +79,7 @@ from openeo_driver.utils import EvalEnv, to_hashable
 
 _log = logging.getLogger(__name__)
 
- 
+
 @dataclass
 class PropagationRule:
     """
@@ -992,6 +992,7 @@ class DryRunDataCube(DriverDataCube):
     aspect = _nop
     slope = _nop
     corsa_decompress = _nop
+    corsa_compress_v2 = _nop  # TODO: see remark in corsa_compress
 
     reduce = _nop
     aggregate_temporal = _nop
