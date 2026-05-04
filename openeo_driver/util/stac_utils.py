@@ -3,7 +3,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Optional, Union, Dict
-from urllib.parse import urljoin, uses_netloc, uses_relative, urlparse
+from urllib.parse import urljoin, urlparse
 
 import requests
 
@@ -20,6 +20,7 @@ def robust_urljoin(base: str, url: Optional[str], allow_fragments=True):
     if not base.lower().startswith("s3://"):
         return urljoin(base, url, allow_fragments)
 
+    # temporary switch to scheme that allows urljoin.
     base = base.replace("s3://", "file://")
     return_value = urljoin(base, url, allow_fragments)
     return return_value.replace("file://", "s3://")
