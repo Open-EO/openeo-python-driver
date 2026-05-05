@@ -1138,7 +1138,7 @@ def register_views_batch_jobs(
         #   This is a bit of an ugly temporary hack, to aid in testing and comparing.
         TREAT_JOB_RESULTS_V100_LIKE_V110 = smart_bool(os.environ.get("TREAT_JOB_RESULTS_V100_LIKE_V110", "0"))
 
-        links: List[dict] = result_metadata.links or job_info.links or []
+        links: List[dict] = list(result_metadata.links or job_info.links or [])
 
         if not any(l.get("rel") == "self" for l in links):
             links.append(
@@ -1430,8 +1430,7 @@ def register_views_batch_jobs(
                                 f"{filename!r} not in {list(results.keys())}, nor in {file_paths}"
                             )
                     except Exception as e:
-                        _log.error(repr(e), exc_info=True)
-                        _log.error(repr(type(e)), exc_info=True)
+                        _log.error(repr(e), repr(type(e)), exc_info=True)
                         _log.error(f"Could not get file paths from {link['href']}: {e}")
                 if not result:
                     raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
