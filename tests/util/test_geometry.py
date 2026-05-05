@@ -982,10 +982,37 @@ class TestBoundingBox:
         rounded = bbox.round_to_resolution(0.01, 0.1)
         assert rounded.as_tuple() == (4.12, 50.1, 4.68, 51.7, None)
 
+    @pytest.mark.parametrize(
+        ["offset_x", "offset_y", "expected"],
+        [
+            (0, 0, BoundingBox(4.12, 50.1, 4.68, 51.7)),
+            (0.001, 0.02, BoundingBox(4.121, 50.12, 4.681, 51.72).approx(abs=1e-6)),
+            (0.888, 0.444, BoundingBox(4.118, 50.044, 4.688, 51.744).approx(abs=1e-6)),
+        ],
+    )
+    def test_round_to_resolution_small_with_offset(self, offset_x, offset_y, expected):
+        bbox = BoundingBox(4.12345, 50.12345, 4.6789, 51.6789)
+        rounded = bbox.round_to_resolution(0.01, 0.1, offset_x=offset_x, offset_y=offset_y)
+        assert rounded == expected
+
     def test_round_to_resolution_large(self):
         bbox = BoundingBox(500435.6, 5649834.7, 507678.1, 5667864.1)
         rounded = bbox.round_to_resolution(10, 20)
         assert rounded.as_tuple() == (500430, 5649820, 507680, 5667880, None)
+
+    @pytest.mark.parametrize(
+        ["offset_x", "offset_y", "expected"],
+        [
+            (0, 0, BoundingBox(500430, 5649820, 507680, 5667880)),
+            (3, 7, BoundingBox(500433, 5649827, 507683, 5667867)),
+            (7, 13, BoundingBox(500427, 5649833, 507687, 5667873)),
+            (19, 19, BoundingBox(500429, 5649819, 507679, 5667879)),
+        ],
+    )
+    def test_round_to_resolution_large_with_offset(self, offset_x, offset_y, expected):
+        bbox = BoundingBox(500435.6, 5649834.7, 507678.1, 5667864.1)
+        rounded = bbox.round_to_resolution(10, 20, offset_x=offset_x, offset_y=offset_y)
+        assert rounded == expected
 
     def test_round_to_resolution_nodata(self):
         bbox = BoundingBox(500435.6, 5649834.7, 507678.1, float("inf"))
