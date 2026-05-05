@@ -27,35 +27,19 @@ oidc_providers = [
             }
         ],
     ),
+    # Allow testing the dummy backend with CDSE as OIDC provider
+    OidcProvider(
+        id="CDSE",
+        issuer="https://identity.dataspace.copernicus.eu/auth/realms/CDSE",
+        scopes=["openid"],
+        title="Copernicus Data Space Ecosystem",
+    ),
     # Allow testing with Keycloak setup running in docker on localhost.
     OidcProvider(
         id="local",
         title="Local Keycloak",
         issuer="http://localhost:9090/auth/realms/master",
         scopes=["openid"],
-    ),
-    # Allow testing the dummy backend with EGI
-    OidcProvider(
-        id="egi",
-        issuer="https://aai.egi.eu/auth/realms/egi/",
-        scopes=[
-            "openid",
-            "email",
-            "eduperson_entitlement",
-            "eduperson_scoped_affiliation",
-        ],
-        title="EGI Check-in",
-    ),
-    OidcProvider(
-        id="egi-dev",
-        issuer="https://aai-dev.egi.eu/auth/realms/egi",
-        scopes=[
-            "openid",
-            "email",
-            "eduperson_entitlement",
-            "eduperson_scoped_affiliation",
-        ],
-        title="EGI Check-in (dev)",
     ),
 ]
 
