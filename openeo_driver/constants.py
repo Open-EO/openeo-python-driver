@@ -50,12 +50,21 @@ RESAMPLE_SPATIAL_METHODS = [
     "geocode" #custom method for geocoding of e.g. Sentinel-1 based on lat/lon bands
 ]
 
-# Align options as used in official spec of `resample_spatial`
+class RESAMPLE_SPATIAL_ALIGN:
+    # Align options as used in official spec of `resample_spatial`
+    LOWER_LEFT = "lower-left"
+    UPPER_LEFT = "upper-left"
+    LOWER_RIGHT = "lower-right"
+    UPPER_RIGHT = "upper-right"
+
+
+RESAMPLE_SPATIAL_ALIGN_DEFAULT = RESAMPLE_SPATIAL_ALIGN.UPPER_LEFT
+
 RESAMPLE_SPATIAL_ALIGNS = [
-    "lower-left",
-    "upper-left",
-    "lower-right",
-    "upper-right",
+    RESAMPLE_SPATIAL_ALIGN.LOWER_LEFT,
+    RESAMPLE_SPATIAL_ALIGN.UPPER_LEFT,
+    RESAMPLE_SPATIAL_ALIGN.LOWER_RIGHT,
+    RESAMPLE_SPATIAL_ALIGN.UPPER_RIGHT,
 ]
 
 

@@ -26,7 +26,7 @@ from openeo_driver.processgraph.registry import (
     process_registry_100,
     process_registry_2xx,
 )
-from openeo_driver.constants import RESAMPLE_SPATIAL_ALIGNS, RESAMPLE_SPATIAL_METHODS
+from openeo_driver.constants import RESAMPLE_SPATIAL_ALIGNS, RESAMPLE_SPATIAL_METHODS, RESAMPLE_SPATIAL_ALIGN_DEFAULT
 from openeo_driver.save_result import AggregatePolygonResult, JSONResult, NullResult
 from openeo_driver.specs import read_spec
 from openeo_driver.util.geometry import geojson_to_geometry, geojson_to_multipolygon
@@ -394,7 +394,7 @@ def resample_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     )
     projection = args.get_optional("projection", default=None)
     method = args.get_enum("method", options=RESAMPLE_SPATIAL_METHODS, default="near")
-    align = args.get_enum("align", options=RESAMPLE_SPATIAL_ALIGNS, default="upper-left")
+    align = args.get_enum("align", options=RESAMPLE_SPATIAL_ALIGNS, default=RESAMPLE_SPATIAL_ALIGN_DEFAULT)
     return cube.resample_spatial(resolution=resolution, projection=projection, method=method, align=align)
 
 

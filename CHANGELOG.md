@@ -26,6 +26,7 @@ and start a new "In Progress" section above it.
 - Start providing original "node id" to `load_collection` and `load_stac` implementations, e.g. for robust caching puprposes ([#479](https://github.com/Open-EO/openeo-python-driver/issues/479))
 - Add (non-standard) `query_stac` process ([#480](https://github.com/Open-EO/openeo-python-driver/pull/480))
 - Support experimental `corsa_compress_v2` and `corsa_decompress_v2` processes ([Open-EO/openeo-geotrellis-extensions#702](https://github.com/Open-EO/openeo-geotrellis-extensions/issues/702))
+- Dry run: pass through `align` argument of `resample_spatial` operation ([Open-EO/openeo-geopyspark-driver#1662](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1662))
 
 
 ## 0.138.0

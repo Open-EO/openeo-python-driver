@@ -22,6 +22,7 @@ from openeo.metadata import CollectionMetadata, CubeMetadata
 from openeo.util import str_truncate
 from pyproj import CRS
 
+from openeo_driver.constants import RESAMPLE_SPATIAL_ALIGN_DEFAULT
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs, StacAsset
 from openeo_driver.errors import FeatureUnsupportedException, InternalException, ProcessGraphInvalidException, \
     OpenEOApiException, ProcessParameterInvalidException
@@ -227,7 +228,7 @@ class DriverDataCube:
         resolution: Union[float, Tuple[float, float]],
         projection: Union[int, str] = None,
         method: str = "near",
-        align: str = "upper-left",
+        align: str = RESAMPLE_SPATIAL_ALIGN_DEFAULT,
     ):
         self._not_implemented()
 
