@@ -3,16 +3,52 @@ import logging
 import os
 from pathlib import Path
 from typing import Optional, Union, Dict
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import requests
 
 from openeo_driver.datastructs import StacAsset
+from openeo_driver.integrations.s3.bucket_details import BucketDetails
+from openeo_driver.integrations.s3.client import S3ClientBuilder
 
 _log = logging.getLogger(__name__)
 
 
+def robust_urljoin(base: str, url: Optional[str], allow_fragments=True):
+    """
+    Overly-cautious wrapper around urljoin to allow joining s3-urls.
+    """
+    if not base.lower().startswith("s3://"):
+        return urljoin(base, url, allow_fragments)
+
+    # temporary switch to scheme that allows urljoin.
+    base = base.replace("s3://", "file://")
+    return_value = urljoin(base, url, allow_fragments)
+    return return_value.replace("file://", "s3://")
+
+
 # TODO: Check if pystac can natively loop over items/assets/files.
+
+
+def _read_json(path: str) -> dict:
+    if path.startswith("s3://"):
+        parsed = urlparse(path)
+        bucket = parsed.netloc
+        key = parsed.path[1:]
+        details = BucketDetails.from_name(bucket)
+        if details.type != "UNKNOWN":
+            s3_instance = S3ClientBuilder.from_region(details.region)
+        else:
+            s3_instance = S3ClientBuilder.from_region(None)
+        obj = s3_instance.get_object(Bucket=bucket, Key=key)
+        return json.loads(obj["Body"].read().decode("utf-8"))
+    elif path.startswith("http"):
+        response = requests.get(path)
+        response.raise_for_status()
+        return response.json()
+    else:
+        assert os.path.exists(path), f"path does not exist: {path}"
+        return json.loads(Path(path).read_text())
 
 
 def find_stac_root(paths: Union[set, list], stac_root_filename: Optional[str] = "catalog.json") -> Optional[str]:
@@ -46,14 +82,8 @@ def get_files_from_stac_catalog(catalog_path: Union[str, Path], include_metadata
     """
     Goes through the stac catalog recursively to find all files.
     """
-    if isinstance(catalog_path, str) and catalog_path.startswith("http"):
-        response = requests.get(catalog_path)
-        response.raise_for_status()
-        catalog_json = response.json()
-    else:
-        catalog_path = str(catalog_path)
-        assert os.path.exists(catalog_path), f"catalog_path does not exist: {catalog_path}"
-        catalog_json = json.loads(Path(catalog_path).read_text())
+    catalog_path: str = str(catalog_path)
+    catalog_json = _read_json(catalog_path)
 
     all_files = []
     links = []
@@ -68,7 +98,7 @@ def get_files_from_stac_catalog(catalog_path: Union[str, Path], include_metadata
             href = link["href"]
             if href.startswith("file://"):
                 href = href[7:]
-            href = urljoin(catalog_path, href)
+            href = robust_urljoin(catalog_path, href)
 
             if "rel" in link and (link["rel"] == "child" or link["rel"] == "item"):
                 all_files.extend(get_files_from_stac_catalog(href, include_metadata))
@@ -78,14 +108,8 @@ def get_files_from_stac_catalog(catalog_path: Union[str, Path], include_metadata
 
 
 def get_assets_from_stac_catalog(catalog_path: Union[str, Path]) -> Dict[str, StacAsset]:
-    if isinstance(catalog_path, str) and catalog_path.startswith("http"):
-        response = requests.get(catalog_path)
-        response.raise_for_status()
-        catalog_json = response.json()
-    else:
-        catalog_path = str(catalog_path)
-        assert os.path.exists(catalog_path), f"catalog_path does not exist: {catalog_path}"
-        catalog_json = json.loads(Path(catalog_path).read_text())
+    catalog_path: str = str(catalog_path)
+    catalog_json = _read_json(catalog_path)
 
     all_assets = {}
     links = []
@@ -100,7 +124,7 @@ def get_assets_from_stac_catalog(catalog_path: Union[str, Path]) -> Dict[str, St
             href = link["href"]
             if href.startswith("file://"):
                 href = href[7:]
-            href = urljoin(catalog_path, href)
+            href = robust_urljoin(catalog_path, href)
 
             if "rel" in link and (link["rel"] == "child" or link["rel"] == "item"):
                 all_assets.update(get_assets_from_stac_catalog(href))
@@ -108,14 +132,8 @@ def get_assets_from_stac_catalog(catalog_path: Union[str, Path]) -> Dict[str, St
 
 
 def get_items_from_stac_catalog(catalog_path: Union[str, Path], make_hrefs_absolute=False) -> dict:
-    if isinstance(catalog_path, str) and catalog_path.startswith("http"):
-        response = requests.get(catalog_path)
-        response.raise_for_status()
-        catalog_json = response.json()
-    else:
-        catalog_path = str(catalog_path)
-        assert os.path.exists(catalog_path), f"catalog_path does not exist: {catalog_path}"
-        catalog_json = json.loads(Path(catalog_path).read_text())
+    catalog_path: str = str(catalog_path)
+    catalog_json = _read_json(catalog_path)
 
     all_items = {}
     links = []
@@ -129,13 +147,13 @@ def get_items_from_stac_catalog(catalog_path: Union[str, Path], make_hrefs_absol
             if "assets" in item:
                 for asset in item["assets"].values():
                     if "href" in asset:
-                        asset["href"] = urljoin(catalog_path, asset["href"])
+                        asset["href"] = robust_urljoin(catalog_path, asset["href"])
     for link in links:
         if "href" in link:
             href = link["href"]
             if href.startswith("file://"):
                 href = href[7:]
-            href = urljoin(catalog_path, href)
+            href = robust_urljoin(catalog_path, href)
 
             if "rel" in link and (link["rel"] == "child" or link["rel"] == "item"):
                 all_items.update(get_items_from_stac_catalog(href, make_hrefs_absolute))
