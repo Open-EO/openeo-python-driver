@@ -1,5 +1,13 @@
 """
-Script to start a local server. This script can serve as the entry-point for doing spark-submit.
+Script to start a local server.
+
+Usage example (from project root):
+
+    export OPENEO_BACKEND_CONFIG=openeo_driver/dummy/dummy_config.py
+    python openeo_driver/dummy/local_app.py
+
+
+
 """
 
 import logging
