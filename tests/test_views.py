@@ -3525,18 +3525,28 @@ class TestBatchJobs:
                 source_folder,
                 str(output_root / "j-26032411111111111111111111111111") + "/",
             )
-            api110.get(
-                "/jobs/j-26032411111111111111111111111111/results/assets/sub-folder/openEO_2023-06-1or4.tif",
-                headers=self.AUTH_HEADER,
-            ).assert_status_code(200)
+            assert (
+                "2023-06-04"
+                in api110.get(
+                    "/jobs/j-26032411111111111111111111111111/results/assets/sub-folder/openEO_2023-06-1or4.tif.json",
+                    headers=self.AUTH_HEADER,
+                )
+                .assert_status_code(200)
+                .text
+            )
             api110.get(
                 "/jobs/j-26032411111111111111111111111111/results/assets/collection.json",
                 headers=self.AUTH_HEADER,
             ).assert_status_code(200)
-            api110.get(
-                "/jobs/j-26032411111111111111111111111111/results/assets/openEO_2023-06-1or4.tif.json",
-                headers=self.AUTH_HEADER,
-            ).assert_status_code(200)
+            assert (
+                "2023-06-01"
+                in api110.get(
+                    "/jobs/j-26032411111111111111111111111111/results/assets/openEO_2023-06-1or4.tif.json",
+                    headers=self.AUTH_HEADER,
+                )
+                .assert_status_code(200)
+                .text
+            )
             api110.get(
                 "/jobs/j-26032411111111111111111111111111/results/assets/openEO_2023-06-1or4.tif",
                 headers=self.AUTH_HEADER,
