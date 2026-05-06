@@ -3526,7 +3526,7 @@ class TestBatchJobs:
                 str(output_root / "j-26032411111111111111111111111111") + "/",
             )
             api110.get(
-                "/jobs/j-26032411111111111111111111111111/results/assets/sub-folder/openEO_2023-06-04Z.tif",
+                "/jobs/j-26032411111111111111111111111111/results/assets/sub-folder/openEO_2023-06-1or4.tif",
                 headers=self.AUTH_HEADER,
             ).assert_status_code(200)
             api110.get(
@@ -3534,11 +3534,11 @@ class TestBatchJobs:
                 headers=self.AUTH_HEADER,
             ).assert_status_code(200)
             api110.get(
-                "/jobs/j-26032411111111111111111111111111/results/assets/openEO_2023-06-01Z.tif.json",
+                "/jobs/j-26032411111111111111111111111111/results/assets/openEO_2023-06-1or4.tif.json",
                 headers=self.AUTH_HEADER,
             ).assert_status_code(200)
             api110.get(
-                "/jobs/j-26032411111111111111111111111111/results/assets/openEO_2023-06-01Z.tif",
+                "/jobs/j-26032411111111111111111111111111/results/assets/openEO_2023-06-1or4.tif",
                 headers=self.AUTH_HEADER,
             ).assert_status_code(200)
 

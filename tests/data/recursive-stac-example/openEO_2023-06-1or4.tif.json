@@ -21,8 +21,8 @@
   },
   "links": [],
   "assets": {
-    "openEO_2023-06-01Z.tif": {
-      "href": "./openEO_2023-06-01Z.tif",
+    "openEO_2023-06-1or4.tif": {
+      "href": "./openEO_2023-06-1or4.tif",
       "roles": ["data"],
       "type": "image/tiff; application=geotiff",
       "eo:bands": [

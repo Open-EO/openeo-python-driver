@@ -1368,6 +1368,7 @@ def register_views_batch_jobs(
                 message=f"Unsupported Range unit {request.range.units}; supported is: bytes"
             )
 
+        assert backend_implementation.batch_jobs  # for type checker
         result_metadata = backend_implementation.batch_jobs.get_result_metadata(
             job_id=job_id, user_id=user_id
         )
@@ -1389,36 +1390,22 @@ def register_views_batch_jobs(
                 result = results[filename]
             else:
                 result = None
-                job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
-                _log.info("job_info.links: " + str(job_info.links))
-                _log.info("result_metadata.links: " + str(result_metadata.links))
-                links: List[dict] = result_metadata.links + (job_info.links or [])
-                _log.info("links: " + str(links))
-                for link in links:
+                for link in result_metadata.links:
                     if link["rel"] != "child":
                         continue
-                    try:
-                        if (".." in filename) or ("%" in filename) or ("$" in filename) or ("|" in filename):
-                            # Should not be a problem, but just in case.
-                            raise FilePathInvalidException(f"Invalid file path: {filename}")
-                        # Some things might break with s3 links, try-catch to be sure.
-                        file_paths = get_files_from_stac_catalog(link["href"], include_metadata=True)
-                        _log.info("file_paths: " + repr(file_paths))
-                        for file_path in file_paths:
-                            # TODO: Clean up this logic
-                            if file_path.endswith(filename):
-                                result = {
-                                    "output_dir": file_path[: -len(filename)],
-                                    "href": file_path,
-                                }
-                                break
-                        if not result:
-                            raise FilePathInvalidException(
-                                f"{filename!r} not in {list(results.keys())}, nor in {file_paths}"
-                            )
-                    except Exception as e:
-                        _log.error(repr(e), repr(type(e)), exc_info=True)
-                        _log.error(f"Could not get file paths from {link['href']}: {e}")
+                    file_paths = get_files_from_stac_catalog(link["href"], include_metadata=True)
+                    _log.info("file_paths: " + repr(file_paths))
+                    for file_path in file_paths:
+                        if file_path.endswith(filename):  # TODO: Use perfect filename match
+                            result = {
+                                "output_dir": file_path[: -len(filename)],
+                                "href": file_path,
+                            }
+                            break
+                    if not result:
+                        raise FilePathInvalidException(
+                            f"{filename!r} not in {list(results.keys())}, nor in {file_paths}"
+                        )
                 if not result:
                     raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
         if result.get("href", "").startswith("s3://"):
