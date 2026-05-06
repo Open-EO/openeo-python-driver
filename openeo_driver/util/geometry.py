@@ -725,14 +725,22 @@ class BoundingBox:
     def reproject_to_best_utm(self):
         return self.reproject(crs=self.best_utm())
 
-    def round_to_resolution(self, res_x: float, res_y: Optional[float] = None) -> "BoundingBox":
+    def round_to_resolution(
+        self, res_x: float, res_y: Optional[float] = None, *, offset_x: float = 0, offset_y: float = 0
+    ) -> "BoundingBox":
+        """
+        Round bounding box coordinates to given resolution (in units of the bounding box CRS),
+        with optional offset for the grid to round to.
+        """
         if res_y is None:
             res_y = res_x
+        w, s, e, n = self.as_wsen_tuple()
+        # TODO: leverage the offset (add appropriate multiple of resolution) to improve numerical precision?
         return BoundingBox(
-            west=res_x * math.floor(self.west / res_x) if math.isfinite(self.west) else self.west,
-            east=res_x * math.ceil(self.east / res_x) if math.isfinite(self.east) else self.east,
-            south=res_y * math.floor(self.south / res_y) if math.isfinite(self.south) else self.south,
-            north=res_y * math.ceil(self.north / res_y) if math.isfinite(self.north) else self.north,
+            west=res_x * math.floor((w - offset_x) / res_x) + offset_x if math.isfinite(w) else w,
+            east=res_x * math.ceil((e - offset_x) / res_x) + offset_x if math.isfinite(e) else e,
+            south=res_y * math.floor((s - offset_y) / res_y) + offset_y if math.isfinite(s) else s,
+            north=res_y * math.ceil((n - offset_y) / res_y) + offset_y if math.isfinite(n) else n,
             crs=self.crs,
         )
 

@@ -65,6 +65,7 @@ import shapely.ops
 
 from openeo.utils.normalize import normalize_resample_resolution
 from openeo_driver import filter_properties
+from openeo_driver.constants import RESAMPLE_SPATIAL_ALIGN_DEFAULT
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
@@ -117,8 +118,14 @@ def _extract_resample_constraint(operation_name: str, args: Union[dict, tuple]) 
         resolution = normalize_resample_resolution(args["resolution"])
         projection = args["projection"]
         method = args.get("method", "near")
+        align = args.get("align", RESAMPLE_SPATIAL_ALIGN_DEFAULT)
         if method != "geocode":
-            return {"target_crs": projection, "resolution": resolution, "method": method}
+            return {
+                "target_crs": projection,
+                "resolution": resolution,
+                "method": method,
+                "align": align,
+            }
         return None
 
 
@@ -153,6 +160,7 @@ PROPAGATION_RULES: List[PropagationRule] = [
         extractor=lambda op, args: {"buffer_size": args["buffer_size"]},
     ),
     PropagationRule(
+        # TODO: rename to "resample_spatial" for clarity and alignment with the spec
         "resample",
         operations=["resample_cube_spatial", "resample_spatial"],
         blockers=[
@@ -786,7 +794,7 @@ class DryRunDataCube(DriverDataCube):
         resolution: Union[float, Tuple[float, float]],
         projection: Union[int, str] = None,
         method: str = "near",
-        align: str = "upper-left",
+        align: str = RESAMPLE_SPATIAL_ALIGN_DEFAULT,
     ):
         return self._process(
             "resample_spatial",
