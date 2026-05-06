@@ -1389,25 +1389,20 @@ def register_views_batch_jobs(
             if filename in results.keys():
                 result = results[filename]
             else:
-                result = None
-                for link in result_metadata.links:
-                    if link["rel"] != "child":
-                        continue
-                    file_paths = get_files_from_stac_catalog(link["href"], include_metadata=True)
-                    _log.info("file_paths: " + repr(file_paths))
-                    for file_path in file_paths:
-                        if file_path.endswith(filename):  # TODO: Use perfect filename match
-                            result = {
-                                "output_dir": file_path[: -len(filename)],
-                                "href": file_path,
-                            }
-                            break
-                    if not result:
-                        raise FilePathInvalidException(
-                            f"{filename!r} not in {list(results.keys())}, nor in {file_paths}"
-                        )
-                if not result:
+                # use find to get link:
+                link = next((x for x in result_metadata.links if (lambda x: x["rel"] == "child")), None)
+                if not link:
                     raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
+                file_paths = get_files_from_stac_catalog(link["href"], include_metadata=True, relative_paths=True)
+                _log.info("file_paths: " + repr(file_paths))
+                link_root = os.path.dirname(link["href"])
+                if filename in file_paths:
+                    result = {
+                        "output_dir": link_root,
+                        "href": filename,
+                    }
+                else:
+                    raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}, nor in {file_paths}")
         if result.get("href", "").startswith("s3://"):
             return _stream_from_s3(
                 result["href"], filename=filename, mimetype=result.get("type"), bytes_range=request.headers.get("Range")
