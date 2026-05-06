@@ -78,33 +78,51 @@ def find_stac_root(paths: Union[set, list], stac_root_filename: Optional[str] = 
     return None
 
 
-def get_files_from_stac_catalog(catalog_path: Union[str, Path], include_metadata=False) -> list:
+def _make_relative(path: str, root_dir: str) -> str:
+    root_dir = root_dir.rstrip("/") + "/"
+    assert path.startswith(root_dir)
+    return path[len(root_dir) :]
+
+
+def get_files_from_stac_catalog(
+    catalog_path: Union[str, Path], include_metadata=False, relative_paths: bool = False
+) -> list:
     """
     Goes through the stac catalog recursively to find all files.
     """
-    catalog_path: str = str(catalog_path)
-    catalog_json = _read_json(catalog_path)
 
-    all_files = []
-    links = []
-    if include_metadata:
-        all_files.append(catalog_path)
-    if "links" in catalog_json:
-        links.extend(catalog_json["links"])
-    if "assets" in catalog_json:
-        links.extend(list(catalog_json["assets"].values()))
-    for link in links:
-        if "href" in link:
-            href = link["href"]
-            if href.startswith("file://"):
-                href = href[7:]
-            href = robust_urljoin(catalog_path, href)
+    def recurse(item_path: Union[str, Path]) -> list:
+        item_path: str = str(item_path)
+        catalog_json = _read_json(item_path)
 
-            if "rel" in link and (link["rel"] == "child" or link["rel"] == "item"):
-                all_files.extend(get_files_from_stac_catalog(href, include_metadata))
-            else:
-                all_files.append(href)
-    return all_files
+        all_files = []
+        links = []
+        if include_metadata:
+            all_files.append(item_path)
+        if "links" in catalog_json:
+            links.extend(catalog_json["links"])
+        if "assets" in catalog_json:
+            links.extend(list(catalog_json["assets"].values()))
+        for link in links:
+            if "href" in link:
+                href = link["href"]
+                if href.startswith("file://"):
+                    href = href[7:]
+                href = robust_urljoin(item_path, href)
+
+                if "rel" in link and (link["rel"] == "child" or link["rel"] == "item"):
+                    all_files.extend(get_files_from_stac_catalog(href, include_metadata))
+                else:
+                    all_files.append(href)
+        return all_files
+
+    return_files = recurse(catalog_path)
+    if relative_paths:
+        # TODO: does this still works with recursive catalogs?
+        root_dir = os.path.dirname(str(catalog_path))
+        return_files = [_make_relative(f, root_dir) for f in return_files]
+
+    return return_files
 
 
 def get_assets_from_stac_catalog(catalog_path: Union[str, Path]) -> Dict[str, StacAsset]:
