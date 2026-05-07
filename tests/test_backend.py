@@ -20,7 +20,6 @@ from openeo_driver.backend import (
     LegacyUdfRuntimes,
     CollectionsListing,
 )
-from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import CollectionNotFoundException
 from openeo_driver.users import User
 
