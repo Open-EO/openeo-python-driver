@@ -1390,7 +1390,7 @@ def register_views_batch_jobs(
                 result = results[filename]
             else:
                 # use find to get link:
-                link = next((x for x in result_metadata.links if (lambda x: x["rel"] == "child")), None)
+                link = next((x for x in result_metadata.links if x.get("rel") == "child"), None)
                 if not link:
                     raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
                 file_paths = get_files_from_stac_catalog(link["href"], include_metadata=True, relative_paths=True)
