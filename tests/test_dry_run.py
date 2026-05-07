@@ -995,7 +995,7 @@ def test_multiple_filter_spatial(dry_run_env, dry_run_tracer):
             "west": 166021.44308054057,
         },
         "filter_spatial": {"geometries": DummyVectorCube.from_geometry(shapely.geometry.shape(polygon1))},
-        "resample": {"method": "near", "resolution": (0.25, 0.25), "target_crs": 4326},
+        "resample": {"method": "near", "resolution": (0.25, 0.25), "target_crs": 4326, "align": "upper-left"},
         "weak_spatial_extent": {
             "crs": "EPSG:32631",
             "east": 1056748.2872412915,
@@ -1102,7 +1102,7 @@ def test_resample_filter_spatial(dry_run_env, dry_run_tracer):
             "west": 166021.44308054057,
         },
         "filter_spatial": {"geometries": DummyVectorCube.from_geometry(shapely.geometry.shape(polygon))},
-        "resample": {"method": "near", "resolution": (0.25, 0.25), "target_crs": 4326},
+        "resample": {"method": "near", "resolution": (0.25, 0.25), "target_crs": 4326, "align": "upper-left"},
         "weak_spatial_extent": {
             "crs": "EPSG:32631",
             "east": 1056748.2872412915,
@@ -1189,9 +1189,7 @@ def test_no_auto_align_when_resampling(dry_run_env, dry_run_tracer):
     assert src == ("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()), "loadcollection1")
     (geometries,) = dry_run_tracer.get_geometries(operation="filter_spatial")
     assert constraints == {
-        'resample': {'method': 'near',
-                     'resolution': (0.001, 0.001),
-                     'target_crs': None},
+        "resample": {"method": "near", "resolution": (0.001, 0.001), "target_crs": None, "align": "upper-left"},
         "spatial_extent": {"crs": "EPSG:4326", "east": 8.0, "north": 5.0, "south": 0.1, "west": 0.1},
         "filter_spatial": {"geometries": DummyVectorCube.from_geometry(shapely.geometry.shape(polygon))},
         "weak_spatial_extent": {"west": 0.1, "south": 0.1, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
@@ -1227,7 +1225,7 @@ def test_auto_align_without_explicit_resolution(dry_run_env, dry_run_tracer):
     assert src == ("load_collection", ("S2_FAPAR_CLOUDCOVER", ()), "loadcollection1")
     (geometries,) = dry_run_tracer.get_geometries(operation="filter_spatial")
     assert constraints == {
-        "resample": {"method": "near", "resolution": (0, 0), "target_crs": "EPSG:32632"},
+        "resample": {"method": "near", "resolution": (0, 0), "target_crs": "EPSG:32632", "align": "upper-left"},
         "spatial_extent": {
             "crs": "EPSG:32631",
             "east": 1056748.2872412915,
@@ -2770,7 +2768,7 @@ def test_resample_cube_spatial_from_resampled_target(dry_run_env, dry_run_tracer
                 ("SENTINEL1_GRD", ()),
                 "loadcollection2",
             ),
-            {"resample": {"method": "near", "resolution": (3, 5), "target_crs": 32631}},
+            {"resample": {"method": "near", "resolution": (3, 5), "target_crs": 32631, "align": "upper-left"}},
         ),
     ]
 
