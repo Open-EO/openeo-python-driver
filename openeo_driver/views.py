@@ -728,6 +728,15 @@ def register_views_processing(
 
         tracer = DryRunDataTracer()
 
+        request_costs = functools.partial(
+            backend_implementation.request_costs,
+            user=user,
+            job_options=job_options,
+            request_id=request_id,
+            process_graph=process_graph,
+            tracer=tracer,
+        )
+
         try:
             result = backend_implementation.processing.evaluate(
                 process_graph=copy.deepcopy(process_graph), env=env, do_dry_run=tracer
@@ -748,28 +757,14 @@ def register_views_processing(
                     result = to_save_result(data=result)
                 response = result.create_flask_response()
 
-            costs = backend_implementation.request_costs(
-                user=user,
-                job_options=job_options,
-                request_id=request_id,
-                success=True,
-                process_graph=process_graph,
-                tracer=tracer,
-            )
+            costs = request_costs(success=True)
             if costs:
                 # TODO not all costs are accounted for so don't expose in "OpenEO-Costs" yet
                 response.headers["OpenEO-Costs-experimental"] = costs
 
         except Exception:
             # TODO: also send "OpenEO-Costs" header on failure
-            backend_implementation.request_costs(
-                user=user,
-                job_options=job_options,
-                request_id=request_id,
-                success=False,
-                process_graph=process_graph,
-                tracer=tracer,
-            )
+            request_costs(success=False)
             raise
 
         # Add request id as "OpenEO-Identifier" like we do for batch jobs.
