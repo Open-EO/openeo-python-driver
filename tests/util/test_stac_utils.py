@@ -159,3 +159,22 @@ def test_get_files_from_stac_catalog_s3(mock_s3):
     ret = get_files_from_stac_catalog(stac_root)
     assert len(ret) == 3
     assert all(f.startswith("s3://") for f in ret)
+
+
+def test_get_files_from_stac_catalog_relative_paths_recursive():
+    # This collection intentionally uses the same filename twice, but with different raster data.
+    recursive_stac_root = repository_root / "tests/data/recursive-stac-example/collection.json"
+    Collection.from_file(str(recursive_stac_root)).validate_all()
+    ret = get_files_from_stac_catalog(recursive_stac_root, relative_paths=True)
+    assert set(ret) == {
+        "openEO_2023-06-1or4.tif",
+        "sub-folder/openEO_2023-06-1or4.tif",
+        "sub-folder/openEO_2023-06-06Z.tif",
+    }
+
+
+def test_get_files_from_stac_catalog_s3_relative_paths(mock_s3):
+    stac_root = f"s3://{_TEST_BUCKET}/output/collection.json"
+    ret = get_files_from_stac_catalog(stac_root, relative_paths=True)
+    assert len(ret) == 3
+    assert all(not f.startswith("s3://") for f in ret)
