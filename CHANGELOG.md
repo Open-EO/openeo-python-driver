@@ -28,6 +28,7 @@ and start a new "In Progress" section above it.
 - Support experimental `corsa_compress_v2` and `corsa_decompress_v2` processes ([Open-EO/openeo-geotrellis-extensions#702](https://github.com/Open-EO/openeo-geotrellis-extensions/issues/702))
 - Dry run: pass through `align` argument of `resample_spatial` operation ([Open-EO/openeo-geopyspark-driver#1662](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1662))
 - `BoundingBox.round_to_resolution()`: add `offset_x` and `offset_y` parameters ([Open-EO/openeo-geopyspark-driver#1662](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1662))
+- Bump STAC version from `0.9.0` to `1.0.0` in capabilities endpoint, collection metadata, job results and ML model metadata ([#363](https://github.com/Open-EO/openeo-python-driver/issues/363))
 
 
 ## 0.138.0
