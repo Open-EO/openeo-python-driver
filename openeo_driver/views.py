@@ -426,7 +426,7 @@ def register_views_general(
             "version": api_version,  # Deprecated pre-0.4.0 API version field
             "api_version": api_version,  # API version field since 0.4.0
             "backend_version": backend_version,
-            "stac_version": "0.9.0",  # TODO #363 bump to 1.x.y?
+            "stac_version": "1.0.0",
             "type": "Catalog",
             "conformsTo": backend_implementation.conformance_classes(),
             "id": service_id,
@@ -1326,7 +1326,7 @@ def register_views_batch_jobs(
         else:
             result = {
                 "type": "Feature",
-                "stac_version": "0.9.0",
+                "stac_version": "1.0.0",
                 "id": job_info.id,
                 "properties": _properties_from_job_info(job_info),
                 "assets": assets,
@@ -1791,7 +1791,7 @@ def register_views_batch_jobs(
                     asset_metadata=asset, asset_name=asset_file_name, job_id=job_id, user_id=user_id
                 )
         stac_item = {
-            "stac_version": ml_model_metadata.get("stac_version", "0.9.0"),
+            "stac_version": ml_model_metadata.get("stac_version", "1.0.0"),
             "stac_extensions": ml_model_metadata.get("stac_extensions", []),
             "type": "Feature",
             "id": ml_model_metadata.get("id"),
@@ -2232,8 +2232,7 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
                     dim["extent"] = interval
 
     # Make sure some required fields are set.
-    # TODO #363 bump stac_version default to 1.0.0 or even 1.1.0?
-    metadata.setdefault("stac_version", "0.9.0")
+    metadata.setdefault("stac_version", "1.0.0")
     metadata.setdefault(
         "stac_extensions",
         [
