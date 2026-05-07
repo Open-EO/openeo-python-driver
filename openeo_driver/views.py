@@ -1372,6 +1372,7 @@ def register_views_batch_jobs(
         result_metadata = backend_implementation.batch_jobs.get_result_metadata(
             job_id=job_id, user_id=user_id
         )
+        result: Optional[dict] = None
         if result_metadata.items:
             result = None
             for item_key, item in result_metadata.items.items():
@@ -1389,20 +1390,20 @@ def register_views_batch_jobs(
             if filename in results.keys():
                 result = results[filename]
             else:
-                # use find to get link:
-                link = next((x for x in result_metadata.links if x.get("rel") == "child"), None)
-                if not link:
-                    raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
-                file_paths = get_files_from_stac_catalog(link["href"], include_metadata=True, relative_paths=True)
-                _log.info("file_paths: " + repr(file_paths))
-                link_root = os.path.dirname(link["href"])
-                if filename in file_paths:
-                    result = {
-                        "output_dir": link_root,
-                        "href": filename,
-                    }
-                else:
-                    raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}, nor in {file_paths}")
+                for link in result_metadata.links:
+                    if link.get("rel") != "child":
+                        continue
+                    file_paths = get_files_from_stac_catalog(link["href"], include_metadata=True, relative_paths=True)
+                    _log.info("file_paths: " + repr(file_paths))
+                    link_root = os.path.dirname(link["href"])
+                    if filename in file_paths:
+                        result = {
+                            "output_dir": link_root,
+                            "href": filename,
+                        }
+                if not result:
+                    raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}, nor in child links.")
+        assert result  # for type checker
         if result.get("href", "").startswith("s3://"):
             return _stream_from_s3(
                 result["href"], filename=filename, mimetype=result.get("type"), bytes_range=request.headers.get("Range")
