@@ -729,7 +729,10 @@ def register_views_processing(
         tracer = DryRunDataTracer()
 
         try:
-            result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env, do_dry_run=tracer)
+            result = backend_implementation.processing.evaluate(
+                process_graph=copy.deepcopy(process_graph), env=env, do_dry_run=tracer
+            )
+
             _log.info(f"`POST /result`: {type(result)}")
 
             if result is None:
@@ -746,11 +749,11 @@ def register_views_processing(
                 response = result.create_flask_response()
 
             costs = backend_implementation.request_costs(
-                success=True,
                 user=user,
-                process_graph=process_graph,
-                request_id=request_id,
                 job_options=job_options,
+                request_id=request_id,
+                success=True,
+                process_graph=process_graph,
                 tracer=tracer,
             )
             if costs:
@@ -760,11 +763,11 @@ def register_views_processing(
         except Exception:
             # TODO: also send "OpenEO-Costs" header on failure
             backend_implementation.request_costs(
-                success=False,
                 user=user,
-                process_graph=process_graph,
-                request_id=request_id,
                 job_options=job_options,
+                request_id=request_id,
+                success=False,
+                process_graph=process_graph,
                 tracer=tracer,
             )
             raise

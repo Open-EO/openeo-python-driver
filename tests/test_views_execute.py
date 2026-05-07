@@ -22,7 +22,7 @@ from pyproj import CRS
 
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs
-from openeo_driver.dry_run import ProcessType
+from openeo_driver.dry_run import ProcessType, DryRunDataTracer
 from openeo_driver.dummy import dummy_backend
 from openeo_driver.dummy.dummy_backend import DummyVisitor
 from openeo_driver.errors import (
@@ -4308,13 +4308,13 @@ def test_vector_buffer_returns_error_on_empty_result_geometry(api):
         (None, None, None),
         # request_costs override
         (
-            lambda user, request_id, success, job_options: 1234 + isinstance(user, User),
+            lambda user, job_options, request_id, success, process_graph, tracer: 1234 + isinstance(user, User),
             None,
             "1235",
         ),
         # Extra job options handling
         (
-            lambda user, request_id, success, job_options: 1234 * job_options.get("extra", 0),
+            lambda user, job_options, request_id, success, process_graph, tracer: 1234 * job_options.get("extra", 0),
             {"extra": 2},
             "2468",
         ),
@@ -4363,6 +4363,8 @@ def test_synchronous_processing_request_costs(
         job_options=job_options,
         success=success,
         request_id="r-abc123",
+        process_graph=pg,
+        tracer=dirty_equals.IsInstance(DryRunDataTracer),
     )
 
 
