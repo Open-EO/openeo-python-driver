@@ -1136,7 +1136,7 @@ def register_views_batch_jobs(
                     expires = signer.get_expires()
                     secure_key = signer.sign_job_results(job_id=job_id, user_id=user_id, expires=expires)
                     user_base64 = user_id_b64_encode(user_id)
-                    asset_name = child_link["href"][child_link["href"].rindex("/")]
+                    asset_name = child_link["href"][child_link["href"].rindex("/") + 1 :]
                     child_link["href"] = url_for(
                         ".download_job_result",
                         job_id=job_id,
