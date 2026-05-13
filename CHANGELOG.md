@@ -19,7 +19,12 @@ and start a new "In Progress" section above it.
 
 <!-- start-of-changelog -->
 
-## In progress: 0.139.0
+## In progress: 0.140.0
+
+- Include `job_options` as top-level properties in `GET /jobs/{job_id}` response ([#470](https://github.com/Open-EO/openeo-python-driver/issues/470))
+
+
+## 0.139.0
 
 - Initial support for `/collections/<collection_id>/queryables` ([Open-EO/openeo-geopyspark-driver#536](https://github.com/Open-EO/openeo-geopyspark-driver/issues/536))
 - Added `/openeo/1.3` endpoint root (non-production-ready for now) to `/.well-known/openeo` ([#454](https://github.com/Open-EO/openeo-python-driver/issues/454), [Open-EO/openeo-api#574](https://github.com/Open-EO/openeo-api/issues/574)
