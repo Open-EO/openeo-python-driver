@@ -19,7 +19,13 @@ and start a new "In Progress" section above it.
 
 <!-- start-of-changelog -->
 
-## In progress: 0.139.0
+## In progress: 0.140.0
+
+- Include `job_options` as top-level properties in `GET /jobs/{job_id}` response ([#470](https://github.com/Open-EO/openeo-python-driver/issues/470))
+- Support logging added value for synchronous requests ([Open-EO/openeo-geopyspark-driver#1436](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1436))
+
+
+## 0.139.0
 
 - Initial support for `/collections/<collection_id>/queryables` ([Open-EO/openeo-geopyspark-driver#536](https://github.com/Open-EO/openeo-geopyspark-driver/issues/536))
 - Added `/openeo/1.3` endpoint root (non-production-ready for now) to `/.well-known/openeo` ([#454](https://github.com/Open-EO/openeo-python-driver/issues/454), [Open-EO/openeo-api#574](https://github.com/Open-EO/openeo-api/issues/574)
@@ -28,7 +34,6 @@ and start a new "In Progress" section above it.
 - Support experimental `corsa_compress_v2` and `corsa_decompress_v2` processes ([Open-EO/openeo-geotrellis-extensions#702](https://github.com/Open-EO/openeo-geotrellis-extensions/issues/702))
 - Dry run: pass through `align` argument of `resample_spatial` operation ([Open-EO/openeo-geopyspark-driver#1662](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1662))
 - `BoundingBox.round_to_resolution()`: add `offset_x` and `offset_y` parameters ([Open-EO/openeo-geopyspark-driver#1662](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1662))
-- Support logging added value for synchronous requests ([Open-EO/openeo-geopyspark-driver#1436](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1436))
 
 
 ## 0.138.0
