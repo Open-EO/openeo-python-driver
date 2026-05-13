@@ -240,7 +240,7 @@ class TestGeneral:
     def test_capabilities_100(self, api100):
         capabilities = api100.get("/").assert_status_code(200).json
         assert capabilities["api_version"] == "1.0.0"
-        assert capabilities["stac_version"] == "0.9.0"
+        assert capabilities["stac_version"] == "1.0.0"
         assert capabilities["title"] == "Dummy openEO Backend"
         assert (
             capabilities["description"]
@@ -1022,7 +1022,7 @@ class TestCollections:
     def test_normalize_collection_metadata_minimal_100(self, caplog):
         assert _normalize_collection_metadata({"id": "foobar"}, api_version=ComparableVersion("1.0.0")) == {
             "id": "foobar",
-            "stac_version": "0.9.0",
+            "stac_version": "1.0.0",
             "stac_extensions": [
                 "https://stac-extensions.github.io/datacube/v2.2.0/schema.json",
                 "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
@@ -1038,7 +1038,7 @@ class TestCollections:
     def test_normalize_collection_metadata_minimal_full_100(self, caplog):
         assert _normalize_collection_metadata({"id": "foobar"}, api_version=ComparableVersion("1.0.0"), full=True) == {
             "id": "foobar",
-            "stac_version": "0.9.0",
+            "stac_version": "1.0.0",
             "stac_extensions": [
                 "https://stac-extensions.github.io/datacube/v2.2.0/schema.json",
                 "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
@@ -1069,7 +1069,7 @@ class TestCollections:
         }
         assert _normalize_collection_metadata(metadata, api_version=ComparableVersion("1.0.0"), full=True) == {
             "id": "foobar",
-            "stac_version": "0.9.0",
+            "stac_version": "1.0.0",
             "stac_extensions": [
                 "https://stac-extensions.github.io/datacube/v2.2.0/schema.json",
                 "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
@@ -1115,7 +1115,7 @@ class TestCollections:
         res = _normalize_collection_metadata(metadata, api_version=ComparableVersion("1.0.0"), full=True)
         assert res == dirty_equals.IsPartialDict(
             id="foobar",
-            stac_version="0.9.0",  # TODO #363
+            stac_version="1.0.0",
             stac_extensions=dirty_equals.Contains(
                 "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
             ),
@@ -1205,7 +1205,7 @@ class TestCollections:
             {"name": "B08", "common_name": "nir"},
         ]
         if api.api_version_compare.at_least("1.0.0"):
-            assert collection["stac_version"] == "0.9.0"
+            assert collection["stac_version"] == "1.0.0"
             assert collection["cube:dimensions"] == cube_dimensions
             assert collection["summaries"]["eo:bands"] == eo_bands
             assert collection["extent"]["spatial"] == {"bbox": [[2.5, 49.5, 6.2, 51.5]]}
@@ -1962,7 +1962,7 @@ class TestBatchJobs:
                     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
                     "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                 ],
-                "stac_version": "0.9.0",
+                "stac_version": "1.0.0",
                 "type": "Feature",
                 "openeo:status": "finished",
             }
@@ -2053,7 +2053,7 @@ class TestBatchJobs:
                     "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                     "https://stac-extensions.github.io/projection/v1.2.0/schema.json",
                 ],
-                "stac_version": "0.9.0",
+                "stac_version": "1.0.0",
                 "type": "Feature",
                 "openeo:status": "finished",
             }
@@ -2408,7 +2408,7 @@ class TestBatchJobs:
                     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
                     "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                 ],
-                "stac_version": "0.9.0",
+                "stac_version": "1.0.0",
                 "type": "Feature",
                 "openeo:status": "finished",
             }
@@ -2692,7 +2692,7 @@ class TestBatchJobs:
                     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
                     "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                 ],
-                "stac_version": "0.9.0",
+                "stac_version": "1.0.0",
                 "type": "Feature",
                 "openeo:status": "finished",
             }
@@ -3922,7 +3922,7 @@ class TestBatchJobs:
         pystac.validation.stac_validator.JsonSchemaSTACValidator().validate(
             stac_dict=resp_data,
             stac_object_type=pystac.STACObjectType.ITEM,
-            stac_version=resp_data.get("stac_version", "0.9.0"),
+            stac_version=resp_data.get("stac_version", "1.0.0"),
             extensions=resp_data.get("stac_extensions", []),
         )
 
@@ -4020,7 +4020,7 @@ class TestBatchJobs:
         pystac.validation.stac_validator.JsonSchemaSTACValidator().validate(
             stac_dict=resp_data,
             stac_object_type=pystac.STACObjectType.ITEM,
-            stac_version=resp_data.get("stac_version", "0.9.0"),
+            stac_version=resp_data.get("stac_version", "1.0.0"),
             extensions=resp_data.get("stac_extensions", []),
         )
 
@@ -4085,7 +4085,7 @@ class TestBatchJobs:
         pystac.validation.stac_validator.JsonSchemaSTACValidator().validate(
             stac_dict=resp_data,
             stac_object_type=pystac.STACObjectType.ITEM,
-            stac_version=resp_data.get("stac_version", "0.9.0"),
+            stac_version=resp_data.get("stac_version", "1.0.0"),
             extensions=resp_data.get("stac_extensions", []),
         )
 
