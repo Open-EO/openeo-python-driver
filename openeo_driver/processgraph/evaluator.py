@@ -116,7 +116,9 @@ def evaluate(
     env = env.push({ENV_FINAL_RESULT: [None], ENV_MAX_BUFFER: {}})
 
     if do_dry_run:
-        dry_run_tracer = do_dry_run if isinstance(do_dry_run, DryRunDataTracer) else DryRunDataTracer()
+        dry_run_tracer = (
+            env.get("retteketet") or do_dry_run if isinstance(do_dry_run, DryRunDataTracer) else DryRunDataTracer()
+        )
         _log.info("Doing dry run")
         dry_run_env = env.push(
             {

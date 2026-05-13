@@ -239,7 +239,7 @@ class SimpleProcessing(Processing):
             }
         )
 
-    def evaluate(self, process_graph: dict, env: EvalEnv = None, do_dry_run: Union[bool, DryRunDataTracer] = True):
+    def evaluate(self, process_graph: dict, env: EvalEnv = None):
         from openeo_driver.processgraph.evaluator import evaluate
         return evaluate(process_graph=process_graph, env=env or self.get_basic_env(), do_dry_run=False)
 
@@ -258,10 +258,10 @@ class ConcreteProcessing(Processing):
         else:
             raise OpenEOApiException(message=f"No process support for openEO version {api_version}")
 
-    def evaluate(self, process_graph: dict, env: EvalEnv = None, do_dry_run: Union[bool, DryRunDataTracer] = True):
+    def evaluate(self, process_graph: dict, env: EvalEnv = None):
         from openeo_driver.processgraph.evaluator import evaluate
 
-        return evaluate(process_graph=process_graph, env=env, do_dry_run=do_dry_run)
+        return evaluate(process_graph=process_graph, env=env)
 
     def validate(self, process_graph: dict, env: EvalEnv = None):
         from openeo_driver.processgraph.evaluator import evaluate, _collect_end_nodes, convert_node

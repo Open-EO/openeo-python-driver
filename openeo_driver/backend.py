@@ -787,7 +787,7 @@ class Processing(MicroService):
     def get_process_registry(self, api_version: Union[str, ComparableVersion]) -> ProcessRegistry:
         raise NotImplementedError
 
-    def evaluate(self, process_graph: dict, env: EvalEnv = None, do_dry_run: Union[bool, DryRunDataTracer] = True):
+    def evaluate(self, process_graph: dict, env: EvalEnv = None):
         """Evaluate given process graph (flat dict format)."""
         raise NotImplementedError
 

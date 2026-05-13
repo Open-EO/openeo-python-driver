@@ -727,6 +727,7 @@ def register_views_processing(
         )
 
         tracer = DryRunDataTracer()
+        env = env.push({"retteketet": tracer})
 
         request_costs = functools.partial(
             backend_implementation.request_costs,
@@ -738,9 +739,7 @@ def register_views_processing(
         )
 
         try:
-            result = backend_implementation.processing.evaluate(
-                process_graph=copy.deepcopy(process_graph), env=env, do_dry_run=tracer
-            )
+            result = backend_implementation.processing.evaluate(process_graph=copy.deepcopy(process_graph), env=env)
 
             _log.info(f"`POST /result`: {type(result)}")
 
