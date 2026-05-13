@@ -13,7 +13,6 @@ from openeo.util import load_json
 from openeo.utils.version import ComparableVersion
 
 from openeo_driver.backend import OpenEoBackendImplementation, Processing
-from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.processes import DEFAULT_NAMESPACE, ProcessArgs, ProcessRegistry, ProcessSpec
 from openeo_driver.specs import SPECS_ROOT
@@ -260,7 +259,6 @@ class ConcreteProcessing(Processing):
 
     def evaluate(self, process_graph: dict, env: EvalEnv = None):
         from openeo_driver.processgraph.evaluator import evaluate
-
         return evaluate(process_graph=process_graph, env=env)
 
     def validate(self, process_graph: dict, env: EvalEnv = None):
@@ -306,3 +304,5 @@ class ConcreteProcessing(Processing):
 
     def extra_validation(self, process_graph, env, result, source_constraints):
         return []
+
+
