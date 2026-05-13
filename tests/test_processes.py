@@ -1,9 +1,8 @@
 import logging
-
 import re
 
-import pytest
 import dirty_equals
+import pytest
 
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.errors import (
@@ -13,8 +12,6 @@ from openeo_driver.errors import (
     ProcessUnsupportedException,
 )
 from openeo_driver.processes import ProcessArgs, ProcessRegistry, ProcessRegistryException, ProcessSpec
-
-
 
 
 def test_process_spec_basic_100():
@@ -430,6 +427,10 @@ class TestProcessArgs:
     def test_dict(self):
         args = ProcessArgs({"foo": "bar"}, process_id="wibble")
         assert isinstance(args, dict)
+
+    def test_as_dict(self):
+        args = ProcessArgs({"foo": "bar"}, process_id="wibble")
+        assert args.as_dict() == {"foo": "bar"}
 
     def test_contains(self):
         args = ProcessArgs({"foo": "bar"}, process_id="wibble")

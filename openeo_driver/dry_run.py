@@ -15,7 +15,11 @@ The architecture consists of these classes:
 - DataTrace: starts from a `load_collection`, `load_stac` or other source process
     and records what happens to this single data source (filter_temporal, filter_bbox, ...)
 - DryRunDataTracer: observer that keeps track of all data traces during a dry run
-- DryRunDataCube: dummy data cube that is passed around durin (dry-run) processing
+- DryRunDataCube: dummy data cube that is passed around during (dry-run) processing
+- PropagationRule: declarative rule describing how a constraint propagates from leaf
+    operations back to the source (inspired by rule-based query optimizers like Catalyst/Calcite).
+    A set of PROPAGATION_RULES drives the constraint extraction in
+    DryRunDataTracer.get_source_constraints().
 
 Their relationship is as follows:
 - There is a single DryRunDataTracer for a dry-run, keeping track of all relevant operations on all sources
@@ -36,9 +40,11 @@ These source constraints can then be fetched from the EvalEnv at `load_collectio
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass, field
 from enum import Enum
 from functools import lru_cache
-from typing import List, Optional, Tuple, Union, Iterator
+from typing import Callable, List, Optional, Tuple, Union, Iterator
+import typing
 
 import numpy
 import shapely.geometry.base
@@ -59,6 +65,7 @@ import shapely.ops
 
 from openeo.utils.normalize import normalize_resample_resolution
 from openeo_driver import filter_properties
+from openeo_driver.constants import RESAMPLE_SPATIAL_ALIGN_DEFAULT
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs
 from openeo_driver.delayed_vector import DelayedVector
@@ -73,34 +80,114 @@ from openeo_driver.utils import EvalEnv, to_hashable
 
 _log = logging.getLogger(__name__)
 
-source_constraint_blockers = {
-    "bands": [
-        "sar_backscatter",
-        "atmospheric_correction",
-        "mask_scl_dilation",
-        "resolution_merge",
-        "custom_cloud_mask",
-        "apply_neighborhood",
-        "reduce_dimension",
-        "merge_cubes",
-    ],
-    "spatial_extent": [],
-    "temporal_extent": [],
-    "resample": [
-        "apply_kernel",
-        "reduce_dimension",
-        "apply",
-        "apply_dimension",
-        "resample_spatial",
-        "apply_neighborhood",
-        "reduce_dimension_binary",
-    ],
-}
+
+@dataclass
+class PropagationRule:
+    """
+    Declarative rule describing how a constraint propagates from leaf operations back to the source,
+    inspired by rule-based query optimizers (Catalyst, Calcite).
+
+    Fields:
+    - constraint_key: the key under which the extracted value is stored in the constraints dict
+    - operations: operation names whose arguments are collected (in parent→child order)
+    - blockers: operations that block pushdown — when a blocker is found closest to source,
+                only the subgraph up to (and including) that blocker node is searched for the
+                constraint operation. If the constraint operation does not appear in that
+                pre-blocker subgraph, the constraint is excluded.
+    - extractor: optional callable (operation_name, args) -> value; when None, args are used as-is
+    """
+
+    constraint_key: str
+    operations: List[str]
+    blockers: List[str] = field(default_factory=list)
+    extractor: Optional[Callable[[str, Union[dict, tuple]], Optional[dict]]] = None
+
+
+def _extract_resample_constraint(operation_name: str, args: Union[dict, tuple]) -> Optional[dict]:
+    """Extractor for resample_cube_spatial and resample_spatial constraints."""
+    if operation_name == "resample_cube_spatial":
+        target = args["target"]
+        method = args["method"]
+        metadata: CollectionMetadata = target.metadata
+        spatial_dim = metadata.spatial_dimensions[0]
+        resolutions = tuple(dim.step for dim in metadata.spatial_dimensions if dim.step is not None)
+        if len(resolutions) > 0 and spatial_dim.crs is not None:
+            return {"target_crs": spatial_dim.crs, "resolution": resolutions, "method": method}
+        return None
+    elif operation_name == "resample_spatial":
+        resolution = normalize_resample_resolution(args["resolution"])
+        projection = args["projection"]
+        method = args.get("method", "near")
+        align = args.get("align", RESAMPLE_SPATIAL_ALIGN_DEFAULT)
+        if method != "geocode":
+            return {
+                "target_crs": projection,
+                "resolution": resolution,
+                "method": method,
+                "align": align,
+            }
+        return None
+
+
+PROPAGATION_RULES: List[PropagationRule] = [
+    PropagationRule("temporal_extent", operations=["temporal_extent"]),
+    PropagationRule("spatial_extent", operations=["spatial_extent"]),
+    PropagationRule("weak_spatial_extent", operations=["weak_spatial_extent"]),
+    PropagationRule(
+        "bands",
+        operations=["bands"],
+        blockers=[
+            "sar_backscatter",
+            "atmospheric_correction",
+            "mask_scl_dilation",
+            "resolution_merge",
+            "custom_cloud_mask",
+            "apply_neighborhood",
+            "reduce_dimension",
+            "merge_cubes",
+        ],
+    ),
+    PropagationRule("aggregate_spatial", operations=["aggregate_spatial"]),
+    PropagationRule("sar_backscatter", operations=["sar_backscatter"]),
+    PropagationRule("process_type", operations=["process_type"]),
+    PropagationRule("custom_cloud_mask", operations=["custom_cloud_mask"]),
+    PropagationRule("properties", operations=["properties"]),
+    PropagationRule("filter_spatial", operations=["filter_spatial"]),
+    PropagationRule("filter_labels", operations=["filter_labels"]),
+    PropagationRule(
+        "pixel_buffer",
+        operations=["pixel_buffer"],
+        extractor=lambda op, args: {"buffer_size": args["buffer_size"]},
+    ),
+    PropagationRule(
+        # TODO: rename to "resample_spatial" for clarity and alignment with the spec
+        "resample",
+        operations=["resample_cube_spatial", "resample_spatial"],
+        blockers=[
+            "apply_kernel",
+            "reduce_dimension",
+            "apply",
+            "apply_dimension",
+            "apply_neighborhood",
+            "reduce_dimension_binary",
+            "mask",
+            "to_scl_dilation_mask",
+            "corsa_compress",
+            "predict_onnx",
+        ],
+        extractor=_extract_resample_constraint,
+    ),
+]
 
 
 # Type annotations for source constraints
+class SourceId(typing.NamedTuple):
+    process_id: str
+    arguments: tuple
+    pg_node_id: Union[str, None] = None
+
+
 # TODO encapsulate in real classes?
-SourceId = Tuple[str, tuple]
 SourceConstraint = Tuple[SourceId, dict]
 
 
@@ -146,19 +233,28 @@ class DataTraceBase:
 class DataSource(DataTraceBase):
     """Data source: a data (cube) generating process like `load_collection`, `load_stac`, ..."""
 
-    __slots__ = ["_process", "_arguments"]
+    __slots__ = ["_process", "_arguments", "_pg_node_id"]
 
-    def __init__(self, process: str = "load_collection", arguments: Union[dict, tuple] = ()):
+    def __init__(
+        self, process: str = "load_collection", arguments: Union[dict, tuple] = (), pg_node_id: Optional[str] = None
+    ):
         super().__init__()
         self._process = process
+        # TODO: still necessary to track `arguments` now that we have pg_node_id?
         self._arguments = arguments
+        self._pg_node_id = pg_node_id
 
     def get_source(self) -> "DataSource":
         return self
 
     def get_source_id(self) -> SourceId:
         """Identifier for source (hashable tuple, to be used as dict key for example)."""
-        return to_hashable((self._process, self._arguments))
+        # TODO: still necessary to have `arguments` in source id now that we have pg_node_id?
+        return SourceId(
+            process_id=self._process,
+            arguments=to_hashable(self._arguments),
+            pg_node_id=self._pg_node_id,
+        )
 
     def get_operation_closest_to_source(self, operations: Union[str, List[str]]) -> Union["DataTraceBase", None]:
         if not isinstance(operations, list):
@@ -167,27 +263,27 @@ class DataSource(DataTraceBase):
             return self
 
     def __repr__(self):
-        return "<{c}#{i}({p!r}, {a!r})>".format(
-            c=self.__class__.__name__, i=id(self), p=self._process, a=self._arguments
-        )
+        return f"<{self.__class__.__name__}#{self._pg_node_id}({self._process!r}, {self._arguments!r})>"
 
     def describe(self) -> str:
         return self._process
 
     @classmethod
-    def load_collection(cls, collection_id, properties={}, bands=[], env=EvalEnv()) -> "DataSource":
+    def load_collection(
+        cls, collection_id, *, properties={}, bands=[], env=EvalEnv(), pg_node_id: Optional[str] = None
+    ) -> "DataSource":
         """Factory for a `load_collection` DataSource."""
         exact_property_matches = {
             property_name: filter_properties.extract_literal_match(condition, env)
             for property_name, condition in properties.items()
         }
-
+        # TODO: still need for properties/bands hacks for caching reasons now that there is pg_node_id?
         args = (
             (collection_id, exact_property_matches, bands)
             if len(bands) > 0
             else (collection_id, exact_property_matches)
         )
-        return cls(process="load_collection", arguments=args)
+        return cls(process="load_collection", arguments=args, pg_node_id=pg_node_id)
 
     @classmethod
     def load_uploaded_files(cls, paths: List[str], format: str, options: dict) -> "DataSource":
@@ -200,14 +296,16 @@ class DataSource(DataTraceBase):
         return cls(process="load_result", arguments=(job_id,))
 
     @classmethod
-    def load_stac(cls, url: str, properties={}, bands=[], env=EvalEnv()) -> "DataSource":
+    def load_stac(
+        cls, url: str, *, properties={}, bands=[], env=EvalEnv(), pg_node_id: Optional[str] = None
+    ) -> "DataSource":
         """Factory for a `load_stac` DataSource."""
         exact_property_matches = {
             property_name: filter_properties.extract_literal_match(condition, env)
             for property_name, condition in properties.items()
         }
 
-        return cls(process="load_stac", arguments=(url, exact_property_matches, bands))
+        return cls(process="load_stac", arguments=(url, exact_property_matches, bands), pg_node_id=pg_node_id)
 
 
 class DataTrace(DataTraceBase):
@@ -279,7 +377,13 @@ class DryRunDataTracer:
         return [self.add_trace(DataTrace(parent=t, operation=operation, arguments=arguments)) for t in traces]
 
     def load_collection(
-        self, collection_id: str, arguments: dict, metadata: dict = None, env: EvalEnv = EvalEnv()
+        self,
+        collection_id: str,
+        *,
+        arguments: dict,
+        metadata: dict = None,
+        env: EvalEnv = EvalEnv(),
+        pg_node_id: Optional[str] = None,
     ) -> "DryRunDataCube":
         """Create a DryRunDataCube from a `load_collection` process."""
         metadata = CollectionMetadata(metadata=metadata)
@@ -290,7 +394,11 @@ class DryRunDataTracer:
         }
 
         trace = DataSource.load_collection(
-            collection_id=collection_id, properties=properties, bands=arguments.get("bands", []), env=env
+            collection_id=collection_id,
+            properties=properties,
+            bands=arguments.get("bands", []),
+            env=env,
+            pg_node_id=pg_node_id,
         )
         self.add_trace(trace)
 
@@ -356,11 +464,14 @@ class DryRunDataTracer:
                 ]
             )
 
-
-    def load_stac(self, url: str, arguments: dict, env: EvalEnv = EvalEnv()) -> "DryRunDataCube":
+    def load_stac(
+        self, url: str, *, arguments: dict, env: EvalEnv = EvalEnv(), pg_node_id: Optional[str] = None
+    ) -> "DryRunDataCube":
         properties = arguments.get("properties", {})
 
-        trace = DataSource.load_stac(url=url, properties=properties, bands=arguments.get("bands", []), env=env)
+        trace = DataSource.load_stac(
+            url=url, properties=properties, bands=arguments.get("bands", []), env=env, pg_node_id=pg_node_id
+        )
         self.add_trace(trace)
 
         metadata = DryRunDataTracer._stac_metadata(stac_ref=url)
@@ -415,91 +526,29 @@ class DryRunDataTracer:
         source_constraints = []
         for leaf in self.get_trace_leaves():
             constraints = {}
-            pixel_buffer_op = leaf.get_operation_closest_to_source(["pixel_buffer"])
-            if pixel_buffer_op:
-                args = pixel_buffer_op.get_arguments_by_operation("pixel_buffer")
-                if args:
-                    buffer_size = args[0]["buffer_size"]
-                    constraints["pixel_buffer"] = {"buffer_size": buffer_size}
 
-            resampling_op = leaf.get_operation_closest_to_source(["resample_cube_spatial", "resample_spatial"])
-            if resampling_op:
-                resample_valid = True
-                # the resampling parameters can be taken into account during load_collection,
-                # under the condition that no operations occur in between that may be affected
-                for op in [
-                    "apply_kernel",
-                    "reduce_dimension",
-                    "apply",
-                    "apply_dimension",
-                    "apply_neighborhood",
-                    "reduce_dimension_binary",
-                    "mask",
-                    "to_scl_dilation_mask",
-                    "corsa_compress",
-                    "predict_onnx",
-                ]:
-                    args = resampling_op.get_arguments_by_operation(op)
-                    if args:
-                        resample_valid = False
-                        break
-                if resample_valid:
-                    args = resampling_op.get_arguments_by_operation("resample_cube_spatial")
-                    if args:
-                        target = args[0]["target"]
-                        method = args[0]["method"]
-                        metadata: CollectionMetadata = target.metadata
-                        spatial_dim = metadata.spatial_dimensions[0]
-                        # TODO: derive resolution from openeo:gsd instead (see openeo-geopyspark-driver)
-                        resolutions = tuple(dim.step for dim in metadata.spatial_dimensions if dim.step is not None)
-                        if len(resolutions) > 0 and spatial_dim.crs is not None:
-                            constraints["resample"] = {
-                                "target_crs": spatial_dim.crs,
-                                "resolution": resolutions,
-                                "method": method,
-                            }
-                    args = resampling_op.get_arguments_by_operation("resample_spatial")
-                    if args:
-                        resolution = normalize_resample_resolution(args[0]["resolution"])
-                        projection = args[0]["projection"]
-                        method = args[0].get("method", "near")
-                        if method != "geocode":
-                            constraints["resample"] = {"target_crs": projection, "resolution": resolution, "method": method}
+            for rule in PROPAGATION_RULES:
+                # Standard pushdown: trim the leaf at the first blocker closest to source
+                effective_leaf = leaf
+                if rule.blockers:
+                    blocker_node = leaf.get_operation_closest_to_source(rule.blockers)
+                    if blocker_node is not None:
+                        effective_leaf = blocker_node
 
-            for op in [
-                "temporal_extent",
-                "spatial_extent",
-                "weak_spatial_extent",
-                "bands",
-                "aggregate_spatial",
-                "sar_backscatter",
-                "process_type",
-                "custom_cloud_mask",
-                "properties",
-                "filter_spatial",
-                "filter_labels",
-            ]:
-                # 1 some processes can not be skipped when pushing filters down,
-                # so find the subgraph that no longer contains these blockers
-                leaf_without_blockers = leaf
-                if op in source_constraint_blockers:
-                    subgraph_without_blocking_processes = leaf.get_operation_closest_to_source(
-                        source_constraint_blockers[op]
-                    )
-                    if subgraph_without_blocking_processes is not None:
-                        leaf_without_blockers = subgraph_without_blocking_processes
-
-                # 2 merge filtering arguments
-                if leaf_without_blockers is not None:
-                    args = leaf_without_blockers.get_arguments_by_operation(op)
-                    if args:
-                        if merge:
-                            # Take first item (to reproduce original behavior)
-                            # TODO: take temporal/spatial/categorical intersection instead?
-                            #       see https://github.com/Open-EO/openeo-processes/issues/201
-                            constraints[op] = args[0]
-                        else:
-                            constraints[op] = args
+                for op in rule.operations:
+                    args_list = effective_leaf.get_arguments_by_operation(op)
+                    if not args_list:
+                        continue
+                    target_args = args_list[:1] if merge else args_list
+                    if rule.extractor:
+                        for a in target_args:
+                            value = rule.extractor(op, a)
+                            if value is not None:
+                                constraints[rule.constraint_key] = value
+                                break
+                    else:
+                        constraints[rule.constraint_key] = target_args[0] if merge else target_args
+                    break  # first matching operation wins (mirrors original per-op priority)
 
             if "weak_spatial_extent" in constraints:
                 if "spatial_extent" not in constraints:
@@ -600,7 +649,7 @@ class DryRunDataCube(DriverDataCube):
 
     def save_result(self, filename: str, format: str, format_options: dict = None) -> str:
         # TODO: this method should be deprecated (limited to single asset) in favor of write_assets (supports multiple assets)
-        return self._process("save_result", {"format": format, "options": format_options})
+        return self
 
     def filter_labels(
         self, condition: dict, dimension: str, context: Optional[dict] = None, env: EvalEnv = None
@@ -629,7 +678,7 @@ class DryRunDataCube(DriverDataCube):
         if not inside and replacement is None:
             mask, bbox = cube._normalize_geometry(mask)
             cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
-        return cube._process(operation="mask_polygon", arguments={"mask": mask})
+        return cube
 
     def aggregate_spatial(
         self,
@@ -740,15 +789,12 @@ class DryRunDataCube(DriverDataCube):
             operation="raster_to_vector", arguments={}, metadata=CollectionMetadata(metadata={}, dimensions=dimensions)
         )
 
-    def run_udf(self):
-        return self._process(operation="run_udf", arguments={})
-
     def resample_spatial(
         self,
         resolution: Union[float, Tuple[float, float]],
         projection: Union[int, str] = None,
         method: str = "near",
-        align: str = "upper-left",
+        align: str = RESAMPLE_SPATIAL_ALIGN_DEFAULT,
     ):
         return self._process(
             "resample_spatial",
@@ -812,7 +858,7 @@ class DryRunDataCube(DriverDataCube):
         # TODO #71 #114 Deprecate/avoid usage of GeometryCollection
         geometries, bbox = self._normalize_geometry(GeometryCollection(polygons))
         cube = self.filter_bbox(**bbox, operation="weak_spatial_extent")
-        return cube._process("chunk_polygon", arguments={"geometries": geometries})
+        return cube
 
     def add_dimension(self, name: str, label, type: str = "other") -> "DryRunDataCube":
         try:
@@ -936,10 +982,6 @@ class DryRunDataCube(DriverDataCube):
         # TODO: adapt metadata (bands level_0 and level_1) ?
         return self._process("corsa_compress", {})
 
-    def corsa_decompress(self):
-        # TODO: adapt metadata (bands B02 etc) ?
-        return self._process("corsa_decompress", {})
-
     def mask_l1c(self) -> "DriverDataCube":
         return self._process("custom_cloud_mask", arguments={"method": "mask_l1c"})
 
@@ -948,19 +990,18 @@ class DryRunDataCube(DriverDataCube):
         return self
 
     def predict_onnx(self, model):
-        return self._process("predict_onnx",arguments={"model":model})
+        return self._process("predict_onnx", arguments={"model": model})
 
-    def convert_data_type(self, data_type:str):
-        return self._process("convert_data_type", arguments={"data_type":data_type})
-
-    def aspect(self):
-        return self._process("aspect", arguments={})
-
-    def slope(self):
-        return self._process("slope", arguments={})
     # TODO: some methods need metadata manipulation?
 
     apply_tiles = _nop
+    run_udf = _nop
+    convert_data_type = _nop
+    aspect = _nop
+    slope = _nop
+    corsa_decompress = _nop
+    corsa_compress_v2 = _nop  # TODO: see remark in corsa_compress
+    corsa_decompress_v2 = _nop  # TODO: see remark in corsa_compress
 
     reduce = _nop
     aggregate_temporal = _nop

@@ -42,7 +42,6 @@ from openeo_driver.backend import (
     OpenEoBackendImplementation,
     ServiceMetadata,
     UserDefinedProcessMetadata,
-    function_has_argument,
     is_not_implemented,
     QueryablesListing,
 )
@@ -75,6 +74,7 @@ from openeo_driver.processgraph import ProcessGraphFlatDict, extract_default_job
 from openeo_driver.save_result import SaveResult, to_save_result
 from openeo_driver.users import User, user_id_b64_decode, user_id_b64_encode
 from openeo_driver.users.auth import HttpAuthHandler
+from openeo_driver.util.compat import function_has_argument
 from openeo_driver.util.geometry import BoundingBox, reproject_geometry
 from openeo_driver.util.logging import ExtraLoggingFilter, FlaskRequestCorrelationIdLogging
 from openeo_driver.util.stac import sniff_stac_extension_prefix
@@ -320,12 +320,6 @@ def register_error_handlers(app: flask.Flask, backend_implementation: OpenEoBack
     def handle_openeoapi_exception(error: OpenEOApiException, log_message: Optional[str] = None):
         """Error handler for OpenEOApiException"""
         _log.error(log_message or repr(error), extra={"openeo_error_code": error.code}, exc_info=True)
-        # most_recent_exception = sys.exc_info()[1]
-        # fmt = Format(max_value_str_len=1000)
-        # _log.error(
-        #     "Sync request error stack trace with locals",
-        #     extra={"exc_info_with_locals": format_exc(most_recent_exception, fmt=fmt)},
-        # )
         error_dict = error.to_dict()
         return jsonify(error_dict), error.status_code
 
@@ -763,7 +757,6 @@ def register_views_processing(
             raise
 
         # Add request id as "OpenEO-Identifier" like we do for batch jobs.
-        # TODO: follow-up standardization at https://github.com/Open-EO/openeo-api/pull/533
         response.headers["OpenEO-Identifier"] = request_id
 
         return response
@@ -1132,7 +1125,29 @@ def register_views_batch_jobs(
         #   This is a bit of an ugly temporary hack, to aid in testing and comparing.
         TREAT_JOB_RESULTS_V100_LIKE_V110 = smart_bool(os.environ.get("TREAT_JOB_RESULTS_V100_LIKE_V110", "0"))
 
-        links: List[dict] = result_metadata.links or job_info.links or []
+        links: List[dict] = list(result_metadata.links or job_info.links or [])
+
+        try:
+            # TODO: Cleanup
+            child_link = next((l for l in links if l.get("rel") == "child"), None)
+            if child_link:
+                signer = get_backend_config().url_signer
+                if signer:
+                    expires = signer.get_expires()
+                    secure_key = signer.sign_job_results(job_id=job_id, user_id=user_id, expires=expires)
+                    user_base64 = user_id_b64_encode(user_id)
+                    asset_name = child_link["href"][child_link["href"].rindex("/") + 1 :]
+                    child_link["href"] = url_for(
+                        ".download_job_result",
+                        job_id=job_id,
+                        user_base64=user_base64,
+                        filename=asset_name,
+                        expires=expires,
+                        secure_key=secure_key,
+                        _external=True,
+                    )
+        except Exception as e:
+            _log.warning("Error when making URL for child link: " + str(e))
 
         if not any(l.get("rel") == "self" for l in links):
             links.append(
@@ -1283,6 +1298,8 @@ def register_views_batch_jobs(
                         )
                 stac_version = "1.0.0"
 
+            links = [_normalize_job_result_link(link=k, job_id=job_id, user_id=user_id) for k in links]
+
             result = dict_no_none(
                 {
                     "type": "Collection",
@@ -1373,9 +1390,11 @@ def register_views_batch_jobs(
                 message=f"Unsupported Range unit {request.range.units}; supported is: bytes"
             )
 
+        assert backend_implementation.batch_jobs  # for type checker
         result_metadata = backend_implementation.batch_jobs.get_result_metadata(
             job_id=job_id, user_id=user_id
         )
+        result: Optional[dict] = None
         if result_metadata.items:
             result = None
             for item_key, item in result_metadata.items.items():
@@ -1393,32 +1412,20 @@ def register_views_batch_jobs(
             if filename in results.keys():
                 result = results[filename]
             else:
-                result = None
                 for link in result_metadata.links:
-                    if link["rel"] != "child":
+                    if link.get("rel") != "child":
                         continue
-                    try:
-                        if (".." in filename) or ("%" in filename) or ("$" in filename) or ("|" in filename):
-                            # Should not be a problem, but just in case.
-                            raise FilePathInvalidException(f"Invalid file path: {filename}")
-                        # Some things might break with s3 links, try-catch to be sure.
-                        file_paths = get_files_from_stac_catalog(link["href"], include_metadata=True)
-                        for file_path in file_paths:
-                            # TODO: Clean up this logic
-                            if file_path.endswith(filename):
-                                result = {
-                                    "output_dir": file_path[: -len(filename)],
-                                    "href": file_path,
-                                }
-                                break
-                        if not result:
-                            raise FilePathInvalidException(
-                                f"{filename!r} not in {list(results.keys())}, nor in {file_paths}"
-                            )
-                    except Exception as e:
-                        _log.warning(f"Could not get file paths from {link['href']}: {e}")
+                    file_paths = get_files_from_stac_catalog(link["href"], include_metadata=True, relative_paths=True)
+                    _log.info("file_paths: " + repr(file_paths))
+                    link_root = os.path.dirname(link["href"])
+                    if filename in file_paths:
+                        result = {
+                            "output_dir": link_root,
+                            "href": filename,
+                        }
                 if not result:
-                    raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}")
+                    raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}, nor in child links.")
+        assert result  # for type checker
         if result.get("href", "").startswith("s3://"):
             return _stream_from_s3(
                 result["href"], filename=filename, mimetype=result.get("type"), bytes_range=request.headers.get("Range")
@@ -1614,7 +1621,7 @@ def register_views_batch_jobs(
         resp.mimetype = stac_item_media_type
         return resp
 
-    def _auxiliary_link(exposable_link: dict, job_id: str, user_id: str) -> dict:
+    def _auxiliary_link(exposable_link: dict, *, job_id: str, user_id: str) -> dict:
         auxiliary_filename = urlparse(exposable_link["href"]).path.split("/")[-1]  # TODO: assumes file is not nested
 
         if exposable_link["href"].startswith("s3://"):
@@ -1652,6 +1659,12 @@ def register_views_batch_jobs(
             type=exposable_link.get("type"),
         )
 
+    def _normalize_job_result_link(link: dict, *, job_id: str, user_id: str) -> dict:
+        if link.get(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY, False):
+            link = _auxiliary_link(exposable_link=link, job_id=job_id, user_id=user_id)
+
+        return link
+
     @blueprint.route("/jobs/<job_id>/results/aux/<user_base64>/<secure_key>/<filename>", methods=["GET"])
     def download_job_auxiliary_file_signed(job_id, user_base64, secure_key, filename):
         expires = request.args.get("expires")
@@ -1670,18 +1683,21 @@ def register_views_batch_jobs(
     def _download_job_auxiliary_file(job_id, filename, user_id):
         result_metadata = backend_implementation.batch_jobs.get_result_metadata(job_id=job_id, user_id=user_id)
 
-        auxiliary_links = [
+        links = [
+            link for item in result_metadata.items.values() for link in item.get("links", [])
+        ] + result_metadata.links
+
+        matching_auxiliary_links = [
             link
-            for item in result_metadata.items.values()
-            for link in item.get("links", [])
+            for link in links
             if link.get(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY, False) and link["href"].endswith(f"/{filename}")
         ]
 
-        if not auxiliary_links:
-            _log.debug(f"could not find auxiliary links in {result_metadata}")
+        if not len(matching_auxiliary_links) == 1:
+            _log.debug(f"Failed to match single auxiliary link: {matching_auxiliary_links=} from {result_metadata=}")
             raise FilePathInvalidException(f"invalid file {filename!r}")
 
-        auxiliary_link = auxiliary_links[0]
+        auxiliary_link = matching_auxiliary_links[0]
         uri_parts = urlparse(auxiliary_link["href"])
 
         # S3 URIs are handled by s3proxy
@@ -2171,6 +2187,9 @@ def _normalize_collection_metadata(metadata: dict, api_version: ComparableVersio
     # Make copy and remove all "private" fields
     metadata = copy.deepcopy(metadata)
     metadata = {k: v for (k, v) in metadata.items() if not k.startswith('_')}
+    # Remove fields that should not be exposed in the API
+    _exclude_fields = {"assets", "item_assets", "auth:schemes", "storage:schemes"}
+    metadata = {k: v for (k, v) in metadata.items() if k not in _exclude_fields}
     default_bbox = [0, 0, 0, 0]
     default_temporal_interval = [None, None]
 

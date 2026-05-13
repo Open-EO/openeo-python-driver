@@ -1,20 +1,26 @@
+import inspect
 import itertools
-
 import math
-import pytest
+from typing import Union
 
+import pytest
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 from openeo.rest.datacube import DataCube, PGNode
+
+import openeo_driver.ProcessGraphDeserializer
+from openeo_driver.dummy.dummy_backend import DummyBackendImplementation, DummyProcessing, DummyProcessRegistry
+from openeo_driver.errors import ProcessParameterRequiredException, ProcessUnsupportedException
+from openeo_driver.processes import ProcessArgs, ProcessRegistry
 from openeo_driver.ProcessGraphDeserializer import (
-    _period_to_intervals,
     SimpleProcessing,
-    flatten_children_node_types,
-    flatten_children_node_names,
+    _add_standard_processes,
+    _period_to_intervals,
+    _process_function_from_process_graph,
     convert_node,
+    evaluate,
+    flatten_children_node_names,
+    flatten_children_node_types,
 )
-from openeo_driver.dummy.dummy_backend import DummyProcessing, DummyBackendImplementation, DummyProcessRegistry
-from openeo_driver.errors import ProcessParameterRequiredException
-from openeo_driver.processes import ProcessArgs
 from openeo_driver.util import UNSET
 from openeo_driver.utils import EvalEnv
 
@@ -287,6 +293,13 @@ class TestConvertNode:
 
         # Register additional processes to play with and inspect caching behavior
         registry.add_process(name="fancy_add", function=fancy_add, spec={"id": "fancy_add"})
+
+        @registry.add_function(spec={"id": "get_node_id"})
+        def get_node_id(args: ProcessArgs, env: EvalEnv) -> Union[str, None]:
+            return args.pg_node_id
+
+        registry.add_hidden(openeo_driver.ProcessGraphDeserializer.collect)
+
         return registry
 
     @pytest.fixture
@@ -329,6 +342,7 @@ class TestConvertNode:
                 "arguments": {"x": 3, "y": 5},
                 "result": True,
                 "result_cache": 8,
+                "_node_id": "add35",
             }
         }
 
@@ -471,3 +485,57 @@ class TestConvertNode:
         result = convert_node(self._preprocess_process_graph(process_graph), env=env)
         assert result == 93
         assert len([m for m in caplog.messages if "node_caching" in m]) == 1
+
+    def test_evaluate_node_id_passing_basic(self, env):
+        process_graph = {
+            "getnodeid007": {
+                "process_id": "get_node_id",
+                "arguments": {"dummy": "foobar"},
+                "result": True,
+            },
+        }
+        result = evaluate(process_graph=process_graph, env=env)
+        assert result == "getnodeid007"
+
+    @pytest.mark.parametrize(
+        ["process_id", "args", "expected"],
+        [
+            ("add", {"x": 3, "y": 5}, 8),
+            ("sum", {"data": [3, 5, 8]}, 16),
+        ],
+    )
+    def test_add_standard_processes(self, process_id, args, expected):
+        process_registry = ProcessRegistry()
+
+        with pytest.raises(ProcessUnsupportedException):
+            _ = process_registry.get_function(process_id)
+
+        _add_standard_processes(process_registry, process_ids=["add", "sum"])
+
+        fun = process_registry.get_function(process_id)
+        assert [(k, p.annotation) for k, p in inspect.signature(fun).parameters.items()] == [
+            ("args", ProcessArgs),
+            ("env", EvalEnv),
+        ]
+        assert fun(args=ProcessArgs(args), env=EvalEnv()) == expected
+
+    def test_process_function_from_process_graph(self, env):
+        process_spec = {
+            "id": "add4",
+            "process_graph": {
+                "add": {
+                    "process_id": "add",
+                    "arguments": {"x": {"from_parameter": "x"}, "y": 4},
+                    "result": True,
+                }
+            },
+            "parameters": [
+                {"name": "x", "schema": {"type": "number"}},
+            ],
+        }
+        add4 = _process_function_from_process_graph(process_spec)
+        assert [(k, p.annotation) for k, p in inspect.signature(add4).parameters.items()] == [
+            ("args", ProcessArgs),
+            ("env", EvalEnv),
+        ]
+        assert add4(args=ProcessArgs({"x": 10}), env=env) == 14

@@ -10,12 +10,12 @@
   },
   "links": [
     {
-      "href": "./openEO_2023-06-01Z.tif.json",
+      "href": "./openEO_2023-06-1or4.tif.json",
       "rel": "item",
       "type": "application/geo+json"
     },
     {
-      "href": "./sub-folder/openEO_2023-06-04Z.tif.json",
+      "href": "./sub-folder/openEO_2023-06-1or4.tif.json",
       "rel": "item",
       "type": "application/geo+json"
     },

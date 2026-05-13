@@ -3445,6 +3445,60 @@ class TestBatchJobs:
 
         assert resp.text == "aux"
 
+    def test_download_job_auxiliary_file_from_toplevel_link(self, api110, tmp_path):
+        """Auxiliary file linked at BatchJobResultMetadata toplevel instead of item/asset level."""
+        job_id = "job-123"
+        job_dir = tmp_path
+        auxiliary_file = job_dir / "aux456.json"
+        auxiliary_file.write_text("Hello aux")
+        link = {
+            "rel": "aux-hello",
+            "href": str(auxiliary_file),
+            "type": "application/json",
+            ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY: True,
+        }
+
+        with self._fresh_job_registry() as job_registry:
+            # TODO: improve cumbersome setup of job (metadata) registry fixtures
+            job_registry[TEST_USER, "job-123"] = BatchJobMetadata(
+                id="job-123", status="finished", created=datetime(2026, 4, 28)
+            )
+            dummy_backend.DummyBatchJobs.set_result_metadata(
+                job_id=job_id,
+                user_id=TEST_USER,
+                metadata=BatchJobResultMetadata(links=[link]),
+            )
+
+        job_results = api110.get(
+            "/jobs/job-123/results",
+            headers=self.AUTH_HEADER,
+        )
+        assert job_results.json == dirty_equals.IsPartialDict(
+            {
+                "id": "job-123",
+                "links": dirty_equals.IsList(
+                    {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/job-123/results/aux/aux456.json",
+                        "rel": "aux-hello",
+                        "type": "application/json",
+                    },
+                    {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/job-123/results",
+                        "rel": "self",
+                        "type": "application/json",
+                    },
+                    length=...,
+                    check_order=False,
+                ),
+            }
+        )
+
+        resp = api110.get(
+            "/jobs/job-123/results/aux/aux456.json",
+            headers=self.AUTH_HEADER,
+        )
+        assert resp.text == "Hello aux"
+
     def test_get_job_results_invalid_job(self, api):
         api.get("/jobs/deadbeef-f00/results", headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
 
@@ -3491,20 +3545,32 @@ class TestBatchJobs:
                 source_folder,
                 str(output_root / "j-26032411111111111111111111111111") + "/",
             )
-            api110.get(
-                "/jobs/j-26032411111111111111111111111111/results/assets/sub-folder/openEO_2023-06-04Z.tif",
-                headers=self.AUTH_HEADER,
-            ).assert_status_code(200)
+            text04 = (
+                api110.get(
+                    "/jobs/j-26032411111111111111111111111111/results/assets/sub-folder/openEO_2023-06-1or4.tif.json",
+                    headers=self.AUTH_HEADER,
+                )
+                .assert_status_code(200)
+                .text
+            )
+            assert "2023-06-01" not in text04
+            assert "2023-06-04" in text04
             api110.get(
                 "/jobs/j-26032411111111111111111111111111/results/assets/collection.json",
                 headers=self.AUTH_HEADER,
             ).assert_status_code(200)
+            text01 = (
+                api110.get(
+                    "/jobs/j-26032411111111111111111111111111/results/assets/openEO_2023-06-1or4.tif.json",
+                    headers=self.AUTH_HEADER,
+                )
+                .assert_status_code(200)
+                .text
+            )
+            assert "2023-06-01" in text01
+            assert "2023-06-04" not in text01
             api110.get(
-                "/jobs/j-26032411111111111111111111111111/results/assets/openEO_2023-06-01Z.tif.json",
-                headers=self.AUTH_HEADER,
-            ).assert_status_code(200)
-            api110.get(
-                "/jobs/j-26032411111111111111111111111111/results/assets/openEO_2023-06-01Z.tif",
+                "/jobs/j-26032411111111111111111111111111/results/assets/openEO_2023-06-1or4.tif",
                 headers=self.AUTH_HEADER,
             ).assert_status_code(200)
 

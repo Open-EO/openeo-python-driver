@@ -24,6 +24,7 @@ from openeo_driver.dry_run import (
     DryRunDataTracer,
     ProcessType,
     deduplicate_source_constraints,
+    SourceId,
 )
 from openeo_driver.dummy.dummy_backend import DummyVectorCube
 from openeo_driver.errors import OpenEOApiException, ProcessParameterInvalidException
@@ -85,12 +86,32 @@ def dry_run_env(dry_run_tracer, backend_implementation) -> EvalEnv:
     )
 
 
+class TestSourceId:
+    def test_minimal(self):
+        source_id = SourceId(process_id="load_stac", arguments=("https://stac.example",))
+        assert source_id.process_id == "load_stac"
+        assert source_id.arguments == ("https://stac.example",)
+        assert source_id.pg_node_id is None
+
+    def test_tuple_behaviour(self):
+        source_id = SourceId(process_id="load_stac", arguments=("https://stac.example",), pg_node_id="loadstac1")
+        simple_tuple = ("load_stac", ("https://stac.example",), "loadstac1")
+
+        assert source_id == simple_tuple
+        assert {source_id: "ok"}[simple_tuple] == "ok"
+        assert {simple_tuple: "ok"}[source_id] == "ok"
+
+
 def test_source_load_collection():
     s1 = DataSource.load_collection(collection_id="FOOBAR")
     s2 = DataSource.load_collection(collection_id="FOOBAR")
     s3 = DataSource.load_collection(collection_id="FOOBARV2")
     assert s1.get_source_id() == s2.get_source_id()
     assert s1.get_source_id() != s3.get_source_id()
+
+    assert s1.get_source_id() == ("load_collection", ("FOOBAR", ()), None)
+    assert s2.get_source_id() == ("load_collection", ("FOOBAR", ()), None)
+    assert s3.get_source_id() == ("load_collection", ("FOOBARV2", ()), None)
 
 
 def test_source_load_uploaded_files():
@@ -167,7 +188,7 @@ def test_tracer_load_collection():
         "spatial_extent": {"west": 1, "south": 51, "east": 2, "north": 52},
         "bands": ["red", "blue"],
     }
-    cube = tracer.load_collection("S2", arguments)
+    cube = tracer.load_collection("S2", arguments=arguments)
     traces = tracer.get_trace_leaves()
     assert [t.describe() for t in traces] == ["load_collection<-temporal_extent<-spatial_extent<-bands"]
 
@@ -184,20 +205,20 @@ def test_evaluate_basic_no_load_collection(dry_run_env, dry_run_tracer):
 
 def test_evaluate_basic_load_collection(dry_run_env, dry_run_tracer):
     pg = {
-        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}, "result": True},
+        "lc1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}, "result": True},
     }
     cube = evaluate(pg, env=dry_run_env)
 
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
-    assert source_constraints == [(("load_collection", ("S2_FOOBAR", ())), {})]
+    assert source_constraints == [(("load_collection", ("S2_FOOBAR", ()), "lc1"), {})]
 
 
 def test_evaluate_basic_filter_temporal(dry_run_env, dry_run_tracer):
     pg = {
-        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "lc1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "ft": {
             "process_id": "filter_temporal",
-            "arguments": {"data": {"from_node": "lc"}, "extent": ["2020-02-02", "2020-03-03"]},
+            "arguments": {"data": {"from_node": "lc1"}, "extent": ["2020-02-02", "2020-03-03"]},
             "result": True,
         },
     }
@@ -214,17 +235,17 @@ def test_evaluate_basic_filter_temporal(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", ()), "lc1")
     assert constraints == {"temporal_extent": ("2020-02-02", "2020-03-03")}
 
 
 def test_evaluate_temporal_extent_dynamic(dry_run_env, dry_run_tracer):
     pg = {
-        "load": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "load1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "extent": {"process_id": "constant", "arguments": {"x": ["2020-01-01", "2020-02-02"]}},
         "filtertemporal": {
             "process_id": "filter_temporal",
-            "arguments": {"data": {"from_node": "load"}, "extent": {"from_node": "extent"}},
+            "arguments": {"data": {"from_node": "load1"}, "extent": {"from_node": "extent"}},
             "result": True,
         },
     }
@@ -232,17 +253,17 @@ def test_evaluate_temporal_extent_dynamic(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints()
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", ()), "load1")
     assert constraints == {"temporal_extent": ("2020-01-01", "2020-02-02")}
 
 
 def test_evaluate_temporal_extent_dynamic_item(dry_run_env, dry_run_tracer):
     pg = {
-        "load": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "load1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "start": {"process_id": "constant", "arguments": {"x": "2020-01-01"}},
         "filtertemporal": {
             "process_id": "filter_temporal",
-            "arguments": {"data": {"from_node": "load"}, "extent": [{"from_node": "start"}, "2020-02-02"]},
+            "arguments": {"data": {"from_node": "load1"}, "extent": [{"from_node": "start"}, "2020-02-02"]},
             "result": True,
         },
     }
@@ -250,7 +271,7 @@ def test_evaluate_temporal_extent_dynamic_item(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints()
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", ()), "load1")
     assert constraints == {"temporal_extent": ("2020-01-01", "2020-02-02")}
 
 
@@ -261,14 +282,14 @@ def test_evaluate_graph_diamond(dry_run_env, dry_run_tracer):
         `-> band grass -^
     """
     pg = {
-        "load": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "load1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "band_red": {
             "process_id": "filter_bands",
-            "arguments": {"data": {"from_node": "load"}, "bands": ["red"]},
+            "arguments": {"data": {"from_node": "load1"}, "bands": ["red"]},
         },
         "band_grass": {
             "process_id": "filter_bands",
-            "arguments": {"data": {"from_node": "load"}, "bands": ["grass"]},
+            "arguments": {"data": {"from_node": "load1"}, "bands": ["grass"]},
         },
         "mask": {
             "process_id": "mask",
@@ -295,7 +316,7 @@ def test_evaluate_graph_diamond(dry_run_env, dry_run_tracer):
     assert len(source_constraints) == 2
     assert source_constraints == [
         (
-            ("load_collection", ("S2_FOOBAR", ())),
+            ("load_collection", ("S2_FOOBAR", ()), "load1"),
             {
                 "bands": ["grass"],
                 "resample": {"method": "near", "resolution": (10, 10), "target_crs": CRS_UTM},
@@ -303,7 +324,7 @@ def test_evaluate_graph_diamond(dry_run_env, dry_run_tracer):
             },
         ),
         (
-            ("load_collection", ("S2_FOOBAR", ())),
+            ("load_collection", ("S2_FOOBAR", ()), "load1"),
             {"bands": ["red"], "spatial_extent": {"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"}},
         ),
     ]
@@ -312,7 +333,7 @@ def test_evaluate_graph_diamond(dry_run_env, dry_run_tracer):
 def test_evaluate_load_collection_and_filter_extents(dry_run_env, dry_run_tracer):
     """temporal/bbox/band extents in load_collection *and* filter_ processes"""
     pg = {
-        "load": {
+        "load1": {
             "process_id": "load_collection",
             "arguments": {
                 "id": "S2_FOOBAR",
@@ -323,7 +344,7 @@ def test_evaluate_load_collection_and_filter_extents(dry_run_env, dry_run_tracer
         },
         "filter_temporal": {
             "process_id": "filter_temporal",
-            "arguments": {"data": {"from_node": "load"}, "extent": ["2020-02-02", "2020-03-03"]},
+            "arguments": {"data": {"from_node": "load1"}, "extent": ["2020-02-02", "2020-03-03"]},
         },
         "filter_bbox": {
             "process_id": "filter_bbox",
@@ -358,7 +379,7 @@ def test_evaluate_load_collection_and_filter_extents(dry_run_env, dry_run_tracer
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", (), ("red", "green", "blue")))
+    assert src == ("load_collection", ("S2_FOOBAR", (), ("red", "green", "blue")), "load1")
     assert constraints == {
         "temporal_extent": ("2020-01-01", "2020-10-10"),
         "spatial_extent": {"west": 0, "south": 50, "east": 5, "north": 55, "crs": "EPSG:4326"},
@@ -387,7 +408,7 @@ def test_inspect(dry_run_env, dry_run_tracer, additional_arguments):
 
 def test_evaluate_merge_collections(dry_run_env, dry_run_tracer):
     pg = {
-        "load": {
+        "load1": {
             "process_id": "load_collection",
             "arguments": {
                 "id": "S2_FOOBAR",
@@ -396,7 +417,7 @@ def test_evaluate_merge_collections(dry_run_env, dry_run_tracer):
                 "bands": ["red", "green", "blue"],
             },
         },
-        "load_s1": {
+        "load2": {
             "process_id": "load_collection",
             "arguments": {
                 "id": "S2_FAPAR_CLOUDCOVER",
@@ -407,7 +428,7 @@ def test_evaluate_merge_collections(dry_run_env, dry_run_tracer):
         },
         "merge": {
             "process_id": "merge_cubes",
-            "arguments": {"cube1": {"from_node": "load"}, "cube2": {"from_node": "load_s1"}},
+            "arguments": {"cube1": {"from_node": "load1"}, "cube2": {"from_node": "load2"}},
             "result": True,
         },
     }
@@ -418,7 +439,7 @@ def test_evaluate_merge_collections(dry_run_env, dry_run_tracer):
 
     source, constraints = source_constraints[0]
 
-    assert source == ("load_collection", ("S2_FOOBAR", (), ("red", "green", "blue")))
+    assert source == ("load_collection", ("S2_FOOBAR", (), ("red", "green", "blue")), "load1")
     assert constraints == {
         "temporal_extent": ("2020-01-01", "2020-10-10"),
         "spatial_extent": {"west": 0, "south": 50, "east": 5, "north": 55, "crs": "EPSG:4326"},
@@ -427,7 +448,7 @@ def test_evaluate_merge_collections(dry_run_env, dry_run_tracer):
 
     source, constraints = source_constraints[1]
 
-    assert source == ("load_collection", ("S2_FAPAR_CLOUDCOVER", (), ("VV",)))
+    assert source == ("load_collection", ("S2_FAPAR_CLOUDCOVER", (), ("VV",)), "load2")
     assert constraints == {
         "temporal_extent": ("2020-01-01", "2020-10-10"),
         "spatial_extent": {"west": -1, "south": 50, "east": 5, "north": 55, "crs": "EPSG:4326"},
@@ -435,7 +456,9 @@ def test_evaluate_merge_collections(dry_run_env, dry_run_tracer):
     }
 
     dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
-    loadparams = _extract_load_parameters(dry_run_env, ("load_collection", ("S2_FOOBAR", (), ("red", "green", "blue"))))
+    loadparams = _extract_load_parameters(
+        dry_run_env, ("load_collection", ("S2_FOOBAR", (), ("red", "green", "blue")), "load1")
+    )
 
     assert {
         "west": 213370,
@@ -455,7 +478,7 @@ def test_evaluate_load_collection_and_filter_extents_dynamic(dry_run_env, dry_ru
         "start02": {"process_id": "constant", "arguments": {"x": "2020-02-02"}},
         "bandsbgr": {"process_id": "constant", "arguments": {"x": ["blue", "green", "red"]}},
         "bandblue": {"process_id": "constant", "arguments": {"x": "blue"}},
-        "load": {
+        "load1": {
             "process_id": "load_collection",
             "arguments": {
                 "id": "S2_FOOBAR",
@@ -466,7 +489,7 @@ def test_evaluate_load_collection_and_filter_extents_dynamic(dry_run_env, dry_ru
         },
         "filter_temporal": {
             "process_id": "filter_temporal",
-            "arguments": {"data": {"from_node": "load"}, "extent": [{"from_node": "start02"}, "2020-03-03"]},
+            "arguments": {"data": {"from_node": "load1"}, "extent": [{"from_node": "start02"}, "2020-03-03"]},
         },
         "filter_bbox": {
             "process_id": "filter_bbox",
@@ -501,7 +524,7 @@ def test_evaluate_load_collection_and_filter_extents_dynamic(dry_run_env, dry_ru
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", (), ("blue", "green", "red")))
+    assert src == ("load_collection", ("S2_FOOBAR", (), ("blue", "green", "red")), "load1")
     assert constraints == {
         "temporal_extent": ("2020-01-01", "2020-10-10"),
         "spatial_extent": {"west": 1, "south": 50, "east": 5, "north": 55, "crs": "EPSG:4326"},
@@ -528,7 +551,7 @@ def test_mask_polygon_only(dry_run_env, dry_run_tracer, inside, replacement, exp
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", ()), "loadcollection1")
     if expect_spatial_extent:
         expected = {
             "spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
@@ -552,7 +575,7 @@ def test_mask_polygon_and_load_collection_spatial_extent(dry_run_env, dry_run_tr
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", ()), "loadcollection1")
     assert constraints == {
         "spatial_extent": {"west": -1, "south": -1, "east": 10, "north": 10, "crs": "EPSG:4326"},
         "weak_spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
@@ -577,7 +600,7 @@ def test_mask_polygon_and_filter_bbox(dry_run_env, dry_run_tracer, bbox_first):
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", ()), "loadcollection1")
     assert constraints == {
         "spatial_extent": {"west": -1, "south": -1, "east": 9, "north": 9, "crs": "EPSG:4326"},
         "weak_spatial_extent": {"west": 0.0, "south": 0.0, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
@@ -587,11 +610,11 @@ def test_mask_polygon_and_filter_bbox(dry_run_env, dry_run_tracer, bbox_first):
 def test_aggregate_spatial_only(dry_run_env, dry_run_tracer):
     polygon = {"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]}
     pg = {
-        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "lc1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "agg": {
             "process_id": "aggregate_spatial",
             "arguments": {
-                "data": {"from_node": "lc"},
+                "data": {"from_node": "lc1"},
                 "geometries": polygon,
                 "reducer": {
                     "process_graph": {
@@ -611,7 +634,7 @@ def test_aggregate_spatial_only(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", ()), "lc1")
 
     assert constraints == {
         "spatial_extent": {
@@ -711,11 +734,11 @@ def test_aggregate_spatial_only(dry_run_env, dry_run_tracer):
 )
 def test_aggregate_spatial_extent_handling_and_buffering(dry_run_env, dry_run_tracer, geometries, expected):
     pg = {
-        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "lc1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "agg": {
             "process_id": "aggregate_spatial",
             "arguments": {
-                "data": {"from_node": "lc"},
+                "data": {"from_node": "lc1"},
                 "geometries": geometries,
                 "reducer": {
                     "process_graph": {
@@ -735,7 +758,7 @@ def test_aggregate_spatial_extent_handling_and_buffering(dry_run_env, dry_run_tr
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", ()), "lc1")
     assert constraints["spatial_extent"] == expected
 
 
@@ -870,7 +893,7 @@ def test_aggregate_spatial_apply_dimension(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", (), ("B04", "B08", "B11", "SCL")))
+    assert src == ("load_collection", ("S2_FOOBAR", (), ("B04", "B08", "B11", "SCL")), "loadcollection1")
     assert constraints == {
         "spatial_extent": {
             "crs": "EPSG:32631",
@@ -920,7 +943,7 @@ def test_aggregate_spatial_and_filter_bbox(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", ()), "loadcollection1")
     assert constraints == {
         "spatial_extent": bbox,
         "aggregate_spatial": {"geometries": DriverVectorCube.from_geojson(polygon)},
@@ -961,7 +984,7 @@ def test_multiple_filter_spatial(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", ()), "loadcollection1")
     geometries = dry_run_tracer.get_last_geometry(operation="filter_spatial")
     assert constraints == {
         "spatial_extent": {
@@ -972,7 +995,7 @@ def test_multiple_filter_spatial(dry_run_env, dry_run_tracer):
             "west": 166021.44308054057,
         },
         "filter_spatial": {"geometries": DummyVectorCube.from_geometry(shapely.geometry.shape(polygon1))},
-        "resample": {"method": "near", "resolution": (0.25, 0.25), "target_crs": 4326},
+        "resample": {"method": "near", "resolution": (0.25, 0.25), "target_crs": 4326, "align": "upper-left"},
         "weak_spatial_extent": {
             "crs": "EPSG:32631",
             "east": 1056748.2872412915,
@@ -1002,7 +1025,7 @@ def test_filter_spatial_delayed_vector(dry_run_env, dry_run_tracer, path, expect
     assert len(source_constraints) == 1
 
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", ()), "loadcollection1")
     assert isinstance(
         constraints["filter_spatial"]["geometries"],
         DummyVectorCube,
@@ -1040,7 +1063,7 @@ def test_filter_spatial_crs_handling(dry_run_env, dry_run_tracer, url_path, expe
     assert len(source_constraints) == 1
 
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", ()), "loadcollection1")
     filter_spatial_geometries = constraints["filter_spatial"]["geometries"]
     assert isinstance(filter_spatial_geometries, DriverVectorCube)
     # assert filter_spatial_geometries.get_bounding_box() == expected_bounds
@@ -1048,7 +1071,7 @@ def test_filter_spatial_crs_handling(dry_run_env, dry_run_tracer, url_path, expe
 
     load_params = _extract_load_parameters(
         env=dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints}),
-        source_id=("load_collection", ("S2_FOOBAR", ())),
+        source_id=("load_collection", ("S2_FOOBAR", ()), "loadcollection1"),
     )
     # assert load_params.global_extent == BoundingBox.from_wsen_tuple([x.expected for x in expected_bounds],crs=expected_crs).as_dict()
     assert load_params.spatial_extent == dict(
@@ -1068,7 +1091,7 @@ def test_resample_filter_spatial(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", ()), "loadcollection1")
     (geometries,) = dry_run_tracer.get_geometries(operation="filter_spatial")
     assert constraints == {
         "spatial_extent": {
@@ -1079,7 +1102,7 @@ def test_resample_filter_spatial(dry_run_env, dry_run_tracer):
             "west": 166021.44308054057,
         },
         "filter_spatial": {"geometries": DummyVectorCube.from_geometry(shapely.geometry.shape(polygon))},
-        "resample": {"method": "near", "resolution": (0.25, 0.25), "target_crs": 4326},
+        "resample": {"method": "near", "resolution": (0.25, 0.25), "target_crs": 4326, "align": "upper-left"},
         "weak_spatial_extent": {
             "crs": "EPSG:32631",
             "east": 1056748.2872412915,
@@ -1109,7 +1132,7 @@ def test_resample_cube_spatial(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 2
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", ()), "loadcollection1")
 
     assert constraints == {"process_type": [ProcessType.FOCAL_SPACE]}
 
@@ -1125,7 +1148,7 @@ def test_auto_align(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()))
+    assert src == ("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()), "loadcollection1")
     (geometries,) = dry_run_tracer.get_geometries(operation="filter_spatial")
     assert constraints == {
         "spatial_extent": {"crs": "EPSG:4326", "east": 8.0, "north": 5.0, "south": 0.1, "west": 0.1},
@@ -1140,7 +1163,7 @@ def test_auto_align(dry_run_env, dry_run_tracer):
     # source_constraints = dry_run_tracer.get_source_constraints()
     dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
     load_params = _extract_load_parameters(
-        dry_run_env, source_id=("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()))
+        dry_run_env, source_id=("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()), "loadcollection1")
     )
     assert {
         "west": 0.09999999927961767,
@@ -1163,12 +1186,10 @@ def test_no_auto_align_when_resampling(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()))
+    assert src == ("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()), "loadcollection1")
     (geometries,) = dry_run_tracer.get_geometries(operation="filter_spatial")
     assert constraints == {
-        'resample': {'method': 'near',
-                     'resolution': (0.001, 0.001),
-                     'target_crs': None},
+        "resample": {"method": "near", "resolution": (0.001, 0.001), "target_crs": None, "align": "upper-left"},
         "spatial_extent": {"crs": "EPSG:4326", "east": 8.0, "north": 5.0, "south": 0.1, "west": 0.1},
         "filter_spatial": {"geometries": DummyVectorCube.from_geometry(shapely.geometry.shape(polygon))},
         "weak_spatial_extent": {"west": 0.1, "south": 0.1, "east": 8.0, "north": 5.0, "crs": "EPSG:4326"},
@@ -1181,7 +1202,7 @@ def test_no_auto_align_when_resampling(dry_run_env, dry_run_tracer):
     # source_constraints = dry_run_tracer.get_source_constraints()
     dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
     load_params = _extract_load_parameters(
-        dry_run_env, source_id=("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()))
+        dry_run_env, source_id=("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()), "loadcollection1")
     )
     assert {'crs': 'EPSG:4326', 'east': 8.0, 'north': 5.0, 'south': 0.1, 'west': 0.1} == load_params.global_extent
 
@@ -1201,10 +1222,10 @@ def test_auto_align_without_explicit_resolution(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FAPAR_CLOUDCOVER", ()))
+    assert src == ("load_collection", ("S2_FAPAR_CLOUDCOVER", ()), "loadcollection1")
     (geometries,) = dry_run_tracer.get_geometries(operation="filter_spatial")
     assert constraints == {
-        "resample": {"method": "near", "resolution": (0, 0), "target_crs": "EPSG:32632"},
+        "resample": {"method": "near", "resolution": (0, 0), "target_crs": "EPSG:32632", "align": "upper-left"},
         "spatial_extent": {
             "crs": "EPSG:32631",
             "east": 1056748.2872412915,
@@ -1227,7 +1248,9 @@ def test_auto_align_without_explicit_resolution(dry_run_env, dry_run_tracer):
         "coordinates": (((0.1, 0.1), (3.0, 5.0), (8.0, 2.0), (0.1, 0.1)),),
     }
     dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
-    load_params = _extract_load_parameters(dry_run_env, source_id=("load_collection", ("S2_FAPAR_CLOUDCOVER", ())))
+    load_params = _extract_load_parameters(
+        dry_run_env, source_id=("load_collection", ("S2_FAPAR_CLOUDCOVER", ()), "loadcollection1")
+    )
     assert {
         "crs": "EPSG:32631",
         "east": 1056750,
@@ -1251,7 +1274,7 @@ def test_global_bounds_from_weak_spatial_extent(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()))
+    assert src == ("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()), "loadcollection1")
     assert constraints == {
         "spatial_extent": {"west": 1, "south": 1, "east": 3, "north": 3, "crs": "EPSG:4326"},
         "weak_spatial_extent": {"crs": "EPSG:4326", "east": 8.0, "north": 5.0, "south": 0.1, "west": 0.1},
@@ -1259,7 +1282,7 @@ def test_global_bounds_from_weak_spatial_extent(dry_run_env, dry_run_tracer):
     }
     dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
     load_params = _extract_load_parameters(
-        dry_run_env, source_id=("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()))
+        dry_run_env, source_id=("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()), "loadcollection1")
     )
     assert {
         "west": 0.9999999992760138,
@@ -1273,12 +1296,12 @@ def test_global_bounds_from_weak_spatial_extent(dry_run_env, dry_run_tracer):
 def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
     geometry_path = str(get_path("geojson/GeometryCollection01.json"))
     pg = {
-        "lc": {"process_id": "load_collection", "arguments": {"id": "ESA_WORLDCOVER_10M_2020_V1"}},
+        "lc1": {"process_id": "load_collection", "arguments": {"id": "ESA_WORLDCOVER_10M_2020_V1"}},
         "vector": {"process_id": "read_vector", "arguments": {"filename": geometry_path}},
         "agg": {
             "process_id": "aggregate_spatial",
             "arguments": {
-                "data": {"from_node": "lc"},
+                "data": {"from_node": "lc1"},
                 "geometries": {"from_node": "vector"},
                 "reducer": {
                     "process_graph": {
@@ -1299,7 +1322,7 @@ def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
     (geometries,) = dry_run_tracer.get_geometries()
-    assert src == ("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()))
+    assert src == ("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()), "lc1")
 
     assert constraints == {
         "spatial_extent": {"west": 5.05, "south": 51.21, "east": 5.15, "north": 51.3, "crs": "EPSG:4326"},
@@ -1311,7 +1334,7 @@ def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
 
 def test_aggregate_spatial_get_geometries_feature_collection(dry_run_env, dry_run_tracer):
     pg = {
-        "lc": {"process_id": "load_collection", "arguments": {"id": "ESA_WORLDCOVER_10M_2020_V1"}},
+        "lc1": {"process_id": "load_collection", "arguments": {"id": "ESA_WORLDCOVER_10M_2020_V1"}},
         "vector": {
             "process_id": "get_geometries",
             "arguments": {
@@ -1338,7 +1361,7 @@ def test_aggregate_spatial_get_geometries_feature_collection(dry_run_env, dry_ru
         "agg": {
             "process_id": "aggregate_spatial",
             "arguments": {
-                "data": {"from_node": "lc"},
+                "data": {"from_node": "lc1"},
                 "geometries": {"from_node": "vector"},
                 "reducer": {
                     "process_graph": {
@@ -1358,7 +1381,7 @@ def test_aggregate_spatial_get_geometries_feature_collection(dry_run_env, dry_ru
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()))
+    assert src == ("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()), "lc1")
 
     expected_geometry_collection = DriverVectorCube.from_geojson(pg["vector"]["arguments"]["feature_collection"])
     assert constraints == {
@@ -1418,10 +1441,10 @@ def test_aggregate_spatial_get_geometries_feature_collection(dry_run_env, dry_ru
 )
 def test_evaluate_sar_backscatter(dry_run_env, dry_run_tracer, arguments, expected):
     pg = {
-        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "lc1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "sar": {
             "process_id": "sar_backscatter",
-            "arguments": dict(data={"from_node": "lc"}, **arguments),
+            "arguments": dict(data={"from_node": "lc1"}, **arguments),
             "result": True,
         },
     }
@@ -1430,7 +1453,7 @@ def test_evaluate_sar_backscatter(dry_run_env, dry_run_tracer, arguments, expect
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert len(source_constraints) == 1
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", ()), "lc1")
     assert constraints == {"sar_backscatter": expected}
 
 
@@ -1451,7 +1474,7 @@ def test_load_collection_properties(dry_run_env, dry_run_tracer):
     properties = get_props()
     asc_props = get_props("ASCENDING")
     pg = {
-        "lc": {
+        "lc1": {
             "process_id": "load_collection",
             "arguments": {"id": "S2_FOOBAR", "properties": properties},
         },
@@ -1461,7 +1484,7 @@ def test_load_collection_properties(dry_run_env, dry_run_tracer):
         },
         "merge": {
             "process_id": "merge_cubes",
-            "arguments": {"cube1": {"from_node": "lc"}, "cube2": {"from_node": "lc2"}},
+            "arguments": {"cube1": {"from_node": "lc1"}, "cube2": {"from_node": "lc2"}},
             "result": True,
         },
     }
@@ -1482,6 +1505,7 @@ def test_load_collection_properties(dry_run_env, dry_run_tracer):
                         ),
                     ),
                 ),
+                "lc1",
             ),
             {"properties": properties},
         ),
@@ -1492,6 +1516,7 @@ def test_load_collection_properties(dry_run_env, dry_run_tracer):
                     "S2_FOOBAR",
                     (("orbitDirection", (("eq", "ASCENDING"),)),),
                 ),
+                "lc2",
             ),
             {"properties": asc_props},
         ),
@@ -1508,7 +1533,7 @@ def test_load_stac_properties(dry_run_env, dry_run_tracer):
     }
 
     pg = {
-        "ls": {
+        "ls1": {
             "process_id": "load_stac",
             "arguments": {
                 "url": "https://example.org/collections/S2",
@@ -1537,6 +1562,7 @@ def test_load_stac_properties(dry_run_env, dry_run_tracer):
                     ),
                     ("B04", "B05"),
                 ),
+                "ls1",
             ),
             {"bands": ["B04", "B05"], "properties": properties},
         ),
@@ -1642,10 +1668,10 @@ def test_load_stac_spatial_extent_requires_a_polygon(
 )
 def test_evaluate_atmospheric_correction(dry_run_env, dry_run_tracer, arguments, expected):
     pg = {
-        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "lc1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "sar": {
             "process_id": "atmospheric_correction",
-            "arguments": dict(data={"from_node": "lc"}, **arguments),
+            "arguments": dict(data={"from_node": "lc1"}, **arguments),
             "result": True,
         },
     }
@@ -1654,7 +1680,7 @@ def test_evaluate_atmospheric_correction(dry_run_env, dry_run_tracer, arguments,
     metadata_links = dry_run_tracer.get_metadata_links()
     assert len(metadata_links) == 1
     src, links = metadata_links.popitem()
-    assert src == ("load_collection", ("S2_FOOBAR", ()))
+    assert src == ("load_collection", ("S2_FOOBAR", ()), "lc1")
     assert links == expected
 
 
@@ -1740,7 +1766,7 @@ def test_sources_are_subject_to_correct_constraints(dry_run_env, dry_run_tracer)
     assert len(source_constraints) == 2
 
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", (), ("VV", "VH")))
+    assert src == ("load_collection", ("S2_FOOBAR", (), ("VV", "VH")), "loadcollection1")
     assert constraints == {
         "temporal_extent": ("2018-01-01", "2018-01-01"),
         "spatial_extent": {
@@ -1764,7 +1790,7 @@ def test_sources_are_subject_to_correct_constraints(dry_run_env, dry_run_tracer)
     }
 
     src, constraints = source_constraints[1]
-    assert src == ("load_collection", ("S2_FOOBAR", (), ("VV", "VH")))
+    assert src == ("load_collection", ("S2_FOOBAR", (), ("VV", "VH")), "loadcollection1")
     assert constraints == {
         "temporal_extent": ("2018-01-01", "2018-01-01"),
         "spatial_extent": {
@@ -1817,7 +1843,7 @@ def test_pixel_buffer(dry_run_env, dry_run_tracer):
     assert len(source_constraints) == 1
 
     src, constraints = source_constraints[0]
-    assert src == ("load_collection", ("S2_FOOBAR", (), ("VV", "VH")))
+    assert src == ("load_collection", ("S2_FOOBAR", (), ("VV", "VH")), "loadcollection1")
     assert constraints == {
         "temporal_extent": ("2018-01-01", "2018-01-01"),
         "spatial_extent": {
@@ -1933,7 +1959,7 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert source_constraints == [
         (
-            ("load_collection", ("S2_FOOBAR", (), ("B04", "B08"))),
+            ("load_collection", ("S2_FOOBAR", (), ("B04", "B08")), "loadcollection1"),
             {
                 "bands": ["B04", "B08"],
                 "spatial_extent": {
@@ -1954,7 +1980,7 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
             },
         ),
         (
-            ("load_collection", ("S2_FOOBAR", (), ("B04", "B08"))),
+            ("load_collection", ("S2_FOOBAR", (), ("B04", "B08")), "loadcollection1"),
             {
                 "bands": ["B04", "B08"],
                 "spatial_extent": {
@@ -1968,7 +1994,7 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
             },
         ),
         (
-            ("load_collection", ("PROBAV_L3_S10_TOC_NDVI_333M_V2", (), ("ndvi",))),
+            ("load_collection", ("PROBAV_L3_S10_TOC_NDVI_333M_V2", (), ("ndvi",)), "loadcollection2"),
             {
                 "bands": ["ndvi"],
                 "process_type": [ProcessType.FOCAL_SPACE],
@@ -1990,7 +2016,7 @@ def test_filter_after_merge_cubes(dry_run_env, dry_run_tracer):
                 },
             },
         ),
-        (("load_collection", ("S2_FOOBAR", (), ("B04", "B08"))), {"bands": ["B04", "B08"]}),
+        (("load_collection", ("S2_FOOBAR", (), ("B04", "B08")), "loadcollection1"), {"bands": ["B04", "B08"]}),
     ]
 
 
@@ -2074,7 +2100,7 @@ def test_load_result_constraints(dry_run_env, dry_run_tracer):
 
     assert source_constraints == [
         (
-            ("load_result", ("https://oeo.net/openeo/1.1/jobs/j-f1ce01ef51d1481abaab7ceceb19c650/results",)),
+            ("load_result", ("https://oeo.net/openeo/1.1/jobs/j-f1ce01ef51d1481abaab7ceceb19c650/results",), None),
             {
                 "bands": ["VV", "VH"],
                 "spatial_extent": {
@@ -2488,10 +2514,12 @@ def test_complex_diamond_and_buffering(dry_run_env, dry_run_tracer):
             (("eo:cloud_cover", (("lte", 95),)), ("tileId", (("eq", "31UFP"),))),
             ("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12", "SCL"),
         ),
+        "loadcollection1",
     )
     source_id_scl = (
         "load_collection",
         ("S2_FOOBAR", (("eo:cloud_cover", (("lte", 95),)), ("tileId", (("eq", "31UFP"),))), ("SCL",)),
+        "loadcollection2",
     )
     loadparams = _extract_load_parameters(dry_run_env, source_id_bands)
 
@@ -2538,14 +2566,20 @@ def test_resampling_masking(dry_run_env, dry_run_tracer):
         (
             "S2_FOOBAR",
             (("eo:cloud_cover", (("lte", 95),)),),
-            ( "B02", "B03", "B04"),
+            ("B02", "B03", "B04"),
         ),
+        "loadcollection1",
     )
     source_id_scl = (
         "load_collection",
         ("S2_FOOBAR", (("eo:cloud_cover", (("lte", 95),)),), ("SCL",)),
+        "loadcollection2",
     )
-    source_id_s1 = ('load_collection', ('SENTINEL1_GRD', (('sat:orbit_state', (('eq', 'DESCENDING'),)),), ('VH', 'VV')))
+    source_id_s1 = (
+        "load_collection",
+        ("SENTINEL1_GRD", (("sat:orbit_state", (("eq", "DESCENDING"),)),), ("VH", "VV")),
+        "loadcollection3",
+    )
     loadparams = _extract_load_parameters(dry_run_env, source_id_bands)
 
     expected_extent = {'crs': 'EPSG:3035',
@@ -2614,9 +2648,14 @@ def test_complex_extract_load_stac(dry_run_env, dry_run_tracer):
             (("eo:cloud_cover", (("lte", 95),)),),
             ("B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"),
         ),
+        "loadcollection1",
     )
-    source_id_scl = ("load_collection", ("S2_FOOBAR", (("eo:cloud_cover", (("lte", 95),)),), ("SCL",)))
-    source_id_stac = ("load_stac", ("https://stac.openeo.vito.be/collections/wenr_features", (), ()))
+    source_id_scl = (
+        "load_collection",
+        ("S2_FOOBAR", (("eo:cloud_cover", (("lte", 95),)),), ("SCL",)),
+        "loadcollection2",
+    )
+    source_id_stac = ("load_stac", ("https://stac.openeo.vito.be/collections/wenr_features", (), ()), "loadstac1")
     loadparams = _extract_load_parameters(dry_run_env, source_id_bands)
 
     print(loadparams)
@@ -2717,15 +2756,19 @@ def test_resample_cube_spatial_from_resampled_target(dry_run_env, dry_run_tracer
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert source_constraints == [
         (
-            ("load_collection", ("S2_FOOBAR", ())),
+            ("load_collection", ("S2_FOOBAR", ()), "loadcollection1"),
             {
                 "process_type": [ProcessType.FOCAL_SPACE],
                 "resample": {"method": "near", "resolution": (3, 5), "target_crs": 32631},
             },
         ),
         (
-            ("load_collection", ("SENTINEL1_GRD", ())),
-            {"resample": {"method": "near", "resolution": (3, 5), "target_crs": 32631}},
+            (
+                "load_collection",
+                ("SENTINEL1_GRD", ()),
+                "loadcollection2",
+            ),
+            {"resample": {"method": "near", "resolution": (3, 5), "target_crs": 32631, "align": "upper-left"}},
         ),
     ]
 
@@ -2907,12 +2950,15 @@ def test_load_stac_resample_cube_spatial_old_pystac(
 
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert source_constraints == [
-        (("load_stac", (str(agera5_path), (), ())), expected_agera5_constraints),
-        (("load_stac", (str(s2_extractions_path), (), ())), {}),
+        (("load_stac", (str(agera5_path), (), ()), "loadstac2"), expected_agera5_constraints),
+        (("load_stac", (str(s2_extractions_path), (), ()), "loadstac1"), {}),
     ]
 
     dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
-    load_params = _extract_load_parameters(dry_run_env, source_id=("load_stac", (str(agera5_path), (), ())))
+    load_params = _extract_load_parameters(
+        dry_run_env,
+        source_id=("load_stac", (str(agera5_path), (), ()), "loadstac2"),
+    )
     assert (load_params.target_crs, load_params.target_resolution) == (expected_crs, expected_resolution)
 
     assert caplog.record_tuples == expected_logs
@@ -3050,12 +3096,14 @@ def test_load_stac_resample_cube_spatial(
 
     source_constraints = dry_run_tracer.get_source_constraints(merge=True)
     assert source_constraints == [
-        (("load_stac", (str(agera5_path), (), ())), expected_agera5_constraints),
-        (("load_stac", (str(s2_extractions_path), (), ())), {}),
+        (("load_stac", (str(agera5_path), (), ()), "loadstac2"), expected_agera5_constraints),
+        (("load_stac", (str(s2_extractions_path), (), ()), "loadstac1"), {}),
     ]
 
     dry_run_env = dry_run_env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
-    load_params = _extract_load_parameters(dry_run_env, source_id=("load_stac", (str(agera5_path), (), ())))
+    load_params = _extract_load_parameters(
+        dry_run_env, source_id=("load_stac", (str(agera5_path), (), ()), "loadstac2")
+    )
     assert (load_params.target_crs, load_params.target_resolution) == (expected_crs, expected_resolution)
 
     assert caplog.record_tuples == expected_logs
@@ -3133,15 +3181,15 @@ def test_deduplicate_source_constraints(dry_run_env, dry_run_tracer):
     # load_stac + mask apparently produces 3 duplicates at the moment
     assert source_constraints == [
         (
-            ("load_stac", ("https://stac.test/collection1", (), ())),
+            ("load_stac", ("https://stac.test/collection1", (), ()), "loadstac1"),
             {"temporal_extent": ("2026-01-01", "2026-02-02")},
         ),
         (
-            ("load_stac", ("https://stac.test/collection1", (), ())),
+            ("load_stac", ("https://stac.test/collection1", (), ()), "loadstac1"),
             {"temporal_extent": ("2026-01-01", "2026-02-02")},
         ),
         (
-            ("load_stac", ("https://stac.test/collection1", (), ())),
+            ("load_stac", ("https://stac.test/collection1", (), ()), "loadstac1"),
             {"temporal_extent": ("2026-01-01", "2026-02-02")},
         ),
     ]
@@ -3149,7 +3197,7 @@ def test_deduplicate_source_constraints(dry_run_env, dry_run_tracer):
     deduped = deduplicate_source_constraints(source_constraints)
     assert deduped == [
         (
-            ("load_stac", ("https://stac.test/collection1", (), ())),
+            ("load_stac", ("https://stac.test/collection1", (), ()), "loadstac1"),
             {"temporal_extent": ("2026-01-01", "2026-02-02")},
         ),
     ]

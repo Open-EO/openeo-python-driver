@@ -1,6 +1,10 @@
+import json
 import shutil
+from io import BytesIO
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
+import pytest
 from pystac import Collection
 
 from openeo_driver.util.stac_utils import (
@@ -13,16 +17,38 @@ from openeo_driver.util.stac_utils import (
 repository_root = Path(__file__).parent.parent.parent
 print(repository_root)
 
+_TEST_BUCKET = "test-stac-bucket"
+example_stac_catalog_dir = repository_root / "tests/data/example_stac_catalog"
+
+
+@pytest.fixture()
+def mock_s3():
+    """Mock S3 client that serves files from the local example_stac_catalog directory."""
+    s3_files = {f"output/{f.name}": f.read_bytes() for f in example_stac_catalog_dir.iterdir() if f.is_file()}
+
+    # noinspection PyPep8Naming
+    def _get_object(Bucket, Key, **kwargs):
+        assert Bucket == _TEST_BUCKET
+        path = f"{Key}"
+        data = s3_files[path]
+        return {"Body": BytesIO(data)}
+
+    mock_client = MagicMock()
+    mock_client.get_object.side_effect = _get_object
+
+    with patch("openeo_driver.integrations.s3.client.S3ClientBuilder.from_region", return_value=mock_client):
+        yield mock_client
+
 
 def test_get_files_from_stac_catalog_path():
-    stac_root = repository_root / "tests/data/example_stac_catalog/collection.json"
+    stac_root = example_stac_catalog_dir / "collection.json"
     ret = get_files_from_stac_catalog(stac_root)
     print(ret)
     assert len(ret) == 3
 
 
 def test_get_files_from_stac_catalog_path_include_metadata():
-    stac_root = repository_root / "tests/data/example_stac_catalog/collection.json"
+    stac_root = example_stac_catalog_dir / "collection.json"
     ret = get_files_from_stac_catalog(stac_root, include_metadata=True)
     print(ret)
     assert len(ret) == 7
@@ -45,14 +71,14 @@ def test_get_files_from_stac_catalog_url_include_metadata():
 
 
 def test_get_assets_from_stac_catalog():
-    stac_root = repository_root / "tests/data/example_stac_catalog/collection.json"
+    stac_root = example_stac_catalog_dir / "collection.json"
     ret = get_assets_from_stac_catalog(stac_root)
     print(ret)
     assert len(ret.values()) == 3
 
 
 def test_get_items_from_stac_catalog():
-    stac_root = repository_root / "tests/data/example_stac_catalog/collection.json"
+    stac_root = example_stac_catalog_dir / "collection.json"
     ret = get_items_from_stac_catalog(stac_root)
     print(ret)
     assert len(ret) == 3
@@ -126,3 +152,29 @@ def test_find_stac_root_file_array_04():
     assert result
     assert isinstance(result, str)
     assert result == "ddd/catalogue.json"
+
+
+def test_get_files_from_stac_catalog_s3(mock_s3):
+    stac_root = f"s3://{_TEST_BUCKET}/output/collection.json"
+    ret = get_files_from_stac_catalog(stac_root)
+    assert len(ret) == 3
+    assert all(f.startswith("s3://") for f in ret)
+
+
+def test_get_files_from_stac_catalog_relative_paths_recursive():
+    # This collection intentionally uses the same filename twice, but with different raster data.
+    recursive_stac_root = repository_root / "tests/data/recursive-stac-example/collection.json"
+    Collection.from_file(str(recursive_stac_root)).validate_all()
+    ret = get_files_from_stac_catalog(recursive_stac_root, relative_paths=True)
+    assert set(ret) == {
+        "openEO_2023-06-1or4.tif",
+        "sub-folder/openEO_2023-06-1or4.tif",
+        "sub-folder/openEO_2023-06-06Z.tif",
+    }
+
+
+def test_get_files_from_stac_catalog_s3_relative_paths(mock_s3):
+    stac_root = f"s3://{_TEST_BUCKET}/output/collection.json"
+    ret = get_files_from_stac_catalog(stac_root, relative_paths=True)
+    assert len(ret) == 3
+    assert all(not f.startswith("s3://") for f in ret)

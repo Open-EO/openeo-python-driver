@@ -22,6 +22,7 @@ from openeo.metadata import CollectionMetadata, CubeMetadata
 from openeo.util import str_truncate
 from pyproj import CRS
 
+from openeo_driver.constants import RESAMPLE_SPATIAL_ALIGN_DEFAULT
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs, StacAsset
 from openeo_driver.errors import FeatureUnsupportedException, InternalException, ProcessGraphInvalidException, \
     OpenEOApiException, ProcessParameterInvalidException
@@ -227,7 +228,7 @@ class DriverDataCube:
         resolution: Union[float, Tuple[float, float]],
         projection: Union[int, str] = None,
         method: str = "near",
-        align: str = "upper-left",
+        align: str = RESAMPLE_SPATIAL_ALIGN_DEFAULT,
     ):
         self._not_implemented()
 
@@ -254,11 +255,17 @@ class DriverDataCube:
     def predict_onnx(self,model:str) -> 'DriverDataCube':
         self._not_implemented()
 
-    def corsa_compress(self):
-        self._not_implemented()
+    def corsa_compress(self) -> "DriverDataCube":
+        return self._not_implemented()
 
-    def corsa_decompress(self):
-        self._not_implemented()
+    def corsa_decompress(self) -> "DriverDataCube":
+        return self._not_implemented()
+
+    def corsa_compress_v2(self, patch_size: int) -> "DriverDataCube":
+        return self._not_implemented()
+
+    def corsa_decompress_v2(self, patch_size: int) -> "DriverDataCube":
+        return self._not_implemented()
 
 
 class VectorCubeError(InternalException):
