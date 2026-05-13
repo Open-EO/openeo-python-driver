@@ -3525,20 +3525,32 @@ class TestBatchJobs:
                 source_folder,
                 str(output_root / "j-26032411111111111111111111111111") + "/",
             )
-            api110.get(
-                "/jobs/j-26032411111111111111111111111111/results/assets/sub-folder/openEO_2023-06-04Z.tif",
-                headers=self.AUTH_HEADER,
-            ).assert_status_code(200)
+            text04 = (
+                api110.get(
+                    "/jobs/j-26032411111111111111111111111111/results/assets/sub-folder/openEO_2023-06-1or4.tif.json",
+                    headers=self.AUTH_HEADER,
+                )
+                .assert_status_code(200)
+                .text
+            )
+            assert "2023-06-01" not in text04
+            assert "2023-06-04" in text04
             api110.get(
                 "/jobs/j-26032411111111111111111111111111/results/assets/collection.json",
                 headers=self.AUTH_HEADER,
             ).assert_status_code(200)
+            text01 = (
+                api110.get(
+                    "/jobs/j-26032411111111111111111111111111/results/assets/openEO_2023-06-1or4.tif.json",
+                    headers=self.AUTH_HEADER,
+                )
+                .assert_status_code(200)
+                .text
+            )
+            assert "2023-06-01" in text01
+            assert "2023-06-04" not in text01
             api110.get(
-                "/jobs/j-26032411111111111111111111111111/results/assets/openEO_2023-06-01Z.tif.json",
-                headers=self.AUTH_HEADER,
-            ).assert_status_code(200)
-            api110.get(
-                "/jobs/j-26032411111111111111111111111111/results/assets/openEO_2023-06-01Z.tif",
+                "/jobs/j-26032411111111111111111111111111/results/assets/openEO_2023-06-1or4.tif",
                 headers=self.AUTH_HEADER,
             ).assert_status_code(200)
 

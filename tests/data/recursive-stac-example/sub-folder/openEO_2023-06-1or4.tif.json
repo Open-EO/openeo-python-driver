@@ -18,8 +18,8 @@
   "properties": {"datetime": "2023-06-04T00:00:00Z"},
   "links": [],
   "assets": {
-    "openEO_2023-06-04Z.tif": {
-      "href": "./openEO_2023-06-04Z.tif",
+    "openEO_2023-06-1or4.tif": {
+      "href": "./openEO_2023-06-1or4.tif",
       "roles": ["data"],
       "type": "image/tiff; application=geotiff",
       "eo:bands": [
