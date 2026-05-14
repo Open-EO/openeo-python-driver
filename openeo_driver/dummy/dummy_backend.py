@@ -726,6 +726,7 @@ class DummyBatchJobs(BatchJobs):
     _job_registry: Dict[Tuple[str, str], BatchJobMetadata] = {}
     _custom_job_logs = {}
     _job_result_registry: Dict[Tuple[str, str], BatchJobResultMetadata] = {}
+    EDITABLE_JOB_FIELDS = {"title", "description", "process", "plan", "budget"}
 
     def generate_job_id(self):
         return generate_unique_id(prefix="j")
@@ -812,17 +813,16 @@ class DummyBatchJobs(BatchJobs):
             job_id=job_id, user_id=user.user_id, status=JOB_STATUS.RUNNING
         )
 
-    def update_job(self, job_id: str, user_id: str, data: dict):
+    def update_job(self, job_id: str, user_id: str, data: Optional[dict]):
         if data is None:
             data = {}
         job = self._get_job_info(job_id=job_id, user_id=user_id)
         if job.status in {JOB_STATUS.QUEUED, JOB_STATUS.RUNNING}:
             raise JobLockedException()
-        allowed_fields = {"title", "description", "process", "plan", "budget"}
         for field_name in data:
-            if field_name not in allowed_fields:
+            if field_name not in self.EDITABLE_JOB_FIELDS:
                 raise PropertyNotEditableException(property=field_name)
-        updates = {k: v for k, v in data.items() if k in allowed_fields}
+        updates = {k: v for k, v in data.items() if k in self.EDITABLE_JOB_FIELDS}
         self._job_registry[(user_id, job_id)] = job._replace(**updates)
 
     def _output_root(self) -> str:
