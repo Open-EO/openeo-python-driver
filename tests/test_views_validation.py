@@ -64,6 +64,10 @@ def test_load_collection_basic(api100, backend_implementation):
             "'west' must be smaller than 'east'",
         ),
         (
+            {"west": 4, "south": 51.22, "east": 5, "north": 51.215},
+            "'south' must be smaller than 'north'",
+        ),
+        (
             {
                 "west": 4329317.717132108,
                 "east": 4330615.2810456185,

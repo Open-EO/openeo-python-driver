@@ -82,7 +82,7 @@ def _extract_bbox_extent(args: ProcessArgs, field="extent", process_id="filter_b
         d = {}
         for key in ["west", "south", "east", "north"]:
             value = extent[key]
-            if not isinstance(value, (int, float)) or isinstance(value, bool):
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
                 raise ProcessParameterInvalidException(
                     parameter=field,
                     process=process_id,
