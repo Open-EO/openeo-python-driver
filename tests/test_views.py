@@ -1905,7 +1905,7 @@ class TestBatchJobs:
                         "roles": ["data"],
                         "title": "output.tiff",
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff",
-                        "type": "image/tiff; application=geotiff",
+                        "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
                     },
                     "output.nc": {
@@ -1975,7 +1975,7 @@ class TestBatchJobs:
                         "roles": ["data"],
                         "title": "output.tiff",
                         "href": "http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.tiff",
-                        "type": "image/tiff; application=geotiff",
+                        "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                         "proj:epsg": 4326,
                         "proj:code": "EPSG:4326",
                         "proj:shape": [300, 600],
@@ -2079,7 +2079,7 @@ class TestBatchJobs:
                         "roles": ["data"],
                         "title": "output.tiff",
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff",
-                        "type": "image/tiff; application=geotiff",
+                        "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
                     },
                     "output.nc": {
@@ -2161,7 +2161,7 @@ class TestBatchJobs:
                         "roles": ["data"],
                         "title": "output.tiff",
                         "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.tiff",
-                        "type": "image/tiff; application=geotiff",
+                        "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                         "proj:epsg": 4326,
                         "proj:code": "EPSG:4326",
                         "proj:shape": [300, 600],
@@ -2351,7 +2351,7 @@ class TestBatchJobs:
                         "roles": ["data"],
                         "title": "output.tiff",
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
-                        "type": "image/tiff; application=geotiff",
+                        "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
                     },
                     "output.nc": {
@@ -2492,7 +2492,7 @@ class TestBatchJobs:
                         "roles": ["data"],
                         "title": "output.tiff",
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
-                        "type": "image/tiff; application=geotiff",
+                        "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
                     },
                     "output.nc": {
@@ -2635,7 +2635,7 @@ class TestBatchJobs:
                         "roles": ["data"],
                         "title": "output.tiff",
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234",
-                        "type": "image/tiff; application=geotiff",
+                        "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
                     },
                     "output.nc": {
@@ -2820,7 +2820,7 @@ class TestBatchJobs:
                     "output.tiff": {
                         "title": "output.tiff",
                         "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234",
-                        "type": "image/tiff; application=geotiff",
+                        "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                         "proj:epsg": 4326,
                         "proj:code": "EPSG:4326",
                         "proj:shape": [300, 600],
@@ -2984,7 +2984,7 @@ class TestBatchJobs:
                                     },
                                     "href": "openEO_20231231T214100Z.tif",
                                     "nodata": "nan",
-                                    "type": "image/tiff; application=geotiff",
+                                    "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                                     "bands": [
                                         {"name": "LST", "common_name": "surface_temperature", "aliases": ["LST_in:LST"]}
                                     ],
@@ -3025,7 +3025,7 @@ class TestBatchJobs:
                                     "href": "s3://openeo-data-staging-waw4-1/batch_jobs/j-250605095828442799fdde3c29b5b047/openEO_20231231T214100Z_abs.tif",
                                     "output_dir" : "s3://openeo-data-staging-waw4-1/batch_jobs/j-250605095828442799fdde3c29b5b047",
                                     "nodata": "nan",
-                                    "type": "image/tiff; application=geotiff",
+                                    "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                                     "bands": [
                                         {"name": "LST", "common_name": "surface_temperature", "aliases": ["LST_in:LST"]}
                                     ],
@@ -3084,7 +3084,7 @@ class TestBatchJobs:
                                     },
                                     "href": "openEO_20231230T214100Z.tif",
                                     "nodata": "nan",
-                                    "type": "image/tiff; application=geotiff",
+                                    "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                                     "bands": [
                                         {"name": "LST", "common_name": "surface_temperature", "aliases": ["LST_in:LST"]}
                                     ],
@@ -3128,7 +3128,7 @@ class TestBatchJobs:
                     ],
                     "roles": ["data"],
                     "title": "openEO_20231230T214100Z.tif",
-                    "type": "image/tiff; application=geotiff",
+                    "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                 },
                 '5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z_openEO_rel':{
                     'href': 'http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/d58330c450ed1695361301efe130faf2/openEO_20231231T214100Z.tif',
@@ -3144,7 +3144,7 @@ class TestBatchJobs:
                     }],
                     'roles': ['data'],
                     'title': 'openEO_20231231T214100Z.tif',
-                    'type': 'image/tiff; application=geotiff'
+                    'type': 'image/tiff; application=geotiff; profile=cloud-optimized'
                 },
                 '5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z_openEO_abs': {
                     'href': 'http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/43241f3f756544ac5eb004268c3aa56a/openEO_20231231T214100Z_abs.tif',
@@ -3160,7 +3160,7 @@ class TestBatchJobs:
                     }],
                     'roles': ['data'],
                     'title': 'openEO_20231231T214100Z_abs.tif',
-                    'type': 'image/tiff; application=geotiff'
+                    'type': 'image/tiff; application=geotiff; profile=cloud-optimized'
                 }
             }
             assert resp.get("item_assets") == {
@@ -3172,7 +3172,7 @@ class TestBatchJobs:
                         }
                     ],
                     "roles": ["data"],
-                    "type": "image/tiff; application=geotiff",
+                    "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                 },
                 "openEO_abs": {
                     "bands": [
@@ -3189,7 +3189,7 @@ class TestBatchJobs:
                         }
                     ],
                     "roles": ["data"],
-                    "type": "image/tiff; application=geotiff",
+                    "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                 },
             }
             assert resp.get("stac_version") == "1.1.0"
@@ -3248,7 +3248,7 @@ class TestBatchJobs:
                                     "href": "s3://openeo-data-staging-waw4-1/batch_jobs/j-250605095828442799fdde3c29b5b047/openEO_20231231T214100Z.tif",
                                     "output_dir":"s3://openeo-data-staging-waw4-1/batch_jobs/j-250605095828442799fdde3c29b5b047",
                                     "nodata": "nan",
-                                    "type": "image/tiff; application=geotiff",
+                                    "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                                     "bands": [
                                         {"name": "LST", "common_name": "surface_temperature", "aliases": ["LST_in:LST"]}
                                     ],
@@ -3291,7 +3291,7 @@ class TestBatchJobs:
                 'openEO': DictSubSet({
                     'href': 'http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/d58330c450ed1695361301efe130faf2/openEO_20231231T214100Z.tif',
                     'roles': ['data'],
-                    'type': 'image/tiff; application=geotiff',
+                    'type': 'image/tiff; application=geotiff; profile=cloud-optimized',
                     'title': 'openEO_20231231T214100Z.tif',
                     "bands": [
                         {
@@ -3405,7 +3405,7 @@ class TestBatchJobs:
                                     },
                                     "href": "s3://openeo-data-staging-waw4-1/batch_jobs/j-250605095828442799fdde3c29b5b047/openEO_20231231T214100Z.tif",
                                     "nodata": "nan",
-                                    "type": "image/tiff; application=geotiff",
+                                    "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                                     "bands": [
                                         {"name": "LST", "common_name": "surface_temperature", "aliases": ["LST_in:LST"]}
                                     ],
@@ -3519,7 +3519,7 @@ class TestBatchJobs:
                 "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff", headers=self.AUTH_HEADER
             )
         assert resp.assert_status_code(200).data == b"tiffdata"
-        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
+        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff; profile=cloud-optimized"
 
     def test_download_result_nested_path(self, api110, tmp_path):
         output_root = Path(tmp_path)
@@ -3534,7 +3534,7 @@ class TestBatchJobs:
                 headers=self.AUTH_HEADER,
             )
         assert resp.assert_status_code(200).data == b"tiffdata"
-        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
+        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff; profile=cloud-optimized"
 
     def test_download_result_including_raw_stac(self, api110, tmp_path):
         output_root = Path(tmp_path)
@@ -3608,7 +3608,7 @@ class TestBatchJobs:
             resp = api.get(f"/jobs/{job_id}/results/assets/output.tiff", headers=self.AUTH_HEADER)
 
         assert resp.assert_status_code(200).data == large_tiff_data
-        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
+        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff; profile=cloud-optimized"
 
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
     def test_download_result_signed(self, api, tmp_path, flask_app, backend_config_overrides):
@@ -3623,7 +3623,7 @@ class TestBatchJobs:
                 "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/50afb0cad129e61d415278c4ffcd8a83/output.tiff"
             )
         assert resp.assert_status_code(200).data == b"tiffdata"
-        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
+        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff; profile=cloud-optimized"
 
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
     def test_download_result_signed_invalid(self, api, flask_app, backend_config_overrides):
@@ -3646,7 +3646,7 @@ class TestBatchJobs:
                 "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234"
             )
         assert resp.assert_status_code(200).data == b"tiffdata"
-        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
+        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff; profile=cloud-optimized"
 
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
@@ -3665,7 +3665,7 @@ class TestBatchJobs:
                 "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234"
             )
             assert head_resp.assert_status_code(200).data == b""
-            assert head_resp.headers["Content-Type"] == "image/tiff; application=geotiff"
+            assert head_resp.headers["Content-Type"] == "image/tiff; application=geotiff; profile=cloud-optimized"
             assert head_resp.headers["Accept-Ranges"] == "bytes"
             assert head_resp.headers["Content-Length"] == "8"
 
@@ -3707,7 +3707,7 @@ class TestBatchJobs:
                 "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234"
             )
             assert head_resp.assert_status_code(200).data == b""
-            assert head_resp.headers["Content-Type"] == "image/tiff; application=geotiff"
+            assert head_resp.headers["Content-Type"] == "image/tiff; application=geotiff; profile=cloud-optimized"
             assert head_resp.headers["Accept-Ranges"] == "bytes"
             assert head_resp.headers["Content-Length"] == "8"
 
@@ -3821,7 +3821,7 @@ class TestBatchJobs:
                                     "href": f"{output_root}/{job_id}/{filename}",
                                     "output_dir": f"{output_root}/{job_id}",
                                     "nodata": "nan",
-                                    "type": "image/tiff; application=geotiff",
+                                    "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                                     "bands": [
                                         {"name": "LST", "common_name": "surface_temperature", "aliases": ["LST_in:LST"]}
                                     ],
@@ -3858,7 +3858,7 @@ class TestBatchJobs:
                 f"/jobs/{job_id}/results/assets/TXIuVGVzdA==/dec8e6bb06c8f0cdaa6f62188b3e022f/{filename}?expires=2234"
             )
         assert resp.assert_status_code(200).data == b"tiffdata"
-        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
+        assert resp.headers["Content-Type"] == "image/tiff; application=geotiff; profile=cloud-optimized"
 
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
@@ -3907,7 +3907,7 @@ class TestBatchJobs:
                 "output.tiff": {
                     "title": "output.tiff",
                     "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234",
-                    "type": "image/tiff; application=geotiff",
+                    "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                     "proj:epsg": 4326,
                     "proj:code": "EPSG:4326",
                     "proj:shape": [300, 600],

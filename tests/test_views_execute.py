@@ -3412,7 +3412,7 @@ def test_add_dimension_duplicate(api):
 
 
 @pytest.mark.parametrize(["format", "expected"], [
-    ("GTiff", "image/tiff; application=geotiff"),
+    ("GTiff", "image/tiff; application=geotiff; profile=cloud-optimized"),
     ("NetCDF", "application/x-netcdf"),
     ("PNG", "image/png"),
     ("CovJSON", "application/json"),
