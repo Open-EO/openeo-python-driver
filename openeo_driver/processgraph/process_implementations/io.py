@@ -61,7 +61,7 @@ def _extract_temporal_extent(args: ProcessArgs, field="extent", process_id="filt
 
 
 def _extract_bbox_extent(args: ProcessArgs, field="extent", process_id="filter_bbox", handle_geojson=False) -> dict:
-    extent = args.get_required(name=field)
+    extent = args.get_required(name=field, expected_type=dict)
     if handle_geojson and extent.get("type") in [
         "Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection",
     ]:
@@ -79,8 +79,44 @@ def _extract_bbox_extent(args: ProcessArgs, field="extent", process_id="filter_b
             )
         d = {"west": w, "south": s, "east": e, "north": n, "crs": "EPSG:4326"}
     elif all(k in extent for k in ["west", "south", "east", "north"]):
-        d = {k: extent[k] for k in ["west", "south", "east", "north"]}
-        crs = extent.get("crs") or "EPSG:4326"
+        d = {}
+        for key in ["west", "south", "east", "north"]:
+            value = extent[key]
+            if not isinstance(value, (int, float)) or isinstance(value, bool):
+                raise ProcessParameterInvalidException(
+                    parameter=field,
+                    process=process_id,
+                    reason=f"'{key}' must be a number, but got {value!r}.",
+                )
+            d[key] = value
+
+        if d["west"] >= d["east"]:
+            raise ProcessParameterInvalidException(
+                parameter=field,
+                process=process_id,
+                reason=f"'west' must be smaller than 'east', but got west={d['west']!r} and east={d['east']!r}.",
+            )
+        if d["south"] >= d["north"]:
+            raise ProcessParameterInvalidException(
+                parameter=field,
+                process=process_id,
+                reason=f"'south' must be smaller than 'north', but got south={d['south']!r} and north={d['north']!r}.",
+            )
+
+        crs = extent.get("crs")
+        if crs is None and (
+            d["west"] < -180 or d["west"] > 180 or d["east"] < -180 or d["east"] > 180
+            or d["south"] < -90 or d["south"] > 90 or d["north"] < -90 or d["north"] > 90
+        ):
+            raise ProcessParameterInvalidException(
+                parameter=field,
+                process=process_id,
+                reason=(
+                    "coordinates are outside the valid EPSG:4326 range while no 'crs' was specified. "
+                    "Specify the correct 'crs' explicitly."
+                ),
+            )
+        crs = crs or "EPSG:4326"
         if isinstance(crs, int):
             crs = "EPSG:{crs}".format(crs=crs)
         d["crs"] = crs

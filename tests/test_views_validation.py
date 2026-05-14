@@ -49,3 +49,41 @@ def test_load_collection_basic(api100, backend_implementation):
     res = api100.validation(pg)
     errors = res.json["errors"]
     assert errors == [{"code": "MissingProduct", "message": "Tile 4322 not available"}]
+
+
+@pytest.mark.parametrize(
+    ["spatial_extent", "expected_message_part"],
+    [
+        ([1, 2, 3, 4], "Expected dictionary/mapping but got list."),
+        (
+            {"west": [0], "south": 60.11, "east": 25.24, "north": 60.35},
+            "'west' must be a number, but got [0].",
+        ),
+        (
+            {"west": 5, "south": 51.215, "east": 4, "north": 51.22},
+            "'west' must be smaller than 'east'",
+        ),
+        (
+            {
+                "west": 4329317.717132108,
+                "east": 4330615.2810456185,
+                "north": 3005295.0854642093,
+                "south": 3003997.791438847,
+            },
+            "outside the valid EPSG:4326 range while no 'crs' was specified",
+        ),
+    ],
+)
+def test_validation_load_collection_invalid_spatial_extent(api100, spatial_extent, expected_message_part):
+    pg = {
+        "lc": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FOOBAR", "spatial_extent": spatial_extent},
+            "result": True,
+        }
+    }
+    res = api100.validation(pg)
+    errors = res.json["errors"]
+    assert len(errors) == 1
+    assert errors[0]["code"] == "ProcessParameterInvalid"
+    assert expected_message_part in errors[0]["message"]
