@@ -817,7 +817,8 @@ class DummyBatchJobs(BatchJobs):
         job = self._get_job_info(job_id=job_id, user_id=user_id)
         if job.status in {JOB_STATUS.QUEUED, JOB_STATUS.RUNNING}:
             raise JobLockedException
-        self._job_registry[(user_id, job_id)] = job._replace(**{k: v for k, v in data.items() if k in job._fields})
+        updates = {k: v for k, v in data.items() if k in job._fields}
+        self._job_registry[(user_id, job_id)] = job._replace(**updates)
 
     def _output_root(self) -> str:
         return "/data/jobs"
@@ -1064,8 +1065,10 @@ class DummyBatchJobs(BatchJobs):
 
     def delete_job(self, job_id: str, user_id: str):
         self.cancel_job(job_id, user_id)
-        self._job_registry.pop((user_id, job_id), None)
-        self._job_result_registry.pop((job_id, user_id), None)
+        registry_key = (user_id, job_id)
+        result_key = (job_id, user_id)
+        self._job_registry.pop(registry_key, None)
+        self._job_result_registry.pop(result_key, None)
 
 
 class DummyUserDefinedProcesses(UserDefinedProcesses):
