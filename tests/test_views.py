@@ -4244,6 +4244,15 @@ class TestBatchJobs:
             )
         resp.assert_error(400, "JobLocked")
 
+    def test_patch_job_read_only_property(self, api):
+        with self._fresh_job_registry():
+            resp = api.patch(
+                "/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199",
+                headers=self.AUTH_HEADER,
+                json={"status": "created"},
+            )
+        resp.assert_error(400, "PropertyNotEditable")
+
     def test_delete_job_removes_registry_entry(self, api):
         with self._fresh_job_registry():
             assert (TEST_USER, "07024ee9-7847-4b8a-b260-6c879a2b3cdc") in dummy_backend.DummyBatchJobs._job_registry

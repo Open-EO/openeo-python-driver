@@ -61,6 +61,7 @@ from openeo_driver.errors import (
     JobLockedException,
     JobNotFinishedException,
     JobNotFoundException,
+    PropertyNotEditableException,
     PermissionsInsufficientException,
     ProcessGraphNotFoundException,
 )
@@ -816,8 +817,12 @@ class DummyBatchJobs(BatchJobs):
             data = {}
         job = self._get_job_info(job_id=job_id, user_id=user_id)
         if job.status in {JOB_STATUS.QUEUED, JOB_STATUS.RUNNING}:
-            raise JobLockedException
-        updates = {k: v for k, v in data.items() if k in job._fields}
+            raise JobLockedException()
+        allowed_fields = {"title", "description", "process", "plan", "budget"}
+        for field_name in data:
+            if field_name not in allowed_fields:
+                raise PropertyNotEditableException(property=field_name)
+        updates = {k: v for k, v in data.items() if k in allowed_fields}
         self._job_registry[(user_id, job_id)] = job._replace(**updates)
 
     def _output_root(self) -> str:
