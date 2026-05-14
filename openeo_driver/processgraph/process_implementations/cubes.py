@@ -367,7 +367,7 @@ def filter_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
                 ]
                 geometries = MultiPolygon(polygons)
     elif isinstance(geometries, DelayedVector):
-        geometries = DriverVectorCube.from_fiona([geometries.path]).to_multipolygon()
+        geometries = geometries.to_driver_vector_cube()
     elif isinstance(geometries, DriverVectorCube):
         pass
     else:
