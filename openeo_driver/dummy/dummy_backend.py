@@ -58,6 +58,7 @@ from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import SourceConstraint
 from openeo_driver.errors import (
     FeatureUnsupportedException,
+    JobLockedException,
     JobNotFinishedException,
     JobNotFoundException,
     PermissionsInsufficientException,
@@ -810,6 +811,14 @@ class DummyBatchJobs(BatchJobs):
             job_id=job_id, user_id=user.user_id, status=JOB_STATUS.RUNNING
         )
 
+    def update_job(self, job_id: str, user_id: str, data: dict):
+        if data is None:
+            data = {}
+        job = self._get_job_info(job_id=job_id, user_id=user_id)
+        if job.status in {JOB_STATUS.QUEUED, JOB_STATUS.RUNNING}:
+            raise JobLockedException
+        self._job_registry[(user_id, job_id)] = job._replace(**{k: v for k, v in data.items() if k in job._fields})
+
     def _output_root(self) -> str:
         return "/data/jobs"
 
@@ -1055,6 +1064,8 @@ class DummyBatchJobs(BatchJobs):
 
     def delete_job(self, job_id: str, user_id: str):
         self.cancel_job(job_id, user_id)
+        self._job_registry.pop((user_id, job_id), None)
+        self._job_result_registry.pop((job_id, user_id), None)
 
 
 class DummyUserDefinedProcesses(UserDefinedProcesses):

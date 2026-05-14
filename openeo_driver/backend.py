@@ -584,6 +584,13 @@ class BatchJobs(MicroService):
         """
         raise NotImplementedError
 
+    @not_implemented
+    def update_job(self, job_id: str, user_id: str, data: dict):
+        """
+        https://openeo.org/documentation/1.0/developers/api/reference.html#operation/update-job
+        """
+        raise NotImplementedError
+
     def start_job(self, job_id: str, user: User):
         """
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/start-job
