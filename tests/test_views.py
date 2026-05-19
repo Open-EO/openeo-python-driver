@@ -281,7 +281,7 @@ class TestGeneral:
         assert endpoints["/services"] == ["GET", "POST"]
         assert endpoints["/services/{service_id}"] == ["DELETE", "GET"]
         # assert endpoints["/subscription"] == ["GET"]
-        assert endpoints["/jobs/{job_id}"] == ["DELETE", "GET"]
+        assert endpoints["/jobs/{job_id}"] == ["DELETE", "GET", "PATCH"]
         assert endpoints["/jobs/{job_id}/results"] == ["DELETE", "GET", "POST"]
         assert endpoints["/credentials/basic"] == ["GET"]
         assert endpoints["/credentials/oidc"] == ["GET"]
@@ -4216,6 +4216,48 @@ class TestBatchJobs:
         with self._fresh_job_registry():
             resp = api.delete("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc", headers=self.AUTH_HEADER)
         assert resp.status_code == 204
+
+    def test_patch_job(self, api):
+        with self._fresh_job_registry():
+            resp = api.patch(
+                "/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199",
+                headers=self.AUTH_HEADER,
+                json={
+                    "title": "Better title",
+                    "description": "More context",
+                    "budget": 9.87,
+                },
+            )
+            assert resp.status_code == 204
+            job = dummy_backend.DummyBatchJobs._job_registry[TEST_USER, "53c71345-09b4-46b4-b6b0-03fd6fe1f199"]
+            assert job.title == "Better title"
+            assert job.description == "More context"
+            assert job.budget == 9.87
+            assert job.status == "finished"
+
+    def test_patch_job_locked(self, api):
+        with self._fresh_job_registry():
+            resp = api.patch(
+                "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc",
+                headers=self.AUTH_HEADER,
+                json={"title": "nope"},
+            )
+        resp.assert_error(400, "JobLocked")
+
+    def test_patch_job_read_only_property(self, api):
+        with self._fresh_job_registry():
+            resp = api.patch(
+                "/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199",
+                headers=self.AUTH_HEADER,
+                json={"status": "created"},
+            )
+        resp.assert_error(400, "PropertyNotEditable")
+
+    def test_delete_job_removes_registry_entry(self, api):
+        with self._fresh_job_registry():
+            assert (TEST_USER, "07024ee9-7847-4b8a-b260-6c879a2b3cdc") in dummy_backend.DummyBatchJobs._job_registry
+            api.delete("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc", headers=self.AUTH_HEADER).assert_status_code(204)
+            assert (TEST_USER, "07024ee9-7847-4b8a-b260-6c879a2b3cdc") not in dummy_backend.DummyBatchJobs._job_registry
 
 
 class TestSecondaryServices:

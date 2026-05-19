@@ -1008,12 +1008,12 @@ def register_views_batch_jobs(
         backend_implementation.batch_jobs.delete_job(job_id=job_id, user_id=user.user_id)
         return response_204_no_content()
 
-    @api_endpoint(hidden=True)
+    @api_endpoint(hidden=is_not_implemented(backend_implementation.batch_jobs.update_job))
     @blueprint.route('/jobs/<job_id>', methods=['PATCH'])
     @auth_handler.requires_bearer_auth
     def modify_job(job_id, user: User):
-        # TODO
-        raise FeatureUnsupportedException()
+        backend_implementation.batch_jobs.update_job(job_id=job_id, user_id=user.user_id, data=request.get_json())
+        return response_204_no_content()
 
     @api_endpoint
     @blueprint.route('/jobs/<job_id>/results', methods=['POST'])
