@@ -51,6 +51,19 @@ def test_load_collection_basic(api100, backend_implementation):
     assert errors == [{"code": "MissingProduct", "message": "Tile 4322 not available"}]
 
 
+def test_validate_zero_area(api100, backend_implementation):
+    pg = {
+        "lc": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FOOBAR", "spatial_extent": {"west": 1, "east": 1, "south": 1, "north": 1}},
+            "result": True,
+        }
+    }
+    res = api100.validation(pg)
+    errors = res.json["errors"]
+    assert errors == []
+
+
 @pytest.mark.parametrize(
     ["spatial_extent", "expected_message_part"],
     [
