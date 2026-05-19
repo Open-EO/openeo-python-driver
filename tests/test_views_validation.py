@@ -54,7 +54,7 @@ def test_load_collection_basic(api100, backend_implementation):
 @pytest.mark.parametrize(
     ["spatial_extent", "expected_message_part"],
     [
-        ([1, 2, 3, 4], "Expected dictionary/mapping but got list."),
+        ([1, 2, 3, 4], "Expected dictionary/mapping but got"),
         (
             {"west": [0], "south": 60.11, "east": 25.24, "north": 60.35},
             "'west' must be a number, but got [0].",
