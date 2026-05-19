@@ -23,6 +23,7 @@ and start a new "In Progress" section above it.
 
 - Include `job_options` as top-level properties in `GET /jobs/{job_id}` response ([#470](https://github.com/Open-EO/openeo-python-driver/issues/470))
 - Bump STAC version from `0.9.0` to `1.0.0` in capabilities endpoint, collection metadata, job results and ML model metadata ([#363](https://github.com/Open-EO/openeo-python-driver/issues/363))
+- `load_collection`: validate malformed `spatial_extent` earlier and use more lenient default EPSG:4326 sanity bounds in absence of explicit `crs`.
 
 
 ## 0.139.0
