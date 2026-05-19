@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import List, Union, NamedTuple, Dict, Optional, Callable, Iterable, Container, Any, Tuple
 
 import flask
+from openeo_driver.processgraph.definitions import ProcessGraphFlatDict
 
 import openeo_driver.util.view_helpers
 from openeo.utils.version import ComparableVersion
@@ -1072,6 +1073,8 @@ class OpenEoBackendImplementation:
         job_options: Union[dict, None] = None,
         request_id: str,
         success: bool,
+        process_graph: Union[ProcessGraphFlatDict, None] = None,
+        tracer: Union[DryRunDataTracer, None] = None,
     ) -> Optional[float]:
         """
         Report resource usage of (current) synchronous processing request and get associated cost.

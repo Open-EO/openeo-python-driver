@@ -44,7 +44,7 @@ from openeo_driver.processgraph.registry import (
 from openeo_driver.util import UNSET
 from openeo_driver.util.http import is_http_url
 from openeo_driver.utils import EvalEnv, smart_bool
-from openeo_driver.views import OPENEO_API_VERSION_DEFAULT
+from openeo_driver.views import ENV_SYNC_DRY_RUN_TRACER, OPENEO_API_VERSION_DEFAULT
 
 _log = logging.getLogger(__name__)
 
@@ -116,7 +116,11 @@ def evaluate(
     env = env.push({ENV_FINAL_RESULT: [None], ENV_MAX_BUFFER: {}})
 
     if do_dry_run:
-        dry_run_tracer = do_dry_run if isinstance(do_dry_run, DryRunDataTracer) else DryRunDataTracer()
+        dry_run_tracer = (
+            env.get(ENV_SYNC_DRY_RUN_TRACER) or do_dry_run
+            if isinstance(do_dry_run, DryRunDataTracer)
+            else DryRunDataTracer()
+        )
         _log.info("Doing dry run")
         dry_run_env = env.push(
             {

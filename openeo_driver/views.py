@@ -55,6 +55,7 @@ from openeo_driver.constants import (
     LINK_REL,
 )
 from openeo_driver.datacube import DriverMlModel
+from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import (
     FeatureUnsupportedException,
     FilePathInvalidException,
@@ -105,6 +106,8 @@ _log.info(f"{OPENEO_API_VERSIONS=} {OPENEO_API_VERSION_DEFAULT=}")
 
 
 STREAM_CHUNK_SIZE_DEFAULT = 10 * 1024
+ENV_SYNC_DRY_RUN_TRACER = "sync_dry_run_tracer"
+
 
 class OpenEoApiApp(Flask):
 
@@ -725,8 +728,21 @@ def register_views_processing(
             }
         )
 
+        tracer = DryRunDataTracer()
+        env = env.push({ENV_SYNC_DRY_RUN_TRACER: tracer})
+
+        request_costs = functools.partial(
+            backend_implementation.request_costs,
+            user=user,
+            job_options=job_options,
+            request_id=request_id,
+            process_graph=process_graph,
+            tracer=tracer,
+        )
+
         try:
-            result = backend_implementation.processing.evaluate(process_graph=process_graph, env=env)
+            result = backend_implementation.processing.evaluate(process_graph=copy.deepcopy(process_graph), env=env)
+
             _log.info(f"`POST /result`: {type(result)}")
 
             if result is None:
@@ -742,18 +758,14 @@ def register_views_processing(
                     result = to_save_result(data=result)
                 response = result.create_flask_response()
 
-            costs = backend_implementation.request_costs(
-                success=True, user=user, request_id=request_id, job_options=job_options
-            )
+            costs = request_costs(success=True)
             if costs:
                 # TODO not all costs are accounted for so don't expose in "OpenEO-Costs" yet
                 response.headers["OpenEO-Costs-experimental"] = costs
 
         except Exception:
             # TODO: also send "OpenEO-Costs" header on failure
-            backend_implementation.request_costs(
-                success=False, user=user, request_id=request_id, job_options=job_options
-            )
+            request_costs(success=False)
             raise
 
         # Add request id as "OpenEO-Identifier" like we do for batch jobs.
