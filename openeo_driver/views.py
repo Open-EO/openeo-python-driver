@@ -106,6 +106,8 @@ _log.info(f"{OPENEO_API_VERSIONS=} {OPENEO_API_VERSION_DEFAULT=}")
 
 
 STREAM_CHUNK_SIZE_DEFAULT = 10 * 1024
+ENV_SYNC_DRY_RUN_TRACER = "sync_dry_run_tracer"
+
 
 class OpenEoApiApp(Flask):
 
@@ -727,7 +729,7 @@ def register_views_processing(
         )
 
         tracer = DryRunDataTracer()
-        env = env.push({"retteketet": tracer})
+        env = env.push({ENV_SYNC_DRY_RUN_TRACER: tracer})
 
         request_costs = functools.partial(
             backend_implementation.request_costs,
