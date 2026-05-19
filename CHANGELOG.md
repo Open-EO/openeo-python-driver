@@ -22,6 +22,8 @@ and start a new "In Progress" section above it.
 ## In progress: 0.140.0
 
 - Include `job_options` as top-level properties in `GET /jobs/{job_id}` response ([#470](https://github.com/Open-EO/openeo-python-driver/issues/470))
+- Bump STAC version from `0.9.0` to `1.0.0` in capabilities endpoint, collection metadata, job results and ML model metadata ([#363](https://github.com/Open-EO/openeo-python-driver/issues/363))
+- `load_collection`: add check on malformed `spatial_extent`. ([#284](https://github.com/Open-EO/openeo-python-driver/issues/284))
 - Support logging added value for synchronous requests ([Open-EO/openeo-geopyspark-driver#1436](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1436))
 
 
