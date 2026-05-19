@@ -1141,15 +1141,15 @@ def register_views_batch_jobs(
 
         try:
             # TODO: Cleanup
-            child_link = next((l for l in links if l.get("rel") == "child"), None)
-            if child_link:
+            original_link = next((l for l in links if l.get("rel") == "original"), None)
+            if original_link:
                 signer = get_backend_config().url_signer
                 if signer:
                     expires = signer.get_expires()
                     secure_key = signer.sign_job_results(job_id=job_id, user_id=user_id, expires=expires)
                     user_base64 = user_id_b64_encode(user_id)
-                    asset_name = child_link["href"][child_link["href"].rindex("/") + 1 :]
-                    child_link["href"] = url_for(
+                    asset_name = original_link["href"][original_link["href"].rindex("/") + 1 :]
+                    original_link["href"] = url_for(
                         ".download_job_result",
                         job_id=job_id,
                         user_base64=user_base64,
@@ -1159,7 +1159,7 @@ def register_views_batch_jobs(
                         _external=True,
                     )
         except Exception as e:
-            _log.warning("Error when making URL for child link: " + str(e))
+            _log.warning("Error when making URL for 'original' link: " + str(e))
 
         if not any(l.get("rel") == "self" for l in links):
             links.append(
@@ -1425,7 +1425,7 @@ def register_views_batch_jobs(
                 result = results[filename]
             else:
                 for link in result_metadata.links:
-                    if link.get("rel") != "child":
+                    if link.get("rel") != "original":
                         continue
                     file_paths = get_files_from_stac_catalog(link["href"], include_metadata=True, relative_paths=True)
                     _log.info("file_paths: " + repr(file_paths))
@@ -1436,7 +1436,7 @@ def register_views_batch_jobs(
                             "href": filename,
                         }
                 if not result:
-                    raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}, nor in child links.")
+                    raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}, nor in 'original' links.")
         assert result  # for type checker
         if result.get("href", "").startswith("s3://"):
             return _stream_from_s3(

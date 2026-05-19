@@ -839,7 +839,7 @@ class DummyBatchJobs(BatchJobs):
                     {
                         "href": f"{self._output_root()}/{job_id}/collection.json",
                         # https://github.com/radiantearth/stac-spec/blob/master/commons/links.md#relation-types
-                        "rel": "child",
+                        "rel": "original",
                         "title": f"Link to original STAC catalog.",
                         "type": "application/json",
                     }
