@@ -90,13 +90,13 @@ def _extract_bbox_extent(args: ProcessArgs, field="extent", process_id="filter_b
                 )
             d[key] = value
 
-        if d["west"] >= d["east"]:
+        if d["west"] > d["east"]:
             raise ProcessParameterInvalidException(
                 parameter=field,
                 process=process_id,
                 reason=f"'west' must be smaller than 'east', but got west={d['west']!r} and east={d['east']!r}.",
             )
-        if d["south"] >= d["north"]:
+        if d["south"] > d["north"]:
             raise ProcessParameterInvalidException(
                 parameter=field,
                 process=process_id,
