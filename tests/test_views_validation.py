@@ -91,3 +91,23 @@ def test_validation_load_collection_invalid_spatial_extent(api100, spatial_exten
     assert len(errors) == 1
     assert errors[0]["code"] == "ProcessParameterInvalid"
     assert expected_message_part in errors[0]["message"]
+
+
+@pytest.mark.parametrize(
+    "spatial_extent",
+    [
+        {"west": -200, "south": 51.215, "east": -190, "north": 51.22},
+        {"west": 4, "south": 95, "east": 5, "north": 96},
+    ],
+)
+def test_validation_load_collection_spatial_extent_lenient_epsg4326_default_bounds(api100, spatial_extent):
+    pg = {
+        "lc": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2_FOOBAR", "spatial_extent": spatial_extent},
+            "result": True,
+        }
+    }
+    res = api100.validation(pg)
+    errors = res.json["errors"]
+    assert all(error["code"] != "ProcessParameterInvalid" for error in errors)

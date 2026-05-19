@@ -105,8 +105,8 @@ def _extract_bbox_extent(args: ProcessArgs, field="extent", process_id="filter_b
 
         crs = extent.get("crs")
         if crs is None and (
-            d["west"] < -180 or d["west"] > 180 or d["east"] < -180 or d["east"] > 180
-            or d["south"] < -90 or d["south"] > 90 or d["north"] < -90 or d["north"] > 90
+            d["west"] < -360 or d["west"] > 360 or d["east"] < -360 or d["east"] > 360
+            or d["south"] < -100 or d["south"] > 100 or d["north"] < -100 or d["north"] > 100
         ):
             raise ProcessParameterInvalidException(
                 parameter=field,
