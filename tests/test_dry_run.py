@@ -42,7 +42,7 @@ from openeo_driver.save_result import SaveResult
 from openeo_driver.testing import DictSubSet, approxify, ephemeral_fileserver
 from openeo_driver.util.geometry import as_geojson_feature_collection
 from openeo_driver.utils import EvalEnv
-from openeo_driver.views import OPENEO_API_VERSION_DEFAULT
+from openeo_driver.views import OPENEO_API_VERSION_DEFAULT, ENV_SYNC_DRY_RUN_TRACER
 from openeo_driver.workspacerepository import WorkspaceRepository
 from tests.data import TEST_DATA_ROOT, get_path, load_json
 
@@ -3201,3 +3201,17 @@ def test_deduplicate_source_constraints(dry_run_env, dry_run_tracer):
             {"temporal_extent": ("2026-01-01", "2026-02-02")},
         ),
     ]
+
+
+def test_evaluate_favors_sync_dry_run_tracer(dry_run_env):
+    pg = {
+        "lc1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}, "result": True},
+    }
+
+    dry_run_tracer = DryRunDataTracer()
+    dry_run_env = dry_run_env.push({ENV_SYNC_DRY_RUN_TRACER: dry_run_tracer})
+
+    evaluate(pg, env=dry_run_env)
+
+    # evaluate mutates the DryRunDataTracer in the EvalEnv
+    assert dry_run_tracer.get_source_constraints()
