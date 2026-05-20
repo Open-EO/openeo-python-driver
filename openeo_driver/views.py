@@ -75,12 +75,13 @@ from openeo_driver.processgraph import ProcessGraphFlatDict, extract_default_job
 from openeo_driver.save_result import SaveResult, to_save_result
 from openeo_driver.users import User, user_id_b64_decode, user_id_b64_encode
 from openeo_driver.users.auth import HttpAuthHandler
-from openeo_driver.util.compat import function_has_argument
+from openeo_driver.util.compat import function_has_argument, filter_supported_kwargs
 from openeo_driver.util.geometry import BoundingBox, reproject_geometry
 from openeo_driver.util.logging import ExtraLoggingFilter, FlaskRequestCorrelationIdLogging
 from openeo_driver.util.stac import sniff_stac_extension_prefix
 from openeo_driver.util.stac_utils import get_files_from_stac_catalog
-from openeo_driver.utils import EvalEnv, filter_supported_kwargs, smart_bool
+from openeo_driver.utils import EvalEnv, smart_bool
+
 
 _log = logging.getLogger(__name__)
 

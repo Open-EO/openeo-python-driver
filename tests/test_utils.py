@@ -17,7 +17,6 @@ from openeo_driver.utils import (
     get_package_versions,
     generate_unique_id,
     WhiteListEvalEnv,
-    filter_supported_kwargs,
     get_package_version,
 )
 
@@ -312,21 +311,3 @@ def test_generate_unique_id_basics():
 def test_generate_unique_id_date_prefix(generate_unique_id_mock, date_prefix, expected):
     with time_machine.travel("2019-12-27T07:08:09Z"):
         assert generate_unique_id("j", date_prefix=date_prefix) == expected
-
-
-def test_filter_supported_kwargs_basic():
-    def fun(x, y: int, foo=None):
-        return x + y
-
-    assert filter_supported_kwargs(fun) == {}
-    assert filter_supported_kwargs(fun, x=1, y=2) == {"x": 1, "y": 2}
-    assert filter_supported_kwargs(fun, x=1, y=2, z=3, foo=4, bar=5) == {"x": 1, "y": 2, "foo": 4}
-
-
-def test_filter_supported_kwargs_parameter_types():
-    def fun(x, /, y, *args, z=None, **kwargs):
-        return x + y + z
-
-    assert filter_supported_kwargs(fun) == {}
-    assert filter_supported_kwargs(fun, x=1, y=2, z=3) == {"y": 2, "z": 3}
-    assert filter_supported_kwargs(fun, x=1, y=2, z=3, args=(4, 44), kwargs={"foo": 5}) == {"y": 2, "z": 3}
