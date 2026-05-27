@@ -1,3 +1,4 @@
+import functools
 import json
 import logging
 import math
@@ -525,6 +526,7 @@ class BoundingBox:
         return NotImplemented
 
     @staticmethod
+    @functools.lru_cache(maxsize=500)
     def normalize_crs(crs: Union[str, int]) -> str:
         if is_auto_utm_crs(crs):
             return "AUTO:42001"
