@@ -2,6 +2,7 @@ import contextlib
 import math
 from typing import List, Union
 
+import dirty_equals
 import pyproj
 import pyproj.exceptions
 import pytest
@@ -18,13 +19,13 @@ from openeo_driver.util.geometry import (
     GeometryBufferer,
     as_geojson_feature,
     as_geojson_feature_collection,
+    epsg_code_or_none,
     geojson_to_multipolygon,
+    normalize_west_east_longitude,
     reproject_bounding_box,
     reproject_geometry,
     spatial_extent_union,
     validate_geojson_basic,
-    epsg_code_or_none,
-    normalize_west_east_longitude,
 )
 
 from ..data import get_path
@@ -660,14 +661,67 @@ class TestBoundingBox:
         assert bbox.west == 1
         assert bbox.crs == "EPSG:4326"
 
-    def test_repr(self):
-        bbox = BoundingBox(1, 2, 3, 4, crs=4326)
-        expected = "BoundingBox(west=1, south=2, east=3, north=4, crs='EPSG:4326')"
-        assert repr(bbox) == expected
+    def test_hash_basic(self):
+        bbox1 = BoundingBox(1, 2, 3, 4)
+        bbox2 = BoundingBox(1, 2, 3, 4)
+        assert hash(bbox1) == hash(bbox2)
 
-    def test_str(self):
-        bbox = BoundingBox(1, 2, 3, 4, crs=4326)
-        expected = "BoundingBox(west=1, south=2, east=3, north=4, crs='EPSG:4326')"
+    def test_hash_with_crs(self):
+        bbox1 = BoundingBox(1, 2, 3, 4, crs=4326)
+        bbox2 = BoundingBox(1, 2, 3, 4, crs="EPSG:4326")
+        assert hash(bbox1) == hash(bbox2)
+
+    def test_equality_basic(self):
+        bbox1 = BoundingBox(1, 2, 3, 4)
+        bbox2 = BoundingBox(1, 2, 3, 4)
+        bbox3 = BoundingBox(1, 2, 3, 44)
+        assert bbox1 == bbox2
+        assert bbox2 == bbox1
+        assert bbox1 != bbox3
+        assert bbox3 != bbox1
+
+    def test_equality_with_crs(self):
+        bbox1 = BoundingBox(1, 2, 3, 4, crs=4326)
+        bbox2 = BoundingBox(1, 2, 3, 4, crs="EPSG:4326")
+        bbox3 = BoundingBox(1, 2, 3, 44, crs="EPSG:4326")
+        assert bbox1 == bbox2
+        assert bbox2 == bbox1
+        assert bbox1 != bbox3
+        assert bbox3 != bbox1
+
+    @pytest.mark.parametrize(
+        "expected",
+        [
+            dirty_equals.AnyThing,
+            dirty_equals.IsInstance(BoundingBox),
+            dirty_equals.HasAttributes(south=2),
+        ],
+    )
+    def test_equality_dirty(self, expected):
+        """Test equality integration with dirty_equals"""
+        bbox = BoundingBox(1, 2, 3, 4)
+        assert bbox == expected
+        assert expected == bbox
+
+    @pytest.mark.parametrize(
+        ["bbox", "expected"],
+        [
+            (
+                BoundingBox(1, 2, 3, 4),
+                "BoundingBox(west=1, south=2, east=3, north=4, crs=None)",
+            ),
+            (
+                BoundingBox(1, 2, 3, 4, crs="EPSG:4326"),
+                "BoundingBox(west=1, south=2, east=3, north=4, crs='EPSG:4326')",
+            ),
+            (
+                BoundingBox(1, 2, 3, 4, crs=4326),
+                "BoundingBox(west=1, south=2, east=3, north=4, crs='EPSG:4326')",
+            ),
+        ],
+    )
+    def test_repr_and_str(self, bbox, expected):
+        assert repr(bbox) == expected
         assert str(bbox) == expected
 
     def test_missing_bounds(self):
