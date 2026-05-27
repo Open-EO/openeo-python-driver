@@ -25,6 +25,7 @@ and start a new "In Progress" section above it.
 - Bump STAC version from `0.9.0` to `1.0.0` in capabilities endpoint, collection metadata, job results and ML model metadata ([#363](https://github.com/Open-EO/openeo-python-driver/issues/363))
 - `load_collection`: add check on malformed `spatial_extent`. ([#284](https://github.com/Open-EO/openeo-python-driver/issues/284))
 - Support logging added value for synchronous requests ([Open-EO/openeo-geopyspark-driver#1436](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1436))
+- Add caching to `BoundingBox` CRS handling and reprojection for performance optimization of bounding box merging in post-dry-run of openeo-geopyspark-driver ([Open-EO/openeo-geopyspark-driver#1685](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1685))
 
 
 ## 0.139.0
