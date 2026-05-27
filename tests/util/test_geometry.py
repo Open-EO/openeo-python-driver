@@ -1,6 +1,7 @@
 import contextlib
 import math
 from typing import List, Union
+from unittest import mock
 
 import dirty_equals
 import pyproj
@@ -1018,6 +1019,31 @@ class TestBoundingBox:
             north=70.3,
             crs="EPSG:4326",
         ).approx(abs=0.1)
+
+    def test_reproject_cache_returns_same_object(self):
+        """Reprojecting same BoundingBox to same CRS twice returns the cached (identical) object."""
+        bbox = BoundingBox(3, 51, 3.1, 51.1, crs="EPSG:4326")
+        reprojected1 = bbox.reproject(32631)
+        reprojected2 = bbox.reproject(32631)
+        reprojected3 = bbox.reproject(3035)
+        assert reprojected1 == reprojected2
+        assert reprojected1 is reprojected2
+        assert reprojected1 != reprojected3
+
+    def test_reproject_cache_avoids_recomputation(self):
+        """The expensive shapely transform is only called once per unique (bbox, crs) combination."""
+        bbox = BoundingBox(3, 51, 3.1, 51.1, crs="EPSG:4326")
+        with mock.patch("shapely.ops.transform", wraps=shapely.ops.transform) as mock_transform:
+            bbox.reproject(32631)
+            assert mock_transform.call_count == 1
+            bbox.reproject(32631)
+            assert mock_transform.call_count == 1
+            bbox.reproject("EPSG:32631")
+            assert mock_transform.call_count == 1
+            bbox.reproject(3035)
+            assert mock_transform.call_count == 2
+            bbox.reproject(32631)
+            assert mock_transform.call_count == 2
 
     def test_best_utm_no_crs(self):
         bbox = BoundingBox(1, 2, 3, 4)

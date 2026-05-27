@@ -460,7 +460,7 @@ class BoundingBox:
 
     # TODO: do longitude normalization (for EPSG:4326) in constructor instead of on the fly in various places?
 
-    __slots__ = ("_west", "_south", "_east", "_north", "_crs")
+    __slots__ = ("_west", "_south", "_east", "_north", "_crs", "_reproject_cache")
 
     def __init__(
         self,
@@ -486,6 +486,7 @@ class BoundingBox:
         self._east = east
         self._north = north
         self._crs = self.normalize_crs(crs) if crs is not None else None
+        self._reproject_cache = {}
 
     @property
     def west(self) -> float:
@@ -726,6 +727,9 @@ class BoundingBox:
         if crs == self.crs:
             return self
 
+        if crs in self._reproject_cache:
+            return self._reproject_cache[crs]
+
         transformer = pyproj.Transformer.from_crs(crs_from=self.crs, crs_to=crs, always_xy=True)
         reprojected = shapely.ops.transform(transformer.transform, self.as_polygon())
         west, south, east, north = reprojected.bounds
@@ -737,7 +741,11 @@ class BoundingBox:
             if not (west <= cx <= east):
                 west, east = east, west
 
-        return BoundingBox(west=west, south=south, east=east, north=north, crs=crs)
+        bbox = BoundingBox(west=west, south=south, east=east, north=north, crs=crs)
+
+        self._reproject_cache[crs] = bbox
+
+        return bbox
 
     def best_utm(self) -> int:
         """
