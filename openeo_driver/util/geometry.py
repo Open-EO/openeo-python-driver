@@ -1,20 +1,18 @@
-import functools
-import dataclasses
 import json
 import logging
 import math
 from pathlib import Path
 from typing import Any, Collection, List, Mapping, Optional, Sequence, Tuple, Union
 
+import antimeridian
 import fiona.model
 import pyproj
 import shapely.geometry
 import shapely.ops
+from openeo.util import repr_truncate
 from shapely.geometry import MultiPolygon, Polygon
 from shapely.geometry.base import BaseGeometry
-import antimeridian
 
-from openeo.util import repr_truncate
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.util.utm import auto_utm_epsg, auto_utm_epsg_for_geometry, is_auto_utm_crs
 
@@ -439,7 +437,6 @@ def normalize_west_east_longitude(west: float, east: float) -> Tuple[float, floa
     return west, east
 
 
-@dataclasses.dataclass(frozen=True)
 class BoundingBox:
     """
     Bounding box with west, south, east, north coordinates
@@ -461,16 +458,9 @@ class BoundingBox:
         also see https://datatracker.ietf.org/doc/html/rfc7946#section-5.2
     """
 
-    # TODO: using frozen dataclasss, but with custom __init__ (for CRS normalization) makes things a bit messy.
-    #       It might be just easier to implement the "frozen dataclass" behavior manually
-
     # TODO: do longitude normalization (for EPSG:4326) in constructor instead of on the fly in various places?
 
-    west: float
-    south: float
-    east: float
-    north: float
-    crs: Optional[str] = dataclasses.field()
+    __slots__ = ("_west", "_south", "_east", "_north", "_crs", "_reproject_cache")
 
     def __init__(
         self,
@@ -490,12 +480,49 @@ class BoundingBox:
         ]
         if missing:
             raise BoundingBoxException(f"Missing bounds: {missing}.")
-        # __setattr__ workaround to initialize read-only attributes
-        super().__setattr__("west", west)
-        super().__setattr__("south", south)
-        super().__setattr__("east", east)
-        super().__setattr__("north", north)
-        super().__setattr__("crs", self.normalize_crs(crs) if crs is not None else None)
+
+        self._west = west
+        self._south = south
+        self._east = east
+        self._north = north
+        self._crs = self.normalize_crs(crs) if crs is not None else None
+        self._reproject_cache = {}
+
+    @property
+    def west(self) -> float:
+        return self._west
+
+    @property
+    def south(self) -> float:
+        return self._south
+
+    @property
+    def east(self) -> float:
+        return self._east
+
+    @property
+    def north(self) -> float:
+        return self._north
+
+    @property
+    def crs(self) -> Union[str, int, None]:
+        return self._crs
+
+    def __repr__(self):
+        return (
+            f"BoundingBox(west={self.west}, south={self.south}, east={self.east}, north={self.north}, crs={self.crs!r})"
+        )
+
+    def _key(self) -> tuple:
+        return (self.west, self.south, self.east, self.north, self.crs)
+
+    def __hash__(self):
+        return hash(self._key())
+
+    def __eq__(self, other):
+        if isinstance(other, BoundingBox):
+            return self._key() == other._key()
+        return NotImplemented
 
     @staticmethod
     def normalize_crs(crs: Union[str, int]) -> str:
@@ -700,6 +727,9 @@ class BoundingBox:
         if crs == self.crs:
             return self
 
+        if crs in self._reproject_cache:
+            return self._reproject_cache[crs]
+
         transformer = pyproj.Transformer.from_crs(crs_from=self.crs, crs_to=crs, always_xy=True)
         reprojected = shapely.ops.transform(transformer.transform, self.as_polygon())
         west, south, east, north = reprojected.bounds
@@ -711,7 +741,11 @@ class BoundingBox:
             if not (west <= cx <= east):
                 west, east = east, west
 
-        return BoundingBox(west=west, south=south, east=east, north=north, crs=crs)
+        bbox = BoundingBox(west=west, south=south, east=east, north=north, crs=crs)
+
+        self._reproject_cache[crs] = bbox
+
+        return bbox
 
     def best_utm(self) -> int:
         """
