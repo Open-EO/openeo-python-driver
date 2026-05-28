@@ -1948,17 +1948,18 @@ class TestBatchJobs:
                 ],
                 "properties": {
                     "created": "2017-01-01T09:32:12Z",
-                    "datetime": None,
+                    "datetime": "2017-01-01T09:32:12Z",
                     "card4l:processing_chain": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
                     "card4l:specification": "SR",
                     "card4l:specification_version": "5.0",
                     "processing:facility": "Dummy openEO API",
-                    "processing:software": "openeo-python-driver",
+                    "processing:software": {
+                        dummy_config.config.processing_software: dummy_config.config.capabilities_backend_version
+                    },
                 },
                 "providers": EXPECTED_PROVIDERS,
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
-                    "https://stac-extensions.github.io/card4l/v0.1.0/optical/schema.json",
                     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
                     "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                 ],
@@ -2043,12 +2044,13 @@ class TestBatchJobs:
                     "card4l:specification": "SR",
                     "card4l:specification_version": "5.0",
                     "processing:facility": "Dummy openEO API",
-                    "processing:software": "openeo-python-driver",
+                    "processing:software": {
+                        dummy_config.config.processing_software: dummy_config.config.capabilities_backend_version
+                    },
                 },
                 "providers": EXPECTED_PROVIDERS,
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
-                    "https://stac-extensions.github.io/card4l/v0.1.0/optical/schema.json",
                     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
                     "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                     "https://stac-extensions.github.io/projection/v1.2.0/schema.json",
@@ -2394,17 +2396,18 @@ class TestBatchJobs:
                 ],
                 "properties": {
                     "created": "2017-01-01T09:32:12Z",
-                    "datetime": None,
+                    "datetime": "2017-01-01T09:32:12Z",
                     "card4l:processing_chain": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
                     "card4l:specification": "SR",
                     "card4l:specification_version": "5.0",
                     "processing:facility": "Dummy openEO API",
-                    "processing:software": "openeo-python-driver",
+                    "processing:software": {
+                        dummy_config.config.processing_software: dummy_config.config.capabilities_backend_version
+                    },
                 },
                 "providers": EXPECTED_PROVIDERS,
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
-                    "https://stac-extensions.github.io/card4l/v0.1.0/optical/schema.json",
                     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
                     "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                 ],
@@ -2678,17 +2681,18 @@ class TestBatchJobs:
                 ],
                 "properties": {
                     "created": "2017-01-01T09:32:12Z",
-                    "datetime": None,
+                    "datetime": "2017-01-01T09:32:12Z",
                     "card4l:processing_chain": {"process_graph": {"foo": {"process_id": "foo", "arguments": {}}}},
                     "card4l:specification": "SR",
                     "card4l:specification_version": "5.0",
                     "processing:facility": "Dummy openEO API",
-                    "processing:software": "openeo-python-driver",
+                    "processing:software": {
+                        dummy_config.config.processing_software: dummy_config.config.capabilities_backend_version
+                    },
                 },
                 "providers": EXPECTED_PROVIDERS,
                 "stac_extensions": [
                     "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
-                    "https://stac-extensions.github.io/card4l/v0.1.0/optical/schema.json",
                     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
                     "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
                 ],
