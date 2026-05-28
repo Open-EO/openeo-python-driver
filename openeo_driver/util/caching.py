@@ -1,3 +1,4 @@
+import functools
 import logging
 import time
 from typing import Union, Tuple, Any, Callable, Dict, Optional
@@ -66,3 +67,40 @@ class TtlCache:
 
     def flush(self):
         self._cache = {}
+
+
+def lru_cache_if_simple_args(func=None, *, maxsize: int = 128):
+    """
+    Decorator similar to `functools.lru_cache`, but only applies caching
+    when all positional and keyword arguments are instances of simple
+    built-in types (str, int, float, bool, None).
+
+    If any argument is of another type (e.g. dict, list, or other
+    complex/mutable objects), the function is executed without caching.
+    Note that the standard `functools.lru_cache` would fail at runtime here
+    with something like
+
+        TypeError: unhashable type ...
+
+    This is useful when a function is typically called with simple values,
+    but occasionally receives more complex inputs that are not worth
+    normalizing or converting into cacheable/hashable forms.
+    """
+    simple = (str, int, float, bool, type(None))
+
+    def decorator(func):
+        func_cached = functools.lru_cache(maxsize=maxsize)(func)
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            if all(isinstance(a, simple) for a in args) and all(isinstance(v, simple) for v in kwargs.values()):
+                return func_cached(*args, **kwargs)
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    # Support decorator usage both with and without parentheses:
+    if func is not None:
+        return decorator(func)
+    else:
+        return decorator

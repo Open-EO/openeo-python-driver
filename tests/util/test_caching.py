@@ -1,6 +1,6 @@
 import pytest
 
-from openeo_driver.util.caching import TtlCache
+from openeo_driver.util.caching import TtlCache, lru_cache_if_simple_args
 
 
 class FakeClock:
@@ -80,3 +80,117 @@ class TestTtlCache:
             cache.get_or_call("foo", callback=calculate)
         with pytest.raises(ZeroDivisionError):
             cache.get_or_call("foo", callback=calculate)
+
+
+class TestLruCacheIfSimpleArgs:
+    def test_default_no_parentheses(self):
+        _call_history = []
+
+        @lru_cache_if_simple_args
+        def fun(x) -> str:
+            _call_history.append(x)
+            return str(x)
+
+        assert fun(1) == "1"
+        assert _call_history == [1]
+
+        assert fun(1) == "1"
+        assert _call_history == [1]
+
+        assert fun("one") == "one"
+        assert _call_history == [1, "one"]
+
+        assert fun({1: 1}) == "{1: 1}"
+        assert _call_history == [1, "one", {1: 1}]
+
+        assert fun(1) == "1"
+        assert _call_history == [1, "one", {1: 1}]
+
+        assert fun({1: 1}) == "{1: 1}"
+        assert _call_history == [1, "one", {1: 1}, {1: 1}]
+
+    def test_default_with_parentheses(self):
+        _call_history = []
+
+        @lru_cache_if_simple_args()
+        def fun(x) -> str:
+            _call_history.append(x)
+            return str(x)
+
+        assert fun(1) == "1"
+        assert _call_history == [1]
+
+        assert fun(1) == "1"
+        assert _call_history == [1]
+
+        assert fun("one") == "one"
+        assert _call_history == [1, "one"]
+
+        assert fun({1: 1}) == "{1: 1}"
+        assert _call_history == [1, "one", {1: 1}]
+
+        assert fun(1) == "1"
+        assert _call_history == [1, "one", {1: 1}]
+
+        assert fun({1: 1}) == "{1: 1}"
+        assert _call_history == [1, "one", {1: 1}, {1: 1}]
+
+    def test_maxsize(self):
+        _call_history = []
+
+        @lru_cache_if_simple_args(maxsize=2)
+        def fun(x) -> str:
+            _call_history.append(x)
+            return str(x)
+
+        assert fun(1) == "1"
+        assert _call_history == [1]
+
+        assert fun(1) == "1"
+        assert _call_history == [1]
+
+        assert fun("one") == "one"
+        assert _call_history == [1, "one"]
+
+        assert fun({1: 1}) == "{1: 1}"
+        assert _call_history == [1, "one", {1: 1}]
+
+        assert fun(1) == "1"
+        assert _call_history == [1, "one", {1: 1}]
+
+        assert fun(2) == "2"
+        assert _call_history == [1, "one", {1: 1}, 2]
+
+        assert fun("one") == "one"
+        assert _call_history == [1, "one", {1: 1}, 2, "one"]
+
+    @pytest.mark.parametrize(
+        ["args", "kwargs", "expected_caching"],
+        [
+            ((1, 2), {}, True),
+            ((1, "two", 3.3, True, None), {}, True),
+            ((1, {2: 2}, 3), {}, False),
+            ((1, (2, 22), 3), {}, False),
+            ((1, [2, 22], 3), {}, False),
+            ((0,), {"a": 1, "b": "two", "c": 3.3, "d": True, "e": None}, True),
+            ((0,), {"a": 1, "b": {2: 2}}, False),
+            ((0,), {"a": 1, "b": (2, 22)}, False),
+            ((0,), {"a": 1, "b": [2, 22]}, False),
+        ],
+    )
+    def test_caching_from_argument_types(self, args, kwargs, expected_caching):
+        _call_history = []
+
+        @lru_cache_if_simple_args
+        def fun(*args, **kwargs) -> str:
+            _call_history.append((args, kwargs))
+            return str((args, kwargs))
+
+        fun(*args, **kwargs)
+        assert _call_history == [(args, kwargs)]
+
+        fun(*args, **kwargs)
+        if expected_caching:
+            assert _call_history == [(args, kwargs)]
+        else:
+            assert _call_history == [(args, kwargs), (args, kwargs)]

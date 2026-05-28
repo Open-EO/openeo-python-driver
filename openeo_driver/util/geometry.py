@@ -15,6 +15,7 @@ from shapely.geometry import MultiPolygon, Polygon
 from shapely.geometry.base import BaseGeometry
 
 from openeo_driver.errors import OpenEOApiException
+from openeo_driver.util.caching import lru_cache_if_simple_args
 from openeo_driver.util.utm import auto_utm_epsg, auto_utm_epsg_for_geometry, is_auto_utm_crs
 
 _log = logging.getLogger(__name__)
@@ -526,7 +527,7 @@ class BoundingBox:
         return NotImplemented
 
     @staticmethod
-    @functools.lru_cache(maxsize=500)
+    @lru_cache_if_simple_args(maxsize=500)
     def normalize_crs(crs: Union[str, int]) -> str:
         if is_auto_utm_crs(crs):
             return "AUTO:42001"
