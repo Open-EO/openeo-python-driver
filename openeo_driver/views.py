@@ -1395,7 +1395,7 @@ def register_views_batch_jobs(
 
         # TODO "OpenEO-Costs" header?
 
-        pystac_item = pystac.Collection.from_dict(result)  # TODO: pystac.Item?
+        pystac_item = pystac.Item.from_dict(result)  # TODO: pystac.Item?
         pystac_item.validate()
         return jsonify(result)
 
