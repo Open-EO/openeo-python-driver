@@ -1846,6 +1846,18 @@ def register_views_batch_jobs(
                 asset["href"] = backend_implementation.config.asset_url.build_url(
                     asset_metadata=asset, asset_name=asset_file_name, job_id=job_id, user_id=user_id
                 )
+        links = [
+            {
+                "rel": "self",
+                "href": url_for(".get_job_result_item", job_id=job_id, item_id=file_name, _external=True),
+                "type": stac_item_media_type,
+            },
+            {
+                "rel": "collection",
+                "href": url_for(".list_job_results", job_id=job_id, _external=True),
+                "type": "application/json",
+            },
+        ] + ml_model_metadata.get("links", [])
         stac_item = {
             "stac_version": ml_model_metadata.get("stac_version", "1.0.0"),
             "stac_extensions": ml_model_metadata.get("stac_extensions", []),
@@ -1854,9 +1866,9 @@ def register_views_batch_jobs(
             "collection": job_id,
             "bbox": ml_model_metadata.get("bbox", []),
             "geometry": ml_model_metadata.get("geometry", {}),
-            'properties': ml_model_metadata.get("properties", {}),
-            'links': ml_model_metadata.get("links", []),
-            'assets': ml_model_metadata.get("assets", {})
+            "properties": ml_model_metadata.get("properties", {}),
+            "links": links,
+            "assets": ml_model_metadata.get("assets", {}),
         }
 
         pystac_item = pystac.Item.from_dict(stac_item)

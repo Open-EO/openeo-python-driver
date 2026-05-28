@@ -4139,7 +4139,18 @@ class TestBatchJobs:
                 ],
                 "type": "Polygon",
             },
-            "links": [],
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/items/ml_model_metadata.json",
+                    "type": "application/geo+json",
+                },
+                {
+                    "rel": "collection",
+                    "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results",
+                    "type": "application/json",
+                },
+            ],
             "properties": {
                 "datetime": None,
                 "end_datetime": "9999-12-31T23:59:59Z",
