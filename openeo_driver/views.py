@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 
 import flask
 import flask_cors
+import pystac
 from flask import (
     Blueprint,
     Flask,
@@ -1122,6 +1123,8 @@ def register_views_batch_jobs(
                         }
                     ],
                 }
+                pystac_item = pystac.Collection.from_dict(result)
+                pystac_item.validate()
                 return jsonify(result)
 
         with TimingLogger(f"backend_implementation.batch_jobs.get_result_metadata({job_id=}, {user_id=})", _log):
@@ -1391,6 +1394,9 @@ def register_views_batch_jobs(
                 result["stac_extensions"].append(STAC_EXTENSION.PROJECTION_V120)
 
         # TODO "OpenEO-Costs" header?
+
+        pystac_item = pystac.Collection.from_dict(result)  # TODO: pystac.Item?
+        pystac_item.validate()
         return jsonify(result)
 
     # TODO: Issue #232, TBD: refactor download functionality? more abstract, just stream blocks of bytes from S3 or from a directory.
@@ -1630,6 +1636,8 @@ def register_views_batch_jobs(
             )
         )
 
+        pystac_item = pystac.Item.from_dict(stac_item)
+        pystac_item.validate()
         resp = jsonify(stac_item)
         resp.mimetype = stac_item_media_type
         return resp
@@ -1808,6 +1816,8 @@ def register_views_batch_jobs(
                 }
             )
         )
+        pystac_item = pystac.Item.from_dict(stac_item)
+        pystac_item.validate()
 
         resp = jsonify(stac_item)
         resp.mimetype = stac_item_media_type
@@ -1837,6 +1847,9 @@ def register_views_batch_jobs(
             'links': ml_model_metadata.get("links", []),
             'assets': ml_model_metadata.get("assets", {})
         }
+
+        pystac_item = pystac.Item.from_dict(stac_item)
+        pystac_item.validate()
         resp = jsonify(stac_item)
         resp.mimetype = stac_item_media_type
         return resp
