@@ -1438,7 +1438,6 @@ def register_views_batch_jobs(
                         }
                 if not result:
                     raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}, nor in 'original' links.")
-        assert result is not None  # for type checker
         if result.get("href", "").startswith("s3://"):
             return _stream_from_s3(
                 result["href"], filename=filename, mimetype=result.get("type"), bytes_range=request.headers.get("Range")
