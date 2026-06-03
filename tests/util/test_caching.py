@@ -35,24 +35,41 @@ class TestTtlCache:
         cache.set("foo", "bar")
         clock.set(105)
         assert cache.get("foo") == "bar"
-        clock.set(110)
+        clock.set(109)
         assert cache.contains("foo")
         assert cache.get("foo") == "bar"
         clock.set(115)
         assert not cache.contains("foo")
         assert cache.get("foo") is None
 
-    def test_item_ttl(self):
+    def test_item_ttl_deprecated(self):
+        """Per-item ttl is deprecated: the argument is accepted but warns and is ignored."""
         clock = FakeClock()
         cache = TtlCache(default_ttl=10, _clock=clock)
         clock.set(100)
-        cache.set("foo", "bar", ttl=20)
-        clock.set(115)
+        with pytest.warns(DeprecationWarning, match="Per-item ttl is deprecated"):
+            cache.set("foo", "bar", ttl=20)
+        # Item is still stored and retrievable within the default TTL.
+        clock.set(105)
         assert cache.contains("foo")
         assert cache.get("foo") == "bar"
-        clock.set(125)
+        # After default_ttl the item expires (per-item ttl=20 is ignored).
+        clock.set(115)
         assert not cache.contains("foo")
         assert cache.get("foo") is None
+
+    def test_max_size(self):
+        cache = TtlCache(default_ttl=60, max_size=3)
+        cache.set("a", 1)
+        cache.set("b", 2)
+        cache.set("c", 3)
+        assert cache.contains("a")
+        assert cache.contains("b")
+        assert cache.contains("c")
+        # Adding a fourth item evicts the least-recently-used entry.
+        cache.set("d", 4)
+        assert cache.contains("d")
+        assert sum(cache.contains(k) for k in ("a", "b", "c", "d")) == 3
 
     def test_get_or_call(self):
         def calculate(_state={"x": 0}):
@@ -69,6 +86,12 @@ class TestTtlCache:
         assert cache.get_or_call("foo", callback=calculate) == 2
         clock.set(140)
         assert cache.get_or_call("foo", callback=calculate) == 3
+
+    def test_get_or_call_ttl_deprecated(self):
+        cache = TtlCache(default_ttl=10)
+        with pytest.warns(DeprecationWarning, match="Per-item ttl is deprecated"):
+            result = cache.get_or_call("foo", callback=lambda: 42, ttl=5)
+        assert result == 42
 
     def test_get_or_call_error(self):
         def calculate():
