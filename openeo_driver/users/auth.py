@@ -50,7 +50,7 @@ class HttpAuthHandler:
         # TODO: handle `oidc_providers` and `user_access_validation` through OpenEoBackendConfig
         self._oidc_providers: Dict[str, OidcProvider] = {p.id: p for p in oidc_providers}
         self._user_access_validation = user_access_validation
-        self._cache = TtlCache(default_ttl=10 * 60)
+        self._cache = TtlCache(default_ttl=15 * 60)
 
     def public(self, f: Callable):
         """
@@ -112,7 +112,7 @@ class HttpAuthHandler:
         cache_key = ("bearer", bearer)
         if not self._cache.contains(cache_key):
             user = self._get_user_from_bearer_token(bearer=bearer)
-            self._cache.set(cache_key, value=user, ttl=15 * 60)
+            self._cache.set(cache_key, value=user)
         return self._cache.get(cache_key)
 
     def _get_user_from_bearer_token(self, bearer: str) -> User:
@@ -210,7 +210,6 @@ class HttpAuthHandler:
             callback=lambda: self._oidc_provider_request(
                 oidc_provider.discovery_url
             ).json(),
-            ttl=15 * 60,
         )
 
     def resolve_oidc_access_token(self, oidc_provider: OidcProvider, access_token: str) -> User:
