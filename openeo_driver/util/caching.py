@@ -1,7 +1,10 @@
 import functools
 import logging
+import threading
 import time
 from typing import Union, Tuple, Any, Callable, Dict, Optional
+
+import cachetools
 
 _log = logging.getLogger(__name__)
 
@@ -67,6 +70,72 @@ class TtlCache:
 
     def flush(self):
         self._cache = {}
+
+
+class BoundedTtlCache:
+    """
+    Thread-safe, in-memory key-value cache with TTL expiry and a maximum size,
+    backed by :class:`cachetools.TTLCache`.
+
+    When the cache is full the least-recently-used item is evicted to make room
+    for new entries.  All constructor arguments are keyword-only.
+
+    Cache interactions are protected by a :class:`threading.Lock`.  The lock is
+    intentionally *not* held while a cache-miss callback executes in
+    :meth:`get_or_call`, so slow callbacks do not block other readers.  As a
+    consequence two concurrent callers may both experience a cache miss and both
+    invoke the callback; the last writer wins.
+    """
+
+    def __init__(self, *, ttl: float = 60, max_size: int = 1000):
+        self._cache: cachetools.TTLCache = cachetools.TTLCache(maxsize=max_size, ttl=ttl, timer=time.time)
+        self._lock = threading.Lock()
+
+    def set(self, key: CacheKey, value: Any) -> None:
+        """Store *value* under *key*."""
+        with self._lock:
+            self._cache[key] = value
+
+    def contains(self, key: CacheKey) -> bool:
+        """Return ``True`` if *key* is present and not yet expired."""
+        with self._lock:
+            return key in self._cache
+
+    def get(self, key: CacheKey, default: Any = None) -> Any:
+        """Return the cached value for *key*, or *default* on a miss or expiry."""
+        with self._lock:
+            return self._cache.get(key, default)
+
+    def get_or_call(self, key: CacheKey, callback: Callable[[], Any]) -> Any:
+        """
+        Return the cached value for *key*, or call *callback* to build it on a miss.
+
+        The lock is held only during cache look-up and result storage, **not**
+        while *callback* is executing.
+
+        Usage::
+
+            item = cache.get_or_call(
+                key="foo",
+                callback=lambda: expensive_operation(iterations=10000),
+            )
+
+        :param key: cache key (a string or a tuple of strings/ints)
+        :param callback: callable invoked on a cache miss to produce the value
+        :return: the cached or freshly produced value
+        """
+        with self._lock:
+            if key in self._cache:
+                return self._cache[key]
+        value = callback()
+        with self._lock:
+            self._cache[key] = value
+        return value
+
+    def flush(self) -> None:
+        """Remove all entries from the cache."""
+        with self._lock:
+            self._cache.clear()
 
 
 def lru_cache_if_simple_args(func=None, *, maxsize: int = 128):

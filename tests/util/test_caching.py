@@ -1,6 +1,7 @@
 import pytest
+import time_machine
 
-from openeo_driver.util.caching import TtlCache, lru_cache_if_simple_args
+from openeo_driver.util.caching import BoundedTtlCache, TtlCache, lru_cache_if_simple_args
 
 
 class FakeClock:
@@ -35,7 +36,7 @@ class TestTtlCache:
         cache.set("foo", "bar")
         clock.set(105)
         assert cache.get("foo") == "bar"
-        clock.set(110)
+        clock.set(109)
         assert cache.contains("foo")
         assert cache.get("foo") == "bar"
         clock.set(115)
@@ -80,6 +81,73 @@ class TestTtlCache:
             cache.get_or_call("foo", callback=calculate)
         with pytest.raises(ZeroDivisionError):
             cache.get_or_call("foo", callback=calculate)
+
+
+class TestBoundedTtlCache:
+    def test_basic(self):
+        cache = BoundedTtlCache()
+        assert not cache.contains("foo")
+        cache.set("foo", "bar")
+        assert cache.contains("foo")
+        assert cache.get("foo") == "bar"
+        assert cache.get("meh") is None
+
+    def test_ttl(self):
+        with time_machine.travel(0, tick=False) as traveller:
+            cache = BoundedTtlCache(ttl=10)
+            cache.set("foo", "bar")
+            traveller.shift(9)
+            assert cache.contains("foo")
+            assert cache.get("foo") == "bar"
+            traveller.shift(2)  # t=11, past ttl
+            assert not cache.contains("foo")
+            assert cache.get("foo") is None
+
+    def test_max_size(self):
+        cache = BoundedTtlCache(ttl=60, max_size=3)
+        cache.set("a", 1)
+        cache.set("b", 2)
+        cache.set("c", 3)
+        assert cache.contains("a")
+        assert cache.contains("b")
+        assert cache.contains("c")
+        # Adding a fourth item evicts the least-recently-used entry.
+        cache.set("d", 4)
+        assert cache.contains("d")
+        assert sum(cache.contains(k) for k in ("a", "b", "c", "d")) == 3
+
+    def test_get_or_call(self):
+        def calculate(_state={"x": 0}):
+            _state["x"] += 1
+            return _state["x"]
+
+        with time_machine.travel(0, tick=False) as traveller:
+            cache = BoundedTtlCache(ttl=10)
+            assert cache.get("foo") is None
+            assert cache.get_or_call("foo", callback=calculate) == 1
+            assert cache.get_or_call("foo", callback=calculate) == 1
+            traveller.shift(15)
+            assert cache.get_or_call("foo", callback=calculate) == 2
+            traveller.shift(15)
+            assert cache.get_or_call("foo", callback=calculate) == 3
+
+    def test_get_or_call_error(self):
+        cache = BoundedTtlCache(ttl=10)
+        assert cache.get("foo") is None
+        with pytest.raises(ZeroDivisionError):
+            cache.get_or_call("foo", callback=lambda: 1 / 0)
+        # Failed callback must not populate the cache.
+        with pytest.raises(ZeroDivisionError):
+            cache.get_or_call("foo", callback=lambda: 1 / 0)
+
+    def test_flush(self):
+        cache = BoundedTtlCache(ttl=60)
+        cache.set("a", 1)
+        cache.set("b", 2)
+        assert cache.contains("a")
+        cache.flush()
+        assert not cache.contains("a")
+        assert not cache.contains("b")
 
 
 class TestLruCacheIfSimpleArgs:
