@@ -26,7 +26,7 @@ and start a new "In Progress" section above it.
 - `load_collection`: add check on malformed `spatial_extent`. ([#284](https://github.com/Open-EO/openeo-python-driver/issues/284))
 - Support logging added value for synchronous requests ([Open-EO/openeo-geopyspark-driver#1436](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1436))
 - Add caching to `BoundingBox` CRS handling and reprojection for performance optimization of bounding box merging in post-dry-run of openeo-geopyspark-driver ([Open-EO/openeo-geopyspark-driver#1685](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1685))
-
+- Add cache class `BoundedTtlCache` to replace `TtlCache` ([#509](https://github.com/Open-EO/openeo-python-driver/pull/509))
 
 ## 0.139.0
 
