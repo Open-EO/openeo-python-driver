@@ -3,12 +3,14 @@ import io
 import logging
 import os
 import time
+import typing
 from typing import Optional
 from unittest import mock
 
 import flask
 import pytest
 import pythonjsonlogger.jsonlogger
+from openeo.testing.util import Sleeper
 
 import openeo_driver.config.load
 import openeo_driver.dummy.dummy_config
@@ -144,3 +146,15 @@ def swift_url(monkeypatch):
     For real environments this is used as the fallback endpoint for doing S3 requests.
     """
     monkeypatch.setenv("SWIFT_URL", TEST_SWIFT_URL)
+
+
+@pytest.fixture
+def fast_sleep(time_machine) -> typing.Iterator[Sleeper]:
+    with Sleeper().patch(time_machine=time_machine) as sleeper:
+        yield sleeper
+
+
+@pytest.fixture
+def simple_time(time_machine, fast_sleep):
+    """Fixture to set up simple time stepping (and fast sleep) with `time_machine`."""
+    time_machine.move_to(1000, tick=False)
