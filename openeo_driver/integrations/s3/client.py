@@ -4,6 +4,8 @@ import logging
 import os
 
 from typing import TYPE_CHECKING, Optional
+
+from openeo_driver.integrations.s3.bucket_details import BucketDetails
 from openeo_driver.integrations.s3.credentials import get_credentials
 from openeo_driver.config import get_backend_config
 
@@ -14,6 +16,14 @@ _log = logging.getLogger(__name__)
 
 
 class S3ClientBuilder:
+    @classmethod
+    def from_bucket(cls, bucket_name: str) -> S3Client:
+        details = BucketDetails.from_name(bucket_name)
+        if details.type != "UNKNOWN":
+            return S3ClientBuilder.from_region(details.region)
+        else:
+            return S3ClientBuilder.from_region(None)
+
     @classmethod
     def from_region(cls, region_name: Optional[str]) -> S3Client:
         if region_name is None:
