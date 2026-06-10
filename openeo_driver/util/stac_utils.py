@@ -8,7 +8,6 @@ from urllib.parse import urljoin, urlparse
 import requests
 
 from openeo_driver.datastructs import StacAsset
-from openeo_driver.integrations.s3.bucket_details import BucketDetails
 from openeo_driver.integrations.s3.client import S3ClientBuilder
 
 _log = logging.getLogger(__name__)
@@ -35,11 +34,7 @@ def _read_json(path: str) -> dict:
         parsed = urlparse(path)
         bucket = parsed.netloc
         key = parsed.path[1:]
-        details = BucketDetails.from_name(bucket)
-        if details.type != "UNKNOWN":
-            s3_instance = S3ClientBuilder.from_region(details.region)
-        else:
-            s3_instance = S3ClientBuilder.from_region(None)
+        s3_instance = S3ClientBuilder.from_bucket(bucket)
         obj = s3_instance.get_object(Bucket=bucket, Key=key)
         return json.loads(obj["Body"].read().decode("utf-8"))
     elif path.startswith("http"):

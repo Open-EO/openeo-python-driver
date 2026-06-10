@@ -69,7 +69,6 @@ from openeo_driver.errors import (
     ProcessUnsupportedException,
     ServiceNotFoundException,
 )
-from openeo_driver.integrations.s3.bucket_details import BucketDetails
 from openeo_driver.jobregistry import PARTIAL_JOB_STATUS
 from openeo_driver.processgraph import ProcessGraphFlatDict, extract_default_job_options_from_process_graph
 from openeo_driver.save_result import SaveResult, to_save_result
@@ -1463,11 +1462,7 @@ def register_views_batch_jobs(
         from openeo_driver.integrations.s3.client import S3ClientBuilder
 
         bucket, key = s3_url[5:].split("/", 1)
-        details = BucketDetails.from_name(bucket)
-        if details.type != "UNKNOWN":
-            s3_instance = S3ClientBuilder.from_region(details.region)
-        else:
-            s3_instance = S3ClientBuilder.from_region(None)
+        s3_instance = S3ClientBuilder.from_bucket(bucket)
 
         try:
             s3_file_object = s3_instance.get_object(Bucket=bucket, Key=key, **dict_no_none(Range=bytes_range))
