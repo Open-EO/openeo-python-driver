@@ -1144,21 +1144,13 @@ def register_views_batch_jobs(
             # TODO: Cleanup
             original_link = next((l for l in links if l.get("rel") == "original"), None)
             if original_link:
-                signer = get_backend_config().url_signer
-                if signer:
-                    expires = signer.get_expires()
-                    secure_key = signer.sign_job_results(job_id=job_id, user_id=user_id, expires=expires)
-                    user_base64 = user_id_b64_encode(user_id)
-                    asset_name = original_link["href"][original_link["href"].rindex("/") + 1 :]
-                    original_link["href"] = url_for(
-                        ".download_job_result_signed",
-                        job_id=job_id,
-                        user_base64=user_base64,
-                        filename=asset_name,
-                        expires=expires,
-                        secure_key=secure_key,
-                        _external=True,
-                    )
+                asset_name = original_link["href"][original_link["href"].rindex("/") + 1 :]
+                original_link["href"] = url_for(
+                    ".download_job_result",
+                    job_id=job_id,
+                    filename=asset_name,
+                    _external=True,
+                )
         except Exception as e:
             _log.warning("Error when making URL for 'original' link: " + str(e))
 
