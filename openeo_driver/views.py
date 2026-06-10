@@ -1151,7 +1151,7 @@ def register_views_batch_jobs(
                     user_base64 = user_id_b64_encode(user_id)
                     asset_name = original_link["href"][original_link["href"].rindex("/") + 1 :]
                     original_link["href"] = url_for(
-                        ".download_job_result",
+                        ".download_job_result_signed",
                         job_id=job_id,
                         user_base64=user_base64,
                         filename=asset_name,
