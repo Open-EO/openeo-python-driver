@@ -1360,7 +1360,7 @@ class TestBatchJobs:
     AUTH_HEADER = TEST_USER_AUTH_HEADER
 
     @staticmethod
-    def load_dummy_batch_job_metadata(job_metadata_path: Path, full=True):
+    def load_dummy_batch_job_metadata(job_metadata_path: Path, job_id: str, full=True):
         """
         Mocks a lot of metadata with random values
         """
@@ -1368,7 +1368,7 @@ class TestBatchJobs:
         result_metadata = json.loads(Path(job_metadata_path).read_text())
         process_graph = result_metadata.get("providers", [])[0]["processing:expression"]["expression"]
         job_info: dict = {
-            "job_id": "load_dummy_batch_job_metadata job_id",
+            "job_id": job_id,
             "title": "load_dummy_batch_job_metadata title",
             "description": "load_dummy_batch_job_metadata description",
             "process": {"process_graph": process_graph},
@@ -1446,7 +1446,9 @@ class TestBatchJobs:
             _server_test_metadata_path = get_path("job_metadata_from_cwl.json")
 
             dummy_backend.DummyBatchJobs._job_registry = {
-                (TEST_USER, "j-server_test-job_metadata"): TestBatchJobs.load_dummy_batch_job_metadata(_server_test_metadata_path),
+                (TEST_USER, "j-server_test-job_metadata"): TestBatchJobs.load_dummy_batch_job_metadata(
+                    _server_test_metadata_path, job_id="j-server_test-job_metadata"
+                ),
                 (TEST_USER, "07024ee9-7847-4b8a-b260-6c879a2b3cdc"): BatchJobMetadata(
                     id="07024ee9-7847-4b8a-b260-6c879a2b3cdc",
                     status="running",
@@ -2401,7 +2403,7 @@ class TestBatchJobs:
         with self._fresh_job_registry(next_job_id="j-server_test-job_metadata"):
             resp = api100.get("/jobs/j-server_test-job_metadata/results", headers=self.AUTH_HEADER)
             resp_txt = resp.text
-            assert "load_dummy_batch_job_metadata job_id" in resp_txt
+            assert "j-server_test-job_metadata" in resp_txt
             # assert "bands" in resp_txt  # TODO?
             pystac.Item.from_dict(json.loads(resp_txt))
 
@@ -2409,7 +2411,7 @@ class TestBatchJobs:
         with self._fresh_job_registry(next_job_id="j-server_test-job_metadata"):
             resp = api110.get("/jobs/j-server_test-job_metadata/results", headers=self.AUTH_HEADER)
             resp_txt = resp.text
-            assert "load_dummy_batch_job_metadata job_id" in resp_txt
+            assert "j-server_test-job_metadata" in resp_txt
             assert "bands" in resp_txt
             pystac.Collection.from_dict(json.loads(resp_txt))
 
