@@ -10,18 +10,6 @@
       "rel": "original",
       "title": "Link to original STAC catalog.",
       "type": "application/json"
-    },
-    {
-      "href": ".../openEO_2023-06-01Z.tif.json",
-      "rel": "original",
-      "title": "Link to original STAC item.",
-      "type": "application/json"
-    },
-    {
-      "href": ".../collection.json",
-      "rel": "original",
-      "title": "Link to original STAC catalog.",
-      "type": "application/json"
     }
   ],
   "items": [

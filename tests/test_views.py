@@ -1443,7 +1443,7 @@ class TestBatchJobs:
                     mock.patch.object(dummy_backend.DummyBatchJobs, "_output_root", return_value=output_root)
                 )
 
-            _server_test_metadata_path = get_path("job_metadata.json")
+            _server_test_metadata_path = get_path("job_metadata_from_cwl.json")
 
             dummy_backend.DummyBatchJobs._job_registry = {
                 (TEST_USER, "j-server_test-job_metadata"): TestBatchJobs.load_dummy_batch_job_metadata(_server_test_metadata_path),
@@ -2397,7 +2397,15 @@ class TestBatchJobs:
                 }
             )
 
-    def test_get_job_results_100_server_test(self, api110):
+    def test_get_job_results_100_from_cwl(self, api100):
+        with self._fresh_job_registry(next_job_id="j-server_test-job_metadata"):
+            resp = api100.get("/jobs/j-server_test-job_metadata/results", headers=self.AUTH_HEADER)
+            resp_txt = resp.text
+            assert "load_dummy_batch_job_metadata job_id" in resp_txt
+            # assert "bands" in resp_txt  # TODO?
+            pystac.Item.from_dict(json.loads(resp_txt))
+
+    def test_get_job_results_110_from_cwl(self, api110):
         with self._fresh_job_registry(next_job_id="j-server_test-job_metadata"):
             resp = api110.get("/jobs/j-server_test-job_metadata/results", headers=self.AUTH_HEADER)
             resp_txt = resp.text
