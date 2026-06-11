@@ -1446,8 +1446,8 @@ class TestBatchJobs:
             _server_test_metadata_path = get_path("job_metadata_from_cwl.json")
 
             dummy_backend.DummyBatchJobs._job_registry = {
-                (TEST_USER, "j-server_test-job_metadata"): TestBatchJobs.load_dummy_batch_job_metadata(
-                    _server_test_metadata_path, job_id="j-server_test-job_metadata"
+                (TEST_USER, "j-job_metadata_from_cwl"): TestBatchJobs.load_dummy_batch_job_metadata(
+                    _server_test_metadata_path, job_id="j-job_metadata_from_cwl"
                 ),
                 (TEST_USER, "07024ee9-7847-4b8a-b260-6c879a2b3cdc"): BatchJobMetadata(
                     id="07024ee9-7847-4b8a-b260-6c879a2b3cdc",
@@ -1508,11 +1508,11 @@ class TestBatchJobs:
                     end_datetime=None,
                 ),
             }
-            if next_job_id == "j-server_test-job_metadata":
+            if next_job_id == "j-job_metadata_from_cwl":
                 _server_test_raw = json.loads(_server_test_metadata_path.read_text())
                 dummy_backend.DummyBatchJobs._job_result_registry = {
-                    # ("j-server_test-job_metadata", TEST_USER): bjmd
-                    ("j-server_test-job_metadata", TEST_USER): BatchJobResultMetadata(
+                    # ("j-job_metadata_from_cwl", TEST_USER): bjmd
+                    ("j-job_metadata_from_cwl", TEST_USER): BatchJobResultMetadata(
                         assets={},
                         items={item["id"]: item for item in _server_test_raw.get("items", [])},
                         links=_server_test_raw.get("links", []),
@@ -1789,6 +1789,16 @@ class TestBatchJobs:
             resp = api100.get("/jobs", headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).json == {
             "jobs": [
+                {
+                    "costs": 1.666,
+                    "created": "2020-06-11T11:44:44Z",
+                    "description": "load_dummy_batch_job_metadata description",
+                    "id": "j-job_metadata_from_cwl",
+                    "progress": 100,
+                    "status": "finished",
+                    "title": "load_dummy_batch_job_metadata title",
+                    "updated": "2020-06-11T11:55:55Z",
+                },
                 {
                     "id": "07024ee9-7847-4b8a-b260-6c879a2b3cdc",
                     "status": "running",
@@ -2400,18 +2410,18 @@ class TestBatchJobs:
             )
 
     def test_get_job_results_100_from_cwl(self, api100):
-        with self._fresh_job_registry(next_job_id="j-server_test-job_metadata"):
-            resp = api100.get("/jobs/j-server_test-job_metadata/results", headers=self.AUTH_HEADER)
+        with self._fresh_job_registry(next_job_id="j-job_metadata_from_cwl"):
+            resp = api100.get("/jobs/j-job_metadata_from_cwl/results", headers=self.AUTH_HEADER)
             resp_txt = resp.text
-            assert "j-server_test-job_metadata" in resp_txt
+            assert "j-job_metadata_from_cwl" in resp_txt
             # assert "bands" in resp_txt  # TODO?
             pystac.Item.from_dict(json.loads(resp_txt))
 
     def test_get_job_results_110_from_cwl(self, api110):
-        with self._fresh_job_registry(next_job_id="j-server_test-job_metadata"):
-            resp = api110.get("/jobs/j-server_test-job_metadata/results", headers=self.AUTH_HEADER)
+        with self._fresh_job_registry(next_job_id="j-job_metadata_from_cwl"):
+            resp = api110.get("/jobs/j-job_metadata_from_cwl/results", headers=self.AUTH_HEADER)
             resp_txt = resp.text
-            assert "j-server_test-job_metadata" in resp_txt
+            assert "j-job_metadata_from_cwl" in resp_txt
             assert "bands" in resp_txt
             pystac.Collection.from_dict(json.loads(resp_txt))
 
