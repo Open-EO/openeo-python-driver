@@ -1850,7 +1850,7 @@ def register_views_batch_jobs(
         if filename.endswith(".model"):
             # Machine learning models.
             return result_dict
-        bands = asset_metadata.get("bands")
+        bands = asset_metadata.get("bands") or asset_metadata.get("eo:bands")
 
         if bands:
             # TODO: #298 this is a quick stop-gap solution for lack of clear API

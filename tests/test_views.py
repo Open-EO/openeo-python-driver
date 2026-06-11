@@ -1443,7 +1443,7 @@ class TestBatchJobs:
                     mock.patch.object(dummy_backend.DummyBatchJobs, "_output_root", return_value=output_root)
                 )
 
-            _server_test_metadata_path = Path("TODO")
+            _server_test_metadata_path = get_path("job_metadata.json")
 
             dummy_backend.DummyBatchJobs._job_registry = {
                 (TEST_USER, "j-server_test-job_metadata"): TestBatchJobs.load_dummy_batch_job_metadata(_server_test_metadata_path),
@@ -2402,6 +2402,7 @@ class TestBatchJobs:
             resp = api110.get("/jobs/j-server_test-job_metadata/results", headers=self.AUTH_HEADER)
             resp_txt = resp.text
             assert "load_dummy_batch_job_metadata job_id" in resp_txt
+            assert "bands" in resp_txt
             pystac.Collection.from_dict(json.loads(resp_txt))
 
     def test_get_job_results_public_href_asset_100(self, api, backend_implementation):
