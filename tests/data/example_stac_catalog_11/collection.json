@@ -1,0 +1,240 @@
+{
+  "assets": {
+    "1b442790-2231-4dd1-b9f4-d3550a512cd1_2023-06-06T00:00:00Z_openEO": {
+      "bands": [
+        {
+          "name": "B04",
+          "statistics": {
+            "maximum": 1774.0,
+            "mean": 380.50094473311,
+            "minimum": 171.0,
+            "stddev": 176.19790726983,
+            "valid_percent": 85.92
+          }
+        },
+        {
+          "name": "B03",
+          "statistics": {
+            "maximum": 1470.0,
+            "mean": 592.27586206896,
+            "minimum": 282.0,
+            "stddev": 138.20284171799,
+            "valid_percent": 85.92
+          }
+        },
+        {
+          "name": "B02",
+          "statistics": {
+            "maximum": 1190.0,
+            "mean": 412.22508266415,
+            "minimum": 270.0,
+            "stddev": 103.22080164099,
+            "valid_percent": 85.92
+          }
+        }
+      ],
+      "href": "./openEO_2023-06-06Z.tif",
+      "proj:bbox": [
+        644530.0,
+        5675740.0,
+        645300.0,
+        5676380.0
+      ],
+      "proj:code": "EPSG:32631",
+      "proj:epsg": 32631,
+      "proj:shape": [
+        64,
+        77
+      ],
+      "roles": [
+        "data"
+      ],
+      "title": "s3://openeo-data-dev-waw4-1/batch_jobs/j-2606111953054049bc2368898439491e/openEO_2023-06-06Z.tif",
+      "type": "image/tiff; application=geotiff"
+    },
+    "75625346-7e28-433f-9918-8318369ff7ad_2023-06-01T00:00:00Z_openEO": {
+      "bands": [
+        {
+          "name": "B04",
+          "statistics": {
+            "maximum": 1766.0,
+            "mean": 401.07085498347,
+            "minimum": 180.0,
+            "stddev": 162.43588375276,
+            "valid_percent": 85.92
+          }
+        },
+        {
+          "name": "B03",
+          "statistics": {
+            "maximum": 1336.0,
+            "mean": 598.11572980633,
+            "minimum": 278.0,
+            "stddev": 133.74416960473,
+            "valid_percent": 85.92
+          }
+        },
+        {
+          "name": "B02",
+          "statistics": {
+            "maximum": 1072.0,
+            "mean": 368.17264997638,
+            "minimum": 216.0,
+            "stddev": 99.2670146459,
+            "valid_percent": 85.92
+          }
+        }
+      ],
+      "href": "./openEO_2023-06-01Z.tif",
+      "proj:bbox": [
+        644530.0,
+        5675740.0,
+        645300.0,
+        5676380.0
+      ],
+      "proj:code": "EPSG:32631",
+      "proj:epsg": 32631,
+      "proj:shape": [
+        64,
+        77
+      ],
+      "roles": [
+        "data"
+      ],
+      "title": "s3://openeo-data-dev-waw4-1/batch_jobs/j-2606111953054049bc2368898439491e/openEO_2023-06-01Z.tif",
+      "type": "image/tiff; application=geotiff"
+    },
+    "d3e7a187-1199-461a-8cd4-3f2922cd19a2_2023-06-04T00:00:00Z_openEO": {
+      "bands": [
+        {
+          "name": "B04",
+          "statistics": {
+            "maximum": 1628.0,
+            "mean": 360.10746339159,
+            "minimum": 174.0,
+            "stddev": 160.47737013663,
+            "valid_percent": 85.92
+          }
+        },
+        {
+          "name": "B03",
+          "statistics": {
+            "maximum": 1358.0,
+            "mean": 546.93197921587,
+            "minimum": 263.0,
+            "stddev": 129.15120454283,
+            "valid_percent": 85.92
+          }
+        },
+        {
+          "name": "B02",
+          "statistics": {
+            "maximum": 1116.0,
+            "mean": 344.86820973075,
+            "minimum": 200.0,
+            "stddev": 95.975778884601,
+            "valid_percent": 85.92
+          }
+        }
+      ],
+      "href": "./openEO_2023-06-04Z.tif",
+      "proj:bbox": [
+        644530.0,
+        5675740.0,
+        645300.0,
+        5676380.0
+      ],
+      "proj:code": "EPSG:32631",
+      "proj:epsg": 32631,
+      "proj:shape": [
+        64,
+        77
+      ],
+      "roles": [
+        "data"
+      ],
+      "title": "s3://openeo-data-dev-waw4-1/batch_jobs/j-2606111953054049bc2368898439491e/openEO_2023-06-04Z.tif",
+      "type": "image/tiff; application=geotiff"
+    }
+  },
+  "description": "test description",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          -180,
+          -90,
+          180,
+          90
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          "2023-06-01T00:00:00Z",
+          "2023-06-06T00:00:00Z"
+        ]
+      ]
+    }
+  },
+  "id": "j-2606111953054049bc2368898439491e",
+  "license": "proprietary",
+  "links": [
+    {
+      "href": "./d3e7a187-1199-461a-8cd4-3f2922cd19a2_2023-06-04T00:00:00Z.json",
+      "rel": "item",
+      "type": "application/geo+json"
+    },
+    {
+      "href": "./1b442790-2231-4dd1-b9f4-d3550a512cd1_2023-06-06T00:00:00Z.json",
+      "rel": "item",
+      "type": "application/geo+json"
+    },
+    {
+      "href": "./75625346-7e28-433f-9918-8318369ff7ad_2023-06-01T00:00:00Z.json",
+      "rel": "item",
+      "type": "application/geo+json"
+    }
+  ],
+  "openeo:status": "finished",
+  "providers": [
+    {
+      "description": "This data was processed on an openEO backend maintained by VITO.",
+      "name": "VITO",
+      "processing:expression": {
+        "expression": {
+          "loadstac1": {
+            "arguments": {
+              "url": "https://raw.githubusercontent.com/Open-EO/openeo-geopyspark-driver/refs/heads/master/docker/local_batch_job/example_stac_catalog/collection.json"
+            },
+            "process_id": "load_stac",
+            "result": true
+          }
+        },
+        "format": "openeo"
+      },
+      "processing:facility": "openEO Geotrellis backend",
+      "processing:software": {
+        "Geotrellis backend": "0.72.0a13"
+      },
+      "roles": [
+        "processor"
+      ]
+    }
+  ],
+  "stac_extensions": [
+    "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+    "https://stac-extensions.github.io/processing/v1.1.0/schema.json",
+    "https://stac-extensions.github.io/projection/v1.2.0/schema.json"
+  ],
+  "stac_version": "1.1.0",
+  "summaries": {},
+  "title": "server_test.py_stac-version_1.1",
+
+  "properties": {
+    "datetime": "2023-06-01T00:00:00Z"
+  },
+  "type": "Collection"
+}

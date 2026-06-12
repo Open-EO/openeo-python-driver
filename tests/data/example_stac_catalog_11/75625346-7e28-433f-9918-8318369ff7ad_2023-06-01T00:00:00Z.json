@@ -1,0 +1,111 @@
+{
+  "assets": {
+    "75625346-7e28-433f-9918-8318369ff7ad_2023-06-01T00:00:00Z_openEO": {
+      "bands": [
+        {
+          "name": "B04",
+          "statistics": {
+            "maximum": 1766.0,
+            "mean": 401.07085498347,
+            "minimum": 180.0,
+            "stddev": 162.43588375276,
+            "valid_percent": 85.92
+          }
+        },
+        {
+          "name": "B03",
+          "statistics": {
+            "maximum": 1336.0,
+            "mean": 598.11572980633,
+            "minimum": 278.0,
+            "stddev": 133.74416960473,
+            "valid_percent": 85.92
+          }
+        },
+        {
+          "name": "B02",
+          "statistics": {
+            "maximum": 1072.0,
+            "mean": 368.17264997638,
+            "minimum": 216.0,
+            "stddev": 99.2670146459,
+            "valid_percent": 85.92
+          }
+        }
+      ],
+      "href": "./openEO_2023-06-01Z.tif",
+      "proj:bbox": [
+        644530.0,
+        5675740.0,
+        645300.0,
+        5676380.0
+      ],
+      "proj:code": "EPSG:32631",
+      "proj:epsg": 32631,
+      "proj:shape": [
+        64,
+        77
+      ],
+      "roles": [
+        "data"
+      ],
+      "title": "s3://openeo-data-dev-waw4-1/batch_jobs/j-2606111953054049bc2368898439491e/openEO_2023-06-01Z.tif",
+      "type": "image/tiff; application=geotiff"
+    }
+  },
+  "bbox": [
+    5.069386757303357,
+    51.214543255519786,
+    5.080663210429039,
+    51.22048989375812
+  ],
+  "collection": "j-2606111953054049bc2368898439491e",
+  "epsg": 32631,
+  "geometry": {
+    "coordinates": [
+      [
+        [
+          5.0804038775948115,
+          51.214543255519786
+        ],
+        [
+          5.080663210429039,
+          51.22029444279013
+        ],
+        [
+          5.069644719194295,
+          51.22048989375812
+        ],
+        [
+          5.069386757303357,
+          51.21473866656907
+        ],
+        [
+          5.0804038775948115,
+          51.214543255519786
+        ]
+      ]
+    ],
+    "type": "Polygon"
+  },
+  "id": "75625346-7e28-433f-9918-8318369ff7ad_2023-06-01T00:00:00Z",
+  "links": [
+    {
+      "href": "./collection.json",
+      "rel": "collection",
+      "type": "application/json"
+    }
+  ],
+  "properties": {
+    "datetime": "2023-06-01T00:00:00Z",
+    "proj:code": "EPSG:32631",
+    "proj:epsg": 32631
+  },
+  "stac_extensions": [
+    "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+    "https://stac-extensions.github.io/projection/v1.2.0/schema.json"
+  ],
+  "stac_version": "1.1.0",
+  "type": "Feature"
+}
