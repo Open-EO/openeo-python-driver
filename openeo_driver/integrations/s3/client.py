@@ -37,7 +37,7 @@ class S3ClientBuilder:
         s3_config = get_backend_config().s3_provider_config
         provider_name = s3_config.get_provider(region_name)
         endpoint = s3_config.get_endpoint(region_name)
-
+        _log.debug("Building S3 client", extra={"region": region_name, "endpoint": endpoint, "provider": provider_name})
         return cls._s3_client(
             region_name=region_name, endpoint_url=endpoint, **get_credentials(region_name, provider_name)
         )
