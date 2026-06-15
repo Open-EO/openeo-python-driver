@@ -1511,7 +1511,6 @@ class TestBatchJobs:
             if next_job_id == "j-job_metadata_from_cwl":
                 _server_test_raw = json.loads(_server_test_metadata_path.read_text())
                 dummy_backend.DummyBatchJobs._job_result_registry = {
-                    # ("j-job_metadata_from_cwl", TEST_USER): bjmd
                     ("j-job_metadata_from_cwl", TEST_USER): BatchJobResultMetadata(
                         assets={},
                         items={item["id"]: item for item in _server_test_raw.get("items", [])},

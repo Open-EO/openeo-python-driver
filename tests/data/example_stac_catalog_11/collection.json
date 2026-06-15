@@ -1,58 +1,6 @@
 {
   "assets": {
-    "1b442790-2231-4dd1-b9f4-d3550a512cd1_2023-06-06T00:00:00Z_openEO": {
-      "bands": [
-        {
-          "name": "B04",
-          "statistics": {
-            "maximum": 1774.0,
-            "mean": 380.50094473311,
-            "minimum": 171.0,
-            "stddev": 176.19790726983,
-            "valid_percent": 85.92
-          }
-        },
-        {
-          "name": "B03",
-          "statistics": {
-            "maximum": 1470.0,
-            "mean": 592.27586206896,
-            "minimum": 282.0,
-            "stddev": 138.20284171799,
-            "valid_percent": 85.92
-          }
-        },
-        {
-          "name": "B02",
-          "statistics": {
-            "maximum": 1190.0,
-            "mean": 412.22508266415,
-            "minimum": 270.0,
-            "stddev": 103.22080164099,
-            "valid_percent": 85.92
-          }
-        }
-      ],
-      "href": "./openEO_2023-06-06Z.tif",
-      "proj:bbox": [
-        644530.0,
-        5675740.0,
-        645300.0,
-        5676380.0
-      ],
-      "proj:code": "EPSG:32631",
-      "proj:epsg": 32631,
-      "proj:shape": [
-        64,
-        77
-      ],
-      "roles": [
-        "data"
-      ],
-      "title": "s3://openeo-data-dev-waw4-1/batch_jobs/j-2606111953054049bc2368898439491e/openEO_2023-06-06Z.tif",
-      "type": "image/tiff; application=geotiff"
-    },
-    "75625346-7e28-433f-9918-8318369ff7ad_2023-06-01T00:00:00Z_openEO": {
+    "item-2023-06-01": {
       "bands": [
         {
           "name": "B04",
@@ -104,7 +52,7 @@
       "title": "s3://openeo-data-dev-waw4-1/batch_jobs/j-2606111953054049bc2368898439491e/openEO_2023-06-01Z.tif",
       "type": "image/tiff; application=geotiff"
     },
-    "d3e7a187-1199-461a-8cd4-3f2922cd19a2_2023-06-04T00:00:00Z_openEO": {
+    "item-2023-06-04": {
       "bands": [
         {
           "name": "B04",
@@ -155,6 +103,58 @@
       ],
       "title": "s3://openeo-data-dev-waw4-1/batch_jobs/j-2606111953054049bc2368898439491e/openEO_2023-06-04Z.tif",
       "type": "image/tiff; application=geotiff"
+    },
+    "item-2023-06-06": {
+      "bands": [
+        {
+          "name": "B04",
+          "statistics": {
+            "maximum": 1774.0,
+            "mean": 380.50094473311,
+            "minimum": 171.0,
+            "stddev": 176.19790726983,
+            "valid_percent": 85.92
+          }
+        },
+        {
+          "name": "B03",
+          "statistics": {
+            "maximum": 1470.0,
+            "mean": 592.27586206896,
+            "minimum": 282.0,
+            "stddev": 138.20284171799,
+            "valid_percent": 85.92
+          }
+        },
+        {
+          "name": "B02",
+          "statistics": {
+            "maximum": 1190.0,
+            "mean": 412.22508266415,
+            "minimum": 270.0,
+            "stddev": 103.22080164099,
+            "valid_percent": 85.92
+          }
+        }
+      ],
+      "href": "./openEO_2023-06-06Z.tif",
+      "proj:bbox": [
+        644530.0,
+        5675740.0,
+        645300.0,
+        5676380.0
+      ],
+      "proj:code": "EPSG:32631",
+      "proj:epsg": 32631,
+      "proj:shape": [
+        64,
+        77
+      ],
+      "roles": [
+        "data"
+      ],
+      "title": "s3://openeo-data-dev-waw4-1/batch_jobs/j-2606111953054049bc2368898439491e/openEO_2023-06-06Z.tif",
+      "type": "image/tiff; application=geotiff"
     }
   },
   "description": "test description",
@@ -182,17 +182,17 @@
   "license": "proprietary",
   "links": [
     {
-      "href": "./d3e7a187-1199-461a-8cd4-3f2922cd19a2_2023-06-04T00:00:00Z.json",
+      "href": "./item-2023-06-01.json",
       "rel": "item",
       "type": "application/geo+json"
     },
     {
-      "href": "./1b442790-2231-4dd1-b9f4-d3550a512cd1_2023-06-06T00:00:00Z.json",
+      "href": "./item-2023-06-04.json",
       "rel": "item",
       "type": "application/geo+json"
     },
     {
-      "href": "./75625346-7e28-433f-9918-8318369ff7ad_2023-06-01T00:00:00Z.json",
+      "href": "./item-2023-06-06.json",
       "rel": "item",
       "type": "application/geo+json"
     }
@@ -232,7 +232,6 @@
   "stac_version": "1.1.0",
   "summaries": {},
   "title": "server_test.py_stac-version_1.1",
-
   "properties": {
     "datetime": "2023-06-01T00:00:00Z"
   },

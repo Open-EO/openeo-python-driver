@@ -1,6 +1,6 @@
 {
   "assets": {
-    "d3e7a187-1199-461a-8cd4-3f2922cd19a2_2023-06-04T00:00:00Z_openEO": {
+    "item-2023-06-04": {
       "bands": [
         {
           "name": "B04",
@@ -88,7 +88,7 @@
     ],
     "type": "Polygon"
   },
-  "id": "d3e7a187-1199-461a-8cd4-3f2922cd19a2_2023-06-04T00:00:00Z",
+  "id": "item-2023-06-04",
   "links": [
     {
       "href": "./collection.json",

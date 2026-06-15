@@ -1,39 +1,39 @@
 {
   "assets": {
-    "1b442790-2231-4dd1-b9f4-d3550a512cd1_2023-06-06T00:00:00Z_openEO": {
+    "item-2023-06-01": {
       "bands": [
         {
           "name": "B04",
           "statistics": {
-            "maximum": 1774.0,
-            "mean": 380.50094473311,
-            "minimum": 171.0,
-            "stddev": 176.19790726983,
+            "maximum": 1766.0,
+            "mean": 401.07085498347,
+            "minimum": 180.0,
+            "stddev": 162.43588375276,
             "valid_percent": 85.92
           }
         },
         {
           "name": "B03",
           "statistics": {
-            "maximum": 1470.0,
-            "mean": 592.27586206896,
-            "minimum": 282.0,
-            "stddev": 138.20284171799,
+            "maximum": 1336.0,
+            "mean": 598.11572980633,
+            "minimum": 278.0,
+            "stddev": 133.74416960473,
             "valid_percent": 85.92
           }
         },
         {
           "name": "B02",
           "statistics": {
-            "maximum": 1190.0,
-            "mean": 412.22508266415,
-            "minimum": 270.0,
-            "stddev": 103.22080164099,
+            "maximum": 1072.0,
+            "mean": 368.17264997638,
+            "minimum": 216.0,
+            "stddev": 99.2670146459,
             "valid_percent": 85.92
           }
         }
       ],
-      "href": "./openEO_2023-06-06Z.tif",
+      "href": "./openEO_2023-06-01Z.tif",
       "proj:bbox": [
         644530.0,
         5675740.0,
@@ -49,7 +49,7 @@
       "roles": [
         "data"
       ],
-      "title": "s3://openeo-data-dev-waw4-1/batch_jobs/j-2606111953054049bc2368898439491e/openEO_2023-06-06Z.tif",
+      "title": "s3://openeo-data-dev-waw4-1/batch_jobs/j-2606111953054049bc2368898439491e/openEO_2023-06-01Z.tif",
       "type": "image/tiff; application=geotiff"
     }
   },
@@ -88,7 +88,7 @@
     ],
     "type": "Polygon"
   },
-  "id": "1b442790-2231-4dd1-b9f4-d3550a512cd1_2023-06-06T00:00:00Z",
+  "id": "item-2023-06-01",
   "links": [
     {
       "href": "./collection.json",
@@ -97,7 +97,7 @@
     }
   ],
   "properties": {
-    "datetime": "2023-06-06T00:00:00Z",
+    "datetime": "2023-06-01T00:00:00Z",
     "proj:code": "EPSG:32631",
     "proj:epsg": 32631
   },
