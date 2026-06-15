@@ -7,6 +7,7 @@ import copy
 import dataclasses
 import functools
 import logging
+from logging import DEBUG
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphVisitException
@@ -371,6 +372,10 @@ def apply_process(
                     _log.debug("Using process {p!r} from namespace 'user'.".format(p=process_id))
                 return evaluate_udp(process_id=process_id, udp=udp, args=args, env=env)
 
+    if _log.isEnabledFor(logging.DEBUG):
+        listing = process_registry.get_processes_listing()
+        known_processes = [ p['id'] for p in listing.processes]
+        _log.debug(f"Encountered unknown process {process_id}, these processes are available: {known_processes}")
     raise ProcessUnsupportedException(process=process_id, namespace=namespace)
 
 
