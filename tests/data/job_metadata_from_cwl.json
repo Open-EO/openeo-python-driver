@@ -6,7 +6,7 @@
   "end_datetime": "2023-06-06T00:00:00Z",
   "links": [
     {
-      "href": ".../collection.json",
+      "href": ".../non/existing/example/path/collection.json",
       "rel": "original",
       "title": "Link to original STAC catalog.",
       "type": "application/json"
@@ -42,7 +42,7 @@
       "links": [],
       "assets": {
         "openEO_2023-06-01Z.tif": {
-          "href": ".../openEO_2023-06-01Z.tif",
+          "href": ".../non/existing/example/path/openEO_2023-06-01Z.tif",
           "roles": ["data"],
           "type": "image/tiff; application=geotiff",
           "eo:bands": [
@@ -129,7 +129,7 @@
       "links": [],
       "assets": {
         "openEO_2023-06-04Z.tif": {
-          "href": ".../openEO_2023-06-04Z.tif",
+          "href": ".../non/existing/example/path/openEO_2023-06-04Z.tif",
           "roles": ["data"],
           "type": "image/tiff; application=geotiff",
           "eo:bands": [
@@ -216,7 +216,7 @@
       "links": [],
       "assets": {
         "openEO_2023-06-06Z.tif": {
-          "href": ".../openEO_2023-06-06Z.tif",
+          "href": ".../non/existing/example/path/openEO_2023-06-06Z.tif",
           "roles": ["data"],
           "type": "image/tiff; application=geotiff",
           "eo:bands": [

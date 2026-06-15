@@ -107,7 +107,7 @@ def get_files_from_stac_catalog(
 
                 if "rel" in link and (link["rel"] == "child" or link["rel"] == "item"):
                     all_files.extend(recurse(href))
-                elif ("rel" not in link) or (link["rel"] != "collection"):
+                elif "roles" in link and ("data" in link["roles"]):
                     all_files.append(href)
                 else:
                     pass
