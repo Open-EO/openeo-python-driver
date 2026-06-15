@@ -313,7 +313,7 @@ def apply_process(
     env: EvalEnv,
     pg_node_id: Optional[str] = None,
 ):
-    _log.debug(f"apply_process {process_id=}")
+
     parameters = env.collect_parameters()
 
     if process_id == "mask" and args.get("replacement", None) is None \
@@ -337,6 +337,8 @@ def apply_process(
             return convert_node(args.get("reject"), env=env)
     else:
         args = {name: convert_node(expr, env=env) for (name, expr) in sorted(args.items())}
+
+    _log.debug(f"apply_process {process_id=}")
 
     if is_http_url(namespace):
         if namespace.startswith("http://"):
@@ -375,7 +377,7 @@ def apply_process(
     if _log.isEnabledFor(logging.DEBUG):
         listing = process_registry.get_processes_listing()
         known_processes = [ p['id'] for p in listing.processes]
-        _log.debug(f"Encountered unknown process {process_id}, these processes are available: {known_processes}")
+        _log.debug(f"Encountered unknown process {process_id} in namespace {namespace}, these processes are available: {known_processes}")
     raise ProcessUnsupportedException(process=process_id, namespace=namespace)
 
 
