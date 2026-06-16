@@ -927,6 +927,21 @@ class DummyBatchJobs(BatchJobs):
                     },
                     "datetime": "1970-01-01T00:00:00Z",
                 },
+                "subfolder/subsubfolder/output.tiff": {
+                    "output_dir": f"{self._output_root()}/{job_id}",
+                    "href": f"{self._output_root()}/{job_id}/subfolder/subsubfolder/output.tiff",
+                    "type": "image/tiff; application=geotiff",
+                    "roles": ["data"],
+                    "bands": [Band(name="NDVI", wavelength_um=1.23)],
+                    "nodata": 123,
+                    "instruments": "MSI",
+                    "bbox": [0.0, 50.0, 5.0, 55.0],
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[[0.0, 50.0], [0.0, 55.0], [5.0, 55.0], [5.0, 50.0], [0.0, 50.0]]],
+                    },
+                    "datetime": "1970-01-01T00:00:00Z",
+                },
             }
         elif job_id == "j-26032411111111111111111111111111":
             default_json = {

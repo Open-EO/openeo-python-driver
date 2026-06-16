@@ -4043,6 +4043,25 @@ class TestBatchJobs:
             extensions=resp_data.get("stac_extensions", []),
         )
 
+    def test_get_job_result_item_with_temporal_extent_on_asset_double_nested(self, flask_app, api110):
+        with self._fresh_job_registry():
+            resp = api110.get(
+                f"/jobs/j-24111211111111111111111111111111/results/items/subfolder/subsubfolder/output.tiff",
+                headers=self.AUTH_HEADER,
+            )
+
+        resp_data = resp.assert_status_code(200).json
+        assert resp_data["assets"]["subfolder/subsubfolder/output.tiff"]["eo:bands"][0]["name"] == "NDVI"
+
+        assert resp.headers["Content-Type"] == "application/geo+json"
+
+        pystac.validation.stac_validator.JsonSchemaSTACValidator().validate(
+            stac_dict=resp_data,
+            stac_object_type=pystac.STACObjectType.ITEM,
+            stac_version=resp_data.get("stac_version", "1.0.0"),
+            extensions=resp_data.get("stac_extensions", []),
+        )
+
     def test_get_job_result_item_with_temporal_extent_on_asset(self, flask_app, api110):
         with self._fresh_job_registry():
             resp = api110.get(
