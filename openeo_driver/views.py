@@ -1489,7 +1489,7 @@ def register_views_batch_jobs(
 
             raise
 
-    @blueprint.route('/jobs/<job_id>/results/items/<user_base64>/<secure_key>/<item_id>', methods=['GET'])
+    @blueprint.route("/jobs/<job_id>/results/items/<user_base64>/<secure_key>/<path:item_id>", methods=["GET"])
     def get_job_result_item_signed(job_id, user_base64, secure_key, item_id):
         expires = request.args.get('expires')
         signer = get_backend_config().url_signer
@@ -1498,7 +1498,7 @@ def register_views_batch_jobs(
         return _get_job_result_item(job_id, item_id, user_id)
 
     @api_endpoint
-    @blueprint.route('/jobs/<job_id>/results/items11/<user_base64>/<secure_key>/<item_id>', methods=['GET'])
+    @blueprint.route("/jobs/<job_id>/results/items11/<user_base64>/<secure_key>/<path:item_id>", methods=["GET"])
     def get_job_result_item11_signed(job_id, user_base64, secure_key, item_id):
         expires = request.args.get('expires')
         signer = get_backend_config().url_signer
@@ -1506,13 +1506,13 @@ def register_views_batch_jobs(
         signer.verify_job_item(signature=secure_key, job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
         return _get_job_result_item11(job_id, item_id, user_id)
 
-    @blueprint.route('/jobs/<job_id>/results/items/<item_id>', methods=['GET'])
+    @blueprint.route("/jobs/<job_id>/results/items/<path:item_id>", methods=["GET"])
     @auth_handler.requires_bearer_auth
     def get_job_result_item(job_id: str, item_id: str, user: User) -> flask.Response:
         return _get_job_result_item(job_id, item_id, user.user_id)
 
     @api_endpoint(version=ComparableVersion("1.1.0").or_higher)
-    @blueprint.route('/jobs/<job_id>/results/items11/<item_id>', methods=['GET'])
+    @blueprint.route("/jobs/<job_id>/results/items11/<path:item_id>", methods=["GET"])
     @auth_handler.requires_bearer_auth
     def get_job_result_item11(job_id: str, item_id: str, user: User) -> flask.Response:
         return _get_job_result_item11(job_id, item_id, user.user_id)

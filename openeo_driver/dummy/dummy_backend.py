@@ -925,6 +925,7 @@ class DummyBatchJobs(BatchJobs):
                         "type": "Polygon",
                         "coordinates": [[[0.0, 50.0], [0.0, 55.0], [5.0, 55.0], [5.0, 50.0], [0.0, 50.0]]],
                     },
+                    "datetime": "1970-01-01T00:00:00Z",
                 },
             }
         elif job_id == "j-26032411111111111111111111111111":
