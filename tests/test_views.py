@@ -3499,6 +3499,70 @@ class TestBatchJobs:
         )
         assert resp.text == "Hello aux"
 
+    def test_download_job_auxiliary_file_with_link_duplication(self, api110, tmp_path):
+        job_id = "job-123"
+        job_dir = tmp_path
+        auxiliary_file = job_dir / "aux456.json"
+        auxiliary_file.write_text("Hello aux")
+        link = {
+            "rel": "aux-hello",
+            "href": str(auxiliary_file),
+            "type": "application/json",
+            ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY: True,
+        }
+
+        with self._fresh_job_registry() as job_registry:
+            # TODO: improve cumbersome setup of job (metadata) registry fixtures
+            job_registry[TEST_USER, "job-123"] = BatchJobMetadata(
+                id="job-123", status="finished", created=datetime(2026, 4, 28)
+            )
+            dummy_backend.DummyBatchJobs.set_result_metadata(
+                job_id=job_id,
+                user_id=TEST_USER,
+                metadata=BatchJobResultMetadata(
+                    items={
+                        "item-1": {"links": [link]},
+                        "item-2": {"links": [link]},
+                    },
+                    links=[link],
+                ),
+            )
+
+        job_results = api110.get(
+            "/jobs/job-123/results",
+            headers=self.AUTH_HEADER,
+        )
+        assert job_results.json == dirty_equals.IsPartialDict(
+            {
+                "id": "job-123",
+                "links": dirty_equals.IsList(
+                    {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/job-123/results/aux/aux456.json",
+                        "rel": "aux-hello",
+                        "type": "application/json",
+                    },
+                    {
+                        "href": "http://oeo.net/openeo/1.1.0/jobs/job-123/results",
+                        "rel": "self",
+                        "type": "application/json",
+                    },
+                    length=...,
+                    check_order=False,
+                ),
+            }
+        )
+
+        resp = api110.get(
+            "/jobs/job-123/results/aux/aux456.json",
+            headers=self.AUTH_HEADER,
+        )
+        assert resp.text == "Hello aux"
+
+        api110.get(
+            "/jobs/job-123/results/aux/aux456-nope.json",
+            headers=self.AUTH_HEADER,
+        ).assert_error(status_code=404, error_code="UnresolvedAuxiliaryFile")
+
     def test_get_job_results_invalid_job(self, api):
         api.get("/jobs/deadbeef-f00/results", headers=self.AUTH_HEADER).assert_error(404, "JobNotFound")
 

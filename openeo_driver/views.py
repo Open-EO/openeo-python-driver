@@ -1247,7 +1247,7 @@ def register_views_batch_jobs(
                 item_assets = {}
                 assets = {}
                 for item_key, item_metadata in result_items.items():
-                    for asset_key, asset_metadata in item_metadata.get("assets").items():
+                    for asset_key, asset_metadata in item_metadata.get("assets", {}).items():
                         if "output_dir" in asset_metadata:
                             out_dir = asset_metadata.get("output_dir")
                             _log.info(f"asset has output dir {out_dir} and href {asset_metadata.get('href')}")
@@ -1626,6 +1626,7 @@ def register_views_batch_jobs(
         auxiliary_filename = urlparse(exposable_link["href"]).path.split("/")[-1]  # TODO: assumes file is not nested
 
         if exposable_link["href"].startswith("s3://"):
+            # TODO: asset.build_url is made for assets, but not aux links, right?
             href = backend_implementation.config.asset_url.build_url(
                 asset_metadata={"href": exposable_link["href"]},  # TODO: clean up this hack to support s3proxy
                 asset_name=auxiliary_filename,
@@ -1688,24 +1689,28 @@ def register_views_batch_jobs(
             link for item in result_metadata.items.values() for link in item.get("links", [])
         ] + result_metadata.links
 
-        matching_auxiliary_links = [
-            link
+        matching_auxiliary_links = {
+            (link.get("href"), link.get("type"))
             for link in links
             if link.get(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY, False) and link["href"].endswith(f"/{filename}")
-        ]
+        }
 
         if not len(matching_auxiliary_links) == 1:
-            _log.debug(f"Failed to match single auxiliary link: {matching_auxiliary_links=} from {result_metadata=}")
-            raise FilePathInvalidException(f"invalid file {filename!r}")
+            _log.warning(f"Failed to match single auxiliary link: {matching_auxiliary_links=} from {result_metadata=}")
+            raise OpenEOApiException(
+                status_code=404,
+                code="UnresolvedAuxiliaryFile",
+                message=f"Failed to resolve auxiliary file {filename!r}",
+            )
 
-        auxiliary_link = matching_auxiliary_links[0]
-        uri_parts = urlparse(auxiliary_link["href"])
+        auxiliary_href, auxiliary_type = matching_auxiliary_links.pop()
+        uri_parts = urlparse(auxiliary_href)
 
         # S3 URIs are handled by s3proxy
         assert uri_parts.scheme in ["", "file"], f"unexpected scheme {uri_parts.scheme}"
 
         auxiliary_file = pathlib.Path(uri_parts.path)
-        return send_from_directory(auxiliary_file.parent, auxiliary_file.name, mimetype=auxiliary_link.get("type"))
+        return send_from_directory(auxiliary_file.parent, auxiliary_file.name, mimetype=auxiliary_type)
 
     def _get_job_result_item(job_id, item_id, user_id):
         if item_id == DriverMlModel.METADATA_FILE_NAME:
