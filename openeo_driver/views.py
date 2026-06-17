@@ -58,6 +58,7 @@ from openeo_driver.constants import (
 from openeo_driver.datacube import DriverMlModel
 from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import (
+    CredentialsInvalidException,
     FeatureUnsupportedException,
     FilePathInvalidException,
     InternalException,
@@ -1501,6 +1502,8 @@ def register_views_batch_jobs(
             full_item_id = "/".join([user_base64, secure_key, item_id])
             user = auth_handler.get_user_from_bearer_token(request)
             return _get_job_result_item(job_id, full_item_id, user.user_id)
+        if not is_secure_key(secure_key):
+            raise CredentialsInvalidException()
         expires = request.args.get('expires')
         signer = get_backend_config().url_signer
         signer.verify_job_item(signature=secure_key, job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
@@ -1517,6 +1520,8 @@ def register_views_batch_jobs(
             full_item_id = "/".join([user_base64, secure_key, item_id])
             user = auth_handler.get_user_from_bearer_token(request)
             return _get_job_result_item11(job_id, full_item_id, user.user_id)
+        if not is_secure_key(secure_key):
+            raise CredentialsInvalidException()
         expires = request.args.get('expires')
         signer = get_backend_config().url_signer
         signer.verify_job_item(signature=secure_key, job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
@@ -1951,6 +1956,8 @@ def register_views_batch_jobs(
             full_filename = "/".join([user_base64, secure_key, filename])
             user = auth_handler.get_user_from_bearer_token(request)
             return _download_job_result(job_id=job_id, filename=full_filename, user_id=user.user_id)
+        if not is_secure_key(secure_key):
+            raise CredentialsInvalidException()
         expires = request.args.get('expires')
         signer = get_backend_config().url_signer
         signer.verify_job_asset(
