@@ -3629,7 +3629,7 @@ class TestBatchJobs:
     def test_download_result_signed_invalid(self, api, flask_app, backend_config_overrides):
         jobs = {"07024ee9-7847-4b8a-b260-6c879a2b3cdc": {"status": "finished"}}
         with self._fresh_job_registry(jobs=jobs):
-            resp = api.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/test123/output.tiff")
+            resp = api.get("/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff")
         assert resp.assert_error(403, "CredentialsInvalid")
 
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
