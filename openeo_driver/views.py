@@ -1936,6 +1936,10 @@ def register_views_batch_jobs(
 
     @blueprint.route("/jobs/<job_id>/results/assets/<user_base64>/<secure_key>/<path:filename>", methods=["GET"])
     def download_job_result_signed(job_id, user_base64, secure_key, filename):
+        if not is_user_id_b64(user_base64) or not is_secure_key(secure_key):
+            full_filename = "/".join([user_base64, secure_key, filename])
+            user = auth_handler.get_user_from_bearer_token(request)
+            return _download_job_result(job_id=job_id, filename=full_filename, user_id=user.user_id)
         expires = request.args.get('expires')
         signer = get_backend_config().url_signer
         user_id = user_id_b64_decode(user_base64)

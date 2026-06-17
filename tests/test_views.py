@@ -3525,12 +3525,12 @@ class TestBatchJobs:
         output_root = Path(tmp_path)
         jobs = {"j-24111211111111111111111111111111": {"status": "finished"}}
         with self._fresh_job_registry(output_root=output_root, jobs=jobs):
-            output = output_root / "j-24111211111111111111111111111111/subfolder/output.tiff"
+            output = output_root / "j-24111211111111111111111111111111/subfolder/subsubfolder/output.tiff"
             output.parent.mkdir(parents=True)
             with output.open("wb") as f:
                 f.write(b"tiffdata")
             resp = api110.get(
-                "/jobs/j-24111211111111111111111111111111/results/assets/subfolder/output.tiff",
+                "/jobs/j-24111211111111111111111111111111/results/assets/subfolder/subsubfolder/output.tiff",
                 headers=self.AUTH_HEADER,
             )
         assert resp.assert_status_code(200).data == b"tiffdata"
