@@ -72,13 +72,14 @@ from openeo_driver.errors import (
 from openeo_driver.jobregistry import PARTIAL_JOB_STATUS
 from openeo_driver.processgraph import ProcessGraphFlatDict, extract_default_job_options_from_process_graph
 from openeo_driver.save_result import SaveResult, to_save_result
-from openeo_driver.users import User, user_id_b64_decode, user_id_b64_encode
+from openeo_driver.users import User, user_id_b64_decode, user_id_b64_encode, is_user_id_b64
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.util.compat import function_has_argument, filter_supported_kwargs
 from openeo_driver.util.geometry import BoundingBox, reproject_geometry
 from openeo_driver.util.logging import ExtraLoggingFilter, FlaskRequestCorrelationIdLogging
 from openeo_driver.util.stac import sniff_stac_extension_prefix
 from openeo_driver.util.stac_utils import get_files_from_stac_catalog
+from openeo_driver.urlsigning import is_secure_key
 from openeo_driver.utils import EvalEnv, smart_bool
 
 
@@ -1491,6 +1492,10 @@ def register_views_batch_jobs(
 
     @blueprint.route("/jobs/<job_id>/results/items/<user_base64>/<secure_key>/<path:item_id>", methods=["GET"])
     def get_job_result_item_signed(job_id, user_base64, secure_key, item_id):
+        if not is_user_id_b64(user_base64) or not is_secure_key(secure_key):
+            full_item_id = "/".join([user_base64, secure_key, item_id])
+            user = auth_handler.get_user_from_bearer_token(request)
+            return _get_job_result_item(job_id, full_item_id, user.user_id)
         expires = request.args.get('expires')
         signer = get_backend_config().url_signer
         user_id = user_id_b64_decode(user_base64)
@@ -1500,6 +1505,10 @@ def register_views_batch_jobs(
     @api_endpoint
     @blueprint.route("/jobs/<job_id>/results/items11/<user_base64>/<secure_key>/<path:item_id>", methods=["GET"])
     def get_job_result_item11_signed(job_id, user_base64, secure_key, item_id):
+        if not is_user_id_b64(user_base64) or not is_secure_key(secure_key):
+            full_item_id = "/".join([user_base64, secure_key, item_id])
+            user = auth_handler.get_user_from_bearer_token(request)
+            return _get_job_result_item11(job_id, full_item_id, user.user_id)
         expires = request.args.get('expires')
         signer = get_backend_config().url_signer
         user_id = user_id_b64_decode(user_base64)

@@ -1,5 +1,6 @@
 import logging
 import operator
+import re
 import time
 from functools import reduce
 from hashlib import md5
@@ -8,6 +9,11 @@ from typing import Optional
 from openeo_driver.errors import CredentialsInvalidException, ResultLinkExpiredException
 
 _log = logging.getLogger(__name__)
+
+
+def is_secure_key(s: str) -> bool:
+    """Return True if s looks like a URL signing key (MD5 hex digest)."""
+    return bool(re.compile(r"^[0-9a-f]{32}$").match(s))
 
 
 class UrlSigner:
