@@ -1,4 +1,3 @@
-import re
 from typing import Union, Set, Optional, Iterable
 
 import base64
@@ -64,13 +63,6 @@ class User:
 def user_id_b64_encode(user_id: str) -> str:
     """Encode a user id in way that is safe to use in urls"""
     return base64.urlsafe_b64encode(user_id.encode("utf8")).decode("ascii")
-
-
-def is_user_id_b64(s: str) -> bool:
-    """Return True if s looks like a base64url-encoded user id (as produced by user_id_b64_encode)."""
-    # urlsafe_b64encode always produces characters in [A-Za-z0-9_-] plus '=' padding,
-    # and the total length is always a multiple of 4.
-    return bool(re.compile(r"^[A-Za-z0-9_=-]+$").match(s)) and len(s) % 4 == 0
 
 
 def user_id_b64_decode(encoded: str) -> str:

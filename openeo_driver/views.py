@@ -1,3 +1,4 @@
+import binascii
 import copy
 import functools
 import json
@@ -72,7 +73,7 @@ from openeo_driver.errors import (
 from openeo_driver.jobregistry import PARTIAL_JOB_STATUS
 from openeo_driver.processgraph import ProcessGraphFlatDict, extract_default_job_options_from_process_graph
 from openeo_driver.save_result import SaveResult, to_save_result
-from openeo_driver.users import User, user_id_b64_decode, user_id_b64_encode, is_user_id_b64
+from openeo_driver.users import User, user_id_b64_decode, user_id_b64_encode
 from openeo_driver.users.auth import HttpAuthHandler
 from openeo_driver.util.compat import function_has_argument, filter_supported_kwargs
 from openeo_driver.util.geometry import BoundingBox, reproject_geometry
@@ -1492,26 +1493,32 @@ def register_views_batch_jobs(
 
     @blueprint.route("/jobs/<job_id>/results/items/<user_base64>/<secure_key>/<path:item_id>", methods=["GET"])
     def get_job_result_item_signed(job_id, user_base64, secure_key, item_id):
-        if not is_user_id_b64(user_base64) or not is_secure_key(secure_key):
+        try:
+            user_id = user_id_b64_decode(user_base64)
+        except (binascii.Error, UnicodeDecodeError):
+            user_id = None
+        if user_id is None or not is_secure_key(secure_key):
             full_item_id = "/".join([user_base64, secure_key, item_id])
             user = auth_handler.get_user_from_bearer_token(request)
             return _get_job_result_item(job_id, full_item_id, user.user_id)
         expires = request.args.get('expires')
         signer = get_backend_config().url_signer
-        user_id = user_id_b64_decode(user_base64)
         signer.verify_job_item(signature=secure_key, job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
         return _get_job_result_item(job_id, item_id, user_id)
 
     @api_endpoint
     @blueprint.route("/jobs/<job_id>/results/items11/<user_base64>/<secure_key>/<path:item_id>", methods=["GET"])
     def get_job_result_item11_signed(job_id, user_base64, secure_key, item_id):
-        if not is_user_id_b64(user_base64) or not is_secure_key(secure_key):
+        try:
+            user_id = user_id_b64_decode(user_base64)
+        except (binascii.Error, UnicodeDecodeError):
+            user_id = None
+        if user_id is None or not is_secure_key(secure_key):
             full_item_id = "/".join([user_base64, secure_key, item_id])
             user = auth_handler.get_user_from_bearer_token(request)
             return _get_job_result_item11(job_id, full_item_id, user.user_id)
         expires = request.args.get('expires')
         signer = get_backend_config().url_signer
-        user_id = user_id_b64_decode(user_base64)
         signer.verify_job_item(signature=secure_key, job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
         return _get_job_result_item11(job_id, item_id, user_id)
 
@@ -1936,13 +1943,16 @@ def register_views_batch_jobs(
 
     @blueprint.route("/jobs/<job_id>/results/assets/<user_base64>/<secure_key>/<path:filename>", methods=["GET"])
     def download_job_result_signed(job_id, user_base64, secure_key, filename):
-        if not is_user_id_b64(user_base64) or not is_secure_key(secure_key):
+        try:
+            user_id = user_id_b64_decode(user_base64)
+        except (binascii.Error, UnicodeDecodeError):
+            user_id = None
+        if user_id is None or not is_secure_key(secure_key):
             full_filename = "/".join([user_base64, secure_key, filename])
             user = auth_handler.get_user_from_bearer_token(request)
             return _download_job_result(job_id=job_id, filename=full_filename, user_id=user.user_id)
         expires = request.args.get('expires')
         signer = get_backend_config().url_signer
-        user_id = user_id_b64_decode(user_base64)
         signer.verify_job_asset(
             signature=secure_key,
             job_id=job_id, user_id=user_id, filename=filename, expires=expires
