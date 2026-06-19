@@ -1667,7 +1667,7 @@ def register_views_batch_jobs(
 
         return link
 
-    @blueprint.route("/jobs/<job_id>/results/aux/<user_base64>/<secure_key>/<filename>", methods=["GET"])
+    @blueprint.route("/jobs/<job_id>/results/aux/<user_base64>/<secure_key>/<path:filename>", methods=["GET"])
     def download_job_auxiliary_file_signed(job_id, user_base64, secure_key, filename):
         expires = request.args.get("expires")
         signer = get_backend_config().url_signer
