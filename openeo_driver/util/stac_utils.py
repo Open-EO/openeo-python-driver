@@ -47,7 +47,8 @@ def _read_json(path: str) -> dict:
 
 
 def find_stac_root(paths: Union[set, list], stac_root_filename: Optional[str] = "catalog.json") -> Optional[str]:
-    paths = [Path(p) for p in set(paths)]
+    paths = list(dict.fromkeys(paths))  # de-duplicate
+    paths = [Path(p) for p in paths]
 
     def search(stac_root_filename_local: str):
         matches = [x for x in paths if x.name == stac_root_filename_local]
