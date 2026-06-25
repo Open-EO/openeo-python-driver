@@ -3924,6 +3924,36 @@ class TestBatchJobs:
         assert resp.assert_status_code(200).data == b"tiffdata"
         assert resp.headers["Content-Type"] == "image/tiff; application=geotiff"
 
+    @time_machine.travel(1780000000)
+    @pytest.mark.parametrize("href_format", [str, lambda p: f"file://{p.absolute()!s}"])
+    @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
+    def test_download_from_toplevel_aux_link(self, api, tmp_path, flask_app, backend_config_overrides, href_format):
+        job_id = "j-123"
+
+        output_dir = tmp_path / job_id / "output"
+        output_dir.mkdir(parents=True)
+        path = output_dir / "doc.json"
+        path.write_text('{"hello":"world"}')
+        link = {
+            "rel": "hello",
+            "href": href_format(path),
+            "output_dir": str(output_dir),
+            "_expose_auxiliary": True,
+        }
+
+        jobs = {job_id: {"status": "finished"}}
+        with self._fresh_job_registry(jobs=jobs):
+            dummy_backend.DummyBatchJobs.set_result_metadata(
+                job_id=job_id,
+                user_id=TEST_USER,
+                metadata=BatchJobResultMetadata(links=[link]),
+            )
+            resp = api.get(
+                f"/jobs/{job_id}/results/assets/TXIuVGVzdA==/8eb765c9af6384011bbde491f926560e/doc.json?expires=1780001000"
+            ).assert_status_code(200)
+
+        assert resp.json == {"hello": "world"}
+
     @mock.patch("time.time", mock.MagicMock(return_value=1234))
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#", expiration=1000)}])
     def test_get_job_result_item(self, flask_app, api110, backend_config_overrides):

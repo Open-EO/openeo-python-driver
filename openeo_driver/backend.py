@@ -16,7 +16,7 @@ import inspect
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Union, NamedTuple, Dict, Optional, Callable, Iterable, Container, Any, Tuple
+from typing import List, Union, NamedTuple, Dict, Optional, Callable, Iterable, Container, Any, Tuple, Iterator
 
 import flask
 from openeo_driver.processgraph.definitions import ProcessGraphFlatDict
@@ -31,7 +31,7 @@ from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCu
 from openeo_driver.datastructs import SarBackscatterArgs
 from openeo_driver.dry_run import DryRunDataTracer, SourceConstraint, DryRunDataCube
 from openeo_driver.errors import CollectionNotFoundException, ServiceUnsupportedException, FeatureUnsupportedException
-from openeo_driver.constants import JOB_STATUS, DEFAULT_LOG_LEVEL_RETRIEVAL
+from openeo_driver.constants import JOB_STATUS, DEFAULT_LOG_LEVEL_RETRIEVAL, ITEM_LINK_PROPERTY
 from openeo_driver.processes import ProcessRegistry
 from openeo_driver.users import User
 from openeo_driver.users.oidc import OidcProvider
@@ -495,6 +495,35 @@ class BatchJobResultMetadata:
     links: List[dict] = dataclasses.field(default_factory=list)
     providers: List[dict] = dataclasses.field(default_factory=list)
     # TODO: more fields
+
+    def get_downloadable_by_filename(self, filename: str) -> Optional[dict]:
+        """
+        Get downloadable resource (asset, auxiliary file, ...) by filename.
+
+        This API should be considered experimental
+        and is currently mostly a stop-gap solution.
+        """
+
+        def link_matches(link: dict) -> bool:
+            return (
+                isinstance(link, dict)
+                # TODO generalize this in a cleaner way
+                and link.get(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY, False)
+                and link.get("href", "").endswith(f"/{filename}")
+            )
+
+        downloadables = []
+        downloadables.extend(
+            link for item in self.items.values() for link in item.get("links", []) if link_matches(link)
+        )
+        downloadables.extend(link for link in self.links if link_matches(link))
+
+        if len(downloadables) > 0:
+            if len(downloadables) > 1:
+                logger.warning(f"Multiple {downloadables=} for {filename=}")
+            return downloadables[0]
+        else:
+            return None
 
 
 class JobListing:

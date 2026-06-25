@@ -19,6 +19,7 @@ from openeo_driver.backend import (
     not_implemented,
     LegacyUdfRuntimes,
     CollectionsListing,
+    BatchJobResultMetadata,
 )
 from openeo_driver.errors import CollectionNotFoundException
 from openeo_driver.users import User
@@ -373,3 +374,30 @@ class TestCollectionsListing:
             {"id": "Sentinel-2"},
             {"id": "NDVI"},
         ]
+
+
+class TestBatchJobResultMetadata:
+    def test_get_downloadable_by_filename_from_top_level_links(self):
+        link = {
+            "rel": "hello",
+            "href": "file://path/to/hello.txt",
+            "_expose_auxiliary": True,
+        }
+        result_metadata = BatchJobResultMetadata(links=[link])
+        assert result_metadata.get_downloadable_by_filename("hello.txt") == link
+        assert result_metadata.get_downloadable_by_filename("nope.txt") is None
+
+    def test_get_downloadable_by_filename_from_item_links(self):
+        link = {
+            "rel": "hello",
+            "href": "file://path/to/hello.txt",
+            "_expose_auxiliary": True,
+        }
+        item = {
+            "type": "Feature",
+            "id": "item-123",
+            "links": [link],
+        }
+        result_metadata = BatchJobResultMetadata(items={"item-123": item})
+        assert result_metadata.get_downloadable_by_filename("hello.txt") == link
+        assert result_metadata.get_downloadable_by_filename("nope.txt") is None
