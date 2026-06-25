@@ -1441,7 +1441,9 @@ def register_views_batch_jobs(
             result = result_metadata.get_downloadable_by_filename(filename=filename)
 
         if result is None:
-            raise FilePathInvalidException(f"{filename!r} not in job result metadata nor assets.")
+            raise OpenEOApiException(
+                status_code=404, code="JobAssetNotFound", message=f"Job asset {filename!r} was not found"
+            )
 
         if result.get("href", "").startswith("s3://"):
             # TODO: instead of streaming through web app: also support doing HTTP forward to presigned URL?
