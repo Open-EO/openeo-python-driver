@@ -446,7 +446,8 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
 
     def to_netcdf(self, destination: Optional[str] = None) -> str:
         def features_ids_from_index(geometries):
-            return ["feature_%d" % i for i in range(len(geometries.geoms))]
+            geoms = geometries.geoms if hasattr(geometries, "geoms") else geometries
+            return ["feature_%d" % i for i in range(len(geoms))]
 
         if isinstance(self._regions, GeometryCollection):
             points = [r.representative_point() for r in self._regions.geoms]
