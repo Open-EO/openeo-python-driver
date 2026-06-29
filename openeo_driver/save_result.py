@@ -314,7 +314,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         """
         super().__init__(data=timeseries)
         if not isinstance(regions, (GeometryCollection, DriverVectorCube)):
-            raise Exception(
+            raise ValueError(
                 f"AggregatePolygonResult: GeometryCollection or DriverVectorCube expected but got {type(regions)}"
             )
         self._regions = regions
@@ -456,7 +456,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
                 else ["feature_%d" % i for i in range(self._regions.geometry_count())]
             )
         else:
-            raise Exception(
+            raise ValueError(
                 f"AggregatePolygonResult: GeometryCollection or DriverVectorCube expected but got {type(self._regions)}"
             )
 
