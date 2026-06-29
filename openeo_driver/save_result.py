@@ -20,7 +20,6 @@ import typing
 from deprecated import deprecated
 from flask import send_from_directory, jsonify, Response
 import shapely.geometry
-from geopandas import GeoSeries
 from shapely.geometry import GeometryCollection
 from shapely.geometry.base import BaseGeometry
 import geopandas as gpd
@@ -445,26 +444,17 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         return the_array
 
     def to_netcdf(self, destination: Optional[str] = None) -> str:
-        def features_ids_from_index(geometries: Union[GeometryCollection, GeoSeries]):
-            if isinstance(geometries, GeometryCollection):
-                geoms_length = len(geometries.geoms)
-            elif isinstance(geometries, GeoSeries):
-                geoms_length = len(geometries)
-            else:
-                raise Exception(
-                    f"AggregatePolygonResult: GeometryCollection or GeoSeries expected but got {type(geometries)}"
-                )
-
-            return ["feature_%d" % i for i in range(geoms_length)]
-
         if isinstance(self._regions, GeometryCollection):
             points = [r.representative_point() for r in self._regions.geoms]
-            feature_ids = features_ids_from_index(self._regions)
+            feature_ids = ["feature_%d" % i for i in range(len(self._regions.geoms))]
         elif isinstance(self._regions, DriverVectorCube):
             points = [r.representative_point() for r in self._regions.get_geometries()]
             feature_ids = self._regions.get_ids()
-            feature_ids = (list(feature_ids) if feature_ids is not None
-                           else features_ids_from_index(self._regions.get_geometries()))
+            feature_ids = (
+                list(feature_ids)
+                if feature_ids is not None
+                else ["feature_%d" % i for i in range(self._regions.geometry_count())]
+            )
         else:
             raise Exception(
                 f"AggregatePolygonResult: GeometryCollection or DriverVectorCube expected but got {type(self._regions)}"
