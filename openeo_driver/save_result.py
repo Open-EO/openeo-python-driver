@@ -20,6 +20,7 @@ import typing
 from deprecated import deprecated
 from flask import send_from_directory, jsonify, Response
 import shapely.geometry
+from geopandas import GeoSeries
 from shapely.geometry import GeometryCollection
 from shapely.geometry.base import BaseGeometry
 import geopandas as gpd
@@ -314,8 +315,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         """
         super().__init__(data=timeseries)
         if not isinstance(regions, (GeometryCollection, DriverVectorCube)):
-            # TODO: raise exception instead of warning?
-            _log.warning(
+            raise Exception(
                 f"AggregatePolygonResult: GeometryCollection or DriverVectorCube expected but got {type(regions)}"
             )
         self._regions = regions
@@ -445,18 +445,26 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         return the_array
 
     def to_netcdf(self, destination: Optional[str] = None) -> str:
-        def features_ids_from_index(geometries):
+        def features_ids_from_index(geometries: Union[GeometryCollection, GeoSeries]):
+            if not isinstance(geometries, (GeometryCollection, GeoSeries)):
+                raise Exception(
+                    f"AggregatePolygonResult: GeometryCollection or GeoSeries expected but got {type(geometries)}"
+                )
             geoms = geometries.geoms if hasattr(geometries, "geoms") else geometries
             return ["feature_%d" % i for i in range(len(geoms))]
 
         if isinstance(self._regions, GeometryCollection):
             points = [r.representative_point() for r in self._regions.geoms]
             feature_ids = features_ids_from_index(self._regions)
-        else:
+        elif isinstance(self._regions, DriverVectorCube):
             points = [r.representative_point() for r in self._regions.get_geometries()]
             feature_ids = self._regions.get_ids()
             feature_ids = (list(feature_ids) if feature_ids is not None
                            else features_ids_from_index(self._regions.get_geometries()))
+        else:
+            raise Exception(
+                f"AggregatePolygonResult: GeometryCollection or DriverVectorCube expected but got {type(self._regions)}"
+            )
 
         lats = [p.y for p in points]
         lons = [p.x for p in points]
