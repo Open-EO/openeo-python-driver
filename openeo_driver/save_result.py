@@ -1010,7 +1010,7 @@ def to_save_result(data: Any, format: Optional[str] = None, options: Optional[di
             return JSONResult(data.geojson, format="geojson", options=options)
         else:
             data = data.to_driver_vector_cube()
-    elif isinstance(data, DriverDataCube):
+    if isinstance(data, DriverDataCube):
         return ImageCollectionResult(data, format=format, options=options)
     elif isinstance(data, DriverVectorCube):
         return VectorCubeResult(cube=data, format=format, options=options)

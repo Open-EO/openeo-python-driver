@@ -321,6 +321,6 @@ class DelayedVector:
         crs = geojson.get("crs", {}).get("properties", {}).get("name")
         return pyproj.CRS("epsg:4326") if crs is None else pyproj.CRS(crs)
 
-    def to_driver_vector_cube(self):
+    def to_driver_vector_cube(self) -> DriverVectorCube:
         gdf = self.as_geodataframe()
         return DriverVectorCube.from_geodataframe(gdf, dimension_name="bands")
