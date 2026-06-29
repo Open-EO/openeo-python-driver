@@ -1,7 +1,8 @@
 import pytest
 
 from openeo_driver.datacube import DriverVectorCube
-from openeo_driver.save_result import AggregatePolygonSpatialResult
+from openeo_driver.delayed_vector import DelayedVector
+from openeo_driver.save_result import AggregatePolygonSpatialResult, to_save_result, VectorCubeResult
 from .data import get_path
 
 import geopandas as gpd
@@ -48,3 +49,12 @@ def test_write_driver_vector_cube_to_parquet(tmp_path):
     vector_cube.write_assets(tmp_path / "dummy", format="Parquet")
 
     assert gpd.read_parquet(tmp_path / "vectorcube.parquet").shape == (2, 3)
+
+
+def test_write_delayed_vector_cube_to_parquet(tmp_path):
+    dv = DelayedVector(str(get_path("geojson/FeatureCollection02.json")))
+    vector_cube = to_save_result(dv, format="parquet")
+    assert isinstance(vector_cube, VectorCubeResult)
+    vector_cube.write_assets(tmp_path / "dummy")
+    # TODO: Why are id and pop columns missing here?
+    assert gpd.read_parquet(tmp_path / "vectorcube.parquet").shape == (2, 1)
