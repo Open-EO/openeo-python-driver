@@ -446,12 +446,16 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
 
     def to_netcdf(self, destination: Optional[str] = None) -> str:
         def features_ids_from_index(geometries: Union[GeometryCollection, GeoSeries]):
-            if not isinstance(geometries, (GeometryCollection, GeoSeries)):
+            if isinstance(geometries, GeometryCollection):
+                geoms_length = len(geometries.geoms)
+            elif isinstance(geometries, GeoSeries):
+                geoms_length = len(geometries)
+            else:
                 raise Exception(
                     f"AggregatePolygonResult: GeometryCollection or GeoSeries expected but got {type(geometries)}"
                 )
-            geoms = geometries.geoms if hasattr(geometries, "geoms") else geometries
-            return ["feature_%d" % i for i in range(len(geoms))]
+
+            return ["feature_%d" % i for i in range(geoms_length)]
 
         if isinstance(self._regions, GeometryCollection):
             points = [r.representative_point() for r in self._regions.geoms]
