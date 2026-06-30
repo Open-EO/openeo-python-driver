@@ -26,7 +26,7 @@ import geopandas as gpd
 import xarray
 
 from openeo.metadata import CollectionMetadata
-from typeguard import check_argument_types
+from typeguard import typechecked
 
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube, DriverMlModel
 from openeo_driver.datastructs import StacAsset
@@ -301,7 +301,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
     """
 
     # TODO #71 #114 EP-3981 port this to proper vector cube support
-
+    @typechecked
     def __init__(
         self,
         timeseries: Optional[Dict[str, List[List[Any]]]],
@@ -314,7 +314,6 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         :param regions: GeometryCollection or DriverVectorCube
         :param metadata: CollectionMetadata
         """
-        check_argument_types()
         super().__init__(data=timeseries)
         if not isinstance(regions, (GeometryCollection, DriverVectorCube)):
             # TODO: raise exception instead of warning?
