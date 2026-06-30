@@ -26,6 +26,8 @@ import geopandas as gpd
 import xarray
 
 from openeo.metadata import CollectionMetadata
+from typeguard import check_argument_types
+
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube, DriverMlModel
 from openeo_driver.datastructs import StacAsset
 from openeo_driver.delayed_vector import DelayedVector
@@ -302,9 +304,9 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
 
     def __init__(
         self,
-        timeseries: Dict[int, List[List[Any]]],
+        timeseries: Optional[Dict[str, List[List[Any]]]],
         regions: Union[GeometryCollection, DriverVectorCube],
-        metadata: CollectionMetadata = None,
+        metadata: Optional[CollectionMetadata] = None,
     ):
         """
         :param timeseries: {timestamp: [geometries, bands]}
@@ -312,6 +314,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         :param regions: GeometryCollection or DriverVectorCube
         :param metadata: CollectionMetadata
         """
+        check_argument_types()
         super().__init__(data=timeseries)
         if not isinstance(regions, (GeometryCollection, DriverVectorCube)):
             # TODO: raise exception instead of warning?
