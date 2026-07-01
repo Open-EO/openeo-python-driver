@@ -1,9 +1,11 @@
 from pathlib import Path
 
+import geopandas as gpd
 import numpy as np
 import pytest
 import xarray as xr
 from numpy.testing import assert_array_equal, assert_allclose
+from openeo_driver.datacube import DriverVectorCube
 from openeo_driver.save_result import AggregatePolygonResult, AggregatePolygonResultCSV
 from shapely.geometry import GeometryCollection, Polygon
 
@@ -150,3 +152,27 @@ def test_aggregate_polygon_result_CSV(tmp_path):
     timeseries_ds.red.sel( t='2017-09-05')
 
     assert_allclose( timeseries_ds.red.sel(feature=2).sel( t='2017-09-06').data,4645.719597)
+
+
+def test_aggregate_polygon_result_vector_cube_no_ids_to_netcdf(tmp_path):
+    """Test for https://github.com/Open-EO/openeo-python-driver/issues/519"""
+    timeseries = {
+        "2020-06-01T00:00:00Z": [[77.2], [77.15]],
+        "2020-06-02T00:00:00Z": [[77.21], [77.16]],
+    }
+    # GeoDataFrame without an 'id' column so that get_ids() returns None
+    gdf = gpd.GeoDataFrame(
+        geometry=[
+            Polygon([(77.11, 28.56), (77.29, 28.56), (77.29, 28.69), (77.11, 28.69)]),
+            Polygon([(77.11, 28.56), (77.20, 28.56), (77.20, 28.62), (77.11, 28.62)]),
+        ]
+    )
+    regions = DriverVectorCube(gdf)
+
+    result = AggregatePolygonResult(timeseries, regions=regions)
+    filename = result.to_netcdf(tmp_path / "timeseries_vector_cube_no_ids.nc")
+
+    timeseries_ds = xr.open_dataset(filename)
+    # Feature IDs should be auto-generated as "feature_0", "feature_1", ...
+    assert list(timeseries_ds.coords["feature_names"].data) == ["feature_0", "feature_1"]
+    assert_array_equal(timeseries_ds.band_0.sel(feature=0).data, [77.2, 77.21])

@@ -314,8 +314,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         """
         super().__init__(data=timeseries)
         if not isinstance(regions, (GeometryCollection, DriverVectorCube)):
-            # TODO: raise exception instead of warning?
-            _log.warning(
+            raise ValueError(
                 f"AggregatePolygonResult: GeometryCollection or DriverVectorCube expected but got {type(regions)}"
             )
         self._regions = regions
@@ -445,17 +444,21 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         return the_array
 
     def to_netcdf(self, destination: Optional[str] = None) -> str:
-        def features_ids_from_index(geometries):
-            return ["feature_%d" % i for i in range(len(geometries.geoms))]
-
         if isinstance(self._regions, GeometryCollection):
             points = [r.representative_point() for r in self._regions.geoms]
-            feature_ids = features_ids_from_index(self._regions)
-        else:
+            feature_ids = ["feature_%d" % i for i in range(len(self._regions.geoms))]
+        elif isinstance(self._regions, DriverVectorCube):
             points = [r.representative_point() for r in self._regions.get_geometries()]
             feature_ids = self._regions.get_ids()
-            feature_ids = (list(feature_ids) if feature_ids is not None
-                           else features_ids_from_index(self._regions.get_geometries()))
+            feature_ids = (
+                list(feature_ids)
+                if feature_ids is not None
+                else ["feature_%d" % i for i in range(self._regions.geometry_count())]
+            )
+        else:
+            raise ValueError(
+                f"AggregatePolygonResult: GeometryCollection or DriverVectorCube expected but got {type(self._regions)}"
+            )
 
         lats = [p.y for p in points]
         lons = [p.x for p in points]
