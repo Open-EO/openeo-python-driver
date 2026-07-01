@@ -314,7 +314,8 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         """
         super().__init__(data=timeseries)
         if not isinstance(regions, (GeometryCollection, DriverVectorCube)):
-            raise ValueError(
+            # TODO: raise exception instead of warning? Emile: 'regions' could be str|DelayedVector in geopyspark unit tests.
+            _log.warning(
                 f"AggregatePolygonResult: GeometryCollection or DriverVectorCube expected but got {type(regions)}"
             )
         self._regions = regions
