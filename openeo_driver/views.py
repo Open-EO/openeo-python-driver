@@ -421,6 +421,8 @@ def register_views_general(
         # TODO only list endpoints that are actually supported by the backend.
         endpoints = EndpointRegistry.get_capabilities_endpoints(_openeo_endpoint_metadata, api_version=api_version)
         deploy_metadata = backend_config.capabilities_deploy_metadata
+        if isinstance(deploy_metadata, dict) and "backend_config_id" not in deploy_metadata:
+            deploy_metadata["backend_config_id"] = backend_config.id
 
         capabilities = {
             "stac_extensions": [
