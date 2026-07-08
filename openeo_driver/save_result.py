@@ -875,7 +875,20 @@ class AggregatePolygonSpatialResult(SaveResult):
             filename = str(directory / "timeseries.csv")
             asset["type"] = IOFORMATS.get_mimetype(self.format)
 
-            shutil.copy(self._csv_path(), filename)
+            if self.options.get("use_s3proxy"):
+                # S3 proxy is active: upload directly via S3 client instead of via a mounted bucket.
+                s3_client = self.options.get("s3_client")
+                bucket = self.options.get("s3_bucket")
+                if s3_client is None:
+                    raise ValueError("use_s3proxy is set but no s3_client was provided in options")
+                if not bucket:
+                    raise ValueError("use_s3proxy is set but no s3_bucket was provided in options")
+                s3_key = filename.strip("/")
+                _log.info(f"use_s3proxy active: uploading {self._csv_path()!r} to s3://{bucket}/{s3_key}")
+                s3_client.upload_file(self._csv_path(), bucket, s3_key)
+                filename = f"s3://{bucket}/{s3_key}"
+            else:
+                shutil.copy(self._csv_path(), filename)
         elif self.is_format("parquet"):
             filename = str(directory / "timeseries.parquet")
             asset["type"] = IOFORMATS.get_mimetype(self.format)
