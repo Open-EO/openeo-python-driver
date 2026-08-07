@@ -30,6 +30,7 @@ tests_require = [
     "pyarrow>=10.0.0",
     "jsonschema",
     "dirty-equals>=0.6",
+    "typeguard",
 ]
 
 typing_require = [

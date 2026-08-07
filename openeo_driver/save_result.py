@@ -26,6 +26,8 @@ import geopandas as gpd
 import xarray
 
 from openeo.metadata import CollectionMetadata
+from typeguard import typechecked
+
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube, DriverMlModel
 from openeo_driver.datastructs import StacAsset
 from openeo_driver.delayed_vector import DelayedVector
@@ -299,12 +301,12 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
     """
 
     # TODO #71 #114 EP-3981 port this to proper vector cube support
-
+    @typechecked
     def __init__(
         self,
-        timeseries: Dict[int, List[List[Any]]],
+        timeseries: Optional[Dict[str, List[List[Any]]]],
         regions: Union[GeometryCollection, DriverVectorCube],
-        metadata: CollectionMetadata = None,
+        metadata: Optional[CollectionMetadata] = None,
     ):
         """
         :param timeseries: {timestamp: [geometries, bands]}
@@ -1027,7 +1029,7 @@ def to_save_result(data: Any, format: Optional[str] = None, options: Optional[di
             return JSONResult(data.geojson, format="geojson", options=options)
         else:
             data = data.to_driver_vector_cube()
-    elif isinstance(data, DriverDataCube):
+    if isinstance(data, DriverDataCube):
         return ImageCollectionResult(data, format=format, options=options)
     elif isinstance(data, DriverVectorCube):
         return VectorCubeResult(cube=data, format=format, options=options)
