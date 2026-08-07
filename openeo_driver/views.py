@@ -1743,7 +1743,7 @@ def register_views_batch_jobs(
         }
 
         if len(assets_for_item_id) != 1:
-            raise AssertionError(f"expected exactly 1 asset with file name {item_id}")
+            raise AssertionError(f"expected exactly 1 asset with file name {item_id}. Got {len(assets_for_item_id)}")
 
         asset_filename, asset_metadata = next(iter(assets_for_item_id.items()))
 
