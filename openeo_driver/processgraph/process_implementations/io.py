@@ -215,7 +215,7 @@ def save_result(args: ProcessArgs, env: EvalEnv) -> SaveResult:
             env[ENV_SAVE_RESULT].append(data)
         return data
     else:
-        result = to_save_result(data, format=format, options=options)
+        result = to_save_result(data=data, format=format, options=options, pg_node_id=args.pg_node_id)
         if ENV_SAVE_RESULT in env:
             env[ENV_SAVE_RESULT].append(result)
             return data
