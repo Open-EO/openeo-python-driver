@@ -1,10 +1,12 @@
+from pathlib import Path
+
 import pandas as pd
 import pytest
 from numpy import nan
 from shapely.geometry import GeometryCollection, Polygon
 
 from openeo_driver.datacube import DriverVectorCube
-from openeo_driver.save_result import AggregatePolygonResult
+from openeo_driver.save_result import AggregatePolygonResult, AggregatePolygonResultCSV
 from .data import get_path
 
 

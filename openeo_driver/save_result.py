@@ -783,6 +783,9 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
 
     def _feature_id_mapping(self) -> Optional[dict]:
         feature_id_property = self._feature_id_column_name()
+        if not feature_id_property:
+            # Use this by default to not change anything to existing CSV outputs.
+            return None
         if not isinstance(self._regions, DriverVectorCube):
             _log.warning(
                 f"save_result: 'feature_id_property' was specified, but regions are not a DriverVectorCube ({type(self._regions)})."
@@ -797,10 +800,10 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
             return None
         return dict(enumerate(values))
 
-    def _feature_id_column_name(self) -> str:
-        return self.options.get("feature_id_property", "id")
+    def _feature_id_column_name(self) -> Optional[str]:
+        return self.options.get("feature_id_property")  # default would be "id"
 
-    def to_csv(self, destination=None):
+    def to_csv(self, destination: Union[str, Path, None] = None) -> Union[str, Path, None]:
         csv_paths = glob.glob(self._csv_dir + "/*.csv")
 
         if(len(csv_paths) == 0):
