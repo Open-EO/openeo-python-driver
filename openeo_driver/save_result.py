@@ -781,6 +781,25 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
             return self.to_covjson()
         return self.data
 
+    def _feature_id_mapping(self) -> Optional[dict]:
+        feature_id_property = self._feature_id_column_name()
+        if not isinstance(self._regions, DriverVectorCube):
+            _log.warning(
+                f"save_result: 'feature_id_property' was specified, but regions are not a DriverVectorCube ({type(self._regions)})."
+            )
+            return None
+        values = self._regions.get_band_values(feature_id_property)
+        if values is None:
+            _log.warning(
+                f"save_result: a feature_id_property '{feature_id_property}' was specified,"
+                f" but could not find it in the vector cube: {self._regions}."
+            )
+            return None
+        return dict(enumerate(values))
+
+    def _feature_id_column_name(self) -> str:
+        return self.options.get("feature_id_property", "id")
+
     def to_csv(self, destination=None):
         csv_paths = glob.glob(self._csv_dir + "/*.csv")
 
@@ -788,7 +807,9 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
             _log.warning(f"save_result: no csv files found at expected location: {self._csv_dir}")
             return
 
-        if(len(csv_paths) == 1):
+        id_mapping = self._feature_id_mapping()
+
+        if len(csv_paths) == 1 and id_mapping is None:
             if(destination == None):
                 return csv_paths[0]
             else:
@@ -815,6 +836,15 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
                 first_file = False
 
             f.close()
+
+            if id_mapping is not None:
+                df = pd.read_csv(destination)
+                if "feature_index" in df.columns:
+                    column_name = self._feature_id_column_name()
+                    df[column_name] = df["feature_index"].map(id_mapping)
+                    df.to_csv(destination, index=False)
+
+            return destination
 
 
 class AggregatePolygonSpatialResult(SaveResult):
