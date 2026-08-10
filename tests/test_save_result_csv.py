@@ -142,7 +142,7 @@ def test_aggregate_polygon_result_csv_feature_id_property(tmp_path):
     result.set_format("csv", options={"feature_id_property": "id"})
 
     filename = result.to_csv(tmp_path / "timeseries_feature_id.csv")
-
+    assert filename
     actual_df = pd.read_csv(filename)
     assert "id" in actual_df.columns
     assert set(actual_df["id"].dropna()) == {"f_north", "f_south"}
