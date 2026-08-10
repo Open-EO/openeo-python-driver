@@ -147,4 +147,3 @@ def test_aggregate_polygon_result_csv_feature_id_property(tmp_path):
     assert "id" in actual_df.columns
     assert set(actual_df["id"].dropna()) == {"f_north", "f_south"}
     # feature_index 1 (f_middle) is not present in the source CSVs
-    assert "f_middle" not in set(actual_df["id"].dropna())

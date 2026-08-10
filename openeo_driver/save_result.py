@@ -801,7 +801,8 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
         return dict(enumerate(values))
 
     def _feature_id_column_name(self) -> Optional[str]:
-        return self.options.get("feature_id_property")  # default would be "id"
+        # default would be "id" if the feature needs to be enabled by default
+        return self.options.get("feature_id_property")
 
     def to_csv(self, destination: Union[str, Path, None] = None) -> Union[str, Path, None]:
         csv_paths = glob.glob(self._csv_dir + "/*.csv")
