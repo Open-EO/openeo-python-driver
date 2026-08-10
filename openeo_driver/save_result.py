@@ -842,10 +842,9 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
 
             if id_mapping is not None:
                 df = pd.read_csv(destination)
-                if "feature_index" in df.columns:
-                    column_name = self._feature_id_column_name()
-                    df[column_name] = df["feature_index"].map(id_mapping)
-                    df.to_csv(destination, index=False)
+                column_name = self._feature_id_column_name()
+                df[column_name] = df["feature_index"].map(id_mapping)
+                df.to_csv(destination, index=False)
 
             return destination
 
