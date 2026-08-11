@@ -9,7 +9,7 @@ from datetime import datetime, date
 from pathlib import Path
 import shutil
 from tempfile import mkstemp
-from typing import Union, Dict, List, Optional, Any, Iterable
+from typing import Union, Dict, List, Optional, Any, Iterable, Tuple
 from urllib.parse import urlparse, urljoin
 from zipfile import ZipFile
 
@@ -781,28 +781,25 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
             return self.to_covjson()
         return self.data
 
-    def _feature_id_mapping(self) -> Optional[dict]:
-        feature_id_property = self._feature_id_column_name()
+    def _feature_id_mapping(self) -> Tuple[Optional[str], Optional[dict]]:
+        # default would be "id" if the feature needs to be enabled by default
+        feature_id_property = self.options.get("feature_id_property")
         if not feature_id_property:
             # Use this by default to not change anything to existing CSV outputs.
-            return None
+            return feature_id_property, None
         if not isinstance(self._regions, DriverVectorCube):
             _log.warning(
                 f"save_result: 'feature_id_property' was specified, but regions are not a DriverVectorCube ({type(self._regions)})."
             )
-            return None
+            return feature_id_property, None
         values = self._regions.get_band_values(feature_id_property)
         if values is None:
             _log.warning(
                 f"save_result: a feature_id_property '{feature_id_property}' was specified,"
                 f" but could not find it in the vector cube: {self._regions}."
             )
-            return None
-        return dict(enumerate(values))
-
-    def _feature_id_column_name(self) -> Optional[str]:
-        # default would be "id" if the feature needs to be enabled by default
-        return self.options.get("feature_id_property")
+            return feature_id_property, None
+        return feature_id_property, dict(enumerate(values))
 
     def to_csv(self, destination: Union[str, Path, None] = None) -> Union[str, Path, None]:
         csv_paths = glob.glob(self._csv_dir + "/*.csv")
@@ -811,7 +808,7 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
             _log.warning(f"save_result: no csv files found at expected location: {self._csv_dir}")
             return
 
-        id_mapping = self._feature_id_mapping()
+        column_name, id_mapping = self._feature_id_mapping()
 
         if len(csv_paths) == 1 and id_mapping is None:
             if(destination == None):
@@ -843,7 +840,6 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
 
             if id_mapping is not None:
                 df = pd.read_csv(destination)
-                column_name = self._feature_id_column_name()
                 df[column_name] = df["feature_index"].map(id_mapping)
                 df.to_csv(destination, index=False)
 
