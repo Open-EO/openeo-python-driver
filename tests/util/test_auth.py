@@ -141,6 +141,23 @@ class TestClientCredentialsAccessTokenHelper:
                 expected_chache_misses += 1
             assert oidc_mock.mocks["token_endpoint"].call_count == expected_chache_misses
 
+    def test_invalidate_cache(self, credentials, oidc_mock: OidcMock):
+        """invalidate_cache() forces a fresh token fetch on the next get_access_token() call."""
+        helper = ClientCredentialsAccessTokenHelper(credentials=credentials)
+
+        token1 = helper.get_access_token()
+        assert oidc_mock.mocks["token_endpoint"].call_count == 1
+
+        # Still cached — no new OIDC request.
+        assert helper.get_access_token() == token1
+        assert oidc_mock.mocks["token_endpoint"].call_count == 1
+
+        # Invalidate; next call must fetch a fresh token.
+        helper.invalidate_cache()
+        token2 = helper.get_access_token()
+        assert oidc_mock.mocks["token_endpoint"].call_count == 2
+        assert token2 == oidc_mock.state["access_token"]
+
     @pytest.mark.skip(reason="Logging was removed for eu-cdse/openeo-cdse-infra#476")
     def test_secret_logging(self, credentials, oidc_mock: OidcMock, caplog):
         """Check that secret is not logged"""

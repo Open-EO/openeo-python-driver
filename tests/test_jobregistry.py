@@ -1178,3 +1178,36 @@ class TestElasticJobRegistry:
                     _ = ejr.list_user_jobs(user_id="john")
 
         assert sleep.call_count > 0
+
+    def test_401_invalidates_token_cache_and_retries(self, requests_mock, oidc_mock, ejr, caplog):
+        """A 401 response should invalidate the token cache and retry the request once with a fresh token."""
+        call_count = {"n": 0}
+
+        def post_jobs_search(request, context):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                # First call: simulate a stale/revoked token by returning 401.
+                context.status_code = 401
+                return {"error": "Unauthorized"}
+            # Second call (after token refresh): succeed.
+            return [DUMMY_PROCESS]
+
+        requests_mock.post(f"{self.EJR_API_URL}/jobs/search", json=post_jobs_search)
+
+        token_requests_before = len(oidc_mock.get_request_history(url="/token"))
+        result = ejr.list_user_jobs(user_id="john")
+        assert result == [DUMMY_PROCESS]
+        # Two HTTP calls to the search endpoint: original + retry.
+        assert call_count["n"] == 2
+        # A new token must have been fetched for the retry.
+        assert len(oidc_mock.get_request_history(url="/token")) == token_requests_before + 2
+        assert "invalidating token cache" in caplog.text
+
+    def test_persistent_401_raises_error(self, requests_mock, oidc_mock, ejr):
+        """If the retry after token refresh also returns 401, EjrApiResponseError should be raised."""
+        requests_mock.post(f"{self.EJR_API_URL}/jobs/search", status_code=401)
+
+        with pytest.raises(EjrApiResponseError) as exc_info:
+            ejr.list_user_jobs(user_id="john")
+
+        assert exc_info.value.status_code == 401
