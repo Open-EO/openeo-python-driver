@@ -398,17 +398,18 @@ class ElasticJobRegistry(JobRegistryInterface):
                     )
                 else:
                     response = do_request()
+
+                if response.status_code == 401 and use_auth:
+                    # Cached token was likely invalidated server-side; discard it and retry once with a fresh token.
+                    self._log.warning("EJR request got 401; invalidating token cache and retrying with fresh token")
+                    self._access_token_helper.invalidate_cache()
+                    headers["Authorization"] = f"Bearer {self._access_token_helper.get_access_token()}"
+                    response = do_request()
+                    self._log.debug(f"EJR retry response on `{method} {path}`: {response.status_code!r}")
             except Exception as e:
                 self._log.exception(f"Failed to do EJR API request `{method} {url}`: {e!r}")
                 raise EjrApiError(f"Failed to do EJR API request `{method} {url}`") from e
             self._log.debug(f"EJR response on `{method} {path}`: {response.status_code!r}")
-            if response.status_code == 401 and use_auth:
-                # Cached token was likely invalidated server-side; discard it and retry once with a fresh token.
-                self._log.warning("EJR request got 401; invalidating token cache and retrying with fresh token")
-                self._access_token_helper.invalidate_cache()
-                headers["Authorization"] = f"Bearer {self._access_token_helper.get_access_token()}"
-                response = do_request()
-                self._log.debug(f"EJR retry response on `{method} {path}`: {response.status_code!r}")
             if expected_status and response.status_code != expected_status:
                 exc = EjrApiResponseError.from_response(response=response)
                 if log_response_errors:
