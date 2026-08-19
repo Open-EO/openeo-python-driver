@@ -405,7 +405,6 @@ class ElasticJobRegistry(JobRegistryInterface):
                     self._access_token_helper.invalidate_cache()
                     headers["Authorization"] = f"Bearer {self._access_token_helper.get_access_token()}"
                     response = do_request()
-                    self._log.debug(f"EJR retry response on `{method} {path}`: {response.status_code!r}")
             except Exception as e:
                 self._log.exception(f"Failed to do EJR API request `{method} {url}`: {e!r}")
                 raise EjrApiError(f"Failed to do EJR API request `{method} {url}`") from e
