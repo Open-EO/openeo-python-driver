@@ -490,6 +490,7 @@ class BatchJobMetadata(NamedTuple):
 @dataclasses.dataclass(frozen=True)
 class BatchJobResultMetadata:
     # Basic dataclass based wrapper for batch job result metadata (allows cleaner code navigation and discovery)
+    # TODO: a flat top-level asset list is a deprecated concept, migrate to a proper 'collection -> items -> asset' hierachy
     assets: Dict[str, dict] = dataclasses.field(default_factory=dict)
     items: Dict[str, dict] = dataclasses.field(default_factory=dict)
     links: List[dict] = dataclasses.field(default_factory=list)
@@ -671,7 +672,7 @@ class BatchJobs(MicroService):
         related:
         https://openeo.org/documentation/1.0/developers/api/reference.html#tag/Batch-Jobs/operation/list-results
         """
-        # Default implementation, based on legacy API
+        # TODO: deprecate/phase-out this outdated, 0.4-style API
         return self.get_results(job_id=job_id, user_id=user_id)
 
     def get_results(self, job_id: str, user_id: str) -> Dict[str, dict]:

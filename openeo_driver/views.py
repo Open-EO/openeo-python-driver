@@ -44,6 +44,7 @@ from openeo_driver.backend import (
     UserDefinedProcessMetadata,
     is_not_implemented,
     QueryablesListing,
+    BatchJobResultMetadata,
 )
 from openeo_driver.config import OpenEoBackendConfig, get_backend_config
 from openeo_driver.constants import (
@@ -1062,40 +1063,61 @@ def register_views_batch_jobs(
         with TimingLogger(f"_list_job_results({job_id=}, {user_id=}, {partial=})", _log):
             return _list_job_results(job_id, user_id, partial=partial)
 
+    def _job_results_canonical_url(*, job_id: str, user_id: str, partial: bool = False) -> str:
+        signer = get_backend_config().url_signer
+        if not signer:
+            return url_for(".list_job_results", job_id=job_id, _external=True)
+
+        expires = signer.get_expires()
+        secure_key = signer.sign_job_results(job_id=job_id, user_id=user_id, expires=expires)
+        user_base64 = user_id_b64_encode(user_id)
+        # TODO: also encrypt user id?
+        # TODO: encode all stuff (signature, userid, expiry) in a single blob in the URL
+
+        if partial:
+            return url_for(
+                ".list_job_results_signed",
+                job_id=job_id,
+                user_base64=user_base64,
+                expires=expires,
+                secure_key=secure_key,
+                _external=True,
+                partial="true",
+            )
+        else:
+            return url_for(
+                ".list_job_results_signed",
+                job_id=job_id,
+                user_base64=user_base64,
+                expires=expires,
+                secure_key=secure_key,
+                _external=True,
+            )
+
+    def _list_job_results_partial(*, user_id: str, job_id: str, job_info: BatchJobMetadata, partial: bool) -> dict:
+        result = {
+            "openeo:status": PARTIAL_JOB_STATUS.for_job_status(job_info.status),
+            "type": "Collection",
+            "stac_version": "1.0.0",
+            "id": job_id,
+            "title": job_info.title or "Unfinished batch job {job_id}",
+            "description": job_info.description or f"Results for batch job {job_id}",
+            "license": "proprietary",  # TODO?
+            "extent": {
+                "spatial": {"bbox": [[-180, -90, 180, 90]]},
+                "temporal": {"interval": [[rfc3339.now_utc(), rfc3339.now_utc()]]},
+            },
+            "links": [
+                {
+                    "rel": "canonical",
+                    "href": _job_results_canonical_url(job_id=job_id, user_id=user_id, partial=partial),
+                    "type": "application/json",
+                }
+            ],
+        }
+        return result
+
     def _list_job_results(job_id, user_id, *, partial: bool = False):
-        to_datetime = Rfc3339(propagate_none=True).datetime
-
-        def job_results_canonical_url() -> str:
-            signer = get_backend_config().url_signer
-            if not signer:
-                return url_for(".list_job_results", job_id=job_id, _external=True)
-
-            expires = signer.get_expires()
-            secure_key = signer.sign_job_results(job_id=job_id, user_id=user_id, expires=expires)
-            user_base64 = user_id_b64_encode(user_id)
-            # TODO: also encrypt user id?
-            # TODO: encode all stuff (signature, userid, expiry) in a single blob in the URL
-
-            if partial:
-                return url_for(
-                    ".list_job_results_signed",
-                    job_id=job_id,
-                    user_base64=user_base64,
-                    expires=expires,
-                    secure_key=secure_key,
-                    _external=True,
-                    partial="true",
-                )
-            else:
-                return url_for(
-                    ".list_job_results_signed",
-                    job_id=job_id,
-                    user_base64=user_base64,
-                    expires=expires,
-                    secure_key=secure_key,
-                    _external=True,
-                )
-
         with TimingLogger(f"backend_implementation.batch_jobs.get_job_info({job_id=}, {user_id=})", _log):
             job_info = backend_implementation.batch_jobs.get_job_info(job_id, user_id)
 
@@ -1103,35 +1125,13 @@ def register_views_batch_jobs(
             if not partial:
                 raise JobNotFinishedException()
             else:
-                result = {
-                    "openeo:status": PARTIAL_JOB_STATUS.for_job_status(job_info.status),
-                    "type": "Collection",
-                    "stac_version": "1.0.0",
-                    "id": job_id,
-                    "title": job_info.title or "Unfinished batch job {job_id}",
-                    "description": job_info.description or f"Results for batch job {job_id}",
-                    "license": "proprietary",  # TODO?
-                    "extent": {
-                        "spatial": {"bbox": [[-180, -90, 180, 90]]},
-                        "temporal": {"interval": [[rfc3339.now_utc(), rfc3339.now_utc()]]},
-                    },
-                    "links": [
-                        {
-                            "rel": "canonical",
-                            "href": job_results_canonical_url(),
-                            "type": "application/json",
-                        }
-                    ],
-                }
+                result = _list_job_results_partial(user_id=user_id, job_id=job_id, job_info=job_info, partial=partial)
                 return jsonify(result)
 
         with TimingLogger(f"backend_implementation.batch_jobs.get_result_metadata({job_id=}, {user_id=})", _log):
             result_metadata = backend_implementation.batch_jobs.get_result_metadata(
                 job_id=job_id, user_id=user_id
             )
-        result_assets = result_metadata.assets
-        result_items = result_metadata.items
-        providers = result_metadata.providers
 
         links: List[dict] = copy.deepcopy(result_metadata.links or job_info.links or [])
 
@@ -1161,7 +1161,7 @@ def register_views_batch_jobs(
             links.append(
                 {
                     "rel": "canonical",
-                    "href": job_results_canonical_url(),
+                    "href": _job_results_canonical_url(job_id=job_id, user_id=user_id, partial=partial),
                     "type": "application/json",
                 }
             )
@@ -1175,6 +1175,185 @@ def register_views_batch_jobs(
                 }
             )
 
+        if requested_api_version().at_least("1.1.0"):
+            if result_metadata.items:
+                # "STAC 1.1" style result listing (STAC Collection with focus on item-level assets)
+                result = _list_job_results_stac11(
+                    user_id=user_id, job_id=job_id, job_info=job_info, result_metadata=result_metadata, links=links
+                )
+            else:
+                # "openEO 1.1.0" style result listing (STAC Collection with focus on collection-level assets)
+                result = _list_job_results_openeo110(
+                    user_id=user_id, job_id=job_id, job_info=job_info, result_metadata=result_metadata, links=links
+                )
+        else:
+            # "openEO 1.0.0" style result listing (STAC Item)
+            _log.warning(
+                f"Using old STAC Item style job result listing for job {job_id} (API version {requested_api_version()})"
+            )
+            result = _list_job_results_openeo100(
+                user_id=user_id, job_id=job_id, job_info=job_info, result_metadata=result_metadata, links=links
+            )
+
+        # TODO "OpenEO-Costs" header?
+        return jsonify(result)
+
+
+    def _job_result_item_url(*, job_id: str, item_id: str, user_id: str, is11: bool = False) -> str:
+        signer = get_backend_config().url_signer
+
+        method_start = ".get_job_result_item"
+        if is11:
+            method_start = method_start + "11"
+        if not signer:
+            return url_for(method_start, job_id=job_id, item_id=item_id, _external=True)
+
+        expires = signer.get_expires()
+        secure_key = signer.sign_job_item(job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
+        user_base64 = user_id_b64_encode(user_id)
+        return url_for(
+            method_start + "_signed",
+            job_id=job_id,
+            user_base64=user_base64,
+            secure_key=secure_key,
+            item_id=item_id,
+            expires=expires,
+            _external=True,
+        )
+
+    def _list_job_results_stac11(
+        *,
+        user_id: str,
+        job_id: str,
+        job_info: BatchJobMetadata,
+        result_metadata: BatchJobResultMetadata,
+        links: List[dict],
+    ) -> dict:
+        """
+        Batch job result listing in "STAC1.1" style:
+        a STAC collection, collection-level assets are deprecated in favor of item-level assets,
+        asset keys should not be assumed to be filenames
+        """
+        to_datetime = Rfc3339(propagate_none=True).datetime
+
+        def intersect_band_array(list1, list2):
+            band_result = []
+            for item1 in list1:
+                if isinstance(item1, dict) and "name" in item1:
+                    for item2 in list2:
+                        if isinstance(item1, dict) and "name" in item1 and item1["name"] == item2["name"]:
+                            band_result.append(intersect_dicts(item1, item2))
+            return band_result
+
+        def intersect_dicts(dict1, dict2):
+            result = {}
+            for key in dict1:
+                if key in dict2:
+                    if isinstance(dict1[key], dict) and isinstance(dict2[key], dict):
+                        # Recursively intersect nested dictionaries
+                        nested_result = intersect_dicts(dict1[key], dict2[key])
+                        if nested_result:  # Only add if the nested result is not empty
+                            result[key] = nested_result
+                    elif isinstance(dict1[key], list) and isinstance(dict2[key], list) and key == "bands":
+                        result[key] = intersect_band_array(dict1[key], dict2[key])
+                    elif dict1[key] == dict2[key]:
+                        # Retain the key-value pair if values are equal
+                        result[key] = dict1[key]
+            return result
+
+        item_assets = {}
+        assets = {}
+        for item_key, item_metadata in result_metadata.items.items():
+            for asset_key, asset_metadata in item_metadata.get("assets", {}).items():
+                if "output_dir" in asset_metadata:
+                    out_dir = asset_metadata.get("output_dir")
+                    _log.info(f"asset has output dir {out_dir} and href {asset_metadata.get('href')}")
+                    common = os.path.commonpath([asset_metadata.get("href"), out_dir])
+                    href = os.path.relpath(asset_metadata.get("href"), common)
+                else:
+                    href = asset_metadata.get("href")
+                asset_object = _asset_object(
+                    job_id=job_id,
+                    user_id=user_id,
+                    filename=href,
+                    asset_metadata=asset_metadata,
+                    job_info=job_info,
+                    stac11=True,
+                )
+                assets[item_key + "_" + asset_key] = asset_object
+                item_asset = dict_no_none(
+                    {
+                        "type": asset_object.get("type"),
+                        "roles": asset_object.get("roles"),
+                        "bands": asset_object.get("bands"),
+                        "proj:bbox": asset_object.get("proj:bbox"),
+                        "proj:epsg": asset_object.get("proj:epsg"),
+                        "proj:shape": asset_object.get("proj:shape"),
+                        "file:size": asset_object.get("file:size"),
+                    }
+                )
+                if asset_key not in item_assets:
+                    item_assets[asset_key] = item_asset
+                else:
+                    item_assets[asset_key] = intersect_dicts(item_assets[asset_key], item_asset)
+        for item_id in result_metadata.items.keys():
+            links.append(
+                {
+                    "rel": "item",
+                    "href": _job_result_item_url(job_id=job_id, item_id=item_id, user_id=user_id, is11=True),
+                    "type": stac_item_media_type,
+                }
+            )
+        stac_version = "1.1.0"
+
+        links = [_normalize_job_result_link(link=k, job_id=job_id, user_id=user_id) for k in links]
+
+        result = dict_no_none(
+            {
+                "type": "Collection",
+                "stac_version": stac_version,
+                "stac_extensions": [
+                    STAC_EXTENSION.EO_V110,
+                    STAC_EXTENSION.FILEINFO,
+                    STAC_EXTENSION.PROCESSING,
+                    STAC_EXTENSION.PROJECTION_V120,
+                ],
+                "id": job_id,
+                "title": job_info.title,
+                "description": job_info.description or f"Results for batch job {job_id}",
+                "license": "proprietary",  # TODO?
+                "extent": {
+                    "spatial": {"bbox": [job_info.bbox] if job_info.bbox else [[-180, -90, 180, 90]]},
+                    "temporal": {
+                        "interval": [[to_datetime(job_info.start_datetime), to_datetime(job_info.end_datetime)]]
+                    },
+                },
+                "summaries": {"instruments": job_info.instruments} if job_info.instruments else {},
+                "providers": result_metadata.providers or None,
+                "links": links,
+                "assets": assets,
+                "item_assets": item_assets,
+                "openeo:status": PARTIAL_JOB_STATUS.FINISHED,
+            }
+        )
+        return result
+
+    def _list_job_results_openeo110(
+        *,
+        user_id: str,
+        job_id: str,
+        job_info: BatchJobMetadata,
+        result_metadata: BatchJobResultMetadata,
+        links: List[dict],
+    ) -> dict:
+        """
+        Batch job result listing in "openEO API 1.1.0, but pre-STAC1.1" style:
+        a STAC collection, but with focus on collection-level assets
+        (with filenames as asset keys)
+        """
+        to_datetime = Rfc3339(propagate_none=True).datetime
+        ml_model_metadata = None
+
         assets = {
             filename: _asset_object(
                 job_id=job_id,
@@ -1184,201 +1363,142 @@ def register_views_batch_jobs(
                 job_info=job_info,
                 stac11=False,
             )
-            for filename, asset_metadata in result_assets.items()
+            for filename, asset_metadata in result_metadata.assets.items()
             if asset_metadata.get("asset", True)
         }
 
-        if requested_api_version().at_least("1.1.0"):
-            ml_model_metadata = None
-
-            def job_result_item_url(item_id, is11 = False) -> str:
-                signer = get_backend_config().url_signer
-
-                method_start = ".get_job_result_item"
-                if is11:
-                    method_start = method_start + "11"
-                if not signer:
-                    return url_for(method_start, job_id=job_id, item_id=item_id, _external=True)
-
-                expires = signer.get_expires()
-                secure_key = signer.sign_job_item(job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
-                user_base64 = user_id_b64_encode(user_id)
-                return url_for(
-                    method_start + "_signed",
-                    job_id=job_id,
-                    user_base64=user_base64,
-                    secure_key=secure_key,
-                    item_id=item_id,
-                    expires=expires,
-                    _external=True,
+        item_assets = None
+        for filename, metadata in result_metadata.assets.items():
+            if "data" in metadata.get("roles", []) and any(
+                media_type in metadata.get("type", "")
+                for media_type in ["geotiff", "netcdf", "text/csv", "application/parquet"]
+            ):
+                links.append(
+                    {
+                        "rel": "item",
+                        "href": _job_result_item_url(job_id=job_id, item_id=filename, user_id=user_id),
+                        "type": stac_item_media_type,
+                    }
                 )
+            elif metadata.get("ml_model_metadata", False):
+                # TODO: Currently we only support one ml_model per batch job.
+                ml_model_metadata = metadata
+                links.append(
+                    {
+                        "rel": "item",
+                        "href": _job_result_item_url(job_id=job_id, item_id=filename, user_id=user_id),
+                        "type": "application/json",
+                    }
+                )
+        stac_version = "1.0.0"
 
+        links = [_normalize_job_result_link(link=k, job_id=job_id, user_id=user_id) for k in links]
 
-            if result_metadata.items :
-                def intersect_band_array(list1, list2):
-                    band_result = []
-                    for item1 in list1:
-                        if isinstance(item1, dict) and "name" in item1:
-                            for item2 in list2:
-                                if isinstance(item1, dict) and "name" in item1 and item1["name"] == item2["name"]:
-                                    band_result.append(intersect_dicts(item1, item2))
-                    return band_result
-
-                def intersect_dicts(dict1, dict2):
-                    result = {}
-                    for key in dict1:
-                        if key in dict2:
-                            if isinstance(dict1[key], dict) and isinstance(dict2[key], dict):
-                                # Recursively intersect nested dictionaries
-                                nested_result = intersect_dicts(dict1[key], dict2[key])
-                                if nested_result:  # Only add if the nested result is not empty
-                                    result[key] = nested_result
-                            elif isinstance(dict1[key], list) and isinstance(dict2[key], list) and key == "bands":
-                                result[key] = intersect_band_array(dict1[key], dict2[key])
-                            elif dict1[key] == dict2[key]:
-                                # Retain the key-value pair if values are equal
-                                result[key] = dict1[key]
-                    return result
-
-                item_assets = {}
-                assets = {}
-                for item_key, item_metadata in result_items.items():
-                    for asset_key, asset_metadata in item_metadata.get("assets", {}).items():
-                        if "output_dir" in asset_metadata:
-                            out_dir = asset_metadata.get("output_dir")
-                            _log.info(f"asset has output dir {out_dir} and href {asset_metadata.get('href')}")
-                            common = os.path.commonpath([asset_metadata.get('href'), out_dir])
-                            href = os.path.relpath(asset_metadata.get('href'),common)
-                        else:
-                            href = asset_metadata.get("href")
-                        asset_object = _asset_object(
-                         job_id=job_id,
-                         user_id=user_id,
-                         filename= href,
-                         asset_metadata=asset_metadata,
-                         job_info=job_info,
-                         stac11=True,
-                        )
-                        assets[item_key + "_" + asset_key] = asset_object
-                        item_asset = dict_no_none(
-                            {
-                                "type": asset_object.get("type"),
-                                "roles": asset_object.get("roles"),
-                                "bands": asset_object.get("bands"),
-                                "proj:bbox": asset_object.get("proj:bbox"),
-                                "proj:epsg": asset_object.get("proj:epsg"),
-                                "proj:shape": asset_object.get("proj:shape"),
-                                "file:size": asset_object.get("file:size"),
-                            }
-                        )
-                        if asset_key not in item_assets:
-                            item_assets[asset_key] = item_asset
-                        else:
-                            item_assets[asset_key] = intersect_dicts(item_assets[asset_key], item_asset)
-                for item_id in result_metadata.items.keys():
-                    links.append(
-                        {"rel": "item", "href": job_result_item_url(item_id=item_id, is11=True), "type": stac_item_media_type}
-                    )
-                stac_version = "1.1.0"
-            else:
-
-                item_assets = None
-                for filename, metadata in result_assets.items():
-                    if ("data" in metadata.get("roles", []) and
-                            any(media_type in metadata.get("type", "") for media_type in
-                                ["geotiff", "netcdf", "text/csv", "application/parquet"])):
-                        links.append(
-                            {"rel": "item", "href": job_result_item_url(item_id=filename), "type": stac_item_media_type}
-                        )
-                    elif metadata.get("ml_model_metadata", False):
-                        # TODO: Currently we only support one ml_model per batch job.
-                        ml_model_metadata = metadata
-                        links.append(
-                            {"rel": "item", "href": job_result_item_url(item_id=filename), "type": "application/json"}
-                        )
-                stac_version = "1.0.0"
-
-            links = [_normalize_job_result_link(link=k, job_id=job_id, user_id=user_id) for k in links]
-
-            result = dict_no_none(
-                {
-                    "type": "Collection",
-                    "stac_version": stac_version,
-                    "stac_extensions": [
-                        STAC_EXTENSION.EO_V110,
-                        STAC_EXTENSION.FILEINFO,
-                        STAC_EXTENSION.PROCESSING,
-                        STAC_EXTENSION.PROJECTION_V120,
-                    ],
-                    "id": job_id,
-                    "title": job_info.title,
-                    "description": job_info.description or f"Results for batch job {job_id}",
-                    "license": "proprietary",  # TODO?
-                    "extent": {
-                        "spatial":  {"bbox": [job_info.bbox] if job_info.bbox else [[-180, -90, 180, 90]]},
-                        "temporal": {
-                            "interval": [[to_datetime(job_info.start_datetime), to_datetime(job_info.end_datetime)]]
-                        },
+        result = dict_no_none(
+            {
+                "type": "Collection",
+                "stac_version": stac_version,
+                "stac_extensions": [
+                    STAC_EXTENSION.EO_V110,
+                    STAC_EXTENSION.FILEINFO,
+                    STAC_EXTENSION.PROCESSING,
+                    STAC_EXTENSION.PROJECTION_V120,
+                ],
+                "id": job_id,
+                "title": job_info.title,
+                "description": job_info.description or f"Results for batch job {job_id}",
+                "license": "proprietary",  # TODO?
+                "extent": {
+                    "spatial": {"bbox": [job_info.bbox] if job_info.bbox else [[-180, -90, 180, 90]]},
+                    "temporal": {
+                        "interval": [[to_datetime(job_info.start_datetime), to_datetime(job_info.end_datetime)]]
                     },
-                    "summaries": {"instruments": job_info.instruments } if job_info.instruments else {},
-                    "providers": providers or None,
-                    "links": links,
-                    "assets": assets,
-                    "item_assets": item_assets,
-                    "openeo:status": PARTIAL_JOB_STATUS.FINISHED,
-                }
-            )
-
-            if ml_model_metadata is not None:
-                result["stac_extensions"].extend(ml_model_metadata.get("stac_extensions", []))
-                if "summaries" not in result.keys():
-                    result["summaries"] = {}
-                if "properties" in ml_model_metadata.keys():
-                    ml_model_properties = ml_model_metadata["properties"]
-                    learning_approach = ml_model_properties.get("ml-model:learning_approach", None)
-                    prediction_type = ml_model_properties.get("ml-model:prediction_type", None)
-                    architecture = ml_model_properties.get("ml-model:architecture", None)
-                    result["summaries"].update(
-                        {
-                            "ml-model:learning_approach": [learning_approach] if learning_approach is not None else [],
-                            "ml-model:prediction_type": [prediction_type] if prediction_type is not None else [],
-                            "ml-model:architecture": [architecture] if architecture is not None else [],
-                        }
-                    )
-        else:
-            result = {
-                "type": "Feature",
-                "stac_version": "1.0.0",
-                "id": job_info.id,
-                "properties": _properties_from_job_info(job_info),
-                "assets": assets,
+                },
+                "summaries": {"instruments": job_info.instruments} if job_info.instruments else {},
+                "providers": result_metadata.providers or None,
                 "links": links,
+                "assets": assets,
+                "item_assets": item_assets,
                 "openeo:status": PARTIAL_JOB_STATUS.FINISHED,
             }
-            if providers:
-                result["providers"] = providers
+        )
 
-            geometry = job_info.geometry
-            result["geometry"] = geometry
-            if geometry:
-                result["bbox"] = job_info.bbox
+        if ml_model_metadata is not None:
+            result["stac_extensions"].extend(ml_model_metadata.get("stac_extensions", []))
+            if "summaries" not in result.keys():
+                result["summaries"] = {}
+            if "properties" in ml_model_metadata.keys():
+                ml_model_properties = ml_model_metadata["properties"]
+                learning_approach = ml_model_properties.get("ml-model:learning_approach", None)
+                prediction_type = ml_model_properties.get("ml-model:prediction_type", None)
+                architecture = ml_model_properties.get("ml-model:architecture", None)
+                result["summaries"].update(
+                    {
+                        "ml-model:learning_approach": [learning_approach] if learning_approach is not None else [],
+                        "ml-model:prediction_type": [prediction_type] if prediction_type is not None else [],
+                        "ml-model:architecture": [architecture] if architecture is not None else [],
+                    }
+                )
+        return result
 
-            result["stac_extensions"] = [
-                STAC_EXTENSION.PROCESSING,
-                STAC_EXTENSION.CARD4LOPTICAL,
-                STAC_EXTENSION.FILEINFO,
-            ]
+    def _list_job_results_openeo100(
+        *,
+        user_id: str,
+        job_id: str,
+        job_info: BatchJobMetadata,
+        result_metadata: BatchJobResultMetadata,
+        links: List[dict],
+    ) -> dict:
+        """
+        Batch job result listing in deprecated "openEO API 1.0.0" style:
+        a STAC Item (type "Feature")
+        """
 
-            if sniff_stac_extension_prefix(result["assets"].values(), prefix="eo:"):
-                result["stac_extensions"].append(STAC_EXTENSION.EO_V110)
+        assets = {
+            filename: _asset_object(
+                job_id=job_id,
+                user_id=user_id,
+                filename=filename,
+                asset_metadata=asset_metadata,
+                job_info=job_info,
+                stac11=False,
+            )
+            for filename, asset_metadata in result_metadata.assets.items()
+            if asset_metadata.get("asset", True)
+        }
 
-            if any(key.startswith("proj:") for key in result["properties"]) or any(
-                key.startswith("proj:") for key in result["assets"]
-            ):
-                result["stac_extensions"].append(STAC_EXTENSION.PROJECTION_V120)
+        result = {
+            "type": "Feature",
+            "stac_version": "1.0.0",
+            "id": job_info.id,
+            "properties": _properties_from_job_info(job_info),
+            "assets": assets,
+            "links": links,
+            "openeo:status": PARTIAL_JOB_STATUS.FINISHED,
+        }
+        if result_metadata.providers:
+            result["providers"] = result_metadata.providers
 
-        # TODO "OpenEO-Costs" header?
-        return jsonify(result)
+        geometry = job_info.geometry
+        result["geometry"] = geometry
+        if geometry:
+            result["bbox"] = job_info.bbox
+
+        result["stac_extensions"] = [
+            STAC_EXTENSION.PROCESSING,
+            STAC_EXTENSION.CARD4LOPTICAL,
+            STAC_EXTENSION.FILEINFO,
+        ]
+
+        if sniff_stac_extension_prefix(result["assets"].values(), prefix="eo:"):
+            result["stac_extensions"].append(STAC_EXTENSION.EO_V110)
+
+        if any(key.startswith("proj:") for key in result["properties"]) or any(
+            key.startswith("proj:") for key in result["assets"]
+        ):
+            result["stac_extensions"].append(STAC_EXTENSION.PROJECTION_V120)
+
+        return result
 
     # TODO: Issue #232, TBD: refactor download functionality? more abstract, just stream blocks of bytes from S3 or from a directory.
     def _download_job_result(
