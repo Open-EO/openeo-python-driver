@@ -7,10 +7,10 @@ from typing import Mapping, NamedTuple, Optional, Union
 
 import requests
 from openeo.rest.auth.oidc import (
+    AccessTokenResult,
     OidcClientCredentialsAuthenticator,
     OidcClientInfo,
     OidcProviderInfo,
-    AccessTokenResult,
 )
 from openeo.util import str_truncate
 

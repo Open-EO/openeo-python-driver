@@ -1,4 +1,5 @@
 """Miscellaneous process implementations."""
+
 import datetime
 import logging
 import time
@@ -9,19 +10,16 @@ from openeo.util import rfc3339
 
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.dry_run import DryRunDataTracer
-from openeo_driver.errors import FeatureUnsupportedException, OpenEOApiException, ProcessParameterInvalidException
-from openeo_driver.processes import ProcessArgs
+from openeo_driver.errors import FeatureUnsupportedException
+from openeo_driver.processes import ProcessArgs, ProcessSpec
 from openeo_driver.processgraph.registry import (
     ENV_DRY_RUN_TRACER,
-    ENV_FINAL_RESULT,
-    ENV_SAVE_RESULT,
     NoPythonImplementationError,
     non_standard_process,
     process,
-    process_registry_100,
     process_registry_2xx,
+    process_registry_100,
 )
-from openeo_driver.processes import ProcessSpec
 from openeo_driver.save_result import NullResult
 from openeo_driver.specs import read_spec
 from openeo_driver.utils import EvalEnv
@@ -52,9 +50,9 @@ def inspect(args: ProcessArgs, env: EvalEnv):
 
 @non_standard_process(
     ProcessSpec("sleep", description="Sleep for given amount of seconds (and just pass-through given data).")
-        .param('data', description="Data to pass through.", schema={}, required=False)
-        .param('seconds', description="Number of seconds to sleep.", schema={"type": "number"}, required=True)
-        .returns("Original data", schema={})
+    .param("data", description="Data to pass through.", schema={}, required=False)
+    .param("seconds", description="Number of seconds to sleep.", schema={"type": "number"}, required=True)
+    .returns("Original data", schema={})
 )
 def sleep(args: ProcessArgs, env: EvalEnv):
     data = args.get_required("data")
@@ -68,8 +66,8 @@ def sleep(args: ProcessArgs, env: EvalEnv):
 
 @non_standard_process(
     ProcessSpec("discard_result", description="Discards given data. Used for side-effecting purposes.")
-        .param('data', description="Data to discard.", schema={}, required=False)
-        .returns("Nothing", schema={})
+    .param("data", description="Data to discard.", schema={}, required=False)
+    .returns("Nothing", schema={})
 )
 def discard_result(args: ProcessArgs, env: EvalEnv):
     return NullResult()

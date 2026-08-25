@@ -1,16 +1,16 @@
 """SAR and atmospheric correction process implementations."""
+
 import logging
 
 from openeo_driver.datacube import DriverDataCube
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs
-from openeo_driver.processes import ProcessArgs
+from openeo_driver.processes import ProcessArgs, ProcessSpec
 from openeo_driver.processgraph.registry import (
     custom_process_from_process_graph,
     non_standard_process,
-    process_registry_100,
     process_registry_2xx,
+    process_registry_100,
 )
-from openeo_driver.processes import ProcessSpec
 from openeo_driver.specs import read_spec
 from openeo_driver.utils import EvalEnv
 
@@ -19,7 +19,7 @@ _log = logging.getLogger(__name__)
 
 @non_standard_process(
     ProcessSpec(
-        id='atmospheric_correction',
+        id="atmospheric_correction",
         description="Applies an atmospheric correction that converts top of atmosphere reflectance values into bottom of atmosphere/top of canopy reflectance values.",
         extra={
             "summary": "Apply atmospheric correction",
@@ -29,7 +29,7 @@ _log = logging.getLogger(__name__)
                 {
                     "rel": "about",
                     "href": "https://bok.eo4geo.eu/IP1-7-1",
-                    "title": "Atmospheric correction explained by EO4GEO body of knowledge."
+                    "title": "Atmospheric correction explained by EO4GEO body of knowledge.",
                 }
             ],
             "exceptions": {
@@ -37,19 +37,73 @@ _log = logging.getLogger(__name__)
                     "message": "The digital elevation model specified is either not a DEM or can't be used with the data cube given."
                 }
             },
-        }
+        },
     )
-    .param('data', description="Data cube containing multi-spectral optical top of atmosphere reflectances to be corrected.", schema={"type": "object", "subtype": "raster-cube"})
-    .param(name='method', description="The atmospheric correction method to use.", schema={"type": "string"}, required=False)
-    .param(name='elevation_model', description="The digital elevation model to use.", schema={"type": "string"}, required=False)
-    .param(name='missionId', description="non-standard mission Id, currently defaults to sentinel2", schema={"type": "string"}, required=False)
-    .param(name='sza', description="non-standard if set, overrides sun zenith angle values [deg]", schema={"type": "number"}, required=False)
-    .param(name='vza', description="non-standard if set, overrides sensor zenith angle values [deg]", schema={"type": "number"}, required=False)
-    .param(name='raa', description="non-standard if set, overrides rel. azimuth angle values [deg]", schema={"type": "number"}, required=False)
-    .param(name='gnd', description="non-standard if set, overrides ground elevation [km]", schema={"type": "number"}, required=False)
-    .param(name='aot', description="non-standard if set, overrides aerosol optical thickness [], usually 0.1..0.2", schema={"type": "number"}, required=False)
-    .param(name='cwv', description="non-standard if set, overrides water vapor [], usually 0..7", schema={"type": "number"}, required=False)
-    .param(name='appendDebugBands', description="non-standard if set to 1, saves debug bands", schema={"type": "number"}, required=False)
+    .param(
+        "data",
+        description="Data cube containing multi-spectral optical top of atmosphere reflectances to be corrected.",
+        schema={"type": "object", "subtype": "raster-cube"},
+    )
+    .param(
+        name="method",
+        description="The atmospheric correction method to use.",
+        schema={"type": "string"},
+        required=False,
+    )
+    .param(
+        name="elevation_model",
+        description="The digital elevation model to use.",
+        schema={"type": "string"},
+        required=False,
+    )
+    .param(
+        name="missionId",
+        description="non-standard mission Id, currently defaults to sentinel2",
+        schema={"type": "string"},
+        required=False,
+    )
+    .param(
+        name="sza",
+        description="non-standard if set, overrides sun zenith angle values [deg]",
+        schema={"type": "number"},
+        required=False,
+    )
+    .param(
+        name="vza",
+        description="non-standard if set, overrides sensor zenith angle values [deg]",
+        schema={"type": "number"},
+        required=False,
+    )
+    .param(
+        name="raa",
+        description="non-standard if set, overrides rel. azimuth angle values [deg]",
+        schema={"type": "number"},
+        required=False,
+    )
+    .param(
+        name="gnd",
+        description="non-standard if set, overrides ground elevation [km]",
+        schema={"type": "number"},
+        required=False,
+    )
+    .param(
+        name="aot",
+        description="non-standard if set, overrides aerosol optical thickness [], usually 0.1..0.2",
+        schema={"type": "number"},
+        required=False,
+    )
+    .param(
+        name="cwv",
+        description="non-standard if set, overrides water vapor [], usually 0..7",
+        schema={"type": "number"},
+        required=False,
+    )
+    .param(
+        name="appendDebugBands",
+        description="non-standard if set to 1, saves debug bands",
+        schema={"type": "number"},
+        required=False,
+    )
     .returns(description="the corrected data as a data cube", schema={"type": "object", "subtype": "raster-cube"})
 )
 def atmospheric_correction(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:

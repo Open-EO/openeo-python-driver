@@ -46,9 +46,10 @@ RESAMPLE_SPATIAL_METHODS = [
     "q3",
     "rms",
     "sum",
-    "binning", # custom method for "binning" resampling of sentinel-3
-    "geocode" #custom method for geocoding of e.g. Sentinel-1 based on lat/lon bands
+    "binning",  # custom method for "binning" resampling of sentinel-3
+    "geocode",  # custom method for geocoding of e.g. Sentinel-1 based on lat/lon bands
 ]
+
 
 class RESAMPLE_SPATIAL_ALIGN:
     # Align options as used in official spec of `resample_spatial`

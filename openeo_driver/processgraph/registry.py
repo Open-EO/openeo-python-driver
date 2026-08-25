@@ -3,6 +3,7 @@ Process registry setup, decorators, and standard process wiring.
 
 Extracted from openeo_driver/ProcessGraphDeserializer.py.
 """
+
 import logging
 import math
 from pathlib import Path
@@ -29,6 +30,7 @@ class NoPythonImplementationError(NotImplementedError):
     Typically used for callback processes that have an actual implementation elsewhere.
     (e.g in openeo-geotrellis-extensions).
     """
+
     pass
 
 
@@ -49,6 +51,7 @@ def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List
     """
     Add standard processes as implemented by the openeo-processes-python project.
     """
+
     def wrap(process: Callable):
         """Adapter to connect the kwargs style of openeo-processes-python with ProcessArgs/EvalEnv"""
 
@@ -74,16 +77,89 @@ def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List
 
 
 _OPENEO_PROCESSES_PYTHON_WHITELIST = [
-    'array_contains', 'array_element', 'array_filter', 'array_find', 'array_labels',
-    'count', 'first', 'last', 'order', 'rearrange', 'sort',
-    'between', 'eq', 'gt', 'gte', 'is_nan', 'is_nodata', 'is_valid', 'lt', 'lte', 'neq',
-    'all', 'and', 'any', 'not', 'or', 'xor',
-    'absolute', 'add', 'clip', 'divide', 'extrema', 'int', 'max', 'mean',
-    'median', 'min', 'mod', 'multiply', 'power', 'product', 'quantiles', 'sd', 'sgn', 'sqrt',
-    'subtract', 'sum', 'variance', 'e', 'pi', 'exp', 'ln', 'log',
-    'ceil', 'floor', 'int', 'round',
-    'arccos', 'arcosh', 'arcsin', 'arctan', 'arctan2', 'arsinh', 'artanh', 'cos', 'cosh', 'sin', 'sinh', 'tan', 'tanh',
-    'all', 'any', 'count', 'first', 'last', 'max', 'mean', 'median', 'min', 'product', 'sd', 'sum', 'variance'
+    "array_contains",
+    "array_element",
+    "array_filter",
+    "array_find",
+    "array_labels",
+    "count",
+    "first",
+    "last",
+    "order",
+    "rearrange",
+    "sort",
+    "between",
+    "eq",
+    "gt",
+    "gte",
+    "is_nan",
+    "is_nodata",
+    "is_valid",
+    "lt",
+    "lte",
+    "neq",
+    "all",
+    "and",
+    "any",
+    "not",
+    "or",
+    "xor",
+    "absolute",
+    "add",
+    "clip",
+    "divide",
+    "extrema",
+    "int",
+    "max",
+    "mean",
+    "median",
+    "min",
+    "mod",
+    "multiply",
+    "power",
+    "product",
+    "quantiles",
+    "sd",
+    "sgn",
+    "sqrt",
+    "subtract",
+    "sum",
+    "variance",
+    "e",
+    "pi",
+    "exp",
+    "ln",
+    "log",
+    "ceil",
+    "floor",
+    "int",
+    "round",
+    "arccos",
+    "arcosh",
+    "arcsin",
+    "arctan",
+    "arctan2",
+    "arsinh",
+    "artanh",
+    "cos",
+    "cosh",
+    "sin",
+    "sinh",
+    "tan",
+    "tanh",
+    "all",
+    "any",
+    "count",
+    "first",
+    "last",
+    "max",
+    "mean",
+    "median",
+    "min",
+    "product",
+    "sd",
+    "sum",
+    "variance",
 ]
 
 _openeo_processes_extra = {
@@ -170,6 +246,7 @@ def _process_function_from_process_graph(process_spec: dict) -> ProcessFunction:
     def process_function(args: ProcessArgs, env: EvalEnv):
         # Import here to avoid circular import: evaluator imports registry, process_function uses evaluator
         from openeo_driver.processgraph.evaluator import _evaluate_process_graph_process
+
         return _evaluate_process_graph_process(
             process_id=process_id,
             process_graph=process_graph,
@@ -223,6 +300,7 @@ class SimpleProcessing(Processing):
             _add_standard_processes(registry, _OPENEO_PROCESSES_PYTHON_WHITELIST)
             # Import collect lazily to avoid circular import
             from openeo_driver.processgraph.evaluator import collect
+
             registry.add_hidden(collect)
             self._registry_cache[spec] = registry
         return self._registry_cache[spec]
@@ -240,6 +318,7 @@ class SimpleProcessing(Processing):
 
     def evaluate(self, process_graph: dict, env: EvalEnv = None):
         from openeo_driver.processgraph.evaluator import evaluate
+
         return evaluate(process_graph=process_graph, env=env or self.get_basic_env(), do_dry_run=False)
 
 
@@ -259,12 +338,14 @@ class ConcreteProcessing(Processing):
 
     def evaluate(self, process_graph: dict, env: EvalEnv = None):
         from openeo_driver.processgraph.evaluator import evaluate
+
         return evaluate(process_graph=process_graph, env=env)
 
     def validate(self, process_graph: dict, env: EvalEnv = None):
-        from openeo_driver.processgraph.evaluator import evaluate, _collect_end_nodes, convert_node
-        from openeo_driver.dry_run import DryRunDataTracer
         from openeo.internal.process_graph_visitor import ProcessGraphVisitException, ProcessGraphVisitor
+
+        from openeo_driver.dry_run import DryRunDataTracer
+        from openeo_driver.processgraph.evaluator import _collect_end_nodes, convert_node
 
         dry_run_tracer = DryRunDataTracer()
         env = env.push({ENV_DRY_RUN_TRACER: dry_run_tracer, ENV_FINAL_RESULT: [None]})
@@ -278,10 +359,15 @@ class ConcreteProcessing(Processing):
             _log.info("Doing dry run")
             collected_process_graph, top_level_node_id = _collect_end_nodes(process_graph)
             top_level_node = collected_process_graph[top_level_node_id]
-            result = convert_node(top_level_node, env=env.push({
-                ENV_SAVE_RESULT: [],
-                "node_caching": False
-            }))
+            result = convert_node(
+                top_level_node,
+                env=env.push(
+                    {
+                        ENV_SAVE_RESULT: [],
+                        "node_caching": False,
+                    }
+                ),
+            )
             source_constraints = dry_run_tracer.get_source_constraints()
             _log.info(f"Dry run extracted {len(source_constraints)} source constraints: {source_constraints}")
             env = env.push({ENV_SOURCE_CONSTRAINTS: source_constraints})
@@ -294,15 +380,15 @@ class ConcreteProcessing(Processing):
 
         errors = []
         source_constraints = dry_run_tracer.get_source_constraints()
-        errors.extend(self.extra_validation(
-            process_graph=process_graph,
-            env=env,
-            result=result,
-            source_constraints=source_constraints
-        ))
+        errors.extend(
+            self.extra_validation(
+                process_graph=process_graph,
+                env=env,
+                result=result,
+                source_constraints=source_constraints,
+            )
+        )
         return errors
 
     def extra_validation(self, process_graph, env, result, source_constraints):
         return []
-
-

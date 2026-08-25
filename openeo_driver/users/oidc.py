@@ -5,6 +5,7 @@ from openeo_driver.utils import extract_namedtuple_fields_from_dict
 
 class OidcProvider(NamedTuple):
     """OIDC provider metadata"""
+
     id: str
     issuer: str
     title: str
@@ -16,7 +17,7 @@ class OidcProvider(NamedTuple):
     service_account: Optional[Tuple[str, str]] = None
 
     @classmethod
-    def from_dict(cls, d: dict) -> 'OidcProvider':
+    def from_dict(cls, d: dict) -> "OidcProvider":
         d = extract_namedtuple_fields_from_dict(d, OidcProvider)
         return cls(**d)
 
@@ -36,7 +37,7 @@ class OidcProvider(NamedTuple):
 
     @property
     def discovery_url(self):
-        return self.issuer.rstrip("/") + '/.well-known/openid-configuration'
+        return self.issuer.rstrip("/") + "/.well-known/openid-configuration"
 
     def get_issuer(self) -> str:
         """Get normalized version of issuer (for comparison/mapping situations)"""

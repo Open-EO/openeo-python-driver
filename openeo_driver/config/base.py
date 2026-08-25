@@ -1,7 +1,7 @@
 import inspect
 import logging
 import os
-from typing import Type, Set, Dict, Any
+from typing import Any, Dict, Set, Type
 
 import attrs
 
@@ -53,8 +53,6 @@ class _ConfigBase:
                 _log.warning(f"Ignoring invalid config arguments: {invalid}")
 
         self.__attrs_init__(**valid)
-
-
 
 
 def check_config_definition(config_class: Type[_ConfigBase]):

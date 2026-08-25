@@ -1,10 +1,10 @@
-from typing import Union, Set, Optional, Iterable
-
 import base64
+from typing import Iterable, Optional, Set, Union
 
 
 class User:
     __slots__ = ("user_id", "info", "internal_auth_data", "_roles", "_default_plan")
+
     # TODO more fields
     def __init__(
         self,
@@ -34,10 +34,7 @@ class User:
                 oidc_userinfo = self.info["oidc_userinfo"]
                 if "name" in oidc_userinfo:
                     return oidc_userinfo["name"]
-                if (
-                    "voperson_verified_email" in oidc_userinfo
-                    and len(oidc_userinfo["voperson_verified_email"]) > 0
-                ):
+                if "voperson_verified_email" in oidc_userinfo and len(oidc_userinfo["voperson_verified_email"]) > 0:
                     return oidc_userinfo["voperson_verified_email"][0]
                 if "email" in oidc_userinfo:
                     return oidc_userinfo["email"]

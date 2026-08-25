@@ -1,5 +1,5 @@
 import os
-from typing import Callable, Dict, List, Optional, Tuple, Container, Union
+from typing import Callable, Container, Dict, List, Optional, Tuple, Union
 
 import attrs
 
@@ -11,12 +11,12 @@ from openeo_driver.config.base import (
     check_config_definition,
     openeo_backend_config_class,
 )
+from openeo_driver.config.integrations.s3_config import S3ProvidersConfig
 from openeo_driver.config.util import Exclude
 from openeo_driver.server import build_backend_deploy_metadata
 from openeo_driver.urlsigning import UrlSigner
 from openeo_driver.users.oidc import OidcProvider
 from openeo_driver.workspace import Workspace
-from openeo_driver.config.integrations.s3_config import S3ProvidersConfig
 
 __all__ = ["OpenEoBackendConfig", "openeo_backend_config_class", "ConfigException", "check_config_definition"]
 

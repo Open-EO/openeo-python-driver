@@ -54,6 +54,7 @@ def create_presigned_url(
     parameters: Optional[dict] = None,
 ) -> Optional[str]:
     from botocore.exceptions import ClientError
+
     """
     Generate a presigned URL to share an S3 object
     If a default value is provided rather then that value is returned instead of throwing an exception

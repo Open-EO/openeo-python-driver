@@ -6,10 +6,11 @@ from pathlib import Path, PurePath
 from typing import Optional, Union
 from urllib.parse import urlparse
 
-from openeo_driver.utils import remove_slash_prefix
-from pystac import Asset, Collection, STACObject, SpatialExtent, TemporalExtent, Item, RelType
+from pystac import Asset, Collection, Item, RelType, SpatialExtent, STACObject, TemporalExtent
 from pystac.catalog import CatalogType
-from pystac.layout import HrefLayoutStrategy, CustomLayoutStrategy
+from pystac.layout import CustomLayoutStrategy, HrefLayoutStrategy
+
+from openeo_driver.utils import remove_slash_prefix
 
 _log = logging.getLogger(__name__)
 
@@ -42,7 +43,6 @@ class Workspace(abc.ABC):
 
 
 class DiskWorkspace(Workspace):
-
     def __init__(self, root_directory: Path):
         self.root_directory = root_directory
 
@@ -199,7 +199,7 @@ def _merge_spatial_extents(a: SpatialExtent, b: SpatialExtent) -> SpatialExtent:
         min(overall_bbox_a[0], overall_bbox_b[0]),
         min(overall_bbox_a[1], overall_bbox_b[1]),
         max(overall_bbox_a[2], overall_bbox_b[2]),
-        max(overall_bbox_a[3], overall_bbox_b[3])
+        max(overall_bbox_a[3], overall_bbox_b[3]),
     ]
 
     merged_sub_bboxes = sub_bboxes_a + sub_bboxes_b
@@ -229,7 +229,7 @@ def _merge_temporal_extents(a: TemporalExtent, b: TemporalExtent) -> TemporalExt
 
     merged_overall_interval = [
         min_time(overall_interval_a[0], overall_interval_b[0]),
-        max_time(overall_interval_a[1], overall_interval_b[1])
+        max_time(overall_interval_a[1], overall_interval_b[1]),
     ]
 
     merged_sub_intervals = sub_intervals_a + sub_intervals_b
@@ -251,7 +251,6 @@ def _merge_derived_from_links(existing_collection: Collection, new_collection: C
 
 
 def _merge_item_assets(existing_collection: Collection, new_collection: Collection):
-
     def intersect_band_array(list1, list2):
         band_result = []
         for item1 in list1:

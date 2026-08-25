@@ -3,14 +3,15 @@ Process graph evaluation engine.
 
 Extracted from openeo_driver/ProcessGraphDeserializer.py.
 """
+
 import copy
 import dataclasses
 import functools
 import logging
-from logging import DEBUG
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
-from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphVisitException
+from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+
 try:
     from openeo.internal.process_graph_visitor import ORIG_NODE_ID_KEY
 except ImportError:
@@ -23,9 +24,7 @@ from openeo.util import TimingLogger
 
 from openeo_driver.backend import ErrorSummary, UserDefinedProcessMetadata
 from openeo_driver.dry_run import (
-    DryRunDataCube,
     DryRunDataTracer,
-    SourceConstraint,
     deduplicate_source_constraints,
 )
 from openeo_driver.errors import (
@@ -85,18 +84,20 @@ def _end_node_ids(process_graph: dict) -> set:
             return {node_id for v in value for node_id in get_from_node_ids(v)}
         return set()
 
-    from_node_ids = {node_id
-                     for node in process_graph.values()
-                     for argument_value in node["arguments"].values()
-                     for node_id in get_from_node_ids(argument_value)}
+    from_node_ids = {
+        node_id
+        for node in process_graph.values()
+        for argument_value in node["arguments"].values()
+        for node_id in get_from_node_ids(argument_value)
+    }
 
     return all_node_ids - from_node_ids
 
 
 def evaluate(
-        process_graph: dict,
-        env: EvalEnv,
-        do_dry_run: Union[bool, DryRunDataTracer] = True
+    process_graph: dict,
+    env: EvalEnv,
+    do_dry_run: Union[bool, DryRunDataTracer] = True,
 ):
     """
     Converts the json representation of a (part of a) process graph into the corresponding Python data cube.
@@ -125,7 +126,7 @@ def evaluate(
             {
                 ENV_DRY_RUN_TRACER: dry_run_tracer,
                 ENV_SAVE_RESULT: [],
-                "node_caching": False
+                "node_caching": False,
             }
         )
         dry_run_result = convert_node(top_level_node, env=dry_run_env)
@@ -196,8 +197,8 @@ def convert_node(processGraph: Union[dict, list], *, env: EvalEnv):
     Warning: this function could manipulate the given process graph dict in-place.
     """
     if isinstance(processGraph, dict):
-        if 'process_id' in processGraph:
-            process_id = processGraph['process_id']
+        if "process_id" in processGraph:
+            process_id = processGraph["process_id"]
             caching_mode = _ResultCachingMode.from_env(env=env, process_id=process_id)
 
             cached = processGraph.get("result_cache", UNSET) if caching_mode.enabled else UNSET
@@ -227,16 +228,16 @@ def convert_node(processGraph: Union[dict, list], *, env: EvalEnv):
                 env[ENV_FINAL_RESULT][0] = process_result
 
             return process_result
-        elif 'node' in processGraph:
-            return convert_node(processGraph['node'], env=env)
-        elif 'callback' in processGraph or 'process_graph' in processGraph:
+        elif "node" in processGraph:
+            return convert_node(processGraph["node"], env=env)
+        elif "callback" in processGraph or "process_graph" in processGraph:
             return processGraph
-        elif 'from_parameter' in processGraph:
+        elif "from_parameter" in processGraph:
             try:
                 parameters = env.collect_parameters()
-                return parameters[processGraph['from_parameter']]
+                return parameters[processGraph["from_parameter"]]
             except KeyError:
-                raise ProcessParameterRequiredException(process="n/a", parameter=processGraph['from_parameter'])
+                raise ProcessParameterRequiredException(process="n/a", parameter=processGraph["from_parameter"])
         else:
             return {k: convert_node(v, env=env) for k, v in processGraph.items()}
     elif isinstance(processGraph, list):
@@ -289,7 +290,7 @@ def check_subgraph_for_data_mask_optimization(args: dict) -> bool:
         "filter_spatial",
         "filter_temporal",
         "load_collection",
-        "resample_spatial"
+        "resample_spatial",
     }
 
     children_node_types = flatten_children_node_types(args["data"])
@@ -313,11 +314,13 @@ def apply_process(
     env: EvalEnv,
     pg_node_id: Optional[str] = None,
 ):
-
     parameters = env.collect_parameters()
 
-    if process_id == "mask" and args.get("replacement", None) is None \
-            and smart_bool(env.get("data_mask_optimization", True)):
+    if (
+        process_id == "mask"
+        and args.get("replacement", None) is None
+        and smart_bool(env.get("data_mask_optimization", True))
+    ):
         mask_node = args.get("mask", None)
         the_mask = convert_node(mask_node, env=env)
         dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
@@ -343,9 +346,7 @@ def apply_process(
     if is_http_url(namespace):
         if namespace.startswith("http://"):
             _log.warning(f"HTTP protocol for namespace based remote process definitions is discouraged: {namespace!r}")
-        return evaluate_process_from_url(
-            process_id=process_id, namespace=namespace, args=args, env=env
-        )
+        return evaluate_process_from_url(process_id=process_id, namespace=namespace, args=args, env=env)
 
     process_registry = env.backend_implementation.processing.get_process_registry(api_version=env.openeo_api_version())
 
@@ -376,13 +377,15 @@ def apply_process(
 
     if _log.isEnabledFor(logging.DEBUG):
         listing = process_registry.get_processes_listing()
-        known_processes = [ p['id'] for p in listing.processes]
-        _log.debug(f"Encountered unknown process {process_id} in namespace {namespace}, these processes are available: {known_processes}")
+        known_processes = [p["id"] for p in listing.processes]
+        _log.debug(
+            f"Encountered unknown process {process_id} in namespace {namespace}, these processes are available: {known_processes}"
+        )
     raise ProcessUnsupportedException(process=process_id, namespace=namespace)
 
 
 def _evaluate_process_graph_process(
-        process_id: str, process_graph: dict, parameters: List[dict], args: dict, env: EvalEnv
+    process_id: str, process_graph: dict, parameters: List[dict], args: dict, env: EvalEnv
 ):
     """Evaluate a process specified as a process graph (e.g. user-defined process)"""
     args = args.copy()
@@ -401,8 +404,7 @@ def _evaluate_process_graph_process(
 
 def evaluate_udp(process_id: str, udp: UserDefinedProcessMetadata, args: dict, env: EvalEnv):
     return _evaluate_process_graph_process(
-        process_id=process_id, process_graph=udp.process_graph, parameters=udp.parameters,
-        args=args, env=env
+        process_id=process_id, process_graph=udp.process_graph, parameters=udp.parameters, args=args, env=env
     )
 
 

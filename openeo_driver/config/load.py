@@ -1,10 +1,11 @@
 """
 Utilities for (lazy) loading of config
 """
+
 import logging
 import os
 from pathlib import Path
-from typing import Any, ContextManager, Optional, Union, Type
+from typing import Any, ContextManager, Optional, Type, Union
 
 try:
     # Use `importlib_resources` instead of stdlib `importlib.resources`
@@ -48,15 +49,11 @@ def load_from_py_file(
     try:
         config = globals[variable]
     except KeyError:
-        raise ConfigException(
-            f"No variable {variable!r} found in config file {path!r}"
-        ) from None
+        raise ConfigException(f"No variable {variable!r} found in config file {path!r}") from None
 
     if expected_class:
         if not isinstance(config, expected_class):
-            raise ConfigException(
-                f"Expected {expected_class.__name__} but got {type(config).__name__}"
-            )
+            raise ConfigException(f"Expected {expected_class.__name__} but got {type(config).__name__}")
     return config
 
 

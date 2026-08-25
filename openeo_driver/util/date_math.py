@@ -13,8 +13,7 @@ def now_utc() -> dt.datetime:
 
 
 def month_shift(
-        d: Union[dt.date, dt.datetime, pd.Timestamp],
-        months: int = 1
+    d: Union[dt.date, dt.datetime, pd.Timestamp], months: int = 1
 ) -> Union[dt.date, dt.datetime, pd.Timestamp]:
     """
     Shift a date with given amount of months.

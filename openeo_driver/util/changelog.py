@@ -1,8 +1,8 @@
 import logging
-import sys
 import re
+import sys
 from pathlib import Path
-from typing import List, Union, Optional
+from typing import List, Optional, Union
 
 import jinja2
 import markdown

@@ -3,6 +3,7 @@ Load parameter extraction logic.
 
 Extracted from openeo_driver/ProcessGraphDeserializer.py.
 """
+
 import logging
 import math
 from typing import List, Optional, Union
@@ -38,10 +39,10 @@ def _collection_resolution(collection_id: str, env: EvalEnv) -> Optional[List[in
         metadata = env.backend_implementation.catalog.get_collection_metadata(collection_id)
     except CollectionNotFoundException:
         return None
-    x = metadata.get('cube:dimensions', {}).get('x', {})
-    y = metadata.get('cube:dimensions', {}).get('y', {})
+    x = metadata.get("cube:dimensions", {}).get("x", {})
+    y = metadata.get("cube:dimensions", {}).get("y", {})
     if "step" in x and "step" in y:
-        return [x['step'], y['step']]
+        return [x["step"], y["step"]]
     else:
         return None
 
@@ -60,8 +61,8 @@ def _align_extent(extent: dict, collection_id: str, env: EvalEnv, target_resolut
     collection_resolution = _collection_resolution(collection_id, env)
     isUTM = crs == "AUTO:42001" or "Auto42001" in str(crs)
 
-    x = metadata.get('cube:dimensions', {}).get('x', {})
-    y = metadata.get('cube:dimensions', {}).get('y', {})
+    x = metadata.get("cube:dimensions", {}).get("x", {})
+    y = metadata.get("cube:dimensions", {}).get("y", {})
 
     if target_resolution is None and collection_resolution is None:
         return extent
@@ -76,7 +77,7 @@ def _align_extent(extent: dict, collection_id: str, env: EvalEnv, target_resolut
         target_resolution = collection_resolution
 
         def align(v, dimension, rounding, resolution):
-            range = dimension.get('extent', [])
+            range = dimension.get("extent", [])
             if v < range[0]:
                 v = range[0]
             elif v > range[1]:
@@ -87,11 +88,11 @@ def _align_extent(extent: dict, collection_id: str, env: EvalEnv, target_resolut
             return v
 
         new_extent = {
-            'west': align(extent['west'], x, math.floor, target_resolution[0]),
-            'east': align(extent['east'], x, math.ceil, target_resolution[0]),
-            'south': align(extent['south'], y, math.floor, target_resolution[1]),
-            'north': align(extent['north'], y, math.ceil, target_resolution[1]),
-            'crs': extent['crs']
+            "west": align(extent["west"], x, math.floor, target_resolution[0]),
+            "east": align(extent["east"], x, math.ceil, target_resolution[0]),
+            "south": align(extent["south"], y, math.floor, target_resolution[1]),
+            "north": align(extent["north"], y, math.ceil, target_resolution[1]),
+            "crs": extent["crs"],
         }
         _log.info(f"Realigned input extent {extent} into {new_extent}")
         return new_extent
@@ -118,7 +119,6 @@ def _extract_load_parameters(env: EvalEnv, source_id: SourceId) -> LoadParameter
     This is a side effect method that also removes source constraints from the list,
     which needs to happen in the right order!!
     """
-    from openeo_driver import dry_run
 
     source_constraints = env[ENV_SOURCE_CONSTRAINTS]
 
@@ -166,13 +166,17 @@ def _extract_load_parameters(env: EvalEnv, source_id: SourceId) -> LoadParameter
                             "east": extent["east"] + target_resolution[0] * math.ceil(buffer[0]),
                             "south": extent["south"] - target_resolution[1] * math.ceil(buffer[1]),
                             "north": extent["north"] + target_resolution[1] * math.ceil(buffer[1]),
-                            "crs": extent["crs"]
+                            "crs": extent["crs"],
                         }
                     else:
                         _log.warning("Not applying buffer to extent because the target CRS is not known.")
 
                 load_collection_in_native_grid = "resample" not in constraint or target_crs == collection_crs
-                if (not load_collection_in_native_grid) and collection_crs is not None and ("42001" in str(collection_crs)):
+                if (
+                    (not load_collection_in_native_grid)
+                    and collection_crs is not None
+                    and ("42001" in str(collection_crs))
+                ):
                     try:
                         load_collection_in_native_grid = "UTM zone" in CRS.from_user_input(target_crs).to_wkt()
                     except CRSError:
