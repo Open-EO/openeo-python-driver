@@ -1133,12 +1133,6 @@ def register_views_batch_jobs(
         result_items = result_metadata.items
         providers = result_metadata.providers
 
-        # TODO: remove feature toggle, during refactoring for openeo-geopyspark-driver#440
-        #   https://github.com/Open-EO/openeo-geopyspark-driver/issues/440
-        #   We will try to simplify the code and give the same response for API v1.0.0 as v1.1.0.
-        #   This is a bit of an ugly temporary hack, to aid in testing and comparing.
-        TREAT_JOB_RESULTS_V100_LIKE_V110 = smart_bool(os.environ.get("TREAT_JOB_RESULTS_V100_LIKE_V110", "0"))
-
         links: List[dict] = copy.deepcopy(result_metadata.links or job_info.links or [])
 
         try:
@@ -1194,7 +1188,7 @@ def register_views_batch_jobs(
             if asset_metadata.get("asset", True)
         }
 
-        if TREAT_JOB_RESULTS_V100_LIKE_V110 or requested_api_version().at_least("1.1.0"):
+        if requested_api_version().at_least("1.1.0"):
             ml_model_metadata = None
 
             def job_result_item_url(item_id, is11 = False) -> str:
