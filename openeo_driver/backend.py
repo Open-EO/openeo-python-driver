@@ -630,9 +630,11 @@ class BatchJobs(MicroService):
 
     def get_result_metadata(self, job_id: str, user_id: str) -> BatchJobResultMetadata:
         """
-        Get job result metadata
+        High-level API to list batch job results in an opinionated, structured way,
+        (e.g. targeting the `GET /jobs/{job_id}/results` endpoint).
 
-        https://openeo.org/documentation/1.0/developers/api/reference.html#tag/Batch-Jobs/operation/list-results
+        Also see `list_job_results` for a more low-level API
+        that returns a raw, less-opinionated metadata document directly.
         """
         # Default implementation, based on existing components
         return BatchJobResultMetadata(
@@ -662,6 +664,37 @@ class BatchJobs(MicroService):
                 "processing:expression": {"format": "openeo", "expression": job.process},
             }
         ]
+
+    def list_job_results(
+        self, *, job_id: str, user_id: str, partial: bool = False, api_version: ComparableVersion
+    ) -> dict:
+        """
+        Low-level API to list batch job results,
+        targeting the `GET /jobs/{job_id}/results` endpoint.
+
+        Returns a raw batch job results metadata document.
+
+        Also see `get_result_metadata` for a higher-level API
+        that returns a more opinionated, structured result.
+        """
+        # TODO: this is the legacy openeo-geopyspark-driver oriented implementation
+        #       ideally this can be migrated to GpsBatchJobs
+        from openeo_driver.backend_._geopyspark import list_job_results
+
+        return list_job_results(
+            batch_jobs=self, job_id=job_id, user_id=user_id, partial=partial, api_version=api_version
+        )
+
+    def get_item_metadata_doc(self, *, job_id: str, user_id: str, item_id: str, format: Optional[str] = None) -> dict:
+        """
+        Low-level API to return a batch job result item metadata document,
+        e.g. targetting endpoints like `GET /jobs/<job_id>/results/items/<item_id>`
+        """
+        # TODO: this is the legacy openeo-geopyspark-driver oriented implementation
+        #       ideally this can be migrated to GpsBatchJobs
+        from openeo_driver.backend_._geopyspark import get_item_metadata_doc
+
+        return get_item_metadata_doc(batch_jobs=self, job_id=job_id, item_id=item_id, user_id=user_id, format=format)
 
     def get_result_assets(self, job_id: str, user_id: str) -> Dict[str, dict]:
         """
