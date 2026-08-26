@@ -1869,7 +1869,7 @@ class TestBatchJobs:
                 "type": "Collection",
                 "stac_version": "1.0.0",
                 "id": job_id,
-                "title": "Unfinished batch job {job_id}",
+                "title": f"Unfinished batch job {job_id}",
                 "description": f"Results for batch job {job_id}",
                 "license": "proprietary",
                 "links": [
@@ -2457,7 +2457,7 @@ class TestBatchJobs:
                     "type": "Collection",
                     "stac_version": "1.0.0",
                     "id": job_id,
-                    "title": "Unfinished batch job {job_id}",
+                    "title": f"Unfinished batch job {job_id}",
                     "description": f"Results for batch job {job_id}",
                     "license": "proprietary",
                     "links": [
@@ -2621,7 +2621,7 @@ class TestBatchJobs:
                     "type": "Collection",
                     "stac_version": "1.0.0",
                     "id": job_id,
-                    "title": "Unfinished batch job {job_id}",
+                    "title": f"Unfinished batch job {job_id}",
                     "description": f"Results for batch job {job_id}",
                     "license": "proprietary",
                     "links": [
@@ -2757,7 +2757,7 @@ class TestBatchJobs:
                     "type": "Collection",
                     "stac_version": "1.0.0",
                     "id": job_id,
-                    "title": "Unfinished batch job {job_id}",
+                    "title": f"Unfinished batch job {job_id}",
                     "description": f"Results for batch job {job_id}",
                     "license": "proprietary",
                     "links": [
@@ -2918,7 +2918,7 @@ class TestBatchJobs:
                     "type": "Collection",
                     "stac_version": "1.0.0",
                     "id": job_id,
-                    "title": "Unfinished batch job {job_id}",
+                    "title": f"Unfinished batch job {job_id}",
                     "description": f"Results for batch job {job_id}",
                     "license": "proprietary",
                     "links": [
