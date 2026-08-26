@@ -1861,6 +1861,7 @@ class TestBatchJobs:
         resp.assert_status_code(200)
 
         job_result = resp.json
+        expected_self_url = f"http://oeo.net/openeo/{api.api_version}/jobs/{job_id}/results?partial=true"
         expected_canonical_url = f"http://oeo.net/openeo/{api.api_version}/jobs/{job_id}/results"
         assert job_result == DictSubSet(
             {
@@ -1873,10 +1874,15 @@ class TestBatchJobs:
                 "license": "proprietary",
                 "links": [
                     {
+                        "rel": "self",
+                        "href": expected_self_url,
+                        "type": "application/json",
+                    },
+                    {
                         "rel": "canonical",
                         "href": expected_canonical_url,
                         "type": "application/json",
-                    }
+                    },
                 ],
             }
         )
@@ -2443,6 +2449,7 @@ class TestBatchJobs:
             resp = api100.get(f"/jobs/{job_id}/results?partial=true", headers=self.AUTH_HEADER)
 
             resp.assert_status_code(200)
+            expected_self_url = f"http://oeo.net/openeo/1.0.0/jobs/{job_id}/results?partial=true"
             expected_canonical_url = f"http://oeo.net/openeo/1.0.0/jobs/{job_id}/results/TXIuVGVzdA==/05cb8b78f20c68a5aa9eb05249928d24?partial=true"
             assert resp.json == DictSubSet(
                 {
@@ -2454,6 +2461,11 @@ class TestBatchJobs:
                     "description": f"Results for batch job {job_id}",
                     "license": "proprietary",
                     "links": [
+                        {
+                            "rel": "self",
+                            "href": expected_self_url,
+                            "type": "application/json",
+                        },
                         {
                             "rel": "canonical",
                             "href": expected_canonical_url,
@@ -2601,6 +2613,7 @@ class TestBatchJobs:
             )
 
             resp.assert_status_code(200)
+            expected_self_url = f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results?partial=true"
             expected_canonical_url = f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/TXIuVGVzdA==/05cb8b78f20c68a5aa9eb05249928d24?partial=true"
             assert resp.json == DictSubSet(
                 {
@@ -2612,6 +2625,11 @@ class TestBatchJobs:
                     "description": f"Results for batch job {job_id}",
                     "license": "proprietary",
                     "links": [
+                        {
+                            "rel": "self",
+                            "href": expected_self_url,
+                            "type": "application/json",
+                        },
                         {
                             "rel": "canonical",
                             "href": expected_canonical_url,
@@ -2731,6 +2749,7 @@ class TestBatchJobs:
             resp = api100.get(f"/jobs/{job_id}/results?partial=true", headers=self.AUTH_HEADER)
             resp.assert_status_code(200)
 
+            expected_self_url = f"http://oeo.net/openeo/1.0.0/jobs/{job_id}/results?partial=true"
             expected_canonical_url = f"http://oeo.net/openeo/1.0.0/jobs/{job_id}/results/TXIuVGVzdA==/9fea29cd94195399cc4d902388a3c32c?expires=2234&partial=true"
             assert resp.json == DictSubSet(
                 {
@@ -2742,6 +2761,11 @@ class TestBatchJobs:
                     "description": f"Results for batch job {job_id}",
                     "license": "proprietary",
                     "links": [
+                        {
+                            "rel": "self",
+                            "href": expected_self_url,
+                            "type": "application/json",
+                        },
                         {
                             "rel": "canonical",
                             "href": expected_canonical_url,
@@ -2886,6 +2910,7 @@ class TestBatchJobs:
             resp = api110.get(f"/jobs/{job_id}/results?partial=true", headers=self.AUTH_HEADER)
             resp.assert_status_code(200)
 
+            expected_self_url = f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results?partial=true"
             expected_canonical_url = f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/TXIuVGVzdA==/9fea29cd94195399cc4d902388a3c32c?expires=2234&partial=true"
             assert resp.json == DictSubSet(
                 {
@@ -2897,6 +2922,11 @@ class TestBatchJobs:
                     "description": f"Results for batch job {job_id}",
                     "license": "proprietary",
                     "links": [
+                        {
+                            "rel": "self",
+                            "href": expected_self_url,
+                            "type": "application/json",
+                        },
                         {
                             "rel": "canonical",
                             "href": expected_canonical_url,

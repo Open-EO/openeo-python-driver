@@ -1095,6 +1095,9 @@ def register_views_batch_jobs(
             )
 
     def _list_job_results_partial(*, user_id: str, job_id: str, job_info: BatchJobMetadata, partial: bool) -> dict:
+        links = _list_job_results_add_basic_links(
+            links=[], job_id=job_id, user_id=user_id, partial=partial, add_card4l=False
+        )
         result = {
             "openeo:status": PARTIAL_JOB_STATUS.for_job_status(job_info.status),
             "type": "Collection",
@@ -1107,15 +1110,50 @@ def register_views_batch_jobs(
                 "spatial": {"bbox": [[-180, -90, 180, 90]]},
                 "temporal": {"interval": [[rfc3339.now_utc(), rfc3339.now_utc()]]},
             },
-            "links": [
+            "links": links,
+        }
+        return result
+
+    def _list_job_results_add_basic_links(
+        links: List[dict],
+        *,
+        job_id: str,
+        user_id: str,
+        partial: bool = False,
+        add_self: bool = True,
+        add_canonical: bool = True,
+        add_card4l: bool = True,
+    ) -> List[dict]:
+        """Add basic (self, canonical, ...) links in-place to the given links list"""
+        if add_self and not any(l.get("rel") == "self" for l in links):
+            params = {k: v for k, v in flask.request.args.items() if k in {"partial"}}
+            links.append(
+                {
+                    "rel": "self",
+                    # using _external=True, as self link MUST be absolute
+                    "href": url_for(".list_job_results", job_id=job_id, _external=True, **params),
+                    "type": "application/json",
+                }
+            )
+        if add_canonical and not any(l.get("rel") == "canonical" for l in links):
+            links.append(
                 {
                     "rel": "canonical",
                     "href": _job_results_canonical_url(job_id=job_id, user_id=user_id, partial=partial),
                     "type": "application/json",
                 }
-            ],
-        }
-        return result
+            )
+        if add_card4l and not any(l.get("rel") == "card4l-document" for l in links):
+            links.append(
+                {
+                    "rel": "card4l-document",
+                    # TODO: avoid hardcoding this specific URL?
+                    "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
+                    "type": "application/pdf",
+                }
+            )
+
+        return links
 
     def _list_job_results(job_id, user_id, *, partial: bool = False):
         with TimingLogger(f"backend_implementation.batch_jobs.get_job_info({job_id=}, {user_id=})", _log):
@@ -1133,58 +1171,16 @@ def register_views_batch_jobs(
                 job_id=job_id, user_id=user_id
             )
 
-        links: List[dict] = copy.deepcopy(result_metadata.links or job_info.links or [])
-
-        try:
-            # TODO: Cleanup
-            original_link = next((l for l in links if l.get("rel") == "original"), None)
-            if original_link:
-                asset_name = original_link["href"][original_link["href"].rindex("/") + 1 :]
-                original_link["href"] = url_for(
-                    ".download_job_result",
-                    job_id=job_id,
-                    filename=asset_name,
-                    _external=True,
-                )
-        except Exception as e:
-            _log.warning("Error when making URL for 'original' link: " + str(e))
-
-        if not any(l.get("rel") == "self" for l in links):
-            links.append(
-                {
-                    "rel": "self",
-                    "href": url_for(".list_job_results", job_id=job_id, _external=True),  # MUST be absolute
-                    "type": "application/json",
-                }
-            )
-        if not any(l.get("rel") == "canonical" for l in links):
-            links.append(
-                {
-                    "rel": "canonical",
-                    "href": _job_results_canonical_url(job_id=job_id, user_id=user_id, partial=partial),
-                    "type": "application/json",
-                }
-            )
-        if not any(l.get("rel") == "card4l-document" for l in links):
-            links.append(
-                {
-                    "rel": "card4l-document",
-                    # TODO: avoid hardcoding this specific URL?
-                    "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
-                    "type": "application/pdf",
-                }
-            )
-
         if requested_api_version().at_least("1.1.0"):
             if result_metadata.items:
                 # "STAC 1.1" style result listing (STAC Collection with focus on item-level assets)
                 result = _list_job_results_stac11(
-                    user_id=user_id, job_id=job_id, job_info=job_info, result_metadata=result_metadata, links=links
+                    user_id=user_id, job_id=job_id, job_info=job_info, result_metadata=result_metadata
                 )
             else:
                 # "openEO 1.1.0" style result listing (STAC Collection with focus on collection-level assets)
                 result = _list_job_results_openeo110(
-                    user_id=user_id, job_id=job_id, job_info=job_info, result_metadata=result_metadata, links=links
+                    user_id=user_id, job_id=job_id, job_info=job_info, result_metadata=result_metadata
                 )
         else:
             # "openEO 1.0.0" style result listing (STAC Item)
@@ -1192,7 +1188,7 @@ def register_views_batch_jobs(
                 f"Using old STAC Item style job result listing for job {job_id} (API version {requested_api_version()})"
             )
             result = _list_job_results_openeo100(
-                user_id=user_id, job_id=job_id, job_info=job_info, result_metadata=result_metadata, links=links
+                user_id=user_id, job_id=job_id, job_info=job_info, result_metadata=result_metadata
             )
 
         # TODO "OpenEO-Costs" header?
@@ -1227,7 +1223,6 @@ def register_views_batch_jobs(
         job_id: str,
         job_info: BatchJobMetadata,
         result_metadata: BatchJobResultMetadata,
-        links: List[dict],
     ) -> dict:
         """
         Batch job result listing in "STAC1.1" style:
@@ -1235,6 +1230,9 @@ def register_views_batch_jobs(
         asset keys should not be assumed to be filenames
         """
         to_datetime = Rfc3339(propagate_none=True).datetime
+
+        links: List[dict] = copy.deepcopy(result_metadata.links or job_info.links or [])
+        links = _list_job_results_add_basic_links(links=links, job_id=job_id, user_id=user_id)
 
         def intersect_band_array(list1, list2):
             band_result = []
@@ -1344,7 +1342,6 @@ def register_views_batch_jobs(
         job_id: str,
         job_info: BatchJobMetadata,
         result_metadata: BatchJobResultMetadata,
-        links: List[dict],
     ) -> dict:
         """
         Batch job result listing in "openEO API 1.1.0, but pre-STAC1.1" style:
@@ -1353,6 +1350,9 @@ def register_views_batch_jobs(
         """
         to_datetime = Rfc3339(propagate_none=True).datetime
         ml_model_metadata = None
+
+        links: List[dict] = copy.deepcopy(result_metadata.links or job_info.links or [])
+        links = _list_job_results_add_basic_links(links=links, job_id=job_id, user_id=user_id)
 
         assets = {
             filename: _asset_object(
@@ -1447,12 +1447,15 @@ def register_views_batch_jobs(
         job_id: str,
         job_info: BatchJobMetadata,
         result_metadata: BatchJobResultMetadata,
-        links: List[dict],
     ) -> dict:
         """
         Batch job result listing in deprecated "openEO API 1.0.0" style:
         a STAC Item (type "Feature")
         """
+
+        links: List[dict] = copy.deepcopy(result_metadata.links or job_info.links or [])
+        links = _list_job_results_add_basic_links(links=links, job_id=job_id, user_id=user_id)
+
 
         assets = {
             filename: _asset_object(
@@ -1795,6 +1798,24 @@ def register_views_batch_jobs(
     def _normalize_job_result_link(link: dict, *, job_id: str, user_id: str) -> dict:
         if link.get(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY, False):
             link = _auxiliary_link(exposable_link=link, job_id=job_id, user_id=user_id)
+
+        if link.get("rel") == "original":
+            # TODO: Cleanup
+            # TODO: this "original" handling is highly specific to a niche openeo-geopyspark-driver feature (CWL)
+            #       and does not really fit the generic nature of openeo-python-driver.
+            #       Can this be generalized more cleanly? Or moved to openeo-geopyspark-driver?
+            try:
+                # TODO: assumes file is not nested
+                asset_name = urlparse(link["href"]).path.split("/")[-1]
+                href = flask.url_for(
+                    ".download_job_result",
+                    job_id=job_id,
+                    filename=asset_name,
+                    _external=True,
+                )
+                link = dict(**link, href=href)
+            except Exception as e:
+                _log.warning("Error when making URL for 'original' link: " + str(e))
 
         return link
 
