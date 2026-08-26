@@ -82,3 +82,6 @@ class ITEM_LINK_PROPERTY:
 class LINK_REL:
     # Custom openEO link relation for OGC queryables, per https://github.com/Open-EO/openeo-api/pull/487
     OGC_QUERYABLES = "http://www.opengis.net/def/rel/ogc/1.0/queryables"
+
+
+STAC_ITEM_MEDIA_TYPE = "application/geo+json"
