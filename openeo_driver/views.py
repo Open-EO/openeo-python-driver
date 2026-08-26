@@ -13,7 +13,9 @@ from urllib.parse import urlparse
 
 import flask
 import flask_cors
+import openeo.metadata
 from flask import (
+    # TODO: avoid import of these symbols with short/generic name, prefer `flask.` prefix usage
     Blueprint,
     Flask,
     abort,
@@ -26,25 +28,22 @@ from flask import (
     send_from_directory,
     url_for,
 )
-import openeo.metadata
 from openeo.util import Rfc3339, TimingLogger, deep_get, dict_no_none, rfc3339
 from openeo.utils.version import ComparableVersion
-from pyproj import CRS
-import shapely.geometry
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from openeo_driver.backend import (
     BatchJobMetadata,
+    BatchJobResultMetadata,
     BatchJobs,
     ErrorSummary,
     JobListing,
     OpenEoBackendImplementation,
+    QueryablesListing,
     ServiceMetadata,
     UserDefinedProcessMetadata,
     is_not_implemented,
-    QueryablesListing,
-    BatchJobResultMetadata,
 )
 from openeo_driver.config import OpenEoBackendConfig, get_backend_config
 from openeo_driver.constants import (
@@ -52,8 +51,8 @@ from openeo_driver.constants import (
     DEFAULT_LOG_LEVEL_RETRIEVAL,
     ITEM_LINK_PROPERTY,
     JOB_STATUS,
-    STAC_EXTENSION,
     LINK_REL,
+    STAC_EXTENSION,
 )
 from openeo_driver.datacube import DriverMlModel
 from openeo_driver.dry_run import DryRunDataTracer
@@ -75,13 +74,12 @@ from openeo_driver.processgraph import ProcessGraphFlatDict, extract_default_job
 from openeo_driver.save_result import SaveResult, to_save_result
 from openeo_driver.users import User, user_id_b64_decode, user_id_b64_encode
 from openeo_driver.users.auth import HttpAuthHandler
-from openeo_driver.util.compat import function_has_argument, filter_supported_kwargs
-from openeo_driver.util.geometry import BoundingBox, reproject_geometry
+from openeo_driver.util.compat import filter_supported_kwargs, function_has_argument
+from openeo_driver.util.geometry import BoundingBox
 from openeo_driver.util.logging import ExtraLoggingFilter, FlaskRequestCorrelationIdLogging
 from openeo_driver.util.stac import sniff_stac_extension_prefix
 from openeo_driver.util.stac_utils import get_files_from_stac_catalog
 from openeo_driver.utils import EvalEnv, smart_bool
-
 
 _log = logging.getLogger(__name__)
 
@@ -1066,7 +1064,7 @@ def register_views_batch_jobs(
     def _job_results_canonical_url(*, job_id: str, user_id: str, partial: bool = False) -> str:
         signer = get_backend_config().url_signer
         if not signer:
-            return url_for(".list_job_results", job_id=job_id, _external=True)
+            return flask.url_for(".list_job_results", job_id=job_id, _external=True)
 
         expires = signer.get_expires()
         secure_key = signer.sign_job_results(job_id=job_id, user_id=user_id, expires=expires)
@@ -1075,7 +1073,7 @@ def register_views_batch_jobs(
         # TODO: encode all stuff (signature, userid, expiry) in a single blob in the URL
 
         if partial:
-            return url_for(
+            return flask.url_for(
                 ".list_job_results_signed",
                 job_id=job_id,
                 user_base64=user_base64,
@@ -1085,7 +1083,7 @@ def register_views_batch_jobs(
                 partial="true",
             )
         else:
-            return url_for(
+            return flask.url_for(
                 ".list_job_results_signed",
                 job_id=job_id,
                 user_base64=user_base64,
@@ -1103,7 +1101,7 @@ def register_views_batch_jobs(
             "type": "Collection",
             "stac_version": "1.0.0",
             "id": job_id,
-            "title": job_info.title or "Unfinished batch job {job_id}",
+            "title": job_info.title or f"Unfinished batch job {job_id}",
             "description": job_info.description or f"Results for batch job {job_id}",
             "license": "proprietary",  # TODO?
             "extent": {
@@ -1131,7 +1129,7 @@ def register_views_batch_jobs(
                 {
                     "rel": "self",
                     # using _external=True, as self link MUST be absolute
-                    "href": url_for(".list_job_results", job_id=job_id, _external=True, **params),
+                    "href": flask.url_for(".list_job_results", job_id=job_id, _external=True, **params),
                     "type": "application/json",
                 }
             )
@@ -1164,7 +1162,7 @@ def register_views_batch_jobs(
                 raise JobNotFinishedException()
             else:
                 result = _list_job_results_partial(user_id=user_id, job_id=job_id, job_info=job_info, partial=partial)
-                return jsonify(result)
+                return flask.jsonify(result)
 
         with TimingLogger(f"backend_implementation.batch_jobs.get_result_metadata({job_id=}, {user_id=})", _log):
             result_metadata = backend_implementation.batch_jobs.get_result_metadata(
@@ -1192,7 +1190,7 @@ def register_views_batch_jobs(
             )
 
         # TODO "OpenEO-Costs" header?
-        return jsonify(result)
+        return flask.jsonify(result)
 
 
     def _job_result_item_url(*, job_id: str, item_id: str, user_id: str, is11: bool = False) -> str:
@@ -1202,12 +1200,12 @@ def register_views_batch_jobs(
         if is11:
             method_start = method_start + "11"
         if not signer:
-            return url_for(method_start, job_id=job_id, item_id=item_id, _external=True)
+            return flask.url_for(method_start, job_id=job_id, item_id=item_id, _external=True)
 
         expires = signer.get_expires()
         secure_key = signer.sign_job_item(job_id=job_id, user_id=user_id, item_id=item_id, expires=expires)
         user_base64 = user_id_b64_encode(user_id)
-        return url_for(
+        return flask.url_for(
             method_start + "_signed",
             job_id=job_id,
             user_base64=user_base64,
@@ -1455,7 +1453,6 @@ def register_views_batch_jobs(
 
         links: List[dict] = copy.deepcopy(result_metadata.links or job_info.links or [])
         links = _list_job_results_add_basic_links(links=links, job_id=job_id, user_id=user_id)
-
 
         assets = {
             filename: _asset_object(
