@@ -33,6 +33,7 @@ from openeo_driver.backend import (
     BatchJobResultMetadata,
     BatchJobs,
 )
+from openeo_driver.views_.batch_jobs import list_job_results_add_basic_links
 from openeo_driver.config import get_backend_config
 from openeo_driver.constants import (
     ITEM_LINK_PROPERTY,
@@ -88,7 +89,7 @@ def list_job_results(
 
 
 def _list_job_results_partial(*, user_id: str, job_id: str, job_info: BatchJobMetadata, partial: bool) -> dict:
-    links = _list_job_results_add_basic_links(
+    links = list_job_results_add_basic_links(
         links=[], job_id=job_id, user_id=user_id, partial=partial, add_card4l=False
     )
     result = {
@@ -108,78 +109,8 @@ def _list_job_results_partial(*, user_id: str, job_id: str, job_info: BatchJobMe
     return result
 
 
-def _list_job_results_add_basic_links(
-    links: List[dict],
-    *,
-    job_id: str,
-    user_id: str,
-    partial: bool = False,
-    add_self: bool = True,
-    add_canonical: bool = True,
-    add_card4l: bool = True,
-) -> List[dict]:
-    """Add basic (self, canonical, ...) links in-place to the given links list"""
-    if add_self and not any(l.get("rel") == "self" for l in links):
-        params = {k: v for k, v in flask.request.args.items() if k in {"partial"}}
-        links.append(
-            {
-                "rel": "self",
-                # using _external=True, as self link MUST be absolute
-                "href": flask.url_for(".list_job_results", job_id=job_id, _external=True, **params),
-                "type": "application/json",
-            }
-        )
-    if add_canonical and not any(l.get("rel") == "canonical" for l in links):
-        links.append(
-            {
-                "rel": "canonical",
-                "href": _job_results_canonical_url(job_id=job_id, user_id=user_id, partial=partial),
-                "type": "application/json",
-            }
-        )
-    if add_card4l and not any(l.get("rel") == "card4l-document" for l in links):
-        links.append(
-            {
-                "rel": "card4l-document",
-                # TODO: avoid hardcoding this specific URL?
-                "href": "http://ceos.org/ard/files/PFS/SR/v5.0/CARD4L_Product_Family_Specification_Surface_Reflectance-v5.0.pdf",
-                "type": "application/pdf",
-            }
-        )
-
-    return links
 
 
-def _job_results_canonical_url(*, job_id: str, user_id: str, partial: bool = False) -> str:
-    signer = get_backend_config().url_signer
-    if not signer:
-        return flask.url_for(".list_job_results", job_id=job_id, _external=True)
-
-    expires = signer.get_expires()
-    secure_key = signer.sign_job_results(job_id=job_id, user_id=user_id, expires=expires)
-    user_base64 = user_id_b64_encode(user_id)
-    # TODO: also encrypt user id?
-    # TODO: encode all stuff (signature, userid, expiry) in a single blob in the URL
-
-    if partial:
-        return flask.url_for(
-            ".list_job_results_signed",
-            job_id=job_id,
-            user_base64=user_base64,
-            expires=expires,
-            secure_key=secure_key,
-            _external=True,
-            partial="true",
-        )
-    else:
-        return flask.url_for(
-            ".list_job_results_signed",
-            job_id=job_id,
-            user_base64=user_base64,
-            expires=expires,
-            secure_key=secure_key,
-            _external=True,
-        )
 
 
 def _job_result_item_url(*, job_id: str, item_id: str, user_id: str, is11: bool = False) -> str:
@@ -220,7 +151,7 @@ def _list_job_results_stac11(
     to_datetime = Rfc3339(propagate_none=True).datetime
 
     links: List[dict] = copy.deepcopy(result_metadata.links or job_info.links or [])
-    links = _list_job_results_add_basic_links(links=links, job_id=job_id, user_id=user_id)
+    links = list_job_results_add_basic_links(links=links, job_id=job_id, user_id=user_id)
 
     def intersect_band_array(list1, list2):
         band_result = []
@@ -339,7 +270,7 @@ def _list_job_results_openeo110(
     ml_model_metadata = None
 
     links: List[dict] = copy.deepcopy(result_metadata.links or job_info.links or [])
-    links = _list_job_results_add_basic_links(links=links, job_id=job_id, user_id=user_id)
+    links = list_job_results_add_basic_links(links=links, job_id=job_id, user_id=user_id)
 
     assets = {
         filename: _asset_object(
@@ -440,7 +371,7 @@ def _list_job_results_openeo100(
     """
 
     links: List[dict] = copy.deepcopy(result_metadata.links or job_info.links or [])
-    links = _list_job_results_add_basic_links(links=links, job_id=job_id, user_id=user_id)
+    links = list_job_results_add_basic_links(links=links, job_id=job_id, user_id=user_id)
 
     assets = {
         filename: _asset_object(

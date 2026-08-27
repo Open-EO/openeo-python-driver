@@ -1862,7 +1862,7 @@ class TestBatchJobs:
 
         job_result = resp.json
         expected_self_url = f"http://oeo.net/openeo/{api.api_version}/jobs/{job_id}/results?partial=true"
-        expected_canonical_url = f"http://oeo.net/openeo/{api.api_version}/jobs/{job_id}/results"
+        expected_canonical_url = f"http://oeo.net/openeo/{api.api_version}/jobs/{job_id}/results?partial=true"
         assert job_result == DictSubSet(
             {
                 "openeo:status": expected_openeo_status,
