@@ -27,6 +27,7 @@ and start a new "In Progress" section above it.
 - Support logging added value for synchronous requests ([Open-EO/openeo-geopyspark-driver#1436](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1436))
 - Add caching to `BoundingBox` CRS handling and reprojection for performance optimization of bounding box merging in post-dry-run of openeo-geopyspark-driver ([Open-EO/openeo-geopyspark-driver#1685](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1685))
 - Add cache class `BoundedTtlCache` to replace `TtlCache` ([#509](https://github.com/Open-EO/openeo-python-driver/pull/509))
+- Allow `feature_id_property` to add an extra column to CSV output. ([#524](https://github.com/Open-EO/openeo-python-driver/issues/524))
 
 ## 0.139.0
 

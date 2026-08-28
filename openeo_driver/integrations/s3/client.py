@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import logging
 import os
-
 from typing import TYPE_CHECKING, Optional
 
+from openeo_driver.config import get_backend_config
 from openeo_driver.integrations.s3.bucket_details import BucketDetails
 from openeo_driver.integrations.s3.credentials import get_credentials
-from openeo_driver.config import get_backend_config
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -54,4 +53,5 @@ class S3ClientBuilder:
         # because we don't always use objects storage.
         # We want to avoid unnecessary dependencies. (And dependencies  of dependencies!)
         import boto3
+
         return boto3.client("s3", *args, **kwargs)

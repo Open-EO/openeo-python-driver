@@ -1,6 +1,7 @@
 from typing import Any, Dict, Union
 
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.utils import EvalEnv
 
@@ -19,8 +20,7 @@ def extract_literal_match(condition: dict, env=EvalEnv()) -> Dict[str, Any]:
     callback_parameter_name = "value"  # as in: {"from_parameter": "value"}
 
     class LiteralMatchExtractingGraphVisitor(ProcessGraphVisitor):
-
-        SUPPORTED_PROCESSES = ['eq', 'lte', 'gte', 'array_contains']
+        SUPPORTED_PROCESSES = ["eq", "lte", "gte", "array_contains"]
 
         def __init__(self):
             super().__init__()
@@ -49,7 +49,7 @@ def extract_literal_match(condition: dict, env=EvalEnv()) -> Dict[str, Any]:
         def constantArgument(self, argument_id: str, value):
             self.result["value"] = value
 
-            if argument_id == 'x':
+            if argument_id == "x":
                 if self.result["operator"] == "lte":
                     self.result["operator"] = "gte"
                 elif self.result["operator"] == "gte":
@@ -62,7 +62,7 @@ def extract_literal_match(condition: dict, env=EvalEnv()) -> Dict[str, Any]:
             self.result["value"].append(value)
 
     visitor = LiteralMatchExtractingGraphVisitor()
-    visitor.accept_process_graph(condition['process_graph'])
+    visitor.accept_process_graph(condition["process_graph"])
 
     if "parameter" not in visitor.result:
         raise PropertyConditionException(f"No parameter {callback_parameter_name!r} found")

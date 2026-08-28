@@ -1,12 +1,13 @@
 """Array operation process implementations."""
+
 from openeo_driver.errors import ProcessParameterInvalidException
+from openeo_driver.processes import ProcessArgs
 from openeo_driver.processgraph.registry import (
     NoPythonImplementationError,
     process,
-    process_registry_100,
     process_registry_2xx,
+    process_registry_100,
 )
-from openeo_driver.processes import ProcessArgs
 from openeo_driver.specs import read_spec
 from openeo_driver.utils import EvalEnv
 
@@ -53,15 +54,14 @@ def array_apply(args: ProcessArgs, env: EvalEnv):
     c = args.get_optional("context", None)
     if not isinstance(p, dict) and not "process_graph" in p:
         raise ProcessParameterInvalidException(
-            parameter="process", process="array_apply",
-            reason=f"Parameter should be a process graph, but got {p}"
+            parameter="process", process="array_apply", reason=f"Parameter should be a process graph, but got {p}"
         )
     if not isinstance(data, list):
         raise ProcessParameterInvalidException(
-            parameter="data", process="array_apply",
-            reason=f"Parameter should be a list, but got {data}"
+            parameter="data", process="array_apply", reason=f"Parameter should be a list, but got {data}"
         )
     from openeo_driver.processgraph.evaluator import evaluate
+
     result = [
         evaluate(p.get("process_graph"), env.push_parameters(dict(context=c, x=d, index=index)))
         for index, d in enumerate(data)

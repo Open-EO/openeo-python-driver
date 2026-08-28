@@ -7,17 +7,17 @@ between available pystac version and actual STAC metadata.
 # TODO: move this functionality to the openeo-python-client for better reuse and client-server consistency?
 
 import logging
-from typing import Dict, Union
 from pathlib import Path
-
-import pystac
-import pystac.extensions.datacube
+from typing import Dict, Union
 
 import openeo.metadata
+import pystac
+import pystac.extensions.datacube
 
 _log = logging.getLogger(__name__)
 
 StacRef = Union[pystac.STACObject, str, Path]
+
 
 def as_stac_object(stac_ref: StacRef) -> pystac.STACObject:
     if isinstance(stac_ref, pystac.STACObject):

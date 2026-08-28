@@ -1,9 +1,9 @@
 """
 Generic helpers to handle/consume/produce STAC items, collections, metadata constructs.
 """
-from typing import Any
 
 import collections.abc
+from typing import Any
 
 
 def sniff_stac_extension_prefix(data: Any, prefix: str) -> bool:

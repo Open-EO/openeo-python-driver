@@ -1,10 +1,10 @@
 import logging
-from typing import Tuple, Union, Any
-
 import math
+from typing import Any, Tuple, Union
+
 import pyproj
 import shapely.ops
-from pyproj import Geod, CRS
+from pyproj import CRS, Geod
 from shapely.geometry.base import BaseGeometry
 
 _log = logging.getLogger(__name__)
@@ -79,7 +79,7 @@ def auto_utm_epsg_for_geometry(geometry: BaseGeometry, crs: str = "EPSG:4326") -
 
 def auto_utm_crs_for_geometry(geometry: BaseGeometry, crs: str) -> str:
     epsg = auto_utm_epsg_for_geometry(geometry, crs)
-    return 'epsg:' + str(epsg)
+    return "epsg:" + str(epsg)
 
 
 def geometry_to_crs(geometry: BaseGeometry, crs_from, crs_to):

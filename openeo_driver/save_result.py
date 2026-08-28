@@ -48,10 +48,16 @@ class SaveResult:
 
     DEFAULT_FORMAT = None
 
-    def __init__(self, format: Optional[str] = None, options: Optional[dict] = None):
+    def __init__(
+        self, format: Optional[str] = None, *, options: Optional[dict] = None, pg_node_id: Optional[str] = None
+    ):
+        """
+        :param pg_node_id: node id of the active `save_result` process graph node
+        """
         self.format = format or self.DEFAULT_FORMAT
         self.options = options or {}
         self._workspace_exports: List["SaveResult.WorkspaceExport"] = []
+        self._pg_node_id = pg_node_id
 
     def is_format(self, *args):
         return self.format.lower() in {f.lower() for f in args}
@@ -156,12 +162,22 @@ def get_temp_file(suffix="", prefix="openeo-pydrvr-"):
     return filename
 
 
-class ImageCollectionResult(SaveResult):
+class RasterCubeResult(SaveResult):
 
     DEFAULT_FORMAT = "GTiff"
 
-    def __init__(self, cube: DriverDataCube, format: Optional[str] = None, options: Optional[dict] = None):
-        super().__init__(format=format, options=options)
+    def __init__(
+        self,
+        cube: DriverDataCube,
+        format: Optional[str] = None,
+        *,
+        options: Optional[dict] = None,
+        pg_node_id: Optional[str] = None,
+    ):
+        """
+        :param pg_node_id: node id of the active `save_result` process graph node
+        """
+        super().__init__(format=format, options=options, pg_node_id=pg_node_id)
         self.cube = cube
 
     # TODO: simplify the back and forth between save_result and write_assets?
@@ -193,13 +209,27 @@ class ImageCollectionResult(SaveResult):
         return send_from_directory(os.path.dirname(filename), os.path.basename(filename), mimetype=mimetype)
 
 
+# Legacy alias ("image collection" is an outdated concept from very early openEO times)
+ImageCollectionResult = RasterCubeResult
+
+
 class VectorCubeResult(SaveResult):
-    # TODO merge implementation with ImageCollectionResult?
+    # TODO merge implementation with RasterCubeResult?
 
     DEFAULT_FORMAT = "GeoJSON"
 
-    def __init__(self, cube: DriverVectorCube, format: Optional[str], options: Optional[dict] = None):
-        super().__init__(format=format, options=options)
+    def __init__(
+        self,
+        cube: DriverVectorCube,
+        format: Optional[str],
+        *,
+        options: Optional[dict] = None,
+        pg_node_id: Optional[str] = None,
+    ):
+        """
+        :param pg_node_id: node id of the active `save_result` process graph node
+        """
+        super().__init__(format=format, options=options, pg_node_id=pg_node_id)
         self.cube = cube
 
     def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
@@ -222,10 +252,13 @@ class VectorCubeResult(SaveResult):
 
 
 class MlModelResult(SaveResult):
-    # TODO merge implementation with ImageCollectionResult?
+    # TODO merge implementation with RasterCubeResult?
 
-    def __init__(self, ml_model: DriverMlModel, options: Optional[dict] = None):
-        super().__init__(options=options)
+    def __init__(self, ml_model: DriverMlModel, *, options: Optional[dict] = None, pg_node_id: Optional[str] = None):
+        """
+        :param pg_node_id: node id of the active `save_result` process graph node
+        """
+        super().__init__(options=options, pg_node_id=pg_node_id)
         self.ml_model = ml_model
 
     def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
@@ -239,9 +272,11 @@ class MlModelResult(SaveResult):
 
 
 class JSONResult(SaveResult):
-
-    def __init__(self, data, format: str = "json", options: dict = None):
-        super().__init__(format=format, options=options)
+    def __init__(self, data, *, format: str = "json", options: Optional[dict] = None, pg_node_id: Optional[str] = None):
+        """
+        :param pg_node_id: node id of the active `save_result` process graph node
+        """
+        super().__init__(format=format, options=options, pg_node_id=pg_node_id)
         self.data = data
 
     def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
@@ -314,7 +349,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         """
         super().__init__(data=timeseries)
         if not isinstance(regions, (GeometryCollection, DriverVectorCube)):
-            # TODO: raise exception instead of warning?
+            # TODO: raise exception instead of warning? Emile: 'regions' could be str|DelayedVector in geopyspark unit tests.
             _log.warning(
                 f"AggregatePolygonResult: GeometryCollection or DriverVectorCube expected but got {type(regions)}"
             )
@@ -445,17 +480,21 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         return the_array
 
     def to_netcdf(self, destination: Optional[str] = None) -> str:
-        def features_ids_from_index(geometries):
-            return ["feature_%d" % i for i in range(len(geometries.geoms))]
-
         if isinstance(self._regions, GeometryCollection):
             points = [r.representative_point() for r in self._regions.geoms]
-            feature_ids = features_ids_from_index(self._regions)
-        else:
+            feature_ids = ["feature_%d" % i for i in range(len(self._regions.geoms))]
+        elif isinstance(self._regions, DriverVectorCube):
             points = [r.representative_point() for r in self._regions.get_geometries()]
             feature_ids = self._regions.get_ids()
-            feature_ids = (list(feature_ids) if feature_ids is not None
-                           else features_ids_from_index(self._regions.get_geometries()))
+            feature_ids = (
+                list(feature_ids)
+                if feature_ids is not None
+                else ["feature_%d" % i for i in range(self._regions.geometry_count())]
+            )
+        else:
+            raise ValueError(
+                f"AggregatePolygonResult: GeometryCollection or DriverVectorCube expected but got {type(self._regions)}"
+            )
 
         lats = [p.y for p in points]
         lons = [p.x for p in points]
@@ -742,14 +781,39 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
             return self.to_covjson()
         return self.data
 
-    def to_csv(self, destination=None):
+    def _feature_id_mapping(self) -> Optional[dict]:
+        feature_id_property = self._feature_id_column_name()
+        if not feature_id_property:
+            # Use this by default to not change anything to existing CSV outputs.
+            return None
+        if not isinstance(self._regions, DriverVectorCube):
+            _log.warning(
+                f"save_result: 'feature_id_property' was specified, but regions are not a DriverVectorCube ({type(self._regions)})."
+            )
+            return None
+        values = self._regions.get_band_values(feature_id_property)
+        if values is None:
+            _log.warning(
+                f"save_result: a feature_id_property '{feature_id_property}' was specified,"
+                f" but could not find it in the vector cube: {self._regions}."
+            )
+            return None
+        return dict(enumerate(values))
+
+    def _feature_id_column_name(self) -> Optional[str]:
+        # default would be "id" if the feature needs to be enabled by default
+        return self.options.get("feature_id_property")
+
+    def to_csv(self, destination: Union[str, Path, None] = None) -> Union[str, Path, None]:
         csv_paths = glob.glob(self._csv_dir + "/*.csv")
 
         if(len(csv_paths) == 0):
             _log.warning(f"save_result: no csv files found at expected location: {self._csv_dir}")
             return
 
-        if(len(csv_paths) == 1):
+        id_mapping = self._feature_id_mapping()
+
+        if len(csv_paths) == 1 and id_mapping is None:
             if(destination == None):
                 return csv_paths[0]
             else:
@@ -777,6 +841,14 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
 
             f.close()
 
+            if id_mapping is not None:
+                df = pd.read_csv(destination)
+                column_name = self._feature_id_column_name()
+                df[column_name] = df["feature_index"].map(id_mapping)
+                df.to_csv(destination, index=False)
+
+            return destination
+
 
 class AggregatePolygonSpatialResult(SaveResult):
     """
@@ -786,9 +858,17 @@ class AggregatePolygonSpatialResult(SaveResult):
 
     DEFAULT_FORMAT = "JSON"
 
-    def __init__(self, csv_dir: Union[str, Path], regions: Union[GeometryCollection, DriverVectorCube],
-                 metadata: CollectionMetadata = None, format: Optional[str] = None, options: Optional[dict] = None):
-        super().__init__(format, options)
+    def __init__(
+        self,
+        csv_dir: Union[str, Path],
+        regions: Union[GeometryCollection, DriverVectorCube],
+        metadata: Optional[CollectionMetadata] = None,
+        *,
+        format: Optional[str] = None,
+        options: Optional[dict] = None,
+        pg_node_id: Optional[str] = None,
+    ):
+        super().__init__(format=format, options=options, pg_node_id=pg_node_id)
         self._csv_dir = Path(csv_dir)
         self._regions = regions
         self._metadata = metadata
@@ -871,7 +951,20 @@ class AggregatePolygonSpatialResult(SaveResult):
             filename = str(directory / "timeseries.csv")
             asset["type"] = IOFORMATS.get_mimetype(self.format)
 
-            shutil.copy(self._csv_path(), filename)
+            if self.options.get("use_s3proxy"):
+                # S3 proxy is active: upload directly via S3 client instead of via a mounted bucket.
+                s3_client = self.options.get("s3_client")
+                bucket = self.options.get("s3_bucket")
+                if s3_client is None:
+                    raise ValueError("use_s3proxy is set but no s3_client was provided in options")
+                if not bucket:
+                    raise ValueError("use_s3proxy is set but no s3_bucket was provided in options")
+                s3_key = filename.strip("/")
+                _log.info(f"use_s3proxy active: uploading {self._csv_path()!r} to s3://{bucket}/{s3_key}")
+                s3_client.upload_file(self._csv_path(), bucket, s3_key)
+                filename = f"s3://{bucket}/{s3_key}"
+            else:
+                shutil.copy(self._csv_path(), filename)
         elif self.is_format("parquet"):
             filename = str(directory / "timeseries.parquet")
             asset["type"] = IOFORMATS.get_mimetype(self.format)
@@ -994,9 +1087,17 @@ class NullResult(SaveResult):
         return jsonify(None)
 
 
-def to_save_result(data: Any, format: Optional[str] = None, options: Optional[dict] = None) -> SaveResult:
+def to_save_result(
+    data: Any,
+    *,
+    format: Optional[str] = None,
+    options: Optional[dict] = None,
+    pg_node_id: Optional[str] = None,
+) -> SaveResult:
     """
     Convert a process graph result to a SaveResult object
+
+    :param pg_node_id: node id of the current `save_result` process graph node
     """
     options = options or {}
     if isinstance(data, SaveResult):
@@ -1005,26 +1106,26 @@ def to_save_result(data: Any, format: Optional[str] = None, options: Optional[di
         if format is None or format.lower() == "json":
             # TODO #114 EP-3981 add vector cube support: keep features from feature collection
             geojsons = [shapely.geometry.mapping(geometry) for geometry in data.geometries_wgs84]
-            return JSONResult(geojsons, format=format, options=options)
+            return JSONResult(geojsons, format=format, options=options, pg_node_id=pg_node_id)
         if format.lower() == "geojson":
-            return JSONResult(data.geojson, format="geojson", options=options)
+            return JSONResult(data.geojson, format="geojson", options=options, pg_node_id=pg_node_id)
         else:
             data = data.to_driver_vector_cube()
     elif isinstance(data, DriverDataCube):
-        return ImageCollectionResult(data, format=format, options=options)
+        return RasterCubeResult(cube=data, format=format, options=options, pg_node_id=pg_node_id)
     elif isinstance(data, DriverVectorCube):
-        return VectorCubeResult(cube=data, format=format, options=options)
+        return VectorCubeResult(cube=data, format=format, options=options, pg_node_id=pg_node_id)
     elif isinstance(data, DriverMlModel):
         return MlModelResult(ml_model = data)
     elif isinstance(data, np.ndarray):
-        return JSONResult(data.tolist())
+        return JSONResult(data.tolist(), pg_node_id=pg_node_id)
     elif isinstance(data, np.generic):
         # Convert numpy datatype to native Python datatype first
-        return JSONResult(data.item())
+        return JSONResult(data.item(), pg_node_id=pg_node_id)
     elif isinstance(data, (list, tuple, dict, str, int, float)):
         # Generic JSON result
-        return JSONResult(data)
+        return JSONResult(data, pg_node_id=pg_node_id)
     elif data is None:
         return NullResult()
     else:
-        raise ValueError(f"No save result support for type {type(data)}")
+        raise ValueError(f"No save result support for type {type(data)} ({pg_node_id=}")

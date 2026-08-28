@@ -1,4 +1,5 @@
 """Temporal aggregation process implementations."""
+
 import calendar
 import logging
 from datetime import timedelta
@@ -56,8 +57,9 @@ def aggregate_temporal_period(args: ProcessArgs, env: EvalEnv) -> DriverDataCube
         end = temporal_extent[1]
         intervals = _period_to_intervals(start, end, period)
 
-    return data_cube.aggregate_temporal(intervals=intervals, labels=None, reducer=reduce_pg, dimension=dimension,
-                                        context=context)
+    return data_cube.aggregate_temporal(
+        intervals=intervals, labels=None, reducer=reduce_pg, dimension=dimension, context=context
+    )
 
 
 def _period_to_intervals(start, end, period) -> List[Tuple[pd.Timestamp, pd.Timestamp]]:
@@ -86,7 +88,7 @@ def _period_to_intervals(start, end, period) -> List[Tuple[pd.Timestamp, pd.Time
         second_dekad_month = [(date + ten_days, date + ten_days + ten_days) for date in start_dates]
         end_month = [date + pd.Timedelta(days=calendar.monthrange(date.year, date.month)[1]) for date in start_dates]
         third_dekad_month = list(zip([date + ten_days + ten_days for date in start_dates], end_month))
-        intervals = (first_dekad_month + second_dekad_month + third_dekad_month)
+        intervals = first_dekad_month + second_dekad_month + third_dekad_month
         intervals.sort(key=lambda t: t[0])
     elif "month" == period:
         periods = pd.period_range(start, end, freq="M")
@@ -101,16 +103,13 @@ def _period_to_intervals(start, end, period) -> List[Tuple[pd.Timestamp, pd.Time
         intervals = [(p.to_timestamp(), month_shift(p.to_timestamp(), months=6)) for p in periods]
     elif "year" == period:
         offset = timedelta(weeks=52)
-        start_dates = pd.date_range(
-            start - offset, end, freq="A-DEC", inclusive="left"
-        ) + timedelta(days=1)
-        end_dates = pd.date_range(
-            start, end + offset, freq="A-DEC", inclusive="left"
-        ) + timedelta(days=1)
+        start_dates = pd.date_range(start - offset, end, freq="A-DEC", inclusive="left") + timedelta(days=1)
+        end_dates = pd.date_range(start, end + offset, freq="A-DEC", inclusive="left") + timedelta(days=1)
         intervals = zip(start_dates, end_dates)
     else:
-        raise ProcessParameterInvalidException('period', 'aggregate_temporal_period',
-                                               'No support for a period of type: ' + str(period))
+        raise ProcessParameterInvalidException(
+            "period", "aggregate_temporal_period", "No support for a period of type: " + str(period)
+        )
     intervals = [i for i in intervals if i[0] < end]
     _log.info(f"aggregate_temporal_period input: [{start},{end}] - {period} intervals: {intervals}")
     return intervals

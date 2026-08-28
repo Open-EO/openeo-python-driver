@@ -1,10 +1,12 @@
+from pathlib import Path
+
 import pandas as pd
 import pytest
 from numpy import nan
 from shapely.geometry import GeometryCollection, Polygon
 
 from openeo_driver.datacube import DriverVectorCube
-from openeo_driver.save_result import AggregatePolygonResult
+from openeo_driver.save_result import AggregatePolygonResult, AggregatePolygonResultCSV
 from .data import get_path
 
 
@@ -120,3 +122,28 @@ def test_write_driver_vector_cube_to_csv(tmp_path):
 
     actual_gdf = pd.read_csv(tmp_path / "vectorcube.csv")
     assert actual_gdf.shape == (2, 4)
+
+
+def test_aggregate_polygon_result_csv_feature_id_property(tmp_path):
+    """`feature_id_property` option should replace `feature_index` with the requested feature property."""
+    regions = DriverVectorCube.from_geojson({
+        "type": "FeatureCollection",
+        "features": [
+            {"type": "Feature", "properties": {"id": "f_north"}, "geometry": Polygon([(0, 0), (5, 1), (1, 4)]).__geo_interface__},
+            {"type": "Feature", "properties": {"id": "f_middle"}, "geometry": Polygon([(6, 1), (1, 7), (9, 9)]).__geo_interface__},
+            {"type": "Feature", "properties": {"id": "f_south"}, "geometry": Polygon([(6, 1), (1, 7), (9, 9)]).__geo_interface__},
+        ],
+    })
+
+    result = AggregatePolygonResultCSV(
+        csv_dir=str(Path(__file__).parent / "data" / "aggregate_spatial_spacetime_cube"),
+        regions=regions,
+    )
+    result.set_format("csv", options={"feature_id_property": "id"})
+
+    filename = result.to_csv(tmp_path / "timeseries_feature_id.csv")
+    assert filename
+    actual_df = pd.read_csv(filename)
+    assert "id" in actual_df.columns
+    assert set(actual_df["id"].dropna()) == {"f_north", "f_south"}
+    # feature_index 1 (f_middle) is not present in the source CSVs

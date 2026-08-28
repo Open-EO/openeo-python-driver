@@ -2,7 +2,7 @@ import functools
 import logging
 import threading
 import time
-from typing import Union, Tuple, Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import cachetools
 
@@ -17,9 +17,7 @@ class TtlCache:
     Simple dictionary based, in-memory key-value cache with expiry.
     """
 
-    def __init__(
-        self, default_ttl: float = 60, _clock: Callable[[], float] = time.time
-    ):
+    def __init__(self, default_ttl: float = 60, _clock: Callable[[], float] = time.time):
         self._cache: Dict[CacheKey, Tuple[Any, float]] = {}
         self.default_ttl = default_ttl
         self._clock = _clock
@@ -42,9 +40,7 @@ class TtlCache:
         # TODO: raise KeyError on cache miss?
         return self._cache[key][0] if self.contains(key) else default
 
-    def get_or_call(
-        self, key: CacheKey, callback: Callable[[], Any], ttl: Optional[float] = None
-    ) -> Any:
+    def get_or_call(self, key: CacheKey, callback: Callable[[], Any], ttl: Optional[float] = None) -> Any:
         """
         Try to get item from cache. If not available or expired: call callback to build it and store result in cache.
 

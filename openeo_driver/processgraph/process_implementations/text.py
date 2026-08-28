@@ -1,7 +1,8 @@
 """Text operation process implementations."""
+
 from typing import List, Union
 
-from openeo_driver.processgraph.registry import process_registry_100, process_registry_2xx, simple_function
+from openeo_driver.processgraph.registry import process_registry_2xx, process_registry_100, simple_function
 from openeo_driver.specs import read_spec
 
 
@@ -37,8 +38,7 @@ def text_ends(data: str, pattern: str, case_sensitive: bool = True) -> Union[boo
 
 @process_registry_100.add_simple_function
 def text_merge(
-        data: List[Union[str, int, float, bool, None]],
-        separator: Union[str, int, float, bool, None] = ""
+    data: List[Union[str, int, float, bool, None]], separator: Union[str, int, float, bool, None] = ""
 ) -> str:
     # TODO #196 text_merge is deprecated in favor of text_concat
     return str(separator).join(str(d) for d in data)

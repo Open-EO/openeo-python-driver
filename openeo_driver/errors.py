@@ -28,7 +28,7 @@ where necessary or useful.
 import json
 import re
 import textwrap
-from typing import List, Set, Optional
+from typing import List, Optional, Set
 
 from openeo_driver.specs import SPECS_ROOT
 from openeo_driver.util.logging import FlaskRequestCorrelationIdLogging

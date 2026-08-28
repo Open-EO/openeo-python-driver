@@ -7,10 +7,10 @@ from typing import Mapping, NamedTuple, Optional, Union
 
 import requests
 from openeo.rest.auth.oidc import (
+    AccessTokenResult,
     OidcClientCredentialsAuthenticator,
     OidcClientInfo,
     OidcProviderInfo,
-    AccessTokenResult,
 )
 from openeo.util import str_truncate
 
@@ -138,6 +138,10 @@ class ClientCredentialsAccessTokenHelper:
             access_token = access_token_response.access_token
             self._cache = _AccessTokenCache(access_token, self._get_access_token_expiry_time(access_token_response))
         return self._cache.access_token
+
+    def invalidate_cache(self) -> None:
+        """Invalidate the cached access token, forcing a fresh fetch on the next call to ``get_access_token``."""
+        self._cache = _AccessTokenCache("", 0)
 
     def _get_access_token_expiry_time(self, access_token_response: AccessTokenResult) -> float:
         if access_token_response.expires_in is None:

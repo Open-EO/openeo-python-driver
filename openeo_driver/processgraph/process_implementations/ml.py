@@ -1,18 +1,18 @@
 """Machine learning process implementations."""
+
 import logging
 from typing import Union
 
 import shapely.geometry
 
 from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCube
-from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import ProcessParameterInvalidException
 from openeo_driver.processes import ProcessArgs
 from openeo_driver.processgraph.registry import (
     ENV_DRY_RUN_TRACER,
     NoPythonImplementationError,
-    process_registry_100,
     process_registry_2xx,
+    process_registry_100,
 )
 from openeo_driver.save_result import AggregatePolygonSpatialResult
 from openeo_driver.specs import read_spec
@@ -59,7 +59,10 @@ def fit_class_random_forest(args: ProcessArgs, env: EvalEnv) -> DriverMlModel:
     seed = args.get_optional(name="seed", expected_type=int)
 
     return predictors.fit_class_random_forest(
-        target=target, num_trees=num_trees, max_variables=max_variables, seed=seed,
+        target=target,
+        num_trees=num_trees,
+        max_variables=max_variables,
+        seed=seed,
     )
 
 
@@ -94,7 +97,7 @@ def fit_class_catboost(args: ProcessArgs, env: EvalEnv) -> DriverMlModel:
 
     iterations = get_validated_parameter(args, "iterations", 5, int, 1, 500)
     depth = get_validated_parameter(args, "depth", 5, int, 1, 16)
-    seed = get_validated_parameter(args, "seed", 0, int, 0, 2 ** 31 - 1)
+    seed = get_validated_parameter(args, "seed", 0, int, 0, 2**31 - 1)
 
     return predictors.fit_class_catboost(target=target, iterations=iterations, depth=depth, seed=seed)
 

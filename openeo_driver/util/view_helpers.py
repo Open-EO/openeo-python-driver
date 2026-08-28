@@ -7,8 +7,12 @@ from openeo_driver.util.date_math import now_utc
 
 
 def cache_control(
-        max_age=None, no_cache=None, no_store=None,
-        public=None, private=None, must_revalidate=None,
+    max_age=None,
+    no_cache=None,
+    no_store=None,
+    public=None,
+    private=None,
+    must_revalidate=None,
 ):
     """
     Parameterized decorator for view functions to set `Cache-Control` headers on the response.
@@ -17,8 +21,12 @@ def cache_control(
         max_age = int(max_age.total_seconds())
 
     settings = dict(
-        max_age=max_age, no_cache=no_cache, no_store=no_store,
-        public=public, private=private, must_revalidate=must_revalidate,
+        max_age=max_age,
+        no_cache=no_cache,
+        no_store=no_store,
+        public=public,
+        private=private,
+        must_revalidate=must_revalidate,
     )
     settings = {key: value for key, value in settings.items() if value is not None}
 

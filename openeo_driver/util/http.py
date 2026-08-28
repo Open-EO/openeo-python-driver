@@ -4,7 +4,6 @@ from typing import Set, Union
 
 import requests
 import requests.adapters
-
 from openeo.util import repr_truncate
 
 
@@ -89,7 +88,6 @@ class UrlSafeStructCodec:
             return data
         except Exception as e:
             raise ValueError(f"Failed to decode {repr_truncate(data)}") from e
-
 
     def _json_object_hook(self, d: dict):
         """Implementation of `object_hook` of `json.JSONDecoder` API."""

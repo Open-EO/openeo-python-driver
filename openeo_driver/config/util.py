@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import Container, Callable
+
+from typing import Callable, Container
 
 
 class Exclude(Container[str]):
@@ -7,6 +8,7 @@ class Exclude(Container[str]):
     Exclude list, implementing the `Container` interface,
     based on a callable (instead of an exhausive listing).
     """
+
     def __init__(self, exclude: Callable[[str], bool]):
         self.exclude = exclude
 

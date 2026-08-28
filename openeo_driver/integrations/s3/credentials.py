@@ -1,7 +1,7 @@
 import logging
 import os
 import re
-from typing import TypedDict, Optional
+from typing import Optional, TypedDict
 
 _log = logging.getLogger(__name__)
 

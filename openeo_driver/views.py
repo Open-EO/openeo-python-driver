@@ -421,6 +421,8 @@ def register_views_general(
         # TODO only list endpoints that are actually supported by the backend.
         endpoints = EndpointRegistry.get_capabilities_endpoints(_openeo_endpoint_metadata, api_version=api_version)
         deploy_metadata = backend_config.capabilities_deploy_metadata
+        if isinstance(deploy_metadata, dict) and "backend_config_id" not in deploy_metadata:
+            deploy_metadata["backend_config_id"] = backend_config.id
 
         capabilities = {
             "stac_extensions": [
@@ -1131,12 +1133,6 @@ def register_views_batch_jobs(
         result_items = result_metadata.items
         providers = result_metadata.providers
 
-        # TODO: remove feature toggle, during refactoring for openeo-geopyspark-driver#440
-        #   https://github.com/Open-EO/openeo-geopyspark-driver/issues/440
-        #   We will try to simplify the code and give the same response for API v1.0.0 as v1.1.0.
-        #   This is a bit of an ugly temporary hack, to aid in testing and comparing.
-        TREAT_JOB_RESULTS_V100_LIKE_V110 = smart_bool(os.environ.get("TREAT_JOB_RESULTS_V100_LIKE_V110", "0"))
-
         links: List[dict] = copy.deepcopy(result_metadata.links or job_info.links or [])
 
         try:
@@ -1192,7 +1188,7 @@ def register_views_batch_jobs(
             if asset_metadata.get("asset", True)
         }
 
-        if TREAT_JOB_RESULTS_V100_LIKE_V110 or requested_api_version().at_least("1.1.0"):
+        if requested_api_version().at_least("1.1.0"):
             ml_model_metadata = None
 
             def job_result_item_url(item_id, is11 = False) -> str:
@@ -1247,7 +1243,7 @@ def register_views_batch_jobs(
                 item_assets = {}
                 assets = {}
                 for item_key, item_metadata in result_items.items():
-                    for asset_key, asset_metadata in item_metadata.get("assets").items():
+                    for asset_key, asset_metadata in item_metadata.get("assets", {}).items():
                         if "output_dir" in asset_metadata:
                             out_dir = asset_metadata.get("output_dir")
                             _log.info(f"asset has output dir {out_dir} and href {asset_metadata.get('href')}")
@@ -1388,6 +1384,10 @@ def register_views_batch_jobs(
     def _download_job_result(
         job_id: str, filename: str, user_id: str
     ) -> flask.Response:
+        # TODO needs refactoring. This got way too complicated and cumbersome to extend.
+        #       Too much undocumented assumptions and hidden coupling with openeo-geopyspark-driver implementation details
+        #       Too much business logic for a generic view layer.
+
         if request.range and request.range.units != "bytes":
             raise OpenEOApiException(
                 code="RangeNotSatisfiable", status_code=416,
@@ -1403,7 +1403,10 @@ def register_views_batch_jobs(
             result = None
             for item_key, item in result_metadata.items.items():
                 for asset_key, asset in item.get("assets").items():
+                    # TODO: "output_dir" is an openeo-geopyspark-driver-specific implementation detail
                     out_dir = asset.get("output_dir","")
+                    # TODO: undocumented (or openeo-geopyspark-driver-specific) assumption
+                    #       that href is local path instead of valid href (e.g. with a URL scheme)?
                     common = os.path.commonpath([asset.get("href",""),out_dir])
                     href =  os.path.relpath(asset.get("href",""),common)
                     if href == filename:
@@ -1413,25 +1416,33 @@ def register_views_batch_jobs(
                             raise OpenEOApiException("multiple assets with filename {n!r}".format(n=filename))
         else:
             results = result_metadata.assets
+            # TODO: deprecated assumption that filename == asset key
             if filename in results.keys():
                 result = results[filename]
             else:
+                # TODO: why is this in the else-branch of `if result_metadata.items`?
                 for link in result_metadata.links:
                     if link.get("rel") != "original":
                         continue
                     file_paths = get_files_from_stac_catalog(link["href"], include_metadata=True, relative_paths=True)
-                    _log.info("file_paths: " + repr(file_paths))
+                    _log.debug("file_paths: " + repr(file_paths))
                     link_root = os.path.dirname(link["href"])
                     if filename in file_paths:
                         result = {
                             "output_dir": link_root,
                             "href": filename,
                         }
-                if not result:
-                    raise FilePathInvalidException(f"{filename!r} not in {list(results.keys())}, nor in 'original' links.")
+
         if result is None:
-            raise FilePathInvalidException(f"{filename!r} not in job result metadata nor assets.")
+            result = result_metadata.get_downloadable_by_filename(filename=filename)
+
+        if result is None:
+            raise OpenEOApiException(
+                status_code=404, code="JobAssetNotFound", message=f"Job asset {filename!r} was not found"
+            )
+
         if result.get("href", "").startswith("s3://"):
+            # TODO: instead of streaming through web app: also support doing HTTP forward to presigned URL?
             return _stream_from_s3(
                 result["href"], filename=filename, mimetype=result.get("type"), bytes_range=request.headers.get("Range")
             )
@@ -1489,7 +1500,7 @@ def register_views_batch_jobs(
 
             raise
 
-    @blueprint.route('/jobs/<job_id>/results/items/<user_base64>/<secure_key>/<item_id>', methods=['GET'])
+    @blueprint.route("/jobs/<job_id>/results/items/<user_base64>/<secure_key>/<path:item_id>", methods=["GET"])
     def get_job_result_item_signed(job_id, user_base64, secure_key, item_id):
         expires = request.args.get('expires')
         signer = get_backend_config().url_signer
@@ -1498,7 +1509,7 @@ def register_views_batch_jobs(
         return _get_job_result_item(job_id, item_id, user_id)
 
     @api_endpoint
-    @blueprint.route('/jobs/<job_id>/results/items11/<user_base64>/<secure_key>/<item_id>', methods=['GET'])
+    @blueprint.route("/jobs/<job_id>/results/items11/<user_base64>/<secure_key>/<path:item_id>", methods=["GET"])
     def get_job_result_item11_signed(job_id, user_base64, secure_key, item_id):
         expires = request.args.get('expires')
         signer = get_backend_config().url_signer
@@ -1626,6 +1637,7 @@ def register_views_batch_jobs(
         auxiliary_filename = urlparse(exposable_link["href"]).path.split("/")[-1]  # TODO: assumes file is not nested
 
         if exposable_link["href"].startswith("s3://"):
+            # TODO: asset.build_url is made for assets, but not aux links, right?
             href = backend_implementation.config.asset_url.build_url(
                 asset_metadata={"href": exposable_link["href"]},  # TODO: clean up this hack to support s3proxy
                 asset_name=auxiliary_filename,
@@ -1666,7 +1678,7 @@ def register_views_batch_jobs(
 
         return link
 
-    @blueprint.route("/jobs/<job_id>/results/aux/<user_base64>/<secure_key>/<filename>", methods=["GET"])
+    @blueprint.route("/jobs/<job_id>/results/aux/<user_base64>/<secure_key>/<path:filename>", methods=["GET"])
     def download_job_auxiliary_file_signed(job_id, user_base64, secure_key, filename):
         expires = request.args.get("expires")
         signer = get_backend_config().url_signer
@@ -1688,24 +1700,28 @@ def register_views_batch_jobs(
             link for item in result_metadata.items.values() for link in item.get("links", [])
         ] + result_metadata.links
 
-        matching_auxiliary_links = [
-            link
+        matching_auxiliary_links = {
+            (link.get("href"), link.get("type"))
             for link in links
             if link.get(ITEM_LINK_PROPERTY.EXPOSE_AUXILIARY, False) and link["href"].endswith(f"/{filename}")
-        ]
+        }
 
         if not len(matching_auxiliary_links) == 1:
-            _log.debug(f"Failed to match single auxiliary link: {matching_auxiliary_links=} from {result_metadata=}")
-            raise FilePathInvalidException(f"invalid file {filename!r}")
+            _log.warning(f"Failed to match single auxiliary link: {matching_auxiliary_links=} from {result_metadata=}")
+            raise OpenEOApiException(
+                status_code=404,
+                code="UnresolvedAuxiliaryFile",
+                message=f"Failed to resolve auxiliary file {filename!r}",
+            )
 
-        auxiliary_link = matching_auxiliary_links[0]
-        uri_parts = urlparse(auxiliary_link["href"])
+        auxiliary_href, auxiliary_type = matching_auxiliary_links.pop()
+        uri_parts = urlparse(auxiliary_href)
 
         # S3 URIs are handled by s3proxy
         assert uri_parts.scheme in ["", "file"], f"unexpected scheme {uri_parts.scheme}"
 
         auxiliary_file = pathlib.Path(uri_parts.path)
-        return send_from_directory(auxiliary_file.parent, auxiliary_file.name, mimetype=auxiliary_link.get("type"))
+        return send_from_directory(auxiliary_file.parent, auxiliary_file.name, mimetype=auxiliary_type)
 
     def _get_job_result_item(job_id, item_id, user_id):
         if item_id == DriverMlModel.METADATA_FILE_NAME:
@@ -1721,7 +1737,7 @@ def register_views_batch_jobs(
         }
 
         if len(assets_for_item_id) != 1:
-            raise AssertionError(f"expected exactly 1 asset with file name {item_id}")
+            raise AssertionError(f"expected exactly 1 asset with file name {item_id}. Got {len(assets_for_item_id)}")
 
         asset_filename, asset_metadata = next(iter(assets_for_item_id.items()))
 

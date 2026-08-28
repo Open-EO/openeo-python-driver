@@ -1,8 +1,9 @@
-from typing import NamedTuple, Union, List, Optional
+from typing import List, NamedTuple, Optional, Union
 
 
 class SarBackscatterArgs(NamedTuple):
     """Arguments for the `sar_backscatter` process."""
+
     coefficient: Union[str, None] = "gamma0-terrain"
     elevation_model: Union[str, None] = None
     mask: bool = False
@@ -16,6 +17,7 @@ class SarBackscatterArgs(NamedTuple):
 
 class ResolutionMergeArgs(NamedTuple):
     """Arguments for the `resolution_merge` process."""
+
     method: str = None
     high_resolution_bands: List[str] = False
     low_resolution_bands: List[str] = False
@@ -27,6 +29,7 @@ class ResolutionMergeArgs(NamedTuple):
 # https://github.com/radiantearth/stac-spec/blob/master/item-spec/item-spec.md#asset-object
 StacAsset = dict
 StacItem = dict
+
 
 def secretive_repr(*, hide_patterns: Optional[List[str]] = None):
     """
@@ -53,9 +56,7 @@ def secretive_repr(*, hide_patterns: Optional[List[str]] = None):
         return any(p in field_name.lower() for p in hide_patterns)
 
     def __repr__(self: Union[NamedTuple]):
-        fields = [
-            (f, "***" if is_secret(f) else getattr(self, f)) for f in self._fields
-        ]
+        fields = [(f, "***" if is_secret(f) else getattr(self, f)) for f in self._fields]
         fields = [f"{f}={v!r}" for f, v in fields]
         return f"{self.__class__.__name__}({', '.join(fields)})"
 
