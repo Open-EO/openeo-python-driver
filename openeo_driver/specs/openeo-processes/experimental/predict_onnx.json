@@ -36,7 +36,7 @@
                     "pattern": "^https?://"
                 },
                 {
-                    "description": "Absolute URL to a STAC describing the ONNX model",
+                    "description": "Absolute URL to a STAC describing the ONNX model, using the STAC ML extension: https://github.com/stac-extensions/mlm",
                     "type": "string",
                     "format": "uri",
                     "subtype": "uri",
