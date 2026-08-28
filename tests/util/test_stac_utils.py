@@ -4,6 +4,7 @@ from io import BytesIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pystac
 import pytest
 from pystac import Collection
 
@@ -19,6 +20,7 @@ print(repository_root)
 
 _TEST_BUCKET = "test-stac-bucket"
 example_stac_catalog_dir = repository_root / "tests/data/example_stac_catalog"
+example_stac_catalog_dir_11 = repository_root / "tests/data/example_stac_catalog_11"
 
 
 @pytest.fixture()
@@ -54,6 +56,21 @@ def test_get_files_from_stac_catalog_path_include_metadata():
     assert len(ret) == 7
 
 
+def test_get_files_from_stac_catalog_path_11():
+    stac_root = example_stac_catalog_dir_11 / "collection.json"
+    ret = get_files_from_stac_catalog(stac_root)
+    ret = set(ret)
+    print(ret)
+    assert len(ret) == 3
+
+
+def test_get_files_from_stac_catalog_path_include_metadata_11():
+    stac_root = example_stac_catalog_dir_11 / "collection.json"
+    ret = get_files_from_stac_catalog(stac_root, include_metadata=True)
+    ret = set(ret)
+    print(ret)
+    assert len(ret) == 7
+
 def test_get_files_from_stac_catalog_url():
     stac_root = "https://raw.githubusercontent.com/Open-EO/openeo-geopyspark-driver/refs/heads/master/docker/local_batch_job/example_stac_catalog/collection.json"
     ret = get_files_from_stac_catalog(stac_root)
@@ -72,6 +89,7 @@ def test_get_files_from_stac_catalog_url_include_metadata():
 
 def test_get_assets_from_stac_catalog():
     stac_root = example_stac_catalog_dir / "collection.json"
+    pystac.Collection.from_file(str(stac_root)).validate_all()
     ret = get_assets_from_stac_catalog(stac_root)
     print(ret)
     assert len(ret.values()) == 3
@@ -83,6 +101,20 @@ def test_get_items_from_stac_catalog():
     print(ret)
     assert len(ret) == 3
 
+
+def test_get_assets_from_stac_catalog_11():
+    stac_root = example_stac_catalog_dir_11 / "collection.json"
+    pystac.Collection.from_file(str(stac_root)).validate_all()
+    ret = get_assets_from_stac_catalog(stac_root)
+    print(ret)
+    assert len(ret.values()) == 3
+
+
+def test_get_items_from_stac_catalog_11():
+    stac_root = example_stac_catalog_dir_11 / "collection.json"
+    ret = get_items_from_stac_catalog(stac_root)
+    print(ret)
+    assert len(ret) >= 3  # STAC 1.1 has an extra item on root level
 
 def test_get_items_from_stac_catalog_recursive():
     stac_root = str(repository_root / "tests/data/recursive-stac-example/collection.json")

@@ -1360,6 +1360,74 @@ class TestBatchJobs:
     AUTH_HEADER = TEST_USER_AUTH_HEADER
 
     @staticmethod
+    def load_dummy_batch_job_metadata(job_metadata_path: Path, job_id: str, full=True):
+        """
+        Mocks a lot of metadata with random values
+        """
+        from openeo.util import rfc3339
+        result_metadata = json.loads(Path(job_metadata_path).read_text())
+        process_graph = result_metadata.get("providers", [])[0]["processing:expression"]["expression"]
+        job_info: dict = {
+            "job_id": job_id,
+            "title": "load_dummy_batch_job_metadata title",
+            "description": "load_dummy_batch_job_metadata description",
+            "process": {"process_graph": process_graph},
+            "status": "finished",
+            "progress": 100,
+            "created": "2020-06-11T11:44:44Z",
+            "updated": "2020-06-11T11:55:55Z",
+            "plan": "some_plan",
+            "costs": 1.666,
+            "budget": 4.666,
+            "usage": {
+                "cpu": {"value": 666, "unit": "cpu-seconds"},
+                "duration": {"value": 6, "unit": "seconds"},
+                "memory": {"value": 666666, "unit": "mb-seconds"},
+            },
+            "results_metadata": result_metadata,
+            "job_options": {},
+        }
+
+        def map_safe(prop: str, f):
+            value = job_info.get(prop)
+            return f(value) if value else None
+
+        def get_results_metadata(result_metadata_prop: str):
+            return job_info.get("results_metadata", {}).get(result_metadata_prop)
+
+        def map_results_metadata_safe(result_metadata_prop: str, f):
+            value = get_results_metadata(result_metadata_prop)
+            return f(value) if value is not None else None
+
+        return BatchJobMetadata(
+            id=job_info["job_id"],
+            status=job_info["status"],
+            created=map_safe("created", rfc3339.parse_datetime),
+            process=job_info.get("process") if full else None,
+            job_options=job_info.get("job_options") if full else None,
+            title=job_info.get("title"),
+            description=job_info.get("description"),
+            updated=map_safe("updated", rfc3339.parse_datetime),
+            started=map_safe("started", rfc3339.parse_datetime),
+            finished=map_safe("finished", rfc3339.parse_datetime),
+            memory_time_megabyte=map_safe(
+                "memory_time_megabyte_seconds", lambda seconds: timedelta(seconds=seconds)
+            ),
+            cpu_time=map_safe("cpu_time_seconds", lambda seconds: timedelta(seconds=seconds)),
+            geometry=get_results_metadata("geometry"),
+            bbox=get_results_metadata("bbox"),
+            start_datetime=map_results_metadata_safe("start_datetime", rfc3339.parse_datetime),
+            end_datetime=map_results_metadata_safe("end_datetime", rfc3339.parse_datetime),
+            instruments=get_results_metadata("instruments"),
+            epsg=get_results_metadata("epsg"),
+            links=get_results_metadata("links"),
+            usage=job_info.get("usage"),
+            costs=job_info.get("costs"),
+            proj_shape=get_results_metadata("proj:shape"),
+            proj_bbox=get_results_metadata("proj:bbox"),
+        )
+
+    @staticmethod
     @contextmanager
     def _fresh_job_registry(next_job_id="job-1234", output_root: Optional[Path] = None, jobs: Optional[dict] = None):
         """Set up a fresh job registry and predefine next job id"""
@@ -1375,7 +1443,12 @@ class TestBatchJobs:
                     mock.patch.object(dummy_backend.DummyBatchJobs, "_output_root", return_value=output_root)
                 )
 
+            _server_test_metadata_path = get_path("job_metadata_from_cwl.json")
+
             dummy_backend.DummyBatchJobs._job_registry = {
+                (TEST_USER, "j-job_metadata_from_cwl"): TestBatchJobs.load_dummy_batch_job_metadata(
+                    _server_test_metadata_path, job_id="j-job_metadata_from_cwl"
+                ),
                 (TEST_USER, "07024ee9-7847-4b8a-b260-6c879a2b3cdc"): BatchJobMetadata(
                     id="07024ee9-7847-4b8a-b260-6c879a2b3cdc",
                     status="running",
@@ -1435,7 +1508,18 @@ class TestBatchJobs:
                     end_datetime=None,
                 ),
             }
-            dummy_backend.DummyBatchJobs._job_result_registry = {}
+            if next_job_id == "j-job_metadata_from_cwl":
+                _server_test_raw = json.loads(_server_test_metadata_path.read_text())
+                dummy_backend.DummyBatchJobs._job_result_registry = {
+                    ("j-job_metadata_from_cwl", TEST_USER): BatchJobResultMetadata(
+                        assets={},
+                        items={item["id"]: item for item in _server_test_raw.get("items", [])},
+                        links=_server_test_raw.get("links", []),
+                        providers=_server_test_raw.get("providers", []),
+                    ),
+                }
+            else:
+                dummy_backend.DummyBatchJobs._job_result_registry = {}
 
             if jobs:
                 for job_id, job_settings in jobs.items():
@@ -1704,6 +1788,16 @@ class TestBatchJobs:
             resp = api100.get("/jobs", headers=self.AUTH_HEADER)
         assert resp.assert_status_code(200).json == {
             "jobs": [
+                {
+                    "costs": 1.666,
+                    "created": "2020-06-11T11:44:44Z",
+                    "description": "load_dummy_batch_job_metadata description",
+                    "id": "j-job_metadata_from_cwl",
+                    "progress": 100,
+                    "status": "finished",
+                    "title": "load_dummy_batch_job_metadata title",
+                    "updated": "2020-06-11T11:55:55Z",
+                },
                 {
                     "id": "07024ee9-7847-4b8a-b260-6c879a2b3cdc",
                     "status": "running",
@@ -2313,6 +2407,22 @@ class TestBatchJobs:
                     ],
                 }
             )
+
+    def test_get_job_results_100_from_cwl(self, api100):
+        with self._fresh_job_registry(next_job_id="j-job_metadata_from_cwl"):
+            resp = api100.get("/jobs/j-job_metadata_from_cwl/results", headers=self.AUTH_HEADER)
+            resp_txt = resp.text
+            assert "j-job_metadata_from_cwl" in resp_txt
+            # assert "bands" in resp_txt  # TODO?
+            pystac.Item.from_dict(json.loads(resp_txt))
+
+    def test_get_job_results_110_from_cwl(self, api110):
+        with self._fresh_job_registry(next_job_id="j-job_metadata_from_cwl"):
+            resp = api110.get("/jobs/j-job_metadata_from_cwl/results", headers=self.AUTH_HEADER)
+            resp_txt = resp.text
+            assert "j-job_metadata_from_cwl" in resp_txt
+            assert "bands" in resp_txt
+            pystac.Collection.from_dict(json.loads(resp_txt))
 
     def test_get_job_results_public_href_asset_100(self, api, backend_implementation):
         import numpy as np
