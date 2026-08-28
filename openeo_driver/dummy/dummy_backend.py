@@ -915,7 +915,7 @@ class DummyBatchJobs(BatchJobs):
                 "subfolder/output.tiff": {
                     "output_dir": f"{self._output_root()}/{job_id}",
                     "href": f"{self._output_root()}/{job_id}/subfolder/output.tiff",
-                    "type": "image/tiff; application=geotiff",
+                    "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                     "roles": ["data"],
                     "bands": [Band(name="NDVI", wavelength_um=1.23)],
                     "nodata": 123,
@@ -930,7 +930,7 @@ class DummyBatchJobs(BatchJobs):
         elif job_id == "j-26032411111111111111111111111111":
             default_json = {
                 "output_dir": f"{self._output_root()}/{job_id}",
-                "type": "image/tiff; application=geotiff",
+                "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                 "roles": ["data"],
                 "bands": [Band(name="NDVI", wavelength_um=1.23)],
                 "nodata": 123,
@@ -954,7 +954,7 @@ class DummyBatchJobs(BatchJobs):
             "output.tiff": {
                 "output_dir": f"{self._output_root()}/{job_id}",
                 "href": f"{self._output_root()}/{job_id}/output.tiff",
-                "type": "image/tiff; application=geotiff",
+                "type": "image/tiff; application=geotiff; profile=cloud-optimized",
                 "roles": ["data"],
                 "bands": [Band(name="B02", common_name="blue", wavelength_um=0.665)],
                 "nodata": 123,
