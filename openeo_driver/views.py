@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 
 import flask
 import flask_cors
+import pystac
 from flask import (
     Blueprint,
     Flask,
@@ -869,17 +870,22 @@ def _properties_from_job_info(job_info: BatchJobMetadata) -> dict:
             "card4l:specification": "SR",
             "card4l:specification_version": "5.0",
             "processing:facility": get_backend_config().processing_facility,
-            "processing:software": get_backend_config().processing_software,
+            "processing:software": {
+                get_backend_config().processing_software: get_backend_config().capabilities_backend_version
+            },
         }
     )
-    properties["datetime"] = None
-
     start_datetime = to_datetime(job_info.start_datetime)
     end_datetime = to_datetime(job_info.end_datetime)
 
-    if start_datetime == end_datetime:
+    if start_datetime is None and end_datetime is None:
+        # No temporal range available: fall back to job created time to produce a valid STAC item
+        # (STAC requires start_datetime+end_datetime when datetime is null)
+        properties["datetime"] = to_datetime(job_info.created)
+    elif start_datetime == end_datetime:
         properties["datetime"] = start_datetime
     else:
+        properties["datetime"] = None
         if start_datetime:
             properties["start_datetime"] = start_datetime
         if end_datetime:
@@ -1123,6 +1129,8 @@ def register_views_batch_jobs(
                         }
                     ],
                 }
+                pystac_item = pystac.Collection.from_dict(result)
+                pystac_item.validate()
                 return jsonify(result)
 
         with TimingLogger(f"backend_implementation.batch_jobs.get_result_metadata({job_id=}, {user_id=})", _log):
@@ -1320,8 +1328,9 @@ def register_views_batch_jobs(
                             "interval": [[to_datetime(job_info.start_datetime), to_datetime(job_info.end_datetime)]]
                         },
                     },
-                    "summaries": {"instruments": job_info.instruments } if job_info.instruments else {},
-                    "providers": providers or None,
+                    "summaries": {"instruments": job_info.instruments} if job_info.instruments else {},
+                    "providers": providers
+                    or backend_implementation.batch_jobs._get_providers(job_id=job_id, user_id=user_id),
                     "links": links,
                     "assets": assets,
                     "item_assets": item_assets,
@@ -1365,7 +1374,6 @@ def register_views_batch_jobs(
 
             result["stac_extensions"] = [
                 STAC_EXTENSION.PROCESSING,
-                STAC_EXTENSION.CARD4LOPTICAL,
                 STAC_EXTENSION.FILEINFO,
             ]
 
@@ -1378,6 +1386,15 @@ def register_views_batch_jobs(
                 result["stac_extensions"].append(STAC_EXTENSION.PROJECTION_V120)
 
         # TODO "OpenEO-Costs" header?
+
+        stac_type = result.get("type")
+        if stac_type == "Feature":
+            pystac_obj = pystac.Item.from_dict(result)
+        elif stac_type == "Collection":
+            pystac_obj = pystac.Collection.from_dict(result)
+        else:
+            pystac_obj = pystac.read_dict(result)
+        pystac_obj.validate()
         return jsonify(result)
 
     # TODO: Issue #232, TBD: refactor download functionality? more abstract, just stream blocks of bytes from S3 or from a directory.
@@ -1629,6 +1646,8 @@ def register_views_batch_jobs(
             )
         )
 
+        pystac_item = pystac.Item.from_dict(stac_item)
+        pystac_item.validate()
         resp = jsonify(stac_item)
         resp.mimetype = stac_item_media_type
         return resp
@@ -1812,6 +1831,8 @@ def register_views_batch_jobs(
                 }
             )
         )
+        pystac_item = pystac.Item.from_dict(stac_item)
+        pystac_item.validate()
 
         resp = jsonify(stac_item)
         resp.mimetype = stac_item_media_type
@@ -1829,6 +1850,18 @@ def register_views_batch_jobs(
                 asset["href"] = backend_implementation.config.asset_url.build_url(
                     asset_metadata=asset, asset_name=asset_file_name, job_id=job_id, user_id=user_id
                 )
+        links = [
+            {
+                "rel": "self",
+                "href": url_for(".get_job_result_item", job_id=job_id, item_id=file_name, _external=True),
+                "type": stac_item_media_type,
+            },
+            {
+                "rel": "collection",
+                "href": url_for(".list_job_results", job_id=job_id, _external=True),
+                "type": "application/json",
+            },
+        ] + ml_model_metadata.get("links", [])
         stac_item = {
             "stac_version": ml_model_metadata.get("stac_version", "1.0.0"),
             "stac_extensions": ml_model_metadata.get("stac_extensions", []),
@@ -1837,10 +1870,13 @@ def register_views_batch_jobs(
             "collection": job_id,
             "bbox": ml_model_metadata.get("bbox", []),
             "geometry": ml_model_metadata.get("geometry", {}),
-            'properties': ml_model_metadata.get("properties", {}),
-            'links': ml_model_metadata.get("links", []),
-            'assets': ml_model_metadata.get("assets", {})
+            "properties": ml_model_metadata.get("properties", {}),
+            "links": links,
+            "assets": ml_model_metadata.get("assets", {}),
         }
+
+        pystac_item = pystac.Item.from_dict(stac_item)
+        pystac_item.validate()
         resp = jsonify(stac_item)
         resp.mimetype = stac_item_media_type
         return resp
