@@ -71,18 +71,18 @@ def list_job_results(
         if result_metadata.items:
             # "STAC 1.1" style result listing (STAC Collection with focus on item-level assets)
             return _list_job_results_stac11(
-                user_id=user_id, job_id=job_id, job_info=job_info, result_metadata=result_metadata
+                user_id=user_id, job_id=job_id, job_info=job_info, result_metadata=result_metadata, partial=partial
             )
         else:
             # "openEO 1.1.0" style result listing (STAC Collection with focus on collection-level assets)
             return _list_job_results_openeo110(
-                user_id=user_id, job_id=job_id, job_info=job_info, result_metadata=result_metadata
+                user_id=user_id, job_id=job_id, job_info=job_info, result_metadata=result_metadata, partial=partial
             )
     else:
         # "openEO 1.0.0" style result listing (STAC Item)
         _log.warning(f"Using old STAC Item style job result listing for {job_id=} ({api_version=})")
         return _list_job_results_openeo100(
-            user_id=user_id, job_id=job_id, job_info=job_info, result_metadata=result_metadata
+            user_id=user_id, job_id=job_id, job_info=job_info, result_metadata=result_metadata, partial=partial
         )
 
 
@@ -136,6 +136,7 @@ def _list_job_results_stac11(
     job_id: str,
     job_info: BatchJobMetadata,
     result_metadata: BatchJobResultMetadata,
+    partial: bool = False,
 ) -> dict:
     """
     Batch job result listing in "STAC1.1" style:
@@ -145,7 +146,7 @@ def _list_job_results_stac11(
     to_datetime = Rfc3339(propagate_none=True).datetime
 
     links: List[dict] = copy.deepcopy(result_metadata.links or job_info.links or [])
-    links = list_job_results_add_basic_links(links=links, job_id=job_id, user_id=user_id)
+    links = list_job_results_add_basic_links(links=links, job_id=job_id, user_id=user_id, partial=partial)
 
     def intersect_band_array(list1, list2):
         band_result = []
@@ -254,6 +255,7 @@ def _list_job_results_openeo110(
     job_id: str,
     job_info: BatchJobMetadata,
     result_metadata: BatchJobResultMetadata,
+    partial: bool = False,
 ) -> dict:
     """
     Batch job result listing in "openEO API 1.1.0, but pre-STAC1.1" style:
@@ -264,7 +266,7 @@ def _list_job_results_openeo110(
     ml_model_metadata = None
 
     links: List[dict] = copy.deepcopy(result_metadata.links or job_info.links or [])
-    links = list_job_results_add_basic_links(links=links, job_id=job_id, user_id=user_id)
+    links = list_job_results_add_basic_links(links=links, job_id=job_id, user_id=user_id, partial=partial)
 
     assets = {
         filename: _asset_object(
@@ -358,6 +360,7 @@ def _list_job_results_openeo100(
     job_id: str,
     job_info: BatchJobMetadata,
     result_metadata: BatchJobResultMetadata,
+    partial: bool = False,
 ) -> dict:
     """
     Batch job result listing in deprecated "openEO API 1.0.0" style:
@@ -365,7 +368,7 @@ def _list_job_results_openeo100(
     """
 
     links: List[dict] = copy.deepcopy(result_metadata.links or job_info.links or [])
-    links = list_job_results_add_basic_links(links=links, job_id=job_id, user_id=user_id)
+    links = list_job_results_add_basic_links(links=links, job_id=job_id, user_id=user_id, partial=partial)
 
     assets = {
         filename: _asset_object(

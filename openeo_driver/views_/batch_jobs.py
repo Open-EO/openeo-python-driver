@@ -15,8 +15,9 @@ from openeo_driver.views_.utils import add_link_by_rel
 
 def list_job_results_self_link(job_id: str, partial: Union[bool, None] = None) -> dict:
     extra = {}
-    if partial is not None:
-        extra["partial"] = str(partial).lower()
+    if partial:
+        # For normalization reasons: only include `partial` when True
+        extra["partial"] = "true"
     url = flask.url_for(".list_job_results", job_id=job_id, _external=True, **extra)
     return {
         "rel": "self",
@@ -29,9 +30,9 @@ def list_job_results_self_link(job_id: str, partial: Union[bool, None] = None) -
 
 def list_job_results_canonical_link(job_id: str, *, user_id: str, partial: Union[bool, None] = None) -> dict:
     extra = {}
-    if partial is not None:
-        extra["partial"] = str(partial).lower()
-
+    if partial:
+        # For normalization reasons: only include `partial` when True
+        extra["partial"] = "true"
     signer = get_backend_config().url_signer
     if signer:
         expires = signer.get_expires()
@@ -78,7 +79,7 @@ def list_job_results_add_basic_links(
     add_card4l: bool = True,
 ) -> List[dict]:
     """
-    Add basic (self, canonical, ...) links in-place to the given links list
+    Add basic (self, canonical, ...) links to the given list of links, producing a new list of links.
     """
     if add_self:
         links = add_link_by_rel(links, link=list_job_results_self_link(job_id=job_id, partial=partial), mode="fallback")
