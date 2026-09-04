@@ -14,7 +14,6 @@ for the following considerations:
 
 """
 
-
 import copy
 import logging
 import os
@@ -33,7 +32,6 @@ from openeo_driver.backend import (
     BatchJobResultMetadata,
     BatchJobs,
 )
-from openeo_driver.views_.batch_jobs import list_job_results_add_basic_links
 from openeo_driver.config import get_backend_config
 from openeo_driver.constants import (
     ITEM_LINK_PROPERTY,
@@ -47,7 +45,7 @@ from openeo_driver.jobregistry import PARTIAL_JOB_STATUS
 from openeo_driver.users import user_id_b64_encode
 from openeo_driver.util.geometry import BoundingBox
 from openeo_driver.util.stac import sniff_stac_extension_prefix
-
+from openeo_driver.views_.batch_jobs import list_job_results_add_basic_links
 
 _log = logging.getLogger(__name__)
 
@@ -107,10 +105,6 @@ def _list_job_results_partial(*, user_id: str, job_id: str, job_info: BatchJobMe
         "links": links,
     }
     return result
-
-
-
-
 
 
 def _job_result_item_url(*, job_id: str, item_id: str, user_id: str, is11: bool = False) -> str:
