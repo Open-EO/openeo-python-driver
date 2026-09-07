@@ -19,7 +19,12 @@ and start a new "In Progress" section above it.
 
 <!-- start-of-changelog -->
 
-## In progress: 0.140.0
+## In progress: 0.141.0
+
+- Extract openeo-geopyspark-driver oriented batch job result metadata handling from generic view layer and allow openeo-aggregator to inject an alternative implementation in context of "STAC 1.1" batch job result metadata style ([Open-EO/openeo-aggregator/204](https://github.com/Open-EO/openeo-aggregator/issues/204))
+
+
+## 0.140.0
 
 - Include `job_options` as top-level properties in `GET /jobs/{job_id}` response ([#470](https://github.com/Open-EO/openeo-python-driver/issues/470))
 - Bump STAC version from `0.9.0` to `1.0.0` in capabilities endpoint, collection metadata, job results and ML model metadata ([#363](https://github.com/Open-EO/openeo-python-driver/issues/363))
