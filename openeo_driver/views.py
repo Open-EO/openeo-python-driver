@@ -1867,6 +1867,12 @@ def register_views_batch_jobs(
             # Machine learning models.
             return result_dict
         bands = asset_metadata.get("bands")
+        if not bands and stac11:
+            eo_bands = asset_metadata.get("eo:bands")
+            if eo_bands is not None:
+                assert isinstance(eo_bands, list), f"expected list of bands in 'eo:bands', got {type(eo_bands)}"
+                # Only keep name property
+                bands = [{"name": b["name"]} for b in eo_bands]
 
         if bands:
             # TODO: #298 this is a quick stop-gap solution for lack of clear API

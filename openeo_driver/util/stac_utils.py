@@ -107,9 +107,11 @@ def get_files_from_stac_catalog(
                 href = robust_urljoin(item_path, href)
 
                 if "rel" in link and (link["rel"] == "child" or link["rel"] == "item"):
-                    all_files.extend(get_files_from_stac_catalog(href, include_metadata))
-                else:
+                    all_files.extend(recurse(href))
+                elif "roles" in link and ("data" in link["roles"]):
                     all_files.append(href)
+                else:
+                    pass
         return all_files
 
     return_files = recurse(catalog_path)
