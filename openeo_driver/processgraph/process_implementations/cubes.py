@@ -117,6 +117,7 @@ def apply(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def apply_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube = args.get_required("data", expected_type=(DriverDataCube, DriverVectorCube))
     process_pg = args.get_deep("process", "process_graph", expected_type=dict)
+    process_pg = resolve_child_parameters(process_pg, env=env, exclude={"x", "context"})
     dimension = args.get_required(
         "dimension", expected_type=str, validator=ProcessArgs.validator_one_of(data_cube.get_dimension_names())
     )
@@ -135,6 +136,7 @@ def apply_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def apply_neighborhood(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube = args.get_required("data", expected_type=DriverDataCube)
     process_pg = args.get_deep("process", "process_graph", expected_type=dict)
+    process_pg = resolve_child_parameters(process_pg, env=env, exclude={"x", "context"})
     size = args.get_required("size")
     overlap = args.get_optional("overlap")
     context = args.get_optional("context", default=None)
@@ -146,6 +148,7 @@ def apply_neighborhood(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def apply_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube = args.get_required("data", expected_type=DriverDataCube)
     process_pg = args.get_deep("process", "process_graph", expected_type=dict)
+    process_pg = resolve_child_parameters(process_pg, env=env, exclude={"x", "context"})
     if "polygons" in args and "geometries" not in args:
         _log.warning(
             "DEPRECATED: In process 'apply_polygon': parameter 'polygons' is deprecated, use 'geometries' instead."
@@ -192,6 +195,7 @@ def apply_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def chunk_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube = args.get_required("data", expected_type=DriverDataCube)
     reduce_pg = args.get_deep("process", "process_graph", expected_type=dict)
+    reduce_pg = resolve_child_parameters(reduce_pg, env=env, exclude={"x", "context"})
     chunks = args.get_required("chunks")
     mask_value = args.get_optional("mask_value", expected_type=(int, float), default=None)
     context = args.get_optional("context", default=None)
