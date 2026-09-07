@@ -80,38 +80,6 @@ from openeo_driver.utils import EvalEnv, to_hashable
 
 _log = logging.getLogger(__name__)
 
-
-def _resolve_property_filters_with_env(properties: dict, env: EvalEnv) -> dict:
-    """
-    Walk property filter process graphs and replace ``{"from_parameter": X}``
-    references with their literal values from *env*, where X is a UDP-level
-    parameter (not the callback ``"value"`` parameter).
-
-    This prevents "Unknown parameter X" errors later when the property filters
-    are re-evaluated in ``post_dry_run`` without the original UDP parameters.
-    """
-    return properties
-    import copy
-
-    env_params = env.collect_parameters()
-    if not env_params:
-        return properties
-
-    def _substitute(obj):
-        if isinstance(obj, dict):
-            if set(obj.keys()) == {"from_parameter"}:
-                param_name = obj["from_parameter"]
-                # "value" is the callback parameter; leave it as-is
-                if param_name != "value" and param_name in env_params:
-                    return env_params[param_name]
-            return {k: _substitute(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
-            return [_substitute(item) for item in obj]
-        return obj
-
-    return _substitute(copy.deepcopy(properties))
-
-
 @dataclass
 class PropagationRule:
     """
