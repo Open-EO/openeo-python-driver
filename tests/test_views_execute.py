@@ -3089,6 +3089,69 @@ def test_evaluate_process_from_url(api, requests_mock, namespace, url_mocks, exp
         assert params["spatial_extent"] == {"west": 5.05, "south": 51.2, "east": 5.1, "north": 51.23, "crs": 'EPSG:4326'}
 
 
+def test_apply_udp_parameterized_math(api, requests_mock):
+    """
+    A user-defined process (UDP) that wraps `apply` with a callback referencing a UDP parameter
+    (e.g. an "offset" to add) should have that parameter resolved with its actual bound value,
+    while the callback's own "x"/"context" parameters must remain untouched (to be resolved later,
+    e.g. per pixel/value, by the actual processing engine).
+
+    https://github.com/Open-EO/openeo-geopyspark-driver/issues/1739
+    """
+    udp_url = "https://share.test/apply_math.json"
+    udp_spec = {
+        "id": "apply_math",
+        "process_graph": {
+            "apply1": {
+                "process_id": "apply",
+                "arguments": {
+                    "data": {"from_parameter": "data"},
+                    "process": {
+                        "process_graph": {
+                            "add1": {
+                                "process_id": "add",
+                                "arguments": {
+                                    "x": {"from_parameter": "x"},
+                                    "y": {"from_parameter": "offset"},
+                                },
+                                "result": True,
+                            }
+                        }
+                    },
+                },
+                "result": True,
+            }
+        },
+        "parameters": [
+            {"name": "data", "schema": {"type": "object", "subtype": "datacube"}},
+            {"name": "offset", "schema": {"type": "number"}},
+        ],
+    }
+    requests_mock.get(udp_url, json=udp_spec)
+
+    pg = {
+        "loadcollection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "applymath1": {
+            "process_id": "apply_math",
+            "namespace": udp_url,
+            "arguments": {"data": {"from_node": "loadcollection1"}, "offset": 1000},
+            "result": True,
+        },
+    }
+    api.check_result(pg)
+
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
+    assert dummy.apply.call_count == 1
+    callback = dummy.apply.call_args.kwargs["process"]
+    assert callback == {
+        "add1": {
+            "process_id": "add",
+            "arguments": {"x": {"from_parameter": "x"}, "y": 1000},
+            "result": True,
+        }
+    }
+
+
 def test_execute_no_cube_1_plus_2(api):
     # Calculator as a service!
     res = api.result({
