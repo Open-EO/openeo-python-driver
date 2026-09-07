@@ -46,7 +46,6 @@ from openeo_driver.processgraph.evaluator import (
     _end_node_ids,
     evaluate,
     convert_node,
-    resolve_child_parameters,
     apply_process,
     _evaluate_process_graph_process,
     evaluate_udp,
