@@ -26,10 +26,23 @@
         },
         {
             "name": "model",
-            "description": "A url to an onnx model.",
-            "schema": {
-                "type": "string"
-            }
+            "description": "A url to an onnx model or a STAC of the model as string.",
+            "schema": [
+                {
+                    "description": "URL to ONNX model",
+                    "type": "string",
+                    "format": "uri",
+                    "subtype": "uri",
+                    "pattern": "^https?://"
+                },
+                {
+                    "description": "Absolute URL to a STAC describing the ONNX model, using the STAC ML extension: https://github.com/stac-extensions/mlm",
+                    "type": "string",
+                    "format": "uri",
+                    "subtype": "uri",
+                    "pattern": "^https?://"
+                }
+            ]
         }
     ],
     "returns": {
