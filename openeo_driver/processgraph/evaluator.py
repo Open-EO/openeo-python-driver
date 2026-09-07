@@ -8,7 +8,7 @@ import copy
 import dataclasses
 import functools
 import logging
-from typing import List, Optional, Union
+from typing import Container, List, Optional, Union
 
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 
@@ -243,6 +243,34 @@ def convert_node(processGraph: Union[dict, list], *, env: EvalEnv):
     elif isinstance(processGraph, list):
         return [convert_node(x, env=env) for x in processGraph]
     return processGraph
+
+
+def resolve_child_parameters(value, *, env: EvalEnv, exclude: Container[str] = ()):
+    """
+    Partially resolve "from_parameter" references in a not-yet-evaluated child process graph
+    (e.g. the "process" callback argument of ``apply``), substituting the ones that are already
+    bound in the current evaluation environment
+    (e.g. parameters of an enclosing user-defined process, see https://github.com/Open-EO/openeo-geopyspark-driver/issues/1739).
+
+    The callback's own parameters (e.g. "x", "context" for ``apply``) should be listed in ``exclude``,
+    so they are left untouched and can be resolved later while evaluating the callback itself
+    (e.g. per pixel/value in the actual processing engine).
+
+    :param value: (nested) process graph node data (dict/list) to resolve "from_parameter" references in
+    :param env: evaluation environment to take already bound parameters from
+    :param exclude: parameter names that should not be resolved here (e.g. the callback's own parameters)
+    """
+    if isinstance(value, dict):
+        if set(value.keys()) == {"from_parameter"} and value["from_parameter"] not in exclude:
+            parameters = env.collect_parameters()
+            name = value["from_parameter"]
+            if name in parameters:
+                return parameters[name]
+            return value
+        return {k: resolve_child_parameters(v, env=env, exclude=exclude) for k, v in value.items()}
+    elif isinstance(value, list):
+        return [resolve_child_parameters(v, env=env, exclude=exclude) for v in value]
+    return value
 
 
 def flatten_children_node_types(process_graph: Union[dict, list]):

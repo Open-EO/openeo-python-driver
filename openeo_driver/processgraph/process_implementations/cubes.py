@@ -20,6 +20,7 @@ from openeo_driver.errors import (
     ProcessParameterInvalidException,
 )
 from openeo_driver.processes import ProcessArgs
+from openeo_driver.processgraph.evaluator import resolve_child_parameters
 from openeo_driver.processgraph.registry import (
     ENV_DRY_RUN_TRACER,
     process,
@@ -103,6 +104,11 @@ def _contains_only_polygons(geojson: dict) -> bool:
 def apply(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube = args.get_required("data", expected_type=DriverDataCube)
     apply_pg = args.get_deep("process", "process_graph", expected_type=dict)
+    # Substitute parameters already bound in the current environment (e.g. from an enclosing
+    # user-defined process), leaving the callback's own "x"/"context" parameters untouched
+    # (those get resolved later while evaluating the callback itself).
+    # See https://github.com/Open-EO/openeo-geopyspark-driver/issues/1739
+    apply_pg = resolve_child_parameters(apply_pg, env=env, exclude={"x", "context"})
     context = args.get_optional("context", default=None)
     return data_cube.apply(process=apply_pg, context=context, env=env)
 
