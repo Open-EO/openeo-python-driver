@@ -3089,12 +3089,18 @@ def test_evaluate_process_from_url(api, requests_mock, namespace, url_mocks, exp
         assert params["spatial_extent"] == {"west": 5.05, "south": 51.2, "east": 5.1, "north": 51.23, "crs": 'EPSG:4326'}
 
 
-def _apply_math_udp_spec(process_id: str, own_callback_param: str, extra_arguments: Optional[dict] = None) -> dict:
+def _apply_math_udp_spec(
+    process_id: str, own_callback_param: str, extra_arguments: Optional[dict] = None, offset_default=None
+) -> dict:
     """
     Build a UDP spec that wraps the given callback-taking process (`apply`, `apply_dimension`, ...)
     with a callback that adds a UDP parameter ("offset") to the callback's own per-value/per-chunk
     parameter (`own_callback_param`, e.g. "x" or "data").
     """
+    offset_schema: dict = {"name": "offset", "schema": {"type": "number"}}
+    if offset_default is not None:
+        offset_schema["default"] = offset_default
+        offset_schema["optional"] = True
     return {
         "id": "apply_math",
         "process_graph": {
@@ -3121,7 +3127,7 @@ def _apply_math_udp_spec(process_id: str, own_callback_param: str, extra_argumen
         },
         "parameters": [
             {"name": "data", "schema": {"type": "object", "subtype": "datacube"}},
-            {"name": "offset", "schema": {"type": "number"}},
+            offset_schema,
         ],
     }
 
@@ -3179,6 +3185,39 @@ def test_apply_udp_parameterized_math(api, requests_mock, process_id, own_callba
         "add1": {
             "process_id": "add",
             "arguments": {"x": {"from_parameter": own_callback_param}, "y": 1000},
+            "result": True,
+        }
+    }
+
+
+def test_apply_udp_parameterized_math_default_parameter(api, requests_mock):
+    """
+    Like `test_apply_udp_parameterized_math`, but the UDP's "offset" parameter is not explicitly
+    passed by the caller: its declared default value should still be resolved into the callback.
+
+    https://github.com/Open-EO/openeo-geopyspark-driver/issues/1739
+    """
+    udp_url = "https://share.test/apply_math.json"
+    requests_mock.get(udp_url, json=_apply_math_udp_spec("apply", "x", offset_default=123))
+
+    pg = {
+        "loadcollection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "applymath1": {
+            "process_id": "apply_math",
+            "namespace": udp_url,
+            "arguments": {"data": {"from_node": "loadcollection1"}},
+            "result": True,
+        },
+    }
+    api.check_result(pg)
+
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
+    assert dummy.apply.call_count == 1
+    callback = dummy.apply.call_args.kwargs["process"]
+    assert callback == {
+        "add1": {
+            "process_id": "add",
+            "arguments": {"x": {"from_parameter": "x"}, "y": 123},
             "result": True,
         }
     }
