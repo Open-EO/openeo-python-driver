@@ -28,7 +28,7 @@ and start a new "In Progress" section above it.
 - Add caching to `BoundingBox` CRS handling and reprojection for performance optimization of bounding box merging in post-dry-run of openeo-geopyspark-driver ([Open-EO/openeo-geopyspark-driver#1685](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1685))
 - Add cache class `BoundedTtlCache` to replace `TtlCache` ([#509](https://github.com/Open-EO/openeo-python-driver/pull/509))
 - Allow `feature_id_property` to add an extra column to CSV output. ([#524](https://github.com/Open-EO/openeo-python-driver/issues/524))
-- Fix `apply` process not resolving parameters from an enclosing user-defined process (e.g. parameterized offset/threshold math) inside its callback ([Open-EO/openeo-geopyspark-driver#1739](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1739))
+- Fix `apply`/`apply_dimension`/`apply_neighborhood`/`apply_polygon`/`chunk_polygon` not resolving parameters from an enclosing user-defined process (e.g. parameterized offset/threshold math) inside their callback ([Open-EO/openeo-geopyspark-driver#1739](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1739))
 
 ## 0.139.0
 

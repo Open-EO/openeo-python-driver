@@ -104,10 +104,6 @@ def _contains_only_polygons(geojson: dict) -> bool:
 def apply(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube = args.get_required("data", expected_type=DriverDataCube)
     apply_pg = args.get_deep("process", "process_graph", expected_type=dict)
-    # Substitute parameters already bound in the current environment (e.g. from an enclosing
-    # user-defined process), leaving the callback's own "x"/"context" parameters untouched
-    # (those get resolved later while evaluating the callback itself).
-    # See https://github.com/Open-EO/openeo-geopyspark-driver/issues/1739
     apply_pg = resolve_child_parameters(apply_pg, env=env, exclude={"x", "context"})
     context = args.get_optional("context", default=None)
     return data_cube.apply(process=apply_pg, context=context, env=env)
@@ -117,7 +113,7 @@ def apply(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def apply_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube = args.get_required("data", expected_type=(DriverDataCube, DriverVectorCube))
     process_pg = args.get_deep("process", "process_graph", expected_type=dict)
-    process_pg = resolve_child_parameters(process_pg, env=env, exclude={"x", "context"})
+    process_pg = resolve_child_parameters(process_pg, env=env, exclude={"data", "context"})
     dimension = args.get_required(
         "dimension", expected_type=str, validator=ProcessArgs.validator_one_of(data_cube.get_dimension_names())
     )
@@ -136,7 +132,7 @@ def apply_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def apply_neighborhood(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube = args.get_required("data", expected_type=DriverDataCube)
     process_pg = args.get_deep("process", "process_graph", expected_type=dict)
-    process_pg = resolve_child_parameters(process_pg, env=env, exclude={"x", "context"})
+    process_pg = resolve_child_parameters(process_pg, env=env, exclude={"data", "context"})
     size = args.get_required("size")
     overlap = args.get_optional("overlap")
     context = args.get_optional("context", default=None)
@@ -148,7 +144,7 @@ def apply_neighborhood(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def apply_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube = args.get_required("data", expected_type=DriverDataCube)
     process_pg = args.get_deep("process", "process_graph", expected_type=dict)
-    process_pg = resolve_child_parameters(process_pg, env=env, exclude={"x", "context"})
+    process_pg = resolve_child_parameters(process_pg, env=env, exclude={"data", "context"})
     if "polygons" in args and "geometries" not in args:
         _log.warning(
             "DEPRECATED: In process 'apply_polygon': parameter 'polygons' is deprecated, use 'geometries' instead."
@@ -195,7 +191,7 @@ def apply_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def chunk_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube = args.get_required("data", expected_type=DriverDataCube)
     reduce_pg = args.get_deep("process", "process_graph", expected_type=dict)
-    reduce_pg = resolve_child_parameters(reduce_pg, env=env, exclude={"x", "context"})
+    reduce_pg = resolve_child_parameters(reduce_pg, env=env, exclude={"data", "context"})
     chunks = args.get_required("chunks")
     mask_value = args.get_optional("mask_value", expected_type=(int, float), default=None)
     context = args.get_optional("context", default=None)
