@@ -27,9 +27,10 @@ import xarray
 
 from openeo.metadata import CollectionMetadata
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube, DriverMlModel
-from openeo_driver.datastructs import StacAsset
+from openeo_driver.datastructs import StacAsset, SaveResultHints
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, FeatureUnsupportedException, InternalException
+from openeo_driver.util.compat import filter_supported_kwargs
 from openeo_driver.util.ioformats import IOFORMATS
 from openeo_driver.utils import replace_nan_values
 from openeo_driver.workspacerepository import WorkspaceRepository
@@ -161,7 +162,6 @@ def get_temp_file(suffix="", prefix="openeo-pydrvr-"):
     _, filename = tempfile.mkstemp(suffix=suffix, prefix=prefix)
     return filename
 
-
 class RasterCubeResult(SaveResult):
 
     DEFAULT_FORMAT = "GTiff"
@@ -193,9 +193,17 @@ class RasterCubeResult(SaveResult):
 
         :return: STAC assets dictionary: https://github.com/radiantearth/stac-spec/blob/master/item-spec/item-spec.md#assets
         """
+        # TODO: eliminate geopyspark-driver specific hasattr sniffing and make this a proper interface in some way
         if hasattr(self.cube, "write_assets"):
-            # TODO: code smell: filename=directory?
-            return self.cube.write_assets(filename=directory, format=self.format, format_options=self.options)
+            return self.cube.write_assets(
+                # TODO: code smell: filename=directory?
+                filename=directory,
+                format=self.format,
+                format_options=self.options,
+                **filter_supported_kwargs(
+                    callable=self.cube.write_assets, save_result_hints=SaveResultHints(node_id=self._pg_node_id)
+                ),
+            )
         else:
             filename = self.cube.save_result(filename=directory, format=self.format, format_options=self.options)
             return {filename:{"href":filename}}
@@ -233,7 +241,12 @@ class VectorCubeResult(SaveResult):
         self.cube = cube
 
     def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
-        return self.cube.write_assets(directory=directory, format=self.format, options=self.options)
+        return self.cube.write_assets(
+            directory=directory,
+            format=self.format,
+            options=self.options,
+            save_result_hints=SaveResultHints(node_id=self._pg_node_id),
+        )
 
     def create_flask_response(self) -> Response:
         with tempfile.TemporaryDirectory(prefix="openeo-pydrvr-") as tmp_dir:
@@ -262,7 +275,12 @@ class MlModelResult(SaveResult):
         self.ml_model = ml_model
 
     def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
-        return self.ml_model.write_assets(directory=directory)
+        return self.ml_model.write_assets(
+            directory=directory,
+            **filter_supported_kwargs(
+                callable=self.ml_model.write_assets, save_result_hints=SaveResultHints(node_id=self._pg_node_id)
+            ),
+        )
 
     def get_model_metadata(self, directory: Union[str, Path]) -> Dict[str, typing.Any]:
         return self.ml_model.get_model_metadata(directory=directory)

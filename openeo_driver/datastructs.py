@@ -1,3 +1,5 @@
+import dataclasses
+
 from typing import List, NamedTuple, Optional, Union
 
 
@@ -61,3 +63,15 @@ def secretive_repr(*, hide_patterns: Optional[List[str]] = None):
         return f"{self.__class__.__name__}({', '.join(fields)})"
 
     return __repr__
+
+
+@dataclasses.dataclass(frozen=True)
+class SaveResultHints:
+    """
+    Internal save_result related information that can be used to guide how assets are stored (e.g. file names, ...)
+    """
+
+    # original node id in the process graph
+    node_id: Optional[str] = None
+
+    # TODO: add simple (per process graph) auto-increment id too (as simple/compact alternative for node_id, which is client-specific)

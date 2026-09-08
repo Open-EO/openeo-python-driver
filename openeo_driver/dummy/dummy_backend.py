@@ -52,7 +52,7 @@ from openeo_driver.backend import (
 )
 from openeo_driver.config import OpenEoBackendConfig
 from openeo_driver.constants import JOB_STATUS, STAC_EXTENSION, DEFAULT_LOG_LEVEL_RETRIEVAL
-from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCube
+from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCube, SaveResultHints
 from openeo_driver.datastructs import StacAsset
 from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import SourceConstraint
@@ -398,8 +398,10 @@ class DummyMlModel(DriverMlModel):
     def __init__(self, **kwargs):
         self.creation_data = kwargs
 
-    def write_assets(self, directory: Union[str, Path], options: Optional[dict] = None) -> Dict[str, StacAsset]:
-        path = (Path(directory) / "mlmodel.json")
+    def write_assets(
+        self, directory: Union[str, Path], *, save_result_hints: Optional[SaveResultHints] = None
+    ) -> Dict[str, StacAsset]:
+        path = Path(directory) / "mlmodel.json"
         with path.open("w") as f:
             json.dump({"type": type(self).__name__, "creation_data": self.creation_data}, f)
         return {path.name: {"href": str(path), "path": str(path)}}

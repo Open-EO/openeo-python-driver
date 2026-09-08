@@ -23,7 +23,7 @@ from openeo.util import str_truncate
 from pyproj import CRS
 
 from openeo_driver.constants import RESAMPLE_SPATIAL_ALIGN_DEFAULT
-from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs, StacAsset
+from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs, StacAsset, SaveResultHints
 from openeo_driver.errors import FeatureUnsupportedException, InternalException, ProcessGraphInvalidException, \
     OpenEOApiException, ProcessParameterInvalidException
 from openeo_driver.util.geometry import GeometryBufferer, reproject_geometry, validate_geojson_coordinates
@@ -636,7 +636,12 @@ class DriverVectorCube:
             return crs.to_proj4()
 
     def write_assets(
-            self, directory: Union[str, Path], format: str, options: Optional[dict] = None
+        self,
+        directory: Union[str, Path],
+        *,
+        format: str,
+        options: Optional[dict] = None,
+        save_result_hints: Optional[SaveResultHints] = None,
     ) -> Dict[str, StacAsset]:
         if options is None:
             options = {}
@@ -932,5 +937,7 @@ class DriverMlModel:
     def get_model_metadata(self, directory: Union[str, Path]) -> Dict[str, Any]:
         raise NotImplementedError
 
-    def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
+    def write_assets(
+        self, directory: Union[str, Path], *, save_result_hints: Optional[SaveResultHints] = None
+    ) -> Dict[str, StacAsset]:
         raise NotImplementedError
