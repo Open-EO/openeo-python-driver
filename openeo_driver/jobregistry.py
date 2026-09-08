@@ -199,9 +199,6 @@ def ejr_job_info_to_metadata(job_info: JobDict, full: bool = True) -> BatchJobMe
         return f(value) if value else None
 
     def get_results_metadata(result_metadata_prop: str):
-        # Note: `results_metadata` can be explicitly `None` (not just absent) when result metadata
-        # is stored externally instead (see `results_metadata_uri`), so `.get(..., {})` alone is not
-        # enough to avoid `NoneType has no attribute 'get'`.
         return (job_info.get("results_metadata") or {}).get(result_metadata_prop)
 
     def map_results_metadata_safe(result_metadata_prop: str, f):
