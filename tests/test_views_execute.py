@@ -3089,6 +3089,188 @@ def test_evaluate_process_from_url(api, requests_mock, namespace, url_mocks, exp
         assert params["spatial_extent"] == {"west": 5.05, "south": 51.2, "east": 5.1, "north": 51.23, "crs": 'EPSG:4326'}
 
 
+def _apply_math_udp_spec(
+    process_id: str, own_callback_param: str, extra_arguments: Optional[dict] = None, offset_default=None
+) -> dict:
+    """
+    Build a UDP spec that wraps the given callback-taking process (`apply`, `apply_dimension`, ...)
+    with a callback that adds a UDP parameter ("offset") to the callback's own per-value/per-chunk
+    parameter (`own_callback_param`, e.g. "x" or "data").
+    """
+    offset_schema: dict = {"name": "offset", "schema": {"type": "number"}}
+    if offset_default is not None:
+        offset_schema["default"] = offset_default
+        offset_schema["optional"] = True
+    return {
+        "id": "apply_math",
+        "process_graph": {
+            "apply1": {
+                "process_id": process_id,
+                "arguments": {
+                    "data": {"from_parameter": "data"},
+                    "process": {
+                        "process_graph": {
+                            "add1": {
+                                "process_id": "add",
+                                "arguments": {
+                                    "x": {"from_parameter": own_callback_param},
+                                    "y": {"from_parameter": "offset"},
+                                },
+                                "result": True,
+                            }
+                        }
+                    },
+                    **(extra_arguments or {}),
+                },
+                "result": True,
+            }
+        },
+        "parameters": [
+            {"name": "data", "schema": {"type": "object", "subtype": "datacube"}},
+            offset_schema,
+        ],
+    }
+
+
+@pytest.mark.parametrize(
+    ["process_id", "own_callback_param", "extra_arguments"],
+    [
+        pytest.param("apply", "x", {}, id="apply"),
+        pytest.param("apply_dimension", "data", {"dimension": "t"}, id="apply_dimension"),
+        pytest.param(
+            "apply_neighborhood",
+            "data",
+            {
+                "size": [
+                    {"dimension": "x", "unit": "px", "value": 128},
+                    {"dimension": "y", "unit": "px", "value": 128},
+                ]
+            },
+            id="apply_neighborhood",
+        ),
+    ],
+)
+def test_apply_udp_parameterized_math(api, requests_mock, process_id, own_callback_param, extra_arguments):
+    """
+    A user-defined process (UDP) that wraps `apply`/`apply_dimension`/`apply_neighborhood` with a callback
+    referencing a UDP parameter (e.g. an "offset" to add) should have that parameter resolved with its
+    actual bound value, while the callback's own per-value parameter (e.g. "x" or "data") and "context"
+    must remain untouched (to be resolved later, e.g. per pixel/value, by the actual processing engine).
+
+    Note that the callback's own parameter name ("data" for `apply_dimension`/`apply_neighborhood`)
+    happens to collide with the outer UDP's "data" parameter (the data cube):
+    only the inner, not-yet-bound one should be left untouched.
+
+    https://github.com/Open-EO/openeo-geopyspark-driver/issues/1739
+    """
+    udp_url = "https://share.test/apply_math.json"
+    requests_mock.get(udp_url, json=_apply_math_udp_spec(process_id, own_callback_param, extra_arguments))
+
+    pg = {
+        "loadcollection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "applymath1": {
+            "process_id": "apply_math",
+            "namespace": udp_url,
+            "arguments": {"data": {"from_node": "loadcollection1"}, "offset": 1000},
+            "result": True,
+        },
+    }
+    api.check_result(pg)
+
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
+    cube_method = getattr(dummy, process_id)
+    assert cube_method.call_count == 1
+    callback = cube_method.call_args.kwargs["process"]
+    assert callback == {
+        "add1": {
+            "process_id": "add",
+            "arguments": {"x": {"from_parameter": own_callback_param}, "y": 1000},
+            "result": True,
+        }
+    }
+
+
+def test_apply_udp_parameterized_math_default_parameter(api, requests_mock):
+    """
+    Like `test_apply_udp_parameterized_math`, but the UDP's "offset" parameter is not explicitly
+    passed by the caller: its declared default value should still be resolved into the callback.
+
+    https://github.com/Open-EO/openeo-geopyspark-driver/issues/1739
+    """
+    udp_url = "https://share.test/apply_math.json"
+    requests_mock.get(udp_url, json=_apply_math_udp_spec("apply", "x", offset_default=123))
+
+    pg = {
+        "loadcollection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "applymath1": {
+            "process_id": "apply_math",
+            "namespace": udp_url,
+            "arguments": {"data": {"from_node": "loadcollection1"}},
+            "result": True,
+        },
+    }
+    api.check_result(pg)
+
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
+    assert dummy.apply.call_count == 1
+    callback = dummy.apply.call_args.kwargs["process"]
+    assert callback == {
+        "add1": {
+            "process_id": "add",
+            "arguments": {"x": {"from_parameter": "x"}, "y": 123},
+            "result": True,
+        }
+    }
+
+
+@pytest.mark.parametrize(
+    ["process_id", "geometry_argument", "cube_method_name"],
+    [
+        pytest.param("apply_polygon", "geometries", "apply_polygon", id="apply_polygon"),
+        pytest.param("chunk_polygon", "chunks", "chunk_polygon", id="chunk_polygon"),
+    ],
+)
+def test_apply_polygon_udp_parameterized_math(api, requests_mock, process_id, geometry_argument, cube_method_name):
+    """
+    Like `test_apply_udp_parameterized_math`, but for the polygon-based callback processes
+    `apply_polygon`/`chunk_polygon`, which additionally require a geometry argument
+    (split off from the other parametrized cases because of that extra setup).
+
+    https://github.com/Open-EO/openeo-geopyspark-driver/issues/1739
+    """
+    udp_url = "https://share.test/apply_math.json"
+    if process_id == "chunk_polygon" and api.api_version_compare.at_least("1.1.0"):
+        pytest.skip("chunk_polygon is only registered for API version 1.0")
+    geometries = {
+        "type": "Polygon",
+        "coordinates": [[[1, 5], [2, 5], [2, 6], [1, 6], [1, 5]]],
+    }
+    requests_mock.get(udp_url, json=_apply_math_udp_spec(process_id, "data", {geometry_argument: geometries}))
+
+    pg = {
+        "loadcollection1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "applymath1": {
+            "process_id": "apply_math",
+            "namespace": udp_url,
+            "arguments": {"data": {"from_node": "loadcollection1"}, "offset": 1000},
+            "result": True,
+        },
+    }
+    api.check_result(pg)
+
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
+    cube_method = getattr(dummy, cube_method_name)
+    assert cube_method.call_count == 1
+    callback = cube_method.call_args.kwargs["process" if process_id == "apply_polygon" else "reducer"]
+    assert callback == {
+        "add1": {
+            "process_id": "add",
+            "arguments": {"x": {"from_parameter": "data"}, "y": 1000},
+            "result": True,
+        }
+    }
+
+
 def test_execute_no_cube_1_plus_2(api):
     # Calculator as a service!
     res = api.result({

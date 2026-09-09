@@ -80,7 +80,6 @@ from openeo_driver.utils import EvalEnv, to_hashable
 
 _log = logging.getLogger(__name__)
 
-
 @dataclass
 class PropagationRule:
     """
