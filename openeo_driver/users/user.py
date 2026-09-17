@@ -9,6 +9,7 @@ class User:
     def __init__(
         self,
         user_id: str,
+        *,
         info: Optional[dict] = None,
         internal_auth_data: Optional[dict] = None,
     ):

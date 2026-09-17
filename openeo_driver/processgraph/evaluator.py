@@ -11,6 +11,7 @@ import logging
 from typing import Container, List, Optional, Union
 
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+from openeo_driver.users import User
 
 try:
     from openeo.internal.process_graph_visitor import ORIG_NODE_ID_KEY
@@ -97,7 +98,9 @@ def _end_node_ids(process_graph: dict) -> set:
 def evaluate(
     process_graph: dict,
     env: EvalEnv,
+    *,
     do_dry_run: Union[bool, DryRunDataTracer] = True,
+    legacy_save_result_handling: bool = True,
 ):
     """
     Converts the json representation of a (part of a) process graph into the corresponding Python data cube.
@@ -145,7 +148,12 @@ def evaluate(
                 env = env.push(post_dry_run_data)
 
     result = convert_node(top_level_node, env=env)
-    if len(env[ENV_SAVE_RESULT]) > 0:
+
+    if legacy_save_result_handling and len(env[ENV_SAVE_RESULT]) > 0:
+        # TODO: This code path (returning `save_result` outcomes instead of actual result)
+        #       should be eliminated from the core `evaluate` logic (or at least not be the default).
+        #       Wrong assumption: the result of process graph evaluation is not necessarily
+        #       a `save_result` result. E.g.: sub-evaluation of UDPs  in same EvalEnv context.
         if len(env[ENV_SAVE_RESULT]) == 1:
             return env[ENV_SAVE_RESULT][0]
         else:
@@ -396,7 +404,7 @@ def apply_process(
 
     if namespace in ["user", None]:
         user = env.get("user")
-        if user:
+        if user and isinstance(user, User):
             udp = env.backend_implementation.user_defined_processes.get(user_id=user.user_id, process_id=process_id)
             if udp:
                 if namespace is None:
@@ -427,7 +435,7 @@ def _evaluate_process_graph_process(
     env = env.push_parameters(args)
 
     process_graph = copy.deepcopy(process_graph)
-    return evaluate(process_graph, env=env, do_dry_run=False)
+    return evaluate(process_graph, env=env, do_dry_run=False, legacy_save_result_handling=False)
 
 
 def evaluate_udp(process_id: str, udp: UserDefinedProcessMetadata, args: dict, env: EvalEnv):

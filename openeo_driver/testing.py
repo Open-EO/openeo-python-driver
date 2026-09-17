@@ -37,6 +37,7 @@ from openeo_driver.utils import generate_unique_id
 
 _log = logging.getLogger(__name__)
 
+# TODO: better encapsulation of this test user stuff
 TEST_USER = "Mr.Test"
 TEST_USER_BEARER_TOKEN = "basic//" + HttpAuthHandler.build_basic_access_token(user_id=TEST_USER)
 TEST_USER_AUTH_HEADER = {
