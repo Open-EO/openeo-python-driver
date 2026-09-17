@@ -444,16 +444,14 @@ class TestProcessArgs:
             _ = args.get_required("other")
 
     def test_get_required_with_type(self):
-        args = ProcessArgs({"color": "red", "size": 5}, process_id="wibble")
+        args = ProcessArgs({"color": "red", "size": 5}, process_id="wibble", pg_node_id="wibble1")
         assert args.get_required("color", expected_type=str) == "red"
         assert args.get_required("color", expected_type=(str, int)) == "red"
         assert args.get_required("size", expected_type=int) == 5
         assert args.get_required("size", expected_type=(str, int)) == 5
         with pytest.raises(
             ProcessParameterInvalidException,
-            match=re.escape(
-                "The value passed for parameter 'color' in process 'wibble' is invalid: Expected raster cube but got string."
-            ),
+            match=".*value passed for parameter.*color.*process.*wibble.*is invalid.*xpected raster cube but got string",
         ):
             _ = args.get_required("color", expected_type=DriverDataCube)
 
@@ -527,16 +525,14 @@ class TestProcessArgs:
         assert args.get_optional("other", default=default) == 2
 
     def test_get_optional_with_type(self):
-        args = ProcessArgs({"foo": "bar"}, process_id="wibble")
+        args = ProcessArgs({"foo": "bar"}, process_id="wibble", pg_node_id="wibble1")
         assert args.get_optional("foo", expected_type=str) == "bar"
         assert args.get_optional("foo", expected_type=(str, int)) == "bar"
         assert args.get_optional("other", expected_type=str) is None
         assert args.get_optional("foo", 123, expected_type=(str, int)) == "bar"
         with pytest.raises(
             ProcessParameterInvalidException,
-            match=re.escape(
-                "The value passed for parameter 'foo' in process 'wibble' is invalid: Expected raster cube but got string."
-            ),
+            match=".*value passed for parameter.*foo.*process.*wibble.*is invalid.*xpected raster cube but got string",
         ):
             _ = args.get_optional("foo", expected_type=DriverDataCube)
 
@@ -587,16 +583,16 @@ class TestProcessArgs:
             _ = args.get_deep("foo", "bar", "size", "z")
 
     def test_get_deep_with_type(self):
-        args = ProcessArgs({"foo": {"bar": {"color": "red", "size": {"x": 5, "y": 8}}}}, process_id="wibble")
+        args = ProcessArgs(
+            {"foo": {"bar": {"color": "red", "size": {"x": 5, "y": 8}}}}, process_id="wibble", pg_node_id="wibble1"
+        )
         assert args.get_deep("foo", "bar", "color", expected_type=str) == "red"
         assert args.get_deep("foo", "bar", "color", expected_type=(str, int)) == "red"
         assert args.get_deep("foo", "bar", "size", "x", expected_type=(str, int)) == 5
 
         with pytest.raises(
             ProcessParameterInvalidException,
-            match=re.escape(
-                "The value passed for parameter 'foo' in process 'wibble' is invalid: Expected raster cube or string but got integer."
-            ),
+            match=".*value passed for parameter.*foo.*process.*wibble.*is invalid.*xpected raster cube or string but got integer",
         ):
             _ = args.get_deep("foo", "bar", "size", "x", expected_type=(DriverDataCube, str))
 

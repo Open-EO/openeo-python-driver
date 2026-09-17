@@ -369,7 +369,7 @@ def apply_process(
     else:
         args = {name: convert_node(expr, env=env) for (name, expr) in sorted(args.items())}
 
-    _log.debug(f"apply_process {process_id=}")
+    _log.debug(f"apply_process {process_id=} {namespace=}")
 
     if is_http_url(namespace):
         if namespace.startswith("http://"):
@@ -442,13 +442,18 @@ def evaluate_process_from_url(process_id: str, namespace: str, args: dict, env: 
     """
     process_definition: ProcessDefinition = get_process_definition_from_url(process_id=process_id, url=namespace)
 
-    return _evaluate_process_graph_process(
-        process_id=process_id,
-        process_graph=process_definition.process_graph,
-        parameters=process_definition.parameters,
-        args=args,
-        env=env,
-    )
+    try:
+        return _evaluate_process_graph_process(
+            process_id=process_id,
+            process_graph=process_definition.process_graph,
+            parameters=process_definition.parameters,
+            args=args,
+            env=env,
+        )
+    except Exception as e:
+        raise OpenEOApiException(
+            code="RemoteProcessFailure", message=f"Failed to evaluate {process_id=} from {namespace=}: {e!r}"
+        ) from e
 
 
 # The `collect` process is registered as a hidden process in SimpleProcessing.
