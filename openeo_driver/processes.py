@@ -493,7 +493,7 @@ class ProcessArgs(dict):
                 raise ProcessParameterInvalidException(
                     parameter=name,
                     process=self.process_id,
-                    reason=f"Expected {expected_type_name} but got {actual_type_name}.",
+                    reason=f"Expected {expected_type_name} but got {actual_type_name} (node id {self.pg_node_id!r}).",
                 )
         if validator:
             reason = None

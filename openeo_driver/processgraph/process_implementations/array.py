@@ -63,7 +63,11 @@ def array_apply(args: ProcessArgs, env: EvalEnv):
     from openeo_driver.processgraph.evaluator import evaluate
 
     result = [
-        evaluate(p.get("process_graph"), env.push_parameters(dict(context=c, x=d, index=index)))
+        evaluate(
+            p.get("process_graph"),
+            env=env.push_parameters(dict(context=c, x=d, index=index)),
+            legacy_save_result_handling=False,
+        )
         for index, d in enumerate(data)
     ]
     return result

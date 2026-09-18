@@ -1801,7 +1801,7 @@ def test_run_udf_on_aggregate_spatial(api, udf_code):
             CURRENT_PY3x,
             (
                 "ProcessParameterInvalid",
-                "The value passed for parameter 'runtime' in process 'run_udf' is invalid: Expected string but got null/None.",
+                "The value passed for parameter 'runtime' in process 'run_udf' is invalid: Expected string but got null/None (node id 'udf').",
             ),
         ),
     ],
