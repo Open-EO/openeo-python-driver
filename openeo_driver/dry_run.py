@@ -991,6 +991,9 @@ class DryRunDataCube(DriverDataCube):
     def predict_onnx(self, model):
         return self._process("predict_onnx", arguments={"model": model})
 
+    def reduce_spatial(self, reducer: dict):
+        return self._process("reduce_spatial", {})
+
     # TODO: some methods need metadata manipulation?
 
     apply_tiles = _nop
