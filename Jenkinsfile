@@ -24,4 +24,7 @@ pythonPipeline {
   pre_test_script = 'pre_test.sh'
   enable_uv = true
   enable_caching = true
+  wheel_repo_sas = 'openeo-pypi-local'
+  wheel_repo_dev_sas = 'openeo-pypi-local'
+  artifactory_server = ['sas', 'rss']
 }
