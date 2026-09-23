@@ -110,7 +110,7 @@ def evaluate(
     if "version" not in env:
         env = env.push({"version": OPENEO_API_VERSION_DEFAULT})
     if "openeo_api_version" not in env:
-        _log.warning(f"No 'openeo_api_version' in `evaluate()` env. Blindly assuming {OPENEO_API_VERSION_DEFAULT}.")
+        _log.info(f"No 'openeo_api_version' in `evaluate()` env. Blindly assuming {OPENEO_API_VERSION_DEFAULT}.")
         env = env.push({"openeo_api_version": OPENEO_API_VERSION_DEFAULT})
 
     collected_process_graph, top_level_node_id = _collect_end_nodes(process_graph)
