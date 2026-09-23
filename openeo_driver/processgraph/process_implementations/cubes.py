@@ -489,8 +489,8 @@ def aggregate_spatial_window(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def reduce_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     cube = args.get_required("data", expected_type=DriverDataCube)
     reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
-
-    return cube.reduce_spatial(reducer=reduce_pg)
+    context = args.get_optional("context", default=None)
+    return cube.reduce_spatial(reducer=reduce_pg, context=context, env=env)
 
 
 @process

@@ -133,6 +133,9 @@ class DriverDataCube:
     ) -> "DriverDataCube":
         self._not_implemented()
 
+    def reduce_spatial(self, reducer: dict, *, context: Optional[dict] = None, env: EvalEnv) -> "DriverDataCube":
+        self._not_implemented()
+
     def chunk_polygon(
         self,
         *,
@@ -267,8 +270,6 @@ class DriverDataCube:
     def corsa_decompress_v2(self, patch_size: int) -> "DriverDataCube":
         return self._not_implemented()
 
-    def reduce_spatial(self, reducer: dict):
-        self._not_implemented()
 
 class VectorCubeError(InternalException):
     code = "VectorCubeError"

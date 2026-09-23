@@ -717,6 +717,38 @@ def test_reduce_bands_invalid_dimension(api):
     )
 
 
+def test_reduce_spatial(api):
+    pg = {
+        "lc": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "rs": {
+            "process_id": "reduce_spatial",
+            "arguments": {
+                "data": {"from_node": "lc"},
+                "reducer": {
+                    "process_graph": {
+                        "mean": {
+                            "process_id": "mean",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        }
+                    }
+                },
+                "context": {"flavor": "strawberry"},
+            },
+            "result": True,
+        },
+    }
+    api.check_result(pg)
+    dummy = dummy_backend.get_collection("S2_FOOBAR")
+    dummy.reduce_spatial.assert_called_once()
+    assert dummy.reduce_spatial.call_args.kwargs == dirty_equals.IsPartialDict(
+        {
+            "reducer": {"mean": dirty_equals.IsPartialDict()},
+            "context": {"flavor": "strawberry"},
+        }
+    )
+
+
 def test_execute_mask(api):
     api.check_result("mask.json")
     assert dummy_backend.get_collection("ESA_WORLDCOVER_10M_2020_V1").mask.call_count == 1

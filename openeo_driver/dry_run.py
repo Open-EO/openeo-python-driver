@@ -608,14 +608,14 @@ class DryRunDataCube(DriverDataCube):
         self._traces = traces or []
         self._data_tracer = data_tracer
 
-    def _process(self, operation, arguments, metadata: CubeMetadata = None) -> "DryRunDataCube":
+    def _process(self, operation: str, arguments: dict, *, metadata: Optional[CubeMetadata] = None) -> "DryRunDataCube":
         """Helper to handle single-cube operations"""
         # New data cube with operation added to each trace
         traces = self._data_tracer.process_traces(traces=self._traces, operation=operation, arguments=arguments)
         # TODO: manipulate metadata properly?
         return DryRunDataCube(traces=traces, data_tracer=self._data_tracer, metadata=metadata or self.metadata)
 
-    def _process_metadata(self, metadata: CollectionMetadata) -> "DryRunDataCube":
+    def _process_metadata(self, metadata: CubeMetadata) -> "DryRunDataCube":
         """Just process metadata (leave traces as is)"""
         return DryRunDataCube(traces=self._traces, data_tracer=self._data_tracer, metadata=metadata)
 
@@ -826,6 +826,9 @@ class DryRunDataCube(DriverDataCube):
             "reduce_dimension", arguments={}
         )
 
+    def reduce_spatial(self, reducer: dict, *, context: Optional[dict] = None, env: EvalEnv) -> "DryRunDataCube":
+        return self._process("reduce_spatial", arguments={}, metadata=self.metadata.reduce_spatial())
+
     def ndvi(self, nir: str = "nir", red: str = "red", target_band: Optional[str] = None) -> "DryRunDataCube":
         if target_band is None and self.metadata.has_band_dimension():
             return self._process_metadata(
@@ -990,9 +993,6 @@ class DryRunDataCube(DriverDataCube):
 
     def predict_onnx(self, model):
         return self._process("predict_onnx", arguments={"model": model})
-
-    def reduce_spatial(self, reducer: dict):
-        return self._process("reduce_spatial", {})
 
     # TODO: some methods need metadata manipulation?
 
