@@ -195,7 +195,7 @@ def query_stac(args: ProcessArgs, env: EvalEnv) -> dict:
 
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
     if dry_run_tracer:
-        _log.warning("Dry run tracer not supported for query_stac")
+        _log.info("Dry run tracer not supported for query_stac")
         return {}
     else:
         return env.backend_implementation.query_stac(
