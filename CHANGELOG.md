@@ -23,6 +23,7 @@ and start a new "In Progress" section above it.
 
 - Extract openeo-geopyspark-driver oriented batch job result metadata handling from generic view layer and allow openeo-aggregator to inject an alternative implementation in context of "STAC 1.1" batch job result metadata style ([Open-EO/openeo-aggregator/204](https://github.com/Open-EO/openeo-aggregator/issues/204))
 - Fix `save_result` leaking when using UDP sub-evaluation ([#534](https://github.com/Open-EO/openeo-python-driver/issues/534))
+- Add initial support for `reduce_spatial` ([Open-EO/openeo-geopyspark-driver#1715](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1715))
 
 
 ## 0.140.0

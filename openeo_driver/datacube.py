@@ -133,6 +133,9 @@ class DriverDataCube:
     ) -> "DriverDataCube":
         self._not_implemented()
 
+    def reduce_spatial(self, reducer: dict, *, context: Optional[dict] = None, env: EvalEnv) -> "DriverDataCube":
+        self._not_implemented()
+
     def chunk_polygon(
         self,
         *,

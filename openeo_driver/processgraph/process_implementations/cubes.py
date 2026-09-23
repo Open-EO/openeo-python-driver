@@ -484,6 +484,15 @@ def aggregate_spatial_window(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     return cube.aggregate_spatial_window(reducer=reduce_pg, size=window_size, align=align, pad=pad, context=context)
 
 
+@process_registry_100.add_function(spec=read_spec("openeo-processes/2.x/proposals/reduce_spatial.json"))
+@process_registry_2xx.add_function(spec=read_spec("openeo-processes/2.x/proposals/reduce_spatial.json"))
+def reduce_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube = args.get_required("data", expected_type=DriverDataCube)
+    reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
+    context = args.get_optional("context", default=None)
+    return cube.reduce_spatial(reducer=reduce_pg, context=context, env=env)
+
+
 @process
 def run_udf(args: ProcessArgs, env: EvalEnv):
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
