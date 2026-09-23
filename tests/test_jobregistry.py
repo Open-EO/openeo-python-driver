@@ -815,6 +815,23 @@ class TestElasticJobRegistry:
                 },
             ),
             (
+                {"infra_id": "some-infra"},
+                {
+                    "query": {
+                        "bool": {
+                            "filter": [
+                                {"term": {"backend_id": "unittests"}},
+                                {"terms": {"status": ["created", "queued", "running"]}},
+                                {"term": {"infra_id": "some-infra"}},
+                            ],
+                        }
+                    },
+                    "_source": dirty_equals.IsList(
+                        "job_id", "user_id", "created", "status", "updated", check_order=False
+                    ),
+                },
+            ),
+            (
                 {"max_age": 14, "fields": ["created", "started"], "require_application_id": True},
                 {
                     "query": {
@@ -943,6 +960,26 @@ class TestElasticJobRegistry:
                 job_id="job-123",
                 status=JOB_STATUS.RUNNING,
                 finished="2022-12-14T10:00:00",
+            )
+        assert patch_job.call_count == 1
+
+    def test_set_status_with_infra_id(self, requests_mock, oidc_mock, ejr):
+        handler = self._handle_patch_jobs(
+            oidc_mock=oidc_mock,
+            expected_data=DictSubSet(
+                {
+                    "status": "running",
+                    "updated": "2022-12-14T12:34:56Z",
+                    "infra_id": "some-infra",
+                }
+            ),
+        )
+        patch_job = requests_mock.patch(f"{self.EJR_API_URL}/jobs/job-123", json=handler)
+        with time_machine.travel("2022-12-14T12:34:56Z"):
+            ejr.set_status(
+                job_id="job-123",
+                status=JOB_STATUS.RUNNING,
+                infra_id="some-infra",
             )
         assert patch_job.call_count == 1
 
