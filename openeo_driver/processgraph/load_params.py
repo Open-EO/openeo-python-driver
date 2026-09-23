@@ -169,7 +169,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: SourceId) -> LoadParameter
                             "crs": extent["crs"],
                         }
                     else:
-                        _log.warning("Not applying buffer to extent because the target CRS is not known.")
+                        _log.info("Not applying buffer to extent because the target CRS is not known.")
 
                 load_collection_in_native_grid = "resample" not in constraint or target_crs == collection_crs
                 if (
