@@ -177,7 +177,7 @@ class _ResultCachingMode:
 
         if node_caching is None:
             node_caching = "geopyspark-conservative"
-            cls._warn(f"No 'node_caching' specified in env. Using {node_caching!r}.")
+            _log.debug(f"No 'node_caching' specified in env. Using {node_caching!r}.")
         elif node_caching is True:
             node_caching = "geopyspark-conservative"
             cls._warn(f"Legacy 'node_caching' value True. Using {node_caching!r}.")
