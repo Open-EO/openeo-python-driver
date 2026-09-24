@@ -109,6 +109,7 @@ class JobRegistryInterface:
         updated: Optional[str] = None,
         started: Optional[str] = None,
         finished: Optional[str] = None,
+        infra_id: Optional[str] = None,
     ) -> None:
         raise NotImplementedError
 
@@ -177,6 +178,7 @@ class JobRegistryInterface:
         max_age: Optional[int] = None,
         max_updated_ago: Optional[int] = None,
         require_application_id: bool = False,
+        infra_id: Optional[str] = None,
     ) -> List[JobDict]:
         """
         List active jobs (created, queued, running)
@@ -185,6 +187,7 @@ class JobRegistryInterface:
         :param max_age: (optional) only return jobs created at most `max_age` days ago
         :param max_updated_ago: (optional) only return jobs `updated` at most `max_updated_ago` days ago
         :param require_application_id: whether to only return jobs with an application_id
+        :param infra_id: whether to only return jobs which ran on specific infra
         """
         # TODO: option for job metadata fields that should be included in result
         raise NotImplementedError
@@ -586,11 +589,14 @@ class ElasticJobRegistry(JobRegistryInterface):
         updated: Optional[str] = None,
         started: Optional[str] = None,
         finished: Optional[str] = None,
+        infra_id: Optional[str] = None,
     ) -> None:
         data = {
             "status": status,
             "updated": rfc3339.datetime(updated) if updated else rfc3339.now_utc(),
         }
+        if infra_id:
+            data["infra_id"] = infra_id
         if started:
             data["started"] = rfc3339.datetime(started)
         if finished:
@@ -738,6 +744,7 @@ class ElasticJobRegistry(JobRegistryInterface):
         max_age: Optional[int] = None,
         max_updated_ago: Optional[int] = None,
         require_application_id: bool = False,
+        infra_id: Optional[str] = None,
     ) -> List[JobDict]:
         active = [JOB_STATUS.CREATED, JOB_STATUS.QUEUED, JOB_STATUS.RUNNING]
         query = {
@@ -748,6 +755,8 @@ class ElasticJobRegistry(JobRegistryInterface):
                 ]
             },
         }
+        if infra_id:
+            query["bool"]["filter"].append({"term": {"infra_id": infra_id}})
         if max_age:
             query["bool"]["filter"].append({"range": {"created": {"gte": f"now-{max_age}d"}}})
         if max_updated_ago:
