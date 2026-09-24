@@ -327,6 +327,8 @@ def check_subgraph_for_data_mask_optimization(args: dict) -> bool:
         "filter_temporal",
         "load_collection",
         "resample_spatial",
+        "rename_labels",
+        "apply",
     }
 
     children_node_types = flatten_children_node_types(args["data"])
