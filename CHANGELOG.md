@@ -19,7 +19,14 @@ and start a new "In Progress" section above it.
 
 <!-- start-of-changelog -->
 
-## In progress: 0.141.0
+
+
+## In progress: 0.142.0
+
+- Require at least Python 3.9 (drop support for Python 3.8, [#370](https://github.com/Open-EO/openeo-python-driver/issues/370))
+
+
+## 0.141.0
 
 - Extract openeo-geopyspark-driver oriented batch job result metadata handling from generic view layer and allow openeo-aggregator to inject an alternative implementation in context of "STAC 1.1" batch job result metadata style ([Open-EO/openeo-aggregator/204](https://github.com/Open-EO/openeo-aggregator/issues/204))
 - Fix `save_result` leaking when using UDP sub-evaluation ([#534](https://github.com/Open-EO/openeo-python-driver/issues/534))

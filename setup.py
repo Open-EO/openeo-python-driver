@@ -49,7 +49,7 @@ setup(
     data_files=[
         ("openeo-python-driver-data", ["CHANGELOG.md"]),
     ],
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     tests_require=tests_require,
     install_requires=[
         "flask>=2.0.0",
@@ -71,11 +71,10 @@ setup(
         "importlib_resources; python_version<'3.10'",
         "attrs>=23.1.0",
         "fiona>=1.9.0",
-        "fiona<1.10.0; python_version<'3.9'",  # Avoid fiona>=1.10.0 on Python 3.8 and lower (conflict with geopandas<0.14.0). Also see https://github.com/Open-EO/openeo-python-driver/issues/308
         "reretry~=0.11.8",
         "markdown>3.4",
-        "pystac>=1.8.0",  # TODO #370/#396 require more recent pystac version once py3.8 support is dropped
-        "antimeridian>=0.3.8",  # 0.3.8 is the highest version that still supports Python 3.8
+        "pystac>=1.10.0",  # 1.10 is highest version that still supports Python 3.9
+        "antimeridian>=0.3.8",
         "cachetools>=5.0",
     ],
     extras_require={
