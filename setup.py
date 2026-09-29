@@ -73,7 +73,7 @@ setup(
         "fiona>=1.9.0",
         "reretry~=0.11.8",
         "markdown>3.4",
-        "pystac>=1.10.0",  # 1.10 is highest version that still supports Python 3.9
+        "pystac>=1.10.0",  # PySTAC 1.10.x is highest version that still supports Python 3.9
         "antimeridian>=0.3.8",
         "cachetools>=5.0",
     ],

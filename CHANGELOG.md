@@ -24,6 +24,7 @@ and start a new "In Progress" section above it.
 ## In progress: 0.142.0
 
 - Require at least Python 3.9 (drop support for Python 3.8, [#370](https://github.com/Open-EO/openeo-python-driver/issues/370))
+- Require at least PySTAC 1.10 ([#396](https://github.com/Open-EO/openeo-python-driver/issues/396))
 
 
 ## 0.141.0
