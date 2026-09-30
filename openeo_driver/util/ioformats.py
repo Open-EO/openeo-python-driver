@@ -42,7 +42,7 @@ class _FormatDb:
 
 
 IOFORMATS = _FormatDb([
-    FormatInfo("GTiff", "image/tiff; application=geotiff", extension="geotiff"),
+    FormatInfo("GTiff", "image/tiff; application=geotiff; profile=cloud-optimized", extension="geotiff"),
     FormatInfo("COG", "image/tiff; application=geotiff; profile=cloud-optimized"),
     FormatInfo("NetCDF", "application/x-netcdf", extension="nc"),
     FormatInfo("PNG", "image/png"),

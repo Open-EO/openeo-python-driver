@@ -7,7 +7,7 @@ from openeo_driver.util.ioformats import IOFORMATS
 def test_ioformats_gtiff(format):
     format_info = IOFORMATS.get(format)
     assert format_info.format == "GTiff"
-    assert format_info.mimetype == "image/tiff; application=geotiff"
+    assert format_info.mimetype == "image/tiff; application=geotiff; profile=cloud-optimized"
     assert format_info.extension == "geotiff"
     assert format_info.fiona_driver == "GTiff"
 
