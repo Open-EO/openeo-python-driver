@@ -49,7 +49,7 @@ setup(
     data_files=[
         ("openeo-python-driver-data", ["CHANGELOG.md"]),
     ],
-    python_requires=">=3.9",
+    python_requires=">=3.11",
     tests_require=tests_require,
     install_requires=[
         "flask>=2.0.0",
@@ -68,12 +68,11 @@ setup(
         "python-dateutil",
         "python-json-logger~=2.0",  # Avoid breaking change in 3.1.0 https://github.com/nhairs/python-json-logger/issues/29
         "deprecated>=1.2.12",
-        "importlib_resources; python_version<'3.10'",
         "attrs>=23.1.0",
         "fiona>=1.9.0",
         "reretry~=0.11.8",
         "markdown>3.4",
-        "pystac>=1.10.0",  # PySTAC 1.10.x is highest version that still supports Python 3.9
+        "pystac>=1.15.0",
         "antimeridian>=0.3.8",
         "cachetools>=5.0",
     ],
