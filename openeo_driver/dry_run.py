@@ -147,6 +147,7 @@ PROPAGATION_RULES: List[PropagationRule] = [
         ],
     ),
     PropagationRule("aggregate_spatial", operations=["aggregate_spatial"]),
+    PropagationRule("is_mask", operations=["is_mask"]),
     PropagationRule("sar_backscatter", operations=["sar_backscatter"]),
     PropagationRule("process_type", operations=["process_type"]),
     PropagationRule("custom_cloud_mask", operations=["custom_cloud_mask"]),
@@ -659,6 +660,10 @@ class DryRunDataCube(DriverDataCube):
         # TODO: if mask cube has no temporal or bbox extent: copy from self?
         # TODO: or add reference to the self trace to the mask trace and vice versa?
         mask_resampled = mask._process("resample_cube_spatial", arguments={"target": self, "method": "near"})
+        # Tag the mask branch so that downstream (post-dry-run) logic can distinguish
+        # the "mask" source from the "data" source being masked (e.g. to avoid inflating
+        # the data cube's extent with the (possibly larger) extent of the mask cube).
+        mask_resampled = mask_resampled._process("is_mask", arguments={})
         cube = self._process("mask", {"mask": mask_resampled})
         return DryRunDataCube(
             traces=cube._traces + mask_resampled._traces, data_tracer=cube._data_tracer, metadata=cube.metadata

@@ -173,6 +173,12 @@ class LoadParameters(dict):
     temporal_extent = dict_item(default=(None, None))
     spatial_extent = dict_item(default={})
     global_extent = dict_item(default={})  # TODO #441 to be removed
+    # Identifies the source (e.g. `load_collection`/`load_stac` node) these parameters were
+    # extracted for. Useful (e.g. in post-dry-run global extent determination) to look up
+    # per-source information that can not simply be merged across all sources
+    # (e.g. the "mask" branch of a `mask` process potentially needing a different/larger extent
+    # than the data cube it masks).
+    source_id = dict_item(default=None)
     filter_temporal_labels = dict_item(default=None)
     bands = dict_item(default=None)
     properties = dict_item(default={})
@@ -213,6 +219,13 @@ class LoadParameters(dict):
         copy = super().copy()
         #load_collection with or without data mask should return an 'equivalent' result
         copy["data_mask"] = {}
+        # `source_id` is just an identifier of the process graph node these parameters were
+        # extracted for. It should not influence equality (e.g. for load_collection caching):
+        # identical loads from different process graph nodes should be considered equivalent.
+        # Anything source-specific that influences the actual result (e.g. a per-source
+        # global extent) should be resolved into other (equality-relevant) fields or the
+        # EvalEnv before caching boundaries.
+        copy["source_id"] = None
         return copy
 
     def __eq__(self, o: object) -> bool:

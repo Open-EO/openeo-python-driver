@@ -220,6 +220,7 @@ def _extract_load_parameters(env: EvalEnv, source_id: SourceId) -> LoadParameter
     source_constraints.remove((source_id, constraints))  # Side effect!
 
     params = LoadParameters()
+    params.source_id = source_id
     if temporal_extent := constraints.get("temporal_extent"):
         params.temporal_extent = temporal_extent
     labels_args = constraints.get("filter_labels", {})
