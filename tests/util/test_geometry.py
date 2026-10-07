@@ -381,6 +381,20 @@ class TestGeometryBufferer:
         )
 
 
+def _normalize_geometries(feature_collection: dict) -> dict:
+    """
+    Normalize feature geometries (vertex order, ring orientation), as e.g. `Polygon.from_bounds`
+    produces different (but equivalent) vertex orders across shapely versions.
+    """
+    return {
+        **feature_collection,
+        "features": [
+            {**f, "geometry": shapely.geometry.mapping(shapely.geometry.shape(f["geometry"]).normalize())}
+            for f in feature_collection["features"]
+        ],
+    }
+
+
 class TestAsGeoJsonFeatureCollection:
     def test_as_geojson_feature_point(self):
         feature = as_geojson_feature(Point(1, 2))
@@ -495,7 +509,7 @@ class TestAsGeoJsonFeatureCollection:
         feature_collection = as_geojson_feature_collection(
             Point(1, 2), Polygon.from_bounds(1, 2, 3, 4), Point(5, 6)
         )
-        assert feature_collection == {
+        expected = {
             "type": "FeatureCollection",
             "features": [
                 {
@@ -526,12 +540,13 @@ class TestAsGeoJsonFeatureCollection:
                 },
             ],
         }
+        assert _normalize_geometries(feature_collection) == _normalize_geometries(expected)
 
     def test_as_geojson_feature_collection_multiple_as_list(self):
         feature_collection = as_geojson_feature_collection(
             [Point(1, 2), Polygon.from_bounds(1, 2, 3, 4), Point(5, 6)]
         )
-        assert feature_collection == {
+        expected = {
             "type": "FeatureCollection",
             "features": [
                 {
@@ -562,6 +577,7 @@ class TestAsGeoJsonFeatureCollection:
                 },
             ],
         }
+        assert _normalize_geometries(feature_collection) == _normalize_geometries(expected)
 
     def test_as_geojson_feature_collection_mix(self):
         feature_collection = as_geojson_feature_collection(
@@ -574,7 +590,7 @@ class TestAsGeoJsonFeatureCollection:
             },
             get_path("geojson/Polygon01.json"),
         )
-        assert feature_collection == {
+        expected = {
             "type": "FeatureCollection",
             "features": [
                 {
@@ -621,6 +637,7 @@ class TestAsGeoJsonFeatureCollection:
                 },
             ],
         }
+        assert _normalize_geometries(feature_collection) == _normalize_geometries(expected)
 
 
 def test_epsg_code_or_none():

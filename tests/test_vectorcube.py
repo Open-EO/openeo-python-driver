@@ -833,12 +833,10 @@ class TestDriverVectorCube:
         vc = DriverVectorCube(gdf)
         assert vc.get_bounding_box() == (1, 1, 5, 4)
         assert vc.get_bounding_box_geometry() == Polygon.from_bounds(1, 1, 5, 4)
-        assert vc.get_bounding_box_geojson() == {
-            "type": "Polygon",
-            "coordinates": (
-                ((1.0, 1.0), (1.0, 4.0), (5.0, 4.0), (5.0, 1.0), (1.0, 1.0)),
-            ),
-        }
+        actual_geojson = vc.get_bounding_box_geojson()
+        assert actual_geojson["type"] == "Polygon"
+        # Vertex order of Polygon.from_bounds differs between shapely versions, so compare geometrically
+        assert shapely.geometry.shape(actual_geojson).equals(Polygon.from_bounds(1, 1, 5, 4))
 
     def test_get_bounding_box_geojson_not_wgs84(self):
         path = str(get_path("geojson/FeatureCollection08.json"))
