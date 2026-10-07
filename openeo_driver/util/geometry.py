@@ -197,6 +197,62 @@ def geojson_to_multipolygon(
     return geometry
 
 
+def split_polygons_on_wrap_point(input_geometry: Union[MultiPolygon, Polygon]) -> Union[MultiPolygon, Polygon]:
+    """
+    Split polygon on anti-meridian
+    :return: MultiPolygon with all longitudes in [-180, 180]
+    """
+    assert isinstance(input_geometry, (MultiPolygon, Polygon))
+
+    polygons = [input_geometry] if isinstance(input_geometry, Polygon) else list(input_geometry.geoms)
+    split = [part for polygon in polygons for part in _split_polygon(polygon)]
+    return MultiPolygon([_polygon_to_min180_180_range(p) for p in split])
+
+
+def _split_polygon(polygon: Polygon) -> List[Polygon]:
+    # Add some buffer in the south and north, even though polygons should not get there.
+    center_polygon = shapely.geometry.box(-180, -90 * 100, 180, 90 * 100)
+
+    def as_polygons(geometry: BaseGeometry) -> List[Polygon]:
+        if isinstance(geometry, Polygon):
+            parts = [geometry]
+        elif isinstance(geometry, (MultiPolygon, shapely.geometry.GeometryCollection)):
+            parts = [g for g in geometry.geoms if isinstance(g, Polygon)]
+        else:
+            parts = []
+        return [p for p in parts if not p.is_empty]
+
+    return as_polygons(polygon.intersection(center_polygon)) + as_polygons(polygon.difference(center_polygon))
+
+
+def _to_min180_180_range(x: float) -> float:
+    if -180 <= x <= 180:
+        # Keep the sign of 180, even if -180 and 180 mean the same
+        return x
+    n = (x + 360 * 10) % 360
+    return n - 360 if n > 180 else n
+
+
+def _polygon_to_min180_180_range(polygon: Polygon) -> Polygon:
+    xs = [x for ring in [polygon.exterior, *polygon.interiors] for x, _ in ring.coords]
+    clearly_western_hemisphere = any((-180 < x < 0) or (180 < x < 360) for x in xs)
+    clearly_eastern_hemisphere = any((0 < x < 180) or (-360 < x < -180) for x in xs)
+
+    def convert_x(x: float) -> float:
+        new_x = _to_min180_180_range(x)
+        # Resolve ambiguous coordinates when possible, otherwise keep them as they were.
+        if clearly_western_hemisphere and new_x == 180:
+            new_x = -180
+        if clearly_eastern_hemisphere and new_x == -180:
+            new_x = 180
+        return new_x
+
+    def convert_ring(ring) -> List[Tuple[float, ...]]:
+        return [(convert_x(c[0]), *c[1:]) for c in ring.coords]
+
+    return Polygon(convert_ring(polygon.exterior), [convert_ring(r) for r in polygon.interiors])
+
+
 def reproject_bounding_box(bbox: dict, from_crs: Optional[str], to_crs: str) -> dict:
     """
     Reproject given bounding box dictionary
