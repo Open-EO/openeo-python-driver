@@ -1,8 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openeo_driver"
+dynamic = ["version"]
+requires-python = ">=3.11"
+
+[tool.setuptools.dynamic]
+version = {attr = "openeo_driver._version.__version__"}
 
 [tool.black]
 line-length = 120
 # TODO: drop this target-version when `project.requires-python` is set
-target-version = ["py311"]
+# This can stay as a formatting target, but project metadata now declares the real runtime floor.
+target-version = ["py38"]
 
 [tool.isort]
 profile = "black"
