@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 from typing import Iterable, List, Dict
 from urllib.parse import urlparse
 
-import fiona
 import geopandas as gpd
 import pyproj
 import requests
@@ -261,14 +260,18 @@ class DelayedVector:
     @staticmethod
     def _read_shapefile_geometries(shp_path: str) -> List[BaseGeometry]:
         # FIXME: returned as a list for safety but possible to return as an iterable?
-        with fiona.open(shp_path) as collection:
-            [validate_geojson_coordinates(record["geometry"]) for record in collection]
-            return [shapely.geometry.shape(record["geometry"]) for record in collection]
+        geometries = [
+            geometry
+            for geometry in pyogrio.read_dataframe(shp_path, read_geometry=True).geometry
+            if geometry is not None
+        ]
+        for geometry in geometries:
+            validate_geojson_coordinates(shapely.geometry.mapping(geometry))
+        return geometries
 
     @staticmethod
-    def _read_shapefile_bounds(shp_path: str) -> List[BaseGeometry]:
-        with fiona.open(shp_path) as collection:
-            return collection.bounds
+    def _read_shapefile_bounds(shp_path: str) -> tuple:
+        return tuple(pyogrio.read_info(shp_path)["total_bounds"])
 
     @staticmethod
     def _read_shapefile_crs(shp_path: str) -> pyproj.CRS:
@@ -277,8 +280,8 @@ class DelayedVector:
         @param shp_path:
         @return: CRS as a proj4 dict
         """
-        with fiona.open(shp_path) as collection:
-            return collection.crs
+        crs = pyogrio.read_info(shp_path)["crs"]
+        return None if crs is None else pyproj.CRS.from_user_input(crs)
 
     @staticmethod
     def _as_geometry_collection(feature_collection: Dict) -> Dict:

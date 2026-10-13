@@ -69,7 +69,9 @@ def vector_buffer(args: ProcessArgs, env: EvalEnv) -> dict:
         input_crs = geometry.get_crs()
     elif isinstance(geometry, str):
         _check_geometry_path_assumption(path=geometry, process="vector_buffer", parameter="geometry")
-        geoms = list(DelayedVector(geometry).geometries)
+        vector_cube = DriverVectorCube.from_fiona([geometry])
+        geoms = list(vector_cube.get_geometries())
+        input_crs = vector_cube.get_crs()
     elif isinstance(geometry, dict) and "type" in geometry:
         geometry_type = geometry["type"]
         if geometry_type == "FeatureCollection":
