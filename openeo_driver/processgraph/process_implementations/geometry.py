@@ -8,7 +8,6 @@ import pyproj
 import shapely.geometry
 
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube
-from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataCube, DryRunDataTracer
 from openeo_driver.errors import FeatureUnsupportedException, ProcessParameterInvalidException
 from openeo_driver.processes import ProcessArgs, ProcessSpec
@@ -32,6 +31,18 @@ def _check_geometry_path_assumption(path: str, process: str, parameter: str):
             reason=f"provided a string (to be handled as path/URL), but it looks like (Geo)JSON encoded data: {str_truncate(path, width=32)!r}.",
         )
 
+
+def _read_vector_cube(path: str, env: EvalEnv) -> DriverVectorCube:
+    """Load vector file as vector cube (expanding a top-level GeoJSON GeometryCollection into separate geometries)."""
+    vector_cube_cls = env.backend_implementation.vector_cube_cls
+    vector_cube = vector_cube_cls.from_fiona([path])
+    geometries = vector_cube.get_geometries()
+    if len(geometries) == 1 and isinstance(geometries.iloc[0], shapely.geometry.GeometryCollection):
+        # TODO #71 #114 Deprecate/avoid usage of GeometryCollection
+        _log.warning("Vector data of deprecated type 'GeometryCollection', please use a FeatureCollection instead.")
+        gdf = gpd.GeoDataFrame(geometry=list(geometries.iloc[0].geoms), crs=vector_cube.get_crs())
+        vector_cube = vector_cube_cls.from_geodataframe(gdf)
+    return vector_cube
 
 @non_standard_process(
     ProcessSpec(id="vector_buffer", description="Add a buffer around a geometry.")
@@ -144,7 +155,7 @@ def get_geometries(args: ProcessArgs, env: EvalEnv):
     path = args.get_optional("filename", None)
     if path is not None:
         _check_geometry_path_assumption(path=path, process="get_geometries", parameter="filename")
-        return DelayedVector(path)
+        return _read_vector_cube(path, env)
     else:
         return feature_collection
 
@@ -171,11 +182,11 @@ def get_geometries(args: ProcessArgs, env: EvalEnv):
     )
     .returns("GeoJSON-style feature collection", schema={"type": "object", "subtype": "geojson"})
 )
-def read_vector(args: ProcessArgs, env: EvalEnv) -> DelayedVector:
+def read_vector(args: ProcessArgs, env: EvalEnv) -> DriverVectorCube:
     _log.warning("DEPRECATED: read_vector usage")
     path = args.get_required("filename")
     _check_geometry_path_assumption(path=path, process="read_vector", parameter="filename")
-    return DelayedVector(path)
+    return _read_vector_cube(path, env)
 
 
 @non_standard_process(

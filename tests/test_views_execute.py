@@ -1491,11 +1491,6 @@ def test_read_vector_no_load_collection_spatial_extent(api):
 
 @pytest.mark.parametrize("udf_code", [
     """
-        from openeo_udf.api.datacube import DataCube  # Old style openeo_udf API
-        def fct_buffer(udf_data: UdfData):
-            return udf_data
-    """,
-    """
         from openeo.udf import UdfData
         def fct_buffer(udf_data: UdfData):
             return udf_data
@@ -1519,24 +1514,8 @@ def test_run_udf_on_vector_read_vector(api, udf_code):
         },
     }
     resp = api.check_result(process_graph)
-    assert resp.json["features"] == [
-        {
-            "geometry": {
-                "coordinates": [[[4.47, 51.1], [4.52, 51.1], [4.52, 51.15], [4.47, 51.15], [4.47, 51.1]]],
-                "type": "Polygon",
-            },
-            "properties": {},
-            "type": "Feature",
-        },
-        {
-            "geometry": {
-                "coordinates": [[[4.45, 51.17], [4.5, 51.17], [4.5, 51.2], [4.45, 51.2], [4.45, 51.17]]],
-                "type": "Polygon",
-            },
-            "properties": {},
-            "type": "Feature",
-        },
-    ]
+
+    assert resp.json == [None, None]
 
 
 @pytest.mark.parametrize(
@@ -1572,39 +1551,18 @@ def test_run_udf_on_vector_get_geometries(api, udf_code):
         },
     }
     resp = api.check_result(process_graph)
-    assert resp.json["features"] == [
-        {
-            "geometry": {
-                "coordinates": [[[4.47, 51.1], [4.52, 51.1], [4.52, 51.15], [4.47, 51.15], [4.47, 51.1]]],
-                "type": "Polygon",
-            },
-            "properties": {},
-            "type": "Feature",
-        },
-        {
-            "geometry": {
-                "coordinates": [[[4.45, 51.17], [4.5, 51.17], [4.5, 51.2], [4.45, 51.2], [4.45, 51.17]]],
-                "type": "Polygon",
-            },
-            "properties": {},
-            "type": "Feature",
-        },
-    ]
+    # read_vector/get_geometries now give a vector cube, which is handled like any other vector cube
+    assert resp.json == [None, None]
 
 
 @pytest.mark.parametrize(
     "udf_code",
     [
         """
-        from openeo_udf.api.datacube import DataCube  # Old style openeo_udf API
-        def fct_buffer(udf_data: UdfData):
-            return udf_data
-    """,
-        """
         from openeo.udf import UdfData
         def fct_buffer(udf_data: UdfData):
             return udf_data
-    """,
+    """
     ],
 )
 def test_run_udf_on_vector_load_uploaded_files(api, udf_code):
