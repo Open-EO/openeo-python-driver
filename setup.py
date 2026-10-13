@@ -60,7 +60,7 @@ setup(
         "gunicorn>=20.0.1",
         "numpy>=1.22.0",
         "shapely>=1.8.5",  # TODO #158 bump requirement to at least 2.0.0 for simplicity (once openeo-geopyspark-driver allows it too)
-        "pandas>=1.4.0,<3.0.0",  # DriverVectorCube.from_geojson incompatiblity with pandas 3 https://github.com/Open-EO/openeo-python-driver/issues/459
+        "pandas>=1.4.0",
         "geopandas>=0.11.0",  # 0.11.0 fixes https://github.com/geopandas/geopandas/pull/2243
         "xarray>=0.16.2",
         "flask-cors",
