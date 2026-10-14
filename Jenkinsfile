@@ -2,7 +2,6 @@
 
 /*
     This Jenkinsfile is used to run tests with Python 3.11 using the VITO CI system.
-    No artifacts are built or published - this is for testing compatibility only.
     This Jenkinsfile uses the internal "biggeo/jenkinslib.git" library.
     Information about the pythonPipeline method can be found in pythonPipeline.groovy
 */
