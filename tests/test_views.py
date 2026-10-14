@@ -3635,9 +3635,10 @@ class TestBatchJobs:
         jobs = {"j-26032411111111111111111111111111": {"status": "finished"}}
         with self._fresh_job_registry(output_root=output_root, jobs=jobs):
             source_folder = get_path("recursive-stac-example")
-            copy_tree(
+            shutil.copytree(
                 source_folder,
-                str(output_root / "j-26032411111111111111111111111111") + "/",
+                output_root / "j-26032411111111111111111111111111",
+                dirs_exist_ok=True,
             )
             text04 = (
                 api110.get(
