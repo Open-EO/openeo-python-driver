@@ -6,8 +6,8 @@
 import datetime
 import numpy as np
 
-from openeo_driver.processes_python.utils import process, isnull
-from openeo_driver.processes_python.utils import str2time
+from openeo_driver.vendor.processes_python.utils import process, isnull
+from openeo_driver.vendor.processes_python.utils import str2time
 
 
 # TODO: test if this works for different data types

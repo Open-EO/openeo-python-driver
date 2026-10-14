@@ -3,7 +3,7 @@
 import unittest
 
 import numpy as np
-from openeo_driver import processes_python as oeop
+from openeo_driver.vendor import processes_python as oeop
 import pytest
 
 

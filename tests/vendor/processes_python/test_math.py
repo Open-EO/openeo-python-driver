@@ -9,7 +9,8 @@ import unittest
 import numpy as np
 import pytest
 from copy import deepcopy
-from openeo_driver import processes_python as oeop
+from openeo_driver.vendor import processes_python as oeop
+
 
 class MathTester(unittest.TestCase):
     """ Tests all math functions. """

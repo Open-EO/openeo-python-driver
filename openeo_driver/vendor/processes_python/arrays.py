@@ -5,15 +5,15 @@
 
 import numpy as np
 
-from openeo_driver.processes_python.utils import create_slices
-from openeo_driver.processes_python.utils import process, isnull
-from openeo_driver.processes_python.comparison import is_valid
-from openeo_driver.processes_python.comparison import is_empty
+from openeo_driver.vendor.processes_python.utils import create_slices
+from openeo_driver.vendor.processes_python.utils import process, isnull
+from openeo_driver.vendor.processes_python.comparison import is_valid
+from openeo_driver.vendor.processes_python.comparison import is_empty
 
-from openeo_driver.processes_python.errors import ArrayElementNotAvailable
-from openeo_driver.processes_python.errors import ArrayElementParameterMissing
-from openeo_driver.processes_python.errors import ArrayElementParameterConflict
-from openeo_driver.processes_python.errors import GenericError
+from openeo_driver.vendor.processes_python.errors import ArrayElementNotAvailable
+from openeo_driver.vendor.processes_python.errors import ArrayElementParameterMissing
+from openeo_driver.vendor.processes_python.errors import ArrayElementParameterConflict
+from openeo_driver.vendor.processes_python.errors import GenericError
 
 ########################################################################################################################
 # Array Contains Process

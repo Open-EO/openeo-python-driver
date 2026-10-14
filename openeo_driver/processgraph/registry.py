@@ -15,7 +15,6 @@ from openeo.utils.version import ComparableVersion
 from openeo_driver.backend import OpenEoBackendImplementation, Processing
 from openeo_driver.errors import OpenEOApiException
 from openeo_driver.processes import DEFAULT_NAMESPACE, ProcessArgs, ProcessRegistry, ProcessSpec
-from openeo_driver.processes_python import get_process, has_process
 from openeo_driver.specs import SPECS_ROOT
 from openeo_driver.utils import EvalEnv
 from openeo_driver.views import OPENEO_API_VERSION_DEFAULT

@@ -1,7 +1,7 @@
 import pytest
 
-from openeo_driver.processes_python import get_process, has_process
-from openeo_driver.processes_python.utils import eval_datatype, isnull
+from openeo_driver.vendor.processes_python import get_process, has_process
+from openeo_driver.vendor.processes_python import eval_datatype, isnull
 from openeo_driver.processgraph.registry import (
     _OPENEO_PROCESSES_PYTHON_WHITELIST,
     _openeo_processes_extra,

@@ -8,9 +8,9 @@ For backwards compatibility with `openeo_processes`, the functions are also avai
 as attributes with their Python names (e.g. `and_`, `not_`, `add`).
 """
 
-from openeo_driver.processes_python.logic import *  # noqa: F401,F403
-from openeo_driver.processes_python.arrays import *  # noqa: F401,F403
-from openeo_driver.processes_python.comparison import *  # noqa: F401,F403
-from openeo_driver.processes_python.math import *  # noqa: F401,F403
-from openeo_driver.processes_python.utils import get_process, has_process  # noqa: F401
+from openeo_driver.vendor.processes_python.logic import *  # noqa: F401,F403
+from openeo_driver.vendor.processes_python.arrays import *  # noqa: F401,F403
+from openeo_driver.vendor.processes_python.comparison import *  # noqa: F401,F403
+from openeo_driver.vendor.processes_python.math import *  # noqa: F401,F403
+from openeo_driver.vendor.processes_python.utils import get_process, has_process  # noqa: F401
 

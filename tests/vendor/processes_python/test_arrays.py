@@ -6,7 +6,7 @@ https://openeo.org/documentation/1.0/processes.html
 """
 
 import numpy as np
-from openeo_driver import processes_python as oeop
+from openeo_driver.vendor import processes_python as oeop
 import pytest
 from unittest import TestCase
 import math

@@ -2,8 +2,8 @@
 # xarray/dask based assertions have been removed.
 import unittest
 import numpy as np
-from openeo_driver import processes_python as oeop
-import pytest
+from openeo_driver.vendor import processes_python as oeop
+
 
 class LogicTester(unittest.TestCase):
     """ Tests all logic functions. """

@@ -6,11 +6,11 @@
 import builtins
 import numpy as np
 
-from openeo_driver.processes_python.utils import process
-from openeo_driver.processes_python.comparison import is_empty
+from openeo_driver.vendor.processes_python.utils import process
+from openeo_driver.vendor.processes_python.comparison import is_empty
 
-from openeo_driver.processes_python.errors import QuantilesParameterConflict
-from openeo_driver.processes_python.errors import QuantilesParameterMissing
+from openeo_driver.vendor.processes_python.errors import QuantilesParameterConflict
+from openeo_driver.vendor.processes_python.errors import QuantilesParameterMissing
 
 
 ########################################################################################################################
