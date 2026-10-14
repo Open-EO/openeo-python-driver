@@ -71,7 +71,7 @@ jobs:
 
       - name: Install project and test dependencies with uv
         run: |
-          uv pip install --python "${{ env.pythonLocation }}/bin/python" -e ".[dev]"
+          uv pip install --python "${{ env.pythonLocation }}/bin/python" ".[dev]"
 
       - name: Run tests
         run: |
@@ -102,9 +102,8 @@ jobs:
 
       - name: Install project and test dependencies with uv
         run: |
-          uv pip install --python "${{ env.pythonLocation }}/bin/python" -e ".[dev]"
+          uv pip install --python "${{ env.pythonLocation }}/bin/python" ".[dev]"
 
       - name: Run tests
         run: |
           uv run --python "${{ env.pythonLocation }}/bin/python" pytest -q
-
