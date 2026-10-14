@@ -4,8 +4,8 @@
 # xarray/dask specific code and the pandas dependency have been removed.
 
 import numpy as np
-from openeo_driver.vendor.processes_python import process
-from openeo_driver.vendor.processes_python import is_empty
+from openeo_driver.vendor.processes_python.utils import process
+from openeo_driver.vendor.processes_python.comparison import is_empty
 
 
 ########################################################################################################################
