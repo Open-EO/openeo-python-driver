@@ -6,7 +6,6 @@ import shutil
 import urllib.parse
 from contextlib import ExitStack, contextmanager
 from datetime import datetime, timedelta, timezone
-from distutils.dir_util import copy_tree
 from pathlib import Path
 from typing import Optional
 from unittest import mock
