@@ -715,8 +715,8 @@ class DriverVectorCube:
         from openeo_driver.save_result import AggregatePolygonResult, JSONResult
 
         if self._cube is None or self._cube.attrs.get(self.CUBE_ATTR_VECTOR_CUBE_DUMMY):
-            # No cube: no real data to return (in legacy style), so let's just return a `null` per geometry.
-            return JSONResult(data=[None] * self.geometry_count())
+            # this cube seems mostly empty, just provide ghte geojson representation
+            return JSONResult(data=self.to_geojson(include_properties=True))
 
         cube = self._cube
         # TODO: more flexible temporal/band dimension detection?
