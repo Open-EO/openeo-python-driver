@@ -1332,6 +1332,31 @@ def test_aggregate_spatial_read_vector(dry_run_env, dry_run_tracer):
     assert isinstance(geometries, DriverVectorCube)
 
 
+def test_filter_spatial_read_vector_remote_url_no_extension(dry_run_env, dry_run_tracer, tmp_path):
+    source = get_path("geojson/FeatureCollection01.json")
+    target = tmp_path / "vector"
+    target.write_text(source.read_text())
+    with ephemeral_fileserver(path=tmp_path) as fileserver_root:
+        geometry_url = f"{fileserver_root}/{target.name}"
+        pg = {
+            "lc1": {"process_id": "load_collection", "arguments": {"id": "ESA_WORLDCOVER_10M_2020_V1"}},
+            "vector": {"process_id": "read_vector", "arguments": {"filename": geometry_url}},
+            "filter": {
+                "process_id": "filter_spatial",
+                "arguments": {"data": {"from_node": "lc1"}, "geometries": {"from_node": "vector"}},
+                "result": True,
+            },
+        }
+        evaluate(pg, env=dry_run_env)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 1
+    src, constraints = source_constraints[0]
+    assert src == ("load_collection", ("ESA_WORLDCOVER_10M_2020_V1", ()), "lc1")
+    assert isinstance(constraints["filter_spatial"]["geometries"], DriverVectorCube)
+    assert constraints["filter_spatial"]["geometries"].get_bounding_box() == pytest.approx((4.45, 51.1, 4.52, 51.2))
+
+
 def test_aggregate_spatial_get_geometries_feature_collection(dry_run_env, dry_run_tracer):
     pg = {
         "lc1": {"process_id": "load_collection", "arguments": {"id": "ESA_WORLDCOVER_10M_2020_V1"}},
