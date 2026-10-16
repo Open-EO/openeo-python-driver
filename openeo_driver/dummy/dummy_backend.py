@@ -54,7 +54,6 @@ from openeo_driver.config import OpenEoBackendConfig
 from openeo_driver.constants import JOB_STATUS, STAC_EXTENSION, DEFAULT_LOG_LEVEL_RETRIEVAL
 from openeo_driver.datacube import DriverDataCube, DriverMlModel, DriverVectorCube, SaveResultHints
 from openeo_driver.datastructs import StacAsset
-from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import SourceConstraint
 from openeo_driver.errors import (
     FeatureUnsupportedException,
@@ -310,7 +309,7 @@ class DummyDataCube(DriverDataCube):
             )
             return geometries.with_cube(cube=cube)
         elif isinstance(geometries, str):
-            geometries = [geometry for geometry in DelayedVector(geometries).geometries]
+            geometries = list(DriverVectorCube.from_fiona([geometries]).get_geometries())
             n_geometries = assert_polygon_sequence(geometries)
         elif isinstance(geometries, GeometryCollection):
             # TODO #71 #114 EP-3981: GeometryCollection is deprecated

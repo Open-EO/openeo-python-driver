@@ -68,7 +68,7 @@ setup(
         "python-json-logger~=2.0",  # Avoid breaking change in 3.1.0 https://github.com/nhairs/python-json-logger/issues/29
         "deprecated>=1.2.12",
         "attrs>=23.1.0",
-        "fiona>=1.9.0",
+        "pyogrio>=0.7.0",
         "reretry~=0.11.8",
         "markdown>3.4",
         "pystac>=1.15.0",

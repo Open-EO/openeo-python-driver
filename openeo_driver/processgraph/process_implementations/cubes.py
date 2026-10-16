@@ -4,6 +4,7 @@ from typing import List, Optional, Tuple, Union
 
 import geopandas as gpd
 import numpy as np
+import pyproj
 import shapely.geometry
 import shapely.ops
 from shapely.geometry import GeometryCollection, MultiPolygon
@@ -12,7 +13,6 @@ import openeo.udf
 from openeo.util import rfc3339
 
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube, SupportsRunUdf
-from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.dry_run import DryRunDataCube, DryRunDataTracer
 from openeo_driver.errors import (
     FeatureUnsupportedException,
@@ -155,16 +155,7 @@ def apply_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     mask_value = args.get_optional("mask_value", expected_type=(int, float), default=None)
     context = args.get_optional("context", default=None)
 
-    if isinstance(geometries, DelayedVector):
-        geometries = list(geometries.geometries)
-        for p in geometries:
-            if not isinstance(p, shapely.geometry.Polygon):
-                raise ProcessParameterInvalidException(
-                    parameter="polygons", process="apply_polygon",
-                    reason="{m!s} is not a polygon.".format(m=p)
-                )
-        polygon = MultiPolygon(geometries)
-    elif isinstance(geometries, DriverVectorCube):
+    if isinstance(geometries, DriverVectorCube):
         polygon = geometries.to_multipolygon()
     elif isinstance(geometries, shapely.geometry.base.BaseGeometry):
         polygon = MultiPolygon(geometries)
@@ -196,8 +187,8 @@ def chunk_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     mask_value = args.get_optional("mask_value", expected_type=(int, float), default=None)
     context = args.get_optional("context", default=None)
 
-    if isinstance(chunks, DelayedVector):
-        polygons = list(chunks.geometries)
+    if isinstance(chunks, DriverVectorCube):
+        polygons = list(chunks.get_geometries())
         for p in polygons:
             if not isinstance(p, shapely.geometry.Polygon):
                 raise ProcessParameterInvalidException(
@@ -271,9 +262,7 @@ def mask_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     replacement = args.get_optional("replacement", default=None)
     inside = args.get_optional("inside", default=False)
 
-    if isinstance(mask_geom, DelayedVector):
-        polygon = shapely.ops.unary_union(list(mask_geom.geometries))
-    elif isinstance(mask_geom, DriverVectorCube):
+    if isinstance(mask_geom, DriverVectorCube):
         polygon = mask_geom.to_multipolygon()
     elif isinstance(mask_geom, dict) and "type" in mask_geom:
         polygon = geojson_to_multipolygon(mask_geom)
@@ -372,8 +361,6 @@ def filter_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
                     for geom in geometries.geoms
                 ]
                 geometries = MultiPolygon(polygons)
-    elif isinstance(geometries, DelayedVector):
-        geometries = DriverVectorCube.from_fiona([geometries.path]).to_multipolygon()
     elif isinstance(geometries, DriverVectorCube):
         pass
     else:
@@ -463,7 +450,7 @@ def aggregate_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
                 parameter="geometries", process="aggregate_spatial",
                 reason="Failed to parse inline GeoJSON",
             )
-    elif isinstance(geoms, (AggregatePolygonResult, DelayedVector)):
+    elif isinstance(geoms, AggregatePolygonResult):
         geoms = geoms.to_driver_vector_cube()
     else:
         raise ProcessParameterInvalidException(
@@ -493,6 +480,17 @@ def reduce_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     return cube.reduce_spatial(reducer=reduce_pg, context=context, env=env)
 
 
+def _geojson_geometries(geojson: dict) -> List[shapely.geometry.base.BaseGeometry]:
+    """Extract geometries (ignoring properties) from a GeoJSON dict."""
+    geojson_type = geojson.get("type")
+    if geojson_type == "FeatureCollection":
+        return [shapely.geometry.shape(f["geometry"]) for f in geojson["features"]]
+    elif geojson_type == "GeometryCollection":
+        return [shapely.geometry.shape(g) for g in geojson["geometries"]]
+    elif geojson_type == "Feature":
+        return [shapely.geometry.shape(geojson["geometry"])]
+    return [shapely.geometry.shape(geojson)]
+
 @process
 def run_udf(args: ProcessArgs, env: EvalEnv):
     dry_run_tracer: DryRunDataTracer = env.get(ENV_DRY_RUN_TRACER)
@@ -518,14 +516,16 @@ def run_udf(args: ProcessArgs, env: EvalEnv):
         pass
     if isinstance(data, DriverVectorCube):
         data = data.to_legacy_save_result()
-
-    if isinstance(data, (DelayedVector, dict)):
-        if isinstance(data, dict):
-            data = DelayedVector.from_json_dict(data)
-        collection = openeo.udf.FeatureCollection(id='VectorCollection', data=data.as_geodataframe())
+    if isinstance(data, dict):
+        # Inline GeoJSON: pass geometries as feature collection to the UDF.
+        crs = pyproj.CRS(data.get("crs", {}).get("properties", {}).get("name", "EPSG:4326"))
+        gdf = gpd.GeoDataFrame(geometry=_geojson_geometries(data), crs=crs)
+        collection = openeo.udf.FeatureCollection(id="VectorCollection", data=gdf)
         data = openeo.udf.UdfData(
-            proj={"EPSG": data.crs.to_epsg()}, feature_collection_list=[collection], user_context=context
+            proj={"EPSG": crs.to_epsg()}, feature_collection_list=[collection], user_context=context
         )
+    elif isinstance(data, openeo.udf.UdfData):
+        pass
     elif isinstance(data, JSONResult):
         st = openeo.udf.StructuredData(description="Dictionary data", data=data.get_data(), type="dict")
         data = openeo.udf.UdfData(structured_data_list=[st], user_context=context)

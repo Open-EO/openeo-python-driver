@@ -714,10 +714,6 @@ class DriverVectorCube:
         # TODO: eliminate these legacy, non-standard formats?
         from openeo_driver.save_result import AggregatePolygonResult, JSONResult
 
-        if self._cube is None or self._cube.attrs.get(self.CUBE_ATTR_VECTOR_CUBE_DUMMY):
-            # No cube: no real data to return (in legacy style), so let's just return a `null` per geometry.
-            return JSONResult(data=[None] * self.geometry_count())
-
         cube = self._cube
         # TODO: more flexible temporal/band dimension detection?
         if cube.dims == (self.DIM_GEOMETRY, self.DIM_TIME):
@@ -733,11 +729,9 @@ class DriverVectorCube:
             # we keep it simple here with a basic JSONResult result.
             cube = cube.transpose(self.DIM_GEOMETRY, self.DIM_BANDS)
             return JSONResult(data=cube.values.tolist())
-        elif cube.dims == (self.DIM_GEOMETRY, self.DIM_PROPERTIES):
+        else:
             return JSONResult(data=self.to_geojson(include_properties=True))
-        raise ValueError(
-            f"Unsupported cube configuration {cube.dims} for _write_legacy_aggregate_polygon_result_json"
-        )
+
 
     def get_dimension_names(self) -> List[str]:
         if self._cube is None:
