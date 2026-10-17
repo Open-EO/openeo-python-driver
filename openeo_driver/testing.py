@@ -3,6 +3,7 @@ Reusable helpers and fixtures for testing
 """
 import base64
 import contextlib
+import functools
 import http.server
 import json
 import logging
@@ -654,6 +655,21 @@ def caplog_with_custom_formatter(caplog: pytest.LogCaptureFixture, format: Union
     return mock.patch.object(caplog.handler, "formatter", new=format)
 
 
+def _ephemeral_fileserver_run(queue: multiprocessing.Queue, path: str, host: str, port: int):
+    """
+    Server process entry point of `ephemeral_fileserver`.
+    Defined at module level so that it is picklable (required for "spawn"/"forkserver" start methods).
+    """
+    server = http.server.HTTPServer(
+        server_address=(host, port),
+        RequestHandlerClass=functools.partial(http.server.SimpleHTTPRequestHandler, directory=path),
+    )
+    url = f"http://{server.server_address[0]}:{server.server_port}"
+    _log.info(f"ephemeral_fileserver: started server at {url=}")
+    queue.put(url)
+    server.serve_forever()
+
+
 @contextlib.contextmanager
 def ephemeral_fileserver(path: Union[Path, str], host: str = "localhost", port: int = 0) -> typing.Iterator[str]:
     """
@@ -674,24 +690,13 @@ def ephemeral_fileserver(path: Union[Path, str], host: str = "localhost", port: 
     :return: root URL of the ephemeral file server (e.g. "http://localhost:21342")
     """
 
-    def run(queue: multiprocessing.Queue):
-        server = http.server.HTTPServer(
-            server_address=(host, port),
-            RequestHandlerClass=lambda *args, **kwargs: http.server.SimpleHTTPRequestHandler(
-                *args, directory=path, **kwargs
-            ),
-        )
-        url = f"http://{server.server_address[0]}:{server.server_port}"
-        _log.info(f"ephemeral_fileserver: started server at {url=}")
-        queue.put(url)
-        server.serve_forever()
-
     queue = multiprocessing.Queue()
-    server_process = multiprocessing.Process(target=run, args=(queue,))
+    # Process target and args must be picklable (Python 3.14 defaults to "forkserver" start method on Linux)
+    server_process = multiprocessing.Process(target=_ephemeral_fileserver_run, args=(queue, str(path), host, port))
     _log.debug("ephemeral_fileserver: starting server process")
     server_process.start()
     _log.info(f"ephemeral_fileserver: started pid={server_process.pid}")
-    url = queue.get(timeout=2)
+    url = queue.get(timeout=10)  # Generous timeout: "spawn"/"forkserver" start is slower than "fork"
     _log.info(f"ephemeral_fileserver: detected {url=}")
     try:
         yield url
