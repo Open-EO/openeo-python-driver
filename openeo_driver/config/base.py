@@ -59,7 +59,7 @@ def check_config_definition(config_class: Type[_ConfigBase]):
     """
     Verify that the config class definition is correct (e.g. all fields have type annotations).
     """
-    annotated = set(k for cls in config_class.__mro__ for k in cls.__dict__.get("__annotations__", {}).keys())
+    annotated = set(k for cls in config_class.__mro__ for k in inspect.get_annotations(cls).keys())
     members = set(k for k, v in inspect.getmembers(config_class) if not k.startswith("_"))
 
     if annotated != members:
