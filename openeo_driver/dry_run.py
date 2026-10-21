@@ -68,7 +68,6 @@ from openeo_driver import filter_properties
 from openeo_driver.constants import RESAMPLE_SPATIAL_ALIGN_DEFAULT
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube
 from openeo_driver.datastructs import ResolutionMergeArgs, SarBackscatterArgs
-from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import FeatureUnsupportedException, OpenEOApiException
 from openeo_driver.util.geometry import (
     BoundingBox,
@@ -560,8 +559,8 @@ class DryRunDataTracer:
 
     def get_geometries(
         self, operation="aggregate_spatial"
-    ) -> List[Union[shapely.geometry.base.BaseGeometry, DelayedVector, DriverVectorCube]]:
-        """Get geometries (polygons or DelayedVector), as used by aggregate_spatial"""
+    ) -> List[Union[shapely.geometry.base.BaseGeometry, DriverVectorCube]]:
+        """Get geometries (polygons or vector cube), as used by aggregate_spatial"""
         geometries_by_id = {}
         for leaf in self.get_trace_leaves():
             for args in leaf.get_arguments_by_operation(operation):
@@ -573,8 +572,8 @@ class DryRunDataTracer:
 
     def get_last_geometry(
         self, operation="aggregate_spatial"
-    ) -> Union[shapely.geometry.base.BaseGeometry, DelayedVector, DriverVectorCube]:
-        """Get geometries (polygons or DelayedVector), as used by aggregate_spatial"""
+    ) -> Union[shapely.geometry.base.BaseGeometry, DriverVectorCube]:
+        """Get geometries (polygons or vector cube), as used by aggregate_spatial"""
 
         for leaf in self.get_trace_leaves():
             args = leaf.get_arguments_by_operation(operation)
@@ -710,12 +709,12 @@ class DryRunDataCube(DriverDataCube):
 
     def _normalize_geometry(
         self, geometries, target_crs=None, target_resolution = None
-    ) -> Tuple[Union[DriverVectorCube, DelayedVector, BaseGeometry], dict]:
+    ) -> Tuple[Union[DriverVectorCube, BaseGeometry], dict]:
         """
         Helper to preprocess geometries (as used in aggregate_spatial and mask_polygon)
         and extract bbox (e.g. for filter_bbox)
 
-        :param geometries: geometries as BaseGeometry, GeoJSON dict, DelayedVector or DriverVectorCube
+        :param geometries: geometries as BaseGeometry, GeoJSON dict, path (str) or DriverVectorCube
         :param target_crs: target CRS to reproject geometries to
         :param target_resolution: target resolution for geometries, in units of the target CRS, None by default which will use 10m
         """
@@ -761,9 +760,7 @@ class DryRunDataCube(DriverDataCube):
         elif isinstance(geometries, dict):
             return self._normalize_geometry(geojson_to_geometry(geometries),target_crs, target_resolution)
         elif isinstance(geometries, str):
-            return self._normalize_geometry(DelayedVector(geometries),target_crs, target_resolution)
-        elif isinstance(geometries, DelayedVector):
-            bbox = geometries.bounds
+            return self._normalize_geometry(DriverVectorCube.from_fiona([geometries]), target_crs, target_resolution)
         elif isinstance(geometries, shapely.geometry.base.BaseGeometry):
             # TODO: buffer distance of 10m assumes certain resolution (e.g. sentinel2 pixels)
             # TODO: use proper distance for collection resolution instead of using a default distance?

@@ -206,11 +206,7 @@ def setup_logging(
         _log.debug(f"root handlers: {logging.getLogger().handlers}")
 
     if capture_threading_exceptions:
-        if hasattr(threading, "excepthook"):
-            # From Python 3.8
-            threading.excepthook = _threading_excepthook
-        else:
-            _log.warning("No support for capturing threading exceptions")
+        threading.excepthook = _threading_excepthook
 
     if capture_unhandled_exceptions:
         _log.debug(f"Overriding sys.excepthook with {_sys_excepthook} (was {sys.excepthook})")

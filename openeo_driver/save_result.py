@@ -28,7 +28,6 @@ import xarray
 from openeo.metadata import CollectionMetadata
 from openeo_driver.datacube import DriverDataCube, DriverVectorCube, DriverMlModel
 from openeo_driver.datastructs import StacAsset, SaveResultHints
-from openeo_driver.delayed_vector import DelayedVector
 from openeo_driver.errors import OpenEOApiException, FeatureUnsupportedException, InternalException
 from openeo_driver.util.compat import filter_supported_kwargs
 from openeo_driver.util.ioformats import IOFORMATS
@@ -367,7 +366,7 @@ class AggregatePolygonResult(JSONResult):  # TODO: if it supports NetCDF and CSV
         """
         super().__init__(data=timeseries)
         if not isinstance(regions, (GeometryCollection, DriverVectorCube)):
-            # TODO: raise exception instead of warning? Emile: 'regions' could be str|DelayedVector in geopyspark unit tests.
+            # TODO: raise exception instead of warning? Emile: 'regions' could be str in geopyspark unit tests.
             _log.warning(
                 f"AggregatePolygonResult: GeometryCollection or DriverVectorCube expected but got {type(regions)}"
             )
@@ -734,7 +733,7 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
     # TODO #71 #114 EP-3981 port this to proper vector cube support
     # TODO: this is a openeo-geopyspark-driver related/specific implementation, move it over there?
 
-    def __init__(self, csv_dir, regions: Union[GeometryCollection, DriverVectorCube, DelayedVector, BaseGeometry], metadata: CollectionMetadata = None):
+    def __init__(self, csv_dir, regions: Union[GeometryCollection, DriverVectorCube, BaseGeometry], metadata: CollectionMetadata = None):
         super().__init__(timeseries=None, regions=regions, metadata=metadata)
         self._csv_dir = csv_dir
 
@@ -751,12 +750,11 @@ class AggregatePolygonResultCSV(AggregatePolygonResult):
                 # TODO: This logic might get cleaned up when one kind ove vector cube is used everywhere
                 if isinstance(self._regions, DriverVectorCube):
                     amount_of_regions = len(self._regions.get_geometries())
-                elif isinstance(self._regions, str) or isinstance(self._regions, DelayedVector):
-                    regions = self._regions
-                    if isinstance(self._regions, str):
-                        regions = DelayedVector(self._regions)
-                    geometries = list(regions.geometries)
-                    amount_of_regions = len(geometries)
+                elif isinstance(self._regions, str):
+                    # TODO: DelayedVector support was removed: find out if/when regions can still be a str
+                    raise ValueError(
+                        f"AggregatePolygonResultCSV: regions as str (path) is no longer supported: {self._regions!r}"
+                    )
                 elif isinstance(self._regions, GeometryCollection):
                     amount_of_regions = len(self._regions.geoms)
                 else:
@@ -1120,15 +1118,6 @@ def to_save_result(
     options = options or {}
     if isinstance(data, SaveResult):
         return data
-    elif isinstance(data, DelayedVector):
-        if format is None or format.lower() == "json":
-            # TODO #114 EP-3981 add vector cube support: keep features from feature collection
-            geojsons = [shapely.geometry.mapping(geometry) for geometry in data.geometries_wgs84]
-            return JSONResult(geojsons, format=format, options=options, pg_node_id=pg_node_id)
-        if format.lower() == "geojson":
-            return JSONResult(data.geojson, format="geojson", options=options, pg_node_id=pg_node_id)
-        else:
-            data = data.to_driver_vector_cube()
     elif isinstance(data, DriverDataCube):
         return RasterCubeResult(cube=data, format=format, options=options, pg_node_id=pg_node_id)
     elif isinstance(data, DriverVectorCube):

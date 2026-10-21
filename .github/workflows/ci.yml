@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build wheel
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            **/pyproject.toml
+            **/setup.py
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build dependency
+        run: |
+          uv pip install --python "${{ env.pythonLocation }}/bin/python" build
+
+      - name: Build sdist and wheel
+        run: |
+          python -m build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+
+  tests:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            **/pyproject.toml
+            **/setup.py
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install project and test dependencies with uv
+        run: |
+          uv pip install --python "${{ env.pythonLocation }}/bin/python" ".[dev]"
+
+      - name: Run tests
+        run: |
+          uv run --python "${{ env.pythonLocation }}/bin/python" pytest -q
+
+  tests-py314:
+    name: Python 3.14 (experimental)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            **/pyproject.toml
+            **/setup.py
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          allow-prereleases: true
+
+      - name: Install project and test dependencies with uv
+        run: |
+          uv pip install --python "${{ env.pythonLocation }}/bin/python" ".[dev]"
+
+      - name: Run tests
+        run: |
+          uv run --python "${{ env.pythonLocation }}/bin/python" pytest -q

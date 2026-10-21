@@ -9,7 +9,6 @@ import math
 from pathlib import Path
 from typing import Any, Callable, List, Sequence, Union
 
-import openeo_processes
 from openeo.util import load_json
 from openeo.utils.version import ComparableVersion
 
@@ -18,6 +17,7 @@ from openeo_driver.errors import OpenEOApiException
 from openeo_driver.processes import DEFAULT_NAMESPACE, ProcessArgs, ProcessRegistry, ProcessSpec
 from openeo_driver.specs import SPECS_ROOT
 from openeo_driver.utils import EvalEnv
+from openeo_driver.vendor import processes_python
 from openeo_driver.views import OPENEO_API_VERSION_DEFAULT
 
 _log = logging.getLogger(__name__)
@@ -60,14 +60,15 @@ def _add_standard_processes(process_registry: ProcessRegistry, process_ids: List
 
         return wrapped
 
-    for pid in set(process_ids):
-        if openeo_processes.has_process(pid):
-            proc = openeo_processes.get_process(pid)
-            wrapped = wrap(proc)
-            spec = process_registry.load_predefined_spec(pid)
-            process_registry.add_process(name=pid, function=wrapped, spec=spec)
-        elif pid in _openeo_processes_extra:
+    for pid in dict.fromkeys(process_ids):
+        if pid in _openeo_processes_extra:
             proc = _openeo_processes_extra[pid]
+        elif processes_python.has_process(pid):
+            proc = processes_python.get_process(pid)
+        else:
+            proc = None
+
+        if proc is not None:
             wrapped = wrap(proc)
             spec = process_registry.load_predefined_spec(pid)
             process_registry.add_process(name=pid, function=wrapped, spec=spec)
@@ -132,7 +133,6 @@ _OPENEO_PROCESSES_PYTHON_WHITELIST = [
     "log",
     "ceil",
     "floor",
-    "int",
     "round",
     "arccos",
     "arcosh",

@@ -31,6 +31,22 @@ from openeo_driver.util.geometry import (
 
 from ..data import get_path
 
+
+class IsGeometry:
+    """
+    Equality helper: matches a GeoJSON-style geometry dict that is geometrically equal to given shapely geometry,
+    independent of vertex order/start (which differs between shapely versions).
+    """
+
+    def __init__(self, expected: BaseGeometry):
+        self.expected = expected
+
+    def __eq__(self, other):
+        return isinstance(other, dict) and shapely.geometry.shape(other).equals(self.expected)
+
+    def __repr__(self):
+        return f"IsGeometry({self.expected.wkt})"
+
 EARTH_CIRCUMFERENCE_KM = 40075.017
 
 
@@ -505,18 +521,7 @@ class TestAsGeoJsonFeatureCollection:
                 },
                 {
                     "type": "Feature",
-                    "geometry": {
-                        "type": "Polygon",
-                        "coordinates": (
-                            (
-                                (1.0, 2.0),
-                                (1.0, 4.0),
-                                (3.0, 4.0),
-                                (3.0, 2.0),
-                                (1.0, 2.0),
-                            ),
-                        ),
-                    },
+                    "geometry": IsGeometry(Polygon.from_bounds(1, 2, 3, 4)),
                     "properties": None,
                 },
                 {
@@ -541,18 +546,7 @@ class TestAsGeoJsonFeatureCollection:
                 },
                 {
                     "type": "Feature",
-                    "geometry": {
-                        "type": "Polygon",
-                        "coordinates": (
-                            (
-                                (1.0, 2.0),
-                                (1.0, 4.0),
-                                (3.0, 4.0),
-                                (3.0, 2.0),
-                                (1.0, 2.0),
-                            ),
-                        ),
-                    },
+                    "geometry": IsGeometry(Polygon.from_bounds(1, 2, 3, 4)),
                     "properties": None,
                 },
                 {
@@ -584,18 +578,7 @@ class TestAsGeoJsonFeatureCollection:
                 },
                 {
                     "type": "Feature",
-                    "geometry": {
-                        "type": "Polygon",
-                        "coordinates": (
-                            (
-                                (1.0, 2.0),
-                                (1.0, 4.0),
-                                (3.0, 4.0),
-                                (3.0, 2.0),
-                                (1.0, 2.0),
-                            ),
-                        ),
-                    },
+                    "geometry": IsGeometry(Polygon.from_bounds(1, 2, 3, 4)),
                     "properties": None,
                 },
                 {

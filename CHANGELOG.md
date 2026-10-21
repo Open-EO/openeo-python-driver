@@ -19,11 +19,29 @@ and start a new "In Progress" section above it.
 
 <!-- start-of-changelog -->
 
-## In progress: 0.141.0
+
+
+## In progress: 0.142.0
+
+- Replace the unmaintained `openeo_processes` dependency with a minimal, numpy-only in-tree port
+  (`openeo_driver.vendor.processes_python`, adapted from openeo-processes-python 0.0.4)
+  covering only the processes used by the driver. Related to #152.
+
+- Require at least Python 3.11 (drop support for Python 3.8, 3.9 and 3.10 [#370](https://github.com/Open-EO/openeo-python-driver/issues/370))
+- Require at least PySTAC 1.10 ([#396](https://github.com/Open-EO/openeo-python-driver/issues/396))
+- Replace `DelayedVector` with `DriverVectorCube` in `read_vector`, `get_geometries`, `vector_buffer` and the dummy backend's `aggregate_spatial` (vector files are now loaded through `DriverVectorCube.from_fiona`) and remove the `DelayedVector` handling from `apply_polygon`, `chunk_polygon`, `mask_polygon`, `filter_spatial`, `aggregate_spatial` and `run_udf`
+- `read_vector` and `get_geometries` (with `filename`) now return a `DriverVectorCube` (built with the backend's `vector_cube_cls`) instead of a `DelayedVector`.
+- Vector files are now loaded eagerly (instead of lazily) and loading errors are reported as `load_url_reading_error` instead of the former GeoJSON parsing errors.
+- **Backwards incompatible changes:**
+    - `run_udf` on the result of `read_vector`/`get_geometries` no longer passes the geometries as feature collection to the UDF, but follows the generic vector cube handling (like `load_uploaded_files`).
+
+
+## 0.141.0
 
 - Extract openeo-geopyspark-driver oriented batch job result metadata handling from generic view layer and allow openeo-aggregator to inject an alternative implementation in context of "STAC 1.1" batch job result metadata style ([Open-EO/openeo-aggregator/204](https://github.com/Open-EO/openeo-aggregator/issues/204))
 - Fix `save_result` leaking when using UDP sub-evaluation ([#534](https://github.com/Open-EO/openeo-python-driver/issues/534))
 - Add initial support for `reduce_spatial` ([Open-EO/openeo-geopyspark-driver#1715](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1715))
+- Add support for `infra_id` in `JobRegistryInterface`
 
 
 ## 0.140.0

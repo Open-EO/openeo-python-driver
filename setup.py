@@ -49,17 +49,16 @@ setup(
     data_files=[
         ("openeo-python-driver-data", ["CHANGELOG.md"]),
     ],
-    python_requires=">=3.8",
+    python_requires=">=3.11",
     tests_require=tests_require,
     install_requires=[
         "flask>=2.0.0",
         "werkzeug>=3.0.3",  # https://github.com/Open-EO/openeo-python-driver/issues/243
         "requests>=2.28.0",
         "openeo>=0.50.0.a2.dev",
-        "openeo_processes==0.0.4",  # 0.0.4 is special build/release, also see https://github.com/Open-EO/openeo-python-driver/issues/152
         "gunicorn>=20.0.1",
         "numpy>=1.22.0",
-        "shapely>=1.8.5",  # TODO #158 bump requirement to at least 2.0.0 for simplicity (once openeo-geopyspark-driver allows it too)
+        "shapely>=2.0.0",
         "pandas>=1.4.0,<3.0.0",  # DriverVectorCube.from_geojson incompatiblity with pandas 3 https://github.com/Open-EO/openeo-python-driver/issues/459
         "geopandas>=0.11.0",  # 0.11.0 fixes https://github.com/geopandas/geopandas/pull/2243
         "xarray>=0.16.2",
@@ -68,14 +67,12 @@ setup(
         "python-dateutil",
         "python-json-logger~=2.0",  # Avoid breaking change in 3.1.0 https://github.com/nhairs/python-json-logger/issues/29
         "deprecated>=1.2.12",
-        "importlib_resources; python_version<'3.10'",
         "attrs>=23.1.0",
-        "fiona>=1.9.0",
-        "fiona<1.10.0; python_version<'3.9'",  # Avoid fiona>=1.10.0 on Python 3.8 and lower (conflict with geopandas<0.14.0). Also see https://github.com/Open-EO/openeo-python-driver/issues/308
+        "pyogrio>=0.7.0",
         "reretry~=0.11.8",
         "markdown>3.4",
-        "pystac>=1.8.0",  # TODO #370/#396 require more recent pystac version once py3.8 support is dropped
-        "antimeridian>=0.3.8",  # 0.3.8 is the highest version that still supports Python 3.8
+        "pystac>=1.15.0",
+        "antimeridian>=0.3.8",
         "cachetools>=5.0",
     ],
     extras_require={

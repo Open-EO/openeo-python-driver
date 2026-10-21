@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any, Collection, List, Mapping, Optional, Sequence, Tuple, Union
 
 import antimeridian
-import fiona.model
 import pyproj
 import shapely.geometry
 import shapely.ops
@@ -126,7 +125,7 @@ def validate_geojson_coordinates(geojson: dict):
             else:
                 _validate_coordinates(feature["geometry"]["coordinates"])
 
-    if not isinstance(geojson, dict) and not isinstance(geojson,fiona.model.Object):
+    if not isinstance(geojson, dict):
         raise ValueError(f"Invalid GeoJSON: not a dict: {repr_truncate(geojson)}")
     if "type" not in geojson:
         raise ValueError(f"Invalid GeoJSON: missing 'type' field: {repr_truncate(geojson)}")

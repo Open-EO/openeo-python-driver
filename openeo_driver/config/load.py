@@ -6,15 +6,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Any, ContextManager, Optional, Type, Union
-
-try:
-    # Use `importlib_resources` instead of stdlib `importlib.resources`
-    # to have backported fix in Python<3.10 for https://bugs.python.org/issue44137
-    import importlib_resources
-except ImportError:
-    import importlib.resources
-
-    importlib_resources = importlib.resources
+import importlib.resources
 
 from openeo_driver.config import ConfigException, OpenEoBackendConfig
 
@@ -91,7 +83,7 @@ class ConfigGetter:
         """
         Default config file (as a context manager to allow it to be an ephemeral resource).
         """
-        return importlib_resources.as_file(importlib_resources.files("openeo_driver.config") / "default.py")
+        return importlib.resources.as_file(importlib.resources.files("openeo_driver.config") / "default.py")
 
     def _load(self, *, reason: Optional[str] = None, show_stack: bool = True) -> OpenEoBackendConfig:
         """Load the config from config file."""

@@ -13,6 +13,8 @@ from typing import Dict, Union
 import openeo.metadata
 import pystac
 import pystac.extensions.datacube
+import pystac.extensions.base
+
 
 _log = logging.getLogger(__name__)
 
@@ -28,18 +30,8 @@ def as_stac_object(stac_ref: StacRef) -> pystac.STACObject:
 
 def _get_dimensions(stac_ref: StacRef) -> Dict[str, pystac.extensions.datacube.Dimension]:
     stac_obj: pystac.STACObject = as_stac_object(stac_ref)
-    # TODO #396 update this to new pystac extension API
-    if pystac.extensions.datacube.DatacubeExtension.has_extension(stac_obj):
-        cube = pystac.extensions.datacube.DatacubeExtension.ext(stac_obj)
-        dimensions = cube.dimensions
-    elif any(e.startswith("https://stac-extensions.github.io/datacube/") for e in stac_obj.stac_extensions):
-        # TODO #370/#396 as we're currently stuck on an old pystac version that
-        #       doesn't support current versions of the datacube extension,
-        #       we need workarounds like this
-        _log.warning("Forcing pystac datacube extension on possibly unsupported metadata")
-        pystac.extensions.datacube.DatacubeExtension.add_to(stac_obj)
-        cube = pystac.extensions.datacube.DatacubeExtension.ext(stac_obj)
-        dimensions = cube.dimensions
+    if hasattr(stac_obj, "ext") and stac_obj.ext.has("cube"):
+        dimensions = stac_obj.ext.cube.dimensions
     else:
         raise ValueError(f"No datacube extension found in STAC object {stac_ref=}")
     return dimensions
