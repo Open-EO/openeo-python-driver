@@ -319,6 +319,7 @@ def test_evaluate_graph_diamond(dry_run_env, dry_run_tracer):
             ("load_collection", ("S2_FOOBAR", ()), "load1"),
             {
                 "bands": ["grass"],
+                'is_mask': {},
                 "resample": {"method": "near", "resolution": (10, 10), "target_crs": CRS_UTM},
                 "spatial_extent": {"west": 1, "east": 2, "south": 51, "north": 52, "crs": "EPSG:4326"},
             },
@@ -2989,7 +2990,7 @@ def test_deduplicate_source_constraints(dry_run_env, dry_run_tracer):
     assert source_constraints == [
         (
             ("load_stac", ("https://stac.test/collection1", (), ()), "loadstac1"),
-            {"temporal_extent": ("2026-01-01", "2026-02-02")},
+            {'is_mask': {}, "temporal_extent": ("2026-01-01", "2026-02-02")},
         ),
         (
             ("load_stac", ("https://stac.test/collection1", (), ()), "loadstac1"),
@@ -3005,8 +3006,12 @@ def test_deduplicate_source_constraints(dry_run_env, dry_run_tracer):
     assert deduped == [
         (
             ("load_stac", ("https://stac.test/collection1", (), ()), "loadstac1"),
-            {"temporal_extent": ("2026-01-01", "2026-02-02")},
+            {'is_mask': {},"temporal_extent": ("2026-01-01", "2026-02-02")},
         ),
+        (
+            ("load_stac", ("https://stac.test/collection1", (), ()), "loadstac1"),
+            {"temporal_extent": ("2026-01-01", "2026-02-02")},
+        )
     ]
 
 
