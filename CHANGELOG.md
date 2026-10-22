@@ -34,6 +34,7 @@ and start a new "In Progress" section above it.
 - Vector files are now loaded eagerly (instead of lazily) and loading errors are reported as `load_url_reading_error` instead of the former GeoJSON parsing errors.
 - **Backwards incompatible changes:**
     - `run_udf` on the result of `read_vector`/`get_geometries` no longer passes the geometries as feature collection to the UDF, but follows the generic vector cube handling (like `load_uploaded_files`).
+- `load_stac` with STAC metadata where "bands" dimension is erroneously missing: "bands" dimension will still be forced in dry run if "bands" argument is given to `load_stac` ([Open-EO/openeo-geopyspark-driver#1907](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1907))
 
 
 ## 0.141.0

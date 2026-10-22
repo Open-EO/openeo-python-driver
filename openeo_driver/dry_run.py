@@ -446,7 +446,7 @@ class DryRunDataTracer:
 
     @staticmethod
     @lru_cache(maxsize=20)
-    def _stac_metadata(stac_ref):
+    def _stac_metadata(stac_ref) -> CubeMetadata:
         try:
             return openeo_driver.stac.datacube.stac_to_cube_metadata(stac_ref=stac_ref)
         except Exception as e:
@@ -473,6 +473,14 @@ class DryRunDataTracer:
         self.add_trace(trace)
 
         metadata = DryRunDataTracer._stac_metadata(stac_ref=url)
+
+        if arguments.get("bands") and not metadata.has_band_dimension():
+            _log.warning(
+                "No band dimension detected in dry-run `load_stac` metadata extraction, but bands were requested. Forcing 'bands' dimension in metadata."
+            )
+            band_dimension = BandDimension(name="bands", bands=[Band(name=b) for b in arguments["bands"]])
+            # TODO: possible to avoid usage of `_dimensions` internal?
+            metadata = CubeMetadata(dimensions=metadata._dimensions + [band_dimension])
 
         cube = DryRunDataCube(traces=[trace], data_tracer=self, metadata=metadata)
         if "temporal_extent" in arguments:
