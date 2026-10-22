@@ -1660,6 +1660,77 @@ def test_load_stac_spatial_extent_requires_a_polygon(
 
 
 @pytest.mark.parametrize(
+    ["load_stac_kwargs", "expected"],
+    [
+        ({"bands": ["B01", "B02"]}, "warning"),
+        ({}, "error"),
+        ({"bands": None}, "error"),
+    ],
+)
+def test_load_stac_no_bands_in_metadata_but_user_forced(
+    dry_run_tracer, backend_implementation, tmp_path, caplog, load_stac_kwargs, expected
+):
+    """
+    No bands in the STAC metadata, but user forced a band selection.
+    https://github.com/Open-EO/openeo-geopyspark-driver/issues/1907
+    """
+    stac_ref = tmp_path / "stac.json"
+    stac_metadata = StacDummyBuilder.collection(
+        cube_dimensions={
+            "x": {"type": "spatial", "axis": "x", "extent": [0, 10], "reference_system": 4326},
+            "y": {"type": "spatial", "axis": "y", "extent": [0, 20], "reference_system": 4326},
+            "t": {"type": "temporal", "extent": ["2020-01-01T00:00:00Z", "2020-02-01T00:00:00Z"]},
+        }
+    )
+    stac_ref.write_text(json.dumps(stac_metadata))
+
+    pg = {
+        "loadstac1": {
+            "process_id": "load_stac",
+            "arguments": {
+                "url": str(stac_ref),
+                **load_stac_kwargs,
+            },
+        },
+        "reducebands": {
+            "process_id": "reduce_dimension",
+            "arguments": {
+                "data": {"from_node": "loadstac1"},
+                "dimension": "bands",
+                "reducer": {
+                    "process_graph": {
+                        "mean": {
+                            "process_id": "mean",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        }
+                    }
+                },
+            },
+            "result": True,
+        },
+    }
+
+    dry_run_env = EvalEnv(
+        {ENV_DRY_RUN_TRACER: dry_run_tracer, "backend_implementation": backend_implementation, "version": "2.0.0"}
+    )
+
+    if expected == "warning":
+        # `reduce_dimension` of "bands" works, but with warning
+        evaluate(pg, dry_run_env)
+        assert "Forcing 'bands' dimension in metadata" in caplog.text
+    elif expected == "error":
+        # Fails with error about missing bands dimension in metadata
+        with pytest.raises(
+            ProcessParameterInvalidException,
+            match=r"parameter.*dimension.*is invalid.*Must be one of.*'x', 'y', 't'.* but got 'bands'",
+        ):
+            evaluate(pg, dry_run_env)
+    else:
+        raise ValueError(f"Unexpected expected value: {expected}")
+
+
+@pytest.mark.parametrize(
     ["arguments", "expected"],
     [
         (
