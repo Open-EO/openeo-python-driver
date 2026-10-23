@@ -21,7 +21,10 @@ and start a new "In Progress" section above it.
 
 
 
-## In progress: 0.142.0
+## In progress: 0.142.0a5
+
+
+## 0.142.0a4
 
 - Replace the unmaintained `openeo_processes` dependency with a minimal, numpy-only in-tree port
   (`openeo_driver.vendor.processes_python`, adapted from openeo-processes-python 0.0.4)
@@ -35,6 +38,7 @@ and start a new "In Progress" section above it.
 - **Backwards incompatible changes:**
     - `run_udf` on the result of `read_vector`/`get_geometries` no longer passes the geometries as feature collection to the UDF, but follows the generic vector cube handling (like `load_uploaded_files`).
 
+- Expose raster asset `data_type` and `nodata` metadata in batch job results ([openeo-geotrellis-extensions#863](https://github.com/Open-EO/openeo-geotrellis-extensions/issues/863))
 
 ## 0.141.0
 
