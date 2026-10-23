@@ -1912,6 +1912,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff",
                         "type": "image/tiff; application=geotiff",
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
+                        "raster:bands": [{"data_type": "uint16", "nodata": 123}],
                     },
                     "output.nc": {
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.nc",
@@ -1985,6 +1986,7 @@ class TestBatchJobs:
                         "proj:code": "EPSG:4326",
                         "proj:shape": [300, 600],
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
+                        "raster:bands": [{"data_type": "uint16", "nodata": 123}],
                     },
                     "output.nc": {
                         "href": "http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.nc",
@@ -2086,6 +2088,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff",
                         "type": "image/tiff; application=geotiff",
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
+                        "raster:bands": [{"data_type": "uint16", "nodata": 123}],
                     },
                     "output.nc": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.nc",
@@ -2171,6 +2174,7 @@ class TestBatchJobs:
                         "proj:code": "EPSG:4326",
                         "proj:shape": [300, 600],
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
+                        "raster:bands": [{"data_type": "uint16", "nodata": 123}],
                     },
                     "output.nc": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.nc",
@@ -2358,6 +2362,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
                         "type": "image/tiff; application=geotiff",
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
+                        "raster:bands": [{"data_type": "uint16", "nodata": 123}],
                     },
                     "output.nc": {
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/e28f17365e698783574dd313de0d64cd/output.nc",
@@ -2505,6 +2510,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
                         "type": "image/tiff; application=geotiff",
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
+                        "raster:bands": [{"data_type": "uint16", "nodata": 123}],
                     },
                     "output.nc": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/e28f17365e698783574dd313de0d64cd/output.nc",
@@ -2654,6 +2660,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234",
                         "type": "image/tiff; application=geotiff",
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
+                        "raster:bands": [{"data_type": "uint16", "nodata": 123}],
                     },
                     "output.nc": {
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/3ed7b944c4f9cc88d2c3ef7534a27596/output.nc?expires=2234",
@@ -2848,6 +2855,7 @@ class TestBatchJobs:
                         "proj:code": "EPSG:4326",
                         "proj:shape": [300, 600],
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
+                        "raster:bands": [{"data_type": "uint16", "nodata": 123}],
                         "roles": ["data"],
                     },
                     "output.nc": {
@@ -3012,6 +3020,7 @@ class TestBatchJobs:
                                         "type": "Polygon",
                                     },
                                     "href": "openEO_20231231T214100Z.tif",
+                                    "data_type": "float64",
                                     "nodata": "nan",
                                     "type": "image/tiff; application=geotiff",
                                     "bands": [
@@ -3053,6 +3062,7 @@ class TestBatchJobs:
                                     },
                                     "href": "s3://openeo-data-staging-waw4-1/batch_jobs/j-250605095828442799fdde3c29b5b047/openEO_20231231T214100Z_abs.tif",
                                     "output_dir" : "s3://openeo-data-staging-waw4-1/batch_jobs/j-250605095828442799fdde3c29b5b047",
+                                    "data_type": "float64",
                                     "nodata": "nan",
                                     "type": "image/tiff; application=geotiff",
                                     "bands": [
@@ -3112,6 +3122,7 @@ class TestBatchJobs:
                                         "type": "Polygon",
                                     },
                                     "href": "openEO_20231230T214100Z.tif",
+                                    "data_type": "float64",
                                     "nodata": "nan",
                                     "type": "image/tiff; application=geotiff",
                                     "bands": [
@@ -3158,38 +3169,50 @@ class TestBatchJobs:
                     "roles": ["data"],
                     "title": "openEO_20231230T214100Z.tif",
                     "type": "image/tiff; application=geotiff",
+                    "nodata": "nan",
+                    "data_type": "float64",
                 },
-                '5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z_openEO_rel':{
-                    'href': 'http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/d58330c450ed1695361301efe130faf2/openEO_20231231T214100Z.tif',
-                    'bands': [{
-                        'name': 'LST',
-                        'eo:common_name': 'surface_temperature',
-                        'statistics': {
-                            'maximum': 281.04800415039,
-                            'mean': 259.57087672984,
-                            'minimum': 224.46798706055,
-                            'stddev': 19.598456945276,
-                            'valid_percent': 66.88}
-                    }],
-                    'roles': ['data'],
-                    'title': 'openEO_20231231T214100Z.tif',
-                    'type': 'image/tiff; application=geotiff'
+                "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z_openEO_rel": {
+                    "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/d58330c450ed1695361301efe130faf2/openEO_20231231T214100Z.tif",
+                    "bands": [
+                        {
+                            "name": "LST",
+                            "eo:common_name": "surface_temperature",
+                            "statistics": {
+                                "maximum": 281.04800415039,
+                                "mean": 259.57087672984,
+                                "minimum": 224.46798706055,
+                                "stddev": 19.598456945276,
+                                "valid_percent": 66.88,
+                            },
+                        }
+                    ],
+                    "roles": ["data"],
+                    "title": "openEO_20231231T214100Z.tif",
+                    "type": "image/tiff; application=geotiff",
+                    "nodata": "nan",
+                    "data_type": "float64",
                 },
-                '5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z_openEO_abs': {
-                    'href': 'http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/43241f3f756544ac5eb004268c3aa56a/openEO_20231231T214100Z_abs.tif',
-                    'bands': [{
-                        'name': 'LST',
-                        'eo:common_name': 'surface_temperature',
-                        'statistics': {
-                            'maximum': 281.04800415039,
-                            'mean': 259.57087672984,
-                            'minimum': 224.46798706055,
-                            'stddev': 19.598456945276,
-                            'valid_percent': 66.88}
-                    }],
-                    'roles': ['data'],
-                    'title': 'openEO_20231231T214100Z_abs.tif',
-                    'type': 'image/tiff; application=geotiff'
+                "5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z_openEO_abs": {
+                    "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/43241f3f756544ac5eb004268c3aa56a/openEO_20231231T214100Z_abs.tif",
+                    "bands": [
+                        {
+                            "name": "LST",
+                            "eo:common_name": "surface_temperature",
+                            "statistics": {
+                                "maximum": 281.04800415039,
+                                "mean": 259.57087672984,
+                                "minimum": 224.46798706055,
+                                "stddev": 19.598456945276,
+                                "valid_percent": 66.88,
+                            },
+                        }
+                    ],
+                    "roles": ["data"],
+                    "title": "openEO_20231231T214100Z_abs.tif",
+                    "type": "image/tiff; application=geotiff",
+                    "nodata": "nan",
+                    "data_type": "float64",
                 }
             }
             assert resp.get("item_assets") == {
@@ -4036,6 +4059,7 @@ class TestBatchJobs:
                     "proj:code": "EPSG:4326",
                     "proj:shape": [300, 600],
                     "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
+                    "raster:bands": [{"data_type": "uint16", "nodata": 123}],
                     "roles": ["data"],
                 }
             },
