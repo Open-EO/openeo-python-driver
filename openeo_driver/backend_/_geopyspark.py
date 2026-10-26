@@ -423,10 +423,6 @@ def _asset_object(
     def jsonable_nodata(nodata: Optional[float]) -> Union[None, float, str]:
         if nodata != nodata:
             return "nan"
-        if nodata == float("inf"):
-            return "inf"
-        if nodata == -float("inf"):
-            return "-inf"
 
         return nodata
 

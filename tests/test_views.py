@@ -32,7 +32,6 @@ from openeo_driver.backend import (
     UserDefinedProcessMetadata,
     not_implemented,
 )
-from openeo_driver.backend_._geopyspark import _asset_object
 from openeo_driver.config import OpenEoBackendConfig
 from openeo_driver.config.util import Exclude
 from openeo_driver.constants import ITEM_LINK_PROPERTY
@@ -1354,33 +1353,6 @@ class TestCollections:
             "properties": {},
             "additionalProperties": True,
         }
-
-
-@pytest.mark.parametrize(
-    ["nodata", "expected"],
-    [(float("nan"), "nan"), (float("inf"), "inf"), (float("-inf"), "-inf")],
-)
-@pytest.mark.parametrize("stac11", [False, True])
-def test_asset_object_non_finite_nodata_is_json_safe(nodata, expected, stac11):
-    asset = _asset_object(
-        job_id="job-123",
-        user_id="user-123",
-        filename="output.tiff",
-        asset_metadata={
-            "href": "https://example.test/output.tiff",
-            "data_type": "uint8",
-            "nodata": nodata,
-            "bands": [{}],
-        },
-        job_info=mock.Mock(epsg=None, proj_bbox=None, proj_shape=None),
-        stac11=stac11,
-    )
-
-    if stac11:
-        assert asset["nodata"] == expected
-    else:
-        assert asset["raster:bands"] == [{"data_type": "uint8", "nodata": expected}]
-    json.dumps(asset, allow_nan=False)
 
 
 class TestBatchJobs:
