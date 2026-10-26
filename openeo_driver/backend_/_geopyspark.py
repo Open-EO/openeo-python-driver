@@ -19,7 +19,7 @@ import logging
 import os
 import urllib.parse
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import flask
 import openeo
@@ -420,6 +420,15 @@ def _list_job_results_openeo100(
 def _asset_object(
     job_id, user_id, filename: str, asset_metadata: dict, job_info: BatchJobMetadata, stac11: bool
 ) -> dict:
+    def jsonable_nodata(nodata: Optional[float]) -> Union[None, float, str]:
+        if nodata != nodata:
+            return "nan"
+
+        return nodata
+
+    nodata_value = jsonable_nodata(asset_metadata.get("nodata"))
+    data_type_value = asset_metadata.get("data_type")
+
     result_dict = dict_no_none(
         {
             "title": asset_metadata.get("title", filename),
@@ -433,8 +442,8 @@ def _asset_object(
             "raster:bands": None if stac11 else asset_metadata.get("raster:bands"),
             "file:size": asset_metadata.get("file:size"),
             "alternate": asset_metadata.get("alternate"),
-            "nodata": asset_metadata.get("nodata") if stac11 else None,
-            "data_type": asset_metadata.get("data_type") if stac11 else None,
+            "nodata": nodata_value if stac11 else None,
+            "data_type": data_type_value if stac11 else None,
         }
     )
     if filename.endswith(".model"):
@@ -474,17 +483,16 @@ def _asset_object(
 
             raster_bands = result_dict.get("raster:bands")
             if raster_bands is None:
-                if "nodata" in asset_metadata or "data_type" in asset_metadata:
+                if nodata_value is not None or data_type_value is not None:
                     result_dict["raster:bands"] = [
-                        dict_no_none(data_type=asset_metadata.get("data_type"), nodata=asset_metadata.get("nodata"))
-                        for _ in bands
+                        dict_no_none(data_type=data_type_value, nodata=nodata_value) for _ in bands
                     ]
             else:
                 for raster_band in raster_bands:
-                    if "nodata" not in raster_band and "nodata" in asset_metadata:
-                        raster_band["nodata"] = asset_metadata["nodata"]
-                    if "data_type" not in raster_band and "data_type" in asset_metadata:
-                        raster_band["data_type"] = asset_metadata["data_type"]
+                    if "nodata" not in raster_band and nodata_value is not None:
+                        raster_band["nodata"] = nodata_value
+                    if "data_type" not in raster_band and data_type_value is not None:
+                        raster_band["data_type"] = data_type_value
         else:
 
             def raster_bands(band_index) -> dict:

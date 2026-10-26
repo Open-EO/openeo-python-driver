@@ -2324,13 +2324,11 @@ class TestBatchJobs:
             )
 
     def test_get_job_results_public_href_asset_100(self, api, backend_implementation):
-        import numpy as np
-
         results_data = {
             "output.tiff": {
                 BatchJobs.ASSET_PUBLIC_HREF: "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349",
                 "type": "application/tiff",
-                "nodata": np.nan,
+                "nodata": float("nan"),
             }
         }
         with self._fresh_job_registry(
