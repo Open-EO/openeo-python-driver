@@ -80,6 +80,7 @@ DEFAULT_NAMESPACE = "backend"
 
 class ProcessData(typing.NamedTuple):
     function: Optional[Callable]
+    # TODO: expose this as `ProcessDefinition` instead of raw dict?
     spec: Optional[dict]
 
 
@@ -323,9 +324,14 @@ class ProcessRegistry:
 
     def get_spec(self, name: str, namespace: str = DEFAULT_NAMESPACE) -> dict:
         """Get spec dict of given process name"""
-        if not self.contains(name, namespace) or self._get(name, namespace).spec is None:
+        if not self.contains(name, namespace) or (spec := self._get(name, namespace).spec) is None:
             raise ProcessUnsupportedException(process=name, namespace=namespace)
-        return self._get(name, namespace).spec
+        return spec
+
+    def get_spec_or_none(self, name: str, namespace: str = DEFAULT_NAMESPACE) -> dict | None:
+        if self.contains(name=name, namespace=namespace):
+            return self._get(name=name, namespace=namespace).spec
+        return None
 
     def get_specs(
         self,

@@ -1,4 +1,7 @@
-from openeo_driver.errors import ProcessGraphInvalidException
+from contextlib import nullcontext
+
+from openeo_driver.errors import ProcessGraphInvalidException, FeatureUnsupportedException
+from openeo_driver.processes import ProcessRegistry
 from openeo_driver.processgraph import (
     get_process_definition_from_url,
     extract_default_job_options_from_process_graph,
@@ -111,3 +114,110 @@ def test_extract_default_job_options_from_process_graph(requests_mock):
 def test_extract_default_job_options_from_process_graph_garbage(pg):
     with pytest.raises(ProcessGraphInvalidException):
         extract_default_job_options_from_process_graph(ProcessGraphFlatDict(pg))
+
+
+def test_extract_default_job_options_from_process_graph_predefined_processes():
+    process_registry = ProcessRegistry()
+    process_registry.add_spec(
+        {
+            "id": "add3",
+            "process_graph": {
+                "add": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 3}, "result": True}
+            },
+            "parameters": [
+                {"name": "x", "schema": {"type": "number"}},
+            ],
+            "returns": {"schema": {"type": "number"}},
+            "default_job_options": {
+                "memory": "2GB",
+                "cpu": "yellow",
+            },
+            "default_synchronous_options": {
+                "cpu": "green",
+            },
+        },
+    )
+
+    pg = ProcessGraphFlatDict(
+        {
+            "add12": {"process_id": "add", "arguments": {"x": 1, "y": 2}},
+            "add3": {
+                "process_id": "add3",
+                "arguments": {"x": {"from_node": "add12"}},
+                "result": True,
+            },
+        }
+    )
+    assert extract_default_job_options_from_process_graph(
+        pg, processing_mode="batch_job", process_registry=process_registry
+    ) == {
+        "memory": "2GB",
+        "cpu": "yellow",
+    }
+    assert extract_default_job_options_from_process_graph(
+        pg, processing_mode="synchronous", process_registry=process_registry
+    ) == {
+        "cpu": "green",
+    }
+
+
+@pytest.mark.parametrize(
+    ["add3_defaults", "add5_defaults", "expected"],
+    [
+        ({"cpu": "yellow"}, {"memory": "1GB"}, {"cpu": "yellow", "memory": "1GB"}),
+        ({"cpu": "yellow"}, None, {"cpu": "yellow"}),
+        ({"cpu": "yellow"}, {"cpu": "yellow"}, {"cpu": "yellow"}),
+        ({"cpu": "yellow"}, {"cpu": "red"}, FeatureUnsupportedException),
+        (
+            {"cpu": "yellow", "retries": 5},
+            {"cpu": "yellow", "speed": {"value": 5, "unit": "km/h"}},
+            {"cpu": "yellow", "retries": 5, "speed": {"value": 5, "unit": "km/h"}},
+        ),
+    ],
+)
+def test_extract_default_job_options_from_process_graph_merging(add3_defaults, add5_defaults, expected):
+    process_registry = ProcessRegistry()
+    process_registry.add_spec(
+        {
+            "id": "add3",
+            "process_graph": {
+                "add": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 3}, "result": True}
+            },
+            **({"default_job_options": add3_defaults} if add3_defaults else {}),
+        },
+    )
+    process_registry.add_spec(
+        {
+            "id": "add5",
+            "process_graph": {
+                "add": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 5}, "result": True}
+            },
+            **({"default_job_options": add5_defaults} if add5_defaults else {}),
+        },
+    )
+
+    pg = ProcessGraphFlatDict(
+        {
+            "add12": {"process_id": "add", "arguments": {"x": 1, "y": 2}},
+            "add3": {
+                "process_id": "add3",
+                "arguments": {"x": {"from_node": "add12"}},
+            },
+            "add5": {
+                "process_id": "add5",
+                "arguments": {"x": {"from_node": "add3"}},
+                "result": True,
+            },
+        }
+    )
+
+    if isinstance(expected, type) and issubclass(expected, Exception):
+        context = pytest.raises(expected)
+    else:
+        context = nullcontext()
+
+    with context:
+        actual = extract_default_job_options_from_process_graph(
+            pg, processing_mode="batch_job", process_registry=process_registry
+        )
+        assert actual == expected
