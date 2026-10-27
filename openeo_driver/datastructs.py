@@ -1,4 +1,5 @@
 import dataclasses
+import re
 
 from typing import List, NamedTuple, Optional, Union
 
@@ -75,3 +76,10 @@ class SaveResultHints:
     node_id: Optional[str] = None
 
     # TODO: add simple (per process graph) auto-increment id too (as simple/compact alternative for node_id, which is client-specific)
+
+    def safe_node_id(self, *, max_length: int = 32, fallback: str = "unknown") -> str:
+        """Return sanitized node id (for usage in file names, etc.)"""
+        node_id = re.sub(r"[^a-zA-Z0-9_-]", "", self.node_id or "")
+        if not node_id:
+            return fallback
+        return node_id[:max_length]

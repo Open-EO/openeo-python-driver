@@ -149,6 +149,9 @@ class SaveResult:
         workspace_id: str
         merge: Optional[str]
 
+    def get_save_result_hints(self) -> SaveResultHints:
+        return SaveResultHints(node_id=self._pg_node_id)
+
 
 def clean_parquet_column_name(name: str):
     # Could not find official spec for this, but cleaning just for consistency
@@ -200,7 +203,7 @@ class RasterCubeResult(SaveResult):
                 format=self.format,
                 format_options=self.options,
                 **filter_supported_kwargs(
-                    callable=self.cube.write_assets, save_result_hints=SaveResultHints(node_id=self._pg_node_id)
+                    callable=self.cube.write_assets, save_result_hints=self.get_save_result_hints()
                 ),
             )
         else:
@@ -210,7 +213,14 @@ class RasterCubeResult(SaveResult):
     def create_flask_response(self) -> Response:
         # TODO: clean up temp file
         # TODO: port to write_assets
-        filename = get_temp_file(suffix=".save_result.{e}".format(e=self.format.lower()))
+        suffix = ".save_result"
+        if (save_result_hints := self.get_save_result_hints()) and save_result_hints.node_id:
+            suffix += f".{save_result_hints.safe_node_id()}"
+        if self.format in IOFORMATS and (extension := IOFORMATS.get(self.format).extension):
+            suffix += f".{extension}"
+        else:
+            suffix += f".{self.format.lower()}"
+        filename = get_temp_file(suffix=suffix)
         filename = self.save_result(filename)
         mimetype = self.get_mimetype()
         return send_from_directory(os.path.dirname(filename), os.path.basename(filename), mimetype=mimetype)
@@ -244,7 +254,7 @@ class VectorCubeResult(SaveResult):
             directory=directory,
             format=self.format,
             options=self.options,
-            save_result_hints=SaveResultHints(node_id=self._pg_node_id),
+            save_result_hints=self.get_save_result_hints(),
         )
 
     def create_flask_response(self) -> Response:
@@ -277,7 +287,7 @@ class MlModelResult(SaveResult):
         return self.ml_model.write_assets(
             directory=directory,
             **filter_supported_kwargs(
-                callable=self.ml_model.write_assets, save_result_hints=SaveResultHints(node_id=self._pg_node_id)
+                callable=self.ml_model.write_assets, save_result_hints=self.get_save_result_hints()
             ),
         )
 
