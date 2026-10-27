@@ -225,6 +225,7 @@ def chunk_polygon(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def reduce_dimension(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
     reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
+    reduce_pg = resolve_child_parameters(reduce_pg, env=env, exclude={"data", "context"})
     dimension = args.get_required(
         "dimension", expected_type=str, validator=ProcessArgs.validator_one_of(data_cube.get_dimension_names())
     )
@@ -333,6 +334,7 @@ def filter_temporal(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def filter_labels(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
     condition = args.get_required("condition", expected_type=dict)
+    condition = resolve_child_parameters(condition, env=env, exclude={"value", "context"})
     dimension = args.get_required("dimension", expected_type=str)
     context = args.get_optional("context", default=None)
     return cube.filter_labels(condition=condition, dimension=dimension, context=context, env=env)
@@ -433,6 +435,7 @@ def linear_scale_range(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def aggregate_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     cube = args.get_required("data", expected_type=DriverDataCube)
     reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
+    reduce_pg = resolve_child_parameters(reduce_pg, env=env, exclude={"data", "context"})
     target_dimension = args.get_optional("target_dimension", default=None)
 
     geoms = args.get_required("geometries")
@@ -464,6 +467,7 @@ def aggregate_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def aggregate_spatial_window(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     cube = args.get_required("data", expected_type=DriverDataCube)
     reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
+    reduce_pg = resolve_child_parameters(reduce_pg, env=env, exclude={"data", "context"})
     window_size = args.get_required("size")
     align = args.get_optional("align", default="upper-left")
     pad = args.get_optional("pad", default="pad")
@@ -476,6 +480,7 @@ def aggregate_spatial_window(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
 def reduce_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     cube = args.get_required("data", expected_type=DriverDataCube)
     reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
+    reduce_pg = resolve_child_parameters(reduce_pg, env=env, exclude={"data", "context"})
     context = args.get_optional("context", default=None)
     return cube.reduce_spatial(reducer=reduce_pg, context=context, env=env)
 

@@ -1569,6 +1569,43 @@ def test_load_stac_properties(dry_run_env, dry_run_tracer):
     ]
 
 
+def test_load_stac_properties_resolve_parameters(dry_run_env, dry_run_tracer):
+    def get_props(y, **kwargs):
+        return {
+            "eo:cloud_cover": {
+                "process_graph": {
+                    "lte1": {
+                        "process_id": "lte",
+                        "arguments": {"x": {"from_parameter": "value"}, "y": y},
+                        "result": True,
+                        **kwargs,
+                    }
+                }
+            }
+        }
+
+    pg = {
+        "ls1": {
+            "process_id": "load_stac",
+            "arguments": {
+                "url": "https://example.org/collections/S2",
+                "properties": get_props({"from_parameter": "max_cloud_coverage"}),
+            },
+            "result": True,
+        }
+    }
+
+    evaluate(pg, env=dry_run_env.push_parameters({"max_cloud_coverage": 5}))
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert source_constraints == [
+        (
+            ("load_stac", ("https://example.org/collections/S2", (("eo:cloud_cover", (("lte", 5),)),), ()), "ls1"),
+            {"properties": get_props(5, _node_id="lte1")},
+        ),
+    ]
+
+
 @pytest.mark.parametrize(
     ["spatial_extent", "expectation"],
     [

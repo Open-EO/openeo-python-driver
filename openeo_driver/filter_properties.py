@@ -12,6 +12,32 @@ class PropertyConditionException(OpenEOApiException):
     message = "Property condition is invalid."
 
 
+def resolve_condition_parameters(properties: Dict[str, dict], env: EvalEnv) -> Dict[str, dict]:
+    """
+    Replace parameter references (other than the callback parameter "value") in property conditions
+    with their actual values from the evaluation env, so the conditions can be evaluated without that env later on.
+    """
+    callback_parameter_name = "value"
+    env_parameters = env.collect_parameters()
+
+    def resolve(x):
+        if isinstance(x, dict):
+            if set(x.keys()) == {"from_parameter"}:
+                name = x["from_parameter"]
+                if name != callback_parameter_name and name in env_parameters:
+                    return env_parameters[name]
+                return x
+            resolved = {k: resolve(v) for k, v in x.items()}
+            return x if all(resolved[k] is x[k] for k in x) else resolved
+        elif isinstance(x, list):
+            resolved = [resolve(v) for v in x]
+            return x if all(r is v for r, v in zip(resolved, x)) else resolved
+        return x
+
+    resolved = {name: resolve(condition) for name, condition in properties.items()}
+    return properties if all(resolved[k] is properties[k] for k in properties) else resolved
+
+
 def extract_literal_match(condition: dict, env=EvalEnv()) -> Dict[str, Any]:
     """
     Turns a condition as defined by the load_collection process into a set of criteria ((operator, value) pairs).
