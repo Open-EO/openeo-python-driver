@@ -390,6 +390,7 @@ class DryRunDataTracer:
             **metadata.get("_vito", "properties", default={}),
             **arguments.get("properties", {}),
         }
+        properties = filter_properties.resolve_condition_parameters(properties, env)
 
         trace = DataSource.load_collection(
             collection_id=collection_id,
@@ -465,7 +466,7 @@ class DryRunDataTracer:
     def load_stac(
         self, url: str, *, arguments: dict, env: EvalEnv = EvalEnv(), pg_node_id: Optional[str] = None
     ) -> "DryRunDataCube":
-        properties = arguments.get("properties", {})
+        properties = filter_properties.resolve_condition_parameters(arguments.get("properties", {}), env)
 
         trace = DataSource.load_stac(
             url=url, properties=properties, bands=arguments.get("bands", []), env=env, pg_node_id=pg_node_id

@@ -34,6 +34,7 @@ and start a new "In Progress" section above it.
 - Vector files are now loaded eagerly (instead of lazily) and loading errors are reported as `load_url_reading_error` instead of the former GeoJSON parsing errors.
 - **Backwards incompatible changes:**
     - `run_udf` on the result of `read_vector`/`get_geometries` no longer passes the geometries as feature collection to the UDF, but follows the generic vector cube handling (like `load_uploaded_files`).
+- Dry run: resolve parameter references (e.g. UDP parameters) in `load_collection`/`load_stac` property conditions, so the `properties` source constraint can be evaluated without the original evaluation env (e.g. in `post_dry_run`).
 
 
 ## 0.141.0

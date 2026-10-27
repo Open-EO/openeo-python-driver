@@ -11,6 +11,7 @@ from openeo_driver.datacube import DriverDataCube
 from openeo_driver.dry_run import DryRunDataTracer
 from openeo_driver.errors import ProcessParameterInvalidException
 from openeo_driver.processes import ProcessArgs
+from openeo_driver.processgraph.evaluator import resolve_child_parameters
 from openeo_driver.processgraph.registry import ENV_DRY_RUN_TRACER, process
 from openeo_driver.util.date_math import month_shift
 from openeo_driver.utils import EvalEnv
@@ -23,6 +24,7 @@ def aggregate_temporal(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     data_cube = args.get_required("data", expected_type=DriverDataCube)
     intervals = args.get_required("intervals")
     reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
+    reduce_pg = resolve_child_parameters(reduce_pg, env=env, exclude={"data", "context"})
     labels = args.get_optional("labels", default=None)
     dimension = args.get_optional(
         "dimension",
@@ -41,6 +43,7 @@ def aggregate_temporal_period(args: ProcessArgs, env: EvalEnv) -> DriverDataCube
     data_cube = args.get_required("data", expected_type=DriverDataCube)
     period = args.get_required("period")
     reduce_pg = args.get_deep("reducer", "process_graph", expected_type=dict)
+    reduce_pg = resolve_child_parameters(reduce_pg, env=env, exclude={"data", "context"})
     dimension = args.get_optional(
         "dimension",
         default=lambda: data_cube.metadata.temporal_dimension.name,
