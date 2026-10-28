@@ -1,0 +1,18 @@
+{
+  "type": "Catalog",
+  "stac_version": "1.0.0",
+  "id": "unknown-job",
+  "description": "Simple Sentinel-2 based stac catalog",
+  "links": [
+    {
+      "href": "./catalog.json",
+      "rel": "root",
+      "type": "application/json"
+    },
+    {
+      "href": "./openEO_2023-06-01Z.tif.json",
+      "rel": "item",
+      "type": "application/geo+json"
+    }
+  ]
+}
