@@ -958,6 +958,7 @@ class DummyBatchJobs(BatchJobs):
                 "type": "image/tiff; application=geotiff",
                 "roles": ["data"],
                 "bands": [Band(name="B02", common_name="blue", wavelength_um=0.665)],
+                "data_type": "uint16",
                 "nodata": 123,
                 "instruments": "MSI",
                 "bbox": [0.0, 50.0, 5.0, 55.0],
