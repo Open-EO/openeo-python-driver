@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import itertools
+
 import dataclasses
 import logging
 from typing import List, Optional, Union, Literal
@@ -8,6 +10,7 @@ import requests
 
 from openeo_driver.errors import OpenEOApiException, ProcessGraphInvalidException, FeatureUnsupportedException
 from openeo_driver.processes import ProcessRegistry, DEFAULT_NAMESPACE
+from openeo_driver.util.datastructures import unique_by_equality
 from openeo_driver.util.http import is_http_url
 
 _log = logging.getLogger(__name__)
@@ -167,17 +170,21 @@ def extract_default_job_options_from_process_graph(
             elif processing_mode == "synchronous" and process_definition.default_synchronous_options:
                 collected.append(process_definition.default_synchronous_options)
 
+    # Merge everything: group by job option key and check for collisions (if any)
     merged = {}
-    for defaults in collected:
-        for k, v in defaults.items():
-            if k not in merged:
-                merged[k] = v
-            elif merged[k] == v:
-                pass
-            else:
-                # TODO: support merging, e.g. based on `JobOptions` metadata (e.g. take max/min/first/...)?
-                # TODO: how to combine multiple default processing options for same parameters?
-                raise FeatureUnsupportedException(
-                    message="Merging multiple default processing options from different process definitions is not yet implemented."
-                )
+    collisions = {}
+    for job_option, values in itertools.groupby(
+        sorted(((k, v) for d in collected for k, v in d.items()), key=lambda kv: kv[0]),
+        key=lambda kv: kv[0],
+    ):
+        # reduce to unique values (but without guarantee on being hashable, so we can not use `set()` trick
+        values = unique_by_equality(v for _, v in values)
+        # TODO: use `max` resolution instead of `first` when data type or job option type has sensible comparability?
+        merged[job_option] = values[0]
+        if len(values) > 1:
+            collisions[job_option] = values
+
+    if collisions:
+        _log.warning(f"Merging of extracted default processing options had collisions: {collisions}")
+
     return merged

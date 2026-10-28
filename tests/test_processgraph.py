@@ -1,3 +1,6 @@
+import re
+
+import dirty_equals
 from contextlib import nullcontext
 
 from openeo_driver.errors import ProcessGraphInvalidException, FeatureUnsupportedException
@@ -162,20 +165,48 @@ def test_extract_default_job_options_from_process_graph_predefined_processes():
 
 
 @pytest.mark.parametrize(
-    ["add3_defaults", "add5_defaults", "expected"],
+    ["add3_defaults", "add5_defaults", "expected", "expected_warning"],
     [
-        ({"cpu": "yellow"}, {"memory": "1GB"}, {"cpu": "yellow", "memory": "1GB"}),
-        ({"cpu": "yellow"}, None, {"cpu": "yellow"}),
-        ({"cpu": "yellow"}, {"cpu": "yellow"}, {"cpu": "yellow"}),
-        ({"cpu": "yellow"}, {"cpu": "red"}, FeatureUnsupportedException),
+        ({"cpu": "yellow"}, {"memory": "1GB"}, {"cpu": "yellow", "memory": "1GB"}, None),
+        ({"cpu": "yellow"}, None, {"cpu": "yellow"}, None),
+        ({"cpu": "yellow"}, {"cpu": "yellow"}, {"cpu": "yellow"}, None),
+        (
+            {"cpu": "yellow"},
+            {"cpu": "red"},
+            dirty_equals.IsOneOf(
+                {"cpu": "yellow"},
+                {"cpu": "red"},
+            ),
+            dirty_equals.IsStr(
+                regex=".*Merging of.*processing options.*collisions.*cpu.*(yellow.*red|red.*yellow).*",
+                regex_flags=re.DOTALL,
+            ),
+        ),
         (
             {"cpu": "yellow", "retries": 5},
             {"cpu": "yellow", "speed": {"value": 5, "unit": "km/h"}},
             {"cpu": "yellow", "retries": 5, "speed": {"value": 5, "unit": "km/h"}},
+            None,
+        ),
+        (
+            # Mix of data types (which might cause comparison issues)
+            {"cpu": "red", "retries": [3, 5], "speed": 8},
+            {"cpu": "yellow", "retries": 13, "speed": {"value": 21, "unit": "km/h"}},
+            {
+                "cpu": dirty_equals.IsOneOf("red", "yellow"),
+                "retries": dirty_equals.IsOneOf([3, 5], 13),
+                "speed": dirty_equals.IsOneOf(8, {"value": 21, "unit": "km/h"}),
+            },
+            dirty_equals.IsStr(
+                regex=".*Merging of.*processing options.*collisions.*cpu.*(yellow.*red|red.*yellow).*retries.*speed.*",
+                regex_flags=re.DOTALL,
+            ),
         ),
     ],
 )
-def test_extract_default_job_options_from_process_graph_merging(add3_defaults, add5_defaults, expected):
+def test_extract_default_job_options_from_process_graph_merging(
+    caplog, add3_defaults, add5_defaults, expected, expected_warning
+):
     process_registry = ProcessRegistry()
     process_registry.add_spec(
         {
@@ -211,13 +242,14 @@ def test_extract_default_job_options_from_process_graph_merging(add3_defaults, a
         }
     )
 
-    if isinstance(expected, type) and issubclass(expected, Exception):
-        context = pytest.raises(expected)
-    else:
-        context = nullcontext()
-
-    with context:
-        actual = extract_default_job_options_from_process_graph(
+    assert (
+        extract_default_job_options_from_process_graph(
             pg, processing_mode="batch_job", process_registry=process_registry
         )
-        assert actual == expected
+        == expected
+    )
+
+    if expected_warning:
+        assert caplog.text == expected_warning
+    else:
+        assert caplog.text == ""
