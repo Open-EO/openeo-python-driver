@@ -694,8 +694,9 @@ def register_views_processing(
         job_options = _extract_job_options(
             post_data, to_ignore=["process", "process_graph", "budget", "plan", "log_level"]
         )
+        process_registry = backend_implementation.processing.get_process_registry(api_version=requested_api_version())
         job_option_defaults = extract_default_job_options_from_process_graph(
-            process_graph=process_graph, processing_mode="synchronous"
+            process_graph=process_graph, processing_mode="synchronous", process_registry=process_registry
         )
         if job_option_defaults:
             _log.info(f"Extending {job_options=} with extracted {job_option_defaults=}")
@@ -877,8 +878,13 @@ def register_views_batch_jobs(
         job_options = _extract_job_options(
             post_data, to_ignore=["process", "process_graph", "title", "description", "plan", "budget", "log_level"]
         )
+        process_registry = (
+            backend_implementation.processing.get_process_registry(api_version=requested_api_version())
+            if backend_implementation.processing
+            else None
+        )
         job_option_defaults = extract_default_job_options_from_process_graph(
-            process_graph=process_graph, processing_mode="batch_job"
+            process_graph=process_graph, processing_mode="batch_job", process_registry=process_registry
         )
         if job_option_defaults:
             _log.info(f"Extending {job_options=} with extracted {job_option_defaults=}")

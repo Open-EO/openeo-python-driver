@@ -1,4 +1,10 @@
-from openeo_driver.errors import ProcessGraphInvalidException
+import re
+
+import dirty_equals
+from contextlib import nullcontext
+
+from openeo_driver.errors import ProcessGraphInvalidException, FeatureUnsupportedException
+from openeo_driver.processes import ProcessRegistry
 from openeo_driver.processgraph import (
     get_process_definition_from_url,
     extract_default_job_options_from_process_graph,
@@ -111,3 +117,139 @@ def test_extract_default_job_options_from_process_graph(requests_mock):
 def test_extract_default_job_options_from_process_graph_garbage(pg):
     with pytest.raises(ProcessGraphInvalidException):
         extract_default_job_options_from_process_graph(ProcessGraphFlatDict(pg))
+
+
+def test_extract_default_job_options_from_process_graph_predefined_processes():
+    process_registry = ProcessRegistry()
+    process_registry.add_spec(
+        {
+            "id": "add3",
+            "process_graph": {
+                "add": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 3}, "result": True}
+            },
+            "parameters": [
+                {"name": "x", "schema": {"type": "number"}},
+            ],
+            "returns": {"schema": {"type": "number"}},
+            "default_job_options": {
+                "memory": "2GB",
+                "cpu": "yellow",
+            },
+            "default_synchronous_options": {
+                "cpu": "green",
+            },
+        },
+    )
+
+    pg = ProcessGraphFlatDict(
+        {
+            "add12": {"process_id": "add", "arguments": {"x": 1, "y": 2}},
+            "add3": {
+                "process_id": "add3",
+                "arguments": {"x": {"from_node": "add12"}},
+                "result": True,
+            },
+        }
+    )
+    assert extract_default_job_options_from_process_graph(
+        pg, processing_mode="batch_job", process_registry=process_registry
+    ) == {
+        "memory": "2GB",
+        "cpu": "yellow",
+    }
+    assert extract_default_job_options_from_process_graph(
+        pg, processing_mode="synchronous", process_registry=process_registry
+    ) == {
+        "cpu": "green",
+    }
+
+
+@pytest.mark.parametrize(
+    ["add3_defaults", "add5_defaults", "expected", "expected_warning"],
+    [
+        ({"cpu": "yellow"}, {"memory": "1GB"}, {"cpu": "yellow", "memory": "1GB"}, None),
+        ({"cpu": "yellow"}, None, {"cpu": "yellow"}, None),
+        ({"cpu": "yellow"}, {"cpu": "yellow"}, {"cpu": "yellow"}, None),
+        (
+            {"cpu": "yellow"},
+            {"cpu": "red"},
+            dirty_equals.IsOneOf(
+                {"cpu": "yellow"},
+                {"cpu": "red"},
+            ),
+            dirty_equals.IsStr(
+                regex=".*Merging of.*processing options.*collisions.*cpu.*(yellow.*red|red.*yellow).*",
+                regex_flags=re.DOTALL,
+            ),
+        ),
+        (
+            {"cpu": "yellow", "retries": 5},
+            {"cpu": "yellow", "speed": {"value": 5, "unit": "km/h"}},
+            {"cpu": "yellow", "retries": 5, "speed": {"value": 5, "unit": "km/h"}},
+            None,
+        ),
+        (
+            # Mix of data types (which might cause comparison issues)
+            {"cpu": "red", "retries": [3, 5], "speed": 8},
+            {"cpu": "yellow", "retries": 13, "speed": {"value": 21, "unit": "km/h"}},
+            {
+                "cpu": dirty_equals.IsOneOf("red", "yellow"),
+                "retries": dirty_equals.IsOneOf([3, 5], 13),
+                "speed": dirty_equals.IsOneOf(8, {"value": 21, "unit": "km/h"}),
+            },
+            dirty_equals.IsStr(
+                regex=".*Merging of.*processing options.*collisions.*cpu.*(yellow.*red|red.*yellow).*retries.*speed.*",
+                regex_flags=re.DOTALL,
+            ),
+        ),
+    ],
+)
+def test_extract_default_job_options_from_process_graph_merging(
+    caplog, add3_defaults, add5_defaults, expected, expected_warning
+):
+    process_registry = ProcessRegistry()
+    process_registry.add_spec(
+        {
+            "id": "add3",
+            "process_graph": {
+                "add": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 3}, "result": True}
+            },
+            **({"default_job_options": add3_defaults} if add3_defaults else {}),
+        },
+    )
+    process_registry.add_spec(
+        {
+            "id": "add5",
+            "process_graph": {
+                "add": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 5}, "result": True}
+            },
+            **({"default_job_options": add5_defaults} if add5_defaults else {}),
+        },
+    )
+
+    pg = ProcessGraphFlatDict(
+        {
+            "add12": {"process_id": "add", "arguments": {"x": 1, "y": 2}},
+            "add3": {
+                "process_id": "add3",
+                "arguments": {"x": {"from_node": "add12"}},
+            },
+            "add5": {
+                "process_id": "add5",
+                "arguments": {"x": {"from_node": "add3"}},
+                "result": True,
+            },
+        }
+    )
+
+    assert (
+        extract_default_job_options_from_process_graph(
+            pg, processing_mode="batch_job", process_registry=process_registry
+        )
+        == expected
+    )
+
+    if expected_warning:
+        assert caplog.text == expected_warning
+    else:
+        assert caplog.text == ""

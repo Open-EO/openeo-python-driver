@@ -1,10 +1,16 @@
+from __future__ import annotations
+
+import itertools
+
 import dataclasses
 import logging
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Literal
 
 import requests
 
-from openeo_driver.errors import OpenEOApiException, ProcessGraphInvalidException
+from openeo_driver.errors import OpenEOApiException, ProcessGraphInvalidException, FeatureUnsupportedException
+from openeo_driver.processes import ProcessRegistry, DEFAULT_NAMESPACE
+from openeo_driver.util.datastructures import unique_by_equality
 from openeo_driver.util.http import is_http_url
 
 _log = logging.getLogger(__name__)
@@ -130,7 +136,10 @@ def _get_process_definition_from_url(process_id: str, url: str) -> ProcessDefini
 
 
 def extract_default_job_options_from_process_graph(
-    process_graph: ProcessGraphFlatDict, processing_mode: str = "batch_job"
+    process_graph: ProcessGraphFlatDict,
+    *,
+    processing_mode: Literal["batch_job", "synchronous"] = "batch_job",
+    process_registry: ProcessRegistry | None = None,
 ) -> Union[dict, None]:
     """
     Extract default job options from a process definitions in process graph.
@@ -140,25 +149,42 @@ def extract_default_job_options_from_process_graph(
     :param processing_mode: "batch_job" or "synchronous"
     """
 
-    job_options = []
+    collected: List[dict] = []
     for node in process_graph.values():
         if not (isinstance(node, dict) and "process_id" in node and "arguments" in node):
             raise ProcessGraphInvalidException
-        namespace = node.get("namespace")
         process_id = node["process_id"]
-        if is_http_url(namespace):
+        namespace = node.get("namespace") or DEFAULT_NAMESPACE
+
+        # TODO: unify `process_registry.get_spec` and `get_process_definition_from_url` handling
+        if process_registry and (spec := process_registry.get_spec_or_none(name=process_id, namespace=namespace)):
+            if processing_mode == "batch_job" and (opts := spec.get("default_job_options")):
+                collected.append(opts)
+            elif processing_mode == "synchronous" and (opts := spec.get("default_synchronous_options")):
+                collected.append(opts)
+
+        if namespace and is_http_url(namespace):
             process_definition = get_process_definition_from_url(process_id=process_id, url=namespace)
             if processing_mode == "batch_job" and process_definition.default_job_options:
-                job_options.append(process_definition.default_job_options)
+                collected.append(process_definition.default_job_options)
             elif processing_mode == "synchronous" and process_definition.default_synchronous_options:
-                job_options.append(process_definition.default_synchronous_options)
+                collected.append(process_definition.default_synchronous_options)
 
-    if len(job_options) == 0:
-        return None
-    elif len(job_options) == 1:
-        return job_options[0]
-    else:
-        # TODO: how to combine multiple default for same parameters?
-        raise NotImplementedError(
-            "Merging multiple default job options from different process definitions is not yet implemented."
-        )
+    # Merge everything: group by job option key and check for collisions (if any)
+    merged = {}
+    collisions = {}
+    for job_option, values in itertools.groupby(
+        sorted(((k, v) for d in collected for k, v in d.items()), key=lambda kv: kv[0]),
+        key=lambda kv: kv[0],
+    ):
+        # reduce to unique values (but without guarantee on being hashable, so we can not use `set()` trick
+        values = unique_by_equality(v for _, v in values)
+        # TODO: use `max` resolution instead of `first` when data type or job option type has sensible comparability?
+        merged[job_option] = values[0]
+        if len(values) > 1:
+            collisions[job_option] = values
+
+    if collisions:
+        _log.warning(f"Merging of extracted default processing options had collisions: {collisions}")
+
+    return merged
