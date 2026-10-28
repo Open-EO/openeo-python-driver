@@ -104,6 +104,7 @@ from openeo_driver.processgraph.process_implementations.cubes import (
     filter_bands,
     resample_spatial,
     resample_cube_spatial,
+    resample_cube_temporal,
     ndvi,
     apply_kernel,
     linear_scale_range,
