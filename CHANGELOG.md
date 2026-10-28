@@ -23,18 +23,16 @@ and start a new "In Progress" section above it.
 
 ## In progress: 0.142.0
 
-- Replace the unmaintained `openeo_processes` dependency with a minimal, numpy-only in-tree port
-  (`openeo_driver.vendor.processes_python`, adapted from openeo-processes-python 0.0.4)
-  covering only the processes used by the driver. Related to #152.
-
 - Require at least Python 3.11 (drop support for Python 3.8, 3.9 and 3.10 [#370](https://github.com/Open-EO/openeo-python-driver/issues/370))
 - Require at least PySTAC 1.10 ([#396](https://github.com/Open-EO/openeo-python-driver/issues/396))
+- Replace the unmaintained `openeo_processes` dependency with a minimal, numpy-only in-tree port (`openeo_driver.vendor.processes_python`, adapted from openeo-processes-python 0.0.4) covering only the processes used by the driver. Related to [#152](https://github.com/Open-EO/openeo-python-driver/issues/152).
 - Expose raster asset `data_type` and `nodata` metadata in batch job results ([openeo-geotrellis-extensions#863](https://github.com/Open-EO/openeo-geotrellis-extensions/issues/863))
 - Replace `DelayedVector` with `DriverVectorCube` in `read_vector`, `get_geometries`, `vector_buffer` and the dummy backend's `aggregate_spatial` (vector files are now loaded through `DriverVectorCube.from_fiona`) and remove the `DelayedVector` handling from `apply_polygon`, `chunk_polygon`, `mask_polygon`, `filter_spatial`, `aggregate_spatial` and `run_udf`
 - `read_vector` and `get_geometries` (with `filename`) now return a `DriverVectorCube` (built with the backend's `vector_cube_cls`) instead of a `DelayedVector`.
 - Vector files are now loaded eagerly (instead of lazily) and loading errors are reported as `load_url_reading_error` instead of the former GeoJSON parsing errors.
 - **Backwards incompatible changes:**
     - `run_udf` on the result of `read_vector`/`get_geometries` no longer passes the geometries as feature collection to the UDF, but follows the generic vector cube handling (like `load_uploaded_files`).
+- Use `save_result` node id in synchronous download filename hint (content-disposition header), and align filename extension handling with batch jobs ([#548](https://github.com/Open-EO/openeo-python-driver/issues/548))
 
 ## 0.141.0
 
