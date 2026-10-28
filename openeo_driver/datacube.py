@@ -192,6 +192,11 @@ class DriverDataCube:
     def resample_cube_spatial(self, target: 'DriverDataCube', method: str = 'near') -> 'DriverDataCube':
         self._not_implemented()
 
+    def resample_cube_temporal(
+        self, target: "DriverDataCube", dimension: Optional[str] = None, valid_within: Optional[float] = None
+    ) -> "DriverDataCube":
+        self._not_implemented()
+
     def aggregate_temporal(
         self, intervals: list, reducer, labels: list = None, dimension: str = None, context: Optional[dict] = None
     ) -> "DriverDataCube":

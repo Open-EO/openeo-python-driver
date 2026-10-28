@@ -649,6 +649,56 @@ def test_execute_resample_cube_spatial_custom(api):
     assert cube1.resample_cube_spatial.call_args.kwargs == {"target": cube2, "method": "lanczos"}
 
 
+def _resample_cube_temporal_pg(**extra_args):
+    return {
+        "lc1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "lc2": {"process_id": "load_collection", "arguments": {"id": "SENTINEL1_GRD"}},
+        "resample": {
+            "process_id": "resample_cube_temporal",
+            "arguments": {"data": {"from_node": "lc1"}, "target": {"from_node": "lc2"}, **extra_args},
+            "result": True,
+        },
+    }
+
+
+def test_execute_resample_cube_temporal_defaults(api):
+    api.check_result(_resample_cube_temporal_pg())
+    cube1 = dummy_backend.get_collection("S2_FOOBAR")
+    cube2 = dummy_backend.get_collection("SENTINEL1_GRD")
+    assert cube1.resample_cube_temporal.call_count == 1
+    assert cube1.resample_cube_temporal.call_args.kwargs == {
+        "target": cube2,
+        "dimension": None,
+        "valid_within": None,
+    }
+
+
+def test_execute_resample_cube_temporal_custom(api):
+    api.check_result(_resample_cube_temporal_pg(dimension="t", valid_within=5))
+    cube1 = dummy_backend.get_collection("S2_FOOBAR")
+    cube2 = dummy_backend.get_collection("SENTINEL1_GRD")
+    assert cube1.resample_cube_temporal.call_args.kwargs == {
+        "target": cube2,
+        "dimension": "t",
+        "valid_within": 5,
+    }
+
+
+def test_execute_resample_cube_temporal_dimension_not_available(api):
+    res = api.result(_resample_cube_temporal_pg(dimension="nope"))
+    res.assert_error(status_code=400, error_code="DimensionNotAvailable")
+
+
+def test_execute_resample_cube_temporal_dimension_mismatch(api):
+    res = api.result(_resample_cube_temporal_pg(dimension="bands"))
+    res.assert_error(status_code=400, error_code="DimensionMismatch")
+
+
+def test_execute_resample_cube_temporal_invalid_valid_within(api):
+    res = api.result(_resample_cube_temporal_pg(valid_within=-1))
+    res.assert_error(status_code=400, error_code="ProcessParameterInvalid")
+
+
 def test_execute_resample_cube_spatial_invalid(api):
     res = api.result(
         {

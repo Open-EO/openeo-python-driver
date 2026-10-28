@@ -399,6 +399,45 @@ def resample_cube_spatial(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     return cube.resample_cube_spatial(target=target, method=method)
 
 
+def _check_temporal_dimension(cube: DriverDataCube, dimension: Optional[str], parameter: str):
+    """Validate that `cube` has a temporal dimension (with given name, if any), when its metadata allows to tell."""
+    names = cube.get_dimension_names() if cube.metadata is not None else None
+    if names is None:
+        return
+    if dimension is not None and dimension not in names:
+        raise OpenEOApiException(
+            status_code=400,
+            code="DimensionNotAvailable",
+            message=f"resample_cube_temporal: dimension {dimension!r} not available in {parameter!r} cube, "
+            f"available dimensions: {names}.",
+        )
+    temporal = cube.metadata.temporal_dimension.name if cube.metadata.has_temporal_dimension() else None
+    if temporal is None or (dimension is not None and temporal != dimension):
+        raise OpenEOApiException(
+            status_code=400,
+            code="DimensionMismatch",
+            message=f"resample_cube_temporal: {parameter!r} cube has no temporal dimension"
+            + (f" named {dimension!r}." if dimension else "."),
+        )
+
+
+@process_registry_100.add_function(spec=read_spec("openeo-processes/1.x/proposals/resample_cube_temporal.json"))
+@process_registry_2xx.add_function(spec=read_spec("openeo-processes/2.x/resample_cube_temporal.json"))
+def resample_cube_temporal(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
+    cube: DriverDataCube = args.get_required("data", expected_type=DriverDataCube)
+    target: DriverDataCube = args.get_required("target", expected_type=DriverDataCube)
+    dimension = args.get_optional("dimension", default=None, expected_type=str)
+    valid_within = args.get_optional(
+        "valid_within",
+        default=None,
+        expected_type=(int, float),
+        validator=lambda v: v >= 0,
+    )
+    _check_temporal_dimension(cube, dimension, "data")
+    _check_temporal_dimension(target, dimension, "target")
+    return cube.resample_cube_temporal(target=target, dimension=dimension, valid_within=valid_within)
+
+
 @process
 def ndvi(args: ProcessArgs, env: EvalEnv) -> DriverDataCube:
     cube = args.get_required("data", expected_type=DriverDataCube)
