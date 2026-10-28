@@ -1,6 +1,6 @@
 import typing
 
-from openeo_driver.datastructs import SarBackscatterArgs, secretive_repr
+from openeo_driver.datastructs import SarBackscatterArgs, secretive_repr, SaveResultHints
 
 
 def test_sar_backscatter_defaults():
@@ -29,3 +29,16 @@ def test_secretive_repr():
     assert repr(credentials) == expected
     assert str(credentials) == expected
     assert credentials.da_secret == "forbidden"
+
+
+class TestSaveResultHints:
+    def test_safe_node_id(self):
+        # Basics
+        assert SaveResultHints(node_id="foo").safe_node_id() == "foo"
+        assert SaveResultHints(node_id=" foo & bar !").safe_node_id() == "foobar"
+        assert SaveResultHints(node_id=" foo _ bar \n- baz ").safe_node_id() == "foo_bar-baz"
+        # max length
+        assert SaveResultHints(node_id="spam!" * 100).safe_node_id() == "spamspamspamspamspamspamspamspam"
+        # fallback handling
+        assert SaveResultHints().safe_node_id() == "unknown"
+        assert SaveResultHints().safe_node_id(fallback="na") == "na"

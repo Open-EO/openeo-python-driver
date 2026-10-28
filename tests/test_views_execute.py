@@ -3607,13 +3607,35 @@ def test_add_dimension_duplicate(api):
     ("PNG", "image/png"),
     ("CovJSON", "application/json"),
 ])
-def test_save_result_gtiff_mimetype(api, format, expected):
+def test_save_result_mimetype(api, format, expected):
     pg = {
         "l": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
         "s": {"process_id": "save_result", "arguments": {"data": {"from_node": "l"}, "format": format}, "result": True}
     }
     res = api.check_result(pg)
     assert res.headers["Content-type"] == expected
+
+
+@pytest.mark.parametrize(
+    ["node_id", "format", "expected"],
+    [
+        ("zaverezult1", "GTiff", ".save_result.zaverezult1.geotiff"),
+        ("sr", "NetCDF", ".save_result.sr.nc"),
+    ],
+)
+def test_save_result_content_disposition(api, node_id, format, expected):
+    pg = {
+        "l": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        node_id: {
+            "process_id": "save_result",
+            "arguments": {"data": {"from_node": "l"}, "format": format},
+            "result": True,
+        },
+    }
+    res = api.check_result(pg)
+    content_disposition = res.headers.get("Content-Disposition")
+    # TODO: more thorough check of full header instead of just an "in" check?
+    assert expected in content_disposition
 
 
 def test_execute_load_collection_sar_backscatter_defaults(api):

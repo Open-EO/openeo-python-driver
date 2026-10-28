@@ -31,6 +31,7 @@ and start a new "In Progress" section above it.
 - Vector files are now loaded eagerly (instead of lazily) and loading errors are reported as `load_url_reading_error` instead of the former GeoJSON parsing errors.
 - **Backwards incompatible changes:**
     - `run_udf` on the result of `read_vector`/`get_geometries` no longer passes the geometries as feature collection to the UDF, but follows the generic vector cube handling (like `load_uploaded_files`).
+- Use `save_result` node id in synchronous download filename hint (content-disposition header), and align filename extension handling with batch jobs ([#548](https://github.com/Open-EO/openeo-python-driver/issues/548))
 
 
 ## 0.141.0
