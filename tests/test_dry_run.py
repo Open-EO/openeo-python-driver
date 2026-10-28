@@ -1137,6 +1137,28 @@ def test_resample_cube_spatial(dry_run_env, dry_run_tracer):
     assert constraints == {"process_type": [ProcessType.FOCAL_SPACE]}
 
 
+@pytest.mark.parametrize(
+    ["valid_within", "expected_process_type"],
+    [(None, ProcessType.GLOBAL_TIME), (7, ProcessType.FOCAL_TIME)],
+)
+def test_resample_cube_temporal(dry_run_env, dry_run_tracer, valid_within, expected_process_type):
+    pg = {
+        "lc1": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "lc2": {"process_id": "load_collection", "arguments": {"id": "S2_FOOBAR"}},
+        "resample": {
+            "process_id": "resample_cube_temporal",
+            "arguments": {"data": {"from_node": "lc1"}, "target": {"from_node": "lc2"}, "valid_within": valid_within},
+            "result": True,
+        },
+    }
+    evaluate(pg, env=dry_run_env, do_dry_run=False)
+
+    source_constraints = dry_run_tracer.get_source_constraints(merge=True)
+    assert len(source_constraints) == 2
+    _, constraints = source_constraints[0]
+    assert constraints == {"process_type": [expected_process_type]}
+
+
 def test_auto_align(dry_run_env, dry_run_tracer):
     polygon = {"type": "Polygon", "coordinates": [[(0.1, 0.1), (3, 5), (8, 2), (0.1, 0.1)]]}
     cube = DataCube(PGNode("load_collection", id="ESA_WORLDCOVER_10M_2020_V1"), connection=None)

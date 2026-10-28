@@ -23,6 +23,7 @@ and start a new "In Progress" section above it.
 
 ## In progress: 0.142.0
 
+- Add `resample_cube_temporal` process (`DriverDataCube.resample_cube_temporal`, dry-run support, validation of `dimension`/`valid_within`)
 - Replace the unmaintained `openeo_processes` dependency with a minimal, numpy-only in-tree port
   (`openeo_driver.vendor.processes_python`, adapted from openeo-processes-python 0.0.4)
   covering only the processes used by the driver. Related to #152.

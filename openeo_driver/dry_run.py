@@ -811,6 +811,22 @@ class DryRunDataCube(DriverDataCube):
             metadata=metadata,
         )
 
+    def resample_cube_temporal(
+        self, target: "DryRunDataCube", dimension: Optional[str] = None, valid_within: Optional[float] = None
+    ) -> "DryRunDataCube":
+        # Without `valid_within`, the nearest observation can be arbitrarily far away in time
+        process_type = ProcessType.FOCAL_TIME if valid_within is not None else ProcessType.GLOBAL_TIME
+        cube = self._process("process_type", [process_type])
+        cube = cube._process(
+            "resample_cube_temporal",
+            arguments={"target": target, "dimension": dimension, "valid_within": valid_within},
+        )
+        return DryRunDataCube(
+            traces=cube._traces + target._traces,
+            data_tracer=self._data_tracer,
+            metadata=self.metadata,
+        )
+
     def reduce_dimension(
         self, reducer, *, dimension: str, context: Optional[dict] = None, env: EvalEnv
     ) -> "DryRunDataCube":
