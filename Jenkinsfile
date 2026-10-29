@@ -13,8 +13,6 @@ pythonPipeline {
   wipeout_workspace = true
   python_version = ["3.11"]
   downstream_job = 'openEO/trigger-python311-build'
-  wheel_repo = 'python-openeo'
-  wheel_repo_dev = 'python-openeo'
   extras_require = 'dev'
   upload_dev_wheels = false
   build_wheel = true
@@ -25,7 +23,7 @@ pythonPipeline {
   pre_test_script = 'pre_test.sh'
   enable_uv = true
   enable_caching = true
-  wheel_repo_sas = 'openeo-pypi-local'
-  wheel_repo_dev_sas = 'openeo-pypi-local'
-  artifactory_server = ['sas', 'rss']
+  wheel_repo = 'openeo-pypi-local'
+  wheel_repo_dev = 'openeo-pypi-local'
+  artifactory_server = 'sas'
 }
