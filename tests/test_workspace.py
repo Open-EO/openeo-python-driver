@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 from typing import Set
 
-from pystac import Asset, Collection, Extent, Item, SpatialExtent, TemporalExtent, CatalogType, Link, RelType
+from pystac import Asset, Catalog, Collection, Extent, Item, SpatialExtent, TemporalExtent, CatalogType, Link, RelType
 import pytest
 
 from openeo_driver.util.date_math import now_utc
@@ -109,6 +109,55 @@ def test_merge_from_disk_new(tmp_path):
     for item in exported_collection.get_items():
         for asset in item.get_assets().values():
             assert Path(item.get_self_href()).parent == Path(asset.get_absolute_href()).parent
+
+
+def test_merge_catalog_from_disk_new(tmp_path):
+    root_path = tmp_path / "src" / "catalog"
+    asset_filename = "asset.tif"
+
+    new_catalog = Catalog(id="catalog", description="catalog")
+    item = Item(id=asset_filename.upper(), geometry=None, bbox=None, datetime=now_utc(), properties={})
+    asset_path = root_path / asset_filename
+    item.add_asset(key=asset_filename, asset=Asset(href=str(asset_path.absolute())))
+    new_catalog.add_item(item)
+    new_catalog.normalize_and_save(root_href=str(root_path), catalog_type=CatalogType.SELF_CONTAINED)
+    with open(asset_path, "w") as f:
+        f.write("catalog-asset\n")
+
+    target = Path("path") / "to" / "catalog.json"
+    workspace = DiskWorkspace(root_directory=tmp_path)
+    workspace_dir = (workspace.root_directory / target).parent
+    assert not (workspace.root_directory / target).exists()
+
+    imported_catalog = workspace.merge(stac_resource=new_catalog, target=target)
+
+    assert _paths_relative_to(workspace_dir) == {
+        Path("catalog.json"),
+        Path("catalog.json_items") / "ASSET.TIF.json",
+        Path("catalog.json_items") / "asset.tif",
+    }
+
+    assert isinstance(imported_catalog, Catalog)
+    assert not isinstance(imported_catalog, Collection)
+    asset_workspace_uris = {
+        asset_key: asset.extra_fields["alternate"]["file"]
+        for item in imported_catalog.get_items()
+        for asset_key, asset in item.get_assets().items()
+    }
+    assert asset_workspace_uris == {
+        "asset.tif": f"file:{workspace.root_directory / 'path' / 'to' / 'catalog.json_items' / 'asset.tif'}"
+    }
+
+    exported_catalog = Catalog.from_file(str(workspace_dir / "catalog.json"))
+    assert not Collection.matches_object_type(exported_catalog.to_dict())
+    assert exported_catalog.validate_all() == 1
+    assert _downloadable_assets(exported_catalog) == 1
+
+    for item in exported_catalog.get_items():
+        for asset in item.get_assets().values():
+            assert Path(item.get_self_href()).parent == Path(asset.get_absolute_href()).parent
+            with open(asset.get_absolute_href()) as f:
+                assert f.read() == "catalog-asset\n"
 
 
 def test_merge_from_disk_into_existing(tmp_path):
@@ -311,7 +360,7 @@ def _collection(
     return collection
 
 
-def _downloadable_assets(collection: Collection) -> int:
+def _downloadable_assets(collection: Catalog) -> int:
     assets = [asset for item in collection.get_items(recursive=True) for asset in item.get_assets().values()]
 
     for asset in assets:

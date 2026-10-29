@@ -7,7 +7,7 @@ from typing import Optional, Union
 from urllib.parse import urlparse
 
 from pystac import Asset, Collection, Item, RelType, SpatialExtent, STACObject, TemporalExtent
-from pystac.catalog import CatalogType
+from pystac.catalog import CatalogType, Catalog
 from pystac.layout import CustomLayoutStrategy, HrefLayoutStrategy
 
 from openeo_driver.utils import remove_slash_prefix
@@ -75,7 +75,7 @@ class DiskWorkspace(Workspace):
 
         file_operation = shutil.move if remove_original else shutil.copy
 
-        if isinstance(stac_resource, Collection):
+        if isinstance(stac_resource, Catalog):  # includes Collection
             new_collection = stac_resource
 
             existing_collection = None
@@ -132,6 +132,9 @@ class DiskWorkspace(Workspace):
                         asset_parent_dir.mkdir(parents=True, exist_ok=True)  # asset might not end up next to item
                         file_operation(asset.extra_fields["_original_absolute_path"], str(asset_parent_dir))
             else:
+                assert isinstance(
+                    new_collection, Collection
+                ), f"Can only merge a Collection into an existing Collection. Was type: {new_collection}"
                 merged_collection = _merge_collection_metadata(existing_collection, new_collection)
                 new_collection = new_collection.map_assets(
                     lambda _, asset: replace_asset_href(asset, src_collection_path=new_collection_path)
