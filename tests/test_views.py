@@ -1919,6 +1919,7 @@ class TestBatchJobs:
                         "roles": ["data"],
                         "title": "output.nc",
                         "type": "application/x-netcdf",
+                        "raster:bands": [{"nodata": -1}],
                     },
                     "randomforest.model": {
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/randomforest.model",
@@ -1996,6 +1997,7 @@ class TestBatchJobs:
                         "proj:epsg": 4326,
                         "proj:code": "EPSG:4326",
                         "proj:shape": [300, 600],
+                        "raster:bands": [{"nodata": -1}],
                     },
                     "randomforest.model": {
                         "href": "http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/randomforest.model",
@@ -2095,6 +2097,7 @@ class TestBatchJobs:
                         "roles": ["data"],
                         "title": "output.nc",
                         "type": "application/x-netcdf",
+                        "raster:bands": [{"nodata": -1}],
                     },
                     "randomforest.model": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/randomforest.model",
@@ -2184,6 +2187,7 @@ class TestBatchJobs:
                         "proj:epsg": 4326,
                         "proj:code": "EPSG:4326",
                         "proj:shape": [300, 600],
+                        "raster:bands": [{"nodata": -1}],
                     },
                     "randomforest.model": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/randomforest.model",
@@ -2367,6 +2371,7 @@ class TestBatchJobs:
                         "roles": ["data"],
                         "title": "output.nc",
                         "type": "application/x-netcdf",
+                        "raster:bands": [{"nodata": -1}],
                     },
                     "randomforest.model": {
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model",
@@ -2515,6 +2520,7 @@ class TestBatchJobs:
                         "roles": ["data"],
                         "title": "output.nc",
                         "type": "application/x-netcdf",
+                        "raster:bands": [{"nodata": -1}],
                     },
                     "randomforest.model": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model",
@@ -2665,6 +2671,7 @@ class TestBatchJobs:
                         "roles": ["data"],
                         "title": "output.nc",
                         "type": "application/x-netcdf",
+                        "raster:bands": [{"nodata": -1}],
                     },
                     "randomforest.model": {
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/22b76413158c59acaccc74e74841a473/randomforest.model?expires=2234",
@@ -2864,6 +2871,7 @@ class TestBatchJobs:
                         "proj:epsg": 4326,
                         "proj:code": "EPSG:4326",
                         "proj:shape": [300, 600],
+                        "raster:bands": [{"nodata": -1}],
                     },
                     "randomforest.model": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/18fd2346c52945c0caba7b13246f5a63/randomforest.model?expires=2234",

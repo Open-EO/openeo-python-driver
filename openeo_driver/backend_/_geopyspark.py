@@ -480,21 +480,7 @@ def _asset_object(
                 )
                 for band in bands
             ]
-
-            raster_bands = result_dict.get("raster:bands")
-            if raster_bands is None:
-                if nodata_value is not None or data_type_value is not None:
-                    result_dict["raster:bands"] = [
-                        dict_no_none(data_type=data_type_value, nodata=nodata_value) for _ in bands
-                    ]
-            else:
-                for raster_band in raster_bands:
-                    if "nodata" not in raster_band and nodata_value is not None:
-                        raster_band["nodata"] = nodata_value
-                    if "data_type" not in raster_band and data_type_value is not None:
-                        raster_band["data_type"] = data_type_value
         else:
-
             def raster_bands(band_index) -> dict:
                 rb = asset_metadata.get("raster:bands", [])
                 return rb[band_index] if band_index < len(rb) else {}
@@ -512,6 +498,20 @@ def _asset_object(
                 )
                 for (i, band) in enumerate(bands)
             ]
+
+    if not stac11:
+        raster_bands = result_dict.get("raster:bands")
+        if raster_bands is None and bands:
+            if nodata_value is not None or data_type_value is not None:
+                result_dict["raster:bands"] = [
+                    dict_no_none(data_type=data_type_value, nodata=nodata_value) for _ in bands
+                ]
+        elif raster_bands is not None:
+            for raster_band in raster_bands:
+                if "nodata" not in raster_band and nodata_value is not None:
+                    raster_band["nodata"] = nodata_value
+                if "data_type" not in raster_band and data_type_value is not None:
+                    raster_band["data_type"] = data_type_value
 
     asset_proj_epsg = asset_metadata.get("proj:epsg", job_info.epsg)
     result_dict.update(
