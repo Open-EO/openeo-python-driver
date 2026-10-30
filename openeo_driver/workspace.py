@@ -7,7 +7,8 @@ from pathlib import Path, PurePath
 from typing import Optional, Union
 from urllib.parse import urlparse
 
-from pystac import Asset, Collection, Item, RelType, SpatialExtent, STACObject, TemporalExtent
+import pystac
+from pystac import Asset, Collection, Extent, Item, RelType, SpatialExtent, STACObject, TemporalExtent
 from pystac.catalog import CatalogType, Catalog
 from pystac.layout import CustomLayoutStrategy, HrefLayoutStrategy
 
@@ -101,12 +102,12 @@ class DiskWorkspace(Workspace):
 
             existing_collection = None
             try:
-                existing_collection = Collection.from_file(str(target))
+                existing_collection = pystac.read_file(str(target))  # Catalog or Collection
             except FileNotFoundError:
                 pass  # nothing to merge into
 
             def href_layout_strategy() -> HrefLayoutStrategy:
-                def collection_func(_: Collection, parent_dir: str, is_root: bool) -> str:
+                def collection_func(_: Catalog, parent_dir: str, is_root: bool) -> str:
                     if not is_root:
                         raise NotImplementedError("nested collections")
                     # make the collection file end up at $target, not at $target/collection.json
@@ -119,7 +120,9 @@ class DiskWorkspace(Workspace):
                     # unlike an object storage object, a Collection file cannot act as a parent "directory" as well
                     return f"{parent_dir}/{target.name}_items/{unique_item_filename}.json"
 
-                return CustomLayoutStrategy(collection_func=collection_func, item_func=item_func)
+                return CustomLayoutStrategy(
+                    catalog_func=collection_func, collection_func=collection_func, item_func=item_func
+                )
 
             def replace_asset_href(asset: Asset, src_collection_path: Path) -> Asset:
                 # pystac will handle STAC but not underlying assets; set asset hrefs up front
