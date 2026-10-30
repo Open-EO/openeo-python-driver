@@ -2,6 +2,7 @@ import abc
 import logging
 import os.path
 import shutil
+from dataclasses import dataclass
 from pathlib import Path, PurePath
 from typing import Optional, Union
 from urllib.parse import urlparse
@@ -13,6 +14,11 @@ from pystac.layout import CustomLayoutStrategy, HrefLayoutStrategy
 from openeo_driver.utils import remove_slash_prefix
 
 _log = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class MergeCollectionMetadataOptions:
+    merge_derived_from_links: bool = True
 
 
 class Workspace(abc.ABC):
@@ -27,13 +33,20 @@ class Workspace(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def merge(self, stac_resource: STACObject, target: PurePath, remove_original: bool = False) -> STACObject:
+    def merge(
+        self,
+        stac_resource: STACObject,
+        target: PurePath,
+        remove_original: bool = False,
+        merge_collection_metadata_options: MergeCollectionMetadataOptions = MergeCollectionMetadataOptions(),
+    ) -> STACObject:
         """
         Merges a STAC resource, its children and their assets into this workspace at the given path,
         possibly removing the original assets.
         :param stac_resource: a STAC resource, typically a Collection
         :param target: a path identifier to a STAC resource to merge the given STAC resource into
         :param remove_original: remove the original assets?
+        :param merge_collection_metadata_options: options for merging collection metadata
         """
         raise NotImplementedError
 
@@ -64,10 +77,16 @@ class DiskWorkspace(Workspace):
         _log.debug(f"{'moved' if remove_original else 'copied'} {file_absolute} to {target_directory}")
         return f"file:{target_directory / file.name}"
 
-    def import_object(self, common_path: str, s3_uri: str, merge: str, remove_original: bool = False):
+    def import_object(self, common_path: Union[str, Path], s3_uri: str, merge: str, remove_original: bool = False):
         raise NotImplementedError(f"importing objects is not supported yet")
 
-    def merge(self, stac_resource: STACObject, target: PurePath, remove_original: bool = False) -> STACObject:
+    def merge(
+        self,
+        stac_resource: STACObject,
+        target: PurePath,
+        remove_original: bool = False,
+        merge_collection_metadata_options: MergeCollectionMetadataOptions = MergeCollectionMetadataOptions(),
+    ) -> STACObject:
         stac_resource = stac_resource.full_copy()
 
         target = self.root_directory / os.path.normpath(target).lstrip("/")
@@ -77,6 +96,8 @@ class DiskWorkspace(Workspace):
 
         if isinstance(stac_resource, Catalog):  # includes Collection
             new_collection = stac_resource
+            if not merge_collection_metadata_options.merge_derived_from_links:
+                new_collection.clear_links(rel=RelType.DERIVED_FROM)
 
             existing_collection = None
             try:
@@ -121,6 +142,7 @@ class DiskWorkspace(Workspace):
                 new_collection = new_collection.map_assets(
                     lambda _, asset: replace_asset_href(asset, src_collection_path=new_collection_path)
                 )
+
                 new_collection.save(CatalogType.SELF_CONTAINED)
 
                 for new_item in new_collection.get_items():
