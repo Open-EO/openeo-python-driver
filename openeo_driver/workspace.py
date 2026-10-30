@@ -2,6 +2,7 @@ import abc
 import logging
 import os.path
 import shutil
+from dataclasses import dataclass
 from pathlib import Path, PurePath
 from typing import Optional, Union
 from urllib.parse import urlparse
@@ -42,6 +43,11 @@ class Workspace(abc.ABC):
         return False
 
 
+@dataclass(frozen=True)
+class MergeCollectionMetadataOptions:
+    merge_derived_from_links: bool = True
+
+
 class DiskWorkspace(Workspace):
     def __init__(self, root_directory: Path):
         self.root_directory = root_directory
@@ -67,7 +73,13 @@ class DiskWorkspace(Workspace):
     def import_object(self, common_path: str, s3_uri: str, merge: str, remove_original: bool = False):
         raise NotImplementedError(f"importing objects is not supported yet")
 
-    def merge(self, stac_resource: STACObject, target: PurePath, remove_original: bool = False) -> STACObject:
+    def merge(
+        self,
+        stac_resource: STACObject,
+        target: PurePath,
+        remove_original: bool = False,
+        merge_collection_metadata_options: MergeCollectionMetadataOptions = MergeCollectionMetadataOptions(),
+    ) -> STACObject:
         stac_resource = stac_resource.full_copy()
 
         target = self.root_directory / os.path.normpath(target).lstrip("/")
@@ -135,7 +147,9 @@ class DiskWorkspace(Workspace):
                 assert isinstance(
                     new_collection, Collection
                 ), f"Can only merge a Collection into an existing Collection. Was type: {new_collection}"
-                merged_collection = _merge_collection_metadata(existing_collection, new_collection)
+                merged_collection = _merge_collection_metadata(
+                    existing_collection, new_collection, merge_collection_metadata_options
+                )
                 new_collection = new_collection.map_assets(
                     lambda _, asset: replace_asset_href(asset, src_collection_path=new_collection_path)
                 )
@@ -168,7 +182,11 @@ class DiskWorkspace(Workspace):
             raise NotImplementedError(stac_resource)
 
 
-def _merge_collection_metadata(existing_collection: Collection, new_collection: Collection) -> Collection:
+def _merge_collection_metadata(
+    existing_collection: Collection,
+    new_collection: Collection,
+    options: MergeCollectionMetadataOptions = MergeCollectionMetadataOptions(),
+) -> Collection:
     existing_collection.extent.spatial = _merge_spatial_extents(
         existing_collection.extent.spatial, new_collection.extent.spatial
     )
@@ -177,7 +195,8 @@ def _merge_collection_metadata(existing_collection: Collection, new_collection: 
         existing_collection.extent.temporal, new_collection.extent.temporal
     )
 
-    _merge_derived_from_links(existing_collection, new_collection)
+    if options.merge_derived_from_links:
+        _merge_derived_from_links(existing_collection, new_collection)
 
     _merge_item_assets(existing_collection, new_collection)
 
