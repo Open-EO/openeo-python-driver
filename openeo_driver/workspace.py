@@ -16,6 +16,11 @@ from openeo_driver.utils import remove_slash_prefix
 _log = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class MergeCollectionMetadataOptions:
+    merge_derived_from_links: bool = True
+
+
 class Workspace(abc.ABC):
     @abc.abstractmethod
     def import_file(self, common_path: Union[str, Path], file: Path, merge: str, remove_original: bool = False) -> str:
@@ -28,24 +33,26 @@ class Workspace(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def merge(self, stac_resource: STACObject, target: PurePath, remove_original: bool = False) -> STACObject:
+    def merge(
+        self,
+        stac_resource: STACObject,
+        target: PurePath,
+        remove_original: bool = False,
+        merge_collection_metadata_options: MergeCollectionMetadataOptions = MergeCollectionMetadataOptions(),
+    ) -> STACObject:
         """
         Merges a STAC resource, its children and their assets into this workspace at the given path,
         possibly removing the original assets.
         :param stac_resource: a STAC resource, typically a Collection
         :param target: a path identifier to a STAC resource to merge the given STAC resource into
         :param remove_original: remove the original assets?
+        :param merge_collection_metadata_options: options for merging collection metadata
         """
         raise NotImplementedError
 
     @property
     def merges_by_default(self) -> bool:
         return False
-
-
-@dataclass(frozen=True)
-class MergeCollectionMetadataOptions:
-    merge_derived_from_links: bool = True
 
 
 class DiskWorkspace(Workspace):
