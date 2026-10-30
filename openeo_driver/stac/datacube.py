@@ -41,6 +41,7 @@ def stac_to_cube_metadata(stac_ref: StacRef) -> openeo.metadata.CubeMetadata:
     """
     Parse STAC metadata and convert it to :py:class:`openeo.metadata.CubeMetadata`.
     """
+    # TODO: replace/unify with dimension parsing from python client introduced by https://github.com/Open-EO/openeo-python-client/pull/867
     # Dimensions as pystac objects
     pystac_dimensions = _get_dimensions(stac_ref=stac_ref)
 
