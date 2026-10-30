@@ -969,6 +969,7 @@ class DummyBatchJobs(BatchJobs):
                 "roles": ["data"],
                 "type": "application/x-netcdf",
                 "nodata": -1,
+                "raster:bands": [{}],
             },
             "vectorcube.geojson": {
                 "output_dir": f"{self._output_root()}/{job_id}",
