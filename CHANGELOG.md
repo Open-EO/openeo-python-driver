@@ -35,6 +35,8 @@ and start a new "In Progress" section above it.
     - `run_udf` on the result of `read_vector`/`get_geometries` no longer passes the geometries as feature collection to the UDF, but follows the generic vector cube handling (like `load_uploaded_files`).
 - Use `save_result` node id in synchronous download filename hint (content-disposition header), and align filename extension handling with batch jobs ([#548](https://github.com/Open-EO/openeo-python-driver/issues/548))
 - Support extraction of default job options from predefined (and "custom") processes, and do basic merging ([#483](https://github.com/Open-EO/openeo-python-driver/issues/483))
+- `load_stac` with STAC metadata where "bands" dimension is erroneously missing: "bands" dimension will still be forced in dry run if "bands" argument is given to `load_stac` ([Open-EO/openeo-geopyspark-driver#1907](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1907))
+
 - `export_workspace`: support not merging `derived_from` links into a STAC Collection. ([Open-EO/openeo-geopyspark-driver#1922](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1922))
 
 ## 0.141.0
