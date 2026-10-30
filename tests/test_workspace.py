@@ -9,7 +9,7 @@ from pystac import Asset, Catalog, Collection, Extent, Item, SpatialExtent, Temp
 import pytest
 
 from openeo_driver.util.date_math import now_utc
-from openeo_driver.workspace import DiskWorkspace
+from openeo_driver.workspace import DiskWorkspace, MergeCollectionMetadataOptions
 
 
 @pytest.mark.parametrize("merge", [
@@ -160,7 +160,8 @@ def test_merge_catalog_from_disk_new(tmp_path):
                 assert f.read() == "catalog-asset\n"
 
 
-def test_merge_from_disk_into_existing(tmp_path):
+@pytest.mark.parametrize("merge_derived_from_links", [True, False])
+def test_merge_from_disk_into_existing(tmp_path, merge_derived_from_links: bool):
     existing_collection = _collection(
         root_path=tmp_path / "src" / "existing_collection",
         collection_id="existing_collection",
@@ -219,10 +220,21 @@ def test_merge_from_disk_into_existing(tmp_path):
     )
 
     target = Path("path") / "to" / "collection.json"
+    merge_collection_metadata_options = MergeCollectionMetadataOptions(
+        merge_derived_from_links=merge_derived_from_links
+    )
 
     workspace = DiskWorkspace(root_directory=tmp_path)
-    workspace.merge(stac_resource=existing_collection, target=target)
-    imported_collection = workspace.merge(stac_resource=new_collection, target=target)
+    workspace.merge(
+        stac_resource=existing_collection,
+        target=target,
+        merge_collection_metadata_options=merge_collection_metadata_options,
+    )
+    imported_collection = workspace.merge(
+        stac_resource=new_collection,
+        target=target,
+        merge_collection_metadata_options=merge_collection_metadata_options,
+    )
 
     workspace_dir = (workspace.root_directory / target).parent
     assert _paths_relative_to(workspace_dir) == {
@@ -260,16 +272,20 @@ def test_merge_from_disk_into_existing(tmp_path):
          dt.datetime.fromisoformat("2024-11-04T00:00:00+00:00")]
     ]
 
-    assert [link.to_dict() for link in exported_collection.get_links(rel=RelType.DERIVED_FROM)] == [
-        {
-            "rel": "derived_from",
-            "href": "https://src.test/asset1.tif",
-        },
-        {
-            "rel": "derived_from",
-            "href": "https://src.test/asset2.tif",
-        },
-    ]
+    assert [link.to_dict() for link in exported_collection.get_links(rel=RelType.DERIVED_FROM)] == (
+        [
+            {
+                "rel": "derived_from",
+                "href": "https://src.test/asset1.tif",
+            },
+            {
+                "rel": "derived_from",
+                "href": "https://src.test/asset2.tif",
+            },
+        ]
+        if merge_derived_from_links
+        else []
+    )
 
     for item in exported_collection.get_items():
         for asset in item.get_assets().values():

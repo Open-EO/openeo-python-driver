@@ -89,6 +89,8 @@ class DiskWorkspace(Workspace):
 
         if isinstance(stac_resource, Catalog):  # includes Collection
             new_collection = stac_resource
+            if not merge_collection_metadata_options.merge_derived_from_links:
+                new_collection.clear_links(rel=RelType.DERIVED_FROM)
 
             existing_collection = None
             try:
@@ -133,6 +135,7 @@ class DiskWorkspace(Workspace):
                 new_collection = new_collection.map_assets(
                     lambda _, asset: replace_asset_href(asset, src_collection_path=new_collection_path)
                 )
+
                 new_collection.save(CatalogType.SELF_CONTAINED)
 
                 for new_item in new_collection.get_items():
@@ -147,9 +150,7 @@ class DiskWorkspace(Workspace):
                 assert isinstance(
                     new_collection, Collection
                 ), f"Can only merge a Collection into an existing Collection. Was type: {new_collection}"
-                merged_collection = _merge_collection_metadata(
-                    existing_collection, new_collection, merge_collection_metadata_options
-                )
+                merged_collection = _merge_collection_metadata(existing_collection, new_collection)
                 new_collection = new_collection.map_assets(
                     lambda _, asset: replace_asset_href(asset, src_collection_path=new_collection_path)
                 )
@@ -182,11 +183,7 @@ class DiskWorkspace(Workspace):
             raise NotImplementedError(stac_resource)
 
 
-def _merge_collection_metadata(
-    existing_collection: Collection,
-    new_collection: Collection,
-    options: MergeCollectionMetadataOptions = MergeCollectionMetadataOptions(),
-) -> Collection:
+def _merge_collection_metadata(existing_collection: Collection, new_collection: Collection) -> Collection:
     existing_collection.extent.spatial = _merge_spatial_extents(
         existing_collection.extent.spatial, new_collection.extent.spatial
     )
@@ -195,8 +192,7 @@ def _merge_collection_metadata(
         existing_collection.extent.temporal, new_collection.extent.temporal
     )
 
-    if options.merge_derived_from_links:
-        _merge_derived_from_links(existing_collection, new_collection)
+    _merge_derived_from_links(existing_collection, new_collection)
 
     _merge_item_assets(existing_collection, new_collection)
 
