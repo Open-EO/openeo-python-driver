@@ -21,7 +21,8 @@ tests_require = [
     "requests-mock",
     "pylint>=2.5.0",
     "astroid>=2.4.0",
-    "openeo_udf>=1.0.0rc3",
+    # openeo_udf (unmaintained) is packaging-wise not compatible with Python 3.12 and up https://github.com/Open-EO/openeo-python-driver/issues/558
+    "openeo_udf>=1.0.0rc3; python_version < '3.12'",
     "boto3[s3]>=1.26.17",
     "moto[s3]>=5.0.0",
     "time-machine>=2.8.0",
@@ -65,7 +66,7 @@ setup(
         "flask-cors",
         "pyproj>=2.1.0",
         "python-dateutil",
-        "python-json-logger~=2.0",  # Avoid breaking change in 3.1.0 https://github.com/nhairs/python-json-logger/issues/29
+        "python-json-logger>=3.2.1",
         "deprecated>=1.2.12",
         "attrs>=23.1.0",
         "pyogrio>=0.7.0",
