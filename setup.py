@@ -65,7 +65,7 @@ setup(
         "flask-cors",
         "pyproj>=2.1.0",
         "python-dateutil",
-        "python-json-logger~=2.0",  # Avoid breaking change in 3.1.0 https://github.com/nhairs/python-json-logger/issues/29
+        "python-json-logger>=3.2.1",
         "deprecated>=1.2.12",
         "attrs>=23.1.0",
         "pyogrio>=0.7.0",
