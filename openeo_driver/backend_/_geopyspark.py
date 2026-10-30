@@ -501,7 +501,7 @@ def _asset_object(
 
     if not stac11:
         raster_bands = result_dict.get("raster:bands")
-        if raster_bands is None and bands is not None:
+        if raster_bands is None and bands:
             if nodata_value is not None or data_type_value is not None:
                 result_dict["raster:bands"] = [
                     dict_no_none(data_type=data_type_value, nodata=nodata_value) for _ in bands
