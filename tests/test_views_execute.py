@@ -1655,10 +1655,17 @@ def test_run_udf_on_vector_load_uploaded_files(api, udf_code):
     assert (resp.json == expected_featurecollection)
 
 
+SKIP_DEPRECATED_OPENEO_UDF_ON_PYTHON312_AND_UP = pytest.mark.skipif(
+    condition=sys.version_info >= (3, 12),
+    reason="Package `openeo_udf` is not compatible with Python 3.12 and up",
+)
+
+
 @pytest.mark.parametrize(
     "udf_code",
     [
-        """
+        pytest.param(
+            """
         from openeo_udf.api.datacube import DataCube  # Old style openeo_udf API
         def fct_buffer(udf_data: UdfData):
             gdf = udf_data.feature_collection_list[0].data
@@ -1666,6 +1673,8 @@ def test_run_udf_on_vector_load_uploaded_files(api, udf_code):
             udf_data.feature_collection_list = [FeatureCollection(id="", data=gdf)]
             return udf_data
         """,
+            marks=SKIP_DEPRECATED_OPENEO_UDF_ON_PYTHON312_AND_UP,
+        ),
         """
         from openeo.udf import UdfData, FeatureCollection
         def fct_buffer(udf_data: UdfData):
@@ -1701,7 +1710,8 @@ def test_run_udf_on_vector_inline_geojson(api, udf_code):
 @pytest.mark.parametrize(
     "udf_code",
     [
-        """
+        pytest.param(
+            """
         from openeo_udf.api.udf_data import UdfData  # Old style openeo_udf API
         from openeo_udf.api.structured_data import StructuredData  # Old style openeo_udf API
         def fct_buffer(udf_data: UdfData):
@@ -1711,6 +1721,8 @@ def test_run_udf_on_vector_inline_geojson(api, udf_code):
                 for s in data
             ])
     """,
+            marks=SKIP_DEPRECATED_OPENEO_UDF_ON_PYTHON312_AND_UP,
+        ),
         """
         from openeo.udf import UdfData, StructuredData
         def fct_buffer(udf_data: UdfData):
@@ -1735,8 +1747,11 @@ def test_run_udf_on_json(api, udf_code):
     }
 
 
-@pytest.mark.parametrize("udf_code", [
-    """
+@pytest.mark.parametrize(
+    "udf_code",
+    [
+        pytest.param(
+            """
         from openeo_udf.api.udf_data import UdfData  # Old style openeo_udf API
         from openeo_udf.api.structured_data import StructuredData   # Old style openeo_udf API
         def transform(data: UdfData) -> UdfData:
@@ -1746,7 +1761,9 @@ def test_run_udf_on_json(api, udf_code):
             ]
             data.set_structured_data_list(res)
     """,
-    """
+            marks=SKIP_DEPRECATED_OPENEO_UDF_ON_PYTHON312_AND_UP,
+        ),
+        """
         from openeo.udf import UdfData, StructuredData
         def transform(data: UdfData) -> UdfData:
             res = [
