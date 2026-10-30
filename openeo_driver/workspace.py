@@ -70,7 +70,7 @@ class DiskWorkspace(Workspace):
         _log.debug(f"{'moved' if remove_original else 'copied'} {file_absolute} to {target_directory}")
         return f"file:{target_directory / file.name}"
 
-    def import_object(self, common_path: str, s3_uri: str, merge: str, remove_original: bool = False):
+    def import_object(self, common_path: Union[str, Path], s3_uri: str, merge: str, remove_original: bool = False):
         raise NotImplementedError(f"importing objects is not supported yet")
 
     def merge(
