@@ -4334,6 +4334,30 @@ class TestBatchJobs:
                     "links": [],
                 }
 
+    @pytest.mark.parametrize(
+        ["params", "expected_ids"],
+        [
+            ({}, ["1", "2"]),
+            ({"audience": "user"}, ["1"]),
+            ({"audience": "developer"}, ["2"]),
+            ({"audience": "all"}, ["1", "2"]),
+        ],
+    )
+    def test_get_batch_job_logs_audience(self, api, params, expected_ids):
+        log_db = {
+            "07024ee9-7847-4b8a-b260-6c879a2b3cdc": [
+                {"id": "1", "level": "info", "message": "for users", "audience": "user"},
+                {"id": "2", "level": "info", "message": "for devs", "audience": "developer"},
+            ]
+        }
+        with self._fresh_job_registry():
+            with mock.patch.dict(dummy_backend.DummyBatchJobs._custom_job_logs, log_db):
+                resp = api.get(
+                    "/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/logs", headers=self.AUTH_HEADER, params=params
+                )
+                logs = resp.assert_status_code(200).json["logs"]
+                assert [log["id"] for log in logs] == expected_ids
+
     def test_get_batch_job_logs_failure(self, api):
         with self._fresh_job_registry():
             with mock.patch.dict(

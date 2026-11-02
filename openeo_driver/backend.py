@@ -723,9 +723,13 @@ class BatchJobs(MicroService):
         offset: Union[str, None] = None,
         limit: Union[str, None] = None,
         level: str = DEFAULT_LOG_LEVEL_RETRIEVAL,
+        audience: Optional[str] = None,
     ) -> Iterable[dict]:
         """
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/debug-job
+
+        :param audience: (non-standard) only return logs for this audience (e.g. "user", "developer" or "all").
+            Semantics and default (`None`) are backend-specific.
         """
         raise NotImplementedError
 
