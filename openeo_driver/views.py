@@ -1258,18 +1258,18 @@ def register_views_batch_jobs(
         offset = request.args.get("offset", default=None)
         limit = request.args.get("limit", default=None, type=int)
         level = request.args.get("level", default=DEFAULT_LOG_LEVEL_RETRIEVAL)
+        # Non-standard: e.g. "user", "developer" or "all" (backend-specific semantics and default)
+        audience = request.args.get("audience", default=None)
         request_id = FlaskRequestCorrelationIdLogging.get_request_id()
         # TODO: implement paging support: `limit`, next/prev/first/last `links`, ...
 
-        # TODO: remove this `function_has_argument` once all implementations are migrated
+        get_log_entries_kwargs = dict(job_id=job_id, user_id=user.user_id, offset=offset, level=level)
+        # TODO: remove these `function_has_argument` checks once all implementations are migrated
         if function_has_argument(backend_implementation.batch_jobs.get_log_entries, argument="limit"):
-            logs = backend_implementation.batch_jobs.get_log_entries(
-                job_id=job_id, user_id=user.user_id, offset=offset, level=level, limit=limit
-            )
-        else:
-            logs = backend_implementation.batch_jobs.get_log_entries(
-            job_id=job_id, user_id=user.user_id, offset=offset, level=level
-        )
+            get_log_entries_kwargs["limit"] = limit
+        if audience and function_has_argument(backend_implementation.batch_jobs.get_log_entries, argument="audience"):
+            get_log_entries_kwargs["audience"] = audience
+        logs = backend_implementation.batch_jobs.get_log_entries(**get_log_entries_kwargs)
 
         def generate():
             yield "{"

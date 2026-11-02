@@ -1053,6 +1053,7 @@ class DummyBatchJobs(BatchJobs):
         offset: Union[str, None] = None,
         limit: Union[str, None] = None,
         level: str = DEFAULT_LOG_LEVEL_RETRIEVAL,
+        audience: Optional[str] = None,
     ) -> Iterable[dict]:
         self._get_job_info(job_id=job_id, user_id=user_id)
         default_logs = [{"id": "1", "level": "info", "message": "hello world"}]
@@ -1062,7 +1063,9 @@ class DummyBatchJobs(BatchJobs):
                 actual_level = normalize_log_level(log.get("level"))
                 if actual_level < requested_level:
                     continue
-                yield log
+                if audience and audience != "all" and log.get("audience", audience) != audience:
+                    continue
+                yield {k: v for k, v in log.items() if k != "audience"}
             elif isinstance(log, Exception):
                 raise log
             else:
