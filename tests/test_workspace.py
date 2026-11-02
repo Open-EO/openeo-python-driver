@@ -9,7 +9,7 @@ from pystac import Asset, Catalog, Collection, Extent, Item, SpatialExtent, Temp
 import pytest
 
 from openeo_driver.util.date_math import now_utc
-from openeo_driver.workspace import DiskWorkspace, MergeCollectionMetadataOptions
+from openeo_driver.workspace import DiskWorkspace, MergeOptions
 
 
 @pytest.mark.parametrize("merge", [
@@ -220,20 +220,18 @@ def test_merge_from_disk_into_existing(tmp_path, merge_derived_from_links: bool)
     )
 
     target = Path("path") / "to" / "collection.json"
-    merge_collection_metadata_options = MergeCollectionMetadataOptions(
-        merge_derived_from_links=merge_derived_from_links
-    )
+    merge_options = MergeOptions(merge_derived_from_links=merge_derived_from_links)
 
     workspace = DiskWorkspace(root_directory=tmp_path)
     workspace.merge(
         stac_resource=existing_collection,
         target=target,
-        merge_collection_metadata_options=merge_collection_metadata_options,
+        merge_options=merge_options,
     )
     imported_collection = workspace.merge(
         stac_resource=new_collection,
         target=target,
-        merge_collection_metadata_options=merge_collection_metadata_options,
+        merge_options=merge_options,
     )
 
     workspace_dir = (workspace.root_directory / target).parent

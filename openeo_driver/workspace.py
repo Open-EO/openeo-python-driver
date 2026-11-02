@@ -18,7 +18,7 @@ _log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class MergeCollectionMetadataOptions:
+class MergeOptions:
     merge_derived_from_links: bool = True
 
 
@@ -39,7 +39,7 @@ class Workspace(abc.ABC):
         stac_resource: STACObject,
         target: PurePath,
         remove_original: bool = False,
-        merge_collection_metadata_options: MergeCollectionMetadataOptions = MergeCollectionMetadataOptions(),
+        merge_options: MergeOptions = MergeOptions(),
     ) -> STACObject:
         """
         Merges a STAC resource, its children and their assets into this workspace at the given path,
@@ -47,7 +47,7 @@ class Workspace(abc.ABC):
         :param stac_resource: a STAC resource, typically a Collection
         :param target: a path identifier to a STAC resource to merge the given STAC resource into
         :param remove_original: remove the original assets?
-        :param merge_collection_metadata_options: options for merging collection metadata
+        :param merge_options: runtime options for merging
         """
         raise NotImplementedError
 
@@ -86,7 +86,7 @@ class DiskWorkspace(Workspace):
         stac_resource: STACObject,
         target: PurePath,
         remove_original: bool = False,
-        merge_collection_metadata_options: MergeCollectionMetadataOptions = MergeCollectionMetadataOptions(),
+        merge_options: MergeOptions = MergeOptions(),
     ) -> STACObject:
         stac_resource = stac_resource.full_copy()
 
@@ -97,7 +97,7 @@ class DiskWorkspace(Workspace):
 
         if isinstance(stac_resource, Catalog):  # includes Collection
             new_collection = stac_resource
-            if not merge_collection_metadata_options.merge_derived_from_links:
+            if not merge_options.merge_derived_from_links:
                 new_collection.clear_links(rel=RelType.DERIVED_FROM)
 
             existing_collection = None
