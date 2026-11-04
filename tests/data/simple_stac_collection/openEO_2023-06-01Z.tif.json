@@ -1,6 +1,6 @@
 {
   "type": "Feature",
-  "stac_version": "1.0.0",
+  "stac_version": "1.1.0",
   "id": "openEO_2023-06-01Z.tif",
   "geometry": {
     "type": "Polygon",
@@ -25,10 +25,10 @@
       "href": "./openEO_2023-06-01Z.tif",
       "roles": ["data"],
       "type": "image/tiff; application=geotiff",
-      "eo:bands": [
-        {"name": "B04", "common_name": null, "wavelength_um": null, "aliases": null, "gsd": null},
-        {"name": "B03", "common_name": null, "wavelength_um": null, "aliases": null, "gsd": null},
-        {"name": "B02", "common_name": null, "wavelength_um": null, "aliases": null, "gsd": null}
+      "bands": [
+        {"name": "B04"},
+        {"name": "B03"},
+        {"name": "B02"}
       ]
     }
   }
