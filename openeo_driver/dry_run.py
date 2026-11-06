@@ -639,7 +639,7 @@ class DryRunDataCube(DriverDataCube):
     def filter_spatial(self, geometries):
         crs = None
         resolution = None
-        if len(self.metadata.spatial_dimensions) > 0:
+        if self.metadata.has_spatial_dimensions():
             spatial_dim = self.metadata.spatial_dimensions[0]
             crs = spatial_dim.crs
             resolution = spatial_dim.step
@@ -702,7 +702,7 @@ class DryRunDataCube(DriverDataCube):
         if not geoms_is_empty:
             crs = None
             resolution = None
-            if len(self.metadata.spatial_dimensions) > 0:
+            if self.metadata.has_spatial_dimensions():
                 spatial_dim = self.metadata.spatial_dimensions[0]
                 resolution = spatial_dim.step
                 crs = spatial_dim.crs
