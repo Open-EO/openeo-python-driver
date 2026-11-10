@@ -1104,6 +1104,23 @@ class MultipleFilesResult(SaveResult):
         return resp
 
 
+class ZarrResult(RasterCubeResult):
+    """
+    Raster result in Zarr format.
+
+    Asset generation is delegated to the cube's `write_assets` (see `RasterCubeResult.write_assets`).
+    The backend is expected to deliver the Zarr store as a zip file
+    when the `to_zip` format option is set (user-controlled for batch jobs).
+    Synchronous responses always require a single file, so `to_zip` is forced there.
+    """
+
+    DEFAULT_FORMAT = "Zarr"
+
+    def create_flask_response(self) -> Response:
+        zipped = self.with_format(self.format, options={**self.options, "to_zip": True})
+        return zipped.flask_response_from_write_assets()
+
+
 class NullResult(SaveResult):
 
     def write_assets(self, directory: Union[str, Path]) -> Dict[str, StacAsset]:
@@ -1129,11 +1146,13 @@ def to_save_result(
     if isinstance(data, SaveResult):
         return data
     elif isinstance(data, DriverDataCube):
+        if format is not None and format.lower() == "zarr":
+            return ZarrResult(cube=data, format=format, options=options, pg_node_id=pg_node_id)
         return RasterCubeResult(cube=data, format=format, options=options, pg_node_id=pg_node_id)
     elif isinstance(data, DriverVectorCube):
         return VectorCubeResult(cube=data, format=format, options=options, pg_node_id=pg_node_id)
     elif isinstance(data, DriverMlModel):
-        return MlModelResult(ml_model = data)
+        return MlModelResult(ml_model=data)
     elif isinstance(data, np.ndarray):
         return JSONResult(data.tolist(), pg_node_id=pg_node_id)
     elif isinstance(data, np.generic):

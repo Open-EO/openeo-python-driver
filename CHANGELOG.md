@@ -1,4 +1,3 @@
-
 # Changelog
 
 All notable changes to this project will be documented in this file.
@@ -39,7 +38,7 @@ and start a new "In Progress" section above it.
 - `load_stac` with STAC metadata where "bands" dimension is erroneously missing: "bands" dimension will still be forced in dry run if "bands" argument is given to `load_stac` ([Open-EO/openeo-geopyspark-driver#1907](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1907))
 - Improve compatibility (address failing unit tests) with Python 3.12, 3.13 and 3.14 ([#541](https://github.com/Open-EO/openeo-python-driver/issues/541))
 - `export_workspace`: support not merging `derived_from` links into a STAC Collection. ([Open-EO/openeo-geopyspark-driver#1922](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1922))
-
+- Support synchronous processing of raster results with format `Zarr`. ([Open-EO/openeo-geotrellis-extensions#537](https://github.com/Open-EO/openeo-geotrellis-extensions/issues/537))
 
 ## 0.141.0
 
