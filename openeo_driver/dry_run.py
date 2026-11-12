@@ -72,6 +72,7 @@ from openeo_driver.errors import FeatureUnsupportedException, OpenEOApiException
 from openeo_driver.util.geometry import (
     BoundingBox,
     GeometryBufferer,
+    is_auto_utm_crs,
     geojson_to_geometry, reproject_geometry,
 )
 import openeo_driver.stac.datacube
@@ -662,7 +663,29 @@ class DryRunDataCube(DriverDataCube):
     ) -> "DryRunDataCube":
         return self._process("filter_labels", arguments=dict(condition=condition, dimension=dimension, context=context))
 
+    @staticmethod
+    def _spatial_crs(cube: "DryRunDataCube") -> Optional[str]:
+        """Normalized CRS of the cube's spatial dimensions, or None if unknown."""
+        if cube.metadata is None:
+            return None
+        for dim in cube.metadata.spatial_dimensions:
+            if dim.crs is not None:
+                try:
+                    crs = BoundingBox.normalize_crs(dim.crs)
+                except Exception:
+                    return None
+                # Auto UTM is resolved later, so it can't be compared yet
+                return None if is_auto_utm_crs(crs) else crs
+        return None
+
     def mask(self, mask: "DryRunDataCube", replacement=None) -> "DryRunDataCube":
+        data_crs = self._spatial_crs(self)
+        mask_crs = self._spatial_crs(mask)
+        if data_crs is not None and mask_crs is not None and data_crs != mask_crs:
+            _log.warning(
+                f"Masking between cubes with different CRS: data cube has CRS {data_crs}, mask has CRS {mask_crs}."
+                " The mask will be resampled with nearest neighbour, which may give unexpected results."
+            )
         # TODO: if mask cube has no temporal or bbox extent: copy from self?
         # TODO: or add reference to the self trace to the mask trace and vice versa?
         mask_resampled = mask._process("resample_cube_spatial", arguments={"target": self, "method": "near"})
