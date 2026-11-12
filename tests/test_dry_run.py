@@ -607,6 +607,34 @@ def test_mask_polygon_and_filter_bbox(dry_run_env, dry_run_tracer, bbox_first):
     }
 
 
+def _load_collection_in_crs(collection_id: str, epsg: int) -> DataCube:
+    cube = DataCube(PGNode("load_collection", id=collection_id), connection=None)
+    return cube.resample_spatial(resolution=10, projection=epsg)
+
+
+def test_mask_cubes_different_crs_warns(dry_run_env, dry_run_tracer, caplog):
+    """https://github.com/Open-EO/openeo-python-driver/issues/436"""
+    cube = _load_collection_in_crs("S2_FOOBAR", epsg=32631)
+    mask = _load_collection_in_crs("S2_FOOBAR", epsg=3035)
+    pg = cube.mask(mask=mask).flat_graph()
+
+    caplog.set_level(logging.WARNING)
+    evaluate(pg, env=dry_run_env, do_dry_run=False)
+
+    assert "Masking between cubes with different CRS: data cube has CRS EPSG:32631, mask has CRS EPSG:3035" in caplog.text
+
+
+def test_mask_cubes_same_crs_ok(dry_run_env, dry_run_tracer, caplog):
+    cube = _load_collection_in_crs("S2_FOOBAR", epsg=32631)
+    mask = _load_collection_in_crs("S2_FOOBAR", epsg=32631)
+    pg = cube.mask(mask=mask).flat_graph()
+
+    caplog.set_level(logging.WARNING)
+    evaluate(pg, env=dry_run_env, do_dry_run=False)
+
+    assert "different CRS" not in caplog.text
+
+
 def test_aggregate_spatial_only(dry_run_env, dry_run_tracer):
     polygon = {"type": "Polygon", "coordinates": [[(0, 0), (3, 5), (8, 2), (0, 0)]]}
     pg = {
