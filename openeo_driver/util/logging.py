@@ -172,7 +172,7 @@ def get_logging_config(
                 "format": LOG_FORMAT_BASIC,
             },
             "json": {
-                "()": pythonjsonlogger.jsonlogger.JsonFormatter,
+                "()": _JsonLogFormatter,
                 # This fake `format` string is the way to list expected fields in json records
                 "format": JSON_LOGGER_DEFAULT_FORMAT,
             },
@@ -239,6 +239,25 @@ class UtcFormatter(logging.Formatter):
     """Log formatter that uses UTC instead of local time."""
     # based on https://docs.python.org/3/howto/logging-cookbook.html#formatting-times-using-utc-gmt-via-configuration
     converter = time.gmtime
+
+
+class _JsonLogFormatter(pythonjsonlogger.jsonlogger.JsonFormatter):
+    """Keep JSON exception traces below the Elasticsearch keyword size limit."""
+
+    _MAX_EXC_INFO_BYTES = 24 * 1024  # Leave room below the 32766-byte term limit.
+
+    def process_log_record(self, log_data: dict) -> dict:
+        exc_info = log_data.get("exc_info")
+        if isinstance(exc_info, str):
+            encoded = exc_info.encode("utf-8", errors="replace")
+            if len(encoded) > self._MAX_EXC_INFO_BYTES:
+                marker = b"\n... traceback truncated ...\n"
+                head_size = (self._MAX_EXC_INFO_BYTES - len(marker)) // 2
+                tail_size = self._MAX_EXC_INFO_BYTES - len(marker) - head_size
+                log_data["exc_info"] = (encoded[:head_size] + marker + encoded[-tail_size:]).decode(
+                    "utf-8", errors="ignore"
+                )
+        return super().process_log_record(log_data)
 
 
 class FlaskRequestCorrelationIdLogging(logging.Filter):
