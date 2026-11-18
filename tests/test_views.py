@@ -623,16 +623,21 @@ class TestGeneral:
             ({"flask_settings": {"MAX_CONTENT_LENGTH": 100}}, True),
         ],
     )
-    def test_max_content_length(self, api, expected413):
+    def test_max_content_length(self, api, expected413, caplog):
         pg = {
             "process": {
                 "process_graph": {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}},
             },
             "too": "muuuuuuuch" * 100,
         }
-        response = api.post("/jobs", headers=TEST_USER_AUTH_HEADER, json=pg)
+        response = api.post("/jobs?diagnostic_test=omitted", headers=TEST_USER_AUTH_HEADER, json=pg)
         if expected413:
             response.assert_error(status_code=413, error_code="Internal", message="Request Entity Too Large")
+            (error_log,) = [r.getMessage() for r in caplog.records if r.name == "openeo_driver.views.error"]
+            content_length = len(api.client.application.json.dumps(pg).encode("utf-8"))
+            assert error_log.endswith(
+                f" for POST {api.url('/jobs')} (content_length={content_length}, max_content_length=100)"
+            )
         else:
             response.assert_status_code(201)
 
