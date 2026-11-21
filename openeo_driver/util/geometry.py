@@ -591,12 +591,21 @@ class BoundingBox:
         """
         return crs == "EPSG:4326"
 
+    def _cyclic_x_needs_normalization(self) -> bool:
+        """
+        Whether west/east should be normalized as cyclic longitude coordinates.
+        A bounding box spanning the full longitude range (360 degrees or more),
+        e.g. a global raster extent like [-180.05, 179.95], must not be wrapped.
+        """
+        # TODO: this assumes "cyclic" implies longitude in degrees (EPSG:4326)
+        return self._crs_with_cyclic_x(self.crs) and (self.east - self.west) < 360 - 1e-6
+
     def cyclic_antimeridian_crossing(self) -> bool:
         """
         Whether this bounding box uses cyclic longitude coordinates
         and crosses the antimeridian (so that west > east).
         """
-        if self._crs_with_cyclic_x(self.crs):
+        if self._cyclic_x_needs_normalization():
             west, east = normalize_west_east_longitude(west=self.west, east=self.east)
             return west > east
         return False
@@ -623,7 +632,7 @@ class BoundingBox:
         which require to split the geometry in two parts: use `as_geometry` instead for that.
         """
         west, east = self.west, self.east
-        if self._crs_with_cyclic_x(self.crs):
+        if self._cyclic_x_needs_normalization():
             west, east = normalize_west_east_longitude(west=west, east=east)
             if east < west:
                 # TODO: this assumes "cyclic" implies longitude in degrees (EPSG:4326)
@@ -634,7 +643,7 @@ class BoundingBox:
     def as_geometry(self) -> Union[shapely.geometry.Polygon, shapely.geometry.MultiPolygon]:
         """Get bounding box as a shapely geometry (Polygon or MultiPolygon when crossing antimeridian)"""
         west, east = self.west, self.east
-        if self._crs_with_cyclic_x(self.crs):
+        if self._cyclic_x_needs_normalization():
             west, east = normalize_west_east_longitude(west=west, east=east)
             if east < west:
                 # TODO: this assumes "cyclic" implies longitude in degrees (EPSG:4326), and split is at +/-180

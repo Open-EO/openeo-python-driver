@@ -39,7 +39,7 @@ and start a new "In Progress" section above it.
 - `load_stac` with STAC metadata where "bands" dimension is erroneously missing: "bands" dimension will still be forced in dry run if "bands" argument is given to `load_stac` ([Open-EO/openeo-geopyspark-driver#1907](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1907))
 - Improve compatibility (address failing unit tests) with Python 3.12, 3.13 and 3.14 ([#541](https://github.com/Open-EO/openeo-python-driver/issues/541))
 - `export_workspace`: support not merging `derived_from` links into a STAC Collection. ([Open-EO/openeo-geopyspark-driver#1922](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1922))
-
+- `BoundingBox`: don't wrap longitudes of EPSG:4326 bounding boxes spanning the full globe (e.g. `[-180.05, 179.95]`), which shifted them by 360° ([openeo-geopyspark-driver#1974](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1974))
 
 ## 0.141.0
 
