@@ -821,6 +821,22 @@ class TestBoundingBox:
             "coordinates": (((190, 50), (190, 51), (170, 51), (170, 50), (190, 50)),),
         }
 
+    def test_as_polygon_full_globe_shifted(self):
+        # Global raster extent slightly shifted west of -180 (e.g. AGERA5)
+        # https://github.com/Open-EO/openeo-geopyspark-driver/issues/1974
+        bbox = BoundingBox(-180.05, -90.05, 179.95, 90.05, crs=4326)
+        assert bbox.as_polygon().bounds == (-180.05, -90.05, 179.95, 90.05)
+        assert bbox.as_geometry().bounds == (-180.05, -90.05, 179.95, 90.05)
+        assert not bbox.cyclic_antimeridian_crossing()
+        union = bbox.as_polygon().union(bbox.as_polygon())
+        assert union.bounds == (-180.05, -90.05, 179.95, 90.05)
+
+    def test_as_polygon_full_globe_float_imprecision(self):
+        # Actual AGERA5 `proj:bbox`, with a span slightly below 360 due to float imprecision
+        wsen = (-180.04999999999998, -90.04999999998977, 179.9499999999795, 90.05)
+        bbox = BoundingBox(*wsen, crs=4326)
+        assert bbox.as_polygon().bounds == wsen
+
     def test_as_geometry_basic(self):
         bbox = BoundingBox(1, 2, 3, 4)
         polygon = bbox.as_geometry()
