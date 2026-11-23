@@ -29,7 +29,7 @@ from flask import (
 )
 from openeo.util import Rfc3339, TimingLogger, deep_get, dict_no_none
 from openeo.utils.version import ComparableVersion
-from werkzeug.exceptions import HTTPException, NotFound
+from werkzeug.exceptions import HTTPException, NotFound, RequestEntityTooLarge
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from openeo_driver.backend import (
@@ -304,11 +304,18 @@ def register_error_handlers(app: flask.Flask, backend_implementation: OpenEoBack
     def handle_http_exceptions(error: HTTPException):
         """Error handler for werkzeug HTTPException"""
         # Convert to OpenEOApiException based handling
-        return handle_openeoapi_exception(OpenEOApiException(
+        api_error = OpenEOApiException(
             message=str(error),
             code="NotFound" if isinstance(error, NotFound) else "Internal",
             status_code=error.code
-        ))
+        )
+        log_message = None
+        if isinstance(error, RequestEntityTooLarge):
+            log_message = (
+                f"{api_error!r} for {request.method} {request.path} "
+                f"(content_length={request.content_length}, max_content_length={request.max_content_length})"
+            )
+        return handle_openeoapi_exception(api_error, log_message=log_message)
 
     @app.errorhandler(OpenEOApiException)
     def handle_openeoapi_exception(error: OpenEOApiException, log_message: Optional[str] = None):
