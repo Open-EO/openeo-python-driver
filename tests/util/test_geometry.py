@@ -821,6 +821,22 @@ class TestBoundingBox:
             "coordinates": (((190, 50), (190, 51), (170, 51), (170, 50), (190, 50)),),
         }
 
+    def test_as_polygon_full_globe_shifted(self):
+        """
+        Global raster extent slightly shifted west of -180 (e.g. AGERA5)
+        https://github.com/Open-EO/openeo-geopyspark-driver/issues/1974
+        """
+        bbox = BoundingBox(-180.05, -90.05, 179.95, 90.05, crs=4326)
+        assert bbox.as_polygon().bounds == (-180, -90.05, 180, 90.05)
+        assert bbox.as_geometry().bounds == (-180, -90.05, 180, 90.05)
+        assert not bbox.cyclic_antimeridian_crossing()
+
+    def test_as_polygon_full_globe_float_imprecision(self):
+        """Actual AGERA5 `proj:bbox`, with a span slightly below 360 due to float imprecision"""
+        wsen = (-180.04999999999998, -90.05, 179.9499999999795, 90.05)
+        bbox = BoundingBox(*wsen, crs=4326)
+        assert bbox.as_polygon().bounds == (-180, -90.05, 180, 90.05)
+
     def test_as_geometry_basic(self):
         bbox = BoundingBox(1, 2, 3, 4)
         polygon = bbox.as_geometry()
@@ -1279,6 +1295,36 @@ def test_normalize_west_east_longitude():
     assert normalize_west_east_longitude(180, 190) == (-180, -170)
     assert normalize_west_east_longitude(170.5, 180.5) == (170.5, -179.5)
     assert normalize_west_east_longitude(180.5, 190.5) == (-179.5, -169.5)
+
+
+@pytest.mark.parametrize(
+    ["west", "east", "expected"],
+    [
+        (-180, 180, (-180, 180)),
+        (-180, 180 + 360, (-180, 180)),
+        (0, 360, (-180, 180)),
+        (0, 2 * 360, (-180, 180)),
+        (-360, 0, (-180, 180)),
+        (-360, 360, (-180, 180)),
+        (0, 0, (0, 0)),
+        (-120, 240, (-180, 180)),
+        (-240, 120, (-180, 180)),
+        (-180.05, 179.95, (-180, 180)),
+        (-180.05, -180.05, (179.95, 179.95)),
+        (-179.95, 180.05, (-180, 180)),
+        (-179.95, -179.95, (-179.95, -179.95)),
+        (179.95, 179.95 + 360, (-180, 180)),
+        # Handling of imprecision
+        (-180.0000001, 180.0000001, (-180, 180)),
+        (-179.9500001, 180.0500001, (-180, 180)),
+        (-180.0500001, 179.9499999, (-180, 180)),
+        (-180.001, 180.001, (pytest.approx(179.999, abs=1e-6), pytest.approx(-179.999, abs=1e-6))),
+        (-179.951, 180.051, (pytest.approx(-179.951, abs=1e-6), pytest.approx(-179.949, abs=1e-6))),
+    ],
+)
+def test_normalize_west_east_longitude_360_span(west, east, expected):
+    """special handling of full 360 degree cases, which should not collapse to empty bbox"""
+    assert normalize_west_east_longitude(west, east) == expected
 
 
 class TestValidateGeoJSON:
