@@ -634,7 +634,8 @@ class TestGeneral:
         if expected413:
             response.assert_error(status_code=413, error_code="Internal", message="Request Entity Too Large")
             (error_log,) = [r.getMessage() for r in caplog.records if r.name == "openeo_driver.views.error"]
-            content_length = len(api.client.application.json.dumps(pg).encode("utf-8"))
+            content_length = response.response.request.content_length
+            assert content_length > 100
             assert error_log.endswith(
                 f" for POST {api.url('/jobs')} (content_length={content_length}, max_content_length=100)"
             )
