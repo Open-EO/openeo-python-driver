@@ -427,12 +427,23 @@ class CrsRequired(BoundingBoxException):
     pass
 
 
-def normalize_west_east_longitude(west: float, east: float) -> Tuple[float, float]:
+def normalize_west_east_longitude(west: float, east: float, *, epsilon: float = 1e-6) -> Tuple[float, float]:
     """
     Assuming longitude in degrees (e.g. EPSG:4326):
-    normalize west to range [-180, 180) and east to range (-180, 180]
+    normalize west to range [-180, 180)  (start-inclusive, end-exclusive)
+    and east to range (-180, 180] (start-exclusive, end-inclusive),
     which is useful in bounding box contexts.
+
+    Important special case: when given west and east differ 360 degrees (or a positive multiple of that),
+    meaning that the bounds span the whole width of the world without gap,
+    then west=-180 and east=180 is returned (regardless of the original values),
+    (which is the only valid, normalized representation of that case).
     """
+    # Detect the "full 360 case": east - west is a positive multiple of 360.
+    orig_span = east - west
+    if orig_span > 180 and abs(math.remainder(orig_span, 360)) <= epsilon:
+        return -180, 180
+
     west = ((west + 180) % 360) - 180
     east = 180 - ((180 - east) % 360)
     return west, east
