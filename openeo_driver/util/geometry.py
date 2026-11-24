@@ -427,7 +427,7 @@ class CrsRequired(BoundingBoxException):
     pass
 
 
-def normalize_west_east_longitude(west: float, east: float) -> Tuple[float, float]:
+def normalize_west_east_longitude(west: float, east: float, *, epsilon: float = 1e-6) -> Tuple[float, float]:
     """
     Assuming longitude in degrees (e.g. EPSG:4326):
     normalize west to range [-180, 180)  (start-inclusive, end-exclusive)
@@ -439,9 +439,9 @@ def normalize_west_east_longitude(west: float, east: float) -> Tuple[float, floa
     then west=-180 and east=180 is returned (regardless of the original values),
     (which is the only valid, normalized representation of that case).
     """
-    # To detect the "full 360 case": wrap west eastward and see if we can hit east.
-    wrapped_west = west + max(1, round((east - west) / 360)) * 360
-    if abs(east - wrapped_west) < 1e-6:
+    # Detect the "full 360 case": east - west is a positive multiple of 360.
+    orig_span = east - west
+    if orig_span > 180 and abs(math.remainder(orig_span, 360)) <= epsilon:
         return -180, 180
 
     west = ((west + 180) % 360) - 180
