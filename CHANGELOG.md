@@ -39,6 +39,7 @@ and start a new "In Progress" section above it.
 - `load_stac` with STAC metadata where "bands" dimension is erroneously missing: "bands" dimension will still be forced in dry run if "bands" argument is given to `load_stac` ([Open-EO/openeo-geopyspark-driver#1907](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1907))
 - Improve compatibility (address failing unit tests) with Python 3.12, 3.13 and 3.14 ([#541](https://github.com/Open-EO/openeo-python-driver/issues/541))
 - `export_workspace`: support not merging `derived_from` links into a STAC Collection. ([Open-EO/openeo-geopyspark-driver#1922](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1922))
+- Expose the asset's relative path as `file:local_path` on batch job result assets, falling back to the relative path derived from the asset key/href for older jobs ([Open-EO/openeo-geopyspark-driver#1528](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1528))
 
 
 ## 0.141.0
