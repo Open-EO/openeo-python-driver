@@ -417,6 +417,16 @@ def _list_job_results_openeo100(
     return result
 
 
+def _relative_local_path(filename: str) -> Optional[str]:
+    """
+    Fallback for "file:local_path" (STAC file extension) for job results that don't provide it explicitly:
+    the asset's path relative to the job directory, if `filename` actually is one.
+    """
+    if not filename or urllib.parse.urlparse(filename).scheme or Path(filename).is_absolute():
+        return None
+    return Path(filename).as_posix()
+
+
 def _asset_object(
     job_id, user_id, filename: str, asset_metadata: dict, job_info: BatchJobMetadata, stac11: bool
 ) -> dict:
@@ -441,6 +451,7 @@ def _asset_object(
             # TODO: eliminate this legacy "raster:bands" construct at some point?
             "raster:bands": None if stac11 else asset_metadata.get("raster:bands"),
             "file:size": asset_metadata.get("file:size"),
+            "file:local_path": asset_metadata.get("file:local_path") or _relative_local_path(filename),
             "alternate": asset_metadata.get("alternate"),
             "nodata": nodata_value if stac11 else None,
             "data_type": data_type_value if stac11 else None,

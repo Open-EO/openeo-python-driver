@@ -1909,6 +1909,7 @@ class TestBatchJobs:
                     "output.tiff": {
                         "roles": ["data"],
                         "title": "output.tiff",
+                        "file:local_path": "output.tiff",
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff",
                         "type": "image/tiff; application=geotiff",
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
@@ -1918,6 +1919,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.nc",
                         "roles": ["data"],
                         "title": "output.nc",
+                        "file:local_path": "output.nc",
                         "type": "application/x-netcdf",
                         "raster:bands": [{"nodata": -1}],
                     },
@@ -1925,12 +1927,14 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/randomforest.model",
                         "roles": ["data"],
                         "title": "randomforest.model",
+                        "file:local_path": "randomforest.model",
                         "type": "application/octet-stream",
                     },
                     "vectorcube.geojson": {
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/vectorcube.geojson",
                         "roles": ["data"],
                         "title": "vectorcube.geojson",
+                        "file:local_path": "vectorcube.geojson",
                         "type": "application/geo+json",
                     },
                 },
@@ -1981,6 +1985,7 @@ class TestBatchJobs:
                     "output.tiff": {
                         "roles": ["data"],
                         "title": "output.tiff",
+                        "file:local_path": "output.tiff",
                         "href": "http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.tiff",
                         "type": "image/tiff; application=geotiff",
                         "proj:epsg": 4326,
@@ -1993,6 +1998,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.nc",
                         "roles": ["data"],
                         "title": "output.nc",
+                        "file:local_path": "output.nc",
                         "type": "application/x-netcdf",
                         "proj:epsg": 4326,
                         "proj:code": "EPSG:4326",
@@ -2003,12 +2009,14 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/randomforest.model",
                         "roles": ["data"],
                         "title": "randomforest.model",
+                        "file:local_path": "randomforest.model",
                         "type": "application/octet-stream",
                     },
                     "vectorcube.geojson": {
                         "href": "http://oeo.net/openeo/1.0.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/vectorcube.geojson",
                         "roles": ["data"],
                         "title": "vectorcube.geojson",
+                        "file:local_path": "vectorcube.geojson",
                         "type": "application/geo+json",
                         "proj:epsg": 4326,
                         "proj:code": "EPSG:4326",
@@ -2087,6 +2095,7 @@ class TestBatchJobs:
                     "output.tiff": {
                         "roles": ["data"],
                         "title": "output.tiff",
+                        "file:local_path": "output.tiff",
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.tiff",
                         "type": "image/tiff; application=geotiff",
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
@@ -2096,6 +2105,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/output.nc",
                         "roles": ["data"],
                         "title": "output.nc",
+                        "file:local_path": "output.nc",
                         "type": "application/x-netcdf",
                         "raster:bands": [{"nodata": -1}],
                     },
@@ -2103,12 +2113,14 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/randomforest.model",
                         "roles": ["data"],
                         "title": "randomforest.model",
+                        "file:local_path": "randomforest.model",
                         "type": "application/octet-stream",
                     },
                     "vectorcube.geojson": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/vectorcube.geojson",
                         "roles": ["data"],
                         "title": "vectorcube.geojson",
+                        "file:local_path": "vectorcube.geojson",
                         "type": "application/geo+json",
                     },
                 },
@@ -2171,6 +2183,7 @@ class TestBatchJobs:
                     "output.tiff": {
                         "roles": ["data"],
                         "title": "output.tiff",
+                        "file:local_path": "output.tiff",
                         "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.tiff",
                         "type": "image/tiff; application=geotiff",
                         "proj:epsg": 4326,
@@ -2183,6 +2196,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/output.nc",
                         "roles": ["data"],
                         "title": "output.nc",
+                        "file:local_path": "output.nc",
                         "type": "application/x-netcdf",
                         "proj:epsg": 4326,
                         "proj:code": "EPSG:4326",
@@ -2193,6 +2207,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/randomforest.model",
                         "roles": ["data"],
                         "title": "randomforest.model",
+                        "file:local_path": "randomforest.model",
                         "type": "application/octet-stream",
                     },
                     "vectorcube.geojson": {
@@ -2202,6 +2217,7 @@ class TestBatchJobs:
                         "proj:shape": [300, 600],
                         "roles": ["data"],
                         "title": "vectorcube.geojson",
+                        "file:local_path": "vectorcube.geojson",
                         "type": "application/geo+json",
                     },
                 },
@@ -2278,6 +2294,7 @@ class TestBatchJobs:
                             "href": "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/timeseries.csv",
                             "roles": ["data"],
                             "title": "timeseries.csv",
+                            "file:local_path": "timeseries.csv",
                             "type": "text/csv",
                             "eo:bands": [
                                 {"name": "S2-L2A-EVI_t0"},
@@ -2289,6 +2306,7 @@ class TestBatchJobs:
                             "href": "http://oeo.net/openeo/1.1.0/jobs/j-2406047c20fc4966ab637d387502728f/results/assets/timeseries.parquet",
                             "roles": ["data"],
                             "title": "timeseries.parquet",
+                            "file:local_path": "timeseries.parquet",
                             "type": "application/parquet; profile=geo",
                             "eo:bands": [
                                 {"name": "S2-L2A-EVI_t0"},
@@ -2345,6 +2363,7 @@ class TestBatchJobs:
                 "href": "http://storage.test/r362/res.tiff?sgn=23432ldf348fl4r349",
                 "roles": ["data"],
                 "title": "output.tiff",
+                "file:local_path": "output.tiff",
                 "type": "application/tiff",
             }
         }
@@ -2361,6 +2380,7 @@ class TestBatchJobs:
                     "output.tiff": {
                         "roles": ["data"],
                         "title": "output.tiff",
+                        "file:local_path": "output.tiff",
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
                         "type": "image/tiff; application=geotiff",
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
@@ -2370,6 +2390,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/e28f17365e698783574dd313de0d64cd/output.nc",
                         "roles": ["data"],
                         "title": "output.nc",
+                        "file:local_path": "output.nc",
                         "type": "application/x-netcdf",
                         "raster:bands": [{"nodata": -1}],
                     },
@@ -2377,12 +2398,14 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model",
                         "roles": ["data"],
                         "title": "randomforest.model",
+                        "file:local_path": "randomforest.model",
                         "type": "application/octet-stream",
                     },
                     "vectorcube.geojson": {
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/03aa954288d152431cae6949810c330f/vectorcube.geojson",
                         "roles": ["data"],
                         "title": "vectorcube.geojson",
+                        "file:local_path": "vectorcube.geojson",
                         "type": "application/geo+json",
                     },
                 },
@@ -2510,6 +2533,7 @@ class TestBatchJobs:
                     "output.tiff": {
                         "roles": ["data"],
                         "title": "output.tiff",
+                        "file:local_path": "output.tiff",
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/50afb0cad129e61d415278c4ffcd8a83/output.tiff",
                         "type": "image/tiff; application=geotiff",
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
@@ -2519,6 +2543,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/e28f17365e698783574dd313de0d64cd/output.nc",
                         "roles": ["data"],
                         "title": "output.nc",
+                        "file:local_path": "output.nc",
                         "type": "application/x-netcdf",
                         "raster:bands": [{"nodata": -1}],
                     },
@@ -2526,12 +2551,14 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/741cfd7379a9eda4bc1c8b0c5155bfe9/randomforest.model",
                         "roles": ["data"],
                         "title": "randomforest.model",
+                        "file:local_path": "randomforest.model",
                         "type": "application/octet-stream",
                     },
                     "vectorcube.geojson": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/03aa954288d152431cae6949810c330f/vectorcube.geojson",
                         "roles": ["data"],
                         "title": "vectorcube.geojson",
+                        "file:local_path": "vectorcube.geojson",
                         "type": "application/geo+json",
                     },
                 },
@@ -2661,6 +2688,7 @@ class TestBatchJobs:
                     "output.tiff": {
                         "roles": ["data"],
                         "title": "output.tiff",
+                        "file:local_path": "output.tiff",
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/fd0ca65e29c6d223da05b2e73a875683/output.tiff?expires=2234",
                         "type": "image/tiff; application=geotiff",
                         "eo:bands": [{"name": "B02", "common_name": "blue", "center_wavelength": 0.665}],
@@ -2670,6 +2698,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/3ed7b944c4f9cc88d2c3ef7534a27596/output.nc?expires=2234",
                         "roles": ["data"],
                         "title": "output.nc",
+                        "file:local_path": "output.nc",
                         "type": "application/x-netcdf",
                         "raster:bands": [{"nodata": -1}],
                     },
@@ -2677,12 +2706,14 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/22b76413158c59acaccc74e74841a473/randomforest.model?expires=2234",
                         "roles": ["data"],
                         "title": "randomforest.model",
+                        "file:local_path": "randomforest.model",
                         "type": "application/octet-stream",
                     },
                     "vectorcube.geojson": {
                         "href": "http://oeo.net/openeo/1.0.0/jobs/07024ee9-7847-4b8a-b260-6c879a2b3cdc/results/assets/TXIuVGVzdA==/d6daa44b4320cd9cd3fc3c0fd37832f5/vectorcube.geojson?expires=2234",
                         "roles": ["data"],
                         "title": "vectorcube.geojson",
+                        "file:local_path": "vectorcube.geojson",
                         "type": "application/geo+json",
                     },
                 },
@@ -2854,6 +2885,7 @@ class TestBatchJobs:
                 "assets": {
                     "output.tiff": {
                         "title": "output.tiff",
+                        "file:local_path": "output.tiff",
                         "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234",
                         "type": "image/tiff; application=geotiff",
                         "proj:epsg": 4326,
@@ -2867,6 +2899,7 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/a5d63417ff2eac2c632af5abfce6c425/output.nc?expires=2234",
                         "roles": ["data"],
                         "title": "output.nc",
+                        "file:local_path": "output.nc",
                         "type": "application/x-netcdf",
                         "proj:epsg": 4326,
                         "proj:code": "EPSG:4326",
@@ -2877,12 +2910,14 @@ class TestBatchJobs:
                         "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/18fd2346c52945c0caba7b13246f5a63/randomforest.model?expires=2234",
                         "roles": ["data"],
                         "title": "randomforest.model",
+                        "file:local_path": "randomforest.model",
                         "type": "application/octet-stream",
                     },
                     "vectorcube.geojson": {
                         "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/1672093c942dbbb9c8d5f1041dcc6c06/vectorcube.geojson?expires=2234",
                         "roles": ["data"],
                         "title": "vectorcube.geojson",
+                        "file:local_path": "vectorcube.geojson",
                         "type": "application/geo+json",
                         "proj:epsg": 4326,
                         "proj:code": "EPSG:4326",
@@ -3174,6 +3209,7 @@ class TestBatchJobs:
                     ],
                     "roles": ["data"],
                     "title": "openEO_20231230T214100Z.tif",
+                    "file:local_path": "openEO_20231230T214100Z.tif",
                     "type": "image/tiff; application=geotiff",
                     "nodata": "nan",
                     "data_type": "float64",
@@ -3195,6 +3231,7 @@ class TestBatchJobs:
                     ],
                     "roles": ["data"],
                     "title": "openEO_20231231T214100Z.tif",
+                    "file:local_path": "openEO_20231231T214100Z.tif",
                     "type": "image/tiff; application=geotiff",
                     "nodata": "nan",
                     "data_type": "float64",
@@ -3216,6 +3253,7 @@ class TestBatchJobs:
                     ],
                     "roles": ["data"],
                     "title": "openEO_20231231T214100Z_abs.tif",
+                    "file:local_path": "openEO_20231231T214100Z_abs.tif",
                     "type": "image/tiff; application=geotiff",
                     "nodata": "nan",
                     "data_type": "float64",
@@ -3257,6 +3295,55 @@ class TestBatchJobs:
 
             item_link = item_links[0]
             assert item_link["href"] == f"http://oeo.net/openeo/1.1.0/jobs/{job_id}/results/items11/TXIuVGVzdA==/6dfcff9f3d3d760f1cfca269ccc245fb/5d2db643-5cc3-4b27-8ef3-11f7d203b221_2023-12-31T21:41:00Z"
+
+    def test_get_job_results_stac_1_1_file_local_path(self, api110):
+        job_id = "07024ee9-7847-4b8a-b260-6c879a2b3cdc"
+        item_id = "item-2023-12-31"
+
+        def asset(**kwargs) -> dict:
+            return {"roles": ["data"], "type": "image/tiff; application=geotiff", **kwargs}
+
+        with self._fresh_job_registry():
+            dummy_backend.DummyBatchJobs._update_status(job_id=job_id, user_id=TEST_USER, status="finished")
+            dummy_backend.DummyBatchJobs.set_result_metadata(
+                job_id=job_id,
+                user_id=TEST_USER,
+                metadata=BatchJobResultMetadata(
+                    items={
+                        item_id: {
+                            "id": item_id,
+                            "properties": {"datetime": "2023-12-31T00:00:00Z"},
+                            "assets": {
+                                "explicit": asset(
+                                    href="/data/jobs/j-123/2023/B04.tif",
+                                    output_dir="/data/jobs/j-123",
+                                    **{"file:local_path": "2023/B04.tif"},
+                                ),
+                                "fallback": asset(
+                                    href="/data/jobs/j-123/2023/B08.tif",
+                                    output_dir="/data/jobs/j-123",
+                                ),
+                                "no_output_dir": asset(href="s3://bucket/batch_jobs/j-123/B11.tif"),
+                            },
+                        }
+                    },
+                    links=[],
+                ),
+            )
+
+            collection = api110.get(f"/jobs/{job_id}/results", headers=self.AUTH_HEADER).assert_status_code(200).json
+            item = (
+                api110.get(f"/jobs/{job_id}/results/items11/{item_id}", headers=self.AUTH_HEADER)
+                .assert_status_code(200)
+                .json
+            )
+
+        for assets, key_prefix in [(collection["assets"], f"{item_id}_"), (item["assets"], "")]:
+            assert assets[f"{key_prefix}explicit"]["file:local_path"] == "2023/B04.tif"
+            assert assets[f"{key_prefix}fallback"]["file:local_path"] == "2023/B08.tif"
+            assert "file:local_path" not in assets[f"{key_prefix}no_output_dir"]
+
+        assert all("file:local_path" not in item_asset for item_asset in collection["item_assets"].values())
 
     @pytest.mark.parametrize("backend_config_overrides", [{"url_signer": UrlSigner(secret="123&@#")}])
     def test_get_stac_1_1_item(self, api110, backend_implementation, backend_config_overrides):
@@ -4059,6 +4146,7 @@ class TestBatchJobs:
             "assets": {
                 "output.tiff": {
                     "title": "output.tiff",
+                    "file:local_path": "output.tiff",
                     "href": "http://oeo.net/openeo/1.1.0/jobs/53c71345-09b4-46b4-b6b0-03fd6fe1f199/results/assets/TXIuVGVzdA==/f5d336336d36e3e987ba6a34b87cde01/output.tiff?expires=2234",
                     "type": "image/tiff; application=geotiff",
                     "proj:epsg": 4326,
@@ -4163,6 +4251,7 @@ class TestBatchJobs:
                         "type": vector_asset_media_type,
                         "roles": ["data"],
                         "title": vector_asset_filename,
+                        "file:local_path": vector_asset_filename,
                         "eo:bands": [{"name": "S2-L2A-EVI_t0"}, {"name": "S2-L2A-EVI_t1"}, {"name": "S2-L2A-EVI_t2"}],
                     }
                 },
@@ -4228,6 +4317,7 @@ class TestBatchJobs:
                         "type": "application/parquet; profile=geo",
                         "roles": ["data"],
                         "title": "timeseries.parquet",
+                        "file:local_path": "timeseries.parquet",
                         "eo:bands": [{"name": "S1-SIGMA0-VV"}, {"name": "S1-SIGMA0-VH"}, {"name": "S2-L2A-B01"}],
                     }
                 },
