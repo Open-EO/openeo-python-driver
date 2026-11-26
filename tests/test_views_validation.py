@@ -35,79 +35,105 @@ def test_basic_fail(api100, pg, expected_code, expected_message):
     assert errors == [{"code": expected_code, "message": expected_message}]
 
 
-@pytest.mark.parametrize("namespace", ["user", None, "_undefined"])
-def test_validate_user_defined_process(api100, udp_registry, namespace):
-    udp_registry.save(
-        user_id=TEST_USER,
-        process_id="my_add",
-        spec={
-            "id": "my_add",
-            "parameters": [{"name": "x"}],
-            "process_graph": {
-                "add": {
-                    "process_id": "add",
-                    "arguments": {"x": {"from_parameter": "x"}, "y": 2},
-                    "result": True,
-                }
-            },
+@pytest.fixture
+def udp_definition():
+    return {
+        "id": "my_add",
+        "description": "Add two to a number.",
+        "parameters": [{"name": "x", "description": "Input number.", "schema": {"type": "number"}}],
+        "returns": {"description": "Sum.", "schema": {"type": "number"}},
+        "process_graph": {
+            "add": {
+                "process_id": "add",
+                "arguments": {"x": {"from_parameter": "x"}, "y": 2},
+                "result": True,
+            }
         },
-    )
-    node = {"process_id": "my_add", "arguments": {"x": 3}, "result": True}
+    }
+
+
+@pytest.fixture
+def udp_call_definition():
+    return {
+        "id": "call_my_add",
+        "description": "Call the saved user-defined process.",
+        "parameters": [],
+        "returns": {"description": "Sum.", "schema": {"type": "number"}},
+        "process_graph": {"udp": {"process_id": "my_add", "arguments": {"x": 3}, "result": True}},
+    }
+
+
+@pytest.mark.parametrize(
+    ["namespace", "user_id", "supported"],
+    [
+        pytest.param("user", TEST_USER, True, id="user-namespace"),
+        pytest.param(None, TEST_USER, True, id="null-namespace"),
+        pytest.param("_undefined", TEST_USER, True, id="implicit-namespace"),
+        pytest.param("user", "Other", False, id="different-user"),
+        pytest.param("backend", TEST_USER, False, id="backend-namespace"),
+        pytest.param("user", None, False, id="anonymous"),
+    ],
+)
+def test_validate_user_defined_process(api100, udp_definition, udp_call_definition, namespace, user_id, supported):
+    api100.set_auth_bearer_token()
+    api100.put("/process_graphs/my_add", json=udp_definition).assert_status_code(200)
+    if user_id is None:
+        api100.default_request_headers.clear()
+    else:
+        api100.set_auth_bearer_token("basic//" + HttpAuthHandler.build_basic_access_token(user_id=user_id))
+
     if namespace != "_undefined":
-        node["namespace"] = namespace
-    assert api100.validation({"udp": node}).json == {"errors": []}
-
-
-def test_validate_user_defined_process_is_user_scoped(api100, udp_registry):
-    udp_registry.save(
-        user_id=TEST_USER,
-        process_id="my_add",
-        spec={
-            "id": "my_add",
-            "process_graph": {"add": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}},
-        },
+        udp_call_definition["process_graph"]["udp"]["namespace"] = namespace
+    expected_errors = (
+        []
+        if supported
+        else [
+            {
+                "code": "ProcessUnsupported",
+                "message": f"Process with identifier 'my_add' is not available in namespace '{namespace}'.",
+            }
+        ]
     )
-    pg = {"udp": {"process_id": "my_add", "namespace": "user", "arguments": {}, "result": True}}
-    api100.set_auth_bearer_token("basic//" + HttpAuthHandler.build_basic_access_token(user_id="Other"))
-    assert api100.validation(pg).json["errors"][0]["code"] == "ProcessUnsupported"
+    response = api100.post("/validation", json=udp_call_definition).assert_status_code(200)
+    assert response.json == {"errors": expected_errors}
 
 
-def test_validate_user_defined_process_invalid_graph(api100, udp_registry):
-    udp_registry.save(
-        user_id=TEST_USER,
-        process_id="my_process",
-        spec={
-            "id": "my_process",
-            "process_graph": {"unknown": {"process_id": "unknown", "arguments": {}, "result": True}},
-        },
-    )
-    pg = {"udp": {"process_id": "my_process", "namespace": "user", "arguments": {}, "result": True}}
-    assert api100.validation(pg).json["errors"][0]["message"] == (
-        "Process with identifier 'unknown' is not available in namespace 'None'."
-    )
+def test_validate_user_defined_process_with_unsupported_inner_process(api100, udp_definition, udp_call_definition):
+    udp_definition["process_graph"]["add"]["process_id"] = "unknown"
+    api100.set_auth_bearer_token()
+    api100.put("/process_graphs/my_add", json=udp_definition).assert_status_code(200)
+    udp_call_definition["process_graph"]["udp"]["namespace"] = "user"
+    response = api100.post("/validation", json=udp_call_definition).assert_status_code(200)
+    assert response.json == {
+        "errors": [
+            {
+                "code": "ProcessUnsupported",
+                "message": "Process with identifier 'unknown' is not available in namespace 'None'.",
+            }
+        ]
+    }
 
 
-def test_validate_user_defined_process_other_namespace(api100, udp_registry):
-    udp_registry.save(user_id=TEST_USER, process_id="my_process", spec={"id": "my_process"})
-    pg = {"udp": {"process_id": "my_process", "namespace": "backend", "arguments": {}, "result": True}}
-    assert api100.validation(pg).json["errors"][0]["code"] == "ProcessUnsupported"
-
-
-def test_validation_without_auth(api100):
+@pytest.mark.parametrize(
+    ["user_id", "expected_status", "expected_code"],
+    [
+        pytest.param(None, 200, None, id="anonymous"),
+        pytest.param(TEST_USER, 200, None, id="authenticated"),
+        pytest.param("invalid-token", 403, "TokenInvalid", id="invalid-token"),
+        pytest.param("Mark", 403, "PermissionsInsufficient", id="access-denied"),
+    ],
+)
+def test_validation_authentication(api100, user_id, expected_status, expected_code):
+    if user_id == "invalid-token":
+        api100.set_auth_bearer_token("invalid")
+    elif user_id is not None:
+        api100.set_auth_bearer_token("basic//" + HttpAuthHandler.build_basic_access_token(user_id=user_id))
     pg = {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
-    assert api100.validation(pg, ensure_auth=False).json == {"errors": []}
-
-
-def test_validation_invalid_auth(api100):
-    pg = {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
-    api100.set_auth_bearer_token("invalid")
-    api100.post("/validation", json={"process_graph": pg}).assert_error(403, "TokenInvalid")
-
-
-def test_validation_checks_user_access(api100):
-    pg = {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
-    api100.set_auth_bearer_token("basic//" + HttpAuthHandler.build_basic_access_token(user_id="Mark"))
-    api100.post("/validation", json={"process_graph": pg}).assert_error(403, "PermissionsInsufficient")
+    response = api100.post("/validation", json={"process_graph": pg})
+    if expected_code:
+        response.assert_error(expected_status, expected_code)
+    else:
+        assert response.assert_status_code(expected_status).json == {"errors": []}
 
 
 def test_load_collection_basic(api100, backend_implementation):
