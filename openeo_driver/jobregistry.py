@@ -830,6 +830,47 @@ class ElasticJobRegistry(JobRegistryInterface):
         return all_jobs[:max_count]
 
 
+EJR_API_VERSIONS = ("v1", "v2")
+
+
+def get_elastic_job_registry_class(api_version: Optional[str] = None) -> typing.Type[ElasticJobRegistry]:
+    """
+    Get the EJR client class for the given EJR API version.
+
+    :param api_version: "v1" (legacy EJR API) or "v2" (opt-in jobs-v2 API).
+        When not specified, the `ejr_api_version` backend config setting is used,
+        which defaults to "v1".
+    """
+    if api_version is None:
+        api_version = get_backend_config().ejr_api_version
+    if api_version == "v1":
+        return ElasticJobRegistry
+    elif api_version == "v2":
+        # Local import to avoid circular import (jobregistry_v2 builds on this module)
+        from openeo_driver.jobregistry_v2 import ElasticJobRegistryV2
+
+        return ElasticJobRegistryV2
+    else:
+        raise ValueError(f"Unsupported EJR API version {api_version!r}, expected one of {EJR_API_VERSIONS}")
+
+
+def build_elastic_job_registry(
+    api_url: str,
+    backend_id: Optional[str] = None,
+    *,
+    api_version: Optional[str] = None,
+    **kwargs,
+) -> ElasticJobRegistry:
+    """
+    Build an EJR client, using the legacy v1 API unless v2 is explicitly opted in
+    (through `api_version` or the `ejr_api_version` backend config setting).
+
+    Additional keyword arguments are passed to the `ElasticJobRegistry` constructor.
+    """
+    cls = get_elastic_job_registry_class(api_version=api_version)
+    return cls(api_url=api_url, backend_id=backend_id, **kwargs)
+
+
 class CliApp:
     """
     Simple CLI to Elastic Job Registry API for testing, development and debugging
@@ -943,9 +984,12 @@ class CliApp:
         else:
             _log.warning("No backend id specified, using default %r", self._DEFAULT_BACKEND_ID)
             backend_id = self._DEFAULT_BACKEND_ID
-        ejr = ElasticJobRegistry(
+        # EJR API version: legacy "v1" unless "v2" is explicitly opted in.
+        api_version = self.environ.get("OPENEO_EJR_API_VERSION") or "v1"
+        ejr = build_elastic_job_registry(
             api_url=api_url,
             backend_id=backend_id,
+            api_version=api_version,
             _debug_show_curl=cli_args.show_curl if cli_args else False,
         )
 

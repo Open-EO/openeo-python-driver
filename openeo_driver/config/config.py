@@ -97,6 +97,15 @@ class OpenEoBackendConfig(_ConfigBase):
 
     ejr_retry_settings: dict = attrs.Factory(lambda: dict(tries=4, delay=2, backoff=2))
 
+    """
+    Elastic Job Registry (EJR) API version to use
+    (see `openeo_driver.jobregistry.get_elastic_job_registry_class`):
+    - "v1" (default): legacy EJR API (`/jobs` with Elasticsearch-style queries)
+    - "v2": opt-in EJR jobs-v2 domain API (`/v2/jobs`),
+      see `openeo_driver.jobregistry_v2.ElasticJobRegistryV2`
+    """
+    ejr_api_version: str = attrs.field(default="v1", validator=attrs.validators.in_(["v1", "v2"]))
+
     "Experimental: simple job progress fallback estimation. Specify average batch job completion time (wall clock) in seconds."
     simple_job_progress_estimation: Optional[float] = None
 

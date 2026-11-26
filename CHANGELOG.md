@@ -39,6 +39,8 @@ and start a new "In Progress" section above it.
 - `load_stac` with STAC metadata where "bands" dimension is erroneously missing: "bands" dimension will still be forced in dry run if "bands" argument is given to `load_stac` ([Open-EO/openeo-geopyspark-driver#1907](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1907))
 - Improve compatibility (address failing unit tests) with Python 3.12, 3.13 and 3.14 ([#541](https://github.com/Open-EO/openeo-python-driver/issues/541))
 - `export_workspace`: support not merging `derived_from` links into a STAC Collection. ([Open-EO/openeo-geopyspark-driver#1922](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1922))
+- Add an opt-in `ElasticJobRegistryV2` client for the EJR `/v2/jobs` API, with dedicated user/active/cleanup listings, structured `next_page` continuations encoded in cursor links, and ETag-based conditional updates and deletions, alongside the unchanged legacy client. The legacy v1 API stays the default: opt in to v2 through the `ejr_api_version="v2"` backend config setting, the `api_version` argument of the new `build_elastic_job_registry()` factory, or the `OPENEO_EJR_API_VERSION=v2` env var for the `jobregistry` CLI.
+- Reject a zero page size instead of treating it as an unbounded jobs-v2 listing.
 
 
 ## 0.141.0
