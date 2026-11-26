@@ -1,6 +1,7 @@
 import pytest
 
-from openeo_driver.testing import ApiTester
+from openeo_driver.testing import TEST_USER, ApiTester
+from openeo_driver.users.auth import HttpAuthHandler
 from .data import TEST_DATA_ROOT
 
 
@@ -32,6 +33,81 @@ def test_basic_fail(api100, pg, expected_code, expected_message):
     res = api100.validation(pg)
     errors = res.json["errors"]
     assert errors == [{"code": expected_code, "message": expected_message}]
+
+
+@pytest.mark.parametrize("namespace", ["user", None, "_undefined"])
+def test_validate_user_defined_process(api100, udp_registry, namespace):
+    udp_registry.save(
+        user_id=TEST_USER,
+        process_id="my_add",
+        spec={
+            "id": "my_add",
+            "parameters": [{"name": "x"}],
+            "process_graph": {
+                "add": {
+                    "process_id": "add",
+                    "arguments": {"x": {"from_parameter": "x"}, "y": 2},
+                    "result": True,
+                }
+            },
+        },
+    )
+    node = {"process_id": "my_add", "arguments": {"x": 3}, "result": True}
+    if namespace != "_undefined":
+        node["namespace"] = namespace
+    assert api100.validation({"udp": node}).json == {"errors": []}
+
+
+def test_validate_user_defined_process_is_user_scoped(api100, udp_registry):
+    udp_registry.save(
+        user_id=TEST_USER,
+        process_id="my_add",
+        spec={
+            "id": "my_add",
+            "process_graph": {"add": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}},
+        },
+    )
+    pg = {"udp": {"process_id": "my_add", "namespace": "user", "arguments": {}, "result": True}}
+    api100.set_auth_bearer_token("basic//" + HttpAuthHandler.build_basic_access_token(user_id="Other"))
+    assert api100.validation(pg).json["errors"][0]["code"] == "ProcessUnsupported"
+
+
+def test_validate_user_defined_process_invalid_graph(api100, udp_registry):
+    udp_registry.save(
+        user_id=TEST_USER,
+        process_id="my_process",
+        spec={
+            "id": "my_process",
+            "process_graph": {"unknown": {"process_id": "unknown", "arguments": {}, "result": True}},
+        },
+    )
+    pg = {"udp": {"process_id": "my_process", "namespace": "user", "arguments": {}, "result": True}}
+    assert api100.validation(pg).json["errors"][0]["message"] == (
+        "Process with identifier 'unknown' is not available in namespace 'None'."
+    )
+
+
+def test_validate_user_defined_process_other_namespace(api100, udp_registry):
+    udp_registry.save(user_id=TEST_USER, process_id="my_process", spec={"id": "my_process"})
+    pg = {"udp": {"process_id": "my_process", "namespace": "backend", "arguments": {}, "result": True}}
+    assert api100.validation(pg).json["errors"][0]["code"] == "ProcessUnsupported"
+
+
+def test_validation_without_auth(api100):
+    pg = {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
+    assert api100.validation(pg, ensure_auth=False).json == {"errors": []}
+
+
+def test_validation_invalid_auth(api100):
+    pg = {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
+    api100.set_auth_bearer_token("invalid")
+    api100.post("/validation", json={"process_graph": pg}).assert_error(403, "TokenInvalid")
+
+
+def test_validation_checks_user_access(api100):
+    pg = {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
+    api100.set_auth_bearer_token("basic//" + HttpAuthHandler.build_basic_access_token(user_id="Mark"))
+    api100.post("/validation", json={"process_graph": pg}).assert_error(403, "PermissionsInsufficient")
 
 
 def test_load_collection_basic(api100, backend_implementation):

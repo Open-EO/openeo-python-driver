@@ -661,7 +661,8 @@ def register_views_processing(
 
     @api_endpoint(hidden=is_not_implemented(backend_implementation.processing.validate))
     @blueprint.route('/validation', methods=["POST"])
-    def validation():
+    @auth_handler.optional_bearer_auth
+    def validation(user: Optional[User]):
         post_data = request.get_json()
         try:
             process_graph = post_data["process_graph"]
@@ -674,7 +675,7 @@ def register_views_processing(
                 # TODO #382 Deprecated field "version", use "openeo_api_version" instead
                 "version": g.openeo_api_version,
                 "openeo_api_version": g.openeo_api_version,
-                "user": None,
+                "user": user,
                 "validation": True
             }
         )

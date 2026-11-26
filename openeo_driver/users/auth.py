@@ -94,6 +94,18 @@ class HttpAuthHandler:
 
         return decorated
 
+    def optional_bearer_auth(self, f: Callable):
+        """Authenticate when an Authorization header is present, otherwise pass no user."""
+        authenticated = self.requires_bearer_auth(f)
+
+        @functools.wraps(f)
+        def decorated(*args, **kwargs):
+            if "Authorization" in flask.request.headers:
+                return authenticated(*args, **kwargs)
+            return f(*args, user=None, **kwargs)
+
+        return decorated
+
     def get_auth_token(self, request: flask.Request, type="Bearer") -> str:
         """Get bearer/basic token from Authorization header in request"""
         if "Authorization" not in request.headers:
