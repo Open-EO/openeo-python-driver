@@ -10,7 +10,7 @@ import requests
 import time_machine
 from openeo.rest.auth.testing import OidcMock
 
-from openeo_driver.errors import JobNotFoundException
+from openeo_driver.errors import JobNotFoundException, OpenEOApiException
 from openeo_driver.jobregistry import ElasticJobRegistry, EjrApiError, EjrApiResponseError
 from openeo_driver.jobregistry_v2 import ElasticJobRegistryV2
 from openeo_driver.testing import config_overrides
@@ -131,9 +131,18 @@ def test_get_deserializes_process(requests_mock, ejr, process, user_id):
 
 def test_get_checks_user_id_locally(requests_mock, ejr):
     get = requests_mock.get(JOBS + "/j-123", json=JOB)
-    with pytest.raises(AssertionError):
+    with pytest.raises(JobNotFoundException):
         ejr.get_job("j-123", user_id="alice")
     assert get.last_request.qs == {}
+
+
+@pytest.mark.parametrize("operation", ["get", "delete"])
+def test_other_user_job_is_not_found(requests_mock, ejr, operation):
+    """Other user's job: not found (like legacy API), instead of AssertionError (HTTP 500)."""
+    mutation = requests_mock.delete(JOBS + "/j-123", status_code=204)
+    with pytest.raises(JobNotFoundException):
+        getattr(ejr, operation + "_job")("j-123", user_id="alice")
+    assert mutation.call_count == 0
 
 
 def test_get_conflict_propagates(requests_mock, ejr):
@@ -388,10 +397,68 @@ def test_wildcard_fields(requests_mock, ejr):
     assert "fields" not in search.last_request.json()
 
 
-@pytest.mark.parametrize("limit", [0, -1, 1001])
-def test_invalid_page_size(ejr, limit):
-    with pytest.raises(ValueError, match="between 1 and 1000"):
+@pytest.mark.parametrize("limit", [0, -1])
+def test_invalid_page_size(requests_mock, ejr, limit):
+    search = requests_mock.post(JOBS + "/user", json={"jobs": [], "next_page": None})
+    with pytest.raises(OpenEOApiException) as error:
         ejr.list_user_jobs("john", limit=limit)
+    assert error.value.status_code == 400
+    assert error.value.code == "InvalidPagination"
+    assert search.call_count == 0
+
+
+@pytest.mark.parametrize("limit", [1001, 5000])
+def test_large_page_size_is_capped(requests_mock, ejr, limit):
+    search = requests_mock.post(
+        JOBS + "/user", json={"jobs": [{**JOB, "created": "2026-01-01T00:00:00Z"}], "next_page": CONTINUATION}
+    )
+    listing = ejr.list_user_jobs("john", limit=limit)
+    assert search.last_request.json()["limit"] == 1000
+    assert listing._next_parameters["limit"] == 1000
+
+
+@pytest.mark.parametrize("limit", [0, 1001])
+def test_internal_listing_limit_still_validated(ejr, limit):
+    with pytest.raises(ValueError, match="between 1 and 1000"):
+        ejr._list_jobs("user", {"user_id": "john"}, limit=limit)
+
+
+@pytest.mark.parametrize(
+    "cursor",
+    [
+        "not json",
+        "",
+        "123",
+        '["a"]',
+        "null",
+        '{"position": {"created": 1, "job_id": "j"}}',
+        '{"as_of": 123, "position": {}}',
+        '{"as_of": "2026-01-01T00:00:00Z", "position": "x"}',
+    ],
+)
+def test_malformed_cursor(requests_mock, ejr, cursor):
+    search = requests_mock.post(JOBS + "/user", json={"jobs": [], "next_page": None})
+    with pytest.raises(OpenEOApiException) as error:
+        ejr.list_user_jobs("john", limit=10, request_parameters={"cursor": cursor})
+    assert error.value.status_code == 400
+    assert error.value.code == "InvalidPagination"
+    assert search.call_count == 0
+
+
+def test_cursor_rejected_by_ejr(requests_mock, ejr):
+    requests_mock.post(JOBS + "/user", status_code=400, json={"message": "bad continuation"})
+    cursor = json.dumps({"as_of": "2026-01-01T00:00:00Z", "position": {"created": "x", "job_id": None}})
+    with pytest.raises(OpenEOApiException) as error:
+        ejr.list_user_jobs("john", limit=10, request_parameters={"cursor": cursor})
+    assert error.value.status_code == 400
+    assert error.value.code == "InvalidPagination"
+
+
+def test_ejr_400_without_cursor_propagates(requests_mock, ejr):
+    requests_mock.post(JOBS + "/user", status_code=400, json={"message": "bad request"})
+    with pytest.raises(EjrApiResponseError) as error:
+        ejr.list_user_jobs("john", limit=10)
+    assert error.value.status_code == 400
 
 
 @pytest.mark.parametrize("persistent", [False, True])
@@ -477,16 +544,67 @@ def test_conditional_write_uses_current_etag(requests_mock, ejr, method):
     assert mutation.last_request.headers["If-Match"] == ETAG
 
 
+def _do_mutation(ejr, method: str):
+    if method == "patch":
+        ejr.set_application_id("j-123", application_id="app-123")
+    else:
+        ejr.delete_job("j-123", verify_deletion=False)
+
+
 @pytest.mark.parametrize("method", ["patch", "delete"])
-def test_stale_etag_is_not_retried(requests_mock, ejr, method):
+def test_stale_etag_is_retried_with_fresh_etag(requests_mock, ejr, method):
+    """Concurrent change (412): re-read current ETag and retry (last writer wins, like legacy API)."""
+    next_etag = '"' + "b" * 64 + '"'
+    get = requests_mock.get(
+        JOBS + "/j-123",
+        [
+            {"json": JOB, "headers": {"ETag": ETAG}},
+            {"json": {**JOB, "status": "running"}, "headers": {"ETag": next_etag}},
+        ],
+    )
+    ok = {"status_code": 204} if method == "delete" else {"json": JOB}
+    mutation = requests_mock.register_uri(method.upper(), JOBS + "/j-123", [{"status_code": 412}, ok])
+    _do_mutation(ejr, method)
+    assert get.call_count == 2
+    assert [r.headers["If-Match"] for r in mutation.request_history] == [ETAG, next_etag]
+
+
+@pytest.mark.parametrize("method", ["patch", "delete"])
+def test_persistent_stale_etag_gives_up(requests_mock, ejr, method):
+    get = requests_mock.get(JOBS + "/j-123", json=JOB, headers={"ETag": ETAG})
     mutation = requests_mock.register_uri(method.upper(), JOBS + "/j-123", status_code=412)
     with pytest.raises(EjrApiResponseError) as error:
-        if method == "patch":
-            ejr.set_application_id("j-123", application_id="app-123")
-        else:
-            ejr.delete_job("j-123", verify_deletion=False)
+        _do_mutation(ejr, method)
     assert error.value.status_code == 412
+    assert mutation.call_count == ElasticJobRegistryV2._PRECONDITION_FAILED_ATTEMPTS
+    assert get.call_count == ElasticJobRegistryV2._PRECONDITION_FAILED_ATTEMPTS
+
+
+@pytest.mark.parametrize("method", ["patch", "delete"])
+@pytest.mark.parametrize("status_code", [400, 409, 500])
+def test_other_write_errors_are_not_retried(requests_mock, ejr, method, status_code):
+    mutation = requests_mock.register_uri(method.upper(), JOBS + "/j-123", status_code=status_code)
+    with pytest.raises(EjrApiResponseError) as error:
+        _do_mutation(ejr, method)
+    assert error.value.status_code == status_code
     assert mutation.call_count == 1
+
+
+def test_delete_retry_after_concurrent_deletion(requests_mock, ejr):
+    """Job deleted concurrently between 412 and re-read: not found."""
+    requests_mock.get(JOBS + "/j-123", [{"json": JOB, "headers": {"ETag": ETAG}}, {"status_code": 404}])
+    mutation = requests_mock.delete(JOBS + "/j-123", status_code=412)
+    with pytest.raises(JobNotFoundException):
+        ejr.delete_job("j-123", verify_deletion=False)
+    assert mutation.call_count == 1
+
+
+def test_results_metadata_413_propagates(requests_mock, ejr):
+    """Job tracker relies on 413 to retry with smaller results metadata."""
+    requests_mock.patch(JOBS + "/j-123", status_code=413)
+    with pytest.raises(EjrApiResponseError) as error:
+        ejr.set_results_metadata("j-123", costs=1.0, usage={}, results_metadata={"links": []})
+    assert error.value.status_code == 413
 
 
 @pytest.mark.parametrize("method", ["patch", "delete"])

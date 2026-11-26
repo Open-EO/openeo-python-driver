@@ -10,7 +10,7 @@ from openeo.util import TimingLogger, rfc3339, url_join
 
 from openeo_driver.backend import JobListing
 from openeo_driver.constants import JOB_STATUS
-from openeo_driver.errors import JobNotFoundException
+from openeo_driver.errors import JobNotFoundException, OpenEOApiException
 from openeo_driver.jobregistry import (
     ElasticJobRegistry,
     EjrApiError,
@@ -31,6 +31,12 @@ class ElasticJobRegistryV2(ElasticJobRegistry):
     """
 
     PAGINATION_URL_PARAM = "cursor"
+
+    # Maximum page size supported by jobs-v2 listings (larger requested page sizes are capped).
+    _MAX_PAGE_SIZE = 1000
+
+    # Attempts for conditional writes when the job changed concurrently (HTTP 412).
+    _PRECONDITION_FAILED_ATTEMPTS = 3
 
     def _jobs_path(self, job_id: Optional[str] = None) -> str:
         path = "/v2/jobs"
@@ -138,7 +144,10 @@ class ElasticJobRegistryV2(ElasticJobRegistry):
             assert job["job_id"] == job_id
             if job.get("backend_id") != self.backend_id:
                 raise JobNotFoundException(job_id=job_id)
-            assert user_id is None or job["user_id"] == user_id
+            if user_id is not None and job.get("user_id") != user_id:
+                # Like the legacy API (which filters on user server-side): don't reveal existence of other user's job
+                self._log.warning(f"EJR job {job_id=} does not belong to {user_id=}")
+                raise JobNotFoundException(job_id=job_id)
             etag = response.headers.get("ETag")
             if require_etag and not etag:
                 raise EjrApiError("EJR jobs-v2 response is missing an ETag; refusing an unconditional write")
@@ -146,17 +155,44 @@ class ElasticJobRegistryV2(ElasticJobRegistry):
                 job["process"] = self._postdeserialize(job["process"])
             return job, etag
 
+    def _conditional_write(
+        self,
+        method: str,
+        job_id: str,
+        *,
+        user_id: Optional[str] = None,
+        data: Optional[dict] = None,
+        expected_status: int = 200,
+    ) -> requests.Response:
+        """
+        Do a write guarded by the job's current ETag (If-Match).
+
+        The driver's writes are field merges (no read-modify-write of job state),
+        so a concurrent change of the job (HTTP 412) is not a real conflict:
+        re-read the current ETag and retry (a bounded number of times),
+        which gives the same "last writer wins" behavior as the legacy API.
+        """
+        for attempt in range(1, self._PRECONDITION_FAILED_ATTEMPTS + 1):
+            _, etag = self._read_job(job_id, user_id=user_id, require_etag=True)
+            try:
+                return self._versioned_request(method, job_id, data=data, etag=etag, expected_status=expected_status)
+            except EjrApiResponseError as exc:
+                if exc.status_code != 412 or attempt >= self._PRECONDITION_FAILED_ATTEMPTS:
+                    raise
+                self._log.warning(
+                    f"EJR {method} {job_id=} got 412 (job changed concurrently),"
+                    f" retrying with fresh ETag (attempt {attempt}/{self._PRECONDITION_FAILED_ATTEMPTS})"
+                )
+
     def _update(self, job_id: str, data: dict) -> JobDict:
         with ExtraLoggingFilter.with_extra_logging(job_id=job_id):
-            _, etag = self._read_job(job_id, require_etag=True)
             self._log.info(f"EJR update {job_id=} {data=}")
-            return self._versioned_request("PATCH", job_id, data=data, etag=etag).json()
+            return self._conditional_write("PATCH", job_id, data=data).json()
 
     def delete_job(self, job_id: str, *, user_id: Optional[str] = None, verify_deletion: bool = True) -> None:
         with ExtraLoggingFilter.with_extra_logging(job_id=job_id):
-            _, etag = self._read_job(job_id, user_id=user_id, require_etag=True)
             try:
-                self._versioned_request("DELETE", job_id, etag=etag, expected_status=204)
+                self._conditional_write("DELETE", job_id, user_id=user_id, expected_status=204)
             except EjrApiResponseError as exc:
                 if exc.status_code == 404:
                     raise JobNotFoundException(job_id=job_id) from exc
@@ -218,14 +254,23 @@ class ElasticJobRegistryV2(ElasticJobRegistry):
         parameters = {"user_id": user_id}
         if limit is None:
             return self._collect_jobs("user", parameters, fields=fields)
+        if limit < 1:
+            raise OpenEOApiException(
+                message=f"Invalid page size {limit!r}: must be at least 1.",
+                code="InvalidPagination",
+                status_code=400,
+            )
+        # openEO allows returning fewer items than the requested limit.
+        limit = min(limit, self._MAX_PAGE_SIZE)
         cursor = (request_parameters or {}).get(self.PAGINATION_URL_PARAM)
-        page = self._list_jobs(
-            "user",
-            parameters,
-            fields=fields,
-            limit=limit,
-            next_page=json.loads(cursor) if cursor is not None else None,
-        )
+        next_page = self._parse_cursor(cursor) if cursor is not None else None
+        try:
+            page = self._list_jobs("user", parameters, fields=fields, limit=limit, next_page=next_page)
+        except EjrApiResponseError as exc:
+            if exc.status_code == 400 and next_page is not None:
+                # EJR rejected the (client-provided) continuation
+                raise self._invalid_cursor() from exc
+            raise
         next_page = page.get("next_page")
         return JobListing(
             jobs=[ejr_job_info_to_metadata(job, full=False) for job in page["jobs"]],
@@ -235,6 +280,28 @@ class ElasticJobRegistryV2(ElasticJobRegistry):
                 else None
             ),
         )
+
+    @classmethod
+    def _invalid_cursor(cls) -> OpenEOApiException:
+        return OpenEOApiException(
+            message=f"Invalid pagination parameter {cls.PAGINATION_URL_PARAM!r}.",
+            code="InvalidPagination",
+            status_code=400,
+        )
+
+    def _parse_cursor(self, cursor: str) -> dict:
+        """Parse (client-provided) cursor URL parameter into a jobs-v2 `next_page` continuation."""
+        try:
+            next_page = json.loads(cursor)
+        except (TypeError, ValueError):
+            raise self._invalid_cursor() from None
+        if not (
+            isinstance(next_page, dict)
+            and isinstance(next_page.get("as_of"), str)
+            and isinstance(next_page.get("position"), dict)
+        ):
+            raise self._invalid_cursor()
+        return next_page
 
     def list_active_jobs(
         self,
