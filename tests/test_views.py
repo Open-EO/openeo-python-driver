@@ -4337,10 +4337,9 @@ class TestBatchJobs:
     @pytest.mark.parametrize(
         ["params", "expected_ids"],
         [
-            ({}, ["1", "2"]),
-            ({"audience": "user"}, ["1"]),
-            ({"audience": "developer"}, ["2"]),
-            ({"audience": "all"}, ["1", "2"]),
+            ({}, ["1", "3"]),
+            ({"audience": "user"}, ["1", "3"]),
+            ({"audience": "developer"}, ["1", "2", "3"]),
         ],
     )
     def test_get_batch_job_logs_audience(self, api, params, expected_ids):
@@ -4348,6 +4347,7 @@ class TestBatchJobs:
             "07024ee9-7847-4b8a-b260-6c879a2b3cdc": [
                 {"id": "1", "level": "info", "message": "for users", "audience": "user"},
                 {"id": "2", "level": "info", "message": "for devs", "audience": "developer"},
+                {"id": "3", "level": "info", "message": "untagged"},
             ]
         }
         with self._fresh_job_registry():

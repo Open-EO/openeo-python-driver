@@ -728,8 +728,9 @@ class BatchJobs(MicroService):
         """
         https://openeo.org/documentation/1.0/developers/api/reference.html#operation/debug-job
 
-        :param audience: (non-standard) only return logs for this audience (e.g. "user", "developer" or "all").
-            Semantics and default (`None`) are backend-specific.
+        :param audience: (non-standard) only return logs for this audience (e.g. "user" or "developer").
+            Recommended semantics: "user" (default) returns user-facing logs and logs without audience;
+            "developer" returns all logs.
         """
         raise NotImplementedError
 

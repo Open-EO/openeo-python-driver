@@ -1063,7 +1063,7 @@ class DummyBatchJobs(BatchJobs):
                 actual_level = normalize_log_level(log.get("level"))
                 if actual_level < requested_level:
                     continue
-                if audience and audience != "all" and log.get("audience", audience) != audience:
+                if (audience or "user") == "user" and log.get("audience", "user") != "user":
                     continue
                 yield {k: v for k, v in log.items() if k != "audience"}
             elif isinstance(log, Exception):
